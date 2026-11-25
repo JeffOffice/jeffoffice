@@ -9,13 +9,18 @@
 #include <QDomDocument>
 #include <QPaintDevice>
 #include <QPainter>
+#include <QPointer>
 #include <QRegularExpression>
 #include <QTextBlock>
+#include <QTextBoundaryFinder>
 #include <QTextDocument>
 #include <QTransform>
 #include <algorithm>
+#include <atomic>
+#include <deque>
 #include <cmath>
 #include <limits>
+#include <mutex>
 
 namespace jp::deck {
 
@@ -463,10 +468,11 @@ void collectEffects(const QDomElement &childTnLst, double base, QVector<Effect> 
             if (const QDomElement iterate = pChild(cTn, "iterate"); !iterate.isNull()) {
                 const QString type = attr(iterate, QStringLiteral("type"));
                 e.iterate = type == QLatin1String("wd") ? 1 : type == QLatin1String("lt") ? 2 : 0;
-                if (const QDomElement pct = pChild(iterate, "tmPct"); !pct.isNull()) e.iteratePct = std::clamp(numberOr(attr(pct, QStringLiteral("val")), 10000) / 100000, 0.0, 10.0);
-                else if (const QDomElement ms = pChild(iterate, "tmAbs"); !ms.isNull()) e.iterateMs = std::clamp(numberOr(attr(ms, QStringLiteral("val")), 0), 0.0, 60000.0);
+                if (const QDomElement pct = pChild(iterate, "tmPct"); !pct.isNull()) e.iteratePct = std::clamp(numberOr(attr(pct, QStringLiteral("val")), 10000) / 100000, 0.0, 1.0);
+                else if (const QDomElement ms = pChild(iterate, "tmAbs"); !ms.isNull()) e.iterateMs = std::clamp(numberOr(attr(ms, QStringLiteral("val")), 0), 0.0, kMaxIterateMs);
             }
             collectBehaviors(pChild(cTn, "childTnLst"), begin, e);
+            if (e.behaviors.size() > kMaxEffectBehaviors) e.behaviors.resize(kMaxEffectBehaviors);   // the rest stays in the file, unplayed
             // What the effect says of its whole run: it plays that many times, takes its work with it when it
             // ends, and speeds up and slows down (each behavior does, unless it says otherwise).
             const QString count = attr(cTn, QStringLiteral("repeatCount"));
@@ -501,24 +507,15 @@ void collectEffects(const QDomElement &childTnLst, double base, QVector<Effect> 
                     e.behaviors.push_back(b);
                 }
             }
-            // Or dims it to a color when it ends (an animClr that goes with the effect's end).
+            // Or dims it to a color at the next click (an animClr of the color property, as the program writes it).
             for (const QDomElement &clr : pChildren(pChild(cTn, "subTnLst"), "animClr")) {
                 const QDomElement bhvr = pChild(clr, "cBhvr");
                 const QDomElement hold = pChild(bhvr, "cTn");
-                if (attr(hold, QStringLiteral("masterRel")) != QLatin1String("sameClick")) continue;
+                if (attr(hold, QStringLiteral("masterRel")) != QLatin1String("nextClick") || pChild(pChild(bhvr, "attrNameLst"), "attrName").text().trimmed() != QLatin1String("ppt_c")) continue;
                 const QString color = dimColorFromXml(pChild(clr, "to"));
-                const auto first = std::find_if(e.behaviors.cbegin(), e.behaviors.cend(), [](const Behavior &b) { return b.target.shape > 0 && playsBehavior(b); });
-                if (color.isEmpty() || first == e.behaviors.cend()) continue;
-                Behavior b;
-                b.kind = Behavior::Kind::Color;
-                b.target = first->target;
-                b.attribute = QStringLiteral("dim");
-                b.to = color;
-                b.timing.begin = e.end();
-                b.timing.duration = 1;
-                b.timing.hold = true;
-                b.afterwards = true;
-                e.behaviors.push_back(b);
+                if (color.isEmpty()) continue;
+                e.dimOnNextClick = color;
+                break;
             }
             out.push_back(e);
         } else {
@@ -535,6 +532,7 @@ void readSequence(const QDomElement &seq, Timeline &tl, int depth)
     if (nodeType == QLatin1String("mainSeq")) {
         if (!tl.steps.isEmpty()) return;
         QVector<Target> hideNext;
+        QVector<std::pair<Target, QString>> dimNext;
         for (const QDomElement &par : pChildren(list, "par")) {
             const QDomElement stepNode = pChild(par, "cTn");
             Step step;
@@ -559,6 +557,30 @@ void readSequence(const QDomElement &seq, Timeline &tl, int depth)
                 step.effects.push_back(hide);
             }
             hideNext.clear();
+            // Shapes the step before said to dim at this click are dimmed the moment it starts.
+            for (const auto &d : std::as_const(dimNext)) {
+                Effect dim;
+                dim.cls = EffectClass::Emphasis;
+                dim.start = EffectStart::WithPrevious;
+                dim.implied = true;
+                Behavior b;
+                b.kind = Behavior::Kind::Color;
+                b.target = d.first;
+                b.attribute = QStringLiteral("dim");
+                b.to = d.second;
+                b.timing.duration = 1;
+                b.timing.hold = true;
+                dim.behaviors.push_back(b);
+                step.effects.push_back(dim);
+            }
+            dimNext.clear();
+            for (const Effect &e : std::as_const(step.effects))
+                if (!e.dimOnNextClick.isEmpty())
+                    for (const Behavior &b : e.behaviors)
+                        if (b.target.shape > 0 && b.attribute != QLatin1String("dim") && playsBehavior(b)) {
+                            dimNext.push_back({b.target, e.dimOnNextClick});
+                            break;
+                        }
             for (const Effect &e : std::as_const(step.effects))
                 if (e.hideOnNextClick)
                     for (const Behavior &b : e.behaviors)
@@ -1110,27 +1132,32 @@ void armTriggers(Timeline &tl, const QSet<int> &clickable)
     for (int i = 0; i < n; ++i) tl.triggers[i].hides = reached[i];
 }
 
-QVector<TextPiece> textPieces(const QTextDocument &story, int firstParagraph, int lastParagraph, int build)
+namespace {
+
+// A story cut into pieces, by the text's own walk.
+QVector<TextPiece> cutIntoPieces(const QTextDocument &story, int firstParagraph, int lastParagraph, int build)
 {
     constexpr int kMaxUnits = 200000;
     QVector<TextPiece> units;
     int index = 0;
     for (QTextBlock b = story.begin(); b.isValid() && units.size() < kMaxUnits; b = b.next(), ++index) {
-        if (firstParagraph >= 0 && (index < firstParagraph || index > lastParagraph)) continue;
+        if (firstParagraph >= 0 && index > lastParagraph) break;
+        if (firstParagraph >= 0 && index < firstParagraph) continue;
         const QString text = b.text();
+        // A letter is what a reader sees as one: a base letter with its marks, a joined emoji, a pair of surrogates.
+        QTextBoundaryFinder letters(QTextBoundaryFinder::Grapheme, text);
         int i = 0;
         while (i < text.size() && units.size() < kMaxUnits) {
-            if (text[i].isSpace()) {
-                ++i;
-                continue;
-            }
             int j = i + 1;
             if (build == 1) {
-                while (j < text.size() && !text[j].isSpace()) ++j;
-            } else if (text[i].isHighSurrogate() && j < text.size() && text[j].isLowSurrogate()) {
-                ++j;
+                if (!text[i].isSpace())
+                    while (j < text.size() && !text[j].isSpace()) ++j;
+            } else {
+                letters.setPosition(i);
+                const int next = letters.toNextBoundary();
+                if (next > i) j = next;
             }
-            units.push_back(TextPiece{b.position() + i, b.position() + j});
+            if (!text[i].isSpace()) units.push_back(TextPiece{b.position() + i, b.position() + j});
             i = j;
         }
     }
@@ -1140,6 +1167,37 @@ QVector<TextPiece> textPieces(const QTextDocument &story, int firstParagraph, in
     const int size = int((units.size() + kMaxTextPieces - 1) / kMaxTextPieces);
     for (int i = 0; i < units.size(); i += size) groups.push_back(TextPiece{units[i].from, units[std::min<int>(i + size, int(units.size())) - 1].to});
     return groups;
+}
+
+// The last few cuts, so that painting a frame does not walk the story again: a cut is good while its story has the same revision.
+struct CutEntry {
+    QPointer<const QTextDocument> story;
+    int revision = 0, first = 0, last = 0, build = 0;
+    QVector<TextPiece> pieces;
+};
+std::mutex g_cutLock;
+std::deque<CutEntry> g_cuts;
+std::atomic<qint64> g_cutWalks{0};
+
+} // namespace
+
+qint64 textPieceWalks() { return g_cutWalks.load(); }
+
+QVector<TextPiece> textPieces(const QTextDocument &story, int firstParagraph, int lastParagraph, int build)
+{
+    constexpr size_t kKept = 16;
+    const int revision = story.revision();
+    {
+        const std::lock_guard<std::mutex> lock(g_cutLock);
+        for (const CutEntry &c : g_cuts)
+            if (c.story == &story && c.revision == revision && c.first == firstParagraph && c.last == lastParagraph && c.build == build) return c.pieces;
+    }
+    QVector<TextPiece> pieces = cutIntoPieces(story, firstParagraph, lastParagraph, build);
+    ++g_cutWalks;
+    const std::lock_guard<std::mutex> lock(g_cutLock);
+    g_cuts.push_front(CutEntry{QPointer<const QTextDocument>(&story), revision, firstParagraph, lastParagraph, build, pieces});
+    while (g_cuts.size() > kKept) g_cuts.pop_back();
+    return pieces;
 }
 
 // ---- painting a page with the states ----
@@ -1358,10 +1416,24 @@ private:
             draw(p);
             return;
         }
+        QVector<StoryLayout::LineInfo> markers;
+        for (const StoryLayout::LineInfo &line : layout.lineInfo(frame))
+            if (line.markerX >= 0) markers.push_back(line);
         QVector<QVector<QRectF>> rects(pieces.size());
         QRectF all;
         for (qsizetype i = 0; i < pieces.size(); ++i) {
             rects[i] = layout.rangeRects(frame, pieces[i].from, pieces[i].to);
+            // A bullet or a number is its paragraph's first piece's: it shows with the first word (or letter).
+            const QTextBlock block = story.findBlock(pieces[i].from);
+            const bool first = i == 0 || story.findBlock(pieces[i - 1].from) != block;
+            if (first && !rects[i].isEmpty())
+                for (const StoryLayout::LineInfo &line : markers) {
+                    if (line.docStart != block.position()) continue;
+                    const QRectF text = rects[i].first();
+                    if (line.markerX < text.left()) rects[i].push_back(QRectF(line.markerX, line.rect.top(), text.left() - line.markerX, line.rect.height()));
+                    else rects[i].push_back(QRectF(text.right(), line.rect.top(), std::max(0.0, line.rect.right() - text.right()), line.rect.height()));
+                    break;
+                }
             for (const QRectF &r : std::as_const(rects[i])) all = all.united(r);
         }
         const QPaintDevice *device = p->device();

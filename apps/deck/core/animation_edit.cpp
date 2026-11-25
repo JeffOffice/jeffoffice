@@ -563,11 +563,10 @@ QString effectXml(const Anim &a, int grpId, bool placeholder, Ids *ids)
     QString after;
     const QString dim = a.after == AfterEffect::Dim ? dimColorToXml(a.dimColor) : QString();
     if (!dim.isEmpty()) {
-        // Dimmed when the effect ends: its color, for the shape's text and for its fill.
-        after = QStringLiteral("<p:subTnLst><p:animClr clrSpc=\"rgb\" dir=\"cw\"><p:cBhvr override=\"childStyle\"><p:cTn dur=\"1\" fill=\"hold\" display=\"0\" masterRel=\"sameClick\" afterEffect=\"1\">"
-                               "<p:stCondLst><p:cond evt=\"end\" delay=\"0\"><p:tn val=\"%1\"/></p:cond></p:stCondLst></p:cTn>%2"
-                               "<p:attrNameLst><p:attrName>style.color</p:attrName><p:attrName>fillcolor</p:attrName></p:attrNameLst></p:cBhvr><p:to>%3</p:to></p:animClr></p:subTnLst>")
-                    .arg(id).arg(targetXml(a), dim);
+        // Dimmed at the next click, as the program writes it: the shape's color animated to the dim color.
+        after = QStringLiteral("<p:subTnLst><p:animClr clrSpc=\"rgb\" dir=\"cw\"><p:cBhvr override=\"childStyle\"><p:cTn dur=\"1\" fill=\"hold\" display=\"0\" masterRel=\"nextClick\" afterEffect=\"1\"/>%1"
+                               "<p:attrNameLst><p:attrName>ppt_c</p:attrName></p:attrNameLst></p:cBhvr><p:to>%2</p:to></p:animClr></p:subTnLst>")
+                    .arg(targetXml(a), dim);
     } else if (a.after == AfterEffect::Hide || a.after == AfterEffect::HideOnNextClick) {
         const bool next = a.after == AfterEffect::HideOnNextClick;
         const QString cTn = QStringLiteral("<p:cTn dur=\"1\" fill=\"hold\" display=\"0\" masterRel=\"%1\" afterEffect=\"1\"").arg(next ? QStringLiteral("nextClick") : QStringLiteral("sameClick"))

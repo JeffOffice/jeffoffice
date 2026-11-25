@@ -2,6 +2,8 @@
 #include "deckhelpers.h"
 #include "app/theme.h"
 #include "core/effectmask.h"
+#include "core/chartobject.h"
+#include "sheet/chartedit.h"
 
 #include <QInputDialog>
 #include <QListView>
@@ -1957,8 +1959,9 @@ private Q_SLOTS:
         QVERIFY(!exit.findChild<QComboBox *>(QStringLiteral("animAfter"))->isEnabled());
     }
 
-    // After Animation: dim to a color. It is written as an animClr that goes with the effect's end (a plain srgbClr or schemeClr color), reads back as
-    // the same effect (not a kept one), plays as a tint that comes when the effect ends, and shows in the picture. A color with a transform is a kept effect.
+    // After Animation: dim to a color. It is written as the reference program writes it (an animClr of the color property, dimming at the next click, with a
+    // plain srgbClr or schemeClr color), reads back as the same effect (not a kept one), plays as a tint that comes at the next click, and shows in the picture.
+    // A color with a transform is a kept effect.
     // Fails when off: yes (with the dim not read back, the effect is kept as written and has no dim).
     void animationEditDimsAfterAnEffect()
     {
@@ -1981,15 +1984,16 @@ private Q_SLOTS:
         b.dimColor = accent;
         seq.add(a);
         seq.add(b);
+        seq.add(deck::makeAnim(QStringLiteral("emph.spin"), 3));
         deck::setAnimations(*d, slide, seq);
         const QString xml = slide.props.value(QStringLiteral("timingXml")).toString();
-        QVERIFY(xml.contains(QStringLiteral("<p:subTnLst><p:animClr clrSpc=\"rgb\" dir=\"cw\"><p:cBhvr override=\"childStyle\"><p:cTn dur=\"1\" fill=\"hold\" display=\"0\" masterRel=\"sameClick\" afterEffect=\"1\">"
-                                            "<p:stCondLst><p:cond evt=\"end\" delay=\"0\"><p:tn val=\"5\"/></p:cond></p:stCondLst></p:cTn>")));
-        QVERIFY(xml.contains(QStringLiteral("<p:attrNameLst><p:attrName>style.color</p:attrName><p:attrName>fillcolor</p:attrName></p:attrNameLst></p:cBhvr><p:to><a:srgbClr val=\"336699\"/></p:to></p:animClr>")));
+        QVERIFY(xml.contains(QStringLiteral("<p:subTnLst><p:animClr clrSpc=\"rgb\" dir=\"cw\"><p:cBhvr override=\"childStyle\"><p:cTn dur=\"1\" fill=\"hold\" display=\"0\" masterRel=\"nextClick\" afterEffect=\"1\"/>"
+                                            "<p:tgtEl><p:spTgt spid=\"")));
+        QVERIFY(xml.contains(QStringLiteral("<p:attrNameLst><p:attrName>ppt_c</p:attrName></p:attrNameLst></p:cBhvr><p:to><a:srgbClr val=\"336699\"/></p:to></p:animClr>")));
         QVERIFY(xml.contains(QStringLiteral("<p:to><a:schemeClr val=\"accent2\"/></p:to>")));
         // It reads back as the same two effects, each still one JeffDeck made.
         const deck::AnimSequence back = deck::readAnimations(slide);
-        QCOMPARE(int(back.effects.size()), 2);
+        QCOMPARE(int(back.effects.size()), 3);
         QVERIFY(!back.effects[0].custom() && !back.effects[1].custom());
         QCOMPARE(back.effects[0].after, deck::AfterEffect::Dim);
         QCOMPARE(back.effects[0].dimColor, blue);
@@ -2003,12 +2007,14 @@ private Q_SLOTS:
         slide.props[QStringLiteral("timingXml")] = lumped;
         QVERIFY(deck::readAnimations(slide).effects[0].custom());
         slide.props[QStringLiteral("timingXml")] = xml;
-        // Played: no tint while the effect plays, the color when it ends, and a theme color as the theme has it.
+        // Played: no tint while the effect plays or until the next click, the color then, and a theme color as the theme has it.
         const deck::Timeline tl = deck::playableTimeline(slide);
         const deck::Geometry g = deck::geometryOf(*d, slide);
         QVERIFY(deck::statesAt(tl, g, 0, 500).value(deck::Target{7}).tint.isEmpty());
-        QCOMPARE(deck::statesAt(tl, g, 1, -1).value(deck::Target{7}).tint, blue);
-        QCOMPARE(deck::statesAt(tl, g, 2, -1).value(deck::Target{3}).tint, accent);
+        QVERIFY(deck::statesAt(tl, g, 1, -1).value(deck::Target{7}).tint.isEmpty());
+        QCOMPARE(deck::statesAt(tl, g, 2, -1).value(deck::Target{7}).tint, blue);
+        QVERIFY(deck::statesAt(tl, g, 2, -1).value(deck::Target{3}).tint.isEmpty());
+        QCOMPARE(deck::statesAt(tl, g, 3, -1).value(deck::Target{3}).tint, accent);
         QVERIFY(deck::statesAt(tl, g, 0, -1).value(deck::Target{7}).tint.isEmpty());
         // Painted: the box is its own color, then (7 parts in 10) the dim color.
         LayoutCache cache;
@@ -2018,7 +2024,8 @@ private Q_SLOTS:
         };
         auto middle = [](const QImage &img) { return img.pixelColor(660, 420); };
         QCOMPARE(middle(frame(0)), QColor(Qt::white));   // not in yet
-        const QColor dimmed = middle(frame(1));
+        QCOMPARE(middle(frame(1)), QColor(200, 60, 40));   // in, and not dimmed before the next click
+        const QColor dimmed = middle(frame(2));
         QVERIFY2(qAbs(dimmed.red() - qRound(200 * 0.3 + 0x33 * 0.7)) <= 3 && qAbs(dimmed.green() - qRound(60 * 0.3 + 0x66 * 0.7)) <= 3 && qAbs(dimmed.blue() - qRound(40 * 0.3 + 0x99 * 0.7)) <= 3, qPrintable(dimmed.name()));
         // The pane's box gives the color back, and a tinted theme color is changed to the color it shows (the file has no form for it).
         AnimationOptionsDialog dlg(back.effects[0], false, AnimationOptionsDialog::EffectTab, nullptr, d->colors);
@@ -2035,6 +2042,152 @@ private Q_SLOTS:
         after->setCurrentIndex(after->findData(int(deck::AfterEffect::HideOnNextClick)));
         QVERIFY(!color->isEnabled());
         QCOMPARE(dlg.result().after, deck::AfterEffect::HideOnNextClick);
+    }
+
+    // What the reference program itself writes for a dim (a shape's Appear, dimmed to plain red, and one dimmed to a theme color), as that program wrote it:
+    // read as an editable dim with the color, played at the next click, and written again as the same bytes. Fails when off: yes (with the old form of the dim,
+    // the reference's effects are kept as written and have no dim).
+    void animationReadsTheReferenceDim()
+    {
+        auto d = showDeck(1);
+        Page &slide = *d->pages[0];
+        numberShowShapes(slide);
+        auto effect = [](int id, int spid, const char *color) {
+            return animXml("<p:par><p:cTn id='%1' fill='hold'><p:stCondLst><p:cond delay='indefinite'/></p:stCondLst><p:childTnLst><p:par><p:cTn id='%2' fill='hold'><p:stCondLst><p:cond delay='0'/></p:stCondLst><p:childTnLst>"
+                           "<p:par><p:cTn id='%3' presetID='1' presetClass='entr' presetSubtype='0' fill='hold' grpId='0' nodeType='clickEffect'><p:stCondLst><p:cond delay='0'/></p:stCondLst><p:childTnLst>"
+                           "<p:set><p:cBhvr><p:cTn id='%4' dur='1' fill='hold'><p:stCondLst><p:cond delay='0'/></p:stCondLst></p:cTn><p:tgtEl><p:spTgt spid='%5'/></p:tgtEl><p:attrNameLst><p:attrName>style.visibility</p:attrName></p:attrNameLst></p:cBhvr><p:to><p:strVal val='visible'/></p:to></p:set>"
+                           "</p:childTnLst><p:subTnLst><p:animClr clrSpc='rgb' dir='cw'><p:cBhvr override='childStyle'><p:cTn dur='1' fill='hold' display='0' masterRel='nextClick' afterEffect='1'/><p:tgtEl><p:spTgt spid='%5'/></p:tgtEl>"
+                           "<p:attrNameLst><p:attrName>ppt_c</p:attrName></p:attrNameLst></p:cBhvr><p:to>%6</p:to></p:animClr></p:subTnLst></p:cTn></p:par></p:childTnLst></p:cTn></p:par></p:childTnLst></p:cTn></p:par>")
+                .arg(id).arg(id + 1).arg(id + 2).arg(id + 3).arg(spid).arg(QString::fromLatin1(color));
+        };
+        const QString timing = animTiming(effect(3, 2, "<a:srgbClr val='FF0000'/>") + effect(7, 3, "<a:schemeClr val='accent1'/>") + animSteps({animFadeIn(2, 500)}))
+                                   .replace(QStringLiteral("<p:timing "), QStringLiteral("<p:timing xmlns:a='http://schemas.openxmlformats.org/drawingml/2006/main' ").replace(QLatin1Char('\''), QLatin1Char('"')));
+        slide.props[QStringLiteral("timingXml")] = timing;
+        const deck::AnimSequence seq = deck::readAnimations(slide);
+        QCOMPARE(int(seq.effects.size()), 3);
+        QVERIFY(!seq.effects[0].custom() && !seq.effects[1].custom());
+        QCOMPARE(seq.effects[0].after, deck::AfterEffect::Dim);
+        QCOMPARE(seq.effects[0].dimColor, ColorRef::rgb(QColor(255, 0, 0)).toString());
+        QCOMPARE(seq.effects[1].dimColor, ColorRef::scheme(Accent1).toString());
+        // Written again, the dim is the reference's, byte for byte.
+        deck::setAnimations(*d, slide, seq);
+        const QString written = slide.props.value(QStringLiteral("timingXml")).toString();
+        QVERIFY(written.contains(QStringLiteral("</p:childTnLst><p:subTnLst><p:animClr clrSpc=\"rgb\" dir=\"cw\"><p:cBhvr override=\"childStyle\"><p:cTn dur=\"1\" fill=\"hold\" display=\"0\" masterRel=\"nextClick\" afterEffect=\"1\"/>"
+                                             "<p:tgtEl><p:spTgt spid=\"2\"/></p:tgtEl><p:attrNameLst><p:attrName>ppt_c</p:attrName></p:attrNameLst></p:cBhvr><p:to><a:srgbClr val=\"FF0000\"/></p:to></p:animClr></p:subTnLst>")));
+        QVERIFY(written.contains(QStringLiteral("<p:to><a:schemeClr val=\"accent1\"/></p:to>")));
+        // Played: red once the next click comes, and the theme color after the one after.
+        slide.props[QStringLiteral("timingXml")] = timing;
+        const deck::Timeline tl = deck::playableTimeline(slide);
+        const deck::Geometry g = deck::geometryOf(*d, slide);
+        QVERIFY(deck::statesAt(tl, g, 1, -1).value(deck::Target{2}).tint.isEmpty());
+        QCOMPARE(deck::statesAt(tl, g, 2, -1).value(deck::Target{2}).tint, ColorRef::rgb(QColor(255, 0, 0)).toString());
+        QCOMPARE(deck::statesAt(tl, g, 3, -1).value(deck::Target{3}).tint, ColorRef::scheme(Accent1).toString());
+        // The old guess (a dim that ends with the effect) is not a dim: it is kept as written and not played.
+        QString old = timing;
+        old.replace(QStringLiteral("masterRel=\"nextClick\""), QStringLiteral("masterRel=\"sameClick\""));
+        slide.props[QStringLiteral("timingXml")] = old;
+        QVERIFY(deck::readAnimations(slide).effects[0].custom());
+        QVERIFY(deck::statesAt(deck::playableTimeline(slide), g, 3, -1).value(deck::Target{2}).tint.isEmpty());
+    }
+
+    // A letter is what a reader sees as one letter: a base with its accent, a joined family emoji, a pair of surrogates, Hangul, Thai with its marks, a
+    // Devanagari conjunct; right-to-left text goes in the order it is read. Fails when off: yes (with letters cut at code units, each of these is more pieces).
+    void animationTextLettersAreClusters()
+    {
+        QTextDocument story;
+        auto letters = [&](const QString &text) {
+            story.setPlainText(text);
+            return deck::textPieces(story, -1, -1, 2);
+        };
+        QCOMPARE(int(letters(QStringLiteral("é")).size()), 1);
+        QCOMPARE(int(letters(QStringLiteral("a é b")).size()), 3);
+        QCOMPARE(int(letters(QString::fromUtf8("\xF0\x9F\x91\xA8\xE2\x80\x8D\xF0\x9F\x91\xA9\xE2\x80\x8D\xF0\x9F\x91\xA7\xE2\x80\x8D\xF0\x9F\x91\xA6")).size()), 1);   // a joined family
+        QCOMPARE(int(letters(QString::fromUtf8("\xF0\x9F\x98\x80\xF0\x9F\x98\x80")).size()), 2);   // two surrogate pairs
+        QCOMPARE(int(letters(QString::fromUtf8("\xED\x95\x9C\xEA\xB8\x80")).size()), 2);   // Hangul syllables
+        QCOMPARE(int(letters(QString::fromUtf8("\xE1\x84\x92\xE1\x85\xA1\xE1\x86\xAB")).size()), 1);   // a Hangul syllable as its three jamo
+        QCOMPARE(int(letters(QString::fromUtf8("\xE0\xB8\x99\xE0\xB9\x89\xE0\xB8\xB3")).size()), 1);   // Thai: a consonant with a tone mark and a vowel sign
+        QCOMPARE(int(letters(QString::fromUtf8("\xE0\xB8\xAA\xE0\xB8\xA7\xE0\xB8\xB1\xE0\xB8\xAA\xE0\xB8\x94\xE0\xB8\xB5")).size()), 4);   // Thai: six code points, four letters
+        QCOMPARE(int(letters(QString::fromUtf8("\xE0\xA4\x95\xE0\xA5\x8D\xE0\xA4\xB7")).size()), 1);   // Devanagari ka + virama + ssa
+        // Hebrew: the first piece is the first letter read (the piece before is never after it).
+        const QString hebrew = QString::fromUtf8("\xD7\xA9\xD7\x9C\xD7\x95\xD7\x9D");
+        const QVector<deck::TextPiece> rtl = letters(hebrew);
+        QCOMPARE(int(rtl.size()), 4);
+        for (qsizetype i = 0; i < rtl.size(); ++i) QCOMPARE(story.toPlainText().mid(rtl[i].from, rtl[i].to - rtl[i].from), hebrew.mid(int(i), 1));
+        // By word, spaces still belong to no piece.
+        story.setPlainText(QStringLiteral("one  two\nthree"));
+        QCOMPARE(int(deck::textPieces(story, -1, -1, 1).size()), 3);
+    }
+
+    // A story is cut once for as many frames as are painted of it, and again when its text changes (even to a text as long as the one before). Counted:
+    // one walk for 100 frames. Fails when off: yes (with no kept cut, every frame walks).
+    void animationTextCutsAreKept()
+    {
+        auto d = showDeck(1);
+        Page &slide = *d->pages[0];
+        numberShowShapes(slide);
+        QTextDocument *story = d->storyDoc(static_cast<TextItem *>(slide.items[0].get())->storyId);
+        story->setPlainText(QStringLiteral("one two"));
+        deck::AnimSequence seq;
+        deck::Anim a = deck::makeAnim(QStringLiteral("entr.fade"), 2);
+        a.duration = 1000;
+        a.textBuild = deck::TextBuild::ByWord;
+        seq.add(a);
+        deck::setAnimations(*d, slide, seq);
+        const deck::Timeline tl = deck::playableTimeline(*d, slide);
+        const deck::Geometry g = deck::geometryOf(*d, slide);
+        LayoutCache cache;
+        auto frame = [&](double ms) {
+            const deck::States states = deck::statesAt(tl, g, 0, ms);
+            return paintedSlide(d.get(), &cache, 0, [&](PaintContext &ctx) { deck::animate(ctx, *d, states); });
+        };
+        frame(300);   // (the first one cuts)
+        const qint64 before = deck::textPieceWalks();
+        for (int i = 0; i < 100; ++i) frame(100 + 8 * i);
+        QCOMPARE(deck::textPieceWalks(), before);
+        // A text as long as the one before, with its words in other places, is cut again.
+        QCOMPARE(int(deck::textPieces(*story, -1, -1, 1).size()), 2);
+        story->setPlainText(QStringLiteral("abcdefg"));
+        QCOMPARE(int(deck::textPieces(*story, -1, -1, 1).size()), 1);
+        story->setPlainText(QStringLiteral("ab cdef"));
+        QCOMPARE(int(deck::textPieces(*story, -1, -1, 1).size()), 2);
+        QVERIFY(deck::textPieceWalks() > before);
+    }
+
+    // What a file can multiply is bounded where it is read: the wait between two pieces of a text is at most 100% of the effect (a file saying 1000% plays as
+    // 100%) or 5 seconds when it says so in time; an effect plays at most 64 behaviors; and 5,000 color animations give an effect one dim, not 5,000.
+    // Fails when off: yes (the numbers asserted are the caps).
+    void animationHostileTextAndColorsAreBounded()
+    {
+        const QString head = animXml("<p:par><p:cTn id='3' presetID='10' presetClass='entr' presetSubtype='0' fill='hold' nodeType='clickEffect'><p:stCondLst><p:cond delay='0'/></p:stCondLst>");
+        auto clr = [](const QString &name, const char *color = "336699") {
+            return animXml("<p:animClr clrSpc='rgb' dir='cw'><p:cBhvr override='childStyle'><p:cTn dur='1' fill='hold' display='0' masterRel='nextClick' afterEffect='1'/><p:tgtEl><p:spTgt spid='2'/></p:tgtEl>"
+                           "<p:attrNameLst><p:attrName>%1</p:attrName></p:attrNameLst></p:cBhvr><p:to><a:srgbClr val='%2'/></p:to></p:animClr>").arg(name, QString::fromLatin1(color));
+        };
+        auto timing = [&](const QString &iterate, const QString &children, const QString &sub) {
+            return animTiming(animStep({animGroup(0, {head + iterate + animXml("<p:childTnLst>") + animShow(2, true) + animFilter(2, "fade", true, 1000) + children + animXml("</p:childTnLst>") + sub + animXml("</p:cTn></p:par>")})}) + animSteps({animFadeIn(3, 100)}))
+                .replace(QStringLiteral("<p:timing "), QStringLiteral("<p:timing xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\" "));
+        };
+        // 1000%: four words, and the effect is no longer than with 100%.
+        const deck::Timeline wide = deck::readTimeline(timing(animXml("<p:iterate type='wd'><p:tmPct val='1000000'/></p:iterate>"), QString(), QString()));
+        QCOMPARE(wide.steps[0].effects[0].iteratePct, 1.0);
+        const deck::Timeline absolute = deck::readTimeline(timing(animXml("<p:iterate type='lt'><p:tmAbs val='3600000'/></p:iterate>"), QString(), QString()));
+        QCOMPARE(absolute.steps[0].effects[0].iterateMs, deck::kMaxIterateMs);
+        // 5,000 dims in the sub-timeline and 5,000 color animations among the behaviors: one dim, and at most 64 behaviors.
+        QString many, manySub;
+        for (int i = 0; i < 5000; ++i) {
+            many += clr(QStringLiteral("dim"));
+            manySub += clr(QStringLiteral("ppt_c"), i == 0 ? "336699" : "FF0000");
+        }
+        const deck::Timeline hostile = deck::readTimeline(timing(QString(), many, QStringLiteral("<p:subTnLst>") + manySub + QStringLiteral("</p:subTnLst>")));
+        QCOMPARE(int(hostile.steps[0].effects[0].behaviors.size()), int(deck::kMaxEffectBehaviors));
+        QCOMPARE(int(hostile.steps[1].effects.size()), 2);   // the step after has its own effect and the one implied dim
+        int dims = 0;
+        for (const deck::Effect &e : hostile.steps[1].effects)
+            for (const deck::Behavior &b : e.behaviors) dims += b.attribute == QLatin1String("dim") ? 1 : 0;
+        QCOMPARE(dims, 1);
+        for (const deck::Effect &e : hostile.steps[1].effects)
+            for (const deck::Behavior &b : e.behaviors)
+                if (b.attribute == QLatin1String("dim")) QCOMPARE(b.to, ColorRef::rgb(QColor(0x33, 0x66, 0x99)).toString());   // the first usable one
     }
 
     // Animate Text: by word or by letter, a piece after the piece before (a percent of the effect's length later). It is written as an iterate
@@ -2218,6 +2371,201 @@ private Q_SLOTS:
         }
     }
 
+    // A bullet or a number is its paragraph's first word's (or first letter's): while that piece is not in, no mark of the paragraph shows to the left of the text, and
+    // while it is, the bullet does. Fails when off: yes (with the bullet painted as it is, it shows before its word).
+    void animationTextBulletComesWithTheFirstWord()
+    {
+        for (const int build : {1, 2}) {
+            auto d = showDeck(1);
+            Page &slide = *d->pages[0];
+            numberShowShapes(slide);
+            QTextDocument *story = d->storyDoc(static_cast<TextItem *>(slide.items[1].get())->storyId);
+            story->setPlainText(QStringLiteral("alpha beta gamma"));
+            QTextCursor c(story->begin());
+            QTextBlockFormat bf = c.blockFormat();
+            bf.setLeftMargin(30);
+            bf.setTextIndent(-24);
+            c.setBlockFormat(bf);
+            QTextListFormat lf;
+            lf.setStyle(QTextListFormat::ListDisc);
+            lf.setProperty(tp::BulletChar, QString(QChar(0x25CF)));
+            lf.setProperty(tp::BulletFont, QStringLiteral("Arial"));
+            c.createList(lf);
+            const QVector<deck::TextPiece> pieces = deck::textPieces(*story, -1, -1, build);
+            QVERIFY(pieces.size() >= 3);
+            LayoutCache cache;
+            auto leftmost = [&](const deck::States &states) {
+                const QImage img = paintedSlide(d.get(), &cache, 0, [&](PaintContext &ctx) { deck::animate(ctx, *d, states); });
+                const QRect box = slide.items[1]->rect.toAlignedRect().intersected(img.rect());
+                for (int x = box.left(); x <= box.right(); ++x)
+                    for (int y = box.top(); y <= box.bottom(); ++y)
+                        if (qGray(img.pixel(x, y)) < 200) return x;
+                return 100000;
+            };
+            auto only = [&](int visibleFrom) {
+                deck::TargetState st;
+                st.textBuild = build;
+                st.pieces = QVector<deck::PieceState>(pieces.size());
+                for (int i = 0; i < pieces.size(); ++i) st.pieces[i].visible = i >= visibleFrom;
+                deck::States states;
+                states.insert(deck::Target{3}, st);
+                return states;
+            };
+            const int whole = leftmost(deck::States());   // the bullet, then the text
+            const int bullet = leftmost(only(0));
+            const int afterFirst = leftmost(only(1));
+            QCOMPARE(bullet, whole);
+            QVERIFY2(afterFirst >= whole + 5, qPrintable(QStringLiteral("build %1: %2 %3").arg(build).arg(whole).arg(afterFirst)));   // the bullet is not there yet
+        }
+    }
+
+    // An object a dim or another effect tints is tinted whatever it is: a picture, a group, a chart (a chart is a picture of a drawing), each a mix of its own
+    // colors and the dim color; going back to before the dim (or to another slide and back) has none of it. Fails when off: yes (with no tint, nothing differs).
+    void animationTintsPicturesGroupsAndCharts()
+    {
+        auto d = showDeck(1);
+        Page &slide = *d->pages[0];
+        numberShowShapes(slide);
+        auto pic = std::make_shared<PictureItem>();
+        QImage red(8, 8, QImage::Format_RGB32);
+        red.fill(QColor(200, 0, 0));
+        QByteArray png;
+        QBuffer buf(&png);
+        buf.open(QIODevice::WriteOnly);
+        red.save(&buf, "PNG");
+        pic->imageId = d->addImage(png, QStringLiteral("png"));
+        pic->rect = QRectF(40, 300, 100, 80);
+        pic->imgRect = QRectF(QPointF(0, 0), pic->rect.size());
+        pic->sourceId = 20;
+        auto inner = std::make_shared<ShapeItem>();
+        inner->rect = QRectF(200, 300, 100, 80);
+        inner->fill = Fill::solid(ColorRef::rgb(QColor(200, 0, 0)));
+        auto group = std::make_shared<GroupItem>();
+        group->children.push_back(inner);
+        group->syncRect();
+        group->sourceId = 21;
+        auto chart = jp::makeChartObject(*d, office::sheet::ChartForm::Column, office::sheet::sampleChartData(), QRectF(400, 280, 300, 220));
+        chart->sourceId = 22;
+        slide.items.push_back(pic);
+        slide.items.push_back(group);
+        slide.items.push_back(chart);
+        const QString blue = ColorRef::rgb(QColor(0, 0, 200)).toString();
+        // Each is dimmed by the click after the one that brings it in.
+        deck::AnimSequence seq;
+        for (const int id : {20, 21, 22}) {
+            deck::Anim a = deck::makeAnim(QStringLiteral("entr.fade"), id);
+            a.after = deck::AfterEffect::Dim;
+            a.dimColor = blue;
+            seq.add(a);
+        }
+        seq.add(deck::makeAnim(QStringLiteral("emph.spin"), 3));
+        deck::setAnimations(*d, slide, seq);
+        const deck::Timeline tl = deck::playableTimeline(*d, slide);
+        const deck::Geometry g = deck::geometryOf(*d, slide);
+        LayoutCache cache;
+        auto frame = [&](int done) {
+            const deck::States states = deck::statesAt(tl, g, done, -1);
+            return paintedSlide(d.get(), &cache, 0, [&](PaintContext &ctx) { deck::animate(ctx, *d, states); });
+        };
+        // Each is brought in by its click, and dimmed by the click after: the picture's step is 1, the group's 2, the chart's 3, and the spin is 4.
+        auto dimmedAt = [&](const QImage &img, int x, int y) {
+            const QColor c = img.pixelColor(x, y);
+            return qAbs(c.red() - qRound(200 * 0.3)) <= 3 && qAbs(c.blue() - qRound(200 * 0.7)) <= 3;
+        };
+        const QImage one = frame(1), two = frame(2), three = frame(3), four = frame(4);
+        QCOMPARE(one.pixelColor(90, 340), QColor(200, 0, 0));
+        QVERIFY(dimmedAt(two, 90, 340));                     // the picture, dimmed by the click that brings the group
+        QCOMPARE(two.pixelColor(250, 340), QColor(200, 0, 0));
+        QVERIFY(dimmedAt(three, 250, 340));                  // the group
+        QVERIFY(three.copy(400, 280, 300, 220) != two.copy(400, 280, 300, 220));   // (the chart is in)
+        QVERIFY(three.copy(400, 280, 300, 220) != four.copy(400, 280, 300, 220));  // the chart, dimmed by the spin's click
+        // The chart's own colors are mixed with the dim color, not replaced by it: the dimmed chart is still a picture of columns.
+        const QImage tinted = four.copy(400, 280, 300, 220);
+        QSet<QRgb> colors;
+        for (int y = 0; y < tinted.height(); ++y)
+            for (int x = 0; x < tinted.width(); ++x) colors.insert(tinted.pixel(x, y));
+        QVERIFY(colors.size() > 3);
+        // Back before the dim: as it was, every time through.
+        QCOMPARE(frame(1), one);
+        QCOMPARE(frame(3), three);
+        QCOMPARE(frame(0).pixelColor(90, 340), QColor(Qt::white));
+        QCOMPARE(frame(4), four);
+    }
+
+    // The pane's preview and the show draw one frame the same way: a dim after the next click, and a text by letter partway.
+    // Fails when off: yes (with the show's frame left without the tint, or the pane's without the pieces, they differ).
+    void animationPreviewEqualsTheShow()
+    {
+        auto d = showDeck(1);
+        Page &slide = *d->pages[0];
+        numberShowShapes(slide);
+        d->storyDoc(static_cast<TextItem *>(slide.items[1].get())->storyId)->setPlainText(QStringLiteral("alpha beta gamma delta"));
+        deck::AnimSequence seq;
+        deck::Anim a = deck::makeAnim(QStringLiteral("entr.fade"), 2);
+        a.after = deck::AfterEffect::Dim;
+        a.dimColor = ColorRef::rgb(QColor(0x33, 0x66, 0x99)).toString();
+        deck::Anim b = deck::makeAnim(QStringLiteral("entr.fade"), 3);
+        b.duration = 1000;
+        b.textBuild = deck::TextBuild::ByLetter;
+        b.textDelay = 20;
+        seq.add(a);
+        seq.add(b);
+        deck::setAnimations(*d, slide, seq);
+        const QSize size(640, 360);
+        LayoutCache showCache, paneCache;
+        SlideShow show(d.get(), &showCache, 0);
+        const deck::Timeline tl = deck::playableTimeline(*d, slide);
+        const deck::Geometry g = deck::geometryOf(*d, slide);
+        for (const double ms : {600.0, -1.0}) {
+            // The second step, partway (the first shape is dimmed by its click), and when it is over.
+            const int done = ms >= 0 ? 1 : 2;
+            const deck::States states = deck::statesAt(tl, g, done, ms);
+            QCOMPARE(states.value(deck::Target{2}).tint, ColorRef::rgb(QColor(0x33, 0x66, 0x99)).toString());
+            if (ms >= 0) QVERIFY(!states.value(deck::Target{3}).pieces.isEmpty());
+            const QImage pane = renderSlideImage(d.get(), &paneCache, 0, size, 1.0, Qt::white, &states);
+            QCOMPARE(show.renderView(SlideShow::View{0, done}, ms, size, 1.0, Qt::white), pane);
+        }
+    }
+
+    // The files for the check against the reference program, when JO_EVIDENCE_DIR names a folder: a presentation saved by the app with two dims, and one with
+    // text by word and by letter, to be opened there.
+    void animationEvidenceFiles()
+    {
+        const QString folder = qEnvironmentVariable("JO_EVIDENCE_DIR");
+        if (folder.isEmpty()) QSKIP("JO_EVIDENCE_DIR is not set");
+        DeckWindow w;
+        w.resize(1200, 800);
+        w.show();
+        w.setNotifier([](const QString &, const QString &) {});
+        Document *doc = w.editor()->doc();
+        Page &page = *doc->pages[0];
+        numberShowShapes(page);
+        doc->storyDoc(static_cast<TextItem *>(page.items[0].get())->storyId)->setPlainText(QStringLiteral("Dim to red"));
+        doc->storyDoc(static_cast<TextItem *>(page.items[1].get())->storyId)->setPlainText(QStringLiteral("Dim to a theme color"));
+        deck::AnimSequence seq;
+        deck::Anim a = deck::makeAnim(QStringLiteral("entr.fade"), 2);
+        a.after = deck::AfterEffect::Dim;
+        a.dimColor = ColorRef::rgb(QColor(255, 0, 0)).toString();
+        deck::Anim b = deck::makeAnim(QStringLiteral("entr.fade"), 3);
+        b.after = deck::AfterEffect::Dim;
+        b.dimColor = ColorRef::scheme(Accent1).toString();
+        seq.add(a);
+        seq.add(b);
+        deck::setAnimations(*doc, page, seq);
+        QVERIFY(w.saveTo(QDir(folder).filePath(QStringLiteral("ours-dim.pptx"))));
+        seq = deck::AnimSequence();
+        a = deck::makeAnim(QStringLiteral("entr.fade"), 2);
+        a.textBuild = deck::TextBuild::ByWord;
+        a.textDelay = 20;
+        b = deck::makeAnim(QStringLiteral("entr.fade"), 3);
+        b.textBuild = deck::TextBuild::ByLetter;
+        b.textDelay = 10;
+        seq.add(a);
+        seq.add(b);
+        deck::setAnimations(*doc, page, seq);
+        QVERIFY(w.saveTo(QDir(folder).filePath(QStringLiteral("ours-text.pptx"))));
+    }
+
     // The box with a dim chosen and the picture of the slide after the dim, when JO_SHOT_DIR names a folder.
     void animationDimScreenshots()
     {
@@ -2237,12 +2585,13 @@ private Q_SLOTS:
         a.dimColor = ColorRef::rgb(QColor(0x33, 0x66, 0x99)).toString();
         deck::AnimSequence seq;
         seq.add(a);
+        seq.add(deck::makeAnim(QStringLiteral("emph.spin"), 3));   // (the dim comes at the next click)
         deck::setAnimations(*d, slide, seq);
         AnimationOptionsDialog dlg(a, false, AnimationOptionsDialog::EffectTab, nullptr, d->colors);
         dlg.show();
         QVERIFY(dlg.grab().save(QDir(folder).filePath(QStringLiteral("dim-options.png"))));
         const deck::Timeline tl = deck::playableTimeline(slide);
-        const deck::States states = deck::statesAt(tl, deck::geometryOf(*d, slide), 1, -1);
+        const deck::States states = deck::statesAt(tl, deck::geometryOf(*d, slide), 2, -1);
         LayoutCache cache;
         const QImage img = paintedSlide(d.get(), &cache, 0, [&](PaintContext &ctx) { deck::animate(ctx, *d, states); });
         QVERIFY(img.save(QDir(folder).filePath(QStringLiteral("dim-slide.png"))));

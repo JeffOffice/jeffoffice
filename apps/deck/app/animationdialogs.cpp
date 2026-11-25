@@ -89,7 +89,7 @@ AnimationOptionsDialog::AnimationOptionsDialog(const deck::Anim &anim, bool hasT
         m_dimColor->setScheme(scheme);
         m_dimColor->setAccessibleName(tr("Dim color"));
         m_dimColor->setCurrent(anim.dimColor.isEmpty() ? ColorRef::rgb(QColor(0x80, 0x80, 0x80)) : ColorRef::fromString(anim.dimColor));
-        m_dimColor->setToolTip(tr("The color the shape turns to when the effect is over"));
+        m_dimColor->setToolTip(tr("The color the shape turns to at the next click"));
         form->addRow(tr("Dim color"), m_dimColor);
         auto showDim = [this] { m_dimColor->setEnabled(m_after->isEnabled() && m_after->currentData().toInt() == int(deck::AfterEffect::Dim)); };
         connect(m_after, &QComboBox::currentIndexChanged, this, showDim);

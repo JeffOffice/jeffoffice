@@ -111,6 +111,7 @@ struct Effect {
     double repeat = 1;               // times the whole effect plays (a repeat "until the end" counts once)
     bool remove = false;             // it takes its work with it when it ends (rewind when done playing)
     bool hideOnNextClick = false;    // its shape is hidden when the next click step starts
+    QString dimOnNextClick;          // or dimmed to this color (a color reference) when the next click step starts
     int iterate = 0;                 // its text plays by word (1) or by letter (2), each piece a little after the one before
     double iteratePct = 0.1;         // how long after the piece before, as a share of one run (the file's percent of the effect)
     double iterateMs = -1;           // or, when the file says so, this many ms (-1: not so)
@@ -185,14 +186,19 @@ struct PieceState {
 };
 
 // The text a story holds, cut into the pieces an effect plays one after the other: `build` 1 is by word, 2 is by letter. The paragraphs
-// `firstParagraph` to `lastParagraph` (-1 for all). Spaces belong to no piece. A text with more words or letters than kMaxTextPieces is cut
+// `firstParagraph` to `lastParagraph` (-1 for all). Spaces belong to no piece, and a letter is whatever a reader sees as one (a base letter with its marks, a joined emoji). A text with more words or letters than kMaxTextPieces is cut
 // into that many groups of neighbors, so that a long text plays in work that does not grow with it; a text of more than 200,000 words or
 // letters is cut only as far as that.
 constexpr int kMaxTextPieces = 300;
+// What a file can make one effect play: its first behaviors (the rest are kept as written, not played), and the longest wait between two pieces of its text.
+constexpr qsizetype kMaxEffectBehaviors = 64;
+constexpr double kMaxIterateMs = 5000;
 struct TextPiece {
     int from = 0, to = 0;            // document positions, to just past the last character
 };
 QVector<TextPiece> textPieces(const QTextDocument &story, int firstParagraph, int lastParagraph, int build);
+// How many times a story has been walked to cut it (a cut is kept while the story's revision is the same): for tests.
+qint64 textPieceWalks();
 
 // How a shape is, partway through its animations.
 struct TargetState {
