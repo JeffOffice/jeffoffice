@@ -3694,8 +3694,9 @@
          "text": "314585938d0a0aced492e4c4466eda30267aa30a1f5e5585ef1727d51836a8d2"
         },
         {
-         "status": "partly",
-         "text": "f25011fbaad1c68960450162e82815cbffe61cb7c97f1958470a911a8401bd47"
+         "hide_soon": true,
+         "status": "done",
+         "text": "21a7b18ad9a331f8b1d6a83668808c0780c049a69a7fa9c567516a205e143e49"
         },
         {
          "hide_soon": true,
@@ -5306,7 +5307,7 @@
         {
          "hide_soon": true,
          "status": "done",
-         "text": "55810b2788ed7ddb45688314a8ce67c929b9ff852496b1ed58a365140513e237"
+         "text": "130a515f66e99171494d910f20c46ecceb30d557de542cbeec9eaa9c3ebd1d47"
         },
         {
          "hide_soon": true,
@@ -9362,6 +9363,18 @@
     "fr": ""
    }
   },
+  "130a515f66e99171494d910f20c46ecceb30d557de542cbeec9eaa9c3ebd1d47": {
+   "drop": false,
+   "en": "Adjust pictures with brightness and contrast presets, sharpen and soften, recolor presets, color temperature, and a set transparent color. Apply blur, pencil grayscale, glow edges, or mosaic effects from a gallery that shows a sample of the picture, compress pictures, and reset a picture to remove the changes.",
+   "es": "Ajuste las imágenes con valores predefinidos de brillo y contraste, enfoque y suavizado, valores predefinidos de recoloreado, temperatura de color y un color transparente. Aplique efectos de desenfoque, escala de grises a lápiz, bordes brillantes o mosaico desde una galería que muestra una muestra de la imagen, comprima las imágenes y restablezca una imagen para quitar los cambios.",
+   "fr": "Réglez les images avec des préréglages de luminosité et de contraste, la netteté et l’adoucissement, des préréglages de recoloration, la température de couleur et une couleur transparente. Appliquez des effets de flou, de niveaux de gris au crayon, de contours lumineux ou de mosaïque depuis une galerie qui montre un aperçu de l’image, compressez les images et réinitialisez une image pour annuler les modifications.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "132358b65ec6337ed031e2484b2cb3fe0286550d26705ac3ed3acfa99323917f": {
    "drop": true,
    "en": "",
@@ -10488,6 +10501,18 @@
     "en": "",
     "es": "",
     "fr": ""
+   }
+  },
+  "21a7b18ad9a331f8b1d6a83668808c0780c049a69a7fa9c567516a205e143e49": {
+   "drop": false,
+   "en": "Corrections, Color, and Transparency: brightness and contrast, sharpen and soften, recolor, saturation, temperature, set transparent color, and picture transparency",
+   "es": "Correcciones, color y transparencia: brillo y contraste, enfoque y suavizado, recoloreado, saturación, temperatura, color transparente y transparencia de la imagen",
+   "fr": "Corrections, couleur et transparence : luminosité et contraste, netteté et adoucissement, recoloration, saturation, température, couleur transparente et transparence de l’image",
+   "soon": {
+    "drop": false,
+    "en": "Sharpen, saturation, temperature, and set transparent color",
+    "es": "Enfoque, saturación, temperatura y color transparente",
+    "fr": "Netteté, saturation, température et couleur transparente"
    }
   },
   "21b29843b2414872faff41857681efee59dda43dadc21e2f861bd5f25218d30d": {
@@ -14652,18 +14677,6 @@
     "en": "Help (F1): offline pane of topics with contents, links, and search",
     "es": "Ayuda (F1): panel sin conexión con temas, contenido, vínculos y búsqueda",
     "fr": "Aide (F1) : volet hors ligne avec sujets, sommaire, liens et recherche"
-   }
-  },
-  "55810b2788ed7ddb45688314a8ce67c929b9ff852496b1ed58a365140513e237": {
-   "drop": false,
-   "en": "Adjust brightness and contrast with presets, recolor a picture with presets or more variations, set a transparent color, compress pictures, and reset a picture.",
-   "es": "Ajuste el brillo y el contraste con valores predefinidos, cambie el color de una imagen con valores predefinidos o más variaciones, defina un color transparente, comprima imágenes y restablezca una imagen.",
-   "fr": "Réglez la luminosité et le contraste avec des préréglages, recolorez une image avec des préréglages ou davantage de variantes, définissez une couleur transparente, compressez les images et réinitialisez une image.",
-   "soon": {
-    "drop": true,
-    "en": "",
-    "es": "",
-    "fr": ""
    }
   },
   "55ec9dea8a6cf8ffee77e01f22610b2327e4a4f1e4fc9571e46691fd7df3e78e": {
@@ -25968,18 +25981,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "f25011fbaad1c68960450162e82815cbffe61cb7c97f1958470a911a8401bd47": {
-   "drop": false,
-   "en": "Adjust a picture’s brightness and contrast, recolor it, change saturation, set a transparent color, and set picture transparency, each as one Undo step.",
-   "es": "Ajuste el brillo y el contraste de una imagen, vuelva a colorearla, cambie la saturación, defina un color transparente y la transparencia de la imagen, cada cambio en un solo paso de deshacer.",
-   "fr": "Réglez la luminosité et le contraste d’une image, recolorez-la, modifiez la saturation, définissez une couleur transparente et la transparence de l’image, chaque changement en une seule étape d’annulation.",
-   "soon": {
-    "drop": false,
-    "en": "Sharpen, saturation, temperature, and set transparent color",
-    "es": "Nitidez, saturación, temperatura y color transparente",
-    "fr": "Netteté, saturation, température et couleur transparente"
    }
   },
   "f2ab36fda45605b4114def89ea79ed5de86f034694394ad54b03c735a4fc882c": {
