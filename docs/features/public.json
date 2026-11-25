@@ -991,7 +991,7 @@
         },
         {
          "status": "partly",
-         "text": "f5c8f4ff34e9aeacee714f8977768203c9c69f89021948719784d3194a7757b5"
+         "text": "202678ede11dcdf2e8d30331b85b8c34535b9d022f82f48b0cbcf09f765c2589"
         },
         {
          "status": "partly",
@@ -1096,8 +1096,9 @@
        "heading": "a52a2e964b5943e5c7bcd388b759d2c39a22636ad063aaf6e4cdbc25692cf604",
        "items": [
         {
-         "status": "partly",
-         "text": "d34412e942b4f7e8a796dab2f8c6a62a91194243aba5dbca5e818ad00058b786"
+         "hide_soon": true,
+         "status": "done",
+         "text": "b788c0d394b30f4ec5ba0a716ed176dcab40eb1d57909f79682f30c613d8fb37"
         },
         {
          "hide_soon": true,
@@ -1158,6 +1159,11 @@
         {
          "status": "partly",
          "text": "87b1a61b8bee7ed6b4a33a4be98e89dac70e33b7255b4f4329764bb67acb5ff4"
+        },
+        {
+         "hide_soon": true,
+         "status": "done",
+         "text": "f3861773d45bce64fc59be0e80be8e1779abfd06d74107b6da24f35db8b871ee"
         }
        ]
       }
@@ -10357,6 +10363,18 @@
     "en": "",
     "es": "",
     "fr": ""
+   }
+  },
+  "202678ede11dcdf2e8d30331b85b8c34535b9d022f82f48b0cbcf09f765c2589": {
+   "drop": false,
+   "en": "Error Checking: step through formulas that give an error, inconsistent formulas, numbers stored as text, two-digit years, and formulas in unlocked cells. A green triangle marks each cell with a problem, `Ignore Error` is kept in the file, and each rule can be turned on or off under Options > Formulas.",
+   "es": "Revisión de errores: recorra las fórmulas que dan error, las fórmulas incoherentes, los números almacenados como texto, los años de dos dígitos y las fórmulas en celdas desbloqueadas. Un triángulo verde marca cada celda con un problema, `Ignore Error` se guarda en el documento y puede activar o desactivar cada regla en Opciones > Fórmulas.",
+   "fr": "Vérification des erreurs : parcourez les formules qui renvoient une erreur, les formules incohérentes, les nombres stockés sous forme de texte, les années à deux chiffres et les formules dans des cellules déverrouillées. Un triangle vert signale chaque cellule posant problème, `Ignore Error` est conservé dans le fichier et vous pouvez activer ou désactiver chaque règle sous Options > Formules.",
+   "soon": {
+    "drop": false,
+    "en": "Menu on the green triangle marker",
+    "es": "Menú en el marcador de triángulo verde",
+    "fr": "Menu sur le marqueur en triangle vert"
    }
   },
   "204ebea6183d0f25ba58448264e9988cd6e9410280b629a04f48fc71bc624a27": {
@@ -21471,6 +21489,18 @@
     "fr": ""
    }
   },
+  "b788c0d394b30f4ec5ba0a716ed176dcab40eb1d57909f79682f30c613d8fb37": {
+   "drop": false,
+   "en": "Split a column's text by a separator (comma, semicolon, space, tab, or your own) or at fixed widths. Choose a type for each column (as typed, text, a date in a chosen order, or left out), pick where the results go, and check a preview of the first rows.",
+   "es": "Divida el texto de una columna por un separador (coma, punto y coma, espacio, tabulación o uno propio) o con anchos fijos. Elija un tipo para cada columna (según se escribió, texto, una fecha en un orden determinado u omitida), indique dónde van los resultados y revise una vista previa de las primeras filas.",
+   "fr": "Divisez le texte d’une colonne selon un séparateur (virgule, point-virgule, espace, tabulation ou le vôtre) ou à largeurs fixes. Choisissez un type pour chaque colonne (tel que saisi, texte, date dans un ordre donné ou ignorée), indiquez où placer les résultats et vérifiez un aperçu des premières lignes.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "b79f58e9cfb8b90e647410b608bc397a1a119f1e10a784d0e8cd878f261a5dcd": {
    "drop": false,
    "en": "Captions",
@@ -23485,18 +23515,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "d34412e942b4f7e8a796dab2f8c6a62a91194243aba5dbca5e818ad00058b786": {
-   "drop": false,
-   "en": "Text to Columns splits one column at tab, semicolon, comma, space, or your own marks (runs of marks as one, quoted text kept whole) or at fixed places. Each piece is read as typed or kept as text, placed from a cell you name, with a preview of the first rows, as one step of Undo.",
-   "es": "Texto en columnas divide una columna en tabulación, punto y coma, coma, espacio o sus propias marcas (series de marcas como una sola, texto entre comillas conservado entero) o en posiciones fijas. Cada fragmento se lee como se escribió o se conserva como texto, se coloca desde una celda que usted indique, con vista previa de las primeras filas, como un paso de Deshacer.",
-   "fr": "Convertir divise une colonne au niveau d’une tabulation, d’un point-virgule, d’une virgule, d’une espace ou de vos propres séparateurs (séries de séparateurs comptées pour un, texte entre guillemets conservé entier) ou à des positions fixes. Chaque morceau est lu tel que saisi ou conservé comme texte, placé à partir d’une cellule que vous indiquez, avec un aperçu des premières lignes, en une étape d’annulation.",
-   "soon": {
-    "drop": false,
-    "en": "A separate type for each piece, a date order, and skipping a piece in the dialog",
-    "es": "Un tipo distinto para cada fragmento, un orden de fecha y omitir un fragmento en el cuadro de diálogo",
-    "fr": "Un type distinct pour chaque morceau, un ordre de date et l’omission d’un morceau dans la boîte de dialogue"
    }
   },
   "d367f1046c1628f69157953acde67589ef4bf490b054c5971a7cd3d927796045": {
@@ -26079,6 +26097,18 @@
     "fr": ""
    }
   },
+  "f3861773d45bce64fc59be0e80be8e1779abfd06d74107b6da24f35db8b871ee": {
+   "drop": false,
+   "en": "Sort text containing numbers by numeric value, so item 2 comes before item 10, by choosing \"Numbers in text count by value\" in the Sort dialog. The choice applies to the sort being made and is not saved in the file.",
+   "es": "Ordene texto que contiene números por su valor numérico, de modo que elemento 2 aparezca antes que elemento 10, eligiendo \"Numbers in text count by value\" en el cuadro Ordenar. La opción se aplica a la ordenación que se realiza y no se guarda en el documento.",
+   "fr": "Triez du texte contenant des nombres selon leur valeur numérique, de sorte que élément 2 précède élément 10, en choisissant \"Numbers in text count by value\" dans la boîte de dialogue Trier. Le choix s’applique au tri en cours et n’est pas enregistré dans le fichier.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "f3d0c98a81f78afa7650d19b2da4840af8673d972fe533639bb9bcec142e1e85": {
    "drop": false,
    "en": "Save the current theme as a `.thmx` file and open `.thmx` theme files. Browse for Themes also takes the theme of a `.docx` or `.dotx` file, as well as presentation and template files.",
@@ -26209,18 +26239,6 @@
     "en": "Version comparison",
     "es": "Comparación de versiones",
     "fr": "Comparaison de versions"
-   }
-  },
-  "f5c8f4ff34e9aeacee714f8977768203c9c69f89021948719784d3194a7757b5": {
-   "drop": false,
-   "en": "Error Checking steps through formulas that give an error, numbers stored as text, inconsistent formulas, two-digit-year dates stored as text, and formulas in unlocked cells. A green triangle marks each cell, and Ignore Error is saved in the file and is one step of Undo.",
-   "es": "Comprobación de errores recorre las fórmulas que dan error, los números almacenados como texto, las fórmulas incoherentes, las fechas con año de dos dígitos almacenadas como texto y las fórmulas en celdas desbloqueadas. Un triángulo verde marca cada celda, e Ignorar error se guarda en el documento y es un paso de Deshacer.",
-   "fr": "La vérification des erreurs parcourt les formules qui donnent une erreur, les nombres stockés sous forme de texte, les formules incohérentes, les dates à année sur deux chiffres stockées sous forme de texte et les formules dans des cellules déverrouillées. Un triangle vert marque chaque cellule, et Ignorer l’erreur est enregistré dans le fichier et annulable en une étape.",
-   "soon": {
-    "drop": false,
-    "en": "Error Checking rules: a formula that leaves out neighboring cells and a formula that reads empty cells; a menu on the green triangle",
-    "es": "Reglas de comprobación de errores: fórmula que omite celdas adyacentes y fórmula que lee celdas vacías; menú en el triángulo verde",
-    "fr": "Règles de vérification des erreurs : formule qui omet des cellules voisines et formule qui lit des cellules vides ; menu sur le triangle vert"
    }
   },
   "f5db565cb2f968cc7e82188b07dfb112e0c4de1dbf5b318f84613b111dbba9bd": {
