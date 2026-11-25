@@ -523,6 +523,7 @@ qt_add_executable(sheettests
   tests/sheet/tst_sheet_odsvalid.cpp
   tests/office/odfvalidate.cpp
   tests/sheet/tst_sheet_csvreview.cpp
+  tests/sheet/tst_sheet_datasource.cpp
   tests/sheet/tst_sheet_textmatch.cpp
   tests/sheet/tst_sheet_filter.cpp
   tests/sheet/tst_sheet_syslocale.cpp
