@@ -42,7 +42,11 @@ void CrunchWindow::createThemeActions()
         applyThemeFile(path);
     });
     mk(QStringLiteral("design.themes.save"), tr("Save Current Theme…"), QStringLiteral("save"), QKeySequence(), [this] {
-        if (!m_session || !m_session->hasTheme()) return;
+        if (!m_session) return;
+        if (!m_session->hasTheme()) {
+            notice(tr("Save Current Theme"), tr("This workbook has no theme part, so there is no theme to save."));
+            return;
+        }
         const QString folder = Settings::get().value(QStringLiteral("dirs/open"), QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation)).toString();
         const office::Theme theme = m_session->theme();
         const QString path = QFileDialog::getSaveFileName(this, tr("Save Current Theme"), folder + QLatin1Char('/') + (theme.name.isEmpty() ? tr("Theme") : theme.name) + QStringLiteral(".thmx"),
