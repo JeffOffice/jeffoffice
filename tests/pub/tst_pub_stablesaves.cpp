@@ -45,15 +45,17 @@ private Q_SLOTS:
         if (!stable::childOutput(&out)) return;
         QTemporaryDir dir;
         QVERIFY(dir.isValid());
+        const QString before = QDir::currentPath(); // put back below: the results file of the run is named from where the run began
         QVERIFY(QDir::setCurrent(dir.path()));
         QString err;
-        QVERIFY2(jp::exportPublisher(*richPublication(), QStringLiteral("saved.pub"), &err), qPrintable(err));
+        const bool saved = jp::exportPublisher(*richPublication(), QStringLiteral("saved.pub"), &err);
+        QVERIFY(QDir::setCurrent(before));
+        QVERIFY2(saved, qPrintable(err));
         QFile in(dir.filePath(QStringLiteral("saved.pub")));
         QVERIFY(in.open(QIODevice::ReadOnly));
         QFile f(out);
         QVERIFY(f.open(QIODevice::WriteOnly));
         f.write(in.readAll());
-        QVERIFY(QDir::setCurrent(QDir::rootPath()));
     }
 
     // The file's tables carry a tag: made from the text, not at random, so that the same publication is the same bytes. (JeffPub's own file holds the ids that items are given,
@@ -63,7 +65,8 @@ private Q_SLOTS:
     {
         QTemporaryDir dir;
         QVERIFY(dir.isValid());
-        const auto restore = qScopeGuard([] { QDir::setCurrent(QDir::rootPath()); });
+        const QString before = QDir::currentPath();
+        const auto restore = qScopeGuard([before] { QDir::setCurrent(before); });
         const auto doc = richPublication();
         QString err;
         QByteArray files[2];
