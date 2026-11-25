@@ -2390,6 +2390,7 @@ QByteArray PubWriter::write(QStringList *skipped)
                 // A solid fill behind the picture, flagged filled as in
                 // Publisher's own designs; it shows through clear parts.
                 if (pic->fill.type == Fill::Solid) opt << Prop{0x0181, bgr(pic->fill.color.resolve(m_doc.colors))} << Prop{0x01bf, 0x001f001c};
+                if (pic->fill.type == Fill::Solid && pic->fill.transparency > 0.001) opt << Prop{0x0182, opacity(pic->fill.transparency)};
                 shadowProps(opt, pic->fx.shadow);
                 rotationProp(opt, pic);
                 QVector<Prop> topt = {{0x01ff, pic->stroke.inset ? 0x00400040u : 0x00400000u}, {0x06ff, 0x00020002}};

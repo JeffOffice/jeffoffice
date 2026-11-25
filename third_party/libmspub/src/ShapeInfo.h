@@ -79,6 +79,7 @@ struct ShapeInfo
   boost::optional<unsigned> m_lineCompound;  // JeffPub patch: lineStyle (0x01CD): 1 double, 2 thick-thin, 3 thin-thick, 4 triple
   bool m_fillTurns = false;              // JeffPub patch: fUseShapeAnchor in the tertiary 0x01BF
   boost::optional<librevenge::RVNGString> m_pictureBackColor; // JeffPub patch: a picture shape's own solid fill
+  boost::optional<librevenge::RVNGString> m_pictureBackOpacity; // JeffPub patch: and how much of it shows
   boost::optional<std::vector<double>> m_crop; // JeffPub patch: top, bottom, left, right (0x0100-0x0103)
   boost::optional<double> m_pictureFillOpacity; // JeffPub patch: 0x0182 with a picture fill
   boost::optional<std::vector<double> > m_fillInks; // JeffPub patch: the fill's process inks (0x019F, 0x01A6)

@@ -949,6 +949,43 @@ void PubFileTests::pubGradientsRoundTrip()
 }
 
 
+// A shade's list of colors holds those between its two ends (the file's own lists start after 0 and stop before 100): the fill color is the shade's start
+// and the back color its end, as the reference pictures of such fills show. Here the list names a red at 25 and a blue at 75.
+void PubFileTests::pubShadeListsGetTheirEndColors()
+{
+    auto doc = Document::blank(QSizeF(612, 792));
+    auto s = std::make_shared<ShapeItem>();
+    s->shape = QStringLiteral("rect");
+    s->rect = QRectF(72, 72, 80, 120);
+    s->stroke.color = ColorRef::none();
+    s->fill.type = Fill::Gradient;
+    s->fill.gradType = Fill::Linear;
+    s->fill.angle = 90;
+    s->fill.stops = {GradientStop{0.25, ColorRef::rgb(QColor(200, 0, 0)), 0}, GradientStop{0.75, ColorRef::rgb(QColor(0, 0, 200)), 0}};
+    s->fill.color = s->fill.stops.first().color;
+    s->fill.color2 = s->fill.stops.last().color;
+    doc->pages[0]->items.push_back(s);
+    QTemporaryDir dir;
+    const QString path = dir.filePath(QStringLiteral("shade.pub"));
+    QString err;
+    QVERIFY2(exportPublisher(*doc, path, &err), qPrintable(err));
+    QFile f(path);
+    QVERIFY(f.open(QIODevice::ReadOnly));
+    auto back = importPublisher(f.readAll(), nullptr);
+    QVERIFY(back);
+    QVector<const ShapeItem *> got;
+    for (const auto &it : back->pages[0]->items)
+        if (auto *g = dynamic_cast<const ShapeItem *>(it.get()); g && g->fill.type == Fill::Gradient) got << g;
+    QCOMPARE(got.size(), 1);
+    const auto st = got[0]->fill.stops;
+    QCOMPARE(st.size(), 4);
+    QVERIFY(std::abs(st.first().pos) < 0.005 && std::abs(st.last().pos - 1) < 0.005);
+    QCOMPARE(st.first().color.rgbValue(), QColor(200, 0, 0));
+    QCOMPARE(st.last().color.rgbValue(), QColor(0, 0, 200));
+    QVERIFY(std::abs(st[1].pos - 0.25) < 0.01 && std::abs(st[2].pos - 0.75) < 0.01);
+}
+
+
 // A picture keeps its quarter turns and its own fill through a .pub:
 // rotated flowers lost their quarter turns (the outline's turn is folded
 // within 45 degrees), and pinwheel art lost the colors its shape's fill
@@ -995,6 +1032,44 @@ void PubFileTests::pubPictureTurnsAndFill()
     QCOMPARE(got[1]->fill.type, Fill::Solid);
     QCOMPARE(got[1]->fill.color.rgbValue(), QColor(0x33, 0x66, 0x66));
     QCOMPARE(got[0]->fill.type, Fill::NoFill);
+}
+
+
+// The solid fill behind a picture shows as much of itself as the file says (a back color at 30 percent is a pale wash, not a solid block), and a save keeps it.
+void PubFileTests::pubPictureFillKeepsItsOpacity()
+{
+    auto doc = Document::blank(QSizeF(612, 792));
+    QImage img(40, 20, QImage::Format_ARGB32);
+    img.fill(Qt::transparent);
+    QByteArray png;
+    {
+        QBuffer buf(&png);
+        buf.open(QIODevice::WriteOnly);
+        img.save(&buf, "PNG");
+    }
+    for (int i = 0; i < 2; ++i) {
+        auto pic = std::make_shared<PictureItem>();
+        pic->imageId = doc->addImage(png, QStringLiteral("png"));
+        pic->rect = QRectF(72 + 130 * i, 300, 120, 60);
+        pic->fill = Fill::solid(ColorRef::rgb(QColor(0x3f, 0x7f, 0xbf)), i == 0 ? 0.7 : 0.0);
+        doc->pages[0]->items.push_back(pic);
+    }
+    QTemporaryDir dir;
+    const QString path = dir.filePath(QStringLiteral("picfill.pub"));
+    QString err;
+    QVERIFY2(exportPublisher(*doc, path, &err), qPrintable(err));
+    QFile f(path);
+    QVERIFY(f.open(QIODevice::ReadOnly));
+    auto back = importPublisher(f.readAll(), nullptr);
+    QVERIFY(back);
+    QVector<const PictureItem *> got;
+    for (const auto &it : back->pages[0]->items)
+        if (auto *p = dynamic_cast<const PictureItem *>(it.get())) got << p;
+    std::sort(got.begin(), got.end(), [](auto *a, auto *b) { return a->rect.center().x() < b->rect.center().x(); });
+    QCOMPARE(got.size(), 2);
+    QCOMPARE(got[0]->fill.type, Fill::Solid);
+    QVERIFY2(std::abs(got[0]->fill.transparency - 0.7) < 0.01, qPrintable(QString::number(got[0]->fill.transparency)));
+    QVERIFY2(std::abs(got[1]->fill.transparency) < 0.01, qPrintable(QString::number(got[1]->fill.transparency)));
 }
 
 

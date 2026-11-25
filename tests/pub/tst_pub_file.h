@@ -149,7 +149,9 @@ private Q_SLOTS:
     void pubSpotColorRead();
     void pubWriterProcessInks();
     void pubGradientsRoundTrip();
+    void pubShadeListsGetTheirEndColors();
     void pubPictureTurnsAndFill();
+    void pubPictureFillKeepsItsOpacity();
     void pubFormulaChainIsFast();
     void pubHugeCoordinateSpace();
     void pubOldLayoutPagesWithoutSize();

@@ -773,7 +773,11 @@ void MSPUBCollector::setupShapeStructures(ShapeGroupElement &elt)
           librevenge::RVNGPropertyList fp;
           ptr_info->m_fill->getProperties(&fp);
           if (fp["draw:fill"] && fp["draw:fill"]->getStr() == "solid" && fp["draw:fill-color"])
+          {
             ptr_info->m_pictureBackColor = fp["draw:fill-color"]->getStr();
+            if (fp["draw:opacity"])
+              ptr_info->m_pictureBackOpacity = fp["draw:opacity"]->getStr();
+          }
         }
         ptr_info->m_fill = std::shared_ptr<const Fill>(new ImgFill(index, this, false, rot));
       }
@@ -1037,6 +1041,8 @@ std::function<void(void)> MSPUBCollector::paintShape(const ShapeInfo &info, cons
       graphicsProps.insert("jp:transparent-color", getColorString(info.m_pictureTransparent.get().getFinalColor(m_paletteColors)));
     if (bool(info.m_pictureBackColor))
       graphicsProps.insert("jp:picture-back-color", info.m_pictureBackColor.get());   // JeffPub
+    if (bool(info.m_pictureBackOpacity))
+      graphicsProps.insert("jp:picture-back-opacity", info.m_pictureBackOpacity.get());
     bool shadowPropsInserted = false;
     if (bool(info.m_shadow))
     {
@@ -1067,7 +1073,7 @@ std::function<void(void)> MSPUBCollector::paintShape(const ShapeInfo &info, cons
     }
     if (bool(info.m_pictureBrightness))
       graphicsProps.remove("draw:luminance");
-    for (const char *k : {"jp:brightness", "jp:contrast", "jp:picture-gray", "jp:picture-bilevel", "jp:transparent-color", "jp:picture-back-color"})
+    for (const char *k : {"jp:brightness", "jp:contrast", "jp:picture-gray", "jp:picture-bilevel", "jp:transparent-color", "jp:picture-back-color", "jp:picture-back-opacity"})
       graphicsProps.remove(k);
     if (shadowPropsInserted)
     {

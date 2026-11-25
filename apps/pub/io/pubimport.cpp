@@ -1443,7 +1443,7 @@ private:
             // The shape's own solid fill shows through the picture's clear parts.
             if (m_style["jp:picture-back-color"]) {
                 const QColor bc(str(m_style["jp:picture-back-color"]));
-                if (bc.isValid()) pic->fill = Fill::solid(ColorRef::rgb(bc));
+                if (bc.isValid()) pic->fill = Fill::solid(ColorRef::rgb(bc), 1 - std::clamp(percent(m_style["jp:picture-back-opacity"], 1.0), 0.0, 1.0));
             }
             pic->stroke = stroke;
             if (preset) {
