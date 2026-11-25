@@ -5615,6 +5615,82 @@ private Q_SLOTS:
         QCOMPARE(documentXml(doc->toDocx()), documentXml(open(makeDocx(para(run("Two") + run("Three"))))->toDocx()));
     }
 
+    // Each paragraph of a saved document as "text|style|S" (S: the section's properties sit in it), without the section of the body.
+    static QStringList shapeOf(const QByteArray &zip)
+    {
+        QString x = QString::fromUtf8(documentXml(zip));
+        x.remove(QRegularExpression(QStringLiteral("<w:sectPr[^>]*>(?:(?!</w:sectPr>).)*</w:sectPr>\\s*</w:body>")));
+        QStringList out;
+        static const QRegularExpression para(QStringLiteral("<w:p(?: [^>]*)?(?:/>|>(.*?)</w:p>)"), QRegularExpression::DotMatchesEverythingOption);
+        for (auto it = para.globalMatch(x); it.hasNext();) {
+            const QString p = it.next().captured(1);
+            QString text;
+            static const QRegularExpression t(QStringLiteral("<w:t(?: [^>]*)?>([^<]*)</w:t>"));
+            for (auto m = t.globalMatch(p); m.hasNext();) text += m.next().captured(1);
+            const QRegularExpressionMatch st = QRegularExpression(QStringLiteral("<w:pStyle w:val=\"([^\"]*)\"")).match(p);
+            out << text + QLatin1Char('|') + st.captured(1) + (p.contains(QStringLiteral("<w:sectPr")) ? QStringLiteral("|S") : QString());
+        }
+        return out;
+    }
+
+    // Rejects or accepts all in the saved bytes of `tracked`, one change at a time in both orders too, and checks the paragraphs left; one undo step gives back the saved bytes.
+    static void verifyShapes(const QByteArray &body, const QByteArray &styles, const QStringList &rejected, const QStringList &accepted, const char *what)
+    {
+        const QByteArray tail = sectionProps(12240, 15840);
+        for (const bool accept : {false, true}) {
+            auto doc = open(makeDocxNumbered(body + tail, styles));
+            QVERIFY2(doc, what);
+            const QByteArray marked = documentXml(doc->toDocx());
+            QVERIFY2((accept ? acceptAll(*doc) : rejectAll(*doc)) > 0, what);
+            QCOMPARE(revisionCount(doc->story()), 0);
+            const QStringList got = shapeOf(doc->toDocx());
+            QVERIFY2(got == (accept ? accepted : rejected), qPrintable(QByteArray(what) + (accept ? " accepted: " : " rejected: ") + got.join(QLatin1Char(';')).toUtf8()));
+            QVERIFY2(doc->undo(), what);
+            QVERIFY2(!doc->canUndo(), what);   // (one step)
+            QVERIFY2(documentXml(doc->toDocx()) == marked, what);
+            for (const bool backwards : {false, true}) {
+                auto one = open(makeDocxNumbered(body + tail, styles));
+                for (int guard = 0; guard < 8 && revisionCount(one->story()) > 0; ++guard) {
+                    const QVector<Revision> all = revisionsIn(one->story());
+                    QVERIFY2(resolveRevisions(*one, one->story(), {backwards ? all.last() : all.first()}, accept) >= 0, what);
+                }
+                QCOMPARE(revisionCount(one->story()), 0);
+                QCOMPARE(shapeOf(one->toDocx()), accept ? accepted : rejected);
+            }
+        }
+    }
+
+    static QByteArray headingStyles()
+    {
+        return "<w:style w:type=\"paragraph\" w:default=\"1\" w:styleId=\"Normal\"><w:name w:val=\"Normal\"/></w:style>"
+               "<w:style w:type=\"paragraph\" w:styleId=\"Heading1\"><w:name w:val=\"heading 1\"/><w:basedOn w:val=\"Normal\"/><w:pPr><w:keepNext/><w:outlineLvl w:val=\"0\"/></w:pPr></w:style>";
+    }
+
+    void anEnterBeforeASectionBreakParagraphGivesItBackWhenRejected()
+    {
+        const QByteArray mk = "<w:rPr><w:ins" + rev(90) + "/></w:rPr>", sect = sectionProps(12240, 15840);
+        verifyShapes(para(run("Two"), mk) + para(run("Three"), sect) + para(QByteArray()), QByteArray(), {"TwoThree||S", "|"}, {"Two|", "Three||S", "|"}, "case 2");
+    }
+
+    void anEnterAtTheEndOfASectionBreakParagraphGivesTheBreakBackWhenRejected()
+    {
+        const QByteArray mk = "<w:rPr><w:ins" + rev(90) + "/></w:rPr>", sect = sectionProps(12240, 15840);
+        verifyShapes(para(run("TwoThree"), mk) + para(inserted(91, "More"), sect) + para(QByteArray()), QByteArray(), {"TwoThree||S", "|"}, {"TwoThree|", "More||S", "|"}, "case 3");
+    }
+
+    void aTrackedEnterAtTheEndOfAHeadingLeavesOneHeadingWhenRejected()
+    {
+        const QByteArray mk = "<w:rPr><w:ins" + rev(90) + "/></w:rPr>", head = "<w:pStyle w:val=\"Heading1\"/>";
+        const QByteArray second = "<w:rPr><w:rPrChange" + rev(92) + "><w:rPr/></w:rPrChange></w:rPr><w:pPrChange" + rev(93) + "><w:pPr>" + head + "</w:pPr></w:pPrChange>";
+        verifyShapes(para(run("Head"), head + mk) + para(inserted(91, "Body"), second), headingStyles(), {"Head|Heading1"}, {"Head|Heading1", "Body|"}, "case 4");
+    }
+
+    void aSectionBreakInsertedBetweenTwoParagraphsIsTakenOutWithItsMarkWhenRejected()
+    {
+        const QByteArray mk = "<w:rPr><w:ins" + rev(90) + "/></w:rPr>", sect = sectionProps(12240, 15840);
+        verifyShapes(para(run("Two"), sect + mk) + para(run("Three")), QByteArray(), {"TwoThree|"}, {"Two||S", "Three|"}, "case 1");
+    }
+
     void aMarkRejectedBeforeATableLeavesNoEmptyParagraphAndKeepsTheWordsOfTheParagraph()
     {
         const QByteArray mk = "<w:rPr><w:ins" + rev(90) + "/></w:rPr>";
