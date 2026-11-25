@@ -1801,5 +1801,16 @@ Download it from %2 now? (%3, once.)</translation>
         <source>the page color</source>
         <translation>the page colour</translation>
     </message>
+    <message>
+        <source>pictures with sharpen, soften, color temperature, or an artistic effect (saved as the finished picture, and the effect can't be changed or taken off again)</source>
+        <translation>pictures with sharpen, soften, colour temperature, or an artistic effect (saved as the finished picture, and the effect can't be changed or taken off again)</translation>
+    </message>
+</context>
+<context>
+    <name>rtf</name>
+    <message>
+        <source>pictures with sharpen, soften, color temperature, or an artistic effect (saved as the finished picture, and the effect can't be changed or taken off again)</source>
+        <translation>pictures with sharpen, soften, colour temperature, or an artistic effect (saved as the finished picture, and the effect can't be changed or taken off again)</translation>
+    </message>
 </context>
 </TS>

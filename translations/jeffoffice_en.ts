@@ -26,7 +26,7 @@
 <context>
     <name>Export</name>
     <message numerus="yes">
-        <location filename="../apps/pub/io/pubexport.cpp" line="+2431"/>
+        <location filename="../apps/pub/io/pubexport.cpp" line="+2432"/>
         <source>%n object(s) couldn&apos;t be saved to .pub</source>
         <translation>
             <numerusform>%n object couldn&apos;t be saved to .pub</numerusform>
@@ -61,7 +61,7 @@
 <context>
     <name>Import</name>
     <message numerus="yes">
-        <location filename="../apps/pub/io/importers.cpp" line="+600"/>
+        <location filename="../apps/pub/io/importers.cpp" line="+646"/>
         <source>Created %n email file(s) in %1.</source>
         <translation>
             <numerusform>Created %n email file in %1.</numerusform>
@@ -72,11 +72,101 @@
 <context>
     <name>Importers</name>
     <message numerus="yes">
-        <location line="-189"/>
+        <location line="-231"/>
         <source>%n picture, table, list, comment, or note in &quot;%1&quot; was left out or came in as plain text.</source>
         <translation>
             <numerusform>%n picture, table, list, comment, or note in &quot;%1&quot; was left out or came in as plain text.</numerusform>
             <numerusform>%n pictures, tables, lists, comments, and notes in &quot;%1&quot; were left out or came in as plain text.</numerusform>
+        </translation>
+    </message>
+</context>
+<context>
+    <name>MergeExclusions</name>
+    <message numerus="yes">
+        <location filename="../libs/page/core/mergeextras.cpp" line="+134"/>
+        <source>%n recipient you left out before is no longer in the list.</source>
+        <translation>
+            <numerusform>%n recipient you left out before is no longer in the list.</numerusform>
+            <numerusform>%n recipients you left out before are no longer in the list.</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <location line="+1"/>
+        <source>%n recipient you left out before could not be matched, because other recipients have the same %1. That recipient is included.</source>
+        <translation>
+            <numerusform>%n recipient you left out before could not be matched, because other recipients have the same %1. That recipient is included.</numerusform>
+            <numerusform>%n recipients you left out before could not be matched, because other recipients have the same %1. Those recipients are included.</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <location line="+5"/>
+        <source>The list has %n recipient now. It had %1 when you chose which recipients to leave out, so all recipients are included.</source>
+        <translation>
+            <numerusform>The list has %n recipient now. It had %1 when you chose which recipients to leave out, so all recipients are included.</numerusform>
+            <numerusform>The list has %n recipients now. It had %1 when you chose which recipients to leave out, so all recipients are included.</numerusform>
+        </translation>
+    </message>
+</context>
+<context>
+    <name>MergeFiles</name>
+    <message numerus="yes">
+        <location filename="../libs/page/app/mergefiles.cpp" line="+71"/>
+        <source>%n file will be made, for example:
+%1</source>
+        <translation>
+            <numerusform>%n file will be made, for example:
+%1</numerusform>
+            <numerusform>%n files will be made, for example:
+%1</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <location line="+18"/>
+        <location filename="../libs/page/core/mergeextras.cpp" line="+122"/>
+        <source>A merge makes at most %n file at a time. Use a shorter list.</source>
+        <translation>
+            <numerusform>A merge makes at most %n file at a time. Use a shorter list.</numerusform>
+            <numerusform>A merge makes at most %n files at a time. Use a shorter list.</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <location line="+4"/>
+        <source>This makes %n file in the folder %1. Make them?</source>
+        <translation>
+            <numerusform>This makes %n file in the folder %1. Make it?</numerusform>
+            <numerusform>This makes %n files in the folder %1. Make them?</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <location line="+4"/>
+        <source>%n file in that folder has the same name as one to be made. Replace it?</source>
+        <translation>
+            <numerusform>%n file in that folder has the same name as one to be made. Replace it?</numerusform>
+            <numerusform>%n files in that folder have the same names as ones to be made. Replace them?</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <location line="+79"/>
+        <source>%n file was saved before this stopped.</source>
+        <translation>
+            <numerusform>%n file was saved before this stopped.</numerusform>
+            <numerusform>%n files were saved before this stopped.</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <location line="+1"/>
+        <source>Stopped. %n file was saved in the folder %1.</source>
+        <translation>
+            <numerusform>Stopped. %n file was saved in the folder %1.</numerusform>
+            <numerusform>Stopped. %n files were saved in the folder %1.</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <location line="+1"/>
+        <source>%n file was saved in the folder %1.</source>
+        <translation>
+            <numerusform>%n file was saved in the folder %1.</numerusform>
+            <numerusform>%n files were saved in the folder %1.</numerusform>
         </translation>
     </message>
 </context>
@@ -605,7 +695,7 @@
         </translation>
     </message>
     <message numerus="yes">
-        <location filename="../apps/pub/app/mainwindow_actions.cpp" line="+998"/>
+        <location filename="../apps/pub/app/mainwindow_actions.cpp" line="+1013"/>
         <source>Made %n shapes.</source>
         <translation>
             <numerusform>Made %n shape.</numerusform>
@@ -649,7 +739,7 @@
 <context>
     <name>jp::PictureTools</name>
     <message numerus="yes">
-        <location filename="../libs/page/app/picturetools.cpp" line="+719"/>
+        <location filename="../libs/page/app/picturetools.cpp" line="+748"/>
         <source>%n picture is a drawing or a linked picture, which cannot be changed here.</source>
         <translation>
             <numerusform>%n picture is a drawing or a linked picture, which cannot be changed here.</numerusform>
@@ -657,7 +747,7 @@
         </translation>
     </message>
     <message numerus="yes">
-        <location line="+3"/>
+        <location line="+2"/>
         <source>%n picture is left as it is, because another object shows more of the same picture.</source>
         <translation>
             <numerusform>%n picture is left as it is, because another object shows more of the same picture.</numerusform>
@@ -680,7 +770,7 @@
     <name>jp::ShapeTools</name>
     <message numerus="yes">
         <location filename="../libs/page/app/shapetools.cpp" line="+142"/>
-        <location filename="../apps/write/app/writewindow_shapes.cpp" line="+1222"/>
+        <location filename="../apps/write/app/writewindow_shapes.cpp" line="+1266"/>
         <source>Made %n shapes.</source>
         <translation>
             <numerusform>Made %n shape.</numerusform>
@@ -774,7 +864,39 @@
         </translation>
     </message>
     <message numerus="yes">
-        <location filename="../apps/write/app/writewindow_info.cpp" line="+231"/>
+        <location filename="../apps/write/app/writewindow_info.cpp" line="+238"/>
+        <source>%n picture filling a shape is left as it is, because changing it would change how the shape looks.</source>
+        <translation>
+            <numerusform>%n picture filling a shape is left as it is, because changing it would change how the shape looks.</numerusform>
+            <numerusform>%n pictures filling shapes are left as they are, because changing them would change how the shapes look.</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <location line="+1"/>
+        <source>%n picture in a comment cannot be changed here.</source>
+        <translation>
+            <numerusform>%n picture in a comment cannot be changed here.</numerusform>
+            <numerusform>%n pictures in comments cannot be changed here.</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <location line="+3"/>
+        <source>%n picture in an older kind of drawing cannot be changed here.</source>
+        <translation>
+            <numerusform>%n picture in an older kind of drawing cannot be changed here.</numerusform>
+            <numerusform>%n pictures in an older kind of drawing cannot be changed here.</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <location line="+1"/>
+        <source>%n picture in another place cannot be changed here.</source>
+        <translation>
+            <numerusform>%n picture in another place cannot be changed here.</numerusform>
+            <numerusform>%n pictures in other places cannot be changed here.</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <location line="+13"/>
         <source>%n linked picture(s) or object(s) can&apos;t be checked, because the file does not say where each one goes.</source>
         <translation>
             <numerusform>%n linked picture or object can&apos;t be checked, because the file does not say where it goes.</numerusform>
@@ -813,11 +935,19 @@
             <numerusform>%n proofing errors</numerusform>
         </translation>
     </message>
+    <message numerus="yes">
+        <location filename="../apps/write/app/writewindow_shapes.cpp" line="-341"/>
+        <source>%n picture was left at its full size, because it is in a place that cannot be changed here or would not be smaller.</source>
+        <translation>
+            <numerusform>%n picture was left at its full size, because it is in a place that cannot be changed here or would not be smaller.</numerusform>
+            <numerusform>%n pictures were left at their full size, because they are in places that cannot be changed here or would not be smaller.</numerusform>
+        </translation>
+    </message>
 </context>
 <context>
     <name>jp::crunch::EditSession</name>
     <message numerus="yes">
-        <location filename="../apps/crunch/core/editsession.cpp" line="+1301"/>
+        <location filename="../apps/crunch/core/editsession.cpp" line="+1302"/>
         <source>Clearing %n cell(s)</source>
         <translation>
             <numerusform>Clearing %n cell</numerusform>

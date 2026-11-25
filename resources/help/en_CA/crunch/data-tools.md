@@ -114,9 +114,10 @@ Use this to put a row of totals under each group of rows that have the same entr
 3. In **At each change in**, choose the column that groups the rows, such as Region.
 4. In **Use function**, choose what to work out: **Sum**, **Count**, **Average**, **Max**, **Min**, and others.
 5. In **Add subtotal to**, check each column to total.
-6. Leave **Replace current subtotals** checked to swap out subtotals that are already there. Press **OK**.
+6. Leave **Replace current subtotals** checked to swap out subtotals that are already there.
+7. **Summary below data** starts as the sheet's outline has it. Leave it checked to put each total row under its group, or clear it to put each total row above its group, with the grand total at the top. Press **OK**.
 
-Each total row says "East Total" (or the entry it is for) and holds a SUBTOTAL formula, so it leaves out the other total rows. The rows of each group are grouped, so you can use the 1, 2, and 3 buttons beside the rows to show only the totals. To take the totals away, open **Subtotal** again and press **Remove All**. Adding or removing subtotals is one step that you can undo.
+Each total row says "East Total" (or the entry it is for) and holds a SUBTOTAL formula, so it leaves out the other total rows. The rows of each group are grouped, so you can use the 1, 2, and 3 buttons beside the rows to show only the totals. To take the totals away, open **Subtotal** again and press **Remove All**. If the totals went to the other side of a sheet that already had its own groups, the status bar says that those groups now have their summary rows on that side, and Remove All puts the side back as it was before the first subtotal, unless you changed it yourself since. When the totals are above, the outline's buttons sit at the total rows, so a plus or minus button next to "East Total" shows or hides the East rows below it. If you turn off **Replace current subtotals**, the new totals must go on the same side as the ones already there. Otherwise nothing is changed, and a message says so. Adding or removing subtotals is one step that you can undo.
 
 ## Advanced Filter
 
