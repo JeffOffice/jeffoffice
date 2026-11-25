@@ -246,7 +246,7 @@ bool writeMergeFile(const QString &path, const QByteArray &bytes, QString *error
 {
     // (isSymLink looks at the link itself, so a link that leads nowhere is found too; QSaveFile would write through a link to what it leads to)
     if (QFileInfo(path).isSymLink() && !QFile::remove(path)) {
-        if (error) *error = QCoreApplication::translate("MergeFiles", "A link of that name can't be replaced.");
+        if (error) *error = QCoreApplication::translate("MergeFiles", "A shortcut with that file's name could not be replaced.");
         return false;
     }
     QSaveFile file(path);

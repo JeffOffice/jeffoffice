@@ -110,6 +110,8 @@ private Q_SLOTS:
     void aPubFileCopyListsTheMailMergeListAsNotKept();
     void aRecipientLeftOutInASortedBoxIsLeftOutAgainByItsPlaceInTheList();
     void saveEachAsAFileMakesOnePublicationForEachRecipientThroughTheWindow();
+    void aPublicationMadeByAMergeHoldsNothingOfTheListItCameFrom();
+    void aTargetNameThatIsAFolderOrALinkToOneChangesNothingOutsideTheFolderAndIsSaidInWords();
     void aDamagedTextFileOrListIsTakenInOrRefusedWithAReason();
     void changeTemplateGallery();
     void templatesFitTheirText();

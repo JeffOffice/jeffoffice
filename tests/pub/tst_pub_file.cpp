@@ -5,6 +5,9 @@
 #include "core/mergeextras.h"
 #include "io/importers.h"
 #include "odt/odt.h"
+#include <QJsonArray>
+#include <QJsonDocument>
+#include <QJsonObject>
 #include <QLineEdit>
 #include <QMessageBox>
 #include <QTableWidget>
@@ -1490,6 +1493,147 @@ void PubFileTests::saveEachAsAFileMakesOnePublicationForEachRecipientThroughTheW
         QVERIFY(one->merge.path.isEmpty());
         QVERIFY(one->merge.rows.isEmpty());
     }
+}
+
+// Every entry of a saved publication, its name and its bytes, as one text: what the file holds, to look through for what must not be there.
+static QByteArray wholePublication(const QByteArray &zip, QMap<QString, QByteArray> *entries = nullptr)
+{
+    QMap<QString, QByteArray> parts;
+    QString err;
+    if (!jp::readZip(zip, parts, &err)) return QByteArray();
+    QByteArray all;
+    for (auto it = parts.cbegin(); it != parts.cend(); ++it) all += it.key().toUtf8() + '\n' + it.value() + '\n';
+    if (entries) *entries = parts;
+    return all;
+}
+
+void PubFileTests::aPublicationMadeByAMergeHoldsNothingOfTheListItCameFrom()
+{
+    QTemporaryDir dir;
+    QVERIFY(dir.isValid());
+    const QString folder = dir.filePath(QStringLiteral("out"));
+    auto doc = jp::Document::blank(QSizeF(612, 792));
+    doc->merge.fields = {QStringLiteral("Name"), QStringLiteral("Email")};
+    for (const QStringList &r : {QStringList{"Annabelle", "annabelle@example.com"}, QStringList{"Bohdan", "bohdan@example.com"}, QStringList{"Cyrus", "cyrus@example.com"}}) {
+        doc->merge.rows << r;
+        doc->merge.include << true;
+    }
+    doc->merge.path = dir.filePath(QStringLiteral("people-list.csv"));
+    doc->merge.keyColumn = QStringLiteral("Email");
+    doc->merge.include[1] = false;
+    auto box = std::make_shared<jp::TextItem>();
+    box->rect = QRectF(48, 84, 200, 30);
+    box->storyId = doc->createStory();
+    {
+        QTextCursor c(doc->storyDoc(box->storyId));
+        QTextCharFormat cf;
+        cf.setProperty(jp::tp::Field, QStringLiteral("merge:Name"));
+        c.insertText(QString(QChar::ObjectReplacementCharacter), cf);
+    }
+    doc->pages[0]->items.push_back(box);
+    // (what must not be in any of them: the list's folder and file name, the other recipients, every address, and who is left out)
+    const QByteArrayList never{dir.path().toUtf8(), "people-list", "bohdan", "Bohdan", "annabelle@", "cyrus@", "example.com", "keyColumn", "\"place\"", "\"include\""};
+    auto holdsNone = [&](const QByteArray &zip, const QByteArray &mine, const QByteArrayList &others, const char *which) {
+        QMap<QString, QByteArray> parts;
+        const QByteArray all = wholePublication(zip, &parts);
+        QVERIFY2(!all.isEmpty(), which);
+        QVERIFY2(all.contains(mine), which);   // (so that the look is not through an empty file)
+        for (const QByteArray &what : never) QVERIFY2(!all.contains(what), qPrintable(QStringLiteral("%1 holds %2").arg(QLatin1String(which), QString::fromUtf8(what))));
+        for (const QByteArray &what : others) QVERIFY2(!all.contains(what), qPrintable(QStringLiteral("%1 holds %2").arg(QLatin1String(which), QString::fromUtf8(what))));
+        const QJsonObject m = QJsonDocument::fromJson(parts.value(QStringLiteral("document.json"))).object().value(QStringLiteral("merge")).toObject();
+        QVERIFY2(m.value(QStringLiteral("path")).toString().isEmpty() && m.value(QStringLiteral("rows")).toArray().isEmpty() && m.value(QStringLiteral("fields")).toArray().isEmpty() &&
+                     m.value(QStringLiteral("include")).toArray().isEmpty(), which);
+    };
+    // The publication of all the recipients (Merge to New Publication): Annabelle and Cyrus, and nobody left out.
+    auto all = jp::mergeToNewPublication(*doc);
+    QVERIFY(all);
+    holdsNone(jp::publicationBytes(*all, QImage()), "Annabelle", {}, "the merged publication");
+    QVERIFY(wholePublication(jp::publicationBytes(*all, QImage())).contains("Cyrus"));
+    // One file for each recipient, through the window: each has its own recipient's text and no other's.
+    jp::MainWindow w;
+    w.editor()->setDocument(std::move(doc));
+    w.act(QStringLiteral("mm.mergeFiles"))->setEnabled(true);
+    QTimer boxes;
+    QObject::connect(&boxes, &QTimer::timeout, [&] {
+        auto *msg = qobject_cast<QMessageBox *>(QApplication::activeModalWidget());
+        if (!msg) return;
+        if (QAbstractButton *yes = msg->button(QMessageBox::Yes)) yes->click();
+        else msg->accept();
+    });
+    boxes.start(20);
+    withDialog([&] { w.act(QStringLiteral("mm.mergeFiles"))->trigger(); }, QStringLiteral("mergeFilesDialog"), [&](QDialog *d) {
+        d->findChild<QLineEdit *>(QStringLiteral("mergeFilesFolder"))->setText(folder);
+        d->findChild<QLineEdit *>(QStringLiteral("mergeFilesPattern"))->setText(QStringLiteral("{Name}"));
+    });
+    boxes.stop();
+    QCOMPARE(QDir(folder).entryList(QDir::Files, QDir::Name), (QStringList{"Annabelle.jpub", "Cyrus.jpub"}));
+    for (const QString &name : {QStringLiteral("Annabelle"), QStringLiteral("Cyrus")}) {
+        QFile f(QDir(folder).filePath(name + QStringLiteral(".jpub")));
+        QVERIFY(f.open(QIODevice::ReadOnly));
+        const QByteArray bytes = f.readAll();
+        holdsNone(bytes, name.toUtf8(), {name == QLatin1String("Cyrus") ? QByteArray("Annabelle") : QByteArray("Cyrus")}, qPrintable(name));
+    }
+}
+
+void PubFileTests::aTargetNameThatIsAFolderOrALinkToOneChangesNothingOutsideTheFolderAndIsSaidInWords()
+{
+    QTemporaryDir dir;
+    QVERIFY(dir.isValid());
+    const QString folder = dir.filePath(QStringLiteral("out"));
+    const QString elsewhere = dir.filePath(QStringLiteral("elsewhere"));
+    QVERIFY(QDir().mkpath(folder));
+    QVERIFY(QDir().mkpath(elsewhere + QStringLiteral("/inner")));
+    QFile keep(elsewhere + QStringLiteral("/inner/keep.txt"));
+    QVERIFY(keep.open(QIODevice::WriteOnly));
+    keep.write("KEEP");
+    keep.close();
+    // Ann.jpub is a link to a folder elsewhere, Cy.jpub is a real folder with a file in it.
+    const bool linked = QFile::link(elsewhere, folder + QStringLiteral("/Ann.jpub")) && QFileInfo(folder + QStringLiteral("/Ann.jpub")).isSymLink();
+    QVERIFY(QDir().mkpath(folder + QStringLiteral("/Cy.jpub")));
+    QFile held(folder + QStringLiteral("/Cy.jpub/held.txt"));
+    QVERIFY(held.open(QIODevice::WriteOnly));
+    held.write("HELD");
+    held.close();
+    jp::MainWindow w;
+    auto doc = jp::Document::blank(QSizeF(612, 792));
+    doc->merge = fourRecipients();
+    doc->merge.include[1] = false;
+    doc->merge.include[3] = false;
+    w.editor()->setDocument(std::move(doc));
+    w.act(QStringLiteral("mm.mergeFiles"))->setEnabled(true);
+    QStringList said;
+    QTimer boxes;
+    QObject::connect(&boxes, &QTimer::timeout, [&] {
+        auto *msg = qobject_cast<QMessageBox *>(QApplication::activeModalWidget());
+        if (!msg) return;
+        said << msg->text();
+        if (QAbstractButton *yes = msg->button(QMessageBox::Yes)) yes->click();
+        else msg->accept();
+    });
+    boxes.start(20);
+    withDialog([&] { w.act(QStringLiteral("mm.mergeFiles"))->trigger(); }, QStringLiteral("mergeFilesDialog"), [&](QDialog *d) {
+        d->findChild<QLineEdit *>(QStringLiteral("mergeFilesFolder"))->setText(folder);
+        d->findChild<QLineEdit *>(QStringLiteral("mergeFilesPattern"))->setText(QStringLiteral("{Name}"));
+    });
+    boxes.stop();
+    // The link is replaced by a file (it is the link that goes, and what it led to stays); the real folder is not replaced by anything: the run stops there and says so.
+    QCOMPARE(QFileInfo(elsewhere + QStringLiteral("/inner/keep.txt")).size(), qint64(4));
+    QCOMPARE(QDir(elsewhere).entryList(QDir::AllEntries | QDir::NoDotAndDotDot, QDir::Name), (QStringList{"inner"}));
+    if (linked) {
+        QVERIFY(!QFileInfo(folder + QStringLiteral("/Ann.jpub")).isSymLink());
+        QVERIFY(QFileInfo(folder + QStringLiteral("/Ann.jpub")).isFile());
+    }
+    QVERIFY(QFileInfo(folder + QStringLiteral("/Cy.jpub")).isDir());
+    QVERIFY(held.open(QIODevice::ReadOnly));
+    QCOMPARE(held.readAll(), QByteArray("HELD"));
+    held.close();
+    QCOMPARE(QDir(folder + QStringLiteral("/Cy.jpub")).entryList(QDir::AllEntries | QDir::NoDotAndDotDot), (QStringList{"held.txt"}));
+    // Nothing was made anywhere but in the chosen folder.
+    QCOMPARE(QDir(dir.path()).entryList(QDir::AllEntries | QDir::NoDotAndDotDot, QDir::Name), (QStringList{"elsewhere", "out"}));
+    // The person was told in words that Cy.jpub could not be saved (the last box said how many files were saved before it stopped).
+    bool told = false;
+    for (const QString &text : said) told = told || (text.contains(QLatin1String("Cy.jpub")) && text.contains(QLatin1String("can't be saved")));
+    QVERIFY2(told, qPrintable(said.join(QLatin1String(" | "))));
 }
 
 // Each reader of Insert File and of recipient lists is given its file damaged in many ways (bytes changed, the end cut off, a run of junk put in): it

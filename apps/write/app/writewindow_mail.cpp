@@ -48,6 +48,25 @@ namespace jp {
 
 namespace {
 
+// A question the person answers in a box. The box is made on the heap and watched, so that a window that goes while it is up (the box is the window's child) takes it along without a second
+// delete; `ok` is false then.
+QString askText(QWidget *parent, const QString &title, const QString &prompt, const QString &def, bool *ok)
+{
+    QPointer<QInputDialog> box = new QInputDialog(parent);
+    box->setWindowTitle(title);
+    box->setLabelText(prompt);
+    box->setTextValue(def);
+    box->setInputMode(QInputDialog::TextInput);
+    const bool accepted = box->exec() == QDialog::Accepted;
+    QString text;
+    if (box) {
+        text = box->textValue();
+        delete box.data();
+    }
+    *ok = accepted;
+    return text;
+}
+
 const QString kLeft = QString::fromUtf8("\xC2\xAB"), kRight = QString::fromUtf8("\xC2\xBB");
 
 QString shown(const QString &name) { return kLeft + name + kRight; }
@@ -236,15 +255,28 @@ struct MailUi {
     {
         write::mail::MergeOptions o;
         o.pageBreaks = pages;
-        o.cancelled = &m_cancelled;
-        o.ask = [this](const QString &prompt, const QString &def) {
+        // (what a question or the progress window leaves behind is kept where the window's going cannot take it: the merge may outlive the window or the document while a question is up)
+        const std::shared_ptr<MergeFlags> flags = m_flags;
+        QPointer<WriteWindow> win(w);
+        QPointer<write::WriteDoc> source(doc());
+        o.cancelled = &flags->cancelled;
+        o.ask = [flags, win, source](const QString &prompt, const QString &def) {
+            if (!win || !source) {
+                flags->gone = flags->cancelled = true;
+                return def;
+            }
             bool ok = false;
-            const QString a = QInputDialog::getText(w, QCoreApplication::translate("jp::WriteMail", "Mail Merge"), prompt, QLineEdit::Normal, def, &ok);
-            if (!ok) m_cancelled = true;
+            const QString a = askText(win, QCoreApplication::translate("jp::WriteMail", "Mail Merge"), prompt, def, &ok);
+            if (!win || !source || win->document() != source.data()) {
+                flags->gone = flags->cancelled = true;
+                return def;
+            }
+            if (!ok) flags->cancelled = true;
             return ok ? a : def;
         };
         {
-            o.progress = [this](int done, int total) {
+            o.progress = [this, flags, win](int done, int total) {
+                if (!win || flags->gone) return false;
                 if (!m_progress) {
                     m_progress = new QProgressDialog(QCoreApplication::translate("jp::WriteMail", "Merging…"), QCoreApplication::translate("jp::WriteMail", "Cancel"), 0, total, w);
                     m_progress->setWindowModality(Qt::WindowModal);
@@ -255,7 +287,8 @@ struct MailUi {
                 m_progress->setMaximum(total);
                 m_progress->setValue(done);
                 QCoreApplication::processEvents();
-                if (m_progress->wasCanceled()) m_cancelled = true;
+                if (!win || !m_progress) return false;
+                if (m_progress->wasCanceled()) flags->cancelled = true;
                 return !m_progress->wasCanceled();
             };
         }
@@ -263,9 +296,13 @@ struct MailUi {
     }
 
     // A merge runs: the cancel the person made on a question or on the progress window, and the progress window.
-    bool m_cancelled = false;
+    struct MergeFlags {
+        bool cancelled = false;   // the person cancelled
+        bool gone = false;        // the window or the document went while a question was up
+    };
+    std::shared_ptr<MergeFlags> m_flags = std::make_shared<MergeFlags>();
     QPointer<QProgressDialog> m_progress;
-    void beginMerge() { m_cancelled = false; }
+    void beginMerge() { m_flags = std::make_shared<MergeFlags>(); }
     void endMerge()
     {
         delete m_progress;
@@ -672,9 +709,17 @@ struct MailUi {
         const write::mail::Kind kind = state()->kind();
         QString error;
         beginMerge();
+        const std::shared_ptr<MergeFlags> flags = m_flags;
+        QPointer<WriteWindow> win(w);
         auto out = write::mail::mergeToDocument(*doc(), state()->data, state()->fieldMap, options(kind != write::mail::Kind::Directory), &error);
+        // (a window that went while a question was up takes this object with it: nothing of it is used)
+        if (!win) return nullptr;
         endMerge();
-        if (!out && m_cancelled) return nullptr;
+        if (flags->gone) {
+            w->notice(QCoreApplication::translate("jp::WriteMail", "Mail Merge"), QCoreApplication::translate("jp::WriteMail", "The document is gone."), true);
+            return nullptr;
+        }
+        if (!out && flags->cancelled) return nullptr;
         if (!out) w->notice(QCoreApplication::translate("jp::WriteMail", "Mail Merge"), QCoreApplication::translate("jp::WriteMail", "The merge can't be made.\n%1").arg(error), true);
         return out;
     }
@@ -751,20 +796,30 @@ struct MailUi {
                 *why = QCoreApplication::translate("jp::WriteMail", "The document is gone.");
                 return false;
             }
-            bool cancelled = false;
+            bool cancelled = false, gone = false;
             write::mail::MergeOptions o;
             o.rows = {row};
             o.cancelled = &cancelled;
             o.ask = [&](const QString &prompt, const QString &def) {
                 if (!answers->contains(prompt)) {
                     bool ok = false;
-                    if (win) answers->insert(prompt, QInputDialog::getText(win, QCoreApplication::translate("jp::WriteMail", "Mail Merge"), prompt, QLineEdit::Normal, def, &ok));
-                    if (!ok) answers->insert(prompt, def);
+                    QString a;
+                    if (win) a = askText(win, QCoreApplication::translate("jp::WriteMail", "Mail Merge"), prompt, def, &ok);
+                    // (the question was a turn of the event loop: the window or the document may be gone, and the run stops here)
+                    if (!win || !source || win->document() != source.data()) {
+                        gone = cancelled = true;
+                        return def;
+                    }
+                    answers->insert(prompt, ok ? a : def);
                 }
                 return answers->value(prompt);
             };
             QString error;
             auto out = write::mail::mergeToDocument(*source, data, fieldMap, o, &error);
+            if (gone || !win || !source) {
+                *why = QCoreApplication::translate("jp::WriteMail", "The document is gone.");
+                return false;
+            }
             if (!out) { *why = error; return false; }
             QByteArray bytes;
             if (choice.pdf) {
@@ -802,9 +857,16 @@ struct MailUi {
         QString error;
         QVector<int> sourceRows;
         beginMerge();
+        const std::shared_ptr<MergeFlags> flags = m_flags;
+        QPointer<WriteWindow> win(w);
         const QStringList texts = write::mail::mergeToTexts(*doc(), s.data, s.fieldMap, options(false), &error, &sourceRows);
+        if (!win) return;
         endMerge();
-        if (m_cancelled) return;
+        if (flags->gone) {
+            w->notice(QCoreApplication::translate("jp::WriteMail", "Mail Merge"), QCoreApplication::translate("jp::WriteMail", "The document is gone."), true);
+            return;
+        }
+        if (flags->cancelled) return;
         QApplication::setOverrideCursor(Qt::WaitCursor);
         int refused = 0;
         const int written = error.isEmpty() ? write::mail::writeEmailFiles(texts, s.data, sourceRows, column, subject, folder, &error, &refused) : 0;
