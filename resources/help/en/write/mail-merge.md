@@ -30,7 +30,7 @@ Then click **Mailings > Edit Recipient List** to check the list:
 - Uncheck a row to leave that person out.
 - Click a column heading to sort.
 - Type in **Filter recipients** to show only the rows that have your words in them.
-- **Remember who is left out by** picks the column that tells one person from another, such as an email address. When you open the document again and the list is read, the people you unchecked are left out again, even if the list has a different order or new people. With **Place in the list**, they are remembered by their row number. If the list has changed so that this no longer fits, JeffWrite tells you and includes everyone it could not match.
+- **Tell recipients apart by** picks the column that tells one person from another, such as an email address. When you open the document again and the list is read, the people you unchecked are left out again, even if the list has a different order or new people. With **Place in the list**, they are remembered by their row number in the list file, even if you sorted or filtered the rows in this window. If the list has changed so that this no longer fits, JeffWrite tells you and includes everyone it could not match. The document keeps a coded form of each address, not the address itself, but a person who has the document and guesses an address can still test that guess. **Inspect Document** (File > Info) removes the record of who is left out.
 - **Find Duplicates** unchecks repeats.
 - **Validate Addresses** colors the rows that have no address or a ZIP code that looks wrong.
 
@@ -73,7 +73,7 @@ Click **Mailings > Finish & Merge**:
 - **Print Documents** makes that document and opens the **Print** page.
 - **Save as PDF** saves every copy in one PDF file.
 - **Send Email Messages** makes one .eml message file for each person, in a folder you choose. Choose the column that holds the email addresses, and type a subject. JeffWrite does not send them. Open the files in your email program.
-- **Save Each as a File** makes one file for each person, in a folder you choose, as a .docx file or a PDF. Name the files with columns in braces, such as {Last Name}, {First Name}; a name used twice gets a number. A box shows the first names and how many files will be made. You are asked before more than 200 files, and once if files with the same names are already in the folder. Click **Cancel** to stop between files: the files already made stay. A merge makes at most 100,000 files.
+- **Save Each as a File** makes one file for each person, in a folder you choose, as a .docx file or a PDF. Name the files with columns in braces, such as {Last Name}, {First Name}; a name used twice gets a number. A box shows the first names and how many files will be made. You are asked before more than 200 files, and once if files with the same names are already in the folder. Click **Cancel** to stop between files: the files already made stay; closing the window does the same. A file that is a link to another file is replaced by a new file, and the file it led to is not touched. The files hold the letter for one person only: they do not hold the list, its location, or who was left out. A merge makes at most 100,000 files.
 
 The people you unchecked in the list are left out.
 

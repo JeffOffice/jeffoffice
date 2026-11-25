@@ -23,17 +23,27 @@ constexpr qint64 kMostExclusionBytes = qint64(8) << 20;
 struct MergeExclusions {
     QString keyColumn;           // empty: by place
     qint64 rows = 0;             // how many recipients the list had when this was made
+    QString salt;                // 64 hexadecimal digits, made once for the document: the fingerprints are keyed by it, so a list of guesses made elsewhere finds none of them
     QStringList keys;            // by key: the fingerprint of the key of each recipient left out
-    QVector<int> places;         // by place: the row of each recipient left out
+    QVector<int> places;         // by place: the place in the list as it is read (never as shown) of each recipient left out
     bool isEmpty() const { return keys.isEmpty() && places.isEmpty(); }
-    bool operator==(const MergeExclusions &o) const { return keyColumn == o.keyColumn && rows == o.rows && keys == o.keys && places == o.places; }
+    bool operator==(const MergeExclusions &o) const { return keyColumn == o.keyColumn && rows == o.rows && salt == o.salt && keys == o.keys && places == o.places; }
 };
 
-// The fingerprint of a key value (the same for "Ann@X.com " and "ann@x.com").
-QString mergeKeyFingerprint(const QString &value);
-// The recipients `m` leaves out (include is false), by `m.keyColumn` where the list has that column, else by place.
-MergeExclusions exclusionsOf(const MergeSource &m);
-// The bytes a document keeps, and what is read from them (false, nothing read, where they are not what this writes or are over the limits).
+// The most recipients a list can have where a document remembers its size, and the length of the salt in digits.
+constexpr qint64 kMostSavedListRows = 10000000;
+constexpr int kSaltDigits = 64;
+
+// The fingerprint of a key value (the same for "Ann@X.com " and "ann@x.com"): a keyed hash of the trimmed, case-folded value, 16 hexadecimal digits. It is not a secret from a person who has the
+// document and guesses an address: that guess can still be tested.
+QString mergeKeyFingerprint(const QString &value, const QString &salt);
+// A new random salt.
+QString newExclusionSalt();
+// The recipients `m` leaves out (include is false), by `m.keyColumn` where the list has that column, else by place (`m.place`, where the rows were put in another order). `salt` is the document's
+// own where it has one; a new one is made where there is none and somebody is left out.
+MergeExclusions exclusionsOf(const MergeSource &m, const QString &salt = QString());
+// The bytes a document keeps, and what is read from them (false, nothing read, where they are not what this writes or are over the limits: a size that is not a whole number in range, a place
+// outside the list, a key with no salt).
 QByteArray exclusionsToBytes(const MergeExclusions &e);
 bool exclusionsFromBytes(const QByteArray &bytes, MergeExclusions *out);
 
@@ -59,13 +69,16 @@ QString safeMergeFileName(const QString &text, const QString &fallback = QString
 // The pattern an app offers first: Last name, First name where the list has them, else its first column. A pattern is text with {Column} in it.
 QString defaultFileNamePattern(const MergeSource &m);
 // The name of the file of each row in `rows` (the ending `extension` with its dot, included): the pattern filled from the row with each value made safe, a name that is empty becomes the
-// row's number, and a name that came before is numbered ("Smith (2).pdf"; compared without regard to case, as the systems that fold case need).
+// row's number, and a name that came before is numbered ("Smith (2).pdf"; compared without regard to case or to how an accented letter is composed, as the systems that fold case or normalize need).
 QStringList mergeFileNames(const MergeSource &m, const QVector<int> &rows, const QString &pattern, const QString &extension);
 // Whether `name` is a plain file name that stays in `folder` (no separator, not "." or "..").
 bool nameStaysInFolder(const QString &folder, const QString &name);
 
-// How many of the files `names` would make are already in `folder`.
+// How many of the files `names` would make are already in `folder` (a link of that name counts, whether it leads anywhere or not: it is replaced).
 int mergeFilesThatExist(const QString &folder, const QStringList &names);
+// Writes `bytes` as the file `path`. Where `path` is a symbolic link (leading anywhere or not) the LINK is taken away first and a real file is made in its place; the file it led to is never
+// touched. The look and the write follow each other with nothing between them (no turn of the event loop).
+bool writeMergeFile(const QString &path, const QByteArray &bytes, QString *error);
 // What a run of files came to: how many are written, whether the person stopped it (the files already written stay), and why it stopped where it could not go on.
 struct MergeFilesResult {
     int written = 0;

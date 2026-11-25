@@ -13,7 +13,7 @@ Click **Mailings > Start > Select Recipients**:
 - **Select from Contacts…**: pick a contacts file (.vcf or .vcard). Most address books and phones can save their contacts as one; each contact becomes a recipient, with name, address, phone, and email columns.
 - **Type a New List…**: fill in the **New Address List** window, using **New Entry** for each person. JeffPub then offers to save the list as a CSV file.
 
-To check the list, click **Mailings > Start > Edit Recipient List**. In the **Mail Merge Recipients** window, uncheck a row to skip that person, click a heading to sort, and type in **Filter recipients** to narrow the list. **Remember who is left out by** picks a column that tells people apart; the list is kept with its unchecked rows in your publication, and when you choose the same list file again, the same people are left out again. **Find Duplicates** unchecks repeats, and **Validate Addresses** highlights rows with a missing address or an odd ZIP code.
+To check the list, click **Mailings > Start > Edit Recipient List**. In the **Mail Merge Recipients** window, uncheck a row to skip that person, click a heading to sort, and type in **Filter recipients** to narrow the list. **Tell recipients apart by** picks a column that tells people apart; the list is kept with its unchecked rows in your publication, and when you choose the same list file again, the same people are left out again, even if you sorted the rows first. **Find Duplicates** unchecks repeats, and **Validate Addresses** highlights rows with a missing address or an odd ZIP code.
 
 ## Add merge fields
 

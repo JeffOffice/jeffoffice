@@ -3,6 +3,10 @@
 #include <QCoreApplication>
 #include <QCryptographicHash>
 #include <QDir>
+#include <QFile>
+#include <QMessageAuthenticationCode>
+#include <QRandomGenerator>
+#include <QSaveFile>
 #include <QFileInfo>
 #include <QHash>
 #include <QJsonArray>
@@ -10,7 +14,9 @@
 #include <QJsonObject>
 #include <QRegularExpression>
 #include <QSet>
+#include <QStringList>
 #include <algorithm>
+#include <cmath>
 
 namespace jp {
 
@@ -28,29 +34,39 @@ QString tr(const char *text, int n = -1) { return QCoreApplication::translate("M
 
 } // namespace
 
-QString mergeKeyFingerprint(const QString &value)
+QString mergeKeyFingerprint(const QString &value, const QString &salt)
 {
-    return QString::fromLatin1(QCryptographicHash::hash(value.trimmed().toLower().toUtf8(), QCryptographicHash::Sha256).toHex().left(16));
+    const QByteArray mac = QMessageAuthenticationCode::hash(value.trimmed().toCaseFolded().toUtf8(), QByteArray::fromHex(salt.toLatin1()), QCryptographicHash::Sha256);
+    return QString::fromLatin1(mac.toHex().left(16));
 }
 
-MergeExclusions exclusionsOf(const MergeSource &m)
+QString newExclusionSalt()
+{
+    quint32 words[8];
+    QRandomGenerator::system()->fillRange(words);
+    return QString::fromLatin1(QByteArray(reinterpret_cast<const char *>(words), sizeof words).toHex());
+}
+
+MergeExclusions exclusionsOf(const MergeSource &m, const QString &salt)
 {
     MergeExclusions e;
     e.rows = m.rows.size();
+    e.salt = salt.size() == kSaltDigits ? salt : newExclusionSalt();
     const int key = keyColumnOf(m);
     if (key >= 0) e.keyColumn = m.fields[key];
     for (int r = 0; r < m.rows.size() && e.keys.size() + e.places.size() < kMostSavedExclusions; ++r) {
         if (r >= m.include.size() || m.include[r]) continue;
-        if (key >= 0) e.keys << mergeKeyFingerprint(m.rows[r].value(key));
-        else e.places << r;
+        if (key >= 0) e.keys << mergeKeyFingerprint(m.rows[r].value(key), e.salt);
+        else if (const int place = m.place.size() == m.rows.size() ? m.place[r] : r; place >= 0) e.places << place;
     }
+    if (e.isEmpty()) e.salt.clear();
     return e;
 }
 
 QByteArray exclusionsToBytes(const MergeExclusions &e)
 {
     if (e.isEmpty()) return QByteArray();
-    QJsonObject o{{"version", 1}, {"rows", double(e.rows)}};
+    QJsonObject o{{"version", 1}, {"rows", double(e.rows)}, {"salt", e.salt}};
     if (!e.keyColumn.isEmpty()) o["key"] = e.keyColumn.left(kMostKeyColumnChars);
     if (!e.keys.isEmpty()) o["keys"] = QJsonArray::fromStringList(e.keys);
     if (!e.places.isEmpty()) {
@@ -67,13 +83,25 @@ bool exclusionsFromBytes(const QByteArray &bytes, MergeExclusions *out)
     const QJsonObject o = QJsonDocument::fromJson(bytes).object();
     if (o.value("version").toInt() != 1) return false;
     MergeExclusions e;
-    e.rows = qint64(o.value("rows").toDouble());
+    // (a size is read as a number and checked before it is made a whole number: a file can say anything)
+    const double rows = o.value("rows").toDouble(-1);
+    if (!(rows >= 0 && rows <= double(kMostSavedListRows)) || rows != std::floor(rows)) return false;
+    e.rows = qint64(rows);
+    e.salt = o.value("salt").toString();
     e.keyColumn = o.value("key").toString().left(kMostKeyColumnChars);
     const QJsonArray keys = o.value("keys").toArray(), places = o.value("places").toArray();
     if (keys.size() + places.size() > kMostSavedExclusions) return false;
     for (const QJsonValue &k : keys) e.keys << k.toString().left(16);
-    for (const QJsonValue &p : places) e.places << p.toInt(-1);
+    for (const QJsonValue &p : places) {
+        const double place = p.toDouble(-1);
+        if (!(place >= 0 && place < double(e.rows)) || place != std::floor(place)) return false;
+        e.places << int(place);
+    }
     if (e.keyColumn.isEmpty() && !e.keys.isEmpty()) return false;
+    if (!e.keys.isEmpty() || !e.places.isEmpty()) {
+        static const QRegularExpression digits(QStringLiteral("^[0-9a-f]{%1}$").arg(kSaltDigits));
+        if (!digits.match(e.salt).hasMatch()) return false;
+    }
     *out = e;
     return true;
 }
@@ -94,7 +122,7 @@ ExclusionResult applyExclusions(MergeSource &m, const MergeExclusions &saved)
         for (const QString &k : saved.keys) ++needed[k];
         QHash<QString, QVector<int>> found;
         for (int r = 0; r < m.rows.size(); ++r) {
-            const QString f = mergeKeyFingerprint(m.rows[r].value(key));
+            const QString f = mergeKeyFingerprint(m.rows[r].value(key), saved.salt);
             if (needed.contains(f)) found[f] << r;
         }
         int gone = 0, repeated = 0;
@@ -187,8 +215,10 @@ QStringList mergeFileNames(const MergeSource &m, const QVector<int> &rows, const
         if (std::none_of(base.cbegin(), base.cend(), [](QChar ch) { return ch.isLetterOrNumber(); })) base.clear();
         if (base.isEmpty()) base = QCoreApplication::translate("MergeFiles", "Recipient %1").arg(row + 1);
         QString candidate = base + safeExt;
-        for (int n = 2; used.contains(candidate.toLower()); ++n) candidate = base + QStringLiteral(" (%1)").arg(n) + safeExt;
-        used.insert(candidate.toLower());
+        // (compared as a system compares: case folded, and an accented letter made of a letter and a mark is the one letter)
+        auto same = [](const QString &name) { return name.normalized(QString::NormalizationForm_C).toCaseFolded().normalized(QString::NormalizationForm_C); };
+        for (int n = 2; used.contains(same(candidate)); ++n) candidate = base + QStringLiteral(" (%1)").arg(n) + safeExt;
+        used.insert(same(candidate));
         out << candidate;
     }
     return out;
@@ -208,8 +238,23 @@ int mergeFilesThatExist(const QString &folder, const QStringList &names)
     int n = 0;
     const QDir dir(folder);
     for (const QString &name : names)
-        if (nameStaysInFolder(folder, name) && QFileInfo::exists(dir.filePath(name))) ++n;
+        if (nameStaysInFolder(folder, name) && (QFileInfo::exists(dir.filePath(name)) || QFileInfo(dir.filePath(name)).isSymLink())) ++n;
     return n;
+}
+
+bool writeMergeFile(const QString &path, const QByteArray &bytes, QString *error)
+{
+    // (isSymLink looks at the link itself, so a link that leads nowhere is found too; QSaveFile would write through a link to what it leads to)
+    if (QFileInfo(path).isSymLink() && !QFile::remove(path)) {
+        if (error) *error = QCoreApplication::translate("MergeFiles", "A link of that name can't be replaced.");
+        return false;
+    }
+    QSaveFile file(path);
+    if (!file.open(QIODevice::WriteOnly) || file.write(bytes) != bytes.size() || !file.commit()) {
+        if (error) *error = file.errorString();
+        return false;
+    }
+    return true;
 }
 
 MergeFilesResult makeMergeFiles(const QString &folder, const QVector<int> &rows, const QStringList &names, const MakeMergeFile &make, const std::function<bool(int, int)> &progress)

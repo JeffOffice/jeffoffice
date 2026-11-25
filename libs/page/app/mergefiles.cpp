@@ -13,6 +13,7 @@
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QLineEdit>
+#include <QPointer>
 #include <QProgressDialog>
 #include <QPushButton>
 #include <QVBoxLayout>
@@ -98,24 +99,83 @@ bool confirmMergeFiles(QWidget *p, const QString &folder, const QStringList &nam
     return true;
 }
 
-MergeFilesResult runMergeFiles(QWidget *p, const QString &folder, const QVector<int> &rows, const QStringList &names, const MakeMergeFile &make)
+namespace {
+
+constexpr char kRunning[] = "jpMergeFilesRunning";
+
+// What a run watches for besides its own box: the window being closed (the close that was asked for and left the window out of view), the program being asked to quit.
+class RunWatch : public QObject {
+public:
+    RunWatch(QWidget *window) : m_window(window)
+    {
+        if (window) window->installEventFilter(this);
+        if (qApp) {
+            qApp->installEventFilter(this);
+            connect(qApp, &QCoreApplication::aboutToQuit, this, [this] { m_quit = true; });
+        }
+    }
+    ~RunWatch() override
+    {
+        if (m_window) m_window->removeEventFilter(this);
+        if (qApp) qApp->removeEventFilter(this);
+    }
+    bool eventFilter(QObject *o, QEvent *e) override
+    {
+        if (e->type() == QEvent::Quit && o == qApp) m_quit = true;
+        else if (e->type() == QEvent::Close && o == m_window) m_closed = true;
+        return false;
+    }
+    bool gone() const { return m_quit || !m_window || (m_closed && m_window->isHidden()); }
+
+private:
+    QPointer<QWidget> m_window;
+    bool m_quit = false, m_closed = false;
+};
+
+} // namespace
+
+bool mergeFilesRunning(const QObject *p) { return p && p->property(kRunning).toBool(); }
+
+bool refuseWhileMergeFilesRun(QWidget *p)
 {
-    QProgressDialog box(QCoreApplication::translate("MergeFiles", "Saving the files…"), QCoreApplication::translate("MergeFiles", "Cancel"), 0, int(rows.size()), p);
-    box.setObjectName(QStringLiteral("mergeFilesBox"));
-    box.setWindowModality(Qt::WindowModal);
-    box.setMinimumDuration(400);
-    box.setAutoClose(false);
-    box.setAutoReset(false);
+    if (!mergeFilesRunning(p)) return false;
+    jp::plainInformation(p, QCoreApplication::translate("MergeFiles", "Save Each as a File"),
+                         QCoreApplication::translate("MergeFiles", "The files are still being saved. Wait until they are done, or choose Cancel in the box that shows them."));
+    return true;
+}
+
+MergeFilesResult runMergeFiles(QWidget *p, const QString &folder, const QVector<int> &rows, const QStringList &names, const MakeMergeFile &make, const std::function<bool()> &stillValid)
+{
+    if (refuseWhileMergeFilesRun(p)) {
+        MergeFilesResult refused;
+        refused.error = QCoreApplication::translate("MergeFiles", "The files are still being saved.");
+        return refused;
+    }
+    QPointer<QWidget> parent(p);
+    if (parent) parent->setProperty(kRunning, true);
+    RunWatch watch(p);
+    // (the box is shown at once, so that no command can be reached before it is there; it belongs to the window and goes with it)
+    QPointer<QProgressDialog> box = new QProgressDialog(QCoreApplication::translate("MergeFiles", "Saving the files…"), QCoreApplication::translate("MergeFiles", "Cancel"), 0, int(rows.size()), p);
+    box->setObjectName(QStringLiteral("mergeFilesBox"));
+    box->setWindowModality(Qt::WindowModal);
+    box->setMinimumDuration(0);
+    box->setAutoClose(false);
+    box->setAutoReset(false);
+    box->show();
     const MergeFilesResult res = makeMergeFiles(folder, rows, names, make, [&](int done, int) {
-        box.setValue(done);
+        if (box) box->setValue(done);
         QCoreApplication::processEvents();
-        return !box.wasCanceled();
+        return box && !box->wasCanceled() && !watch.gone() && (!stillValid || stillValid());
     });
-    box.close();
+    if (box) box->close();
+    delete box.data();
+    if (parent) parent->setProperty(kRunning, QVariant());
+    // (a window that is gone, or closed, is told nothing)
+    if (!parent || watch.gone()) return res;
     const QString title = QCoreApplication::translate("MergeFiles", "Save Each as a File");
-    if (!res.error.isEmpty()) jp::plainWarning(p, title, QCoreApplication::translate("MergeFiles", "%n file was saved before this stopped.", nullptr, res.written) + QLatin1Char('\n') + res.error);
-    else if (res.stopped) jp::plainInformation(p, title, QCoreApplication::translate("MergeFiles", "Stopped. %n file was saved in the folder %1.", nullptr, res.written).arg(folder));
-    else jp::plainInformation(p, title, QCoreApplication::translate("MergeFiles", "%n file was saved in the folder %1.", nullptr, res.written).arg(folder));
+    if (!res.error.isEmpty()) jp::plainWarning(parent, title, QCoreApplication::translate("MergeFiles", "%n file was saved before this stopped.", nullptr, res.written) + QLatin1Char('\n') + res.error);
+    else if (res.stopped) jp::plainInformation(parent, title, QCoreApplication::translate("MergeFiles", "Stopped. %n file was saved in the folder %1.", nullptr, res.written).arg(folder));
+    else jp::plainInformation(parent, title, QCoreApplication::translate("MergeFiles", "%n file was saved in the folder %1.", nullptr, res.written).arg(folder));
     return res;
 }
 

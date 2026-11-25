@@ -593,6 +593,11 @@ QJsonObject MergeSource::toJson() const
     for (bool b : include) inc.append(b);
     QJsonObject o = {{"path", path}, {"fields", QJsonArray::fromStringList(fields)}, {"rows", rs}, {"include", inc}, {"pictureField", pictureField}};
     if (!keyColumn.isEmpty()) o["keyColumn"] = keyColumn;
+    if (place.size() == rows.size() && !place.isEmpty()) {
+        QJsonArray ps;
+        for (int p : place) ps.append(p);
+        o["place"] = ps;
+    }
     return o;
 }
 MergeSource MergeSource::fromJson(const QJsonObject &o)
@@ -608,6 +613,15 @@ MergeSource MergeSource::fromJson(const QJsonObject &o)
     for (const auto &b : o["include"].toArray()) m.include << b.toBool();
     m.pictureField = o["pictureField"].toString();
     m.keyColumn = o["keyColumn"].toString();
+    // (a place is kept only where there is one for every row and each is a place a list can have)
+    const QJsonArray ps = o["place"].toArray();
+    if (ps.size() == m.rows.size()) {
+        for (const auto &p : ps) {
+            const double v = p.toDouble(-1);
+            if (!(v >= 0 && v < 1e7) || v != std::floor(v)) { m.place.clear(); break; }
+            m.place << int(v);
+        }
+    }
     return m;
 }
 

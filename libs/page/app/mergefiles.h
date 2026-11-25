@@ -4,6 +4,7 @@
 
 #include "core/mergeextras.h"
 
+#include <QObject>
 #include <QString>
 #include <QVector>
 #include <functional>
@@ -29,6 +30,13 @@ bool mergeFilesDialog(QWidget *p, const MergeSource &m, const QVector<int> &rows
 // False where the person says no (nothing is written). More than kMostMergeFiles files is refused here, with the reason.
 bool confirmMergeFiles(QWidget *p, const QString &folder, const QStringList &names);
 // Makes the files with a box that has Cancel (it stops between files), then says how many were saved, and how many before it stopped, or why it could not go on. Returns the result.
-MergeFilesResult runMergeFiles(QWidget *p, const QString &folder, const QVector<int> &rows, const QStringList &names, const MakeMergeFile &make);
+// While it runs, `p` (the window) is marked: mergeFilesRunning(p) is true, and a second run is refused in words. The run stops before the next file (the files made stay whole) when the person
+// cancels, the window is closed or destroyed, the program is asked to quit, or `stillValid` (the app's: the document is the same and unchanged) says false. Nothing the run holds outlives the
+// window: it is watched by a guarded pointer, and no box is shown for a window that is gone.
+MergeFilesResult runMergeFiles(QWidget *p, const QString &folder, const QVector<int> &rows, const QStringList &names, const MakeMergeFile &make, const std::function<bool()> &stillValid = {});
+// Whether a run of files is going on for the window `p`.
+bool mergeFilesRunning(const QObject *p);
+// Where a run is going on for `p`: says so in words and returns true (the command is not carried out).
+bool refuseWhileMergeFilesRun(QWidget *p);
 
 } // namespace jp

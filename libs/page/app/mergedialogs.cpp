@@ -57,6 +57,10 @@ struct Dlg {
 } // namespace
 
 // ---------------- Mail merge recipients ----------------
+namespace {
+constexpr int kPlaceRole = Qt::UserRole + 1;
+}
+
 bool editRecipientList(QWidget *p, MergeSource &m, bool typeNew)
 {
     if (typeNew && m.isEmpty()) {
@@ -76,7 +80,7 @@ bool editRecipientList(QWidget *p, MergeSource &m, bool typeNew)
     dlg.v->addWidget(search);
     // Which column tells one recipient from another, for remembering who is left out when the list is read again (none: by place in the list).
     auto *keyRow = new QHBoxLayout();
-    auto *keyLabel = new QLabel(QCoreApplication::translate("Dialogs", "Remember who is left out by"), &dlg.d);
+    auto *keyLabel = new QLabel(QCoreApplication::translate("Dialogs", "Tell recipients apart by"), &dlg.d);
     auto *keyBox = new QComboBox(&dlg.d);
     keyBox->setObjectName(QStringLiteral("mergeKeyColumn"));
     keyBox->addItem(QCoreApplication::translate("Dialogs", "Place in the list"));
@@ -96,6 +100,8 @@ bool editRecipientList(QWidget *p, MergeSource &m, bool typeNew)
     for (int r = 0; r < m.rows.size(); ++r) {
         auto *check = new QTableWidgetItem();
         check->setCheckState(m.include.value(r, true) ? Qt::Checked : Qt::Unchecked);
+        // (where the row was in the list as read: it goes with the row when the box is sorted, and is what a place is)
+        check->setData(kPlaceRole, m.place.size() == m.rows.size() ? m.place[r] : r);
         table->setItem(r, 0, check);
         for (int c = 0; c < m.fields.size(); ++c) table->setItem(r, c + 1, new QTableWidgetItem(m.rows[r].value(c)));
     }
@@ -142,6 +148,7 @@ bool editRecipientList(QWidget *p, MergeSource &m, bool typeNew)
         table->insertRow(r);
         auto *check = new QTableWidgetItem();
         check->setCheckState(Qt::Checked);
+        check->setData(kPlaceRole, -1);   // (a new entry was never in the list as read)
         table->setItem(r, 0, check);
         for (int c = 1; c < table->columnCount(); ++c) table->setItem(r, c, new QTableWidgetItem());
         table->setCurrentCell(r, 1);
@@ -204,7 +211,12 @@ bool editRecipientList(QWidget *p, MergeSource &m, bool typeNew)
         if (!any) continue;
         out.rows << rowv;
         out.include << (table->item(r, 0) && table->item(r, 0)->checkState() == Qt::Checked);
+        out.place << (table->item(r, 0) ? table->item(r, 0)->data(kPlaceRole).toInt() : -1);
     }
+    // (rows still in the order they were read in need no places)
+    bool inOrder = true;
+    for (int r = 0; r < out.place.size() && inOrder; ++r) inOrder = out.place[r] == r;
+    if (inOrder) out.place.clear();
     if (typeNew) {
         const QString path = askSavePath(p, QCoreApplication::translate("Dialogs", "Save Address List"), QStringLiteral("Recipients.csv"), QCoreApplication::translate("Dialogs", "CSV (*.csv)"));
         if (!path.isEmpty()) { saveMergeCsv(out, path); out.path = path; }
