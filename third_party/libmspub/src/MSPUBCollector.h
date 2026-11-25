@@ -107,6 +107,7 @@ public:
   void setShapeVerticalTextAlign(unsigned seqNum, VerticalAlign va);
   void designateMasterPage(unsigned seqNum);
   void setMasterPage(unsigned pageSeqNum, unsigned masterSeqNum);
+  void setPageIgnoresMaster(unsigned pageSeqNum);   // JeffPub: the page's field 07 is present
   void setShapeStretchBorderArt(unsigned seqNum);
   void setShapeShadow(unsigned seqNum, const Shadow &shadow);
 
@@ -255,6 +256,7 @@ private:
   std::set<unsigned> m_masterPages;
   std::set<unsigned> m_shapesWithCoordinatesRotated90;
   std::map<unsigned, unsigned> m_masterPagesByPageSeqNum;
+  std::set<unsigned> m_pagesIgnoringMaster;
   std::map<unsigned, int> m_pageKinds;   // JeffPub: first byte of each page's field 06
   std::map<unsigned, std::vector<unsigned> > m_tableCellTextEndsByTextId;
   std::map<unsigned, unsigned> m_stringOffsetsByTextId;

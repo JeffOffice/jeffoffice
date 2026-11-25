@@ -2445,6 +2445,8 @@ void MSPUBCollector::writePage(unsigned pageSeqNum) const
     auto hasMaster = bool(masterSeqNum);
     if (hasMaster)
       pageProps.insert("jp:master-seq", int(masterSeqNum.get()));
+    if (m_pagesIgnoringMaster.count(pageSeqNum))
+      pageProps.insert("jp:ignore-master", 1);
     if (m_publicationLayout)
       pageProps.insert("jp:layout", int(m_publicationLayout));
     if (m_firstPageNumber != 1)
@@ -2787,6 +2789,11 @@ void MSPUBCollector::designateMasterPage(unsigned seqNum)
 void MSPUBCollector::setMasterPage(unsigned seqNum, unsigned masterPageSeqNum)
 {
   m_masterPagesByPageSeqNum[seqNum] = masterPageSeqNum;
+}
+
+void MSPUBCollector::setPageIgnoresMaster(unsigned seqNum)
+{
+  m_pagesIgnoringMaster.insert(seqNum);
 }
 
 void MSPUBCollector::setShapeCropType(unsigned seqNum, unsigned cropType)

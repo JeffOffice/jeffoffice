@@ -236,6 +236,8 @@ public:
         // The page's master: the one written under that sequence number (A when the file names none).
         page->masterId = p["jp:master-seq"] ? m_masterIds.value(p["jp:master-seq"]->getInt(), QStringLiteral("A")) : QStringLiteral("A");
         m_page = page.get();
+        // A page with the "no master objects" flag (field 07) shows none of its master's objects.
+        if (p["jp:ignore-master"]) page->showMasterItems = false;
         m_stack.clear();
         m_lastList = nullptr;
         ++m_rep.pages;

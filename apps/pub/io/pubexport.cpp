@@ -1435,6 +1435,7 @@ QByteArray PubWriter::write(QStringList *skipped)
                           str(0x10, QStringLiteral("Your information was received")), str(0x13, QStringLiteral("FORMDATA.HTM")), u32(0x17, 1),
                           str(0x18, QStringLiteral("http://example.com/~user/ispscript.cgi"))};
     };
+    bool pageHidesMaster = false;   // set for the page being written: its master's objects do not show (field 07)
     auto pageBody = [&](const QVector<quint32> &shapes, quint32 sub60, quint32 sub77, bool master, bool special, QSizeF scratch, QSizeF ext,
                         int index = 0, quint32 masterRef = 263, quint32 guidesRef = 289, const QString &abbr = QStringLiteral("A"),
                         const QString &desc = QStringLiteral("Master Page A"), quint32 side = 3) {
@@ -1451,6 +1452,7 @@ QByteArray PubWriter::write(QStringList *skipped)
         f06[0] = char(special || master ? 0 : 2);
         if (!special && !master) setU32(f06, 4, quint32(index));
         b << bytesB(0x06, 0x28, f06);
+        if (pageHidesMaster) b << flag(0x07);
         b << ref(0x09, sub60) << ref(0x0b, sub77);
         if (!master) b << ref(0x0d, masterRef, 0x68);
         b << str(0x0e, master ? abbr : QString()) << str(0x0f, master ? desc : QString());
@@ -2553,8 +2555,10 @@ QByteArray PubWriter::write(QStringList *skipped)
         const bool leftPage = spreads && i % 2 == 1;
         // (a publication with no pages left is written with one empty page: pageSeq always holds the first)
         const bool real = i < m_doc.pages.size();
+        pageHidesMaster = real && !m_doc.pages[i]->showMasterItems;
         cw.put(pageSeq[i], {0x43, 256, pageBody(real ? pageShapes[i] : QVector<quint32>{}, pageSub[i].first, pageSub[i].second, false, spreads && i > 0,
                                                 leftPage ? leftScratch : scratch, leftPage ? leftExt : ext, i, real ? masterFor(*m_doc.pages[i], i) : kMaster)});
+        pageHidesMaster = false;
         cw.put(pageSub[i].first, {0x60, pageSeq[i], {}});
         cw.put(pageSub[i].second, {0x77, pageSeq[i], webForm()});
     }

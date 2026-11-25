@@ -859,6 +859,11 @@ bool MSPUBParser::parsePageChunk(librevenge::RVNGInputStream *input, const Conte
     {
       m_collector->setMasterPage(chunk.seqNum, info.data);
     }
+    // JeffPub: a flag block with the id 07 on a page: the master's objects are not shown on it.
+    else if (info.id == 0x07 && info.type == 0x08)
+    {
+      m_collector->setPageIgnoresMaster(chunk.seqNum);
+    }
     else
     {
       skipBlock(input, info);

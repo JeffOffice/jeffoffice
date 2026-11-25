@@ -302,6 +302,42 @@ private Q_SLOTS:
         }
     }
 
+    // A page that does not show its master's objects keeps that through a .pub save and open (field 07 of the page).
+    void pubPageWithoutMasterObjectsRoundTrip()
+    {
+        using namespace jp;
+        auto doc = Document::blank(QSizeF(396, 612));
+        for (int i = 1; i < 3; ++i) doc->addPage();
+        auto mark = std::make_shared<ShapeItem>();
+        mark->rect = QRectF(36, 36, 50, 50);
+        mark->fill = Fill::solid(ColorRef::rgb(Qt::blue));
+        doc->masters[0]->items.push_back(mark);
+        doc->pages[1]->showMasterItems = false;
+        QTemporaryDir dir;
+        const QString path = dir.filePath(QStringLiteral("nomaster.pub"));
+        QString err;
+        QVERIFY2(exportPublisher(*doc, path, &err), qPrintable(err));
+        auto back = importPublisherFile(path, &err);
+        QVERIFY2(back, qPrintable(err));
+        QCOMPARE(int(back->pages.size()), 3);
+        QCOMPARE(back->pages[0]->showMasterItems, true);
+        QCOMPARE(back->pages[1]->showMasterItems, false);
+        QCOMPARE(back->pages[2]->showMasterItems, true);
+        // Drawn: the mark shows on a page that shows its master's objects and not on the one that does not.
+        QImage shown(396, 612, QImage::Format_ARGB32), hidden(396, 612, QImage::Format_ARGB32);
+        auto draw = [&](int page, QImage &img) {
+            img.fill(Qt::white);
+            QPainter p(&img);
+            PaintContext ctx;
+            ctx.doc = back.get();
+            Renderer::paintPage(&p, ctx, page);
+        };
+        draw(0, shown);
+        draw(1, hidden);
+        QCOMPARE(QColor(shown.pixel(60, 60)), QColor(Qt::blue));
+        QCOMPARE(QColor(hidden.pixel(60, 60)), QColor(Qt::white));
+    }
+
     // Measurement boxes keep three decimal places in any unit, without rounding.
     void measurementsThreeDecimals()
     {
