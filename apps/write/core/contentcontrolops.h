@@ -140,9 +140,9 @@ QVector<std::pair<int, int>> lockedContentRanges(QTextDocument *story, bool with
 bool overlapsRanges(const QVector<std::pair<int, int>> &ranges, int from, int to);
 // Whether the characters from `from` to `to` may be given another look (not where the contents can't be edited).
 bool contentControlsAllowFormat(QTextDocument *story, int from, int to);
-// A paragraph `a` joined to the one after it by Backspace or Delete, where the break is the edge of a control round paragraphs: beginJoinAtEdge says whether it may be done (not where the control
-// would be left with no paragraph), and endJoinAtEdge, after the join, puts the paragraph made on the side of the caret (`inSecond`: the caret was in the second paragraph, so the joined paragraph
-// is inside the control that starts there, or outside the one that ends in the first). Locks are checked by contentControlsAllow, in the join itself.
+// A paragraph `a` joined to the one after it by Backspace or Delete, where the break is the edge of a control round paragraphs: endJoinAtEdge, after the join, puts the paragraph made on the side of the
+// caret (`inSecond`: the caret was in the second paragraph, so the joined paragraph is inside the control that starts there, or outside the one that ends in the first), unless that would leave a
+// control with no paragraph: then it is the control's (beginJoinAtEdge says false where both would). Locks are checked by contentControlsAllow, in the join itself.
 struct EdgeJoin {
     QTextDocument *story = nullptr;
     int position = 0, blocks = 0, moved = 0;

@@ -39,14 +39,14 @@ Put the caret in the control and choose **Insert > Content Control > Properties*
 - **Items in the list** (drop-down list and combo box): Add, rename (double-click an item), Remove, Move Up, and Move Down. A list holds up to 1,000 items.
 - **Date format** (date picker): pick a format or type your own, such as MMMM d, yyyy. The box shows what today's date looks like in it.
 - **The control can't be deleted:** the control stays, though what is inside it can be changed.
-- **The contents can't be edited:** the control can be deleted, but what is inside it can't be changed. That includes typing, pasting, dragging, Find and Replace, a spelling change, a new look for the words, Format Painter, table commands, and accepting or rejecting a tracked change inside it. A change inside it that was tracked before the lock is left to resolve later.
+- **The contents can't be edited:** the control can be deleted, but what is inside it can't be changed. That includes typing, pasting, dragging, Find and Replace, a spelling change, a new look for the words, Copy Formatting, table commands, and accepting or rejecting a tracked change inside it. A change inside it that was tracked before the lock is left to resolve later.
 - **Items can't be added or removed** (repeating section): Add Item and Remove Item do nothing, and say why. Put the caret in any item to see this box for the whole section.
 
 Choose **OK** to apply the changes as one step to undo.
 
 ## Good to know
 
-- A control that holds whole paragraphs keeps its text apart from the paragraphs round it. If it can't be deleted, or its contents can't be edited, Backspace and Delete at its edge do nothing, because they would move words into it or out of it. If it has no lock, joining a paragraph across its edge puts the joined paragraph on the side the caret is on, and the control keeps its other paragraphs; a control with only one paragraph can't be left with none.
+- A control that holds whole paragraphs keeps its text apart from the paragraphs round it. If it can't be deleted, or its contents can't be edited, Backspace and Delete at its edge do nothing, because they would move words into it or out of it. If it has no lock, joining a paragraph across its edge puts the joined paragraph on the side the caret is on, and the control keeps its other paragraphs; a control with only one paragraph is never left with none, so the joined paragraph stays in it.
 - A lock on a control round whole table rows or cells is kept in the file, but JeffWrite does not hold it. The same goes for a control that begins with a table.
 - A document protected for filling in forms is read only all through, so no control can be filled in there, and the Tab key does not move between controls.
 - A document holds up to 10,000 controls, and controls can be inside one another up to 8 deep. A repeating section and its items count as controls.

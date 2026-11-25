@@ -3559,15 +3559,15 @@ private Q_SLOTS:
             doc->undo();
             QCOMPARE(documentXml(doc->toDocx()), was);
         }
-        // A control with one paragraph can't be emptied by a join: from outside it is refused; from inside, its paragraph takes the text in.
-        const QStringList alone = {QString(), QString(), QStringLiteral("before|[aaafter]"), QStringLiteral("[beforeaa]|after")};
+        // A control with one paragraph is not emptied by a join: the joined paragraph is the control's, whichever side the caret is on.
+        const QStringList alone = {QStringLiteral("before|[aaafter]"), QStringLiteral("[beforeaa]|after"), QStringLiteral("before|[aaafter]"), QStringLiteral("[beforeaa]|after")};
         for (int key = 0; key < 4; ++key) {
             auto doc = open(makeDocx(edgeFixture(QByteArray(), false)));
             QVERIFY(doc);
             const QByteArray was = documentXml(doc->toDocx());
             pressAtEdge(*doc, key);
-            if (alone[key].isEmpty()) QVERIFY2(documentXml(doc->toDocx()) == was, qPrintable(QString::number(key)));
-            else QCOMPARE(shownByEdge(documentXml(doc->toDocx())), alone[key]);
+            QCOMPARE(shownByEdge(documentXml(doc->toDocx())), alone[key]);
+            QCOMPARE(blockControls(*open(doc->toDocx())).size(), 1);
         }
     }
 
@@ -3710,7 +3710,7 @@ private Q_SLOTS:
                     QVERIFY2((documentXml(doc->toDocx()) == bold) == locked, "clear formatting");
                     QVERIFY2((bold == was) == locked, "bold");
                     continue;
-                } else if (command == 3) {   // Format Painter
+                } else if (command == 3) {   // Copy Formatting
                     QTextCursor from(story);
                     from.setPosition(story->findBlockByNumber(0).position());
                     from.setPosition(story->findBlockByNumber(0).position() + 3, QTextCursor::KeepAnchor);

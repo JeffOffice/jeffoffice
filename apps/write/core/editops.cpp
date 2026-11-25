@@ -1459,9 +1459,12 @@ void deleteForward(WriteDoc &doc, QTextCursor &c, bool byWord)
     }
     EdgeJoin edge;
     if (!beginJoinAtEdge(doc, c.block(), false, &edge)) return;
+    c.beginEditBlock();
     c.movePosition(QTextCursor::EndOfBlock);
     c.movePosition(QTextCursor::NextCharacter, QTextCursor::KeepAnchor);
     removeSelection(doc, c);
+    endJoinAtEdge(edge);
+    c.endEditBlock();
 }
 
 void insertTab(WriteDoc &doc, QTextCursor &c, bool back)

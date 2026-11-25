@@ -1218,13 +1218,19 @@ bool beginJoinAtEdge(WriteDoc &doc, const QTextBlock &a, bool inSecond, EdgeJoin
     bool controls = false;
     for (const Block &k : between) controls |= k.tag == QLatin1String("sdt");
     if (!controls) return true;
-    // (A control with one paragraph is left with none when that paragraph leaves it: its start or its end stays where the text of the joined paragraph is not.)
-    for (const BlockSpan &s : blockSpans(story))
-        if (!s.rowish && s.first == s.last && s.first == (inSecond ? a.position() : b.position())) return false;
+    // (A control with one paragraph is left with none when that paragraph leaves it: where the caret's side would do that, the joined paragraph is the control's instead.)
+    bool aAlone = false, bAlone = false;
+    for (const BlockSpan &s : blockSpans(story)) {
+        if (s.rowish || s.first != s.last) continue;
+        aAlone |= s.first == a.position();
+        bAlone |= s.first == b.position();
+    }
+    if (aAlone && bAlone) return false;   // (each paragraph is all of a control: the pieces between them are the two controls' own)
+    const bool before = aAlone ? false : bAlone ? true : inSecond;
     join->story = story;
     join->position = a.position();
     join->blocks = story->blockCount();
-    join->moved = inSecond ? int(between.size()) : 0;
+    join->moved = before ? int(between.size()) : 0;
     return true;
 }
 
