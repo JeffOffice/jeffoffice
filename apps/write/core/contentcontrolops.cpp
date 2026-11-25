@@ -1160,7 +1160,7 @@ bool caretInKnownControl(WriteDoc &doc, const QTextCursor &c)
 {
     if (c.document() != doc.story()) return false;
     const ContentControl ctl = contentControlAt(doc, c.position(), c.document());
-    return ctl.valid() && ctl.props.kind != ControlKind::Other;
+    return ctl.valid() && ctl.props.kind != ControlKind::Other && ctl.props.kind != ControlKind::RichText;   // (an Enter in a rich text control splits it, as it splits a link: both halves keep it)
 }
 
 // ---- picture controls

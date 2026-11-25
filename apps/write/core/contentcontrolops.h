@@ -131,7 +131,7 @@ bool contentControlsAllow(WriteDoc &doc, QTextDocument *story, int from, int to,
 bool typingReplacesPlaceholder(WriteDoc &doc, const QTextCursor &c);
 // Then the placeholder is selected, and the control no longer says it is showing one (call it inside the step that types).
 void prepareTypingInControl(WriteDoc &doc, QTextCursor &c);
-// Whether the caret is in a control of a kind known here (an Enter there makes no paragraph: the control's two ends stay in one).
+// Whether the caret is in a control of a kind known here that holds one paragraph (an Enter there makes no paragraph: the control's two ends stay in one; a rich text control is split by it).
 bool caretInKnownControl(WriteDoc &doc, const QTextCursor &c);
 
 } // namespace jp::write

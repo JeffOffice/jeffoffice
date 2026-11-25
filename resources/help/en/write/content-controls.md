@@ -7,7 +7,7 @@ A **content control** is a box in your text that a person fills in: a line of te
 
 1. Put the caret where the control should go.
 2. Choose **Insert > Content Control**, and then pick the kind:
-   - **Rich Text:** a box for formatted words. With paragraphs selected, or in a paragraph with nothing in it, the control holds whole paragraphs, including lists and tables, and Enter makes a new paragraph inside it.
+   - **Rich Text:** a box for formatted words. With paragraphs selected, or in a paragraph with nothing in it, the control holds whole paragraphs, including lists and tables, and Enter makes a new paragraph inside it. Made in a paragraph that has other words, it holds words of that paragraph, and Enter there splits it into two controls.
    - **Plain Text:** a box for words. It shows the placeholder "Enter text" until someone types. With words selected, the control is made around them.
    - **Picture:** a place for one picture. It shows "Add a picture" until one is put in.
    - **Combo Box:** a list of choices that also takes what you type. It shows "Choose or type an item" until one is picked or typed.
