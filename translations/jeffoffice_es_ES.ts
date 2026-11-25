@@ -26,6 +26,10 @@
 <context>
     <name>Dialogs</name>
     <message>
+        <source>Text Files (*.txt *.rtf *.html *.htm *.docx *.doc *.odt *.md)</source>
+        <translation type="unfinished">Ficheros de texto (*.txt *.rtf *.html *.htm *.docx *.doc *.odt *.md)</translation>
+    </message>
+    <message>
         <source>.pub Publication Files (*.pub)</source>
         <translation type="unfinished">Ficheros de publicación .pub (*.pub)</translation>
     </message>
@@ -79,6 +83,10 @@
     <message>
         <source>the download isn't the file expected</source>
         <translation type="unfinished">la descarga no es el fichero esperado</translation>
+    </message>
+    <message>
+        <source>pictures with sharpen, soften, color temperature, or an artistic effect were saved as the finished pictures, so the effect can't be changed or taken off in a .pub file</source>
+        <translation type="unfinished">Las imágenes con enfocar, suavizar, temperatura de color o un efecto artístico se guardaron como imágenes terminadas, así que el efecto no se puede cambiar ni quitar en un fichero .pub</translation>
     </message>
     <message>
         <source>pictures whose background was removed were saved as the finished pictures, so the background can't be brought back or marked again in a .pub file</source>
@@ -151,6 +159,10 @@
         <translation type="unfinished">El fichero no tiene filas.</translation>
     </message>
     <message>
+        <source>Save Each as a File</source>
+        <translation type="unfinished">Guardar cada uno como fichero</translation>
+    </message>
+    <message>
         <source>JeffPub creates one ready-to-send email file (.eml) per recipient, with the publication as an inline picture.
 Open them with your email program to send.</source>
         <translation type="unfinished">JeffPub crea un fichero de correo electrónico listo para enviar (.eml) por destinatario, con la publicación como imagen insertada.
@@ -194,6 +206,10 @@ Open them with your email program to send.</source>
     <message>
         <source>JeffPub could not read this .pub file. It may be damaged or use features that aren't supported yet.</source>
         <translation type="unfinished">JeffPub no pudo leer este fichero .pub. Puede estar dañado o usar características que aún no se admiten.</translation>
+    </message>
+    <message>
+        <source>This publication has content that JeffPub can't place on its pages yet, so it was not opened. The file has not been changed.</source>
+        <translation type="unfinished">Esta publicación tiene contenido que JeffPub todavía no puede colocar en sus páginas, así que no se abrió. El fichero no se ha modificado.</translation>
     </message>
     <message>
         <source>The file is too small to be a publication.</source>
@@ -282,6 +298,93 @@ Download it from %2 now? (%3, once.)</source>
     </message>
 </context>
 <context>
+    <name>MergeFiles</name>
+    <message>
+        <source>Save Each as a File</source>
+        <translation type="unfinished">Guardar cada uno como fichero</translation>
+    </message>
+    <message>
+        <source>Name each file</source>
+        <translation type="unfinished">Asignar nombre a cada fichero</translation>
+    </message>
+    <message>
+        <source>Make each file as</source>
+        <translation type="unfinished">Crear cada fichero como</translation>
+    </message>
+    <message numerus="yes">
+        <source>%n file will be made, for example:
+%1</source>
+        <translation type="unfinished">
+            <numerusform>Se creará %n fichero, por ejemplo:
+%1</numerusform>
+            <numerusform>Se crearán %n ficheros, por ejemplo:
+%1</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <source>A merge makes at most %n file at a time. Use a shorter list.</source>
+        <translation type="unfinished">
+            <numerusform>Una combinación crea como máximo %n fichero a la vez. Use una lista más corta.</numerusform>
+            <numerusform>Una combinación crea como máximo %n ficheros a la vez. Use una lista más corta.</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <source>This makes %n file in the folder %1. Make them?</source>
+        <translation type="unfinished">
+            <numerusform>Esto crea %n fichero en la carpeta %1. ¿Desea crearlo?</numerusform>
+            <numerusform>Esto crea %n ficheros en la carpeta %1. ¿Desea crearlos?</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <source>%n file in that folder has the same name as one to be made. Replace it?</source>
+        <translation type="unfinished">
+            <numerusform>%n fichero de esa carpeta tiene el mismo nombre que uno que se va a crear. ¿Desea reemplazarlo?</numerusform>
+            <numerusform>%n ficheros de esa carpeta tienen el mismo nombre que algunos que se van a crear. ¿Desea reemplazarlos?</numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>The files are still being saved. Wait until they are done, or choose Cancel in the box that shows them.</source>
+        <translation type="unfinished">Los ficheros todavía se están guardando. Espere a que terminen o elija Cancelar en el cuadro que los muestra.</translation>
+    </message>
+    <message>
+        <source>The files are still being saved.</source>
+        <translation type="unfinished">Los ficheros todavía se están guardando.</translation>
+    </message>
+    <message>
+        <source>Saving the files…</source>
+        <translation type="unfinished">Guardando los ficheros…</translation>
+    </message>
+    <message numerus="yes">
+        <source>%n file was saved before this stopped.</source>
+        <translation type="unfinished">
+            <numerusform>Se guardó %n fichero antes de que se detuviera.</numerusform>
+            <numerusform>Se guardaron %n ficheros antes de que se detuviera.</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <source>Stopped. %n file was saved in the folder %1.</source>
+        <translation type="unfinished">
+            <numerusform>Detenido. Se guardó %n fichero en la carpeta %1.</numerusform>
+            <numerusform>Detenido. Se guardaron %n ficheros en la carpeta %1.</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <source>%n file was saved in the folder %1.</source>
+        <translation type="unfinished">
+            <numerusform>Se guardó %n fichero en la carpeta %1.</numerusform>
+            <numerusform>Se guardaron %n ficheros en la carpeta %1.</numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>A shortcut with that file's name could not be replaced.</source>
+        <translation type="unfinished">No se pudo reemplazar un acceso directo con el nombre de ese fichero.</translation>
+    </message>
+    <message>
+        <source>A file name is not allowed: %1</source>
+        <translation type="unfinished">No se permite este nombre de fichero: %1</translation>
+    </message>
+</context>
+<context>
     <name>NewPasswordDialog</name>
     <message>
         <source>This file is protected with a password. Type a new one to change it, or remove the password.</source>
@@ -321,6 +424,14 @@ Download it from %2 now? (%3, once.)</source>
     <message>
         <source>The password couldn't be put on the file.</source>
         <translation type="unfinished">No se pudo poner la contraseña al fichero.</translation>
+    </message>
+    <message>
+        <source>%1: the color an object is dimmed to after its effect has no match in this kind of file, so the object keeps its own color.</source>
+        <translation type="unfinished">%1: el color al que se atenúa un objeto después de su efecto no tiene equivalente en este tipo de fichero, así que el objeto conserva su propio color.</translation>
+    </message>
+    <message>
+        <source>%1: the sounds that effects play are not saved in this kind of file, so the effects play without them.</source>
+        <translation type="unfinished">%1: los sonidos que reproducen los efectos no se guardan en este tipo de fichero, así que los efectos se reproducen sin ellos.</translation>
     </message>
     <message>
         <source>%1: animation effects that have no match in this kind of file were left out.</source>
@@ -1090,6 +1201,10 @@ Download it from %2 now? (%3, once.)</source>
         <translation type="unfinished">opciones de impresión (el fichero las tiene, pero se pierden al volver a abrirlo aquí)</translation>
     </message>
     <message>
+        <source>the links from tables to the files their rows were loaded from (Refresh needs them)</source>
+        <translation type="unfinished">los vínculos de las tablas a los ficheros de los que se cargaron sus filas (Actualizar los necesita)</translation>
+    </message>
+    <message>
         <source>links to other workbooks (the formulas and the addresses stay, but the copy does not keep the values they last read from the linked files)</source>
         <translation type="unfinished">vínculos a otros libros (las fórmulas y las direcciones se conservan, pero la copia no guarda los valores que leyeron por última vez de los ficheros vinculados)</translation>
     </message>
@@ -1346,6 +1461,13 @@ Download it from %2 now? (%3, once.)</source>
     </message>
 </context>
 <context>
+    <name>jp::ClipboardPane</name>
+    <message>
+        <source>Items are kept in this program only, and nothing is saved to a file. They are cleared when the last window of the program is closed. An item stays here after the document it came from is closed.</source>
+        <translation type="unfinished">Los elementos se conservan solo en este programa y no se guardan en ningún fichero. Se borran cuando se cierra la última ventana del programa. Un elemento permanece aquí aunque se cierre el documento del que procede.</translation>
+    </message>
+</context>
+<context>
     <name>jp::CompatibilityDialog</name>
     <message>
         <source>Couldn't check what a %1 file would leave out of this %2, so nothing is said either way. %3</source>
@@ -1440,6 +1562,10 @@ El fichero no existe.</translation>
         <translation type="unfinished">Comprobando lo que puede contener un fichero .ods…</translation>
     </message>
     <message>
+        <source>The sort choice "Numbers in text count by value": the cells stay in the order they were sorted into, but the file does not remember the choice, so the next Sort starts without it.</source>
+        <translation type="unfinished">La opción de ordenación "Números en texto cuentan por valor": las celdas se mantienen en el orden en que se ordenaron, pero el fichero no guarda esta opción, así que la siguiente ordenación comenzará sin ella.</translation>
+    </message>
+    <message>
         <source>This workbook is protected with a password, but a copy in this kind of file can't be. The copy you are saving will not be protected: anyone who has it can read it.</source>
         <translation type="unfinished">Este libro está protegido con contraseña, pero una copia en este tipo de fichero no puede estarlo. La copia que va a guardar no estará protegida: cualquiera que la tenga podrá leerla.</translation>
     </message>
@@ -1510,6 +1636,26 @@ The file can't be read.</source>
 No se puede leer el fichero.</translation>
     </message>
     <message>
+        <source>From File…</source>
+        <translation type="unfinished">Desde fichero…</translation>
+    </message>
+    <message>
+        <source>That file is not JSON, XML, or a workbook.</source>
+        <translation type="unfinished">Ese fichero no es JSON, XML ni un libro de trabajo.</translation>
+    </message>
+    <message>
+        <source>Reading the file…</source>
+        <translation type="unfinished">Leyendo el fichero…</translation>
+    </message>
+    <message>
+        <source>%1: the link to the file can't be read, so nothing was changed.</source>
+        <translation type="unfinished">%1: no se puede leer el vínculo al fichero, así que no se cambió nada.</translation>
+    </message>
+    <message>
+        <source>The data was read again from its files.</source>
+        <translation type="unfinished">Los datos se volvieron a leer de sus ficheros.</translation>
+    </message>
+    <message>
         <source>This file has more properties than %1 reads, so the mark can't be added.</source>
         <translation type="unfinished">Este fichero tiene más propiedades de las que %1 puede leer, así que no se puede añadir la marca.</translation>
     </message>
@@ -1556,6 +1702,18 @@ No se puede leer el fichero.</translation>
     <message>
         <source>Text printed at the top and the bottom of every page, which can hold names and file paths.</source>
         <translation type="unfinished">Texto que se imprime en la parte superior e inferior de cada página, y que puede contener nombres y rutas de fichero.</translation>
+    </message>
+    <message>
+        <source>Links to data files</source>
+        <translation type="unfinished">Vínculos a ficheros de datos</translation>
+    </message>
+    <message>
+        <source>Tables made by Get Data remember the file they were loaded from, with its path on this computer. Removing the links keeps the tables and their cells, and Refresh no longer reads the files.</source>
+        <translation type="unfinished">Las tablas creadas con Obtener datos recuerdan el fichero del que se cargaron, con su ruta en este equipo. Al quitar los vínculos se conservan las tablas y sus celdas, y Actualizar ya no lee los ficheros.</translation>
+    </message>
+    <message>
+        <source>Remove Links to Data Files</source>
+        <translation type="unfinished">Quitar vínculos a ficheros de datos</translation>
     </message>
     <message>
         <source>Data that other programs added to the file, which you can't see on a sheet. It is left out when you save.</source>
@@ -1723,6 +1881,10 @@ No se puede leer el fichero.</translation>
         <translation type="unfinished">%1 es demasiado grande para incluirlo en esta presentación: con él, el fichero no se podría volver a abrir. Todas sus imágenes, vídeos y sonidos juntos pueden ocupar hasta %2 GB.</translation>
     </message>
     <message>
+        <source>%1 isn't a sound file that %2 can play.</source>
+        <translation type="unfinished">%1 no es un fichero de sonido que %2 pueda reproducir.</translation>
+    </message>
+    <message>
         <source>WebVTT Caption Files (*.vtt)</source>
         <translation type="unfinished">Ficheros de títulos WebVTT (*.vtt)</translation>
     </message>
@@ -1814,8 +1976,48 @@ No se puede leer el fichero.</translation>
 <context>
     <name>jp::GetDataDialog</name>
     <message>
+        <source>That kind of file can't be loaded.</source>
+        <translation type="unfinished">Ese tipo de fichero no se puede cargar.</translation>
+    </message>
+    <message>
+        <source>Get Data from a File</source>
+        <translation type="unfinished">Obtener datos de un fichero</translation>
+    </message>
+    <message>
+        <source>Loads the rows of a JSON file, an XML file, or a workbook as a table. The table remembers the file, so Refresh can read it again.</source>
+        <translation type="unfinished">Carga las filas de un fichero JSON, un fichero XML o un libro de trabajo como tabla. La tabla recuerda el fichero, así que Actualizar puede volver a leerlo.</translation>
+    </message>
+    <message>
+        <source>The file on this computer</source>
+        <translation type="unfinished">El fichero en este equipo</translation>
+    </message>
+    <message>
+        <source>Data files (*.json *.xml *.xlsx *.xlsm *.xls *.ods)</source>
+        <translation type="unfinished">Ficheros de datos (*.json *.xml *.xlsx *.xlsm *.xls *.ods)</translation>
+    </message>
+    <message>
         <source>All Files (*)</source>
         <translation type="unfinished">Todos los ficheros (*)</translation>
+    </message>
+    <message>
+        <source>Only a file on this computer can be loaded, not a web address or a file on another computer.</source>
+        <translation type="unfinished">Solo se puede cargar un fichero de este equipo, no una dirección web ni un fichero de otro equipo.</translation>
+    </message>
+    <message>
+        <source>That file is not JSON, XML, or a workbook.</source>
+        <translation type="unfinished">Ese fichero no es JSON, XML ni un libro de trabajo.</translation>
+    </message>
+    <message>
+        <source>The file is not there.</source>
+        <translation type="unfinished">El fichero no existe.</translation>
+    </message>
+    <message>
+        <source>Reading the file…</source>
+        <translation type="unfinished">Leyendo el fichero…</translation>
+    </message>
+    <message>
+        <source>The first 20 rows are shown, and the type beside each name is judged from them. The whole file is checked when it is loaded, so a column may end up as text.</source>
+        <translation type="unfinished">Se muestran las primeras 20 filas, y el tipo junto a cada nombre se determina a partir de ellas. El fichero completo se comprueba al cargarlo, así que una columna podría acabar como texto.</translation>
     </message>
 </context>
 <context>
@@ -2028,6 +2230,10 @@ No se encontraron los ficheros de la Ayuda junto al programa. Volver a instalar 
         <translation type="unfinished">Campo que contiene los nombres de fichero de imagen:</translation>
     </message>
     <message>
+        <source>Save Each as a File…</source>
+        <translation type="unfinished">Guardar cada una como fichero…</translation>
+    </message>
+    <message>
         <source>Drag a point to reshape. Ctrl+click a point to delete it, or an edge to add one. Shift+click puts a glue point for connectors on the shape, or takes it away. Press Esc when done.</source>
         <translation type="unfinished">Arrastre un punto para dar nueva forma. Ctrl+clic en un punto para eliminarlo, o en un borde para agregar uno. Mayús+clic coloca un punto de unión para conectores en la forma, o lo quita. Pulse Esc al terminar.</translation>
     </message>
@@ -2152,6 +2358,25 @@ No se encontraron los ficheros de la Ayuda junto al programa. Volver a instalar 
     <message>
         <source>The file is damaged.</source>
         <translation type="unfinished">El fichero está dañado.</translation>
+    </message>
+</context>
+<context>
+    <name>jp::PictureTools</name>
+    <message>
+        <source>A picture effect such as Blur or Mosaic changes how a picture looks, but the original picture stays in the file, and anyone who gets the file can take it out. Removing it keeps only the finished picture: Reset Picture can then no longer bring the original back.</source>
+        <translation type="unfinished">Un efecto de imagen, como Desenfoque o Mosaico, cambia el aspecto de una imagen, pero la imagen original permanece en el fichero y cualquiera que tenga el fichero puede recuperarla. Al quitarla, solo se conserva la imagen final: Restablecer imagen ya no podrá devolver el original.</translation>
+    </message>
+    <message>
+        <source>When you remove the background of a picture, the whole original picture stays in the file. Removing it keeps only the picture without its background: Remove Background can then no longer bring the background back.</source>
+        <translation type="unfinished">Al quitar el fondo de una imagen, la imagen original completa permanece en el fichero. Al quitarla, solo se conserva la imagen sin su fondo: Quitar fondo ya no podrá devolver el fondo.</translation>
+    </message>
+    <message>
+        <source>A cropped picture still holds the parts you cropped away, and anyone who gets the file can see them. Removing them clears each picture outside what shows (a thin border around it stays), so that the page looks exactly as before: the crop can then no longer be undone by dragging its edges out. A picture with a picture effect, such as Blur, is first made into its finished picture, so Reset Picture can no longer bring its original back. The picture file may get larger.</source>
+        <translation type="unfinished">Una imagen recortada conserva las partes que recortó, y cualquiera que tenga el fichero puede verlas. Al quitarlas, se elimina en cada imagen todo lo que queda fuera de lo visible (se conserva un borde fino alrededor), de modo que la página se vea exactamente igual: el recorte ya no podrá deshacerse arrastrando sus bordes hacia fuera. Una imagen con un efecto de imagen, como Desenfoque, primero se convierte en su imagen final, así que Restablecer imagen ya no podrá devolver su original. El fichero de imagen puede aumentar de tamaño.</translation>
+    </message>
+    <message>
+        <source>A picture in this file has more effects than can be worked out. It shows the first ones, and the rest are left out. Take effects off the picture to see it as it should look.</source>
+        <translation type="unfinished">Una imagen de este fichero tiene más efectos de los que se pueden procesar. Se muestran los primeros, y el resto se omite. Quite los efectos de la imagen para verla como debería aparecer.</translation>
     </message>
 </context>
 <context>
@@ -2323,6 +2548,10 @@ No se encontraron los ficheros de la Ayuda junto al programa. Volver a instalar 
     <message>
         <source>Make one new document with every person's copy, print them, save a PDF, or make email files.</source>
         <translation type="unfinished">Cree un documento nuevo con la copia de cada persona, imprímalas, guarde un PDF o cree ficheros de correo electrónico.</translation>
+    </message>
+    <message>
+        <source>Save Each as a File…</source>
+        <translation type="unfinished">Guardar cada una como fichero…</translation>
     </message>
     <message>
         <source>%1 message files are saved in %2.
@@ -2530,6 +2759,10 @@ No se pudo aplicar la contraseña al fichero.</translation>
         <translation type="unfinished">Insertar texto desde fichero</translation>
     </message>
     <message>
+        <source>Save Each as a File…</source>
+        <translation type="unfinished">Guardar cada uno como fichero…</translation>
+    </message>
+    <message>
         <source>Save the document first. A version is kept for a file, under the file's name.</source>
         <translation type="unfinished">Guarde primero el documento. Se guarda una versión de un fichero con el nombre del fichero.</translation>
     </message>
@@ -2570,6 +2803,46 @@ No se pudo aplicar la contraseña al fichero.</translation>
     <message>
         <source>This workbook was not opened from a file JeffCrunch can save over.</source>
         <translation type="unfinished">Este libro no se abrió desde un fichero que JeffCrunch pueda sobrescribir.</translation>
+    </message>
+    <message>
+        <source>This table was not made by Get Data, so it has no file to read again.</source>
+        <translation type="unfinished">Esta tabla no se creó con Obtener datos, así que no tiene un fichero del que volver a leer.</translation>
+    </message>
+    <message>
+        <source>The columns in the file have changed, so nothing was changed.</source>
+        <translation type="unfinished">Las columnas del fichero han cambiado, así que no se cambió nada.</translation>
+    </message>
+    <message>
+        <source>The file no longer has: %1.</source>
+        <translation type="unfinished">El fichero ya no tiene: %1.</translation>
+    </message>
+    <message>
+        <source>The file now also has: %1.</source>
+        <translation type="unfinished">El fichero ahora también tiene: %1.</translation>
+    </message>
+    <message>
+        <source>Make the table again with Get Data, or put the columns back in the file.</source>
+        <translation type="unfinished">Vuelva a crear la tabla con Obtener datos o restaure las columnas en el fichero.</translation>
+    </message>
+    <message>
+        <source>The table no longer has the column "%1" that came from the file, so nothing was changed.</source>
+        <translation type="unfinished">La tabla ya no tiene la columna "%1" que venía del fichero, así que no se cambió nada.</translation>
+    </message>
+    <message>
+        <source>The columns in the file are not the table's (the file has %1 and the table has %2), so nothing was changed.</source>
+        <translation type="unfinished">Las columnas del fichero no son las de la tabla (el fichero tiene %1 y la tabla tiene %2), así que no se cambió nada.</translation>
+    </message>
+    <message>
+        <source>The columns in the file are not the table's, so nothing was changed. The first one that differs is "%1".</source>
+        <translation type="unfinished">Las columnas del fichero no son las de la tabla, así que no se cambió nada. La primera que difiere es "%1".</translation>
+    </message>
+    <message>
+        <source>The file now has no rows, so nothing was changed.</source>
+        <translation type="unfinished">El fichero ahora no tiene filas, así que no se cambió nada.</translation>
+    </message>
+    <message>
+        <source>Removing links to files</source>
+        <translation type="unfinished">Quitando vínculos a ficheros</translation>
     </message>
     <message>
         <source>The data of this pivot table is in another workbook, which JeffCrunch does not open, so it can't be read again here. The table keeps the values the file has. To read it from this workbook, use Change Data Source.</source>
@@ -2908,8 +3181,68 @@ No se pudo aplicar la contraseña al fichero.</translation>
 <context>
     <name>jp::office::sheet::DataSource</name>
     <message>
+        <source>The file is larger than %1 MB, which is more than this program reads as data.</source>
+        <translation type="unfinished">El fichero es mayor que %1 MB, que es más de lo que este programa lee como datos.</translation>
+    </message>
+    <message>
         <source>The file has items inside items more deeply than any real file has.</source>
-        <translation type="unfinished">El fichero tiene elementos anidados a más profundidad que cualquier fichero real.</translation>
+        <translation type="unfinished">El fichero tiene elementos dentro de elementos más profundos que cualquier fichero real.</translation>
+    </message>
+    <message>
+        <source>The file has more values than this program reads as data.</source>
+        <translation type="unfinished">El fichero tiene más valores de los que este programa lee como datos.</translation>
+    </message>
+    <message>
+        <source>The file is not valid JSON (near byte %1).</source>
+        <translation type="unfinished">El fichero no es un JSON válido (cerca del byte %1).</translation>
+    </message>
+    <message>
+        <source>The file is not valid XML (line %1).</source>
+        <translation type="unfinished">El fichero no es un XML válido (línea %1).</translation>
+    </message>
+    <message>
+        <source>The file has a document type or entities, which this program does not read.</source>
+        <translation type="unfinished">El fichero tiene un tipo de documento o entidades, que este programa no lee.</translation>
+    </message>
+    <message>
+        <source>The file holds no list of items with named values to load.</source>
+        <translation type="unfinished">El fichero no contiene ninguna lista de elementos con valores con nombre que cargar.</translation>
+    </message>
+    <message>
+        <source>That list is not in the file.</source>
+        <translation type="unfinished">Esa lista no está en el fichero.</translation>
+    </message>
+    <message>
+        <source>The file repeats a name inside an item; the last value is kept.</source>
+        <translation type="unfinished">El fichero repite un nombre dentro de un elemento; se conserva el último valor.</translation>
+    </message>
+    <message>
+        <source>Some characters in the file could not be read and are shown as a replacement mark.</source>
+        <translation type="unfinished">Algunos caracteres del fichero no se pudieron leer y se muestran como un carácter de sustitución.</translation>
+    </message>
+    <message>
+        <source>The file has more kinds of items than any real file has.</source>
+        <translation type="unfinished">El fichero tiene más tipos de elementos de los que tiene cualquier fichero real.</translation>
+    </message>
+    <message>
+        <source>The file holds no item that repeats, so there are no rows to load.</source>
+        <translation type="unfinished">El fichero no contiene ningún elemento que se repita, así que no hay filas que cargar.</translation>
+    </message>
+    <message>
+        <source>That item is not in the file, or holds no values to load.</source>
+        <translation type="unfinished">Ese elemento no está en el fichero, o no tiene valores que cargar.</translation>
+    </message>
+    <message>
+        <source>Only a file on this computer can be loaded, not a web address or a file on another computer.</source>
+        <translation type="unfinished">Solo se puede cargar un fichero de este equipo, no una dirección web ni un fichero de otro equipo.</translation>
+    </message>
+    <message>
+        <source>The file is not there.</source>
+        <translation type="unfinished">El fichero no existe.</translation>
+    </message>
+    <message>
+        <source>That is not a file.</source>
+        <translation type="unfinished">Eso no es un fichero.</translation>
     </message>
     <message>
         <source>The file can't be opened.</source>

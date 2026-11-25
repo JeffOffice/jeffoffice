@@ -1,5 +1,5 @@
 # Bantuan JeffCrunch
-<!-- keywords: daftar isi, bantuan, topik, mulai -->
+<!-- keywords: isi, bantuan, topik, mulai, daftar isi, panduan -->
 
 Ketik di kotak pencarian di atas untuk menemukan topik, atau perintah yang ingin dijalankan. Tekan **F1** kapan saja untuk mendapatkan bantuan tentang yang sedang Anda kerjakan: tab pita yang sedang Anda buka, atau halaman layar Berkas yang sedang Anda buka.
 
@@ -7,11 +7,11 @@ Ketik di kotak pencarian di atas untuk menemukan topik, atau perintah yang ingin
 
 - [Selamat datang di JeffCrunch](start)
 - [Buka dan simpan buku kerja](open-save)
-- [Pack and Go: kirim buku kerja beserta yang dibutuhkannya](pack-and-go)
-- [Info: properti, kata sandi, dan Inspect](info)
+- [Kemas dan Bawa: kirim buku kerja beserta yang dibutuhkannya](pack-and-go)
+- [Info: properti, kata sandi, dan Periksa](info)
 - [Buka buku kerja yang dilindungi kata sandi](open-password)
 - [Ketik di sel](edit-cells)
-- [Aturan untuk isi sebuah sel](rules)
+- [Aturan untuk isi sel](rules)
 
 ## Melihat buku kerja
 
@@ -20,6 +20,7 @@ Ketik di kotak pencarian di atas untuk menemukan topik, atau perintah yang ingin
 - [Cara rumus ditampilkan dan dihitung](formulas)
 - [Nama untuk sel dan nilai](names)
 - [Format bersyarat](conditional-formats)
+- [Analisis Cepat](quick-analysis)
 
 ## Mengubah buku kerja
 
@@ -66,5 +67,5 @@ Ketik di kotak pencarian di atas untuk menemukan topik, atau perintah yang ingin
 
 - [Gunakan JeffCrunch dengan papan ketik](keyboard)
 - [Ubah pengaturan JeffCrunch](options)
-- [Keamanan: ke mana sebuah berkas boleh menjangkau](security)
+- [Keamanan: ke mana sebuah berkas boleh terhubung](security)
 - [Pilih bahasa](language)

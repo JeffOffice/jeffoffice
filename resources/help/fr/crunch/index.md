@@ -1,7 +1,7 @@
 # Aide de JeffCrunch
-<!-- keywords: sommaire, aide, rubriques, démarrer, contenu, liste, débuter -->
+<!-- keywords: sommaire, aide, rubriques, démarrer, contenu, début -->
 
-Saisissez dans la zone de recherche ci-dessus le nom d'une rubrique ou d'une commande à exécuter. Appuyez sur **F1** à tout moment pour obtenir de l'aide sur ce que vous faites : l'onglet du ruban ou la page de l'écran Fichier où vous vous trouvez.
+Saisissez un mot dans la zone de recherche ci-dessus pour trouver une rubrique ou une commande à exécuter. Appuyez à tout moment sur **F1** pour obtenir de l'aide sur ce que vous faites : l'onglet du ruban où vous vous trouvez, ou la page de l'écran Fichier où vous vous trouvez.
 
 ## Premiers pas
 
@@ -9,28 +9,29 @@ Saisissez dans la zone de recherche ci-dessus le nom d'une rubrique ou d'une com
 - [Ouvrir et enregistrer des classeurs](open-save)
 - [Pack and Go : envoyer un classeur avec ce dont il a besoin](pack-and-go)
 - [Infos : propriétés, mots de passe et Inspecter](info)
-- [Ouvrir des classeurs protégés par un mot de passe](open-password)
+- [Ouvrir des classeurs protégés par mot de passe](open-password)
 - [Saisir du texte dans les cellules](edit-cells)
 - [Règles sur le contenu d'une cellule](rules)
 
-## Consulter un classeur
+## Examiner un classeur
 
 - [Sélectionner des cellules et se déplacer](select-and-move)
 - [Modifier l'affichage](view)
 - [Affichage et calcul des formules](formulas)
 - [Noms pour les cellules et les valeurs](names)
 - [Mises en forme conditionnelles](conditional-formats)
+- [Analyse rapide](quick-analysis)
 
 ## Modifier un classeur
 
 - [Mettre en forme les cellules](format-cells)
-- [Formats de nombre et votre langue](number-formats)
+- [Formats de nombres et votre langue](number-formats)
 - [Styles de cellule](cell-styles)
 - [Gérer les feuilles](sheets)
 - [Insérer et supprimer des lignes, des colonnes et des cellules](insert-delete)
 - [Modifier la largeur des colonnes et la hauteur des lignes](sizes)
 - [Couper, copier et coller](clipboard)
-- [Recopier des cellules et faire la somme](fill-sum)
+- [Recopier des cellules et faire une somme](fill-sum)
 - [Rechercher, remplacer et atteindre](find-replace)
 - [Trier et filtrer](sort-filter)
 - [Outils de données](data-tools)

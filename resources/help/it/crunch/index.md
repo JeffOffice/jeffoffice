@@ -1,49 +1,50 @@
-# JeffCrunch: guida
-<!-- keywords: contenuto, guida, argomenti, inizio -->
+# JeffCrunch Guida
+<!-- keywords: sommario, guida, argomenti, inizio -->
 
 Digita nella casella di ricerca qui sopra per trovare un argomento o un comando da eseguire. Premi **F1** in qualsiasi momento per ottenere aiuto su ciò che stai facendo: la scheda della barra multifunzione in uso o la pagina della schermata File in uso.
 
-## Per iniziare
+## Operazioni iniziali
 
 - [Benvenuto in JeffCrunch](start)
-- [Apri e salva cartelle di lavoro](open-save)
-- [Crea pacchetto: invia una cartella di lavoro con tutto ciò che le serve](pack-and-go)
-- [Informazioni: proprietà, password e Ispeziona](info)
-- [Apri cartelle di lavoro protette da password](open-password)
-- [Digita nelle celle](edit-cells)
+- [Apertura e salvataggio di cartelle di lavoro](open-save)
+- [Pack and Go: invia una cartella di lavoro con ciò che le serve](pack-and-go)
+- [Info: proprietà, password e Ispeziona cartella di lavoro](info)
+- [Apertura di cartelle di lavoro protette da password](open-password)
+- [Digitazione nelle celle](edit-cells)
 - [Regole per il contenuto di una cella](rules)
 
 ## Esaminare una cartella di lavoro
 
-- [Seleziona celle e spostati](select-and-move)
-- [Cambia la visualizzazione](view)
+- [Selezione delle celle e spostamento](select-and-move)
+- [Modifica della visualizzazione](view)
 - [Come vengono mostrate e calcolate le formule](formulas)
 - [Nomi per celle e valori](names)
-- [Formati condizionali](conditional-formats)
+- [Formattazione condizionale](conditional-formats)
+- [Analisi rapida](quick-analysis)
 
 ## Modificare una cartella di lavoro
 
-- [Formatta celle](format-cells)
-- [Formati dei numeri e lingua](number-formats)
+- [Formattazione delle celle](format-cells)
+- [Formati numerici e lingua](number-formats)
 - [Stili di cella](cell-styles)
-- [Lavora con i fogli](sheets)
-- [Inserisci ed elimina righe, colonne e celle](insert-delete)
-- [Cambia la larghezza delle colonne e l'altezza delle righe](sizes)
+- [Gestione dei fogli](sheets)
+- [Inserimento ed eliminazione di righe, colonne e celle](insert-delete)
+- [Modifica della larghezza delle colonne e dell'altezza delle righe](sizes)
 - [Taglia, copia e incolla](clipboard)
-- [Riempi celle e sommale](fill-sum)
+- [Riempimento delle celle e somma](fill-sum)
 - [Trova, sostituisci e vai a](find-replace)
-- [Ordina e filtra](sort-filter)
+- [Ordinamento e filtro](sort-filter)
 - [Strumenti dati](data-tools)
 - [Tabelle](tables)
 - [Tabelle pivot](pivot-tables)
-- [Inserisci una funzione](insert-function)
-- [Inserisci una funzione con la finestra di dialogo Argomenti funzione](function-arguments)
+- [Inserimento di una funzione](insert-function)
+- [Immissione di una funzione con la finestra di dialogo Argomenti funzione](function-arguments)
 - [Grafici, immagini e forme](charts)
 - [Equazioni](equations)
 - [Note e collegamenti](notes-links)
-- [Proteggi un foglio o la cartella di lavoro](protect)
+- [Protezione di un foglio o della cartella di lavoro](protect)
 
-## Ogni funzione
+## Tutte le funzioni
 
 - [Funzioni finanziarie](functions-financial)
 - [Funzioni di data e ora](functions-date-time)
@@ -58,13 +59,13 @@ Digita nella casella di ricerca qui sopra per trovare un argomento o un comando 
 
 ## Stampa
 
-- [Imposta le pagine](page-layout)
+- [Impostazione delle pagine](page-layout)
 - [La finestra di dialogo Imposta pagina](page-setup)
-- [Stampa e crea un PDF](printing)
+- [Stampa e creazione di un PDF](printing)
 
 ## Lavorare più velocemente
 
-- [Usa JeffCrunch con la tastiera](keyboard)
-- [Cambia le impostazioni di JeffCrunch](options)
-- [Sicurezza: a cosa può collegarsi un file](security)
-- [Scegli una lingua](language)
+- [Uso di JeffCrunch da tastiera](keyboard)
+- [Modifica delle impostazioni di JeffCrunch](options)
+- [Sicurezza: a quali risorse esterne può accedere un file](security)
+- [Scelta della lingua](language)

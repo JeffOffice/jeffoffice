@@ -1,7 +1,7 @@
 # Ayuda de JeffCrunch
-<!-- keywords: contenido, ayuda, temas, inicio -->
+<!-- keywords: contenido, ayuda, temas, inicio, índice, empezar -->
 
-Escriba en el cuadro de búsqueda de arriba para encontrar un tema o un comando que ejecutar. Pulse **F1** en cualquier momento para obtener ayuda sobre lo que está haciendo: la pestaña de la cinta de opciones en la que se encuentra o la página de la pantalla Archivo en la que está.
+Escriba en el cuadro de búsqueda de arriba para encontrar un tema o un comando que ejecutar. Pulse **F1** en cualquier momento para obtener ayuda sobre lo que está haciendo: la pestaña de la cinta de opciones en la que se encuentra, o la página de la pantalla Archivo en la que está.
 
 ## Primeros pasos
 
@@ -11,7 +11,7 @@ Escriba en el cuadro de búsqueda de arriba para encontrar un tema o un comando 
 - [Información: propiedades, contraseñas e Inspeccionar](info)
 - [Abrir libros protegidos con contraseña](open-password)
 - [Escribir en las celdas](edit-cells)
-- [Reglas sobre lo que puede contener una celda](rules)
+- [Reglas para el contenido de una celda](rules)
 
 ## Ver un libro
 
@@ -20,11 +20,12 @@ Escriba en el cuadro de búsqueda de arriba para encontrar un tema o un comando 
 - [Cómo se muestran y se calculan las fórmulas](formulas)
 - [Nombres para celdas y valores](names)
 - [Formatos condicionales](conditional-formats)
+- [Análisis rápido](quick-analysis)
 
-## Cambiar un libro
+## Modificar un libro
 
 - [Dar formato a las celdas](format-cells)
-- [Formatos de número e idioma](number-formats)
+- [Formatos de número y su idioma](number-formats)
 - [Estilos de celda](cell-styles)
 - [Trabajar con hojas](sheets)
 - [Insertar y eliminar filas, columnas y celdas](insert-delete)

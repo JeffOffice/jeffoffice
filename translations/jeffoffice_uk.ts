@@ -934,7 +934,7 @@
     <message>
         <location line="+5"/>
         <source>A search is under way, so nothing can be changed yet. Wait for it to end, or cancel it.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Триває пошук, тому поки що нічого не можна змінити. Дочекайтеся його завершення або скасуйте його.</translation>
     </message>
 </context>
 <context>
@@ -3134,17 +3134,17 @@ Back page story	4</source>
     <message>
         <location line="+4"/>
         <source>Tell recipients apart by</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Розрізняти одержувачів за</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>Place in the list</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Розмістити у списку</translation>
     </message>
     <message>
         <location line="+34"/>
         <source>Some recipients have the same value in this column, so they can&apos;t be told apart later.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">У деяких одержувачів однакове значення в цьому стовпці, тому згодом їх не можна буде розрізнити.</translation>
     </message>
     <message>
         <location line="+5"/>
@@ -5623,7 +5623,7 @@ Back page story	4</source>
     <message>
         <location line="+96"/>
         <source>Text Files (*.txt *.rtf *.html *.htm *.docx *.doc *.odt *.md)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Текстові файли (*.txt *.rtf *.html *.htm *.docx *.doc *.odt *.md)</translation>
     </message>
     <message>
         <location line="-1291"/>
@@ -7124,7 +7124,7 @@ Back page story	4</source>
     <message>
         <location line="+1"/>
         <source>pictures with sharpen, soften, color temperature, or an artistic effect were saved as the finished pictures, so the effect can&apos;t be changed or taken off in a .pub file</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">зображення з різкістю, розм&apos;якшенням, колірною температурою або художнім ефектом збережено як готові зображення, тому ефект неможливо змінити або зняти у файлі .pub</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -8769,28 +8769,28 @@ Save without a backup?</source>
         <location line="-41"/>
         <location line="+5"/>
         <source>Save Each as a File</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Зберегти кожен як файл</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>No recipient is included.</source>
-        <translation type="unfinished">Жодного отримувача не включено.</translation>
+        <translation type="unfinished">Одержувача не включено.</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>Publication (.jpub)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Публікація (.jpub)</translation>
     </message>
     <message>
         <location line="+16"/>
         <source>The publication is gone.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Публікацію немає.</translation>
     </message>
     <message>
         <location line="+5"/>
         <location line="+2"/>
         <source>The publication can&apos;t be made.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Публікацію неможливо створити.</translation>
     </message>
     <message>
         <location line="+20"/>
@@ -8896,7 +8896,7 @@ Open them with your email program to send.</source>
     <message>
         <location line="+5"/>
         <source>This publication has content that JeffPub can&apos;t place on its pages yet, so it was not opened. The file has not been changed.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Ця публікація містить вміст, який JeffPub поки що не може розмістити на сторінках, тому її не відкрито. Файл не змінено.</translation>
     </message>
 </context>
 <context>
@@ -8917,7 +8917,7 @@ Open them with your email program to send.</source>
     <message>
         <location line="+9"/>
         <source>No text was found in &quot;%1&quot;, so nothing was inserted.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">У файлі «%1» не знайдено тексту, тому нічого не вставлено.</translation>
     </message>
     <message>
         <location line="+7"/>
@@ -8928,15 +8928,15 @@ Open them with your email program to send.</source>
         <location line="+24"/>
         <source>%n picture, table, list, comment, or note in &quot;%1&quot; was left out or came in as plain text.</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
+            <numerusform>%n малюнок, таблиця, список, коментар або примітка в «%1» пропущено або вставлено як звичайний текст.</numerusform>
+            <numerusform>%n малюнки, таблиці, списки, коментарі або примітки в «%1» пропущено або вставлено як звичайний текст.</numerusform>
+            <numerusform>%n малюнків, таблиць, списків, коментарів або приміток в «%1» пропущено або вставлено як звичайний текст.</numerusform>
         </translation>
     </message>
     <message>
         <location line="+4"/>
         <source>Some parts of &quot;%1&quot; could not be read and were left out.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Частину файлу «%1» не вдалося прочитати, тому її пропущено.</translation>
     </message>
 </context>
 <context>
@@ -9473,33 +9473,33 @@ Download it from %2 now? (%3, once.)</source>
     <message>
         <location filename="../libs/page/core/mergeextras.cpp" line="+116"/>
         <source>The list has no column named &quot;%1&quot; now, so the recipients you left out before could not be found. All recipients are included.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">У списку тепер немає стовпця «%1», тому одержувачів, яких ви раніше виключили, не вдалося знайти. Включено всіх одержувачів.</translation>
     </message>
     <message numerus="yes">
         <location line="+18"/>
         <source>%n recipient you left out before is no longer in the list.</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
+            <numerusform>%n одержувач, якого ви раніше виключили, більше немає у списку.</numerusform>
+            <numerusform>%n одержувачі, яких ви раніше виключили, більше немає у списку.</numerusform>
+            <numerusform>%n одержувачів, яких ви раніше виключили, більше немає у списку.</numerusform>
         </translation>
     </message>
     <message numerus="yes">
         <location line="+1"/>
         <source>%n recipient you left out before could not be matched, because other recipients have the same %1. That recipient is included.</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
+            <numerusform>%n одержувач, якого ви раніше виключили, не вдалося зіставити, оскільки в інших одержувачів те саме значення поля %1. Цього одержувача включено.</numerusform>
+            <numerusform>%n одержувачі, яких ви раніше виключили, не вдалося зіставити, оскільки в інших одержувачів те саме значення поля %1. Цих одержувачів включено.</numerusform>
+            <numerusform>%n одержувачів, яких ви раніше виключили, не вдалося зіставити, оскільки в інших одержувачів те саме значення поля %1. Цих одержувачів включено.</numerusform>
         </translation>
     </message>
     <message numerus="yes">
         <location line="+5"/>
         <source>The list has %n recipient now. It had %1 when you chose which recipients to leave out, so all recipients are included.</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
+            <numerusform>Тепер у списку %n одержувач. Під час вибору одержувачів для виключення там було %1, тому включено всіх одержувачів.</numerusform>
+            <numerusform>Тепер у списку %n одержувачі. Під час вибору одержувачів для виключення там було %1, тому включено всіх одержувачів.</numerusform>
+            <numerusform>Тепер у списку %n одержувачів. Під час вибору одержувачів для виключення там було %1, тому включено всіх одержувачів.</numerusform>
         </translation>
     </message>
 </context>
@@ -9511,52 +9511,55 @@ Download it from %2 now? (%3, once.)</source>
         <location line="+55"/>
         <location line="+33"/>
         <source>Save Each as a File</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Зберегти кожен як файл</translation>
     </message>
     <message>
         <location line="-141"/>
         <source>Choose…</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Вибрати…</translation>
     </message>
     <message>
         <location line="+3"/>
         <location line="+25"/>
         <source>Save in the folder</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Зберегти в папку</translation>
     </message>
     <message>
         <location line="-22"/>
         <source>Put the name of a column in braces, like {Last Name}, {First Name}.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Укажіть назву стовпця у фігурних дужках, наприклад {Прізвище}, {Ім&apos;я}.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Name each file</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Назвати кожен файл</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>PDF (.pdf)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">PDF (.pdf)</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Make each file as</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Створити кожен файл як</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>Put the name of a column in braces, like {Last Name}, {First Name}. A name that is used twice gets a number.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Укажіть назву стовпця у фігурних дужках, наприклад {Прізвище}, {Ім&apos;я}. Назва, що використовується двічі, отримує номер.</translation>
     </message>
     <message numerus="yes">
         <location line="+23"/>
         <source>%n file will be made, for example:
 %1</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
+            <numerusform>Буде створено %n файл, наприклад:
+%1</numerusform>
+            <numerusform>Буде створено %n файли, наприклад:
+%1</numerusform>
+            <numerusform>Буде створено %n файлів, наприклад:
+%1</numerusform>
         </translation>
     </message>
     <message numerus="yes">
@@ -9564,43 +9567,43 @@ Download it from %2 now? (%3, once.)</source>
         <location filename="../libs/page/core/mergeextras.cpp" line="+122"/>
         <source>A merge makes at most %n file at a time. Use a shorter list.</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
+            <numerusform>Злиття створює щонайбільше %n файл за раз. Використайте коротший список.</numerusform>
+            <numerusform>Злиття створює щонайбільше %n файли за раз. Використайте коротший список.</numerusform>
+            <numerusform>Злиття створює щонайбільше %n файлів за раз. Використайте коротший список.</numerusform>
         </translation>
     </message>
     <message numerus="yes">
         <location line="+4"/>
         <source>This makes %n file in the folder %1. Make them?</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
+            <numerusform>Буде створено %n файл у папці %1. Створити?</numerusform>
+            <numerusform>Буде створено %n файли в папці %1. Створити?</numerusform>
+            <numerusform>Буде створено %n файлів у папці %1. Створити?</numerusform>
         </translation>
     </message>
     <message numerus="yes">
         <location line="+4"/>
         <source>%n file in that folder has the same name as one to be made. Replace it?</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
+            <numerusform>У цій папці %n файл має таку саму назву, як один із файлів, що мають бути створені. Замінити?</numerusform>
+            <numerusform>У цій папці %n файли мають таку саму назву, як файли, що мають бути створені. Замінити?</numerusform>
+            <numerusform>У цій папці %n файлів мають таку саму назву, як файли, що мають бути створені. Замінити?</numerusform>
         </translation>
     </message>
     <message>
         <location line="+46"/>
         <source>The files are still being saved. Wait until they are done, or choose Cancel in the box that shows them.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Файли ще зберігаються. Дочекайтеся завершення або натисніть «Скасувати» у вікні, де їх показано.</translation>
     </message>
     <message>
         <location line="+8"/>
         <source>The files are still being saved.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Файли ще зберігаються.</translation>
     </message>
     <message>
         <location line="+7"/>
         <source>Saving the files…</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Збереження файлів…</translation>
     </message>
     <message>
         <location line="+0"/>
@@ -9611,54 +9614,55 @@ Download it from %2 now? (%3, once.)</source>
         <location line="+18"/>
         <source>%n file was saved before this stopped.</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
+            <numerusform>До зупинки збережено %n файл.</numerusform>
+            <numerusform>До зупинки збережено %n файли.</numerusform>
+            <numerusform>До зупинки збережено %n файлів.</numerusform>
         </translation>
     </message>
     <message numerus="yes">
         <location line="+1"/>
         <source>Stopped. %n file was saved in the folder %1.</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
+            <numerusform>Зупинено. Збережено %n файл у папці %1.</numerusform>
+            <numerusform>Зупинено. Збережено %n файли в папці %1.</numerusform>
+            <numerusform>Зупинено. Збережено %n файлів у папці %1.</numerusform>
         </translation>
     </message>
     <message numerus="yes">
         <location line="+1"/>
         <source>%n file was saved in the folder %1.</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
+            <numerusform>Збережено %n файл у папці %1.</numerusform>
+            <numerusform>Збережено %n файли в папці %1.</numerusform>
+            <numerusform>Збережено %n файлів у папці %1.</numerusform>
         </translation>
     </message>
     <message>
         <location filename="../libs/page/core/mergeextras.cpp" line="-48"/>
         <source>Recipient %1</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Одержувач %1</translation>
     </message>
     <message>
         <location line="+33"/>
         <source>A shortcut with that file&apos;s name could not be replaced.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Ярлик із назвою цього файлу не вдалося замінити.</translation>
     </message>
     <message>
         <location line="+19"/>
         <source>The folder can&apos;t be made.</source>
-        <translation type="unfinished">Не вдалося створити папку.</translation>
+        <translation type="unfinished">Папку неможливо створити.</translation>
     </message>
     <message>
         <location line="+11"/>
         <source>A file name is not allowed: %1</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Недопустима назва файлу: %1</translation>
     </message>
     <message>
         <location line="+5"/>
         <source>%1 can&apos;t be saved.
 %2</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">%1 не вдалося зберегти.
+%2</translation>
     </message>
 </context>
 <context>
@@ -9886,17 +9890,17 @@ Download it from %2 now? (%3, once.)</source>
     <message>
         <location line="+10"/>
         <source>%1: the color an object is dimmed to after its effect has no match in this kind of file, so the object keeps its own color.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">%1: колір, до якого згасає об&apos;єкт після завершення його ефекту, не має відповідника в цьому типі файлів, тому об&apos;єкт зберігає власний колір.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>%1: the sounds that effects play are not saved in this kind of file, so the effects play without them.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">%1: звуки, що відтворюються з ефектами, у цьому типі файлів не зберігаються, тому ефекти відтворюються без них.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>%1: text that is animated by word or by letter is saved as one animation of the whole text.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">%1: текст, анімований за словами або за літерами, зберігається як одна анімація всього тексту.</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -9941,7 +9945,7 @@ Download it from %2 now? (%3, once.)</source>
     <message>
         <location line="+1"/>
         <source>A picture with sharpen, soften, color temperature, or an artistic effect is kept as the finished picture, and the effect can&apos;t be changed or taken off again.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Зображення з різкістю, розм&apos;якшенням, колірною температурою або художнім ефектом зберігається як готове зображення, і ефект знову змінити або зняти неможливо.</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -11378,17 +11382,17 @@ Download it from %2 now? (%3, once.)</source>
     <message>
         <location filename="../libs/draw/core/picturefx.cpp" line="+328"/>
         <source>Soften</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Розм&apos;якшення</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Sharpen</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Різкість</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Color Temperature</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Колірна температура</translation>
     </message>
     <message>
         <location line="+3"/>
@@ -11398,17 +11402,17 @@ Download it from %2 now? (%3, once.)</source>
     <message>
         <location line="+1"/>
         <source>Pencil Grayscale</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Олівець (відтінки сірого)</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Glow Edges</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Світящі краї</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Mosaic</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Мозаїка</translation>
     </message>
 </context>
 <context>
@@ -11901,7 +11905,7 @@ Download it from %2 now? (%3, once.)</source>
     <message>
         <location line="+2"/>
         <source>Some sounds of animation effects are left out: each may be up to %1 MB, and all of them together up to 128 MB.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Деякі звуки ефектів анімації пропущено: кожен може займати до %1 МБ, а всі разом — до 128 МБ.</translation>
     </message>
     <message>
         <location line="+2"/>
@@ -13865,7 +13869,7 @@ Download it from %2 now? (%3, once.)</source>
     <message>
         <location filename="../apps/deck/core/reuse.cpp" line="+441"/>
         <source>Sounds of animation effects that don&apos;t fit in this presentation were left out.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Звуки ефектів анімації, які не вмістилися в цій презентації, пропущено.</translation>
     </message>
 </context>
 <context>
@@ -16698,7 +16702,7 @@ Open it in your email program, add recipients and send.</source>
     <message>
         <location line="+2"/>
         <source>the places of an outline&apos;s summary lines (they are put below the rows and right of the columns)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">розташування рядків підсумків структури (їх розміщено під рядками та праворуч від стовпців)</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -16825,7 +16829,7 @@ Open it in your email program, add recipients and send.</source>
     <message>
         <location line="+3"/>
         <source>the links from tables to the files their rows were loaded from (Refresh needs them)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">посилання з таблиць на файли, з яких завантажено їхні рядки (для «Оновити» вони потрібні)</translation>
     </message>
     <message>
         <location filename="../libs/office/sheet/sheetcrypt.cpp" line="+21"/>
@@ -21641,17 +21645,17 @@ Desktop publishing</source>
     <message>
         <location filename="../apps/write/app/writefindpane.cpp" line="+626"/>
         <source>A match longer than %1 characters was found, which is more than JeffWrite can work with at once. Nothing was changed.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Знайдено збіг довший за %1 символів, що більше, ніж JeffWrite може обробити одразу. Нічого не змінено.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>That pattern needed too much work on this text, so the search stopped. Nothing was changed.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Для цього тексту шаблон потребував занадто багато обчислень, тому пошук зупинено. Нічого не змінено.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Cancelled. Nothing was changed.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Скасовано. Нічого не змінено.</translation>
     </message>
 </context>
 <context>
@@ -21946,7 +21950,7 @@ Desktop publishing</source>
     <message>
         <location line="+1"/>
         <source>Dim to a Color</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Згасання до кольору</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -21970,39 +21974,39 @@ Desktop publishing</source>
         <location line="+12"/>
         <location line="+1"/>
         <source>Sound</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Звук</translation>
     </message>
     <message>
         <location line="-22"/>
         <source>No Sound</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Без звуку</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Stop Previous Sound</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Зупинити попередній звук</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>Other Sound…</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Інший звук…</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>A sound that plays when the effect starts</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Звук, що відтворюється на початку ефекту</translation>
     </message>
     <message>
         <location line="+19"/>
         <location line="+4"/>
         <location line="+3"/>
         <source>Dim color</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Колір згасання</translation>
     </message>
     <message>
         <location line="-1"/>
         <source>The color the shape turns to at the next click</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Колір, до якого фігура переходить при наступному клацанні</translation>
     </message>
     <message>
         <location line="+6"/>
@@ -22074,48 +22078,48 @@ Desktop publishing</source>
         <location line="+9"/>
         <location line="+3"/>
         <source>Animate text</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Анімувати текст</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>By word</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">За словом</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>By letter</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">За літерами</translation>
     </message>
     <message>
         <location line="+9"/>
         <source> % of the effect&apos;s length</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished"> % тривалості ефекту</translation>
     </message>
     <message>
         <location line="+2"/>
         <location line="+2"/>
         <source>Delay between words or letters</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Затримка між словами або літерами</translation>
     </message>
     <message>
         <location line="-1"/>
         <source>How long after one word or letter the next one starts, as a share of how long the effect takes</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Через скільки часу після одного слова або літери починається наступне, як частка від тривалості ефекту</translation>
     </message>
     <message>
         <location line="+6"/>
         <source>Delay between letters</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Затримка між літерами</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Delay between words</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Затримка між словами</translation>
     </message>
     <message>
         <location line="+6"/>
         <source>Text with more than %1 words or letters is animated in groups of them, so that the slide show stays smooth.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Текст із понад %1 слів або літер анімується групами, щоб показ слайдів залишався плавним.</translation>
     </message>
     <message>
         <location line="+5"/>
@@ -24809,7 +24813,7 @@ Source: %3</source>
         <location filename="../apps/deck/app/deckwindow.cpp" line="+325"/>
         <location filename="../apps/crunch/app/crunchwindow_clip.cpp" line="+55"/>
         <source>Paste All</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Вставити все</translation>
     </message>
     <message>
         <location line="+2"/>
@@ -24825,7 +24829,7 @@ Source: %3</source>
     <message>
         <location line="+6"/>
         <source>Copy or cut something and it will be here.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Скопіюйте або вирізайте щось, і це з&apos;явиться тут.</translation>
     </message>
     <message>
         <location line="+9"/>
@@ -24836,31 +24840,31 @@ Source: %3</source>
     <message>
         <location line="-156"/>
         <source>Keep collecting when this pane is closed</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Продовжувати збирати, коли цю область закрито</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>Also collect what is copied in other programs</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Також збирати те, що скопійовано в інших програмах</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>Only plain text and pictures are kept (a picture of up to about 2 million pixels), and nothing a password manager marks as secret. With this on, a copy made in another program is read in full before this program decides whether to keep it, so a very large copy can make this program pause for a moment and use as much memory as the copy is big. Only one form of it is read: its text when it has text, otherwise one picture. With this off, nothing copied in other programs is read.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Зберігаються лише простий текст і малюнки (малюнок розміром до приблизно 2 мільйонів пікселів), і нічого, що менеджер паролів позначає як секретне. Коли це ввімкнено, копія, зроблена в іншій програмі, зчитується повністю, перш ніж ця програма вирішить, чи зберігати її, тож дуже велика копія може змусити програму на мить призупинитися та використовувати стільки пам&apos;яті, скільки важить копія. Зчитується лише одна форма копії: її текст, якщо він є, інакше один малюнок. Коли це вимкнено, нічого, скопійованого в інших програмах, не зчитується.</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>Items are kept in this program only, and nothing is saved to a file. They are cleared when the last window of the program is closed. An item stays here after the document it came from is closed.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Елементи зберігаються лише в цій програмі, і нічого не зберігається у файл. Їх очищено, коли закрито останнє вікно програми. Елемент залишається тут після закриття документа, з якого його взято.</translation>
     </message>
     <message numerus="yes">
         <location line="+65"/>
         <source>%n copy was too large to keep (the limit is 8 MB for one copy).</source>
         <comment>%n is a count</comment>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
+            <numerusform>%n копія була завеликою, щоб її зберегти (ліміт — 8 МБ для однієї копії).</numerusform>
+            <numerusform>%n копії були завеликими, щоб їх зберегти (ліміт — 8 МБ для однієї копії).</numerusform>
+            <numerusform>%n копій були завеликими, щоб їх зберегти (ліміт — 8 МБ для однієї копії).</numerusform>
         </translation>
     </message>
     <message numerus="yes">
@@ -24868,9 +24872,9 @@ Source: %3</source>
         <source>%n oldest copy was dropped to stay under 64 MB in all.</source>
         <comment>%n is a count</comment>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
+            <numerusform>%n найстаріша копія була видалена, щоб загальний обсяг не перевищував 64 МБ.</numerusform>
+            <numerusform>%n найстаріші копії були видалені, щоб загальний обсяг не перевищував 64 МБ.</numerusform>
+            <numerusform>%n найстаріших копій були видалені, щоб загальний обсяг не перевищував 64 МБ.</numerusform>
         </translation>
     </message>
     <message>
@@ -26784,42 +26788,42 @@ Source: %3</source>
     <message>
         <location line="+31"/>
         <source>Error Checking marks cells that have</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Перевірка помилок позначає комірки, які містять</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>A formula that gives an error</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Формулу, що повертає помилку</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>A number kept as text</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Число, збережене як текст</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>A formula that is not like the ones beside it</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Формулу, яка не схожа на сусідні</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>A date kept as text with a year of two digits</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Дату, збережену як текст з двозначним роком</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>A formula in a cell that is not locked</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Формулу в незаблокованій комірці</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>A formula that leaves out a number next to the cells it uses</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Формулу, що пропускає число поруч із комірками, які вона використовує</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>A formula that uses an empty cell</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Формулу, що використовує порожню комірку</translation>
     </message>
     <message>
         <location line="+59"/>
@@ -29518,7 +29522,7 @@ Source: %3</source>
     <message>
         <location line="+33"/>
         <source>The sort choice &quot;Numbers in text count by value&quot;: the cells stay in the order they were sorted into, but the file does not remember the choice, so the next Sort starts without it.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Варіант сортування «Числа в тексті враховувати за значенням»: комірки залишаються у порядку, в який їх відсортовано, але файл не зберігає цей вибір, тож наступне сортування починається без нього.</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -31559,17 +31563,17 @@ This file is protected with a password. Password:</source>
     <message>
         <location line="+9"/>
         <source>Links to data files</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Посилання на файли даних</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Tables made by Get Data remember the file they were loaded from, with its path on this computer. Removing the links keeps the tables and their cells, and Refresh no longer reads the files.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Таблиці, створені командою «Отримати дані», пам&apos;ятають файл, з якого їх завантажено, разом із його шляхом на цьому комп&apos;ютері. Видалення посилань залишає таблиці та їхні комірки, а «Оновити» більше не читає файли.</translation>
     </message>
     <message>
         <location line="+6"/>
         <source>Remove Links to Data Files</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Видалити посилання на файли даних</translation>
     </message>
     <message>
         <location line="+8"/>
@@ -32788,7 +32792,7 @@ This file is protected with a password. Password:</source>
     <message>
         <location line="-111"/>
         <source>Outline Settings…</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Параметри структури…</translation>
     </message>
     <message>
         <location line="+76"/>
@@ -32871,17 +32875,17 @@ This file is protected with a password. Password:</source>
         <location line="+16"/>
         <location line="+22"/>
         <source>Outline Settings</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Параметри структури</translation>
     </message>
     <message>
         <location line="-18"/>
         <source>Summary rows below detail</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Рядки підсумків під деталями</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>Summary columns to the right of detail</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Стовпці підсумків праворуч від деталей</translation>
     </message>
     <message>
         <location line="+22"/>
@@ -33459,7 +33463,7 @@ This file is protected with a password. Password:</source>
     <message>
         <location filename="../apps/crunch/app/crunchwindow_getdata.cpp" line="+25"/>
         <source>From File…</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">З файлу…</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -33487,59 +33491,59 @@ This file is protected with a password. Password:</source>
     <message>
         <location line="+3"/>
         <source>That is not a cell. Write it as B2.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Це не комірка. Запишіть її як B2.</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>That file is not JSON, XML, or a workbook.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Цей файл не є JSON, XML або книгою.</translation>
     </message>
     <message>
         <location line="+6"/>
         <source>Reading the file…</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Читання файлу…</translation>
     </message>
     <message>
         <location line="+6"/>
         <location line="+75"/>
         <source>The read was stopped. Nothing was changed.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Читання було зупинено. Нічого не змінено.</translation>
     </message>
     <message>
         <location line="-71"/>
         <location line="+24"/>
         <source>Nothing was changed.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Нічого не змінено.</translation>
     </message>
     <message>
         <location line="-8"/>
         <source>The table would go over cells that hold something (%1 cells in all). Replace them?</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Таблиця зайняла б комірки, які вже містять дані (усього %1 комірок). Замінити їх?</translation>
     </message>
     <message>
         <location line="+29"/>
         <source>Click a cell in a table that was made by Get Data first.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Спочатку клацніть комірку в таблиці, створеній командою «Отримати дані».</translation>
     </message>
     <message>
         <location line="+15"/>
         <source>%1: the link to the file can&apos;t be read, so nothing was changed.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">%1: посилання на файл неможливо прочитати, тож нічого не змінено.</translation>
     </message>
     <message>
         <location line="+5"/>
         <source>Reading %1…</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Читання %1…</translation>
     </message>
     <message>
         <location line="+6"/>
         <source>The read was stopped. The tables after %1 were not read.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Читання було зупинено. Таблиці після %1 не прочитано.</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>%1: %2 Nothing was changed.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">%1: %2 Нічого не змінено.</translation>
     </message>
     <message>
         <location line="+5"/>
@@ -33550,12 +33554,12 @@ This file is protected with a password. Password:</source>
     <message>
         <location line="+10"/>
         <source>The data was read again from its files.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Дані знову прочитано з файлів.</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Nothing needed to be read again.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Нічого не потрібно було читати знову.</translation>
     </message>
     <message>
         <location filename="../apps/crunch/app/crunchwindow_pivot.cpp" line="+2"/>
@@ -34907,119 +34911,119 @@ This file is protected with a password. Password:</source>
     <message>
         <location filename="../apps/crunch/app/crunchwindow_quick.cpp" line="-234"/>
         <source>Row Sum</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Сума рядка</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Row Average</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Середнє значення рядка</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Row Count</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Лічильник рядка</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>% of Total</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">% від загального</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Row % of Total</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">% рядка від загального</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Running Total</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Наростаючий підсумок</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Row Running Total</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Наростаючий підсумок рядка</translation>
     </message>
     <message>
         <location line="+8"/>
         <source>Adds up each column of numbers, in the row under the cells.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Додає числа в кожному стовпці в рядку під комірками.</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Adds up each row of numbers, in the column to the right of the cells.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Додає числа в кожному рядку в стовпці праворуч від комірок.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Finds the average of each column, in the row under the cells.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Знаходить середнє значення кожного стовпця в рядку під комірками.</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Finds the average of each row, in the column to the right of the cells.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Знаходить середнє значення кожного рядка в стовпці праворуч від комірок.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Counts the numbers in each column, in the row under the cells.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Підраховує числа в кожному стовпці в рядку під комірками.</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Counts the numbers in each row, in the column to the right of the cells.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Підраховує числа в кожному рядку в стовпці праворуч від комірок.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Shows each column&apos;s share of all the numbers, as a percent, in the row under the cells.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Показує частку кожного стовпця від усіх чисел у відсотках у рядку під комірками.</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Shows each row&apos;s share of all the numbers, as a percent, in the column to the right of the cells.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Показує частку кожного рядка від усіх чисел у відсотках у стовпці праворуч від комірок.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Adds up each column as it goes down, in new cells to the right of the cells.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Підсумовує кожен стовпець по мірі переходу вниз, у нових комірках праворуч від комірок.</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Adds up each row as it goes across, in new cells under the cells.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Підсумовує кожен рядок по мірі переходу вправо, у нових комірках під комірками.</translation>
     </message>
     <message>
         <location line="+36"/>
         <location line="+376"/>
         <source>Quick Analysis</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Швидкий аналіз</translation>
     </message>
     <message>
         <location line="-372"/>
         <source>Quick Analysis (%1)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Швидкий аналіз (%1)</translation>
     </message>
     <message>
         <location line="+51"/>
         <source>Select two or more cells that have data to use Quick Analysis.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Виділіть дві або більше комірок з даними, щоб скористатися швидким аналізом.</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>There is nothing Quick Analysis can do with these cells.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Швидкий аналіз не може нічого зробити з цими комірками.</translation>
     </message>
     <message>
         <location line="+25"/>
         <location line="+55"/>
         <source>There are too many cells to find their average.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Забагато комірок, щоб обчислити їх середнє значення.</translation>
     </message>
     <message>
         <location line="-43"/>
         <source>There are no numbers here to compare.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Тут немає чисел для порівняння.</translation>
     </message>
     <message>
         <location line="+40"/>
@@ -35029,47 +35033,47 @@ This file is protected with a password. Password:</source>
     <message>
         <location line="+0"/>
         <source>Draws a bar in each cell that is as long as its number.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Малює смужку в кожній комірці, довжина якої відповідає її числу.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Color Scale</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Колірна шкала</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Colors the cells from the lowest number to the highest.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Фарбує комірки від найменшого числа до найбільшого.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Icon Set</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Набір піктограм</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Puts a small picture in each cell that says whether its number is low, middle, or high.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Вставляє в кожну комірку невеликий малюнок, який показує, чи її число низьке, середнє чи високе.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Greater Than</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Більше за</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Highlights the cells with a number greater than the average of the numbers.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Виділяє комірки з числом, більшим за середнє значення чисел.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Top 10%</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Перші 10%</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Highlights the cells with the highest tenth of the numbers.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Виділяє комірки з найвищою десятою часткою чисел.</translation>
     </message>
     <message>
         <location line="+2"/>
@@ -35079,17 +35083,17 @@ This file is protected with a password. Password:</source>
     <message>
         <location line="+0"/>
         <source>Takes the conditional formatting off the selected cells.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Знімає умовне форматування з виділених комірок.</translation>
     </message>
     <message>
         <location line="+17"/>
         <source>Makes a chart of the selected cells: %1.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Створює діаграму для виділених комірок: %1.</translation>
     </message>
     <message>
         <location line="+10"/>
         <source>Totals</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Підсумки</translation>
     </message>
     <message>
         <location line="+11"/>
@@ -35099,12 +35103,12 @@ This file is protected with a password. Password:</source>
     <message>
         <location line="+1"/>
         <source>Makes the selected cells a table, with buttons to sort and filter.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Перетворює виділені комірки на таблицю з кнопками для сортування та фільтрування.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Makes a pivot table that totals the data, on a new sheet. The first row should hold the names of the columns.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Створює зведену таблицю з підсумками даних на новому аркуші. Перший рядок має містити назви стовпців.</translation>
     </message>
     <message>
         <location line="+9"/>
@@ -35122,27 +35126,27 @@ This file is protected with a password. Password:</source>
     <message>
         <location line="+2"/>
         <source>Draws a small chart of each row in the cell to the right of it.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Малює невелику діаграму для кожного рядка в комірці праворуч від нього.</translation>
     </message>
     <message>
         <location line="+46"/>
         <source>There are too many cells to show a preview.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Забагато комірок, щоб показати попередній перегляд.</translation>
     </message>
     <message>
         <location line="+50"/>
         <source>A pivot table that totals this data will be made on a new sheet.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Зведена таблиця з підсумками цих даних буде створена на новому аркуші.</translation>
     </message>
     <message>
         <location line="+111"/>
         <source>Some of the cells where the totals go are not empty. Replace what is in them?</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Деякі комірки, куди потраплять підсумки, не порожні. Замінити їхній вміст?</translation>
     </message>
     <message>
         <location line="+34"/>
         <source>A sparkline needs at least two numbers in a row.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Для спарклайна потрібно щонайменше два числа в рядку.</translation>
     </message>
     <message>
         <location filename="../apps/crunch/app/crunchwindow_sparklines.cpp" line="-255"/>
@@ -36035,17 +36039,17 @@ This file is protected with a password. Password:</source>
     <message>
         <location line="+0"/>
         <source>Subtotals added above %1 groups of equal entries.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Додано проміжні підсумки над групами однакових записів: %1.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>The summary rows of your own groups are now below their rows.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Рядки підсумків ваших власних груп тепер розташовані під їхніми рядками.</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>The summary rows of your own groups are now above their rows.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Рядки підсумків ваших власних груп тепер розташовані над їхніми рядками.</translation>
     </message>
     <message>
         <location line="+18"/>
@@ -36611,7 +36615,7 @@ The file can&apos;t be read.</source>
     <message>
         <location line="-58"/>
         <source>This workbook has no theme part, so there is no theme to save.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Ця книга не містить частини теми, тому немає теми для збереження.</translation>
     </message>
     <message>
         <location line="+5"/>
@@ -40652,22 +40656,22 @@ The file can&apos;t be read.</source>
     <message>
         <location line="+16"/>
         <source>Add Sound</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Додати звук</translation>
     </message>
     <message>
         <location line="+12"/>
         <source>%1 isn&apos;t a sound file that %2 can play.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">%1 не є звуковим файлом, який може відтворити %2.</translation>
     </message>
     <message>
         <location line="+11"/>
         <source>%1 is too large for the sound of an effect (the most is %2 MB).</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">%1 занадто великий для звуку ефекту (максимум %2 МБ).</translation>
     </message>
     <message>
         <location line="+6"/>
         <source>%1 can&apos;t read &quot;%2&quot; as a sound.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">%1 не може прочитати «%2» як звук.</translation>
     </message>
     <message>
         <location line="+56"/>
@@ -43000,7 +43004,7 @@ The file can&apos;t be read.</source>
     <message>
         <location line="+1"/>
         <source>Table cut off by its text box</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Таблиця виходить за межі свого текстового поля</translation>
     </message>
     <message>
         <location line="+4"/>
@@ -47222,22 +47226,22 @@ The file can&apos;t be read.</source>
     <message>
         <location filename="../apps/crunch/app/getdata.cpp" line="-74"/>
         <source>number</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">число</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>true or false</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">істина або хибність</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>date</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">дата</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>text</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">текст</translation>
     </message>
     <message>
         <location line="+39"/>
@@ -47248,18 +47252,18 @@ The file can&apos;t be read.</source>
     <message>
         <location line="-174"/>
         <source>That kind of file can&apos;t be loaded.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Файл такого типу не можна завантажити.</translation>
     </message>
     <message>
         <location line="+39"/>
         <location line="+59"/>
         <source>Get Data from a File</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Отримати дані з файлу</translation>
     </message>
     <message>
         <location line="-57"/>
         <source>Loads the rows of a JSON file, an XML file, or a workbook as a table. The table remembers the file, so Refresh can read it again.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Завантажує рядки файлу JSON, файлу XML або книги як таблицю. Таблиця запам&apos;ятовує файл, тож Оновити може прочитати його знову.</translation>
     </message>
     <message>
         <location line="+6"/>
@@ -47270,7 +47274,7 @@ The file can&apos;t be read.</source>
     <message>
         <location line="-3"/>
         <source>The file on this computer</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Файл на цьому комп&apos;ютері</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -47281,27 +47285,27 @@ The file can&apos;t be read.</source>
         <location line="+9"/>
         <location line="+6"/>
         <source>List to load</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Список для завантаження</translation>
     </message>
     <message>
         <location line="-3"/>
         <source>Lists of values</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Списки значень</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Join lists of values into one cell</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Об&apos;єднати списки значень в одну комірку</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Spread lists of values over columns</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Розподілити списки значень по стовпцях</translation>
     </message>
     <message>
         <location line="+5"/>
         <source>Load every column as text</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Завантажувати кожен стовпець як текст</translation>
     </message>
     <message>
         <location line="+7"/>
@@ -47312,17 +47316,17 @@ The file can&apos;t be read.</source>
         <location line="+10"/>
         <location line="+1"/>
         <source>Put the table at</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Розмістити таблицю в</translation>
     </message>
     <message>
         <location line="+6"/>
         <source>Load</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Завантажити</translation>
     </message>
     <message>
         <location line="+7"/>
         <source>Data files (*.json *.xml *.xlsx *.xlsm *.xls *.ods)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Файли даних (*.json *.xml *.xlsx *.xlsm *.xls *.ods)</translation>
     </message>
     <message>
         <location line="+0"/>
@@ -47332,47 +47336,47 @@ The file can&apos;t be read.</source>
     <message>
         <location line="+63"/>
         <source>Only a file on this computer can be loaded, not a web address or a file on another computer.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Можна завантажити лише файл на цьому комп&apos;ютері, а не веб-адресу чи файл на іншому комп&apos;ютері.</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>That file is not JSON, XML, or a workbook.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Цей файл не є JSON, XML або книгою.</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>The file is not there.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Файл відсутній.</translation>
     </message>
     <message>
         <location line="+6"/>
         <source>Reading the file…</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Читання файлу…</translation>
     </message>
     <message>
         <location line="+13"/>
         <source>Sheet %1</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Аркуш %1</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Table %1</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Таблиця %1</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Named range %1</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Іменований діапазон %1</translation>
     </message>
     <message>
         <location line="+14"/>
         <source>The first 20 rows are shown, and the type beside each name is judged from them. The whole file is checked when it is loaded, so a column may end up as text.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Показано перші 20 рядків, за ними визначено тип кожного стовпця поруч з назвою. Весь файл перевіряється під час завантаження, тому стовпець може стати текстовим.</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>All the rows are shown.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Показано всі рядки.</translation>
     </message>
 </context>
 <context>
@@ -52034,7 +52038,7 @@ Source: %3</source>
     <message>
         <location line="+3"/>
         <source>Save Each as a File…</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Зберегти кожен як файл…</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -56873,58 +56877,58 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     <message>
         <location line="+22"/>
         <source>Sharpen and Soften</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Підвищення й зниження різкості</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>Sharpen: 0% (Normal)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Різкість: 0% (звичайна)</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Soften: %1%</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Пом&apos;якшення: %1%</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Sharpen: %1%</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Різкість: %1%</translation>
     </message>
     <message>
         <location line="+9"/>
         <source>Color Temperature</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Колірна температура</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>Temperature: 0% (Normal)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Температура: 0% (звичайна)</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Temperature: %1 (Cooler)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Температура: %1 (холодніше)</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Temperature: %1 (Warmer)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Температура: %1 (тепліше)</translation>
     </message>
     <message>
         <location line="+24"/>
         <source>No Artistic Effect</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Без художнього ефекту</translation>
     </message>
     <message>
         <location line="+20"/>
         <location line="+9"/>
         <source>Artistic Effects</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Художні ефекти</translation>
     </message>
     <message>
         <location line="+14"/>
         <source>Changing the picture…</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Зміна малюнка…</translation>
     </message>
     <message>
         <location line="+0"/>
@@ -56934,86 +56938,86 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     <message>
         <location line="+339"/>
         <source>Remove Original Pictures</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Видалити вихідні малюнки</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Remove Pictures Under Removed Backgrounds</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Видалити малюнки під видаленим фоном</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Remove Cropped Areas</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Видалити обрізані ділянки</translation>
     </message>
     <message numerus="yes">
         <location line="+37"/>
         <source>%n picture is a drawing or a linked picture, which cannot be changed here.</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
+            <numerusform>%n малюнок є малюнком або пов&apos;язаним малюнком, які тут змінити не можна.</numerusform>
+            <numerusform>%n малюнки є малюнками або пов&apos;язаними малюнками, які тут змінити не можна.</numerusform>
+            <numerusform>%n малюнків є малюнками або пов&apos;язаними малюнками, які тут змінити не можна.</numerusform>
         </translation>
     </message>
     <message numerus="yes">
         <location line="+2"/>
         <source>%n picture is left as it is, because another object shows more of the same picture.</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
+            <numerusform>%n малюнок залишено без змін, бо інший об&apos;єкт показує більше того самого малюнка.</numerusform>
+            <numerusform>%n малюнки залишено без змін, бо інші об&apos;єкти показують більше того самого малюнка.</numerusform>
+            <numerusform>%n малюнків залишено без змін, бо інші об&apos;єкти показують більше того самого малюнка.</numerusform>
         </translation>
     </message>
     <message>
         <location line="-18"/>
         <source>Original pictures kept under picture effects</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Вихідні малюнки збережено під художніми ефектами</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>A picture effect such as Blur or Mosaic changes how a picture looks, but the original picture stays in the file, and anyone who gets the file can take it out. Removing it keeps only the finished picture: Reset Picture can then no longer bring the original back.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Художній ефект, як-от Розмиття або Мозаїка, змінює вигляд малюнка, але вихідний малюнок залишається у файлі, і будь-хто, хто отримає файл, може його витягти. Після видалення лишається лише готовий малюнок, і «Скинути малюнок» більше не зможе повернути оригінал.</translation>
     </message>
     <message>
         <location line="+1"/>
         <location line="+5"/>
         <source>Remove Originals</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Видалити оригінали</translation>
     </message>
     <message>
         <location line="-2"/>
         <source>Whole pictures kept under removed backgrounds</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Повні малюнки збережено під видаленим фоном</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>When you remove the background of a picture, the whole original picture stays in the file. Removing it keeps only the picture without its background: Remove Background can then no longer bring the background back.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Коли ви видаляєте фон малюнка, повний вихідний малюнок залишається у файлі. Після видалення лишається лише малюнок без фону, і «Видалити фон» більше не зможе повернути фон.</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>Cropped-away parts of pictures</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Обрізані частини малюнків</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>A cropped picture still holds the parts you cropped away, and anyone who gets the file can see them. Removing them clears each picture outside what shows (a thin border around it stays), so that the page looks exactly as before: the crop can then no longer be undone by dragging its edges out. A picture with a picture effect, such as Blur, is first made into its finished picture, so Reset Picture can no longer bring its original back. The picture file may get larger.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Обрізаний малюнок усе ще містить частини, які ви обрізали, і будь-хто, хто отримає файл, може їх побачити. Після видалення очищується кожен малюнок за межами видимої області (тонка рамка навколо нього лишається), тож сторінка виглядає точно так само: обрізання більше не можна скасувати, витягнувши його краї. Малюнок з художнім ефектом, як-от Розмиття, спочатку перетворюється на готовий малюнок, тому «Скинути малюнок» більше не зможе повернути його оригінал. Файл малюнка може стати більшим.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Remove Cropped Parts</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Видалити обрізані частини</translation>
     </message>
     <message>
         <location line="+23"/>
         <source>Picture effects that are left out</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Художні ефекти, які пропущено</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>A picture in this file has more effects than can be worked out. It shows the first ones, and the rest are left out. Take effects off the picture to see it as it should look.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Малюнок у цьому файлі має більше ефектів, ніж можна обробити. Показано перші, а решту пропущено. Вимкніть ефекти малюнка, щоб побачити його таким, яким він має бути.</translation>
     </message>
 </context>
 <context>
@@ -57845,7 +57849,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     <message>
         <location line="+2"/>
         <source>the mail merge list, and which of its recipients are left out</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">список злиття пошти та те, які його отримувачі пропущено</translation>
     </message>
 </context>
 <context>
@@ -57853,7 +57857,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     <message>
         <location filename="../apps/crunch/app/quickanalysis.cpp" line="+31"/>
         <source>Quick Analysis</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Швидкий аналіз</translation>
     </message>
 </context>
 <context>
@@ -60145,12 +60149,12 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     <message>
         <location line="+2"/>
         <source>Numbers in text count by value</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Числа в тексті порівнювати за значенням</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>Puts &quot;Item 2&quot; before &quot;Item 10&quot;. The choice is for this sort, and this window remembers it for the next one.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Ставить «Елемент 2» перед «Елемент 10». Вибір діє для цього сортування, і це вікно запам&apos;ятовує його для наступного.</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -60364,7 +60368,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     <message>
         <location line="+2"/>
         <source>Adds a row of totals under (or above) each run of equal entries in a column. Sort the list by that column first.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Додає рядок підсумків під (або над) кожною групою однакових значень у стовпці. Спершу відсортуйте список за цим стовпцем.</translation>
     </message>
     <message>
         <location line="+6"/>
@@ -60397,7 +60401,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     <message>
         <location line="+3"/>
         <source>Summary below data</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Підсумки під даними</translation>
     </message>
     <message>
         <location line="+5"/>
@@ -60936,17 +60940,17 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     <message>
         <location line="+6"/>
         <source>Piece number</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Номер частини</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>How this piece is read</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Як читається ця частина</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Same as above</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Так само, як вище</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -60981,7 +60985,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     <message>
         <location line="+3"/>
         <source>Piece</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Частина</translation>
     </message>
     <message>
         <location line="+11"/>
@@ -62749,12 +62753,12 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     <message>
         <location line="+2"/>
         <source>Use regular expressions</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Використовувати регулярні вирази</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>Finds text by a pattern, such as \d{3} for three digits. In Replace with, $1 is the first group in ( ).</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Знаходить текст за шаблоном, наприклад \d{3} для трьох цифр. У полі «Замінити на» $1 означає першу групу в ( ).</translation>
     </message>
     <message>
         <location line="+2"/>
@@ -62990,17 +62994,17 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     <message>
         <location line="+71"/>
         <source>The document changed during the search, so nothing was replaced.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Документ змінився під час пошуку, тому нічого не замінено.</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>The document changed during the search, so the search was stopped. Nothing was changed.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Документ змінився під час пошуку, тому пошук зупинено. Нічого не змінено.</translation>
     </message>
     <message>
         <location line="+14"/>
         <source>That pattern needed too much work on this text, so the search stopped. Nothing was changed.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Для цього шаблону в цьому тексті потрібно забагато обчислень, тому пошук зупинено. Нічого не змінено.</translation>
     </message>
     <message>
         <location line="+69"/>
@@ -63065,7 +63069,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     <message>
         <location line="+4"/>
         <source>Text in a content control that can&apos;t be changed can be found but not replaced.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Текст у елементі вмісту, який не можна змінювати, можна знайти, але не можна замінити.</translation>
     </message>
     <message>
         <location line="+186"/>
@@ -63091,9 +63095,9 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
         <location line="+1"/>
         <source>%n match is in content that can&apos;t be changed.</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
+            <numerusform>%n збіг міститься у вмісті, який не можна змінювати.</numerusform>
+            <numerusform>%n збіги містяться у вмісті, який не можна змінювати.</numerusform>
+            <numerusform>%n збігів містяться у вмісті, який не можна змінювати.</numerusform>
         </translation>
     </message>
     <message numerus="yes">
@@ -63279,7 +63283,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     <message>
         <location line="+1"/>
         <source>Save Each as a File…</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Зберегти кожен як файл…</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -63508,7 +63512,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
         <location line="+24"/>
         <location line="+46"/>
         <source>The document is gone.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Документ зник.</translation>
     </message>
     <message>
         <location line="-143"/>
@@ -63549,12 +63553,12 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     <message>
         <location line="+14"/>
         <source>Document (.docx)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Документ (.docx)</translation>
     </message>
     <message>
         <location line="+58"/>
         <source>The PDF can&apos;t be made.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Не вдалося створити PDF.</translation>
     </message>
     <message>
         <location line="+39"/>
@@ -65252,47 +65256,47 @@ The password couldn&apos;t be put on the file.</source>
     <message>
         <location line="+2"/>
         <source>Recipients left out of a mail merge</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Отримувачі, пропущені в злитті пошти</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Which recipients of a mail merge you left out, kept with the document. Removing it means everyone is included the next time the list is read.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Які отримувачі злиття пошти вам пропущено, зберігається разом із документом. Після видалення наступного разу, коли список буде прочитано, до розсилки потраплять усі.</translation>
     </message>
     <message numerus="yes">
         <location line="+12"/>
         <source>%n picture filling a shape is left as it is, because changing it would change how the shape looks.</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
+            <numerusform>%n малюнок, що заповнює фігуру, залишено без змін, бо його зміна змінила б вигляд фігури.</numerusform>
+            <numerusform>%n малюнки, що заповнюють фігуру, залишено без змін, бо їх зміна змінила б вигляд фігури.</numerusform>
+            <numerusform>%n малюнків, що заповнюють фігуру, залишено без змін, бо їх зміна змінила б вигляд фігури.</numerusform>
         </translation>
     </message>
     <message numerus="yes">
         <location line="+1"/>
         <source>%n picture in a comment cannot be changed here.</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
+            <numerusform>%n малюнок у коментарі тут змінити не можна.</numerusform>
+            <numerusform>%n малюнки в коментарях тут змінити не можна.</numerusform>
+            <numerusform>%n малюнків у коментарях тут змінити не можна.</numerusform>
         </translation>
     </message>
     <message numerus="yes">
         <location line="+3"/>
         <source>%n picture in an older kind of drawing cannot be changed here.</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
+            <numerusform>%n малюнок у старішому типі малюнка тут змінити не можна.</numerusform>
+            <numerusform>%n малюнки в старіших типах малюнків тут змінити не можна.</numerusform>
+            <numerusform>%n малюнків у старіших типах малюнків тут змінити не можна.</numerusform>
         </translation>
     </message>
     <message numerus="yes">
         <location line="+1"/>
         <source>%n picture in another place cannot be changed here.</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
+            <numerusform>%n малюнок в іншому місці тут змінити не можна.</numerusform>
+            <numerusform>%n малюнки в інших місцях тут змінити не можна.</numerusform>
+            <numerusform>%n малюнків в інших місцях тут змінити не можна.</numerusform>
         </translation>
     </message>
     <message>
@@ -65376,7 +65380,7 @@ The password couldn&apos;t be put on the file.</source>
     <message>
         <location line="+35"/>
         <source>Which recipients are left out of the mail merge.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Яких адресатів пропущено у злитті пошти.</translation>
     </message>
     <message>
         <location line="+35"/>
@@ -66020,7 +66024,7 @@ The password couldn&apos;t be put on the file.</source>
     <message>
         <location line="+1"/>
         <source>Save Each as a File…</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Зберегти кожен як окремий файл…</translation>
     </message>
     <message>
         <location line="+24"/>
@@ -67349,9 +67353,9 @@ The password couldn&apos;t be put on the file.</source>
         <location line="+17"/>
         <source>%n change is inside a content control that can&apos;t be edited.</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
+            <numerusform>%n зміна міститься всередині елемента керування вмістом, який не можна редагувати.</numerusform>
+            <numerusform>%n зміни містяться всередині елемента керування вмістом, який не можна редагувати.</numerusform>
+            <numerusform>%n змін містяться всередині елемента керування вмістом, який не можна редагувати.</numerusform>
         </translation>
     </message>
     <message numerus="yes">
@@ -67366,7 +67370,7 @@ The password couldn&apos;t be put on the file.</source>
     <message>
         <location line="+1"/>
         <source>Track Changes stays on until they are settled.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Відстеження змін увімкнено, доки їх не буде прийнято або відхилено.</translation>
     </message>
     <message>
         <location line="+20"/>
@@ -68136,7 +68140,7 @@ The password couldn&apos;t be put on the file.</source>
     <message>
         <location line="+21"/>
         <source>This picture can&apos;t be changed this way.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Цей малюнок не можна змінити таким способом.</translation>
     </message>
     <message>
         <location line="+18"/>
@@ -68181,20 +68185,20 @@ The password couldn&apos;t be put on the file.</source>
     <message>
         <location line="+23"/>
         <source>Apply to all pictures in the document</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Застосувати до всіх малюнків у документі</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>A picture with an effect, such as Blur, is made smaller together with the original picture kept under it.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Малюнок з ефектом, наприклад Розмиття, зменшується разом із вихідним малюнком, який залишається під ним.</translation>
     </message>
     <message numerus="yes">
         <location line="+3"/>
         <source>%n picture was left at its full size, because it is in a place that cannot be changed here or would not be smaller.</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
+            <numerusform>%n малюнок залишено у повному розмірі, оскільки він розташований у місці, яке тут не можна змінити, або він не зменшився б.</numerusform>
+            <numerusform>%n малюнки залишено у повному розмірі, оскільки вони розташовані у місцях, які тут не можна змінити, або вони не зменшилися б.</numerusform>
+            <numerusform>%n малюнків залишено у повному розмірі, оскільки вони розташовані у місцях, які тут не можна змінити, або вони не зменшилися б.</numerusform>
         </translation>
     </message>
     <message>
@@ -69391,7 +69395,7 @@ The password couldn&apos;t be put on the file.</source>
     <message>
         <location filename="../apps/write/app/writewindow_controls.cpp" line="-41"/>
         <source>Rich Text</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Форматований текст</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -69401,7 +69405,7 @@ The password couldn&apos;t be put on the file.</source>
     <message>
         <location line="+2"/>
         <source>Combo Box</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Поле зі списком</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -69421,33 +69425,33 @@ The password couldn&apos;t be put on the file.</source>
     <message>
         <location line="+1"/>
         <source>Repeating Section</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Розділ, що повторюється</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Add Item</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Додати елемент</translation>
     </message>
     <message>
         <location line="+3"/>
         <location line="+7"/>
         <source>The caret is not in a repeating section.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Курсор не знаходиться в розділі, що повторюється.</translation>
     </message>
     <message>
         <location line="-3"/>
         <source>Remove Item</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Видалити елемент</translation>
     </message>
     <message>
         <location line="+7"/>
         <source>Clear Picture</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Очистити малюнок</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>The caret is not in a picture control that holds a picture.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Курсор не знаходиться в елементі керування малюнком, який містить малюнок.</translation>
     </message>
     <message>
         <location line="+6"/>
@@ -69457,7 +69461,7 @@ The password couldn&apos;t be put on the file.</source>
     <message>
         <location line="+0"/>
         <source>Pictures (*.png *.jpg *.jpeg *.gif *.bmp *.tif *.tiff *.svg)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Малюнки (*.png *.jpg *.jpeg *.gif *.bmp *.tif *.tiff *.svg)</translation>
     </message>
     <message>
         <location line="+14"/>
@@ -72607,17 +72611,17 @@ The password couldn&apos;t be put on the file.</source>
     <message>
         <location filename="../apps/crunch/core/editdata.cpp" line="-2"/>
         <source>There are no rows to load.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Немає рядків для завантаження.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>This sheet is protected, so a table can&apos;t be put on it.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Цей аркуш захищено, тому таблицю не можна на ньому розмістити.</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>There is no room for the table there: it needs %1 rows and %2 columns from the chosen cell.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Для таблиці тут немає місця: їй потрібно %1 рядків і %2 стовпців, починаючи з обраної комірки.</translation>
     </message>
     <message>
         <location line="+9"/>
@@ -72636,97 +72640,97 @@ The password couldn&apos;t be put on the file.</source>
     <message>
         <location line="+1"/>
         <source>Those cells are not empty.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Ці комірки не порожні.</translation>
     </message>
     <message>
         <location line="+31"/>
         <source>Getting data</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Отримання даних</translation>
     </message>
     <message>
         <location line="+16"/>
         <source>That table is not there.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Такої таблиці немає.</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>This sheet is protected, so the table can&apos;t be changed.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Цей аркуш захищено, тому таблицю не можна змінити.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>This table was not made by Get Data, so it has no file to read again.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Цю таблицю створено не за допомогою Отримати дані, тому немає файлу, з якого її можна повторно прочитати.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>The table has a row of totals or no row of names. Take the row of totals off first, and refresh again.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Таблиця має рядок підсумків або не має рядка назв. Спочатку приберіть рядок підсумків і оновіть знову.</translation>
     </message>
     <message>
         <location line="+21"/>
         <source>The columns in the file have changed, so nothing was changed.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Стовпці у файлі змінилися, тому нічого не було змінено.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>The file no longer has: %1.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">У файлі більше немає: %1.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>The file now also has: %1.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">У файлі тепер також є: %1.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Make the table again with Get Data, or put the columns back in the file.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Створіть таблицю знову за допомогою Отримати дані або поверніть стовпці у файл.</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>The table no longer has the column &quot;%1&quot; that came from the file, so nothing was changed.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">У таблиці більше немає стовпця «%1», який походив із файлу, тому нічого не було змінено.</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>The columns in the file are not the table&apos;s (the file has %1 and the table has %2), so nothing was changed.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Стовпці у файлі не збігаються зі стовпцями таблиці (у файлі %1, а в таблиці %2), тому нічого не було змінено.</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>The columns in the file are not the table&apos;s, so nothing was changed. The first one that differs is &quot;%1&quot;.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Стовпці у файлі не збігаються зі стовпцями таблиці, тому нічого не було змінено. Перший відмінний стовпець: «%1».</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>The file now has no rows, so nothing was changed.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">У файлі тепер немає рядків, тому нічого не було змінено.</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>The rows would go past the end of the sheet, so nothing was changed.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Рядки вийшли б за межі аркуша, тому нічого не було змінено.</translation>
     </message>
     <message>
         <location line="+11"/>
         <source>There is no room under the table for the new rows, so nothing was changed.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Під таблицею немає місця для нових рядків, тому нічого не було змінено.</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>Merged cells are under the table, so nothing was changed.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Під таблицею є об&apos;єднані комірки, тому нічого не було змінено.</translation>
     </message>
     <message>
         <location line="+34"/>
         <source>Refreshing data</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Оновлення даних</translation>
     </message>
     <message>
         <location line="+27"/>
         <source>Removing links to files</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Вилучення зв&apos;язків із файлами</translation>
     </message>
     <message>
         <location filename="../apps/crunch/core/edittables.cpp" line="+25"/>
@@ -72988,37 +72992,37 @@ The password couldn&apos;t be put on the file.</source>
         <location line="+24"/>
         <location line="+57"/>
         <source>There are no numbers here to total.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Тут немає чисел для підсумовування.</translation>
     </message>
     <message>
         <location line="-75"/>
         <source>That is more cells than Quick Analysis looks at (%1). Select fewer cells.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Це більше комірок, ніж аналізує Швидкий аналіз (%1). Виділіть менше комірок.</translation>
     </message>
     <message>
         <location line="+48"/>
         <source>There is no room next to the cells for the running totals.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Поруч із комірками немає місця для проміжних підсумків.</translation>
     </message>
     <message>
         <location line="+13"/>
         <source>There is no room under the cells for the totals.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Під комірками немає місця для підсумків.</translation>
     </message>
     <message>
         <location line="+7"/>
         <source>There is no room beside the cells for the totals.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Поруч із комірками немає місця для підсумків.</translation>
     </message>
     <message>
         <location line="+20"/>
         <source>The totals would block a spilled result next to the cells. Move the spilled result, or select other cells.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Підсумки перекрили б результат переливу поруч із комірками. Перемістіть результат переливу або виділіть інші комірки.</translation>
     </message>
     <message>
         <location line="+15"/>
         <source>Some of the cells where the totals go are part of merged cells. Unmerge them, or select other cells.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Деякі комірки, де мають розміститися підсумки, є частиною об&apos;єднаних комірок. Скасуйте об&apos;єднання або виділіть інші комірки.</translation>
     </message>
 </context>
 <context>
@@ -73026,17 +73030,17 @@ The password couldn&apos;t be put on the file.</source>
     <message>
         <location filename="../apps/crunch/core/errorcheck.cpp" line="+237"/>
         <source>This formula leaves out a number that is next to the cells it uses. Include that cell, or ignore this if it is meant.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Ця формула пропускає число, яке розташоване поруч із комірками, що вона використовує. Включіть цю комірку або ігноруйте попередження, якщо так і задумано.</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>Include the Cell</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Включити комірку</translation>
     </message>
     <message>
         <location line="+17"/>
         <source>This formula uses a cell that is empty, so it counts as zero or as no text. Fill the cell, or ignore this if it is meant.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Ця формула використовує порожню комірку, тому вона вважається нулем або порожнім текстом. Заповніть комірку або ігноруйте попередження, якщо так і задумано.</translation>
     </message>
     <message>
         <location line="+66"/>
@@ -78183,12 +78187,12 @@ The password couldn&apos;t be put on the file.</source>
     <message>
         <location line="+7"/>
         <source>These subtotals have their totals above the data. Turn on Replace current subtotals, or keep the same place for the totals.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Ці проміжні підсумки розміщені над даними. Увімкніть Замінити поточні проміжні підсумки або залиште ті самі місця для підсумків.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>These subtotals have their totals below the data. Turn on Replace current subtotals, or keep the same place for the totals.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Ці проміжні підсумки розміщені під даними. Увімкніть Замінити поточні проміжні підсумки або залиште ті самі місця для підсумків.</translation>
     </message>
     <message>
         <location line="+4"/>
@@ -79290,38 +79294,38 @@ The password couldn&apos;t be put on the file.</source>
         <location filename="../libs/office/sheet/datasource.cpp" line="+25"/>
         <location filename="../libs/office/sheet/datasourcebook.cpp" line="+32"/>
         <source>The file is larger than %1 MB, which is more than this program reads as data.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Файл більший за %1 МБ, а це більше, ніж ця програма читає як дані.</translation>
     </message>
     <message>
         <location line="+81"/>
         <location filename="../libs/office/sheet/datasourcebook.cpp" line="+194"/>
         <source>Only the first %1 columns are loaded; the rest are left out.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Завантажено лише перші %1 стовпців; решту пропущено.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Text longer than %1 characters is cut.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Текст довший за %1 символів обрізано.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Items inside items more than %1 levels deep are kept as text.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Елементи всередині елементів глибше за %1 рівнів зберігаються як текст.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>A list of values with more than 10,000 items is cut after the first 10,000.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Список значень із понад 10 000 елементів обрізано після перших 10 000.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>A list of values with more than %1 items fills only the first %1 columns; the rest are left out.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Список значень із понад %1 елементів заповнює лише перші %1 стовпців; решту пропущено.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Some columns got a new name, because another column had the same name.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Деяким стовпцям присвоєно нову назву, оскільки інший стовпець мав таку саму назву.</translation>
     </message>
     <message>
         <location line="+341"/>
@@ -79334,92 +79338,92 @@ The password couldn&apos;t be put on the file.</source>
     <message>
         <location line="-307"/>
         <source>The file has more values than this program reads as data.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">У файлі більше значень, ніж ця програма читає як дані.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>The file is not valid JSON (near byte %1).</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Файл не є коректним JSON (біля байта %1).</translation>
     </message>
     <message>
         <location line="+132"/>
         <source>The file is not valid XML (line %1).</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Файл не є коректним XML (рядок %1).</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>The file has a document type or entities, which this program does not read.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Файл містить оголошення типу документа або сутності, які ця програма не читає.</translation>
     </message>
     <message>
         <location line="+16"/>
         <source>The file holds no list of items with named values to load.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Файл не містить списку елементів з іменованими значеннями для завантаження.</translation>
     </message>
     <message>
         <location line="+11"/>
         <source>That list is not in the file.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Такого списку немає у файлі.</translation>
     </message>
     <message>
         <location line="+17"/>
         <source>The file repeats a name inside an item; the last value is kept.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Файл повторює назву всередині елемента; збережено останнє значення.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Some numbers are too large or too small for a cell, so they are kept as text, as written.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Деякі числа занадто великі або занадто малі для комірки, тому їх збережено як текст у вигляді, у якому вони записані.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Some characters in the file could not be read and are shown as a replacement mark.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Деякі символи у файлі не вдалося прочитати, тому їх показано як знак заміни.</translation>
     </message>
     <message>
         <location line="+2"/>
         <location line="+148"/>
         <location filename="../libs/office/sheet/datasourcebook.cpp" line="+1"/>
         <source>Only the first %1 rows are loaded; the rest are left out.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Завантажено лише перші %1 рядків; решту пропущено.</translation>
     </message>
     <message>
         <location line="-146"/>
         <source>The list has no values to load.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Немає значень для завантаження.</translation>
     </message>
     <message>
         <location line="+36"/>
         <source>The file has more kinds of items than any real file has.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">У файлі більше типів елементів, ніж у будь-якого реального файлу.</translation>
     </message>
     <message>
         <location line="+15"/>
         <source>The file holds no item that repeats, so there are no rows to load.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Файл не містить жодного елемента, що повторюється, тож рядків для завантаження немає.</translation>
     </message>
     <message>
         <location line="+97"/>
         <source>That item is not in the file, or holds no values to load.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Цього елемента немає у файлі або він не містить значень для завантаження.</translation>
     </message>
     <message>
         <location line="+88"/>
         <location filename="../libs/office/sheet/datasourcebook.cpp" line="-199"/>
         <source>Only a file on this computer can be loaded, not a web address or a file on another computer.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Завантажити можна лише файл на цьому комп&apos;ютері, а не веб-адресу або файл на іншому комп&apos;ютері.</translation>
     </message>
     <message>
         <location line="+2"/>
         <location filename="../libs/office/sheet/datasourcebook.cpp" line="+2"/>
         <source>The file is not there.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Файл відсутній.</translation>
     </message>
     <message>
         <location line="+1"/>
         <location filename="../libs/office/sheet/datasourcebook.cpp" line="+1"/>
         <source>That is not a file.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Це не файл.</translation>
     </message>
     <message>
         <location line="+3"/>
@@ -79436,43 +79440,43 @@ The password couldn&apos;t be put on the file.</source>
     <message>
         <location filename="../libs/office/sheet/datasourcebook.cpp" line="-134"/>
         <source>The workbook can&apos;t be opened.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Книгу не можна відкрити.</translation>
     </message>
     <message>
         <location line="+83"/>
         <source>The workbook has no sheet, table, or named range with cells to load.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">У книзі немає аркуша, таблиці або іменованого діапазону з комірками для завантаження.</translation>
     </message>
     <message>
         <location line="+19"/>
         <location line="+26"/>
         <source>That sheet is not in the workbook.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Цього аркуша немає в книзі.</translation>
     </message>
     <message>
         <location line="-13"/>
         <source>That table is not in the workbook.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Цієї таблиці немає в книзі.</translation>
     </message>
     <message>
         <location line="+9"/>
         <source>That named range is not in the workbook, or is not a block of cells.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Цього іменованого діапазону немає в книзі або він не є блоком комірок.</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>That is not a sheet, table, or named range.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Це не аркуш, таблиця або іменований діапазон.</translation>
     </message>
     <message>
         <location line="+11"/>
         <source>The sheet is empty.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Аркуш порожній.</translation>
     </message>
     <message>
         <location line="+57"/>
         <source>That holds no rows under its names.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Під цими іменами немає жодного рядка.</translation>
     </message>
 </context>
 <context>
@@ -81322,12 +81326,12 @@ The password couldn&apos;t be put on the file.</source>
     <message>
         <location line="+2"/>
         <source>Choose or type an item</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Виберіть або введіть елемент</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Add a picture</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Додати малюнок</translation>
     </message>
     <message>
         <location line="+349"/>
@@ -81368,63 +81372,63 @@ The password couldn&apos;t be put on the file.</source>
     <message>
         <location line="+85"/>
         <source>The paragraphs chosen hold only part of a table or of another content control.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Вибрані абзаци містять лише частину таблиці або іншого елемента керування вмістом.</translation>
     </message>
     <message>
         <location line="+157"/>
         <source>The contents of this section can&apos;t be edited.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Вміст цього розділу не можна редагувати.</translation>
     </message>
     <message>
         <location line="+4"/>
         <location line="+93"/>
         <source>Items can&apos;t be added to or removed from this section.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Елементи не можна додавати або видаляти в цьому розділі.</translation>
     </message>
     <message>
         <location line="-86"/>
         <source>A repeating section holds at most %1 items.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Повторюваний розділ містить не більше %1 елементів.</translation>
     </message>
     <message>
         <location line="+11"/>
         <source>While Track Changes is on, an item can&apos;t be added to a section that ends the document.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Поки ввімкнено відстеження змін, елемент не можна додати до розділу, що завершує документ.</translation>
     </message>
     <message>
         <location line="+5"/>
         <source>While Track Changes is on, an item that holds a table can&apos;t be added.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Поки ввімкнено відстеження змін, елемент, що містить таблицю, не можна додати.</translation>
     </message>
     <message>
         <location line="+36"/>
         <source>The item could not be added.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Не вдалося додати елемент.</translation>
     </message>
     <message>
         <location line="+38"/>
         <source>A repeating section keeps at least one item.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Повторюваний розділ має містити принаймні один елемент.</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>The item can&apos;t be deleted.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Елемент не можна видалити.</translation>
     </message>
     <message>
         <location line="+7"/>
         <source>The item is already marked as deleted.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Елемент уже позначено як видалений.</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>While Track Changes is on, an item can&apos;t be removed from the end of the document.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Поки ввімкнено відстеження змін, елемент не можна видалити з кінця документа.</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>While Track Changes is on, an item that holds a table can&apos;t be removed.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Поки ввімкнено відстеження змін, елемент, що містить таблицю, не можна видалити.</translation>
     </message>
 </context>
 <context>
@@ -81497,7 +81501,7 @@ The password couldn&apos;t be put on the file.</source>
     <message>
         <location line="+7"/>
         <source>Items can&apos;t be added or removed</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Елементи не можна додати або видалити</translation>
     </message>
     <message>
         <location line="+66"/>
@@ -83114,32 +83118,32 @@ The password couldn&apos;t be put on the file.</source>
     <message>
         <location line="+58"/>
         <source>That pattern uses something JeffWrite does not search with, at character %1.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Цей шаблон містить символ, який JeffWrite не пошукує, на символі %1.</translation>
     </message>
     <message>
         <location line="+27"/>
         <source>A repeat count over %2 at character %1 could take far too long. Use a smaller count, or + or *.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Повторення понад %2 на символі %1 може тривати дуже довго. Використайте менше число або + чи *.</translation>
     </message>
     <message>
         <location line="+27"/>
         <source>JeffWrite does not search with look-ahead or look-behind patterns, at character %1.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">JeffWrite не виконує пошук із шаблонами перегляду вперед або назад, на символі %1.</translation>
     </message>
     <message>
         <location line="+6"/>
         <source>JeffWrite does not search with patterns in extended mode, at character %1.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">JeffWrite не виконує пошук із шаблонами в розширеному режимі, на символі %1.</translation>
     </message>
     <message>
         <location line="+42"/>
         <source>That pattern has a mistake near character %1: %2.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">У цьому шаблоні помилка поблизу символу %1: %2.</translation>
     </message>
     <message>
         <location line="+8"/>
         <source>A pattern can keep at most nine groups; write (?: ) for a group that is not used in Replace with.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Шаблон може містити не більше дев&apos;яти груп; для групи, яка не використовується в полі «Замінити на», пишіть (?: ).</translation>
     </message>
 </context>
 <context>
@@ -85174,7 +85178,7 @@ The password couldn&apos;t be put on the file.</source>
     <message>
         <location filename="../apps/write/core/mergeops.cpp" line="+325"/>
         <source>The record of which recipients you left out could not be read, so all recipients are included.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Не вдалося прочитати відомості про одержувачів, яких ви виключили, тому до розсилки включено всіх одержувачів.</translation>
     </message>
     <message>
         <location line="+321"/>
@@ -85696,7 +85700,7 @@ The password couldn&apos;t be put on the file.</source>
     <message>
         <location line="+236"/>
         <source>The contents of this picture control can&apos;t be edited.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Вміст цього елемента керування малюнком не можна редагувати.</translation>
     </message>
     <message>
         <location line="+4"/>
@@ -87193,17 +87197,17 @@ The password couldn&apos;t be put on the file.</source>
     <message>
         <location filename="../libs/office/odt/odtwrite.cpp" line="+70"/>
         <source>repeating sections (the items stay as paragraphs, without the buttons that add and remove them)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">повторювані розділи (елементи залишаються абзацами без кнопок для додавання та видалення)</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>picture controls (the picture stays, but not the control)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">елементи керування малюнками (малюнок залишається, але не елемент керування)</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>combo boxes (the chosen words stay, but not the list to choose from)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">комбіновані списки (вибрані слова залишаються, але не список для вибору)</translation>
     </message>
     <message>
         <location line="+27"/>
@@ -87318,7 +87322,7 @@ The password couldn&apos;t be put on the file.</source>
     <message>
         <location line="-798"/>
         <source>pictures with sharpen, soften, color temperature, or an artistic effect (saved as the finished picture, and the effect can&apos;t be changed or taken off again)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">малюнки з різкістю, розмиттям, колірною температурою або художнім ефектом (зберігаються як готовий малюнок, і ефект не можна змінити або скасувати)</translation>
     </message>
     <message>
         <location line="+132"/>
@@ -87379,22 +87383,22 @@ The password couldn&apos;t be put on the file.</source>
     <message>
         <location filename="../libs/office/rtf/rtfwrite.cpp" line="+91"/>
         <source>repeating sections (the items stay as paragraphs, without the buttons that add and remove them)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">повторювані розділи (елементи залишаються абзацами без кнопок для додавання та видалення)</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>picture controls (the picture stays, but not the control)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">елементи керування малюнками (малюнок залишається, але не елемент керування)</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>combo boxes (the chosen words stay, but not the list to choose from)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">комбіновані списки (вибрані слова залишаються, але не список для вибору)</translation>
     </message>
     <message>
         <location line="+353"/>
         <source>pictures with sharpen, soften, color temperature, or an artistic effect (saved as the finished picture, and the effect can&apos;t be changed or taken off again)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">малюнки з різкістю, розмиттям, колірною температурою або художнім ефектом (зберігаються як готовий малюнок, і ефект не можна змінити або скасувати)</translation>
     </message>
     <message>
         <location line="+56"/>

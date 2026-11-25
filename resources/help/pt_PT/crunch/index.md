@@ -1,13 +1,13 @@
 # Ajuda do JeffCrunch
-<!-- keywords: conteúdo, ajuda, tópicos, começar -->
+<!-- keywords: conteúdo, ajuda, tópicos, início, índice -->
 
-Escreva na caixa de pesquisa acima para encontrar um tópico ou um comando a executar. Prima **F1** a qualquer momento para obter ajuda sobre o que está a fazer: o separador do friso em que se encontra ou a página do Ficheiro em que está.
+Escreva na caixa de pesquisa acima para encontrar um tópico ou um comando a executar. Prima **F1** em qualquer momento para obter ajuda sobre o que está a fazer: o separador do friso em que se encontra ou a página do ecrã Ficheiro em que está.
 
-## Como começar
+## Primeiros passos
 
 - [Bem-vindo ao JeffCrunch](start)
 - [Abrir e guardar livros](open-save)
-- [Pack and Go: enviar um livro com o que ele precisa](pack-and-go)
+- [Pack and Go: enviar um livro com o que precisa](pack-and-go)
 - [Informações: propriedades, palavras-passe e Inspecionar](info)
 - [Abrir livros protegidos por palavra-passe](open-password)
 - [Escrever nas células](edit-cells)
@@ -20,6 +20,7 @@ Escreva na caixa de pesquisa acima para encontrar um tópico ou um comando a exe
 - [Como as fórmulas são apresentadas e calculadas](formulas)
 - [Nomes para células e valores](names)
 - [Formatação condicional](conditional-formats)
+- [Análise Rápida](quick-analysis)
 
 ## Alterar um livro
 
@@ -29,11 +30,11 @@ Escreva na caixa de pesquisa acima para encontrar um tópico ou um comando a exe
 - [Trabalhar com folhas](sheets)
 - [Inserir e eliminar linhas, colunas e células](insert-delete)
 - [Alterar a largura das colunas e a altura das linhas](sizes)
-- [Cortar, copiar e colar](clipboard)
+- [Recortar, copiar e colar](clipboard)
 - [Preencher células e somá-las](fill-sum)
 - [Localizar, substituir e ir para](find-replace)
 - [Ordenar e filtrar](sort-filter)
-- [Ferramentas de Dados](data-tools)
+- [Ferramentas de dados](data-tools)
 - [Tabelas](tables)
 - [Tabelas dinâmicas](pivot-tables)
 - [Inserir uma função](insert-function)
@@ -47,7 +48,7 @@ Escreva na caixa de pesquisa acima para encontrar um tópico ou um comando a exe
 
 - [Funções financeiras](functions-financial)
 - [Funções de data e hora](functions-date-time)
-- [Funções de matemática e trigonometria](functions-math-trig)
+- [Funções matemáticas e trigonométricas](functions-math-trig)
 - [Funções estatísticas](functions-statistical)
 - [Funções de pesquisa e referência](functions-lookup-reference)
 - [Funções de texto](functions-text)
@@ -66,5 +67,5 @@ Escreva na caixa de pesquisa acima para encontrar um tópico ou um comando a exe
 
 - [Utilizar o JeffCrunch com o teclado](keyboard)
 - [Alterar as definições do JeffCrunch](options)
-- [Segurança: a que um ficheiro pode aceder](security)
+- [Segurança: a que o ficheiro pode aceder](security)
 - [Escolher um idioma](language)

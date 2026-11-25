@@ -1,14 +1,14 @@
 # JeffCrunch-Hilfe
-<!-- keywords: Inhalt, Hilfe, Themen, Start, Hilfethemen, Übersicht -->
+<!-- keywords: Inhalt, Hilfe, Themen, Start, Übersicht, Hilfethemen -->
 
-Geben Sie oben im Suchfeld einen Begriff ein, um ein Thema oder einen auszuführenden Befehl zu finden. Drücken Sie jederzeit **F1**, um Hilfe zu dem zu erhalten, was Sie gerade tun: zur Registerkarte des Menübands oder zur Seite der Backstage-Ansicht „Datei“, auf der Sie sich befinden.
+Geben Sie oben im Suchfeld ein Thema oder einen Befehl ein, um ihn zu finden. Drücken Sie jederzeit **F1**, um Hilfe zu dem zu erhalten, woran Sie gerade arbeiten: zur aktuellen Registerkarte des Menübands oder zur aktuellen Seite im Menü „Datei“.
 
 ## Erste Schritte
 
 - [Willkommen bei JeffCrunch](start)
 - [Arbeitsmappen öffnen und speichern](open-save)
-- [Pack and Go: Eine Arbeitsmappe mit allem versenden, was sie benötigt](pack-and-go)
-- [Info: Eigenschaften, Kennwörter und Dokumente prüfen](info)
+- [Pack and Go: Arbeitsmappe mit allen benötigten Dateien weitergeben](pack-and-go)
+- [Info: Eigenschaften, Kennwörter und Arbeitsmappe prüfen](info)
 - [Kennwortgeschützte Arbeitsmappen öffnen](open-password)
 - [In Zellen eingeben](edit-cells)
 - [Regeln für den Inhalt einer Zelle](rules)
@@ -20,6 +20,7 @@ Geben Sie oben im Suchfeld einen Begriff ein, um ein Thema oder einen auszuführ
 - [Anzeige und Berechnung von Formeln](formulas)
 - [Namen für Zellen und Werte](names)
 - [Bedingte Formatierungen](conditional-formats)
+- [Schnellanalyse](quick-analysis)
 
 ## Eine Arbeitsmappe ändern
 
@@ -28,7 +29,7 @@ Geben Sie oben im Suchfeld einen Begriff ein, um ein Thema oder einen auszuführ
 - [Zellenformatvorlagen](cell-styles)
 - [Mit Blättern arbeiten](sheets)
 - [Zeilen, Spalten und Zellen einfügen und löschen](insert-delete)
-- [Spaltenbreite und Zeilenhöhe ändern](sizes)
+- [Breite von Spalten und Höhe von Zeilen ändern](sizes)
 - [Ausschneiden, Kopieren und Einfügen](clipboard)
 - [Zellen ausfüllen und summieren](fill-sum)
 - [Suchen, Ersetzen und Gehe zu](find-replace)
@@ -37,9 +38,9 @@ Geben Sie oben im Suchfeld einen Begriff ein, um ein Thema oder einen auszuführ
 - [Tabellen](tables)
 - [Pivot-Tabellen](pivot-tables)
 - [Funktion einfügen](insert-function)
-- [Funktion über das Dialogfeld „Funktionsargumente“ eingeben](function-arguments)
+- [Funktion mit dem Dialogfeld „Funktionsargumente“ eingeben](function-arguments)
 - [Diagramme, Bilder und Formen](charts)
-- [Gleichungen](equations)
+- [Formeln](equations)
 - [Notizen und Links](notes-links)
 - [Blatt oder Arbeitsmappe schützen](protect)
 

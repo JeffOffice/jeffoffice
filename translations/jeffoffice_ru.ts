@@ -934,7 +934,7 @@
     <message>
         <location line="+5"/>
         <source>A search is under way, so nothing can be changed yet. Wait for it to end, or cancel it.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Выполняется поиск, поэтому пока ничего нельзя изменить. Дождитесь его окончания или отмените его.</translation>
     </message>
 </context>
 <context>
@@ -4433,7 +4433,7 @@ Back page story	4</source>
     <message>
         <location line="+96"/>
         <source>Text Files (*.txt *.rtf *.html *.htm *.docx *.doc *.odt *.md)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Текстовые файлы (*.txt *.rtf *.html *.htm *.docx *.doc *.odt *.md)</translation>
     </message>
     <message>
         <location line="-1291"/>
@@ -6238,17 +6238,17 @@ Back page story	4</source>
     <message>
         <location line="+4"/>
         <source>Tell recipients apart by</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Различать получателей по</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>Place in the list</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Поместить в список</translation>
     </message>
     <message>
         <location line="+34"/>
         <source>Some recipients have the same value in this column, so they can&apos;t be told apart later.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">У некоторых получателей в этом столбце одинаковое значение, поэтому позже их нельзя будет различить.</translation>
     </message>
     <message>
         <location line="+5"/>
@@ -7124,7 +7124,7 @@ Back page story	4</source>
     <message>
         <location line="+1"/>
         <source>pictures with sharpen, soften, color temperature, or an artistic effect were saved as the finished pictures, so the effect can&apos;t be changed or taken off in a .pub file</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Рисунки с резкостью, размытием, цветовой температурой или художественным эффектом были сохранены как готовые рисунки, поэтому эффект нельзя будет изменить или убрать в файле .pub</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -8739,28 +8739,28 @@ Save without a backup?</source>
         <location line="-41"/>
         <location line="+5"/>
         <source>Save Each as a File</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Сохранить каждый как файл</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>No recipient is included.</source>
-        <translation type="unfinished">Получатели не включены.</translation>
+        <translation type="unfinished">Ни один получатель не включён.</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>Publication (.jpub)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Публикация (.jpub)</translation>
     </message>
     <message>
         <location line="+16"/>
         <source>The publication is gone.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Публикация пропала.</translation>
     </message>
     <message>
         <location line="+5"/>
         <location line="+2"/>
         <source>The publication can&apos;t be made.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Публикацию не удалось создать.</translation>
     </message>
     <message>
         <location line="+20"/>
@@ -8866,7 +8866,7 @@ Open them with your email program to send.</source>
     <message>
         <location line="+5"/>
         <source>This publication has content that JeffPub can&apos;t place on its pages yet, so it was not opened. The file has not been changed.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Эта публикация содержит элементы, которые JeffPub пока не может разместить на своих страницах, поэтому она не была открыта. Файл не изменён.</translation>
     </message>
     <message>
         <location filename="../libs/base/io/zip.cpp" line="+383"/>
@@ -8917,7 +8917,7 @@ Open them with your email program to send.</source>
     <message>
         <location line="+9"/>
         <source>No text was found in &quot;%1&quot;, so nothing was inserted.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">В файле &quot;%1&quot; не найдено текста, поэтому ничего не вставлено.</translation>
     </message>
     <message>
         <location line="+7"/>
@@ -8928,15 +8928,15 @@ Open them with your email program to send.</source>
         <location line="+24"/>
         <source>%n picture, table, list, comment, or note in &quot;%1&quot; was left out or came in as plain text.</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
+            <numerusform>%n рисунок, таблица, список, примечание или сноска в файле &quot;%1&quot; пропущены или вставлены как обычный текст.</numerusform>
+            <numerusform>%n рисунка, таблицы, списка, примечания или сноски в файле &quot;%1&quot; пропущены или вставлены как обычный текст.</numerusform>
+            <numerusform>%n рисунков, таблиц, списков, примечаний или сносок в файле &quot;%1&quot; пропущены или вставлены как обычный текст.</numerusform>
         </translation>
     </message>
     <message>
         <location line="+4"/>
         <source>Some parts of &quot;%1&quot; could not be read and were left out.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Некоторые части файла &quot;%1&quot; не удалось прочитать, и они были пропущены.</translation>
     </message>
 </context>
 <context>
@@ -9473,33 +9473,33 @@ Download it from %2 now? (%3, once.)</source>
     <message>
         <location filename="../libs/page/core/mergeextras.cpp" line="+116"/>
         <source>The list has no column named &quot;%1&quot; now, so the recipients you left out before could not be found. All recipients are included.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">В списке теперь нет столбца &quot;%1&quot;, поэтому получателей, которых вы исключили раньше, не удалось найти. Все получатели включены.</translation>
     </message>
     <message numerus="yes">
         <location line="+18"/>
         <source>%n recipient you left out before is no longer in the list.</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
+            <numerusform>%n получатель, которого вы исключили раньше, больше нет в списке.</numerusform>
+            <numerusform>%n получателя, которых вы исключили раньше, больше нет в списке.</numerusform>
+            <numerusform>%n получателей, которых вы исключили раньше, больше нет в списке.</numerusform>
         </translation>
     </message>
     <message numerus="yes">
         <location line="+1"/>
         <source>%n recipient you left out before could not be matched, because other recipients have the same %1. That recipient is included.</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
+            <numerusform>%n получатель, которого вы исключили раньше, не удалось сопоставить, так как у других получателей такое же значение %1. Этот получатель включён.</numerusform>
+            <numerusform>%n получателя, которых вы исключили раньше, не удалось сопоставить, так как у других получателей такое же значение %1. Эти получатели включены.</numerusform>
+            <numerusform>%n получателей, которых вы исключили раньше, не удалось сопоставить, так как у других получателей такое же значение %1. Эти получатели включены.</numerusform>
         </translation>
     </message>
     <message numerus="yes">
         <location line="+5"/>
         <source>The list has %n recipient now. It had %1 when you chose which recipients to leave out, so all recipients are included.</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
+            <numerusform>В списке сейчас %n получатель. Раньше их было %1, когда вы выбирали, кого исключить, поэтому все получатели включены.</numerusform>
+            <numerusform>В списке сейчас %n получателя. Раньше их было %1, когда вы выбирали, кого исключить, поэтому все получатели включены.</numerusform>
+            <numerusform>В списке сейчас %n получателей. Раньше их было %1, когда вы выбирали, кого исключить, поэтому все получатели включены.</numerusform>
         </translation>
     </message>
 </context>
@@ -9511,52 +9511,55 @@ Download it from %2 now? (%3, once.)</source>
         <location line="+55"/>
         <location line="+33"/>
         <source>Save Each as a File</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Сохранить каждый как файл</translation>
     </message>
     <message>
         <location line="-141"/>
         <source>Choose…</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Выбрать…</translation>
     </message>
     <message>
         <location line="+3"/>
         <location line="+25"/>
         <source>Save in the folder</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Сохранить в папку</translation>
     </message>
     <message>
         <location line="-22"/>
         <source>Put the name of a column in braces, like {Last Name}, {First Name}.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Укажите название столбца в фигурных скобках, например {Фамилия}, {Имя}.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Name each file</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Назвать каждый файл</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>PDF (.pdf)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">PDF (.pdf)</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Make each file as</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Создать каждый файл как</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>Put the name of a column in braces, like {Last Name}, {First Name}. A name that is used twice gets a number.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Укажите название столбца в фигурных скобках, например {Фамилия}, {Имя}. Если имя используется дважды, к нему добавляется номер.</translation>
     </message>
     <message numerus="yes">
         <location line="+23"/>
         <source>%n file will be made, for example:
 %1</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
+            <numerusform>Будет создан %n файл, например:
+%1</numerusform>
+            <numerusform>Будут созданы %n файла, например:
+%1</numerusform>
+            <numerusform>Будут созданы %n файлов, например:
+%1</numerusform>
         </translation>
     </message>
     <message numerus="yes">
@@ -9564,43 +9567,43 @@ Download it from %2 now? (%3, once.)</source>
         <location filename="../libs/page/core/mergeextras.cpp" line="+122"/>
         <source>A merge makes at most %n file at a time. Use a shorter list.</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
+            <numerusform>За один раз слияние создаёт не более %n файл. Используйте более короткий список.</numerusform>
+            <numerusform>За один раз слияние создаёт не более %n файла. Используйте более короткий список.</numerusform>
+            <numerusform>За один раз слияние создаёт не более %n файлов. Используйте более короткий список.</numerusform>
         </translation>
     </message>
     <message numerus="yes">
         <location line="+4"/>
         <source>This makes %n file in the folder %1. Make them?</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
+            <numerusform>Будет создан %n файл в папке %1. Создать его?</numerusform>
+            <numerusform>Будут созданы %n файла в папке %1. Создать их?</numerusform>
+            <numerusform>Будут созданы %n файлов в папке %1. Создать их?</numerusform>
         </translation>
     </message>
     <message numerus="yes">
         <location line="+4"/>
         <source>%n file in that folder has the same name as one to be made. Replace it?</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
+            <numerusform>В этой папке есть %n файл с тем же именем, что и создаваемый. Заменить его?</numerusform>
+            <numerusform>В этой папке есть %n файла с тем же именем, что и создаваемые. Заменить их?</numerusform>
+            <numerusform>В этой папке есть %n файлов с тем же именем, что и создаваемые. Заменить их?</numerusform>
         </translation>
     </message>
     <message>
         <location line="+46"/>
         <source>The files are still being saved. Wait until they are done, or choose Cancel in the box that shows them.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Файлы всё ещё сохраняются. Дождитесь окончания или выберите «Отмена» в окне, которое их показывает.</translation>
     </message>
     <message>
         <location line="+8"/>
         <source>The files are still being saved.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Файлы всё ещё сохраняются.</translation>
     </message>
     <message>
         <location line="+7"/>
         <source>Saving the files…</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Сохранение файлов…</translation>
     </message>
     <message>
         <location line="+0"/>
@@ -9611,54 +9614,55 @@ Download it from %2 now? (%3, once.)</source>
         <location line="+18"/>
         <source>%n file was saved before this stopped.</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
+            <numerusform>%n файл был сохранён до остановки.</numerusform>
+            <numerusform>%n файла были сохранены до остановки.</numerusform>
+            <numerusform>%n файлов было сохранено до остановки.</numerusform>
         </translation>
     </message>
     <message numerus="yes">
         <location line="+1"/>
         <source>Stopped. %n file was saved in the folder %1.</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
+            <numerusform>Остановлено. %n файл сохранён в папку %1.</numerusform>
+            <numerusform>Остановлено. %n файла сохранены в папку %1.</numerusform>
+            <numerusform>Остановлено. %n файлов сохранено в папку %1.</numerusform>
         </translation>
     </message>
     <message numerus="yes">
         <location line="+1"/>
         <source>%n file was saved in the folder %1.</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
+            <numerusform>%n файл сохранён в папку %1.</numerusform>
+            <numerusform>%n файла сохранены в папку %1.</numerusform>
+            <numerusform>%n файлов сохранено в папку %1.</numerusform>
         </translation>
     </message>
     <message>
         <location filename="../libs/page/core/mergeextras.cpp" line="-48"/>
         <source>Recipient %1</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Получатель %1</translation>
     </message>
     <message>
         <location line="+33"/>
         <source>A shortcut with that file&apos;s name could not be replaced.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Ярлык с именем этого файла не удалось заменить.</translation>
     </message>
     <message>
         <location line="+19"/>
         <source>The folder can&apos;t be made.</source>
-        <translation type="unfinished">Не удаётся создать папку.</translation>
+        <translation type="unfinished">Папку не удалось создать.</translation>
     </message>
     <message>
         <location line="+11"/>
         <source>A file name is not allowed: %1</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Недопустимое имя файла: %1</translation>
     </message>
     <message>
         <location line="+5"/>
         <source>%1 can&apos;t be saved.
 %2</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Не удалось сохранить %1.
+%2</translation>
     </message>
 </context>
 <context>
@@ -9886,17 +9890,17 @@ Download it from %2 now? (%3, once.)</source>
     <message>
         <location line="+10"/>
         <source>%1: the color an object is dimmed to after its effect has no match in this kind of file, so the object keeps its own color.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">%1: цвет, до которого затемняется объект после эффекта, не имеет аналога в этом типе файла, поэтому объект сохраняет свой цвет.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>%1: the sounds that effects play are not saved in this kind of file, so the effects play without them.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">%1: звуки, которые проигрывают эффекты, в этом типе файла не сохраняются, поэтому эффекты проигрываются без них.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>%1: text that is animated by word or by letter is saved as one animation of the whole text.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">%1: текст, анимированный по словам или по буквам, сохраняется как одна анимация всего текста.</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -9941,7 +9945,7 @@ Download it from %2 now? (%3, once.)</source>
     <message>
         <location line="+1"/>
         <source>A picture with sharpen, soften, color temperature, or an artistic effect is kept as the finished picture, and the effect can&apos;t be changed or taken off again.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Рисунок с резкостью, размытием, цветовой температурой или художественным эффектом сохраняется как готовый рисунок, и эффект нельзя будет изменить или убрать снова.</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -11378,37 +11382,37 @@ Download it from %2 now? (%3, once.)</source>
     <message>
         <location filename="../libs/draw/core/picturefx.cpp" line="+328"/>
         <source>Soften</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>Sharpen</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>Color Temperature</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location line="+3"/>
-        <source>Blur</source>
         <translation type="unfinished">Размытие</translation>
     </message>
     <message>
         <location line="+1"/>
+        <source>Sharpen</source>
+        <translation type="unfinished">Резкость</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Color Temperature</source>
+        <translation type="unfinished">Цветовая температура</translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Blur</source>
+        <translation type="unfinished">Размытие по Гауссу</translation>
+    </message>
+    <message>
+        <location line="+1"/>
         <source>Pencil Grayscale</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Карандашный набросок</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Glow Edges</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Свечение краёв</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Mosaic</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Мозаика</translation>
     </message>
 </context>
 <context>
@@ -11901,7 +11905,7 @@ Download it from %2 now? (%3, once.)</source>
     <message>
         <location line="+2"/>
         <source>Some sounds of animation effects are left out: each may be up to %1 MB, and all of them together up to 128 MB.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Некоторые звуки эффектов анимации пропущены: каждый может занимать до %1 МБ, а все вместе — до 128 МБ.</translation>
     </message>
     <message>
         <location line="+2"/>
@@ -13865,7 +13869,7 @@ Download it from %2 now? (%3, once.)</source>
     <message>
         <location filename="../apps/deck/core/reuse.cpp" line="+441"/>
         <source>Sounds of animation effects that don&apos;t fit in this presentation were left out.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Звуки эффектов анимации, которые не поместились в этой презентации, были пропущены.</translation>
     </message>
 </context>
 <context>
@@ -16521,7 +16525,7 @@ Open it in your email program, add recipients and send.</source>
     <message>
         <location line="+6"/>
         <source>the places of an outline&apos;s summary lines (they are put below the rows and right of the columns)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">положения строк итогов структуры (они размещаются под строками и справа от столбцов)</translation>
     </message>
     <message>
         <location line="+7"/>
@@ -16610,7 +16614,7 @@ Open it in your email program, add recipients and send.</source>
     <message>
         <location line="+3"/>
         <source>the links from tables to the files their rows were loaded from (Refresh needs them)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">связи таблиц с файлами, из которых были загружены их строки (они нужны для команды «Обновить»)</translation>
     </message>
     <message>
         <location filename="../libs/office/sheet/sheetcrypt.cpp" line="+21"/>
@@ -21641,17 +21645,17 @@ Desktop publishing</source>
     <message>
         <location filename="../apps/write/app/writefindpane.cpp" line="+626"/>
         <source>A match longer than %1 characters was found, which is more than JeffWrite can work with at once. Nothing was changed.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Найдено совпадение длиннее %1 символов, что больше, чем JeffWrite может обработать сразу. Ничего не изменено.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>That pattern needed too much work on this text, so the search stopped. Nothing was changed.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Этому шаблону для этого текста потребовалось слишком много работы, поэтому поиск остановлен. Ничего не изменено.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Cancelled. Nothing was changed.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Отменено. Ничего не изменено.</translation>
     </message>
 </context>
 <context>
@@ -21946,7 +21950,7 @@ Desktop publishing</source>
     <message>
         <location line="+1"/>
         <source>Dim to a Color</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Затемнить до цвета</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -21970,39 +21974,39 @@ Desktop publishing</source>
         <location line="+12"/>
         <location line="+1"/>
         <source>Sound</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Звук</translation>
     </message>
     <message>
         <location line="-22"/>
         <source>No Sound</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Без звука</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Stop Previous Sound</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Остановить предыдущий звук</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>Other Sound…</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Другой звук…</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>A sound that plays when the effect starts</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Звук, который проигрывается при запуске эффекта</translation>
     </message>
     <message>
         <location line="+19"/>
         <location line="+4"/>
         <location line="+3"/>
         <source>Dim color</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Цвет затемнения</translation>
     </message>
     <message>
         <location line="-1"/>
         <source>The color the shape turns to at the next click</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Цвет, в который фигура переходит при следующем щелчке</translation>
     </message>
     <message>
         <location line="+6"/>
@@ -22074,48 +22078,48 @@ Desktop publishing</source>
         <location line="+9"/>
         <location line="+3"/>
         <source>Animate text</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Анимировать текст</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>By word</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">По словам</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>By letter</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">По буквам</translation>
     </message>
     <message>
         <location line="+9"/>
         <source> % of the effect&apos;s length</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished"> % длительности эффекта</translation>
     </message>
     <message>
         <location line="+2"/>
         <location line="+2"/>
         <source>Delay between words or letters</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Задержка между словами или буквами</translation>
     </message>
     <message>
         <location line="-1"/>
         <source>How long after one word or letter the next one starts, as a share of how long the effect takes</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Через какое время после одного слова или буквы начнётся следующее, в процентах от длительности эффекта</translation>
     </message>
     <message>
         <location line="+6"/>
         <source>Delay between letters</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Задержка между буквами</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Delay between words</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Задержка между словами</translation>
     </message>
     <message>
         <location line="+6"/>
         <source>Text with more than %1 words or letters is animated in groups of them, so that the slide show stays smooth.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Текст с более чем %1 словами или буквами анимируется группами, чтобы показ слайдов оставался плавным.</translation>
     </message>
     <message>
         <location line="+5"/>
@@ -24801,7 +24805,7 @@ Source: %3</source>
     <message>
         <location line="+3"/>
         <source>Other</source>
-        <translation type="unfinished">Другой</translation>
+        <translation type="unfinished">Другое</translation>
     </message>
     <message>
         <location line="+24"/>
@@ -24809,7 +24813,7 @@ Source: %3</source>
         <location filename="../apps/deck/app/deckwindow.cpp" line="+325"/>
         <location filename="../apps/crunch/app/crunchwindow_clip.cpp" line="+55"/>
         <source>Paste All</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Вставить все</translation>
     </message>
     <message>
         <location line="+2"/>
@@ -24825,7 +24829,7 @@ Source: %3</source>
     <message>
         <location line="+6"/>
         <source>Copy or cut something and it will be here.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Скопируйте или вырежьте что-нибудь, и это появится здесь.</translation>
     </message>
     <message>
         <location line="+9"/>
@@ -24836,31 +24840,31 @@ Source: %3</source>
     <message>
         <location line="-156"/>
         <source>Keep collecting when this pane is closed</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Продолжать собирать данные при закрытой области</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>Also collect what is copied in other programs</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Также собирать то, что копируется в других программах</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>Only plain text and pictures are kept (a picture of up to about 2 million pixels), and nothing a password manager marks as secret. With this on, a copy made in another program is read in full before this program decides whether to keep it, so a very large copy can make this program pause for a moment and use as much memory as the copy is big. Only one form of it is read: its text when it has text, otherwise one picture. With this off, nothing copied in other programs is read.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Сохраняются только обычный текст и рисунки (рисунок размером до примерно 2 миллионов пикселей), но не то, что менеджер паролей помечает как секретное. При включённом параметре скопированные в других программах данные полностью считываются до того, как эта программа решит, сохранять ли их, поэтому очень большой фрагмент может ненадолго замедлить работу программы и занять столько же памяти, сколько весит копия. Считывается только один вариант: текст, если он есть, иначе один рисунок. При выключенном параметре данные, скопированные в других программах, не считываются.</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>Items are kept in this program only, and nothing is saved to a file. They are cleared when the last window of the program is closed. An item stays here after the document it came from is closed.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Элементы хранятся только в этой программе и никуда не сохраняются в файл. Они очищаются при закрытии последнего окна программы. Элемент остаётся здесь даже после закрытия документа, из которого он был взят.</translation>
     </message>
     <message numerus="yes">
         <location line="+65"/>
         <source>%n copy was too large to keep (the limit is 8 MB for one copy).</source>
         <comment>%n is a count</comment>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
+            <numerusform>%n копия была слишком большой для сохранения (ограничение — 8 МБ на одну копию).</numerusform>
+            <numerusform>%n копии были слишком большими для сохранения (ограничение — 8 МБ на одну копию).</numerusform>
+            <numerusform>%n копий были слишком большими для сохранения (ограничение — 8 МБ на одну копию).</numerusform>
         </translation>
     </message>
     <message numerus="yes">
@@ -24868,9 +24872,9 @@ Source: %3</source>
         <source>%n oldest copy was dropped to stay under 64 MB in all.</source>
         <comment>%n is a count</comment>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
+            <numerusform>%n самая старая копия была удалена, чтобы общий объём не превышал 64 МБ.</numerusform>
+            <numerusform>%n самые старые копии были удалены, чтобы общий объём не превышал 64 МБ.</numerusform>
+            <numerusform>%n самых старых копий были удалены, чтобы общий объём не превышал 64 МБ.</numerusform>
         </translation>
     </message>
     <message>
@@ -26784,42 +26788,42 @@ Source: %3</source>
     <message>
         <location line="+31"/>
         <source>Error Checking marks cells that have</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Проверка ошибок отмечает ячейки, которые содержат</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>A formula that gives an error</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Формулу, которая выдаёт ошибку</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>A number kept as text</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Число, сохранённое как текст</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>A formula that is not like the ones beside it</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Формулу, которая отличается от соседних</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>A date kept as text with a year of two digits</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Дату, сохранённую как текст с двузначным годом</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>A formula in a cell that is not locked</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Формулу в незаблокированной ячейке</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>A formula that leaves out a number next to the cells it uses</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Формулу, которая пропускает число рядом с ячейками, которые она использует</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>A formula that uses an empty cell</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Формулу, которая использует пустую ячейку</translation>
     </message>
     <message>
         <location line="+59"/>
@@ -29227,7 +29231,7 @@ Source: %3</source>
     <message>
         <location line="+33"/>
         <source>The sort choice &quot;Numbers in text count by value&quot;: the cells stay in the order they were sorted into, but the file does not remember the choice, so the next Sort starts without it.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Вариант сортировки «Числа в тексте по значению»: ячейки остаются в порядке, в который они были отсортированы, но файл не сохраняет этот выбор, поэтому следующая сортировка начнётся без него.</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -31193,119 +31197,119 @@ This file is protected with a password. Password:</source>
     <message>
         <location filename="../apps/crunch/app/crunchwindow_quick.cpp" line="-183"/>
         <source>Row Sum</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Сумма по строке</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Row Average</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Среднее по строке</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Row Count</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Количество в строке</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>% of Total</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">% от итога</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Row % of Total</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">% от итога по строке</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Running Total</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Нарастающий итог</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Row Running Total</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Нарастающий итог по строке</translation>
     </message>
     <message>
         <location line="+8"/>
         <source>Adds up each column of numbers, in the row under the cells.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Складывает числа в каждом столбце, в строке под ячейками.</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Adds up each row of numbers, in the column to the right of the cells.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Складывает числа в каждой строке, в столбце справа от ячеек.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Finds the average of each column, in the row under the cells.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Находит среднее значение каждого столбца, в строке под ячейками.</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Finds the average of each row, in the column to the right of the cells.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Находит среднее значение каждой строки, в столбце справа от ячеек.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Counts the numbers in each column, in the row under the cells.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Подсчитывает числа в каждом столбце, в строке под ячейками.</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Counts the numbers in each row, in the column to the right of the cells.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Подсчитывает числа в каждой строке, в столбце справа от ячеек.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Shows each column&apos;s share of all the numbers, as a percent, in the row under the cells.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Показывает долю каждого столбца от всех чисел в процентах, в строке под ячейками.</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Shows each row&apos;s share of all the numbers, as a percent, in the column to the right of the cells.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Показывает долю каждой строки от всех чисел в процентах, в столбце справа от ячеек.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Adds up each column as it goes down, in new cells to the right of the cells.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Нарастающим итогом складывает каждый столбец сверху вниз, в новых ячейках справа от ячеек.</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Adds up each row as it goes across, in new cells under the cells.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Нарастающим итогом складывает каждую строку слева направо, в новых ячейках под ячейками.</translation>
     </message>
     <message>
         <location line="+36"/>
         <location line="+376"/>
         <source>Quick Analysis</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Быстрый анализ</translation>
     </message>
     <message>
         <location line="-372"/>
         <source>Quick Analysis (%1)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Быстрый анализ (%1)</translation>
     </message>
     <message>
         <location line="+51"/>
         <source>Select two or more cells that have data to use Quick Analysis.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Выделите две или более ячеек с данными, чтобы использовать быстрый анализ.</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>There is nothing Quick Analysis can do with these cells.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Быстрый анализ не может выполнить никаких действий с этими ячейками.</translation>
     </message>
     <message>
         <location line="+25"/>
         <location line="+55"/>
         <source>There are too many cells to find their average.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Слишком много ячеек для вычисления их среднего значения.</translation>
     </message>
     <message>
         <location line="-43"/>
         <source>There are no numbers here to compare.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Здесь нет чисел для сравнения.</translation>
     </message>
     <message>
         <location line="+40"/>
@@ -31315,47 +31319,47 @@ This file is protected with a password. Password:</source>
     <message>
         <location line="+0"/>
         <source>Draws a bar in each cell that is as long as its number.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Рисует в каждой ячейке полосу, длина которой соответствует её числу.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Color Scale</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Цветовая шкала</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Colors the cells from the lowest number to the highest.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Окрашивает ячейки от наименьшего числа до наибольшего.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Icon Set</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Набор значков</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Puts a small picture in each cell that says whether its number is low, middle, or high.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Помещает в каждую ячейку небольшой рисунок, показывающий, низкое, среднее или высокое у неё число.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Greater Than</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Больше</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Highlights the cells with a number greater than the average of the numbers.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Выделяет ячейки с числом больше среднего значения всех чисел.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Top 10%</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Первые 10%</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Highlights the cells with the highest tenth of the numbers.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Выделяет ячейки с первой десятой частью наибольших чисел.</translation>
     </message>
     <message>
         <location line="+2"/>
@@ -31365,7 +31369,7 @@ This file is protected with a password. Password:</source>
     <message>
         <location line="+0"/>
         <source>Takes the conditional formatting off the selected cells.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Снимает условное форматирование с выделенных ячеек.</translation>
     </message>
     <message>
         <location line="+13"/>
@@ -31376,12 +31380,12 @@ This file is protected with a password. Password:</source>
     <message>
         <location line="+4"/>
         <source>Makes a chart of the selected cells: %1.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Создаёт диаграмму по выделенным ячейкам: %1.</translation>
     </message>
     <message>
         <location line="+10"/>
         <source>Totals</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Итоги</translation>
     </message>
     <message>
         <location line="+11"/>
@@ -31391,37 +31395,37 @@ This file is protected with a password. Password:</source>
     <message>
         <location line="+1"/>
         <source>Makes the selected cells a table, with buttons to sort and filter.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Превращает выделенные ячейки в таблицу с кнопками сортировки и фильтрации.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Makes a pivot table that totals the data, on a new sheet. The first row should hold the names of the columns.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Создаёт сводную таблицу с итогами по данным на новом листе. Первая строка должна содержать названия столбцов.</translation>
     </message>
     <message>
         <location line="+11"/>
         <source>Draws a small chart of each row in the cell to the right of it.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Рисует небольшую диаграмму для каждой строки в ячейке справа от неё.</translation>
     </message>
     <message>
         <location line="+46"/>
         <source>There are too many cells to show a preview.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Ячеек слишком много для предварительного просмотра.</translation>
     </message>
     <message>
         <location line="+50"/>
         <source>A pivot table that totals this data will be made on a new sheet.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Сводная таблица с итогами по этим данным будет создана на новом листе.</translation>
     </message>
     <message>
         <location line="+111"/>
         <source>Some of the cells where the totals go are not empty. Replace what is in them?</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Часть ячеек, куда помещаются итоги, не пуста. Заменить их содержимое?</translation>
     </message>
     <message>
         <location line="+34"/>
         <source>A sparkline needs at least two numbers in a row.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Для спарклайна нужны как минимум два числа в строке.</translation>
     </message>
     <message>
         <location filename="../apps/crunch/app/crunchwindow_tabs2.cpp" line="+1"/>
@@ -31491,17 +31495,17 @@ This file is protected with a password. Password:</source>
     <message>
         <location line="+0"/>
         <source>Subtotals added above %1 groups of equal entries.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Добавлены промежуточные итоги над %1 группами одинаковых значений.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>The summary rows of your own groups are now below their rows.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Строки итогов ваших групп теперь находятся под их строками.</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>The summary rows of your own groups are now above their rows.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Строки итогов ваших групп теперь находятся над их строками.</translation>
     </message>
     <message>
         <location line="+18"/>
@@ -31842,17 +31846,17 @@ This file is protected with a password. Password:</source>
     <message>
         <location line="+9"/>
         <source>Links to data files</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Связи с файлами данных</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Tables made by Get Data remember the file they were loaded from, with its path on this computer. Removing the links keeps the tables and their cells, and Refresh no longer reads the files.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Таблицы, созданные командой «Получить данные», запоминают файл, из которого были загружены, с его путём на этом компьютере. Удаление связей сохраняет таблицы и их ячейки, но обновление больше не читает файлы.</translation>
     </message>
     <message>
         <location line="+6"/>
         <source>Remove Links to Data Files</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Удалить связи с файлами данных</translation>
     </message>
     <message>
         <location line="+8"/>
@@ -32392,7 +32396,7 @@ This file is protected with a password. Password:</source>
     <message>
         <location line="-111"/>
         <source>Outline Settings…</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Параметры структуры…</translation>
     </message>
     <message>
         <location line="+115"/>
@@ -32448,17 +32452,17 @@ This file is protected with a password. Password:</source>
         <location line="+16"/>
         <location line="+22"/>
         <source>Outline Settings</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Параметры структуры</translation>
     </message>
     <message>
         <location line="-18"/>
         <source>Summary rows below detail</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Строки итогов под подробными данными</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>Summary columns to the right of detail</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Столбцы итогов справа от подробных данных</translation>
     </message>
     <message>
         <location line="+22"/>
@@ -33088,7 +33092,7 @@ This file is protected with a password. Password:</source>
     <message>
         <location filename="../apps/crunch/app/crunchwindow_getdata.cpp" line="+25"/>
         <source>From File…</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Из файла…</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -33116,59 +33120,59 @@ This file is protected with a password. Password:</source>
     <message>
         <location line="+3"/>
         <source>That is not a cell. Write it as B2.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Это не ячейка. Укажите её в виде B2.</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>That file is not JSON, XML, or a workbook.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Этот файл не является файлом JSON, XML или книгой.</translation>
     </message>
     <message>
         <location line="+6"/>
         <source>Reading the file…</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Чтение файла…</translation>
     </message>
     <message>
         <location line="+6"/>
         <location line="+75"/>
         <source>The read was stopped. Nothing was changed.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Чтение остановлено. Ничего не изменено.</translation>
     </message>
     <message>
         <location line="-71"/>
         <location line="+24"/>
         <source>Nothing was changed.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Ничего не изменено.</translation>
     </message>
     <message>
         <location line="-8"/>
         <source>The table would go over cells that hold something (%1 cells in all). Replace them?</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Таблица заняла бы ячейки, в которых что-то есть (всего ячеек: %1). Заменить их?</translation>
     </message>
     <message>
         <location line="+29"/>
         <source>Click a cell in a table that was made by Get Data first.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Сначала щёлкните ячейку в таблице, созданной командой «Получить данные».</translation>
     </message>
     <message>
         <location line="+15"/>
         <source>%1: the link to the file can&apos;t be read, so nothing was changed.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">%1: связь с файлом не может быть прочитана, поэтому ничего не изменено.</translation>
     </message>
     <message>
         <location line="+5"/>
         <source>Reading %1…</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Чтение: %1…</translation>
     </message>
     <message>
         <location line="+6"/>
         <source>The read was stopped. The tables after %1 were not read.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Чтение остановлено. Таблицы после %1 не были прочитаны.</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>%1: %2 Nothing was changed.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">%1: %2 Ничего не изменено.</translation>
     </message>
     <message>
         <location line="+5"/>
@@ -33179,12 +33183,12 @@ This file is protected with a password. Password:</source>
     <message>
         <location line="+10"/>
         <source>The data was read again from its files.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Данные были заново прочитаны из файлов.</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Nothing needed to be read again.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Перечитывать ничего не потребовалось.</translation>
     </message>
     <message>
         <location filename="../apps/crunch/app/crunchwindow_pivot.cpp" line="+2"/>
@@ -36611,7 +36615,7 @@ The file can&apos;t be read.</source>
     <message>
         <location line="-58"/>
         <source>This workbook has no theme part, so there is no theme to save.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">В этой книге нет части темы, поэтому сохранять нечего.</translation>
     </message>
     <message>
         <location line="+5"/>
@@ -41908,22 +41912,22 @@ The file can&apos;t be read.</source>
     <message>
         <location line="+16"/>
         <source>Add Sound</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Добавить звук</translation>
     </message>
     <message>
         <location line="+12"/>
         <source>%1 isn&apos;t a sound file that %2 can play.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">%1 не является звуковым файлом, который может воспроизвести %2.</translation>
     </message>
     <message>
         <location line="+11"/>
         <source>%1 is too large for the sound of an effect (the most is %2 MB).</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">%1 слишком велик для звука эффекта (максимум %2 МБ).</translation>
     </message>
     <message>
         <location line="+6"/>
         <source>%1 can&apos;t read &quot;%2&quot; as a sound.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">%1 не может прочитать «%2» как звук.</translation>
     </message>
     <message>
         <location line="+56"/>
@@ -42995,7 +42999,7 @@ The file can&apos;t be read.</source>
     <message>
         <location line="+1"/>
         <source>Table cut off by its text box</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Таблица обрезана текстовым полем</translation>
     </message>
     <message>
         <location line="+4"/>
@@ -47222,44 +47226,44 @@ The file can&apos;t be read.</source>
     <message>
         <location filename="../apps/crunch/app/getdata.cpp" line="-74"/>
         <source>number</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">число</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>true or false</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">истина или ложь</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>date</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">дата</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>text</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">текст</translation>
     </message>
     <message>
         <location line="+39"/>
         <location line="+190"/>
         <source>The read was stopped.</source>
-        <translation type="unfinished">Чтение было остановлено.</translation>
+        <translation type="unfinished">Чтение остановлено.</translation>
     </message>
     <message>
         <location line="-174"/>
         <source>That kind of file can&apos;t be loaded.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Файл такого типа загрузить нельзя.</translation>
     </message>
     <message>
         <location line="+39"/>
         <location line="+59"/>
         <source>Get Data from a File</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Получить данные из файла</translation>
     </message>
     <message>
         <location line="-57"/>
         <source>Loads the rows of a JSON file, an XML file, or a workbook as a table. The table remembers the file, so Refresh can read it again.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Загружает строки файла JSON, файла XML или книги как таблицу. Таблица запоминает файл, поэтому обновление может прочитать его снова.</translation>
     </message>
     <message>
         <location line="+6"/>
@@ -47270,7 +47274,7 @@ The file can&apos;t be read.</source>
     <message>
         <location line="-3"/>
         <source>The file on this computer</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Файл на этом компьютере</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -47281,27 +47285,27 @@ The file can&apos;t be read.</source>
         <location line="+9"/>
         <location line="+6"/>
         <source>List to load</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Список для загрузки</translation>
     </message>
     <message>
         <location line="-3"/>
         <source>Lists of values</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Списки значений</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Join lists of values into one cell</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Объединять списки значений в одну ячейку</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Spread lists of values over columns</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Распределять списки значений по столбцам</translation>
     </message>
     <message>
         <location line="+5"/>
         <source>Load every column as text</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Загружать каждый столбец как текст</translation>
     </message>
     <message>
         <location line="+7"/>
@@ -47312,17 +47316,17 @@ The file can&apos;t be read.</source>
         <location line="+10"/>
         <location line="+1"/>
         <source>Put the table at</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Поместить таблицу в</translation>
     </message>
     <message>
         <location line="+6"/>
         <source>Load</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Загрузить</translation>
     </message>
     <message>
         <location line="+7"/>
         <source>Data files (*.json *.xml *.xlsx *.xlsm *.xls *.ods)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Файлы данных (*.json *.xml *.xlsx *.xlsm *.xls *.ods)</translation>
     </message>
     <message>
         <location line="+0"/>
@@ -47332,47 +47336,47 @@ The file can&apos;t be read.</source>
     <message>
         <location line="+63"/>
         <source>Only a file on this computer can be loaded, not a web address or a file on another computer.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Можно загрузить только файл на этом компьютере, но не веб-адрес или файл на другом компьютере.</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>That file is not JSON, XML, or a workbook.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Этот файл не является файлом JSON, XML или книгой.</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>The file is not there.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Файл не найден.</translation>
     </message>
     <message>
         <location line="+6"/>
         <source>Reading the file…</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Чтение файла…</translation>
     </message>
     <message>
         <location line="+13"/>
         <source>Sheet %1</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Лист %1</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Table %1</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Таблица %1</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Named range %1</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Именованный диапазон %1</translation>
     </message>
     <message>
         <location line="+14"/>
         <source>The first 20 rows are shown, and the type beside each name is judged from them. The whole file is checked when it is loaded, so a column may end up as text.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Показаны первые 20 строк, и тип каждого столбца определён по ним. Весь файл проверяется при загрузке, поэтому столбец может оказаться текстовым.</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>All the rows are shown.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Показаны все строки.</translation>
     </message>
 </context>
 <context>
@@ -52121,7 +52125,7 @@ Source: %3</source>
     <message>
         <location line="+3"/>
         <source>Save Each as a File…</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Сохранить каждый как файл…</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -56873,58 +56877,58 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     <message>
         <location line="+22"/>
         <source>Sharpen and Soften</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Резкость и размытие</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>Sharpen: 0% (Normal)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Резкость: 0% (обычная)</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Soften: %1%</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Размытие: %1%</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Sharpen: %1%</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Резкость: %1%</translation>
     </message>
     <message>
         <location line="+9"/>
         <source>Color Temperature</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Цветовая температура</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>Temperature: 0% (Normal)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Температура: 0% (обычная)</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Temperature: %1 (Cooler)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Температура: %1 (холоднее)</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Temperature: %1 (Warmer)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Температура: %1 (теплее)</translation>
     </message>
     <message>
         <location line="+24"/>
         <source>No Artistic Effect</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Без художественного эффекта</translation>
     </message>
     <message>
         <location line="+20"/>
         <location line="+9"/>
         <source>Artistic Effects</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Художественные эффекты</translation>
     </message>
     <message>
         <location line="+14"/>
         <source>Changing the picture…</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Замена рисунка…</translation>
     </message>
     <message>
         <location line="+0"/>
@@ -56934,86 +56938,86 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     <message>
         <location line="+339"/>
         <source>Remove Original Pictures</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Удалить исходные рисунки</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Remove Pictures Under Removed Backgrounds</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Удалить рисунки под удалённым фоном</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Remove Cropped Areas</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Удалить обрезанные области</translation>
     </message>
     <message numerus="yes">
         <location line="+37"/>
         <source>%n picture is a drawing or a linked picture, which cannot be changed here.</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
+            <numerusform>%n рисунок является чертежом или связанным рисунком, который здесь нельзя изменить.</numerusform>
+            <numerusform>%n рисунка являются чертежами или связанными рисунками, которые здесь нельзя изменить.</numerusform>
+            <numerusform>%n рисунков являются чертежами или связанными рисунками, которые здесь нельзя изменить.</numerusform>
         </translation>
     </message>
     <message numerus="yes">
         <location line="+2"/>
         <source>%n picture is left as it is, because another object shows more of the same picture.</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
+            <numerusform>%n рисунок оставлен без изменений, так как другой объект показывает большую часть того же рисунка.</numerusform>
+            <numerusform>%n рисунка оставлены без изменений, так как другой объект показывает большую часть того же рисунка.</numerusform>
+            <numerusform>%n рисунков оставлены без изменений, так как другой объект показывает большую часть того же рисунка.</numerusform>
         </translation>
     </message>
     <message>
         <location line="-18"/>
         <source>Original pictures kept under picture effects</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Исходные рисунки сохранены под художественными эффектами</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>A picture effect such as Blur or Mosaic changes how a picture looks, but the original picture stays in the file, and anyone who gets the file can take it out. Removing it keeps only the finished picture: Reset Picture can then no longer bring the original back.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Художественный эффект, например размытие или мозаика, меняет вид рисунка, но исходный рисунок остаётся в файле, и любой, кто получит файл, может его извлечь. Если удалить его, сохранится только готовый рисунок: команда «Сбросить рисунок» уже не сможет вернуть исходный.</translation>
     </message>
     <message>
         <location line="+1"/>
         <location line="+5"/>
         <source>Remove Originals</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Удалить исходные рисунки</translation>
     </message>
     <message>
         <location line="-2"/>
         <source>Whole pictures kept under removed backgrounds</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Полные рисунки сохранены под удалённым фоном</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>When you remove the background of a picture, the whole original picture stays in the file. Removing it keeps only the picture without its background: Remove Background can then no longer bring the background back.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Когда вы удаляете фон рисунка, весь исходный рисунок остаётся в файле. Если удалить его, сохранится только рисунок без фона: команда «Удалить фон» уже не сможет вернуть фон.</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>Cropped-away parts of pictures</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Обрезанные части рисунков</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>A cropped picture still holds the parts you cropped away, and anyone who gets the file can see them. Removing them clears each picture outside what shows (a thin border around it stays), so that the page looks exactly as before: the crop can then no longer be undone by dragging its edges out. A picture with a picture effect, such as Blur, is first made into its finished picture, so Reset Picture can no longer bring its original back. The picture file may get larger.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Обрезанный рисунок по-прежнему содержит части, которые вы обрезали, и любой, кто получит файл, может их увидеть. При удалении очищается всё за пределами видимой области каждого рисунка (тонкая рамка вокруг него сохраняется), так что страница выглядит точно так же: обрезку после этого уже нельзя отменить перетаскиванием краёв. Рисунок с художественным эффектом, например размытием, сначала превращается в готовый рисунок, поэтому «Сбросить рисунок» уже не сможет вернуть исходный. Размер файла рисунка может увеличиться.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Remove Cropped Parts</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Удалить обрезанные части</translation>
     </message>
     <message>
         <location line="+23"/>
         <source>Picture effects that are left out</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Художественные эффекты, которые пропущены</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>A picture in this file has more effects than can be worked out. It shows the first ones, and the rest are left out. Take effects off the picture to see it as it should look.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Рисунок в этом файле имеет больше эффектов, чем можно обработать. Показаны первые из них, остальные пропущены. Отключите эффекты у рисунка, чтобы увидеть его таким, каким он должен быть.</translation>
     </message>
 </context>
 <context>
@@ -57845,7 +57849,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     <message>
         <location line="+2"/>
         <source>the mail merge list, and which of its recipients are left out</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">список слияния почты и получатели из него, которые пропущены</translation>
     </message>
 </context>
 <context>
@@ -57853,7 +57857,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     <message>
         <location filename="../apps/crunch/app/quickanalysis.cpp" line="+31"/>
         <source>Quick Analysis</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Быстрый анализ</translation>
     </message>
 </context>
 <context>
@@ -60145,12 +60149,12 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     <message>
         <location line="+2"/>
         <source>Numbers in text count by value</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Числа в тексте сравниваются по значению</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>Puts &quot;Item 2&quot; before &quot;Item 10&quot;. The choice is for this sort, and this window remembers it for the next one.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Помещает «Элемент 2» перед «Элемент 10». Выбор действует для этой сортировки, и это окно запомнит его для следующей.</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -60364,7 +60368,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     <message>
         <location line="+2"/>
         <source>Adds a row of totals under (or above) each run of equal entries in a column. Sort the list by that column first.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Добавляет строку итогов под (или над) каждой группой одинаковых значений в столбце. Сначала отсортируйте список по этому столбцу.</translation>
     </message>
     <message>
         <location line="+6"/>
@@ -60397,7 +60401,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     <message>
         <location line="+3"/>
         <source>Summary below data</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Итоги под данными</translation>
     </message>
     <message>
         <location line="+5"/>
@@ -60936,17 +60940,17 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     <message>
         <location line="+6"/>
         <source>Piece number</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Номер части</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>How this piece is read</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Как читается эта часть</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Same as above</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Как выше</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -60981,7 +60985,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     <message>
         <location line="+3"/>
         <source>Piece</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Часть</translation>
     </message>
     <message>
         <location line="+11"/>
@@ -62749,12 +62753,12 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     <message>
         <location line="+2"/>
         <source>Use regular expressions</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Использовать регулярные выражения</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>Finds text by a pattern, such as \d{3} for three digits. In Replace with, $1 is the first group in ( ).</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Ищет текст по шаблону, например \d{3} для трёх цифр. В поле «Заменить на» $1 — это первая группа в ( ).</translation>
     </message>
     <message>
         <location line="+2"/>
@@ -62990,17 +62994,17 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     <message>
         <location line="+71"/>
         <source>The document changed during the search, so nothing was replaced.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Документ изменился во время поиска, поэтому ничего не заменено.</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>The document changed during the search, so the search was stopped. Nothing was changed.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Документ изменился во время поиска, поэтому поиск остановлен. Ничего не изменено.</translation>
     </message>
     <message>
         <location line="+14"/>
         <source>That pattern needed too much work on this text, so the search stopped. Nothing was changed.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Для этого шаблона в тексте требуется слишком много работы, поэтому поиск остановлен. Ничего не изменено.</translation>
     </message>
     <message>
         <location line="+69"/>
@@ -63065,7 +63069,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     <message>
         <location line="+4"/>
         <source>Text in a content control that can&apos;t be changed can be found but not replaced.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Текст в элементе управления содержимым, который нельзя изменить, можно найти, но нельзя заменить.</translation>
     </message>
     <message>
         <location line="+186"/>
@@ -63091,9 +63095,9 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
         <location line="+1"/>
         <source>%n match is in content that can&apos;t be changed.</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
+            <numerusform>%n совпадение находится в содержимом, которое нельзя изменить.</numerusform>
+            <numerusform>%n совпадения находятся в содержимом, которое нельзя изменить.</numerusform>
+            <numerusform>%n совпадений находятся в содержимом, которое нельзя изменить.</numerusform>
         </translation>
     </message>
     <message numerus="yes">
@@ -63279,7 +63283,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     <message>
         <location line="+1"/>
         <source>Save Each as a File…</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Сохранить каждый как файл…</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -63508,7 +63512,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
         <location line="+24"/>
         <location line="+46"/>
         <source>The document is gone.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Документ больше не существует.</translation>
     </message>
     <message>
         <location line="-143"/>
@@ -63549,12 +63553,12 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     <message>
         <location line="+14"/>
         <source>Document (.docx)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Документ (.docx)</translation>
     </message>
     <message>
         <location line="+58"/>
         <source>The PDF can&apos;t be made.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Не удалось создать PDF.</translation>
     </message>
     <message>
         <location line="+39"/>
@@ -65144,47 +65148,47 @@ The password couldn&apos;t be put on the file.</source>
     <message>
         <location line="+24"/>
         <source>Recipients left out of a mail merge</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Получатели, пропущенные при слиянии рассылки</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Which recipients of a mail merge you left out, kept with the document. Removing it means everyone is included the next time the list is read.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Какие получатели слияния рассылки пропущены, сохраняется вместе с документом. Если удалить, при следующем чтении списка будут включены все получатели.</translation>
     </message>
     <message numerus="yes">
         <location line="+12"/>
         <source>%n picture filling a shape is left as it is, because changing it would change how the shape looks.</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
+            <numerusform>%n рисунок, заполняющий фигуру, оставлен без изменений, так как его изменение поменяет вид фигуры.</numerusform>
+            <numerusform>%n рисунка, заполняющих фигуру, оставлены без изменений, так как их изменение поменяет вид фигуры.</numerusform>
+            <numerusform>%n рисунков, заполняющих фигуру, оставлены без изменений, так как их изменение поменяет вид фигуры.</numerusform>
         </translation>
     </message>
     <message numerus="yes">
         <location line="+1"/>
         <source>%n picture in a comment cannot be changed here.</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
+            <numerusform>%n рисунок в примечании нельзя изменить здесь.</numerusform>
+            <numerusform>%n рисунка в примечаниях нельзя изменить здесь.</numerusform>
+            <numerusform>%n рисунков в примечаниях нельзя изменить здесь.</numerusform>
         </translation>
     </message>
     <message numerus="yes">
         <location line="+3"/>
         <source>%n picture in an older kind of drawing cannot be changed here.</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
+            <numerusform>%n рисунок в старом типе чертежа нельзя изменить здесь.</numerusform>
+            <numerusform>%n рисунка в старом типе чертежа нельзя изменить здесь.</numerusform>
+            <numerusform>%n рисунков в старом типе чертежа нельзя изменить здесь.</numerusform>
         </translation>
     </message>
     <message numerus="yes">
         <location line="+1"/>
         <source>%n picture in another place cannot be changed here.</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
+            <numerusform>%n рисунок в другом месте нельзя изменить здесь.</numerusform>
+            <numerusform>%n рисунка в других местах нельзя изменить здесь.</numerusform>
+            <numerusform>%n рисунков в других местах нельзя изменить здесь.</numerusform>
         </translation>
     </message>
     <message>
@@ -65278,7 +65282,7 @@ The password couldn&apos;t be put on the file.</source>
     <message>
         <location line="-13"/>
         <source>Which recipients are left out of the mail merge.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Какие получатели пропущены при слиянии рассылки.</translation>
     </message>
     <message>
         <location line="+11"/>
@@ -65922,7 +65926,7 @@ The password couldn&apos;t be put on the file.</source>
     <message>
         <location line="+1"/>
         <source>Save Each as a File…</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Сохранить каждый как файл…</translation>
     </message>
     <message>
         <location line="+24"/>
@@ -67128,9 +67132,9 @@ The password couldn&apos;t be put on the file.</source>
         <location line="+225"/>
         <source>%n change is inside a content control that can&apos;t be edited.</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
+            <numerusform>%n исправление находится внутри элемента управления содержимым, который нельзя изменить.</numerusform>
+            <numerusform>%n исправления находятся внутри элемента управления содержимым, который нельзя изменить.</numerusform>
+            <numerusform>%n исправлений находятся внутри элемента управления содержимым, который нельзя изменить.</numerusform>
         </translation>
     </message>
     <message numerus="yes">
@@ -67182,7 +67186,7 @@ The password couldn&apos;t be put on the file.</source>
     <message>
         <location line="+19"/>
         <source>Track Changes stays on until they are settled.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Запись исправлений остаётся включённой, пока они не будут приняты или отклонены.</translation>
     </message>
     <message>
         <location line="+20"/>
@@ -68275,25 +68279,25 @@ The password couldn&apos;t be put on the file.</source>
     <message>
         <location line="+66"/>
         <source>This picture can&apos;t be changed this way.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Этот рисунок нельзя изменить таким способом.</translation>
     </message>
     <message>
         <location line="+82"/>
         <source>Apply to all pictures in the document</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Применить ко всем рисункам в документе</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>A picture with an effect, such as Blur, is made smaller together with the original picture kept under it.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Рисунок с эффектом, например размытием, уменьшается вместе с исходным рисунком, который остаётся под ним.</translation>
     </message>
     <message numerus="yes">
         <location line="+3"/>
         <source>%n picture was left at its full size, because it is in a place that cannot be changed here or would not be smaller.</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
+            <numerusform>%n рисунок оставлен в полном размере, так как он находится в месте, которое здесь нельзя изменить, или он не стал бы меньше.</numerusform>
+            <numerusform>%n рисунка оставлены в полном размере, так как они находятся в местах, которые здесь нельзя изменить, или они не стали бы меньше.</numerusform>
+            <numerusform>%n рисунков оставлены в полном размере, так как они находятся в местах, которые здесь нельзя изменить, или они не стали бы меньше.</numerusform>
         </translation>
     </message>
     <message>
@@ -69391,7 +69395,7 @@ The password couldn&apos;t be put on the file.</source>
     <message>
         <location filename="../apps/write/app/writewindow_controls.cpp" line="-41"/>
         <source>Rich Text</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Форматированный текст</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -69401,7 +69405,7 @@ The password couldn&apos;t be put on the file.</source>
     <message>
         <location line="+2"/>
         <source>Combo Box</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Поле со списком</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -69421,43 +69425,43 @@ The password couldn&apos;t be put on the file.</source>
     <message>
         <location line="+1"/>
         <source>Repeating Section</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Повторяющийся раздел</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Add Item</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Добавить элемент</translation>
     </message>
     <message>
         <location line="+3"/>
         <location line="+7"/>
         <source>The caret is not in a repeating section.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Курсор не находится в повторяющемся разделе.</translation>
     </message>
     <message>
         <location line="-3"/>
         <source>Remove Item</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Удалить элемент</translation>
     </message>
     <message>
         <location line="+7"/>
         <source>Clear Picture</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Очистить рисунок</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>The caret is not in a picture control that holds a picture.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Курсор не находится в элементе управления рисунком, который содержит рисунок.</translation>
     </message>
     <message>
         <location line="+6"/>
         <source>Choose a Picture</source>
-        <translation type="unfinished">Выбор рисунка</translation>
+        <translation type="unfinished">Выберите рисунок</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Pictures (*.png *.jpg *.jpeg *.gif *.bmp *.tif *.tiff *.svg)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Рисунки (*.png *.jpg *.jpeg *.gif *.bmp *.tif *.tiff *.svg)</translation>
     </message>
     <message>
         <location line="+14"/>
@@ -72548,17 +72552,17 @@ The password couldn&apos;t be put on the file.</source>
     <message>
         <location filename="../apps/crunch/core/editdata.cpp" line="-2"/>
         <source>There are no rows to load.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Нет строк для загрузки.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>This sheet is protected, so a table can&apos;t be put on it.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Этот лист защищён, поэтому на нём нельзя разместить таблицу.</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>There is no room for the table there: it needs %1 rows and %2 columns from the chosen cell.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Для таблицы здесь нет места: от выбранной ячейки нужно %1 строк и %2 столбцов.</translation>
     </message>
     <message>
         <location line="+9"/>
@@ -72577,97 +72581,97 @@ The password couldn&apos;t be put on the file.</source>
     <message>
         <location line="+1"/>
         <source>Those cells are not empty.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Эти ячейки не пустые.</translation>
     </message>
     <message>
         <location line="+31"/>
         <source>Getting data</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Получение данных</translation>
     </message>
     <message>
         <location line="+16"/>
         <source>That table is not there.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Эта таблица не найдена.</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>This sheet is protected, so the table can&apos;t be changed.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Этот лист защищён, поэтому таблицу нельзя изменить.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>This table was not made by Get Data, so it has no file to read again.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Эта таблица создана не с помощью команды «Получить данные», поэтому у неё нет файла для повторного чтения.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>The table has a row of totals or no row of names. Take the row of totals off first, and refresh again.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">В таблице есть строка итогов или нет строки имён. Сначала уберите строку итогов и обновите данные снова.</translation>
     </message>
     <message>
         <location line="+21"/>
         <source>The columns in the file have changed, so nothing was changed.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Столбцы в файле изменились, поэтому ничего не было изменено.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>The file no longer has: %1.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">В файле больше нет: %1.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>The file now also has: %1.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">В файле теперь также есть: %1.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Make the table again with Get Data, or put the columns back in the file.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Создайте таблицу заново с помощью команды «Получить данные» или верните столбцы в файл.</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>The table no longer has the column &quot;%1&quot; that came from the file, so nothing was changed.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">В таблице больше нет столбца «%1», который пришёл из файла, поэтому ничего не было изменено.</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>The columns in the file are not the table&apos;s (the file has %1 and the table has %2), so nothing was changed.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Столбцы в файле не совпадают со столбцами таблицы (в файле %1, в таблице %2), поэтому ничего не было изменено.</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>The columns in the file are not the table&apos;s, so nothing was changed. The first one that differs is &quot;%1&quot;.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Столбцы в файле не совпадают со столбцами таблицы, поэтому ничего не было изменено. Первое отличие: «%1».</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>The file now has no rows, so nothing was changed.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">В файле теперь нет строк, поэтому ничего не было изменено.</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>The rows would go past the end of the sheet, so nothing was changed.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Строки выйдут за пределы листа, поэтому ничего не было изменено.</translation>
     </message>
     <message>
         <location line="+11"/>
         <source>There is no room under the table for the new rows, so nothing was changed.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Под таблицей нет места для новых строк, поэтому ничего не было изменено.</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>Merged cells are under the table, so nothing was changed.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Под таблицей находятся объединённые ячейки, поэтому ничего не было изменено.</translation>
     </message>
     <message>
         <location line="+34"/>
         <source>Refreshing data</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Обновление данных</translation>
     </message>
     <message>
         <location line="+27"/>
         <source>Removing links to files</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Удаление связей с файлами</translation>
     </message>
     <message>
         <location filename="../apps/crunch/core/edittables.cpp" line="+25"/>
@@ -72988,37 +72992,37 @@ The password couldn&apos;t be put on the file.</source>
         <location line="+24"/>
         <location line="+57"/>
         <source>There are no numbers here to total.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Здесь нет чисел для подсчёта итогов.</translation>
     </message>
     <message>
         <location line="-75"/>
         <source>That is more cells than Quick Analysis looks at (%1). Select fewer cells.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Выделено больше ячеек, чем обрабатывает Быстрый анализ (%1). Выделите меньше ячеек.</translation>
     </message>
     <message>
         <location line="+48"/>
         <source>There is no room next to the cells for the running totals.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Рядом с ячейками нет места для нарастающих итогов.</translation>
     </message>
     <message>
         <location line="+13"/>
         <source>There is no room under the cells for the totals.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Под ячейками нет места для итогов.</translation>
     </message>
     <message>
         <location line="+7"/>
         <source>There is no room beside the cells for the totals.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Рядом с ячейками нет места для итогов.</translation>
     </message>
     <message>
         <location line="+20"/>
         <source>The totals would block a spilled result next to the cells. Move the spilled result, or select other cells.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Итоги закроют результат переноса рядом с ячейками. Переместите результат переноса или выделите другие ячейки.</translation>
     </message>
     <message>
         <location line="+15"/>
         <source>Some of the cells where the totals go are part of merged cells. Unmerge them, or select other cells.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Некоторые ячейки, где должны находиться итоги, входят в объединённые ячейки. Отмените их объединение или выделите другие ячейки.</translation>
     </message>
 </context>
 <context>
@@ -73026,17 +73030,17 @@ The password couldn&apos;t be put on the file.</source>
     <message>
         <location filename="../apps/crunch/core/errorcheck.cpp" line="+237"/>
         <source>This formula leaves out a number that is next to the cells it uses. Include that cell, or ignore this if it is meant.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Формула не учитывает число, которое находится рядом с используемыми ячейками. Включите эту ячейку или пропустите предупреждение, если так и задумано.</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>Include the Cell</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Включить ячейку</translation>
     </message>
     <message>
         <location line="+17"/>
         <source>This formula uses a cell that is empty, so it counts as zero or as no text. Fill the cell, or ignore this if it is meant.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Формула использует пустую ячейку, поэтому она считается нулём или пустым текстом. Заполните ячейку или пропустите предупреждение, если так и задумано.</translation>
     </message>
     <message>
         <location line="+66"/>
@@ -78183,12 +78187,12 @@ The password couldn&apos;t be put on the file.</source>
     <message>
         <location line="+7"/>
         <source>These subtotals have their totals above the data. Turn on Replace current subtotals, or keep the same place for the totals.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Промежуточные итоги расположены над данными. Включите «Заменить текущие промежуточные итоги» или оставьте итоги на прежнем месте.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>These subtotals have their totals below the data. Turn on Replace current subtotals, or keep the same place for the totals.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Промежуточные итоги расположены под данными. Включите «Заменить текущие промежуточные итоги» или оставьте итоги на прежнем месте.</translation>
     </message>
     <message>
         <location line="+4"/>
@@ -79290,38 +79294,38 @@ The password couldn&apos;t be put on the file.</source>
         <location filename="../libs/office/sheet/datasource.cpp" line="+25"/>
         <location filename="../libs/office/sheet/datasourcebook.cpp" line="+32"/>
         <source>The file is larger than %1 MB, which is more than this program reads as data.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Файл больше %1 МБ, что превышает предел, который эта программа читает как данные.</translation>
     </message>
     <message>
         <location line="+81"/>
         <location filename="../libs/office/sheet/datasourcebook.cpp" line="+194"/>
         <source>Only the first %1 columns are loaded; the rest are left out.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Загружены только первые %1 столбцов; остальные пропущены.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Text longer than %1 characters is cut.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Текст длиннее %1 символов обрезан.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Items inside items more than %1 levels deep are kept as text.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Элементы внутри элементов глубже %1 уровней сохранены как текст.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>A list of values with more than 10,000 items is cut after the first 10,000.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Список значений длиннее 10 000 элементов обрезан после первых 10 000.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>A list of values with more than %1 items fills only the first %1 columns; the rest are left out.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Список значений длиннее %1 элементов заполняет только первые %1 столбцов; остальные пропущены.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Some columns got a new name, because another column had the same name.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Некоторым столбцам присвоено новое имя, так как другой столбец имел такое же имя.</translation>
     </message>
     <message>
         <location line="+341"/>
@@ -79334,92 +79338,92 @@ The password couldn&apos;t be put on the file.</source>
     <message>
         <location line="-307"/>
         <source>The file has more values than this program reads as data.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">В файле больше значений, чем эта программа читает как данные.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>The file is not valid JSON (near byte %1).</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Файл не является допустимым JSON (около байта %1).</translation>
     </message>
     <message>
         <location line="+132"/>
         <source>The file is not valid XML (line %1).</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Файл не является допустимым XML (строка %1).</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>The file has a document type or entities, which this program does not read.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Файл содержит объявление типа документа или сущности, которые эта программа не читает.</translation>
     </message>
     <message>
         <location line="+16"/>
         <source>The file holds no list of items with named values to load.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">В файле нет списка элементов с именованными значениями для загрузки.</translation>
     </message>
     <message>
         <location line="+11"/>
         <source>That list is not in the file.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Этого списка нет в файле.</translation>
     </message>
     <message>
         <location line="+17"/>
         <source>The file repeats a name inside an item; the last value is kept.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">В файле имя повторяется внутри элемента; сохранено последнее значение.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Some numbers are too large or too small for a cell, so they are kept as text, as written.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Некоторые числа слишком большие или слишком малые для ячейки, поэтому они сохранены как текст в том виде, в каком записаны.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Some characters in the file could not be read and are shown as a replacement mark.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Некоторые символы в файле не удалось прочитать, они показаны как знак замены.</translation>
     </message>
     <message>
         <location line="+2"/>
         <location line="+148"/>
         <location filename="../libs/office/sheet/datasourcebook.cpp" line="+1"/>
         <source>Only the first %1 rows are loaded; the rest are left out.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Загружены только первые %1 строк; остальные пропущены.</translation>
     </message>
     <message>
         <location line="-146"/>
         <source>The list has no values to load.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">В списке нет значений для загрузки.</translation>
     </message>
     <message>
         <location line="+36"/>
         <source>The file has more kinds of items than any real file has.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">В файле больше видов элементов, чем в любом реальном файле.</translation>
     </message>
     <message>
         <location line="+15"/>
         <source>The file holds no item that repeats, so there are no rows to load.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">В файле нет повторяющихся элементов, поэтому строк для загрузки нет.</translation>
     </message>
     <message>
         <location line="+97"/>
         <source>That item is not in the file, or holds no values to load.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Этого элемента нет в файле или в нём нет значений для загрузки.</translation>
     </message>
     <message>
         <location line="+88"/>
         <location filename="../libs/office/sheet/datasourcebook.cpp" line="-199"/>
         <source>Only a file on this computer can be loaded, not a web address or a file on another computer.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Загрузить можно только файл на этом компьютере, но не веб-адрес и не файл на другом компьютере.</translation>
     </message>
     <message>
         <location line="+2"/>
         <location filename="../libs/office/sheet/datasourcebook.cpp" line="+2"/>
         <source>The file is not there.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Файл не найден.</translation>
     </message>
     <message>
         <location line="+1"/>
         <location filename="../libs/office/sheet/datasourcebook.cpp" line="+1"/>
         <source>That is not a file.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Это не файл.</translation>
     </message>
     <message>
         <location line="+3"/>
@@ -79431,48 +79435,48 @@ The password couldn&apos;t be put on the file.</source>
         <location filename="../libs/office/sheet/datasourcebook.cpp" line="+70"/>
         <location line="+67"/>
         <source>The read was stopped.</source>
-        <translation type="unfinished">Чтение было остановлено.</translation>
+        <translation type="unfinished">Чтение прервано.</translation>
     </message>
     <message>
         <location filename="../libs/office/sheet/datasourcebook.cpp" line="-134"/>
         <source>The workbook can&apos;t be opened.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Не удаётся открыть книгу.</translation>
     </message>
     <message>
         <location line="+83"/>
         <source>The workbook has no sheet, table, or named range with cells to load.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">В книге нет листа, таблицы или именованного диапазона с ячейками для загрузки.</translation>
     </message>
     <message>
         <location line="+19"/>
         <location line="+26"/>
         <source>That sheet is not in the workbook.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Этого листа нет в книге.</translation>
     </message>
     <message>
         <location line="-13"/>
         <source>That table is not in the workbook.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Этой таблицы нет в книге.</translation>
     </message>
     <message>
         <location line="+9"/>
         <source>That named range is not in the workbook, or is not a block of cells.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Этого именованного диапазона нет в книге или он не является блоком ячеек.</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>That is not a sheet, table, or named range.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Это не лист, не таблица и не именованный диапазон.</translation>
     </message>
     <message>
         <location line="+11"/>
         <source>The sheet is empty.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Лист пуст.</translation>
     </message>
     <message>
         <location line="+57"/>
         <source>That holds no rows under its names.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Под этими именами нет строк.</translation>
     </message>
 </context>
 <context>
@@ -81322,12 +81326,12 @@ The password couldn&apos;t be put on the file.</source>
     <message>
         <location line="+2"/>
         <source>Choose or type an item</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Выберите или введите элемент</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Add a picture</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Добавить рисунок</translation>
     </message>
     <message>
         <location line="+349"/>
@@ -81368,63 +81372,63 @@ The password couldn&apos;t be put on the file.</source>
     <message>
         <location line="+85"/>
         <source>The paragraphs chosen hold only part of a table or of another content control.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Выбранные абзацы содержат только часть таблицы или другого элемента управления содержимым.</translation>
     </message>
     <message>
         <location line="+157"/>
         <source>The contents of this section can&apos;t be edited.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Содержимое этого раздела нельзя изменить.</translation>
     </message>
     <message>
         <location line="+4"/>
         <location line="+93"/>
         <source>Items can&apos;t be added to or removed from this section.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Элементы нельзя добавлять в этот раздел или удалять из него.</translation>
     </message>
     <message>
         <location line="-86"/>
         <source>A repeating section holds at most %1 items.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Повторяющийся раздел может содержать не более %1 элементов.</translation>
     </message>
     <message>
         <location line="+11"/>
         <source>While Track Changes is on, an item can&apos;t be added to a section that ends the document.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Пока включено Отслеживание изменений, элемент нельзя добавить в раздел, который завершает документ.</translation>
     </message>
     <message>
         <location line="+5"/>
         <source>While Track Changes is on, an item that holds a table can&apos;t be added.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Пока включено Отслеживание изменений, элемент с таблицей нельзя добавить.</translation>
     </message>
     <message>
         <location line="+36"/>
         <source>The item could not be added.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Не удалось добавить элемент.</translation>
     </message>
     <message>
         <location line="+38"/>
         <source>A repeating section keeps at least one item.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Повторяющийся раздел должен содержать хотя бы один элемент.</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>The item can&apos;t be deleted.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Элемент нельзя удалить.</translation>
     </message>
     <message>
         <location line="+7"/>
         <source>The item is already marked as deleted.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Элемент уже помечен как удалённый.</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>While Track Changes is on, an item can&apos;t be removed from the end of the document.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Пока включено Отслеживание изменений, элемент нельзя удалить из конца документа.</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>While Track Changes is on, an item that holds a table can&apos;t be removed.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Пока включено Отслеживание изменений, элемент с таблицей нельзя удалить.</translation>
     </message>
 </context>
 <context>
@@ -81497,7 +81501,7 @@ The password couldn&apos;t be put on the file.</source>
     <message>
         <location line="+7"/>
         <source>Items can&apos;t be added or removed</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Элементы нельзя добавлять или удалять</translation>
     </message>
     <message>
         <location line="+66"/>
@@ -83114,32 +83118,32 @@ The password couldn&apos;t be put on the file.</source>
     <message>
         <location line="+58"/>
         <source>That pattern uses something JeffWrite does not search with, at character %1.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Этот узор использует возможность, которую JeffWrite не поддерживает при поиске, в символе %1.</translation>
     </message>
     <message>
         <location line="+27"/>
         <source>A repeat count over %2 at character %1 could take far too long. Use a smaller count, or + or *.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Количество повторов больше %2 в символе %1 может выполняться очень долго. Укажите меньшее количество или используйте + или *.</translation>
     </message>
     <message>
         <location line="+27"/>
         <source>JeffWrite does not search with look-ahead or look-behind patterns, at character %1.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">JeffWrite не выполняет поиск с опережающими и ретроспективными проверками, в символе %1.</translation>
     </message>
     <message>
         <location line="+6"/>
         <source>JeffWrite does not search with patterns in extended mode, at character %1.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">JeffWrite не выполняет поиск с узорами в расширенном режиме, в символе %1.</translation>
     </message>
     <message>
         <location line="+42"/>
         <source>That pattern has a mistake near character %1: %2.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">В этом узоре ошибка рядом с символом %1: %2.</translation>
     </message>
     <message>
         <location line="+8"/>
         <source>A pattern can keep at most nine groups; write (?: ) for a group that is not used in Replace with.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Узор может содержать не более девяти групп; для группы, которая не используется в поле «Заменить на», пишите (?: ).</translation>
     </message>
 </context>
 <context>
@@ -85174,7 +85178,7 @@ The password couldn&apos;t be put on the file.</source>
     <message>
         <location filename="../apps/write/core/mergeops.cpp" line="+325"/>
         <source>The record of which recipients you left out could not be read, so all recipients are included.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Не удалось прочитать запись о получателях, которых вы исключили, поэтому в рассылку включены все получатели.</translation>
     </message>
     <message>
         <location line="+321"/>
@@ -85696,7 +85700,7 @@ The password couldn&apos;t be put on the file.</source>
     <message>
         <location line="+236"/>
         <source>The contents of this picture control can&apos;t be edited.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Содержимое этого элемента управления рисунком нельзя изменить.</translation>
     </message>
     <message>
         <location line="+4"/>
@@ -87193,17 +87197,17 @@ The password couldn&apos;t be put on the file.</source>
     <message>
         <location filename="../libs/office/odt/odtwrite.cpp" line="+70"/>
         <source>repeating sections (the items stay as paragraphs, without the buttons that add and remove them)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">повторяющиеся разделы (элементы остаются абзацами, без кнопок для их добавления и удаления)</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>picture controls (the picture stays, but not the control)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">элементы управления рисунком (рисунок остаётся, но не элемент управления)</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>combo boxes (the chosen words stay, but not the list to choose from)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">раскрывающиеся списки (выбранные слова остаются, но не список для выбора)</translation>
     </message>
     <message>
         <location line="+27"/>
@@ -87318,7 +87322,7 @@ The password couldn&apos;t be put on the file.</source>
     <message>
         <location line="-798"/>
         <source>pictures with sharpen, soften, color temperature, or an artistic effect (saved as the finished picture, and the effect can&apos;t be changed or taken off again)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">рисунки с резкостью, смягчением, цветовой температурой или художественным эффектом (сохраняются как готовый рисунок, а эффект нельзя изменить или отменить)</translation>
     </message>
     <message>
         <location line="+132"/>
@@ -87379,22 +87383,22 @@ The password couldn&apos;t be put on the file.</source>
     <message>
         <location filename="../libs/office/rtf/rtfwrite.cpp" line="+91"/>
         <source>repeating sections (the items stay as paragraphs, without the buttons that add and remove them)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">повторяющиеся разделы (элементы остаются абзацами, без кнопок для их добавления и удаления)</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>picture controls (the picture stays, but not the control)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">элементы управления рисунком (рисунок остаётся, но не элемент управления)</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>combo boxes (the chosen words stay, but not the list to choose from)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">раскрывающиеся списки (выбранные слова остаются, но не список для выбора)</translation>
     </message>
     <message>
         <location line="+353"/>
         <source>pictures with sharpen, soften, color temperature, or an artistic effect (saved as the finished picture, and the effect can&apos;t be changed or taken off again)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">рисунки с резкостью, смягчением, цветовой температурой или художественным эффектом (сохраняются как готовый рисунок, а эффект нельзя изменить или отменить)</translation>
     </message>
     <message>
         <location line="+56"/>
