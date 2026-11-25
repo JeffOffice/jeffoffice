@@ -58,6 +58,9 @@ bool blipEffectsClear(const QVector<BlipEffect> &effects);
 // `image` with the effects applied in order, as an image of 32 bits (it as it is if none of them changes a color, or it is too big). The filters (core/picturefx.h) are always done, on
 // a copy of at most kPictureFxWorkPixels; of a list longer than kMaxBlipFilterWork allows, the first are done (blipFiltersLeftOut says how many are not).
 QImage applyBlipEffects(const QImage &image, const QVector<BlipEffect> &all, const std::atomic<bool> *stop = nullptr);
+// Whether the color effects of `effects` are left out on a picture of `pixels` because they cost more than kMaxBlipWork (they are, when the picture has filters too: the filters are done
+// and the picture is not left whole; only a file can hold such a list).
+bool blipColorEffectsLeftOut(qint64 pixels, const QVector<BlipEffect> &effects);
 // How many of the filters in `effects` are left out on a picture of `pixels` (0 for every list a person can make).
 int blipFiltersLeftOut(qint64 pixels, const QVector<BlipEffect> &effects);
 // The same, kept: the image of the same pixels asked for again, with the same effects, is not made again (to a budget of its own, as the
@@ -73,6 +76,15 @@ int blipFiltersFinished();
 // Called, on the application's thread, after each picture a thread of its own has finished (a window draws again). The id removes it.
 // Ends the work beside the window and what waits for it, for the program's end (it waits for the thread at most `budgetMs`: 0 when it ended, 1 when it had to be let go of).
 int stopBlipFilters(int budgetMs);
+// What waits for the thread beside the window, which is held to this many pixels of pictures in all (more are asked for again at the next draw), and how many pictures and pixels
+// wait now (for tests).
+constexpr qint64 kBlipQueueMostPixels = 24LL * 1000 * 1000;
+// After stopBlipFilters, lets the thread work again (for a test: a program that has stopped them is ending).
+void restartBlipFiltersForTest();
+int blipFiltersQueued();
+qint64 blipFiltersQueuedPixels();
+// Called at the start of each job on the thread beside the window, with the flag that ends the work (for tests, to hold a job).
+extern std::function<void(const std::atomic<bool> &)> blipFilterWorkerHook;
 int addBlipFilterListener(const std::function<void()> &listener);
 void removeBlipFilterListener(int id);
 

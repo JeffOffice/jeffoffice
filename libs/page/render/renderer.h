@@ -58,6 +58,10 @@ struct RenderOptions {
     bool exactImageDpi = false;
     bool noMaster = false;        // the master pages' objects are left out (printing a selection alone)
     bool skipPictures = false;    // spot color plates: pictures print on the process plates
+    // Picture filters (core/picturefx.h): by default a picture waits for its filters, so that nothing is ever drawn unfiltered. A window that draws again by itself when they are done
+    // (addBlipFilterListener; Editor::changed) may set this: it draws at once what is ready and the rest when the work beside the window ends. Even then a Blur or a Mosaic is never drawn
+    // from the unfiltered picture: a flat patch of the picture's average color stands in until it is done. Output (print, PDF, export) always waits.
+    bool filtersLater = false;
     // Remove Background: the picture with this id shows the part that goes in this color. Set only by the window's own drawing (the canvas), never by output of any kind.
     QString removalTintItem;
     QColor removalTint;
@@ -198,6 +202,7 @@ public:
     static qint64 linearFormsMadeForTest();
     static qint64 textArtPicturesMadeForTest();
     // shown: a picture drawn into pixels smaller than it is comes back at that size, each pixel the average of those it covers.
+    // waitForFilters false: the filters are worked out beside the window and, until they are done, a Blur or Mosaic comes back as a flat patch and the other filters as the unfiltered picture.
     static QImage processedImage(const Document &doc, const PictureItem &pic, const QSizeF &deviceSize, const QSizeF &shown = QSizeF(), const QColor &removalTint = QColor(),
                                 bool waitForFilters = true);
     static QImage renderToImage(const PaintContext &ctx, int pageIndex, double scale, bool transparent = false);

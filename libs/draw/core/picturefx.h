@@ -29,6 +29,8 @@ bool isBlipFilter(const BlipEffect &e);
 // The filters of `effects` in order, and the rest in order.
 QVector<BlipEffect> blipFilters(const QVector<BlipEffect> &effects);
 QVector<BlipEffect> blipColorEffects(const QVector<BlipEffect> &effects);
+// Whether any of the filters is one people use to hide what is in a picture (Blur and Mosaic): such a picture is never drawn on a screen before they are done.
+bool blipFiltersHide(const QVector<BlipEffect> &filters);
 // What a filter does, in words for the person (an effect that is not a filter: empty).
 QString blipFilterName(const BlipEffect &e);
 
@@ -40,6 +42,8 @@ struct FilterCount {
     qint64 steps = 0;
 };
 
+// The size `pictureFxWorkCopy` makes of a picture of `size` pixels.
+QSize pictureFxWorkSize(const QSize &size);
 // `image` averaged down by whole blocks to at most kPictureFxWorkPixels (as it is when it is not larger). With `stop` set to true the copy ends early and is not finished.
 QImage pictureFxWorkCopy(const QImage &image, const std::atomic<bool> *stop = nullptr);
 // `image` (32 bits) with the filter applied. With `stop` set to true the work ends early (before the next row) and what comes back is not finished. `count` (if given) is added to.

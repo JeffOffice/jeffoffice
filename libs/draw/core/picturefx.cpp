@@ -281,6 +281,13 @@ QImage mosaic(const QImage &img, int strength, const Run &run)
 
 bool isBlipFilter(const BlipEffect &e) { return e.kind == BlipEffect::Sharpen || e.kind == BlipEffect::Temperature || e.kind == BlipEffect::Artistic; }
 
+bool blipFiltersHide(const QVector<BlipEffect> &filters)
+{
+    for (const BlipEffect &e : filters)
+        if (e.kind == BlipEffect::Artistic && (e.style == int(ArtisticStyle::Blur) || e.style == int(ArtisticStyle::Mosaic))) return true;
+    return false;
+}
+
 QVector<BlipEffect> blipFilters(const QVector<BlipEffect> &effects)
 {
     QVector<BlipEffect> out;
@@ -332,6 +339,14 @@ QString blipFilterName(const BlipEffect &e)
     default: break;
     }
     return QString();
+}
+
+QSize pictureFxWorkSize(const QSize &size)
+{
+    if (qint64(size.width()) * size.height() <= kPictureFxWorkPixels) return size;
+    int k = 2;
+    while (qint64((size.width() + k - 1) / k) * ((size.height() + k - 1) / k) > kPictureFxWorkPixels) ++k;
+    return QSize((size.width() + k - 1) / k, (size.height() + k - 1) / k);
 }
 
 QImage pictureFxWorkCopy(const QImage &image, const std::atomic<bool> *stop)

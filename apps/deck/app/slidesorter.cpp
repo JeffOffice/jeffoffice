@@ -464,6 +464,7 @@ void SlideSorter::renderNext()
     PaintContext ctx;
     ctx.doc = d;
     ctx.cache = &m_ed->cache();
+    ctx.opt.filtersLater = true;   // (the thumbnail is drawn again when filters finish: its key holds blipFiltersFinished)
     const double dpr = devicePixelRatioF();
     QImage img = Renderer::renderToImage(ctx, pick, thumbSize().width() * dpr / std::max(1.0, d->pageSize().width()));
     img.setDevicePixelRatio(dpr);

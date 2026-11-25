@@ -31,6 +31,7 @@
 #include "core/pageaccess.h"
 #include <QListWidget>
 #include <QBuffer>
+#include <QThread>
 #include "app/splitmover.h"
 #include <QSplitter>
 #include <numeric>
@@ -46,6 +47,8 @@
 #include <QJsonObject>
 #include <QFile>
 #include <cmath>
+#include <algorithm>
+#include <functional>
 #include <limits>
 #include "io/zip.h"
 #include "render/renderer.h"
@@ -111,6 +114,24 @@ int entriesWhenDeleted(DeckWindow *w)
     delete w;
     return Editor::changeEntries() - before;
 }
+
+// The picture filters' worker, held: the test holds it at the start of each job (counted) so that what a window shows before the filters are done can be read.
+struct HeldWorker {
+    static std::atomic<bool> &hold() { static std::atomic<bool> h{false}; return h; }
+    static std::atomic<int> &entered() { static std::atomic<int> n{0}; return n; }
+    HeldWorker()
+    {
+        hold() = true;
+        entered() = 0;
+        jp::blipFilterWorkerHook = [](const std::atomic<bool> &stop) {
+            if (!hold()) return;
+            ++entered();
+            for (long i = 0; hold() && !stop && i < 1'000'000'000L; ++i) QThread::yieldCurrentThread();
+        };
+    }
+    void release() { hold() = false; }
+    ~HeldWorker() { release(); }   // (the hook stays, off: the thread may still be reading it)
+};
 
 // Closes the Format pane and puts the view/formatPane setting back as it was, however the test ends (the pane stays open for later windows otherwise).
 struct FormatPaneGuard {
@@ -1084,7 +1105,7 @@ private Q_SLOTS:
         QVERIFY(!slides.contains("jdr:filters"));
     }
 
-    // A picture is drawn at once as it is and filtered beside the window (the first draw never waits); drawn again at other sizes, or saved again, it works nothing out: counted, with a
+    // A picture is drawn at once (a flat patch if a Blur or Mosaic is on it, else as it is) and filtered beside the window (the first draw never waits); drawn again at other sizes, or saved again, it works nothing out: counted, with a
     // removal in the way (it makes the picture again at each draw, which used to make the filters run again at every size).
     void aPictureIsDrawnAtOnceFilteredBesideTheWindowAndNeverWorkedOutTwice()
     {
@@ -1108,7 +1129,9 @@ private Q_SLOTS:
         const QSizeF sizes[] = {QSizeF(160, 120), QSizeF(200, 150), QSizeF(120, 90), QSizeF(320, 240)};
         // The first draw: at once, and as the picture is without its filters.
         const QImage atOnce = Renderer::processedImage(doc, *pic(), QSizeF(), sizes[0], QColor(), false);
-        QCOMPARE(pixelBytes(atOnce), pixelBytes(Renderer::processedImage(doc, plain, QSizeF(), sizes[0])));
+        // (a Blur is among the filters: until it is done a flat patch of the picture's color is drawn, never the picture it hides)
+        for (const QPoint at : {QPoint(0, 0), QPoint(80, 60), QPoint(159, 119), QPoint(20, 100)}) QCOMPARE(atOnce.pixel(at), atOnce.pixel(1, 1));
+        QVERIFY(pixelBytes(atOnce) != pixelBytes(Renderer::processedImage(doc, plain, QSizeF(), sizes[0])));
         // Finished beside the window: the same draw now gives the filtered picture.
         QImage drawn;
         QTRY_VERIFY(pixelBytes(drawn = Renderer::processedImage(doc, *pic(), QSizeF(), sizes[0], QColor(), false)) != pixelBytes(atOnce));
@@ -1127,6 +1150,508 @@ private Q_SLOTS:
         QCOMPARE(jp::blipAdjustedMade(), afterFirst);
     }
 
+    // A picture of pure colors (nothing else on a screen has them) of the size given, as the bytes of a PNG: cells of two pixels, red, green, and blue in turn, so that any blur or mosaic
+    // leaves none of them.
+    static QByteArray pureColorPng(int w, int h)
+    {
+        QImage im(w, h, QImage::Format_ARGB32);
+        for (int y = 0; y < h; ++y)
+            for (int x = 0; x < w; ++x) im.setPixel(x, y, (x / 2 + y / 2) % 3 == 0 ? qRgb(255, 0, 0) : (x / 2 + y / 2) % 3 == 1 ? qRgb(0, 255, 0) : qRgb(0, 0, 255));
+        QByteArray png;
+        QBuffer buffer(&png);
+        buffer.open(QIODevice::WriteOnly);
+        im.save(&buffer, "PNG");
+        return png;
+    }
+
+    // How many pixels of `im` are one of the picture's pure colors.
+    static int pureColorPixels(const QImage &im)
+    {
+        const QImage a = im.convertToFormat(QImage::Format_ARGB32);
+        int n = 0;
+        for (int y = 0; y < a.height(); ++y)
+            for (int x = 0; x < a.width(); ++x) {
+                const QRgb c = a.pixel(x, y);
+                n += (qRed(c) > 240 && qGreen(c) < 15 && qBlue(c) < 15) || (qRed(c) < 15 && qGreen(c) > 240 && qBlue(c) < 15) || (qRed(c) < 15 && qGreen(c) < 15 && qBlue(c) > 240);
+            }
+        return n;
+    }
+
+    // The slide show draws its first frame once the filters are done: a Blur or Mosaic picture is never on the screen unfiltered (the show used to draw at once, with the filters still
+    // running beside it, and so showed what the person had hidden).
+    void theSlideShowsFirstFrameIsTheFilteredPicture()
+    {
+        for (const int style : {int(jp::ArtisticStyle::Blur), int(jp::ArtisticStyle::Mosaic)}) {
+            DeckWindow w;
+            w.resize(1200, 800);
+            w.show();
+            PictureItem *added = addPicture(w, QStringLiteral("Hidden"));
+            const QString id = added->id;
+            added->imageId = w.editor()->doc()->addImage(pureColorPng(400, 300), QStringLiteral("png"));
+            auto pic = [&] { return static_cast<PictureItem *>(w.editor()->doc()->item(id)); };
+            pic()->rect = QRectF(100, 100, 400, 300);
+            pic()->imgRect = QRectF(0, 0, 400, 300);
+            pic()->setArtistic(style, 0.8);
+            PictureItem plain(*pic());
+            plain.blipEffects.clear();
+            const QImage unfiltered = jp::applyBlipEffects(w.editor()->doc()->image(pic()->imageId), {});
+            QVERIFY(!unfiltered.isNull());
+            HeldWorker held;
+            SlideShow show(w.editor()->doc(), &w.editor()->cache(), 0);
+            show.resize(960, 540);
+            const SlideShow::View view{0, 0};
+            const QImage first = show.renderView(view, -1, QSize(960, 540), 1);
+            // The same frame once the filters are known (every picture kept): the first frame is already that one, never the unfiltered one.
+            const QImage again = show.renderView(view, -1, QSize(960, 540), 1);
+            QCOMPARE(pixelBytes(first), pixelBytes(again));
+            QCOMPARE(held.entered().load(), 0);   // (nothing was left for the thread beside the window)
+            pic()->blipEffects.clear();
+            const QImage without = show.renderView(view, -1, QSize(960, 540), 1);
+            QVERIFY(pureColorPixels(without) > 20000);
+            QVERIFY2(pureColorPixels(first) < 2000, qPrintable(QStringLiteral("filter %1 left %2 pure pixels").arg(style).arg(pureColorPixels(first))));
+        }
+    }
+
+    // A caller that draws again by itself (the editing canvas, the thumbnails) may draw before the filters are done, but never a Blur or Mosaic as the picture it hides: a flat patch of the
+    // picture's average color stands in, then the filtered picture. A color temperature alone may show the unfiltered picture first. A caller that does not ask waits.
+    void aWindowThatDrawsAgainShowsAFlatPatchForBlurAndMosaicUntilTheyAreDone()
+    {
+        for (const int style : {int(jp::ArtisticStyle::Blur), int(jp::ArtisticStyle::Mosaic), -1}) {
+            DeckWindow w;
+            w.resize(1200, 800);
+            w.show();
+            PictureItem *added = addPicture(w, QStringLiteral("Later"));
+            const QString id = added->id;
+            added->imageId = w.editor()->doc()->addImage(pureColorPng(400, 300), QStringLiteral("png"));
+            auto pic = [&] { return static_cast<PictureItem *>(w.editor()->doc()->item(id)); };
+            pic()->rect = QRectF(100, 100, 400, 300);
+            pic()->imgRect = QRectF(0, 0, 400, 300);
+            auto draw = [&](bool later) {
+                PaintContext ctx;
+                ctx.doc = w.editor()->doc();
+                ctx.cache = &w.editor()->cache();
+                ctx.opt.filtersLater = later;
+                return Renderer::renderToImage(ctx, 0, 1.0);
+            };
+            const QImage plainPage = draw(false);   // (no filter yet: the picture as it is)
+            if (style >= 0) pic()->setArtistic(style, 0.8);
+            else pic()->setTemperatureMove(80);
+            HeldWorker held;
+            const QImage first = draw(true);
+            QTRY_COMPARE(held.entered().load(), 1);
+            const int pureOnPage = pureColorPixels(plainPage);
+            QVERIFY(pureOnPage > 20000);
+            if (style >= 0) {
+                // Nothing of the original: a flat patch.
+                QVERIFY2(pureColorPixels(first) < 2000, qPrintable(QStringLiteral("filter %1 left %2 pure pixels").arg(style).arg(pureColorPixels(first))));
+                QVERIFY(pixelBytes(first) != pixelBytes(plainPage));
+                const QRgb centre = first.pixel(300, 250);
+                QCOMPARE(first.pixel(150, 150), centre);
+                QCOMPARE(first.pixel(450, 350), centre);
+                QCOMPARE(first.pixel(300, 250), first.pixel(210, 330));
+            } else {
+                QCOMPARE(pixelBytes(first), pixelBytes(plainPage));   // (a color temperature may show the picture as it is for a moment)
+            }
+            // A caller that does not ask waits: the filtered picture at once, whatever the thread beside the window is doing.
+            const QImage waited = draw(false);
+            QVERIFY(pixelBytes(waited) != pixelBytes(plainPage));
+            if (style >= 0) QVERIFY(pureColorPixels(waited) < 2000);
+            held.release();
+            const int finished = jp::blipFiltersFinished();
+            QTRY_VERIFY(jp::blipFiltersFinished() >= finished);
+            QTRY_COMPARE(pixelBytes(draw(true)), pixelBytes(waited));
+        }
+    }
+
+    // A picture with detail in every pixel (so that any shift or resampling of it shows), a plain border around a middle part (so that a background can be found), of the size given.
+    static QByteArray detailedPng(int w, int h)
+    {
+        QImage im(w, h, QImage::Format_ARGB32);
+        im.fill(qRgb(235, 235, 235));
+        for (int y = h / 6; y < h - h / 6; ++y)
+            for (int x = w / 6; x < w - w / 6; ++x) im.setPixel(x, y, qRgb((x * 37 + y * 11) % 256, (x * y + x) % 256, (y * 53 + x * 3) % 256));
+        QByteArray png;
+        QBuffer buffer(&png);
+        buffer.open(QIODevice::WriteOnly);
+        im.save(&buffer, "PNG");
+        return png;
+    }
+
+    // The page of the window's presentation as a picture at `scale`.
+    static QImage pageAt(DeckWindow &w, double scale)
+    {
+        PaintContext ctx;
+        ctx.doc = w.editor()->doc();
+        ctx.cache = &w.editor()->cache();
+        return Renderer::renderToImage(ctx, 0, scale);
+    }
+
+    // How many pixels differ between two pictures (all of them, when they are not of one size).
+    static qint64 differingPixels(const QImage &a, const QImage &b)
+    {
+        if (a.size() != b.size()) return qint64(a.width()) * a.height();
+        const QImage x = a.convertToFormat(QImage::Format_ARGB32), y = b.convertToFormat(QImage::Format_ARGB32);
+        qint64 n = 0;
+        for (int row = 0; row < x.height(); ++row) n += memcmp(x.constScanLine(row), y.constScanLine(row), size_t(x.width()) * 4) != 0 ? [&] {
+            qint64 d = 0;
+            for (int col = 0; col < x.width(); ++col) d += x.pixel(col, row) != y.pixel(col, row);
+            return d;
+        }() : 0;
+        return n;
+    }
+
+    // A cropped picture "Subject" on the first slide: a 120 by 90 pixel picture drawn 160 by 120 points (fewer pixels than points, as the rows cut only such pictures), the frame
+    // showing a part of it that starts between two pixels, in the place and turn `setup` makes.
+    static PictureItem *croppedSubject(DeckWindow &w, const std::function<void(PictureItem &)> &setup = {}, const QString &name = QStringLiteral("Subject"))
+    {
+        PictureItem *added = addPicture(w, name);
+        const QString id = added->id;
+        added->imageId = w.editor()->doc()->addImage(detailedPng(120, 90), QStringLiteral("png"));
+        added->rect = QRectF(200, 150, 100, 70);
+        added->imgRect = QRectF(-30.3, -20.7, 160, 120);
+        if (setup) setup(*added);
+        return static_cast<PictureItem *>(w.editor()->doc()->item(id));
+    }
+
+    // Takes the rows `kinds` in turn and says how many differing pixels the page then has at 1 and at 3 times, against the page before.
+    static qint64 pageChangeAfterRows(DeckWindow &w, const QVector<jp::PictureKept> &kinds, int *changed = nullptr)
+    {
+        const QImage one = pageAt(w, 1), three = pageAt(w, 3);
+        for (const jp::PictureKept kind : kinds) {
+            const int n = jp::removeKeptPictureParts(w.editor(), kind);
+            if (changed) *changed += n;
+        }
+        return differingPixels(one, pageAt(w, 1)) + differingPixels(three, pageAt(w, 3));
+    }
+
+    // The cropped-parts row leaves every pixel of the page as it was: a plain crop, a turned and a flipped one, a shape's, and every kind of effect on a cropped picture. (The first run of
+    // this test found 10,414 pixels different at three times: the row cut to whole pixels and moved what showed.)
+    void theCroppedPartsRowLeavesEveryPagePixelAsItWas()
+    {
+        struct Case {
+            const char *what;
+            std::function<void(PictureItem &)> setup;
+        };
+        const QVector<Case> cases = {
+            {"plain", {}},
+            {"turned", [](PictureItem &p) { p.rotation = 23; }},
+            {"flipped", [](PictureItem &p) { p.flipH = true; p.flipV = true; }},
+            {"shape", [](PictureItem &p) { p.maskShape = QStringLiteral("ellipse"); }},
+            {"sharpen", [](PictureItem &p) { p.setSharpenMove(60); }},
+            {"temperature", [](PictureItem &p) { p.setTemperatureMove(50); }},
+            {"blur", [](PictureItem &p) { p.setArtistic(int(jp::ArtisticStyle::Blur), 0.6); }},
+            {"pencil", [](PictureItem &p) { p.setArtistic(int(jp::ArtisticStyle::PencilGrayscale), 0.6); }},
+            {"glow edges", [](PictureItem &p) { p.setArtistic(int(jp::ArtisticStyle::GlowEdges), 0.6); }},
+            {"mosaic", [](PictureItem &p) { p.setArtistic(int(jp::ArtisticStyle::Mosaic), 0.6); }},
+            {"sharpen and mosaic, turned", [](PictureItem &p) { p.setSharpenMove(40); p.setArtistic(int(jp::ArtisticStyle::Mosaic), 0.5); p.rotation = 10; }},
+        };
+        for (const Case &c : cases) {
+            DeckWindow w;
+            w.resize(1200, 800);
+            w.show();
+            PictureItem *pic = croppedSubject(w, c.setup);
+            const QString original = pic->imageId;
+            const QImage before = w.editor()->doc()->image(original);
+            QCOMPARE(qAlpha(before.pixel(2, 45)), 255);   // (the left edge, which the frame does not show)
+            int changed = 0;
+            const qint64 differing = pageChangeAfterRows(w, {jp::PictureKept::CroppedAreas}, &changed);
+            QVERIFY2(differing == 0, qPrintable(QStringLiteral("%1: %2 pixels differ").arg(QLatin1String(c.what)).arg(differing)));
+            QVERIFY2(changed == 1, c.what);
+            pic = static_cast<PictureItem *>(w.editor()->doc()->item(pic->id));
+            const QImage after = w.editor()->doc()->image(pic->imageId);
+            QCOMPARE(after.size(), before.size());   // (the picture keeps its size and place: that is what keeps every pixel of the page)
+            QVERIFY2(pic->imageId != original && qAlpha(after.pixel(2, 45)) == 0 && qAlpha(after.pixel(117, 45)) == 0, c.what);   // (what was cropped away is gone)
+            QCOMPARE(jp::picturesKeeping(*w.editor()->doc(), jp::PictureKept::CroppedAreas), 0);
+        }
+    }
+
+    // A removed background stays removed after the cut (the removal is cut to the same pixels), with and without an effect on the picture.
+    void theCroppedPartsRowKeepsARemovedBackgroundRemoved()
+    {
+        for (const bool withEffect : {false, true}) {
+            DeckWindow w;
+            w.resize(1200, 800);
+            w.show();
+            PictureItem *pic = croppedSubject(w, [&](PictureItem &p) {
+                p.removal = findBackground(QImage::fromData(detailedPng(120, 90)), {});
+                if (withEffect) p.setArtistic(int(jp::ArtisticStyle::Blur), 0.5);
+            });
+            QVERIFY(pic->removal.isValid());
+            const qint64 differing = pageChangeAfterRows(w, {jp::PictureKept::CroppedAreas});
+            QVERIFY2(differing == 0, qPrintable(QStringLiteral("%1 pixels differ").arg(differing)));
+            pic = static_cast<PictureItem *>(w.editor()->doc()->item(pic->id));
+            if (!withEffect) {
+                QVERIFY(pic->removal.isValid());   // (the removal is still on the picture, cut with it)
+                QCOMPARE(pic->removal.source, w.editor()->doc()->imageSize(pic->imageId));
+            }
+        }
+    }
+
+    // Two objects that show one picture, cropped differently, are cut to the part that either shows and each looks as before.
+    void picturesThatShareOnePictureAreCutToWhatEitherShows()
+    {
+        DeckWindow w;
+        w.resize(1200, 800);
+        w.show();
+        PictureItem *first = croppedSubject(w);
+        const QString firstId = first->id, imageId = first->imageId;
+        PictureItem *second = croppedSubject(w, [](PictureItem &p) { p.rect = QRectF(500, 150, 60, 50); p.imgRect = QRectF(-60, -30, 160, 120); }, QStringLiteral("Other"));
+        second->imageId = imageId;
+        const QString secondId = second->id;
+        QCOMPARE(jp::picturesKeeping(*w.editor()->doc(), jp::PictureKept::CroppedAreas), 2);
+        const qint64 differing = pageChangeAfterRows(w, {jp::PictureKept::CroppedAreas});
+        QVERIFY2(differing == 0, qPrintable(QStringLiteral("%1 pixels differ").arg(differing)));
+        auto *a = static_cast<PictureItem *>(w.editor()->doc()->item(firstId));
+        auto *b = static_cast<PictureItem *>(w.editor()->doc()->item(secondId));
+        QCOMPARE(a->imageId, b->imageId);   // (still one picture)
+        QVERIFY(a->imageId != imageId);
+        const QImage after = w.editor()->doc()->image(a->imageId);
+        QCOMPARE(qAlpha(after.pixel(1, 1)), 0);   // (what neither shows is gone)
+        QCOMPARE(qAlpha(after.pixel(60, 45)), 255);
+        // (a third object that shows the whole picture keeps it whole: nothing is cut, and nothing changes)
+        PictureItem *whole = croppedSubject(w, [](PictureItem &p) { p.rect = QRectF(0, 0, 160, 120); p.imgRect = QRectF(0, 0, 160, 120); }, QStringLiteral("Whole"));
+        whole->imageId = a->imageId;
+        a->imageId = b->imageId = whole->imageId;
+        QCOMPARE(jp::picturesKeeping(*w.editor()->doc(), jp::PictureKept::CroppedAreas), 0);
+    }
+
+    // The three rows in every order on one picture that has all three kinds of hidden data (an effect's original, a removed background's whole picture, and a crop's far side): the page
+    // never changes by a pixel, not after saving and opening it again, and the file no longer holds the picture it began with.
+    void theThreeInspectRowsInAnyOrderChangeNoPixelAndLeaveNothingBehind()
+    {
+        QVector<int> order = {0, 1, 2};
+        const jp::PictureKept kinds[] = {jp::PictureKept::FilterOriginals, jp::PictureKept::RemovedBackgrounds, jp::PictureKept::CroppedAreas};
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        const QByteArray png = detailedPng(120, 90);
+        int run = 0;
+        do {
+            DeckWindow w;
+            w.resize(1200, 800);
+            w.show();
+            PictureItem *pic = croppedSubject(w, [&](PictureItem &p) {
+                p.removal = findBackground(QImage::fromData(png), {});
+                p.setArtistic(int(jp::ArtisticStyle::Mosaic), 0.5);
+            });
+            const QString id = pic->id;
+            QVERIFY(pic->removal.isValid());
+            const QImage one = pageAt(w, 1), three = pageAt(w, 3);
+            QVector<jp::PictureKept> take;
+            for (const int i : order) take << kinds[i];
+            const qint64 differing = pageChangeAfterRows(w, take);
+            const QString what = QStringLiteral("order %1%2%3").arg(order[0]).arg(order[1]).arg(order[2]);
+            QVERIFY2(differing == 0, qPrintable(what + QStringLiteral(": %1 pixels differ").arg(differing)));
+            for (const jp::PictureKept kind : kinds) QVERIFY2(jp::picturesKeeping(*w.editor()->doc(), kind) == 0, qPrintable(what));
+            pic = static_cast<PictureItem *>(w.editor()->doc()->item(id));
+            QVERIFY2(!pic->removal.isValid() || pic->removal.source == w.editor()->doc()->imageSize(pic->imageId), qPrintable(what));
+            const QString path = dir.filePath(QStringLiteral("order%1.pptx").arg(++run));
+            QVERIFY(w.saveTo(path));
+            // The file holds no picture of the size it began with.
+            for (const QImage &m : mediaOf(path)) QVERIFY2(m.size() != QSize(120, 90) || qAlpha(m.pixel(2, 45)) == 0, qPrintable(what));
+            DeckWindow back;
+            back.resize(1200, 800);
+            QVERIFY(back.openFile(path));
+            const qint64 reopened = differingPixels(one, pageAt(back, 1)) + differingPixels(three, pageAt(back, 3));
+            QVERIFY2(reopened == 0, qPrintable(what + QStringLiteral(": %1 pixels differ after saving and opening").arg(reopened)));
+        } while (std::next_permutation(order.begin(), order.end()));
+        QCOMPARE(run, 6);
+    }
+
+    // What waits for the thread beside the window is held to a number of pixels in all, not only to a number of pictures: with the thread held, pictures of 3 million pixels are asked
+    // for until the queue says no, and what waits never comes to more than the bound. A picture of more than the filters' work size is made smaller there, and comes out as the same
+    // pixels the filters give on the window thread.
+    void theFilterQueueIsHeldToAnAmountOfPixelsAndWorksOnTheBoundedCopy()
+    {
+        HeldWorker held;
+        jp::BlipEffect mosaic;
+        mosaic.kind = jp::BlipEffect::Artistic;
+        mosaic.style = int(jp::ArtisticStyle::Mosaic);
+        mosaic.amount = 0.5;
+        const QVector<jp::BlipEffect> effects{mosaic};
+        QVector<QImage> images;
+        for (int i = 0; i < 12; ++i) {
+            QImage im(1800, 1800, QImage::Format_ARGB32);
+            im.fill(qRgb(i * 20, 40, 200 - i * 10));
+            images << im;
+        }
+        int pending = 0;
+        for (int i = 0; i < images.size(); ++i) {
+            bool p = false;
+            jp::blipAdjustedLater(images[i], effects, QStringLiteral("queue-%1").arg(i), &p);
+            pending += p;
+            if (i == 0) QTRY_COMPARE(held.entered().load(), 1);   // (the first is running now: the rest wait)
+            QVERIFY(jp::blipFiltersQueuedPixels() <= jp::kBlipQueueMostPixels);
+        }
+        QCOMPARE(pending, int(images.size()));   // (each is told it is not done)
+        QVERIFY2(jp::blipFiltersQueued() <= 7, qPrintable(QString::number(jp::blipFiltersQueued())));   // (24 million pixels hold seven of 3.24 million, not the sixteen jobs the queue used to)
+        QVERIFY(jp::blipFiltersQueued() >= 1);
+        held.release();
+        QTRY_COMPARE(jp::blipFiltersQueued(), 0);
+        // A picture of more than the work size: the same pixels as on the window thread.
+        QImage big(2600, 2300, QImage::Format_ARGB32);
+        for (int y = 0; y < big.height(); ++y)
+            for (int x = 0; x < big.width(); ++x) big.setPixel(x, y, qRgb(x % 256, y % 256, (x + y) % 256));
+        bool p = false;
+        jp::blipAdjustedLater(big, effects, QStringLiteral("queue-big"), &p);
+        QVERIFY(p);
+        const QImage expected = jp::applyBlipEffects(big, effects);
+        QVERIFY(expected.width() * expected.height() <= jp::kPictureFxWorkPixels);
+        QImage got;
+        QTRY_VERIFY((got = jp::blipAdjustedLater(big, effects, QStringLiteral("queue-big"), &p), !p));
+        QCOMPARE(pixelBytes(got), pixelBytes(expected));
+    }
+
+    // The linear blur, pinned: a picture narrower than the radius gets a window of its own size (edges repeat the outermost pixel), horizontal pass then vertical, each rounded: worked out
+    // here by the plain sum for each pixel. (The branch's first blur used the radius whatever the picture; this one, never released, is the definition.)
+    void aBlurOnAPictureNarrowerThanItsRadiusIsThePlainWindowSum()
+    {
+        const int w = 250, h = 5;
+        QImage im(w, h, QImage::Format_ARGB32);
+        for (int y = 0; y < h; ++y)
+            for (int x = 0; x < w; ++x) im.setPixel(x, y, qRgb((x * 5 + y * 40) % 256, (x * 13) % 256, (x * x + y) % 256));
+        jp::BlipEffect blur;
+        blur.kind = jp::BlipEffect::Artistic;
+        blur.style = int(jp::ArtisticStyle::Blur);
+        blur.amount = 1.0;
+        const QImage got = jp::applyBlipFilter(im, blur).convertToFormat(QImage::Format_ARGB32);
+        const int r = std::max(1, int(qint64(w) * 100 / 1250));   // (20 for the full amount: more than the picture is high)
+        QVERIFY(r > h);
+        const int rx = std::min(r, w), ry = std::min(r, h);
+        for (int c = 0; c < 3; ++c) {
+            auto channel = [&](int x, int y) { const QRgb v = im.pixel(x, y); return c == 0 ? qRed(v) : c == 1 ? qGreen(v) : qBlue(v); };
+            std::vector<std::vector<int>> rows(h, std::vector<int>(w));
+            for (int y = 0; y < h; ++y)
+                for (int x = 0; x < w; ++x) {
+                    int sum = 0;
+                    for (int i = -rx; i <= rx; ++i) sum += channel(std::clamp(x + i, 0, w - 1), y);
+                    rows[y][x] = (sum + (2 * rx + 1) / 2) / (2 * rx + 1);
+                }
+            for (int y = 0; y < h; ++y)
+                for (int x = 0; x < w; ++x) {
+                    int sum = 0;
+                    for (int i = -ry; i <= ry; ++i) sum += rows[std::clamp(y + i, 0, h - 1)][x];
+                    const int want = (sum + (2 * ry + 1) / 2) / (2 * ry + 1);
+                    const QRgb v = got.pixel(x, y);
+                    QCOMPARE(c == 0 ? qRed(v) : c == 1 ? qGreen(v) : qBlue(v), want);
+                }
+        }
+    }
+
+    // Effects that are left out are never left out silently: a picture whose color effects cost more than the work allows (filters on it too: only a file can have both) is counted in the
+    // row that says so, and a drawing with a crop or an effect, which the rows cannot change, is told in the row's own words.
+    void effectsLeftOutAndPicturesTheRowsCannotChangeAreSaid()
+    {
+        DeckWindow w;
+        w.resize(1200, 800);
+        w.show();
+        PictureItem *added = addPicture(w, QStringLiteral("Costly"));
+        const QString id = added->id;
+        added->imageId = w.editor()->doc()->addImage(structuredPng(1000, 1000), QStringLiteral("png"));
+        auto pic = [&] { return static_cast<PictureItem *>(w.editor()->doc()->item(id)); };
+        pic()->setSharpenMove(50);
+        QCOMPARE(jp::picturesWithEffectsLeftOut(*w.editor()->doc()), 0);
+        jp::BlipEffect hue;
+        hue.kind = jp::BlipEffect::Hsl;
+        hue.hue = 40;
+        for (int i = 0; i < 20; ++i) pic()->blipEffects.append(hue);   // (20 hue turns on a million pixels: more than the work allows)
+        QCOMPARE(jp::picturesWithEffectsLeftOut(*w.editor()->doc()), 1);
+        QCOMPARE(jp::pictureInspectItems(w.editor()).size(), qsizetype(4));
+        // The same work, without a filter, is the picture as it is: not a thing left out of a filtered one.
+        pic()->blipEffects = QVector<jp::BlipEffect>(20, hue);
+        QCOMPARE(jp::picturesWithEffectsLeftOut(*w.editor()->doc()), 0);
+        // A drawing with a crop.
+        const QByteArray svg = "<svg xmlns='http://www.w3.org/2000/svg' width='100' height='80'><rect width='100' height='80' fill='#c00'/></svg>";
+        auto drawing = std::make_shared<PictureItem>();
+        drawing->name = QStringLiteral("Drawing");
+        drawing->imageId = w.editor()->doc()->addImage(svg, QStringLiteral("svg"));
+        drawing->rect = QRectF(300, 300, 50, 40);
+        drawing->imgRect = QRectF(-20, -20, 100, 80);
+        w.editor()->addItem(drawing, false);
+        const QVector<InspectItem> rows = jp::pictureInspectItems(w.editor());
+        QVERIFY2(rows[2].detail.contains(QStringLiteral("drawing or a linked picture")), qPrintable(rows[2].detail));
+        QVERIFY(!rows[0].detail.contains(QStringLiteral("drawing or a linked picture")));
+        QCOMPARE(rows[2].count(), 0);
+    }
+
+    // A picture with many more pixels than points (a photograph) is cleared the same way and looks the same, at the zooms that matter (the margin kept around what shows covers the pixels the
+    // page's making it smaller reads).
+    void aPhotographDrawnSmallerThanItIsStillLooksTheSameAfterTheCroppedPartsRow()
+    {
+        DeckWindow w;
+        w.resize(1200, 800);
+        w.show();
+        PictureItem *pic = croppedSubject(w);
+        pic->imageId = w.editor()->doc()->addImage(detailedPng(480, 360), QStringLiteral("png"));   // (three pixels to the point)
+        const QString id = pic->id;
+        const QImage one = pageAt(w, 1), two = pageAt(w, 2), three = pageAt(w, 3);
+        QCOMPARE(jp::picturesKeeping(*w.editor()->doc(), jp::PictureKept::CroppedAreas), 1);
+        QCOMPARE(jp::removeKeptPictureParts(w.editor(), jp::PictureKept::CroppedAreas), 1);
+        QCOMPARE(differingPixels(one, pageAt(w, 1)) + differingPixels(two, pageAt(w, 2)) + differingPixels(three, pageAt(w, 3)), qint64(0));
+        pic = static_cast<PictureItem *>(w.editor()->doc()->item(id));
+        QCOMPARE(qAlpha(w.editor()->doc()->image(pic->imageId).pixel(8, 180)), 0);
+        QCOMPARE(jp::picturesKeeping(*w.editor()->doc(), jp::PictureKept::CroppedAreas), 0);
+    }
+
+    // A window closed while its pictures' filters are queued and running: the thread beside the window finishes into nothing (no listener is left to call), and what it made is kept.
+    void aWindowClosedWithFiltersQueuedLeavesNothingCalled()
+    {
+        HeldWorker held;
+        QVector<qint64> sizes;
+        {
+            auto *w = new DeckWindow;
+            w->resize(1200, 800);
+            w->show();
+            for (int i = 0; i < 3; ++i) {
+                PictureItem *added = addPicture(*w, QStringLiteral("Closing %1").arg(i));
+                added->imageId = w->editor()->doc()->addImage(pureColorPng(400 + 2 * i, 300), QStringLiteral("png"));
+                added->rect = QRectF(50 + 250 * i, 100, 200, 150);
+                added->imgRect = QRectF(0, 0, 200, 150);
+                added->setArtistic(int(jp::ArtisticStyle::Mosaic), 0.5);
+            }
+            const int finished = jp::blipFiltersFinished();
+            w->canvas()->grab();   // (the canvas draws: the filters are queued, the first one is running and held)
+            QTRY_COMPARE(held.entered().load(), 1);
+            QVERIFY(jp::blipFiltersQueued() >= 1);
+            delete w;
+            QCOMPARE(jp::blipFiltersFinished(), finished);   // (nothing had finished: the thread was held while the window went)
+        }
+        held.release();
+        QTRY_COMPARE(jp::blipFiltersQueued(), 0);
+        QTRY_VERIFY(jp::blipFiltersFinished() >= 3);
+        QCoreApplication::processEvents();   // (the calls the thread posted find no listener: nothing is touched)
+    }
+
+    // The program quitting while a filter runs and others wait: the shutdown step ends the running one (it looks at its flag between rows), drops the waiting ones, and the thread ends
+    // inside the time it is given.
+    void quittingWhileFiltersRunEndsTheThreadAndDropsTheQueue()
+    {
+        HeldWorker held;
+        jp::BlipEffect mosaic;
+        mosaic.kind = jp::BlipEffect::Artistic;
+        mosaic.style = int(jp::ArtisticStyle::Mosaic);
+        mosaic.amount = 0.5;
+        const QVector<jp::BlipEffect> effects{mosaic};
+        QVector<QImage> images;
+        for (int i = 0; i < 4; ++i) {
+            QImage im(1500, 1500, QImage::Format_ARGB32);
+            im.fill(qRgb(10 + i, 80, 160));
+            images << im;
+            bool p = false;
+            jp::blipAdjustedLater(im, effects, QStringLiteral("quit-%1").arg(i), &p);
+            if (i == 0) QTRY_COMPARE(held.entered().load(), 1);
+        }
+        QVERIFY(jp::blipFiltersQueued() >= 1);
+        const int finished = jp::blipFiltersFinished();
+        QCOMPARE(jp::stopBlipFilters(60000), 0);   // (0: the thread ended in the time given)
+        QCOMPARE(jp::blipFiltersQueued(), 0);
+        QCOMPARE(jp::blipFiltersFinished(), finished + 1);   // (the running one was cut short and counted; the waiting ones never started)
+        jp::restartBlipFiltersForTest();   // (the quit is over for the tests after this one)
+        bool p = false;
+        jp::blipAdjustedLater(images[3], effects, QStringLiteral("quit-after"), &p);
+        held.release();
+        QTRY_VERIFY(jp::blipFiltersFinished() > finished + 1);
+    }
+
     // Inspect finds what a picture keeps beside how it looks, and takes it out: the original under an effect, the whole picture under a removed background, and the cropped-away parts. Each
     // is one step of Undo, the picture looks the same after (the finished picture is all that is left of it), and the saved file no longer holds the original.
     void inspectFindsAndRemovesWhatPicturesKeepUnderTheirLook()
@@ -1138,7 +1663,7 @@ private Q_SLOTS:
         w.show();
         PictureItem *added = addPicture(w, QStringLiteral("Kept"));
         const QString id = added->id;
-        const QByteArray png = structuredPng(200, 150);
+        const QByteArray png = structuredPng(120, 90);
         added->imageId = w.editor()->doc()->addImage(png, QStringLiteral("png"));
         const QString originalId = added->imageId;
         auto pic = [&] { return static_cast<PictureItem *>(w.editor()->doc()->item(id)); };
@@ -1168,15 +1693,15 @@ private Q_SLOTS:
             QCOMPARE(pic()->imageId, originalId);
         }
         // All three, the crop last (the picture's pixels are what the first two make of them).
-        for (const int i : {1, 0, 2}) QCOMPARE(rows[i].remove(), 1);
+        for (const int i : {1, 0}) QCOMPARE(rows[i].remove(), 1);
+        QCOMPARE(rows[2].remove(), 0);   // (the removal already made what is cropped away clear: nothing is left to take)
         for (const InspectItem &row : rows) QCOMPARE(row.count(), 0);
         QVERIFY(pic()->removal.isValid() == false);
         QVERIFY(jp::blipFilters(pic()->blipEffects).isEmpty());
         QVERIFY(pic()->imageId != originalId);
         // What shows is the same (the rows were taken in an order that kept the finished look: the removal and the effect first, the crop last).
-        const QSize cut = w.editor()->doc()->imageSize(pic()->imageId);
-        QVERIFY(cut.width() < original.width() && cut.height() < original.height());
-        QVERIFY(std::abs(pic()->imgRect.width() - 100) < 1.5 && std::abs(pic()->imgRect.height() - 75) < 1.5);
+        QCOMPARE(w.editor()->doc()->imageSize(pic()->imageId), original.size());   // (the picture keeps its size: only what is cropped away is cleared)
+        QCOMPARE(qAlpha(w.editor()->doc()->image(pic()->imageId).pixel(1, 1)), 0);
         QVERIFY(w.saveTo(outFile));
         for (const QImage &m : mediaOf(outFile)) QVERIFY(pixelBytes(m) != pixelBytes(original));   // (the original is no longer in the file)
         QVERIFY(!before.isNull());

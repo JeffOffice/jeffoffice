@@ -420,6 +420,7 @@ PaintContext Canvas::paintContext() const
     ctx.doc = m_ed->doc();
     ctx.cache = &m_ed->cache();
     ctx.opt = m_ed->renderOptions();
+    ctx.opt.filtersLater = true;   // (the editor draws again when a picture's filters are done)
     // Remove Background: the picture being marked shows what goes in a color (the window only: output draws from its own options).
     if (!m_ed->removeBgItem.isEmpty()) {
         ctx.opt.removalTintItem = m_ed->removeBgItem;

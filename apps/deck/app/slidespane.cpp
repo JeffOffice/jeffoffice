@@ -158,6 +158,7 @@ void SlidesPane::rebuild()
     PaintContext ctx;
     ctx.doc = d;
     ctx.cache = &m_ed->cache();
+    ctx.opt.filtersLater = true;   // (the window builds the thumbnails again when the editor says it changed, as it does when filters finish)
     const double scale = kThumbWidth / std::max(1.0, d->pageSize().width());
     // The thumbnails keep the slides' shape (4:3 or 16:9).
     setIconSize(QSize(kThumbWidth, std::max(1, int(std::lround(kThumbWidth * d->pageSize().height() / std::max(1.0, d->pageSize().width()))))));
