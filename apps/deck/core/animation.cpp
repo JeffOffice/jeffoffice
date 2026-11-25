@@ -199,6 +199,43 @@ QString dimColorToXml(const QString &colorRef)
     return QString();
 }
 
+bool soundOfEffectNode(const QDomElement &cTn, SoundKind *kind, QString *mediaId, QString *name)
+{
+    *kind = SoundKind::None;
+    mediaId->clear();
+    name->clear();
+    const QDomElement list = office::child(cTn, office::ns::P, QStringLiteral("subTnLst"));
+    int seen = 0;
+    for (const QDomElement &n : office::children(list)) {
+        if (++seen > 16) break;
+        if (n.namespaceURI() != office::ns::P) continue;
+        if (n.localName() == QLatin1String("cmd") && n.attribute(QStringLiteral("cmd")) == QLatin1String("onstopaudio")) {
+            *kind = SoundKind::StopPrevious;
+            return true;
+        }
+        if (n.localName() != QLatin1String("audio")) continue;
+        const QDomElement target = office::child(office::child(office::child(n, office::ns::P, QStringLiteral("cMediaNode")), office::ns::P, QStringLiteral("tgtEl")), office::ns::P, QStringLiteral("sndTgt"));
+        const QString id = office::attrNs(target, office::ns::R, QStringLiteral("embed"));
+        if (!id.startsWith(QLatin1String("media:")) || id.size() <= 6) return false;
+        *kind = SoundKind::File;
+        *mediaId = id.mid(6);
+        *name = target.attribute(QStringLiteral("name"));
+        return true;
+    }
+    return false;
+}
+
+QVector<SoundCue> soundCuesBetween(const Step &step, double from, double to)
+{
+    QVector<SoundCue> out;
+    for (const Effect &e : step.effects) {
+        if (e.sound == SoundKind::None || e.begin <= from || e.begin > to) continue;
+        if (e.sound == SoundKind::File && e.soundMedia.isEmpty()) continue;
+        out.push_back({e.sound, e.soundMedia, e.begin});
+    }
+    return out;
+}
+
 // ---- reading the file's timing ----
 
 namespace {
@@ -517,6 +554,9 @@ void collectEffects(const QDomElement &childTnLst, double base, QVector<Effect> 
                 e.dimOnNextClick = color;
                 break;
             }
+            // A sound it starts with, or the stopping of the sounds before it.
+            QString soundName;
+            soundOfEffectNode(cTn, &e.sound, &e.soundMedia, &soundName);
             out.push_back(e);
         } else {
             collectEffects(pChild(cTn, "childTnLst"), begin, out, limit, depth + 1);

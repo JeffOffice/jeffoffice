@@ -163,6 +163,54 @@ bool DeckWindow::insertMedia(const QString &path, const QString &kind)
     return true;
 }
 
+// The sound of an animation effect: a file the show can play, no larger than kMaxEffectSoundBytes, kept among the presentation's media (the same file twice is kept once).
+bool DeckWindow::chooseEffectSound(deck::Anim *anim, const QString &given)
+{
+    const QString title = tr("Add Sound");
+    QString path = given;
+    if (path.isEmpty()) {
+        const QString dir = Settings::get().value(QStringLiteral("dirs/media"), QStandardPaths::writableLocation(QStandardPaths::MusicLocation)).toString();
+        QStringList patterns;
+        for (const QString &ext : deck::mediaExtensions(QStringLiteral("audio"))) patterns << QStringLiteral("*.") + ext;
+        path = QFileDialog::getOpenFileName(this, title, dir, tr("Audio Files (%1)").arg(patterns.join(QLatin1Char(' '))) + QStringLiteral(";;") + tr("All Files (*)"));
+        if (path.isEmpty()) return false;
+        Settings::get().setValue(QStringLiteral("dirs/media"), QFileInfo(path).absolutePath());
+    }
+    const QString name = QFileInfo(path).fileName();
+    if (deck::mediaKindOfFile(path) != QLatin1String("audio")) {
+        jp::plainWarning(this, title, tr("%1 isn't a sound file that %2 can play.").arg(name, appInfo().name));
+        return false;
+    }
+    QFile f(path);
+    if (!f.open(QIODevice::ReadOnly)) {
+        jp::plainWarning(this, title, tr("%1 can't open \"%2\".\n%3").arg(appInfo().name, name, f.errorString()));
+        return false;
+    }
+    // What the file says its size is can't be trusted, so what is read is counted, and nothing past the most is kept.
+    QByteArray bytes;
+    if (!deck::readMediaBytes(f, deck::kMaxEffectSoundBytes, &bytes)) {
+        jp::plainWarning(this, title, tr("%1 is too large for the sound of an effect (the most is %2 MB).").arg(name).arg(deck::kMaxEffectSoundBytes >> 20));
+        return false;
+    }
+    f.close();
+    Document *d = m_ed->doc();
+    if (bytes.isEmpty() || !deck::looksLikeMediaFile(bytes)) {
+        jp::plainWarning(this, title, tr("%1 can't read \"%2\" as a sound.").arg(appInfo().name, name));
+        return false;
+    }
+    if (!deck::mediaWouldFit(*d, bytes)) {
+        jp::plainWarning(this, title, tr("%1 is too large to put in this presentation: with it, the file could not be opened again. All its pictures, movies, and sounds together may come to %2 GB.")
+                                          .arg(name, QString::number(double(deck::mediaByteLimit()) / (1024.0 * 1024.0 * 1024.0), 'f', 1)));
+        return false;
+    }
+    const QString id = d->addMedia(bytes, deck::mediaTypeOfFile(path, QStringLiteral("audio")), QFileInfo(path).suffix());
+    if (id.isEmpty()) return false;
+    anim->sound = deck::SoundKind::File;
+    anim->soundMedia = id;
+    anim->soundName = name;
+    return true;
+}
+
 // A change to how the selected movie or sound plays, as one step that undoes. The timing is rewritten only for what changed.
 void DeckWindow::editMedia(const QString &label, const std::function<void(deck::MediaPlay &)> &change, qint64 fileLength)
 {

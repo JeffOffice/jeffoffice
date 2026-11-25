@@ -27,6 +27,7 @@ namespace jp {
 
 class Document;
 class Editor;
+class EffectSounds;
 class LayoutCache;
 
 // What an effect's kind looks like halfway through, drawn small on a slide
@@ -115,6 +116,7 @@ public:
     // Ends it at once (the presentation it plays is gone): no step is drawn after this.
     void cancel()
     {
+        stopSounds();
         m_timer.stop();
         hide();
         deleteLater();
@@ -123,6 +125,10 @@ public:
     int step() const { return m_step; }
     // How many milliseconds the steps it plays take.
     double length() const { return m_total; }
+    // The sounds of the effects, which the preview plays as the show does; a test puts its own output in their place.
+    EffectSounds *effectSounds() const { return m_sounds; }
+    // The preview as it is `ms` after it began (for tests: the preview's own clock is the real one otherwise).
+    void playTo(double ms) { tickAt(ms); }
 
 Q_SIGNALS:
     void stepChanged(int step);
@@ -130,11 +136,18 @@ Q_SIGNALS:
 
 protected:
     void paintEvent(QPaintEvent *) override;
-    void mousePressEvent(QMouseEvent *) override { stop(); }
+    void mousePressEvent(QMouseEvent *) override
+    {
+        stopSounds();
+        stop();
+    }
     void keyPressEvent(QKeyEvent *e) override;
 
 private:
     void tick();
+    void stopSounds();
+    void tickAt(double ms);
+    void playSoundsTo(int step, double inside);
     void stop();
     void begin(int slide, const QRect &area, int fromStep);
     const Document *m_doc;
@@ -146,6 +159,9 @@ private:
     QVector<double> m_starts;     // ms into the preview that each click step begins
     double m_total = 0;
     int m_slide = 0, m_first = 0, m_step = -1;
+    EffectSounds *m_sounds = nullptr;
+    int m_soundStep = 0;          // the step whose sounds have been started, and how far into it
+    double m_soundAt = -1;
     QRect m_area;
     QImage m_frame;
 };

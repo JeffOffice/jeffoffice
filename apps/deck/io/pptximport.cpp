@@ -10,6 +10,8 @@
 #include "core/deck.h"
 #include "core/embeddedfonts.h"
 #include "core/sections.h"
+#include "core/animation.h"
+#include "core/media.h"
 #include "office/diagram.h"
 #include "render/diagramdrawing.h"
 #include "io/pptxfonts.h"
@@ -727,6 +729,9 @@ private:
     qint64 m_keptNodes = 0, m_keptXmlBytes = 0;    // what the XML kept as written comes to, in all
     bool m_keptRanOut = false;
     bool keepXml(const QDomElement &e, QString *out);
+    void keepEffectSounds(const QDomElement &timing, const QString &part);
+    qint64 m_effectSoundBytes = 0;                // what the sounds of animation effects kept so far come to
+    int m_effectSoundsPastLimit = 0;              // sounds of effects left out: over the size of one, or of all
     QHash<QString, std::optional<QJsonObject>> m_chartParts;
     office::ole::ObjectBudget m_objectBudget;     // the embedded objects kept so far (their packages), against what a file may keep
     QHash<QString, QByteArray> m_objectParts;     // the packages and pictures of the objects kept, by part: a part many frames name is inflated once
@@ -782,6 +787,47 @@ bool Importer::keepXml(const QDomElement &e, QString *out)
     return true;
 }
 
+// The sounds the effects of a timing play are parts of the file: each is kept among the presentation's media, and the effect names it as
+// "media:<id>" (a relationship id means nothing once the file is read). A sound over kMaxEffectSoundBytes, or past what all of them may
+// come to, is not read at all; its effect stays as the file wrote it, with no sound of its own.
+void Importer::keepEffectSounds(const QDomElement &timing, const QString &part)
+{
+    constexpr qint64 kMostSoundsBytes = qint64(128) << 20;
+    QVector<QDomElement> pending{timing};
+    qint64 looked = 0;
+    while (!pending.isEmpty() && ++looked <= kMaxKeptNodes) {
+        const QDomElement at = pending.takeLast();
+        for (QDomElement k = at.firstChildElement(); !k.isNull(); k = k.nextSiblingElement()) pending.append(k);
+        if (at.localName() != QLatin1String("sndTgt") || at.namespaceURI() != office::ns::P) continue;
+        const QDomNamedNodeMap attrs = at.attributes();
+        for (int i = 0; i < attrs.length(); ++i) {
+            QDomAttr a = attrs.item(i).toAttr();
+            if (a.localName() != QLatin1String("embed") || !office::sameNamespace(a.namespaceURI(), office::ns::R)) continue;
+            const office::Relationship r = m_pkg.relationship(part, a.value());
+            if (r.id.isEmpty() || r.external || !r.type.endsWith(QLatin1String("/relationships/audio")) || !m_pkg.hasPart(r.target)) break;
+            const QString key = QStringLiteral("media:") + r.target.toLower();
+            QString id = m_images.value(key);
+            if (id.isEmpty()) {
+                const qint64 size = m_pkg.partSize(r.target);
+                if (size <= 0 || size > deck::kMaxEffectSoundBytes || m_effectSoundBytes + size > kMostSoundsBytes) {
+                    ++m_effectSoundsPastLimit;
+                    break;
+                }
+                const QByteArray bytes = m_pkg.part(r.target);
+                const qsizetype dot = r.target.lastIndexOf(QLatin1Char('.'));
+                const QString extension = dot > r.target.lastIndexOf(QLatin1Char('/')) ? r.target.mid(dot + 1).toLower() : QString();
+                if (bytes.isEmpty() || !deck::looksLikeMediaFile(bytes)) break;
+                id = m_doc.addMedia(bytes, m_pkg.contentType(r.target), extension);
+                if (id.isEmpty()) break;
+                m_effectSoundBytes += bytes.size();
+                m_images.insert(key, id);
+            }
+            a.setValue(QStringLiteral("media:") + id);
+            break;
+        }
+    }
+}
+
 void Importer::note(const QString &text)
 {
     if (m_notes.size() < kMaxNotes) m_notes << text;
@@ -801,6 +847,8 @@ void Importer::sayWhatRanOut()
     if (m_budget.longBody) note(QCoreApplication::translate("PptxImport", "Some text is longer than a text box is read to, so the rest of it is left out."));
     if (m_keptRanOut)
         note(QCoreApplication::translate("PptxImport", "The file holds more than %1 MB of animation, transition, and other settings in all; what is past that is left out.").arg(kMaxKeptXmlBytes >> 20));
+    if (m_effectSoundsPastLimit > 0)
+        note(QCoreApplication::translate("PptxImport", "Some sounds of animation effects are left out: each may be up to %1 MB, and all of them together up to 128 MB.").arg(deck::kMaxEffectSoundBytes >> 20));
     if (m_objectsPastLimit > 0)
         note(QCoreApplication::translate("PptxImport", "Some embedded objects are kept as pictures only (%1 in all): the file holds more objects than can be kept, or they are too large.").arg(m_objectsPastLimit));
     if (m_chartsPastLimit > 0)
@@ -1968,6 +2016,7 @@ bool Importer::readSlide(int number, const QString &part)
         if (office::isElement(c, office::ns::P, QStringLiteral("transition"))) {
             if (keepXml(c, &kept)) page->props[QStringLiteral("transitionXml")] = kept;
         } else if (office::isElement(c, office::ns::P, QStringLiteral("timing"))) {
+            keepEffectSounds(c, part);
             if (keepXml(c, &kept)) page->props[QStringLiteral("timingXml")] = kept;
         } else if (office::isElement(c, kMc, QStringLiteral("AlternateContent"))) {
             // A transition with another form for programs that don't know the first.

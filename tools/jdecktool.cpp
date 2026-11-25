@@ -497,7 +497,7 @@ int main(int argc, char **argv)
     }
 
     if (cmd == "animations") {
-        out << "slide\tindex\tkind\tvariant\tshape\tstart\tduration\tdelay\tparagraph\tamount\tafter\n";
+        out << "slide\tindex\tkind\tvariant\tshape\tstart\tduration\tdelay\tparagraph\tamount\tafter\tsound\n";
         for (int i = 0; i < doc->pages.size(); ++i) {
             const Page &page = *doc->pages[i];
             const deck::AnimSequence seq = deck::readAnimations(page, doc.get());
@@ -508,7 +508,8 @@ int main(int argc, char **argv)
                     if (it->sourceId == a.shape && name.isEmpty()) name = it->name;
                 });
                 out << i + 1 << '\t' << k + 1 << '\t' << (a.custom() ? QStringLiteral("(custom)") : a.kind) << '\t' << a.variant << '\t' << name << '\t' << int(a.start) << '\t' << a.duration << '\t'
-                    << a.delay << '\t' << a.firstParagraph << '\t' << a.amount << '\t' << int(a.after) << '\n';
+                    << a.delay << '\t' << a.firstParagraph << '\t' << a.amount << '\t' << int(a.after) << '\t' << int(a.sound)
+                    << (a.sound == deck::SoundKind::File ? QStringLiteral("\t") + a.soundName + QStringLiteral("\t") + QString::number(doc->media.value(a.soundMedia).bytes.size()) : QString()) << '\n';
             }
         }
         return 0;

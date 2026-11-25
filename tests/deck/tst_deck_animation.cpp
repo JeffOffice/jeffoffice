@@ -1,11 +1,14 @@
 // JeffDeck's tests of animations: reading, painting, editing, and writing them.
 #include "deckhelpers.h"
+#include "app/effectsounds.h"
 #include "app/theme.h"
+#include "io/zip.h"
 #include "core/effectmask.h"
 #include "core/chartobject.h"
 #include "sheet/chartedit.h"
 
 #include <QInputDialog>
+#include <QMessageBox>
 #include <QListView>
 #include <QStatusBar>
 #include <QTimer>
@@ -2669,6 +2672,448 @@ private Q_SLOTS:
             QCOMPARE(opened.effects[0].after, deck::AfterEffect::Dim);
             QCOMPARE(opened.effects[0].dimColor, blue);
         }
+    }
+
+    // ---- the sound of an effect ----
+
+    // A small sound file the show can be given (a tenth of a second of a tone).
+    static QByteArray soundWav(int hz = 440)
+    {
+        auto le32 = [](quint32 v) { return QByteArray(reinterpret_cast<const char *>(&v), 4); };
+        auto le16 = [](quint16 v) { return QByteArray(reinterpret_cast<const char *>(&v), 2); };
+        QByteArray pcm;
+        for (int i = 0; i < 800; ++i) pcm += le16(quint16(qint16(8000 * std::sin(2 * M_PI * hz * i / 8000.0))));
+        const QByteArray fmt = le16(1) + le16(1) + le32(8000) + le32(16000) + le16(2) + le16(16);
+        return "RIFF" + le32(quint32(4 + 8 + fmt.size() + 8 + pcm.size())) + "WAVE" + "fmt " + le32(quint32(fmt.size())) + fmt + "data" + le32(quint32(pcm.size())) + pcm;
+    }
+
+    // What the reference program writes inside an effect for its sound (read from a file it made): the sound begins with the effect and stops with the slide.
+    static QString soundNode(const QString &mediaId, const QString &name = QStringLiteral("tone.wav"))
+    {
+        return animXml("<p:audio><p:cMediaNode><p:cTn display='0' masterRel='sameClick'><p:stCondLst><p:cond evt='begin' delay='0'><p:tn val='5'/></p:cond></p:stCondLst><p:endCondLst><p:cond evt='onStopAudio' delay='0'><p:tgtEl><p:sldTgt/></p:tgtEl></p:cond></p:endCondLst></p:cTn>"
+                       "<p:tgtEl><p:sndTgt r:embed='media:%1' name='%2'/></p:tgtEl></p:cMediaNode></p:audio>").arg(mediaId, name);
+    }
+    static QString stopNode()
+    {
+        return animXml("<p:cmd type='evt' cmd='onstopaudio'><p:cBhvr><p:cTn display='0' masterRel='sameClick'><p:stCondLst><p:cond evt='begin' delay='0'><p:tn val='5'/></p:cond></p:stCondLst></p:cTn><p:tgtEl><p:sldTgt/></p:tgtEl></p:cBhvr></p:cmd>");
+    }
+    static QString dimNode(int spid)
+    {
+        return animXml("<p:animClr clrSpc='rgb' dir='cw'><p:cBhvr override='childStyle'><p:cTn dur='1' fill='hold' display='0' masterRel='nextClick' afterEffect='1'/><p:tgtEl><p:spTgt spid='%1'/></p:tgtEl>"
+                       "<p:attrNameLst><p:attrName>ppt_c</p:attrName></p:attrNameLst></p:cBhvr><p:to><a:srgbClr val='FF0000'/></p:to></p:animClr>").arg(spid);
+    }
+    // An effect with `sub` among what it does when it starts and ends (its p:subTnLst).
+    static QString withSub(QString effect, const QString &sub)
+    {
+        effect.insert(effect.lastIndexOf(QStringLiteral("</p:cTn></p:par>")), QStringLiteral("<p:subTnLst>") + sub + QStringLiteral("</p:subTnLst>"));
+        return effect;
+    }
+    static QString namespacesForSounds(QString timing)
+    {
+        return timing.replace(QStringLiteral("<p:timing "), QStringLiteral("<p:timing xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\" xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\" "));
+    }
+
+    // What the reference program itself writes for the sound of an effect (a sound from a file, "Stop Previous Sound", and either with a dim or a hide after it):
+    // read as an editable effect with its sound, and written again as the same markup (the sound first, then what comes after). Fails when off: yes (with the
+    // reader or the writer left out, each of these effects is kept as written and has no sound, or is written with none).
+    void animationReadsTheReferenceSound()
+    {
+        auto d = showDeck(1);
+        Page &slide = *d->pages[0];
+        numberShowShapes(slide);
+        const QString id = d->addMedia(soundWav(), QStringLiteral("audio/wav"), QStringLiteral("wav"));
+        const QString hide = animXml("<p:set><p:cBhvr override='childStyle'><p:cTn dur='1' fill='hold' display='0' masterRel='nextClick' afterEffect='1'/><p:tgtEl><p:spTgt spid='3'/></p:tgtEl>"
+                                     "<p:attrNameLst><p:attrName>style.visibility</p:attrName></p:attrNameLst></p:cBhvr><p:to><p:strVal val='hidden'/></p:to></p:set>");
+        const QString timing = namespacesForSounds(animTiming(animSteps({withSub(animAppear(2, "clickEffect"), soundNode(id)), withSub(animAppear(3, "clickEffect"), stopNode()),
+                                                                          withSub(animAppear(2, "clickEffect"), soundNode(id) + dimNode(2)), withSub(animAppear(3, "clickEffect"), stopNode() + hide)})));
+        slide.props[QStringLiteral("timingXml")] = timing;
+        const deck::AnimSequence seq = deck::readAnimations(slide);
+        QCOMPARE(int(seq.effects.size()), 4);
+        for (const deck::Anim &a : seq.effects) QVERIFY(!a.custom());
+        QCOMPARE(seq.effects[0].sound, deck::SoundKind::File);
+        QCOMPARE(seq.effects[0].soundMedia, id);
+        QCOMPARE(seq.effects[0].soundName, QStringLiteral("tone.wav"));
+        QCOMPARE(seq.effects[1].sound, deck::SoundKind::StopPrevious);
+        QCOMPARE(seq.effects[2].sound, deck::SoundKind::File);
+        QCOMPARE(seq.effects[2].after, deck::AfterEffect::Dim);
+        QCOMPARE(seq.effects[3].sound, deck::SoundKind::StopPrevious);
+        QCOMPARE(seq.effects[3].after, deck::AfterEffect::HideOnNextClick);
+        // Played as the show reads it: the same sounds, at the effect's start.
+        const deck::Timeline tl = deck::playableTimeline(slide);
+        QCOMPARE(tl.steps[0].effects[0].sound, deck::SoundKind::File);
+        QCOMPARE(tl.steps[0].effects[0].soundMedia, id);
+        QCOMPARE(tl.steps[1].effects[0].sound, deck::SoundKind::StopPrevious);
+        // Written again: the reference's form, each sound beginning with its own effect, and the sound before the dim or the hide.
+        deck::setAnimations(*d, slide, seq);
+        const QString written = slide.props.value(QStringLiteral("timingXml")).toString();
+        static const QRegularExpression ownNode(QStringLiteral("<p:cTn id=\"(\\d+)\" presetID=\"1\"[^>]*>.*?<p:subTnLst><p:audio><p:cMediaNode><p:cTn display=\"0\" masterRel=\"sameClick\"><p:stCondLst><p:cond evt=\"begin\" delay=\"0\"><p:tn val=\"(\\d+)\"/>"),
+                                                QRegularExpression::DotMatchesEverythingOption);
+        const QRegularExpressionMatch m = ownNode.match(written);
+        QVERIFY2(m.hasMatch(), qPrintable(written));
+        QCOMPARE(m.captured(2), m.captured(1));
+        QVERIFY(written.contains(QStringLiteral("</p:cTn><p:tgtEl><p:sndTgt r:embed=\"media:") + id + QStringLiteral("\" name=\"tone.wav\"/></p:tgtEl></p:cMediaNode></p:audio><p:animClr clrSpc=\"rgb\"")));
+        QVERIFY(written.contains(QStringLiteral("<p:subTnLst><p:cmd type=\"evt\" cmd=\"onstopaudio\"><p:cBhvr><p:cTn display=\"0\" masterRel=\"sameClick\"><p:stCondLst><p:cond evt=\"begin\" delay=\"0\"><p:tn val=\"")));
+        QVERIFY(written.contains(QStringLiteral("</p:cmd><p:set><p:cBhvr override=\"childStyle\">")));
+        QVERIFY(written.contains(QStringLiteral("xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\"")));
+        // And read again, the same effects.
+        const deck::AnimSequence again = deck::readAnimations(slide);
+        QCOMPARE(int(again.effects.size()), 4);
+        for (int i = 0; i < 4; ++i) {
+            QVERIFY(!again.effects[i].custom());
+            QCOMPARE(again.effects[i].sound, seq.effects[i].sound);
+            QCOMPARE(again.effects[i].soundMedia, seq.effects[i].soundMedia);
+            QCOMPARE(again.effects[i].soundName, seq.effects[i].soundName);
+            QCOMPARE(again.effects[i].after, seq.effects[i].after);
+            QCOMPARE(again.effects[i].dimColor, seq.effects[i].dimColor);
+        }
+    }
+
+    // The sounds that begin in a stretch of a step: after `from` and not after `to`; each effect's own, in the order the effects have.
+    // Fails when off: yes (with the cues not counted, a sound begins twice or never).
+    void animationSoundCuesBeginOnce()
+    {
+        deck::Step step;
+        auto effect = [](double begin, deck::SoundKind kind, const QString &media) {
+            deck::Effect e;
+            e.begin = begin;
+            e.sound = kind;
+            e.soundMedia = media;
+            return e;
+        };
+        step.effects = {effect(0, deck::SoundKind::File, QStringLiteral("a")), effect(700, deck::SoundKind::StopPrevious, QString()), effect(1200, deck::SoundKind::File, QStringLiteral("b")),
+                        effect(1300, deck::SoundKind::None, QString()), effect(1400, deck::SoundKind::File, QString())};
+        QCOMPARE(deck::soundCuesBetween(step, -1, 0), QVector<deck::SoundCue>({{deck::SoundKind::File, QStringLiteral("a"), 0}}));
+        QVERIFY(deck::soundCuesBetween(step, 0, 699).isEmpty());
+        QCOMPARE(deck::soundCuesBetween(step, 0, 700), QVector<deck::SoundCue>({{deck::SoundKind::StopPrevious, QString(), 700}}));
+        QCOMPARE(deck::soundCuesBetween(step, 700, 5000), QVector<deck::SoundCue>({{deck::SoundKind::File, QStringLiteral("b"), 1200}}));   // none for no sound, none for a sound with no file
+        QCOMPARE(int(deck::soundCuesBetween(step, -1, 5000).size()), 3);
+        QVERIFY(deck::soundCuesBetween(step, 5000, 9000).isEmpty());
+    }
+
+    // The show starts each sound once, when its effect does, and stops them all when "Stop Previous Sound" comes and when the show moves on; a slide without a
+    // sound asks the output for nothing. Fails when off: yes (with the sounds not started in the show, the output is asked for nothing).
+    void showPlaysTheSoundsOfEffects()
+    {
+        auto d = showDeck(1);
+        Page &slide = *d->pages[0];
+        numberShowShapes(slide);
+        const QString one = d->addMedia(soundWav(440), QStringLiteral("audio/wav"), QStringLiteral("wav"));
+        const QString two = d->addMedia(soundWav(660), QStringLiteral("audio/wav"), QStringLiteral("wav"));
+        slide.props[QStringLiteral("timingXml")] = namespacesForSounds(animTiming(animStep({animGroup(0, {withSub(animFadeIn(2, 500), soundNode(one))}),
+                                                                                           animGroup(700, {withSub(animFadeIn(3, 500, "afterEffect", 100), stopNode())}),
+                                                                                           animGroup(1500, {withSub(animFadeIn(2, 500, "afterEffect", 100), soundNode(two))})})));
+        LayoutCache cache;
+        SlideShow show(d.get(), &cache, 0);
+        show.resize(640, 360);
+        QVector<EffectSounds::Request> asked;
+        show.effectSounds()->setOutput([&asked](const EffectSounds::Request &r) { asked.push_back(r); });
+        show.next();
+        QVERIFY(show.isPlayingStep());
+        // The step's time is the test's: the sound of the first effect has begun with it.
+        QVERIFY(!asked.isEmpty());
+        QCOMPARE(asked[0].kind, EffectSounds::Request::Kind::Play);
+        QCOMPARE(asked[0].media, one);
+        QCOMPARE(asked[0].bytes, d->media.value(one).bytes);
+        QCOMPARE(asked[0].extension, QStringLiteral("wav"));
+        show.playStepTo(10000);
+        show.playStepTo(10000);
+        QVERIFY(!show.isPlayingStep());
+        QCOMPARE(int(asked.size()), 3);
+        QCOMPARE(asked[1].kind, EffectSounds::Request::Kind::StopAll);
+        QCOMPARE(asked[2].kind, EffectSounds::Request::Kind::Play);
+        QCOMPARE(asked[2].media, two);
+        // The show moves on (past its last slide): what plays stops.
+        show.next();
+        QCOMPARE(asked.last().kind, EffectSounds::Request::Kind::StopAll);
+
+        // No sound in the effects: nothing is asked for while the show plays them.
+        slide.props[QStringLiteral("timingXml")] = animTiming(animSteps({animFadeIn(2, 500)}));
+        SlideShow quiet(d.get(), &cache, 0);
+        quiet.resize(640, 360);
+        int quietAsked = 0;
+        quiet.effectSounds()->setOutput([&quietAsked](const EffectSounds::Request &r) { quietAsked += r.kind == EffectSounds::Request::Kind::Play ? 1 : 0; });
+        quiet.next();
+        quiet.playStepTo(10000);
+        QCOMPARE(quietAsked, 0);
+        QCOMPARE(quiet.effectSounds()->playing(), 0);
+    }
+
+    // The pane's Play preview starts the sounds as the show does: each once, at its effect's start. Fails when off: yes (with the preview's sounds off, nothing is asked).
+    void previewPlaysTheSoundsOfEffects()
+    {
+        DeckWindow w;
+        w.resize(1200, 800);
+        w.show();
+        QVERIFY(QTest::qWaitForWindowExposed(&w));
+        Editor *ed = w.editor();
+        const QString one = ed->doc()->addMedia(soundWav(440), QStringLiteral("audio/wav"), QStringLiteral("wav"));
+        triggerSlide(ed, namespacesForSounds(animTiming(animStep({animGroup(0, {withSub(animFadeIn(10, 500), soundNode(one))}), animGroup(700, {withSub(animFadeIn(11, 500, "afterEffect", 100), stopNode())})}))));
+        AnimationPreview preview(ed->doc(), &ed->cache(), w.centralWidget());
+        QVector<EffectSounds::Request> asked;
+        preview.effectSounds()->setOutput([&asked](const EffectSounds::Request &r) { asked.push_back(r); });
+        QVERIFY(preview.play(0, QRect(0, 0, 320, 180)));
+        preview.playTo(0);
+        preview.playTo(0);
+        int plays = 0, stops = 0;
+        for (const EffectSounds::Request &r : std::as_const(asked)) {
+            plays += r.kind == EffectSounds::Request::Kind::Play ? 1 : 0;
+            stops += r.kind == EffectSounds::Request::Kind::StopAll ? 1 : 0;
+        }
+        const int stopsAtStart = stops;   // (a preview begins with nothing playing)
+        QCOMPARE(plays, 1);
+        preview.playTo(900);
+        preview.playTo(900);
+        stops = 0;
+        for (const EffectSounds::Request &r : std::as_const(asked)) stops += r.kind == EffectSounds::Request::Kind::StopAll ? 1 : 0;
+        QCOMPARE(stops, stopsAtStart + 1);
+        const auto firstPlay = std::find_if(asked.cbegin(), asked.cend(), [](const EffectSounds::Request &r) { return r.kind == EffectSounds::Request::Kind::Play; });
+        QVERIFY(firstPlay != asked.cend());
+        QCOMPARE(firstPlay->media, one);
+        preview.cancel();
+    }
+
+    // The Effect Options box: No Sound, Stop Previous Sound, the sound the effect has, and Other Sound… with the file picked as the window keeps it. Fails when off:
+    // yes (with the row left out, the box has no sound to give back).
+    void effectOptionsHasASoundRow()
+    {
+        deck::Anim a = deck::makeAnim(QStringLiteral("entr.dissolve"), 4);
+        AnimationOptionsDialog dlg(a, true, AnimationOptionsDialog::EffectTab);
+        auto *sound = dlg.findChild<QComboBox *>(QStringLiteral("animSound"));
+        QVERIFY(sound);
+        QStringList items;
+        for (int i = 0; i < sound->count(); ++i) items << sound->itemText(i);
+        QCOMPARE(items, QStringList({QStringLiteral("No Sound"), QStringLiteral("Stop Previous Sound"), QStringLiteral("Other Sound…")}));
+        QCOMPARE(dlg.result().sound, deck::SoundKind::None);
+        sound->setCurrentIndex(1);
+        QCOMPARE(dlg.result().sound, deck::SoundKind::StopPrevious);
+        // Other Sound… asks the chooser, which fills in the sound; the box then lists it by its file name.
+        int asked = 0;
+        dlg.setSoundChooser([&asked](deck::Anim *anim) {
+            ++asked;
+            anim->sound = deck::SoundKind::File;
+            anim->soundMedia = QStringLiteral("media7");
+            anim->soundName = QStringLiteral("chime.wav");
+            return true;
+        });
+        Q_EMIT sound->activated(sound->count() - 1);
+        QCOMPARE(asked, 1);
+        QCOMPARE(dlg.result().sound, deck::SoundKind::File);
+        QCOMPARE(dlg.result().soundMedia, QStringLiteral("media7"));
+        QCOMPARE(dlg.result().soundName, QStringLiteral("chime.wav"));
+        QCOMPARE(sound->currentText(), QStringLiteral("chime.wav"));
+        // A chooser that picks nothing leaves the entry before it.
+        dlg.setSoundChooser([](deck::Anim *) { return false; });
+        sound->setCurrentIndex(sound->count() - 1);
+        Q_EMIT sound->activated(sound->count() - 1);
+        QCOMPARE(dlg.result().sound, deck::SoundKind::File);
+        sound->setCurrentIndex(0);
+        QCOMPARE(dlg.result().sound, deck::SoundKind::None);
+        QVERIFY(dlg.result().soundMedia.isEmpty());
+        // An effect that has a sound shows it picked.
+        a.sound = deck::SoundKind::File;
+        a.soundMedia = QStringLiteral("media7");
+        a.soundName = QStringLiteral("chime.wav");
+        AnimationOptionsDialog again(a, true, AnimationOptionsDialog::EffectTab);
+        auto *shown = again.findChild<QComboBox *>(QStringLiteral("animSound"));
+        QCOMPARE(shown->currentText(), QStringLiteral("chime.wav"));
+        QCOMPARE(again.result().soundMedia, QStringLiteral("media7"));
+    }
+
+    // A sound is picked through the window: the file is checked and kept among the presentation's media (one copy for the same file twice), and refused when it
+    // is not a sound or is larger than the most (32 MB, counted as it is read). Fails when off: yes (with no limit the large file is kept).
+    void windowKeepsTheSoundOfAnEffect()
+    {
+        DeckWindow w;
+        w.resize(1200, 800);
+        w.show();
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        w.setNotifier([](const QString &, const QString &) {});
+        QTimer closer;   // the message boxes, closed as they come
+        closer.setInterval(10);
+        QObject::connect(&closer, &QTimer::timeout, &closer, [] {
+            if (auto *box = qobject_cast<QMessageBox *>(QApplication::activeModalWidget())) box->close();
+        });
+        closer.start();
+        auto write = [&](const QString &name, const QByteArray &bytes) {
+            QFile f(dir.filePath(name));
+            [&] { QVERIFY(f.open(QIODevice::WriteOnly)); }();
+            f.write(bytes);
+            return f.fileName();
+        };
+        Document *doc = w.editor()->doc();
+        const qsizetype before = doc->media.size();
+        deck::Anim a = deck::makeAnim(QStringLiteral("entr.dissolve"), 4);
+        const QString good = write(QStringLiteral("tone.wav"), soundWav());
+        QVERIFY(w.chooseEffectSound(&a, good));
+        QCOMPARE(a.sound, deck::SoundKind::File);
+        QCOMPARE(a.soundName, QStringLiteral("tone.wav"));
+        QCOMPARE(doc->media.value(a.soundMedia).bytes, soundWav());
+        QCOMPARE(doc->media.size(), before + 1);
+        deck::Anim b = deck::makeAnim(QStringLiteral("entr.dissolve"), 5);
+        QVERIFY(w.chooseEffectSound(&b, write(QStringLiteral("copy.wav"), soundWav())));
+        QCOMPARE(b.soundMedia, a.soundMedia);
+        QCOMPARE(doc->media.size(), before + 1);
+        // Not a sound, and not a file that can be read as one.
+        deck::Anim c = deck::makeAnim(QStringLiteral("entr.dissolve"), 6);
+        QVERIFY(!w.chooseEffectSound(&c, write(QStringLiteral("notes.txt"), "words")));
+        QVERIFY(!w.chooseEffectSound(&c, write(QStringLiteral("empty.wav"), QByteArray())));
+        QVERIFY(!w.chooseEffectSound(&c, write(QStringLiteral("text.wav"), "#EXTM3U\nhttp://example.test/a.mp3\n")));
+        QCOMPARE(c.sound, deck::SoundKind::None);
+        // One byte past the most is refused as it is read: nothing is kept.
+        QByteArray big = soundWav();
+        big.resize(int(deck::kMaxEffectSoundBytes) + 1);
+        QVERIFY(!w.chooseEffectSound(&c, write(QStringLiteral("big.wav"), big)));
+        QCOMPARE(c.sound, deck::SoundKind::None);
+        QCOMPARE(doc->media.size(), before + 1);
+        big.resize(int(deck::kMaxEffectSoundBytes));
+        QVERIFY(w.chooseEffectSound(&c, write(QStringLiteral("limit.wav"), big)));
+        QCOMPARE(doc->media.size(), before + 2);
+    }
+
+    // The sounds of effects survive the window's save and open: one part for the same file used twice, one relationship, the effect still editable with its sound, a
+    // second save the same; an .odp is told it cannot hold them. Fails when off: yes (with the sounds not kept in the file, the opened effect has none).
+    void windowSoundSurvivesSaveAndOpen()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        const QByteArray wav = soundWav();
+        for (const char *ext : {"pptx", "odp"}) {
+            DeckWindow w;
+            w.resize(1200, 800);
+            w.show();
+            Editor *ed = w.editor();
+            triggerSlide(ed, animTiming(animSteps({animFadeIn(10, 500), animFadeIn(11, 500), animFadeIn(12, 500)})));
+            Page &page = *ed->doc()->pages[0];
+            const QString id = ed->doc()->addMedia(wav, QStringLiteral("audio/wav"), QStringLiteral("wav"));
+            deck::AnimSequence seq = deck::readAnimations(page, ed->doc());
+            QCOMPARE(int(seq.effects.size()), 3);
+            for (int i : {0, 1}) {
+                seq.effects[i].sound = deck::SoundKind::File;
+                seq.effects[i].soundMedia = id;
+                seq.effects[i].soundName = QStringLiteral("tone.wav");
+            }
+            seq.effects[2].sound = deck::SoundKind::StopPrevious;
+            deck::setAnimations(*ed->doc(), page, seq);
+            w.setNotifier([](const QString &, const QString &) {});
+            const QString path = dir.filePath(QStringLiteral("sound.") + QLatin1String(ext));
+            QVERIFY2(w.saveTo(path), ext);
+            if (QLatin1String(ext) == QLatin1String("odp")) {
+                QString exportError;
+                QStringList told;
+                QVERIFY(!deck::exportOdp(*ed->doc(), false, &exportError, &told).isEmpty());
+                QVERIFY2(told.join(QString()).contains(QStringLiteral("sounds that effects play are not saved")), qPrintable(told.join(QLatin1Char('|'))));
+                continue;
+            }
+            QFile file(path);
+            QVERIFY(file.open(QIODevice::ReadOnly));
+            QMap<QString, QByteArray> zip;
+            QString err;
+            QVERIFY2(readZip(file.readAll(), zip, &err), qPrintable(err));
+            // One part holds the sound, one relationship names it, and the timing names that relationship twice.
+            QStringList soundParts;
+            for (auto it = zip.cbegin(); it != zip.cend(); ++it)
+                if (it.value() == wav) soundParts << it.key();
+            QCOMPARE(soundParts.size(), 1);
+            const QString rels = QString::fromUtf8(zip.value(QStringLiteral("ppt/slides/_rels/slide1.xml.rels")));
+            QCOMPARE(rels.count(QStringLiteral("relationships/audio\"")), 1);
+            const QString slideXml = QString::fromUtf8(zip.value(QStringLiteral("ppt/slides/slide1.xml")));
+            QVERIFY(!slideXml.contains(QStringLiteral("media:")));
+            static const QRegularExpression embeds(QStringLiteral("<p:sndTgt r:embed=\"(rId\\d+)\" name=\"tone.wav\"/>"));
+            QStringList used;
+            for (auto it = embeds.globalMatch(slideXml); it.hasNext();) used << it.next().captured(1);
+            QCOMPARE(used.size(), 2);
+            QCOMPARE(used[0], used[1]);
+            QVERIFY(rels.contains(QStringLiteral("Id=\"") + used[0] + QStringLiteral("\"")));
+            QVERIFY(QString::fromUtf8(zip.value(QStringLiteral("[Content_Types].xml"))).contains(QStringLiteral("wav")));
+            // Opened again, the effects are the same and editable, with the sound's own bytes.
+            DeckWindow second;
+            QVERIFY2(second.openFile(path), ext);
+            Document *opened = second.editor()->doc();
+            const deck::AnimSequence back = deck::readAnimations(*opened->pages[0], opened);
+            QCOMPARE(int(back.effects.size()), 3);
+            for (const deck::Anim &a : back.effects) QVERIFY(!a.custom());
+            QCOMPARE(back.effects[0].sound, deck::SoundKind::File);
+            QCOMPARE(back.effects[0].soundName, QStringLiteral("tone.wav"));
+            QCOMPARE(opened->media.value(back.effects[0].soundMedia).bytes, wav);
+            QCOMPARE(back.effects[1].soundMedia, back.effects[0].soundMedia);
+            QCOMPARE(back.effects[2].sound, deck::SoundKind::StopPrevious);
+            // Saved again, the same timing.
+            second.setNotifier([](const QString &, const QString &) {});
+            const QString again = dir.filePath(QStringLiteral("again.pptx"));
+            QVERIFY(second.saveTo(again));
+            QFile file2(again);
+            QVERIFY(file2.open(QIODevice::ReadOnly));
+            QMap<QString, QByteArray> zip2;
+            QVERIFY(readZip(file2.readAll(), zip2, &err));
+            auto timingOf = [](const QMap<QString, QByteArray> &z) {
+                const QString x = QString::fromUtf8(z.value(QStringLiteral("ppt/slides/slide1.xml")));
+                return x.mid(x.indexOf(QStringLiteral("<p:timing")));
+            };
+            QVERIFY(timingOf(zip2).contains(QStringLiteral("name=\"tone.wav\"")));
+            QCOMPARE(timingOf(zip2).count(QStringLiteral("<p:sndTgt ")), 2);
+            DeckWindow third;
+            QVERIFY(third.openFile(again));
+            third.setNotifier([](const QString &, const QString &) {});
+            const QString last = dir.filePath(QStringLiteral("last.pptx"));
+            QVERIFY(third.saveTo(last));
+            QFile file3(last);
+            QVERIFY(file3.open(QIODevice::ReadOnly));
+            QMap<QString, QByteArray> zip3;
+            QVERIFY(readZip(file3.readAll(), zip3, &err));
+            QCOMPARE(timingOf(zip3), timingOf(zip2));
+        }
+    }
+
+    // A file whose effect sound is larger than the most (32 MB) is read without that sound, and the person is told; the part is not read at all (counted:
+    // nothing of it is kept among the media). Fails when off: yes (with the limit off, the large sound is kept).
+    void importLeavesOutASoundOverTheLimit()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        QString path;
+        {
+            DeckWindow w;
+            w.resize(1200, 800);
+            w.show();
+            Editor *ed = w.editor();
+            triggerSlide(ed, animTiming(animSteps({animFadeIn(10, 500)})));
+            Page &page = *ed->doc()->pages[0];
+            const QString id = ed->doc()->addMedia(soundWav(), QStringLiteral("audio/wav"), QStringLiteral("wav"));
+            deck::AnimSequence seq = deck::readAnimations(page, ed->doc());
+            seq.effects[0].sound = deck::SoundKind::File;
+            seq.effects[0].soundMedia = id;
+            seq.effects[0].soundName = QStringLiteral("tone.wav");
+            deck::setAnimations(*ed->doc(), page, seq);
+            w.setNotifier([](const QString &, const QString &) {});
+            path = dir.filePath(QStringLiteral("small.pptx"));
+            QVERIFY(w.saveTo(path));
+        }
+        QFile file(path);
+        QVERIFY(file.open(QIODevice::ReadOnly));
+        QMap<QString, QByteArray> zip;
+        QString err;
+        QVERIFY2(readZip(file.readAll(), zip, &err), qPrintable(err));
+        file.close();
+        ZipWriter out;
+        for (auto it = zip.cbegin(); it != zip.cend(); ++it) {
+            if (it.value() == soundWav()) out.add(it.key(), QByteArray(int(deck::kMaxEffectSoundBytes) + 1, '\0'), true);
+            else out.add(it.key(), it.value(), true);
+        }
+        const QString big = dir.filePath(QStringLiteral("big.pptx"));
+        QFile bigFile(big);
+        QVERIFY(bigFile.open(QIODevice::WriteOnly));
+        bigFile.write(out.finish());
+        bigFile.close();
+        QStringList told;
+        DeckWindow opened;
+        opened.setNotifier([&told](const QString &, const QString &text) { told << text; });
+        QVERIFY(opened.openFile(big));
+        Document *doc = opened.editor()->doc();
+        QVERIFY(doc->media.isEmpty());
+        const deck::AnimSequence seq = deck::readAnimations(*doc->pages[0], doc);
+        QCOMPARE(int(seq.effects.size()), 1);
+        QCOMPARE(seq.effects[0].sound, deck::SoundKind::None);
     }
 
     // A timing a file makes hostile is read within limits and never rewritten: one with more effects than a slide could have, and

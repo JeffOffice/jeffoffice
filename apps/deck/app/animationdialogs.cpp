@@ -83,6 +83,36 @@ AnimationOptionsDialog::AnimationOptionsDialog(const deck::Anim &anim, bool hasT
         m_after->setEnabled(kind->cls != deck::EffectClass::Exit);
         m_after->setToolTip(tr("After animation: what happens to the shape when the effect is over"));
         form->addRow(tr("After animation"), m_after);
+        m_sound = new QComboBox();
+        m_sound->setObjectName(QStringLiteral("animSound"));
+        m_sound->setAccessibleName(tr("Sound"));
+        m_sound->addItem(tr("No Sound"), int(deck::SoundKind::None));
+        m_sound->addItem(tr("Stop Previous Sound"), int(deck::SoundKind::StopPrevious));
+        // The sound the effect has is the third entry; a new one picked takes its place.
+        m_sound->addItem(anim.soundName.isEmpty() ? tr("Sound") : anim.soundName, int(deck::SoundKind::File));
+        m_sound->addItem(tr("Other Sound…"), -1);
+        if (anim.sound != deck::SoundKind::File || anim.soundMedia.isEmpty()) m_sound->removeItem(2);
+        m_sound->setCurrentIndex(std::max(0, m_sound->findData(int(anim.sound == deck::SoundKind::File && anim.soundMedia.isEmpty() ? deck::SoundKind::None : anim.sound))));
+        m_soundShown = m_sound->currentIndex();
+        m_sound->setToolTip(tr("A sound that plays when the effect starts"));
+        form->addRow(tr("Sound"), m_sound);
+        connect(m_sound, &QComboBox::activated, this, [this](int index) {
+            if (m_sound->itemData(index).toInt() != -1) {
+                m_soundShown = index;
+                return;
+            }
+            // Other Sound: a file is picked and kept; if none is, the entry before stays.
+            deck::Anim picked = m_anim;
+            if (m_chooser && m_chooser(&picked) && picked.sound == deck::SoundKind::File && !picked.soundMedia.isEmpty()) {
+                m_anim.soundMedia = picked.soundMedia;
+                m_anim.soundName = picked.soundName;
+                const int file = m_sound->findData(int(deck::SoundKind::File));
+                if (file >= 0) m_sound->setItemText(file, picked.soundName.isEmpty() ? tr("Sound") : picked.soundName);
+                else m_sound->insertItem(m_sound->count() - 1, picked.soundName.isEmpty() ? tr("Sound") : picked.soundName, int(deck::SoundKind::File));
+                m_soundShown = m_sound->findData(int(deck::SoundKind::File));
+            }
+            m_sound->setCurrentIndex(m_soundShown);
+        });
         m_dimColor = new ColorButton(QString(), tr("Dim color"), false, QString());
         m_dimColor->setObjectName(QStringLiteral("animDimColor"));
         m_dimColor->setWell(true);
@@ -241,6 +271,12 @@ deck::Anim AnimationOptionsDialog::result() const
     if (m_textBuild->isEnabled()) {
         a.textBuild = deck::TextBuild(m_textBuild->currentData().toInt());
         a.textDelay = int(m_textDelay->value());
+    }
+    if (m_sound) {
+        const int kind = m_sound->currentData().toInt();
+        a.sound = kind == int(deck::SoundKind::File) && !m_anim.soundMedia.isEmpty() ? deck::SoundKind::File : kind == int(deck::SoundKind::StopPrevious) ? deck::SoundKind::StopPrevious : deck::SoundKind::None;
+        a.soundMedia = a.sound == deck::SoundKind::File ? m_anim.soundMedia : QString();
+        a.soundName = a.sound == deck::SoundKind::File ? m_anim.soundName : QString();
     }
     if (m_after && m_after->isEnabled()) a.after = deck::AfterEffect(m_after->currentData().toInt());
     if (m_dimColor && a.after == deck::AfterEffect::Dim) {

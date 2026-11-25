@@ -334,6 +334,8 @@ public:
     // presentation, with its first picture as the poster and the timing that plays it in the click sequence. False, with
     // the reason shown, when the file can't be put on the slide. (deckwindow_media.cpp)
     bool insertMedia(const QString &path, const QString &kind = QString());
+    // A sound for an animation effect: the file (asked for when `path` is empty) is checked, kept in the presentation, and named in `anim`; false when none is.
+    bool chooseEffectSound(deck::Anim *anim, const QString &path = QString());
     // Captions for the selected video: a WebVTT file read as the track for a language (one step of Undo), and a language's track (or all of them, with `all`) taken out.
     bool insertCaptions(const QString &path, const QString &language);
     bool removeCaptions(const QString &language, bool all = false);

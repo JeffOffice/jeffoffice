@@ -1,6 +1,7 @@
 #include "app/animationpane.h"
 
 #include "app/editor.h"
+#include "app/effectsounds.h"
 #include "app/icons.h"
 #include "app/slideshow.h"
 #include "core/document.h"
@@ -680,6 +681,7 @@ AnimationPreview::AnimationPreview(const Document *doc, LayoutCache *cache, QWid
     setObjectName(QStringLiteral("animationPreview"));
     setFocusPolicy(Qt::StrongFocus);
     m_timer.setInterval(16);
+    m_sounds = new EffectSounds(doc, this);
     connect(&m_timer, &QTimer::timeout, this, &AnimationPreview::tick);
     hide();
 }
@@ -718,6 +720,9 @@ void AnimationPreview::begin(int slide, const QRect &area, int fromStep)
     m_total = 0;
     for (int k = m_first; k < m_timeline.steps.size(); ++k) m_total += m_timeline.steps[k].duration();
     m_step = -1;
+    m_sounds->stopAll();
+    m_soundStep = m_first;
+    m_soundAt = -1;
     setGeometry(parentWidget()->rect());
     raise();
     show();
@@ -727,10 +732,27 @@ void AnimationPreview::begin(int slide, const QRect &area, int fromStep)
     tick();
 }
 
-void AnimationPreview::tick()
+void AnimationPreview::stopSounds() { m_sounds->stopAll(); }
+
+void AnimationPreview::tick() { tickAt(m_clock.nsecsElapsed() / 1e6); }
+
+// The sounds of the steps up to `step` that begin by `inside` ms into it; each starts once.
+void AnimationPreview::playSoundsTo(int step, double inside)
+{
+    for (; m_soundStep <= step && m_soundStep < m_timeline.steps.size(); ++m_soundStep, m_soundAt = -1) {
+        const bool last = m_soundStep == step;
+        const double upTo = last ? inside : m_timeline.steps[m_soundStep].duration();
+        for (const deck::SoundCue &c : deck::soundCuesBetween(m_timeline.steps[m_soundStep], m_soundAt, upTo)) m_sounds->cue(c);
+        if (last) {
+            m_soundAt = std::max(m_soundAt, inside);
+            return;
+        }
+    }
+}
+
+void AnimationPreview::tickAt(double ms)
 {
     // A moment after the last step ends, it is over.
-    const double ms = m_clock.nsecsElapsed() / 1e6;
     if (ms > m_total + 250) {
         stop();
         return;
@@ -748,6 +770,7 @@ void AnimationPreview::tick()
         m_step = step;
         Q_EMIT stepChanged(step);
     }
+    playSoundsTo(step, inside);
     const deck::States states = deck::statesAt(m_timeline, m_geometry, step, inside);
     m_frame = renderSlideImage(m_doc, m_cache, m_slide, m_area.size(), devicePixelRatioF(), Qt::white, &states);
     update();
@@ -765,7 +788,10 @@ void AnimationPreview::stop()
 
 void AnimationPreview::keyPressEvent(QKeyEvent *e)
 {
-    if (e->key() == Qt::Key_Escape) stop();
+    if (e->key() == Qt::Key_Escape) {
+        m_sounds->stopAll();
+        stop();
+    }
     else QWidget::keyPressEvent(e);
 }
 

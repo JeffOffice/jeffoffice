@@ -354,13 +354,18 @@ QString plainLevels(const char *tag, double size)
 }
 
 // Whether an element, or anything in it, has an attribute of the relationships' namespace (r:id, r:embed...): a reference to another part of the file.
-bool refersToParts(const QDomElement &e)
+// `sounds`: the sounds of effects, which the reader keeps among the media as "media:<id>", are no reference to a part left behind.
+bool refersToParts(const QDomElement &e, const Document *sounds = nullptr)
 {
     const QDomNamedNodeMap attrs = e.attributes();
-    for (int i = 0; i < attrs.length(); ++i)
-        if (office::sameNamespace(attrs.item(i).namespaceURI(), office::ns::R)) return true;
+    for (int i = 0; i < attrs.length(); ++i) {
+        const QDomAttr a = attrs.item(i).toAttr();
+        if (!office::sameNamespace(a.namespaceURI(), office::ns::R)) continue;
+        if (sounds && e.localName() == QLatin1String("sndTgt") && a.localName() == QLatin1String("embed") && a.value().startsWith(QLatin1String("media:")) && sounds->media.contains(a.value().mid(6))) continue;
+        return true;
+    }
     for (QDomElement c = e.firstChildElement(); !c.isNull(); c = c.nextSiblingElement())
-        if (refersToParts(c)) return true;
+        if (refersToParts(c, sounds)) return true;
     return false;
 }
 
@@ -573,6 +578,7 @@ private:
     QString keptPartName(const QString &original, const QString &folder, bool keepMedia = false);
     QString keptSlideXml(const Page &slide, const char *key, const QString &what, const QString &where, const QSet<qint64> &frameIds,
                          const QSet<qint64> &mediaIds, const QString *xmlGiven = nullptr);
+    QString withSoundParts(const QString &timing, const QString &part);
     QString background(const PageBase &page, const QString &part, bool required, const QString &where);
     QString textStyles(const MasterOut &master);
     QString withLevelStyles(const QString &xml, const MasterPage &page, const MasterOut &master);
@@ -875,7 +881,7 @@ QString Exporter::keptSlideXml(const Page &slide, const char *key, const QString
         note(QCoreApplication::translate("PptxExport", "%1: the %2 can't be read and was left out.").arg(where, what));
         return QString();
     }
-    if (refersToParts(dom.documentElement())) {
+    if (refersToParts(dom.documentElement(), std::strcmp(key, "timingXml") == 0 ? &m_doc : nullptr)) {
         note(QCoreApplication::translate("PptxExport", "%1: the %2 uses a sound or other part of the file that isn't kept, and was left out.").arg(where, what));
         return QString();
     }
@@ -892,6 +898,44 @@ QString Exporter::keptSlideXml(const Page &slide, const char *key, const QString
         return QString();
     }
     return xml;
+}
+
+// The sounds a slide's timing plays, named "media:<id>" while the presentation is open: each is stored once among the media (a sound a picture plays is the
+// same part), and the slide gets one relationship for it.
+QString Exporter::withSoundParts(const QString &timing, const QString &part)
+{
+    if (!timing.contains(QLatin1String("embed=\"media:"))) return timing;
+    static const QRegularExpression named(QStringLiteral("(\\b[\\w.-]+:embed=\")media:([^\"]*)\""));
+    QHash<QString, QString> related;
+    QString out;
+    qsizetype from = 0;
+    for (auto it = named.globalMatch(timing); it.hasNext();) {
+        const QRegularExpressionMatch m = it.next();
+        const QString mediaId = m.captured(2);
+        const auto data = m_doc.media.constFind(mediaId);
+        QString id = related.value(mediaId);
+        if (id.isEmpty() && data != m_doc.media.cend() && !data->bytes.isEmpty()) {
+            const QString key = QStringLiteral("media:") + mediaId;
+            QString name = m_media.value(key);
+            if (name.isEmpty()) {
+                static const QRegularExpression plain(QStringLiteral("^[a-z0-9]{1,8}$"));
+                const QString extension = plain.match(data->extension.toLower()).hasMatch() ? data->extension.toLower() : QStringLiteral("bin");
+                const QStringList taken = m_media.values();
+                int n = 1;
+                do {
+                    name = QStringLiteral("/ppt/media/media%1.%2").arg(n++).arg(extension);
+                } while (taken.contains(name));
+                m_pkg.addPart(name, data->bytes, data->contentType.isEmpty() ? QStringLiteral("audio/unknown") : data->contentType);
+                m_media.insert(key, name);
+            }
+            id = m_pkg.addRelationship(part, QString(office::ns::R) + QStringLiteral("/audio"), name);
+            related.insert(mediaId, id);
+        }
+        out += timing.mid(from, m.capturedStart() - from);
+        out += id.isEmpty() ? m.captured(0) : m.captured(1) + id + QLatin1Char('"');
+        from = m.capturedEnd();
+    }
+    return out + timing.mid(from);
 }
 
 // A part name for a kept part of a chart or diagram: the one it had when that is free and in a folder only they write to, else a free one in `folder`.
@@ -1709,7 +1753,7 @@ void Exporter::writeSlide(int i)
     int dropped = 0;
     const QString timing = deck::timingForSave(m_doc, page, [&](int shape) { return frameIds.contains(shape); }, &dropped);
     if (dropped > 0) note(QCoreApplication::translate("PptxExport", "%1: animation effects of shapes that are gone were left out.").arg(where));
-    xml += keptSlideXml(page, "timingXml", QCoreApplication::translate("PptxExport", "animation"), where, frameIds, mediaIds, &timing);
+    xml += withSoundParts(keptSlideXml(page, "timingXml", QCoreApplication::translate("PptxExport", "animation"), where, frameIds, mediaIds, &timing), part);
     xml += QStringLiteral("</p:sld>");
     add(part, kTypeBase + QStringLiteral("slide+xml"), xml);
     writeComments(i, part);

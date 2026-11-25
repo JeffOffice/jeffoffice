@@ -78,6 +78,7 @@ struct Page;
 class LayoutCache;
 class PresenterView;
 class ShowMedia;
+class EffectSounds;
 class StepFrames;
 class MorphFrames;
 
@@ -169,6 +170,10 @@ public:
     PresenterView *presenterView() const;
     // The movies and sounds of the slide on the screen.
     ShowMedia *media() const { return m_media; }
+    // The sounds the slide's effects start (effectsounds.h); a test puts its own output in their place.
+    EffectSounds *effectSounds() const { return m_sounds; }
+    // The step that plays goes on to `ms` after its start, as its clock would take it (for tests: the step's own time is the real one otherwise).
+    void playStepTo(double ms) { stepFrameAt(ms); }
     // The link of the object chosen with Tab on the slide on the screen (Enter follows it); empty when none is.
     QString focusedLink() const;
     // The show of another presentation a link started, which this one waits for (null when none runs).
@@ -388,6 +393,8 @@ private:
     void startAutomaticSteps();
     void startStep(int step);
     void stepFrame();
+    void stepFrameAt(double ms);
+    void playSoundsTo(double ms);
     void finishStep();
     void stepChanged();
     void showSlide(int pos, int steps = 0);
@@ -497,6 +504,8 @@ private:
     bool m_watchingScreens = false;
     ScreenInfo m_audience, m_presenterScreen;   // where placeOn put them
     ShowMedia *m_media = nullptr;   // the movies and sounds (showmedia.h)
+    EffectSounds *m_sounds = nullptr;   // the sounds of effects
+    double m_soundAt = -1;              // how far into the step that plays the sounds have been started
     // The pointer, and the ink the pen and highlighter left, by slide.
     Pointer m_pointer = Pointer::Arrow;
     QColor m_penColor, m_highlighterColor;

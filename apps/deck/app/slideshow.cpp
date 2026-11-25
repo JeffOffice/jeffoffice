@@ -5,6 +5,7 @@
 #include "app/presenterview.h"
 #include "app/rehearsebar.h"
 #include "app/settings.h"
+#include "app/effectsounds.h"
 #include "app/showmedia.h"
 #include "core/media.h"
 #include "core/document.h"
@@ -671,6 +672,7 @@ SlideShow::SlideShow(const Document *doc, LayoutCache *cache, int startSlide, QW
     setCursor(Qt::BlankCursor);
     setMouseTracking(true);
     m_media = new ShowMedia(doc, this);
+    m_sounds = new EffectSounds(doc, this);
     for (const auto &page : doc->pages) m_ids << page->id;
     m_startSlide = std::clamp(startSlide, 0, std::max(0, int(doc->pages.size()) - 1));
     m_pos = nextShown(m_startSlide, 1);
@@ -871,6 +873,7 @@ void SlideShow::rebind(const Document *doc)
 {
     m_doc = doc;
     m_media->rebind(doc);
+    m_sounds->rebind(doc);
     m_rebound = true;
     m_anim.stop();
     m_animating = false;
@@ -972,6 +975,7 @@ void SlideShow::moveOn()
     if (n < 0) {
         m_atEnd = true;
         m_media->end();
+        m_sounds->stopAll();
         timeSlide(-1);
         update();
         Q_EMIT changed();
@@ -1028,6 +1032,7 @@ void SlideShow::goToPosition(int pos)
 void SlideShow::showSlide(int pos, int steps)
 {
     m_media->leave(pos);
+    m_sounds->stopAll();
     m_frame.stop();
     // A stroke being drawn stays on the slide it began on.
     m_drawing = m_erasing = false;
@@ -1064,6 +1069,7 @@ void SlideShow::startTransition(int pos, const deck::Transition &t)
     // Both images are ready before the first frame, with the ink the slides hold.
     const int slide = slideAt(pos);
     m_media->leave(pos);
+    m_sounds->stopAll();
     // A morph moves the slides' objects: it needs no pictures of them.
     m_morph = t.isMorph() ? morphFor(slide, t) : nullptr;
     m_fromOverlay = m_morph ? QImage() : withOverlay(nowImage(), m_slide);
@@ -1269,6 +1275,8 @@ void SlideShow::startStep(int step)
     m_stepLength = playOf(m_slide).timeline.steps[step].duration();
     m_stepMs = 0;
     m_nowValid = false;
+    m_soundAt = -1;
+    playSoundsTo(0);
     if (m_stepLength < 2) {   // an appearing shape: a set that takes a millisecond
         finishStep();
         return;
@@ -1286,7 +1294,25 @@ void SlideShow::stepFrame()
         m_frame.stop();
         return;
     }
-    const double ms = m_stepClock.nsecsElapsed() / 1e6;
+    stepFrameAt(m_stepClock.nsecsElapsed() / 1e6);
+}
+
+// The sounds of the step's effects that begin by `ms`; each starts once.
+void SlideShow::playSoundsTo(double ms)
+{
+    const deck::Timeline &tl = playOf(m_slide).timeline;
+    if (m_playing < 0 || m_playing >= tl.steps.size()) return;
+    for (const deck::SoundCue &c : deck::soundCuesBetween(tl.steps[m_playing], m_soundAt, ms)) m_sounds->cue(c);
+    m_soundAt = std::max(m_soundAt, ms);
+}
+
+void SlideShow::stepFrameAt(double ms)
+{
+    if (m_playing < 0) {
+        m_frame.stop();
+        return;
+    }
+    playSoundsTo(ms);
     if (ms >= m_stepLength) {
         finishStep();
         return;
@@ -2621,6 +2647,7 @@ void SlideShow::closeEvent(QCloseEvent *e)
 {
     if (m_nested) m_nested->close();
     m_media->end();
+    m_sounds->stopAll();
     m_anim.stop();
     m_frame.stop();
     m_auto.stop();

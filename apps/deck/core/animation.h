@@ -102,6 +102,10 @@ struct Behavior {
 
 enum class EffectClass { Entrance, Exit, Emphasis, MotionPath, Media, Verb, Other };
 enum class EffectStart { OnClick, WithPrevious, AfterPrevious };
+// The sound an effect has when it starts: none, the end of the sounds an effect before it started, or one from a file kept in the presentation.
+enum class SoundKind { None, StopPrevious, File };
+// The most a sound of an effect may be, in bytes: a file is cut off before it is read when it is larger.
+constexpr qint64 kMaxEffectSoundBytes = qint64(32) << 20;
 
 struct Effect {
     EffectClass cls = EffectClass::Other;
@@ -115,6 +119,8 @@ struct Effect {
     int iterate = 0;                 // its text plays by word (1) or by letter (2), each piece a little after the one before
     double iteratePct = 0.1;         // how long after the piece before, as a share of one run (the file's percent of the effect)
     double iterateMs = -1;           // or, when the file says so, this many ms (-1: not so)
+    SoundKind sound = SoundKind::None;   // a sound it starts with (its media id in soundMedia), or the stopping of the sounds before it
+    QString soundMedia;
     int units = 0;                   // how many pieces its text has (textPieces): set where the document is known, 0 for none or not known
     // How long one play takes, the pieces' delays not counted.
     double single() const;
@@ -286,6 +292,19 @@ const EffectKind *effectKind(const QString &id);
 // empty for any other color. And back: the a:srgbClr or a:schemeClr element for a ColorRef text (empty when it has no plain form).
 QString dimColorFromXml(const QDomElement &choice);
 QString dimColorToXml(const QString &colorRef);
+// The sound an effect's time node (its p:cTn) starts: what its p:subTnLst says (a p:audio that plays a sound kept in the file as "media:<id>", or the call that stops the
+// sounds before). `name` is the file name the p:audio gives; false for a sound this cannot keep as a sound (a kept effect holds it as written).
+bool soundOfEffectNode(const QDomElement &cTn, SoundKind *kind, QString *mediaId, QString *name);
+
+// A sound that begins while a step plays: it starts (or the sounds before it stop) `at` ms after the step began.
+struct SoundCue {
+    SoundKind kind = SoundKind::None;
+    QString media;
+    double at = 0;
+    bool operator==(const SoundCue &o) const { return kind == o.kind && media == o.media && at == o.at; }
+};
+// The sounds of a step's effects that begin after `from` and not after `to` (ms from the step's start; -1 for from counts what begins at 0), in the order the effects have.
+QVector<SoundCue> soundCuesBetween(const Step &step, double from, double to);
 
 // How the text of a shape is animated: the whole text at once, by word, or by letter (Anim::textDelay is the time between pieces).
 enum class TextBuild { AllAtOnce, ByWord, ByLetter };
@@ -306,6 +325,9 @@ struct Anim {
     AfterEffect after = AfterEffect::None;
     TextBuild textBuild = TextBuild::AllAtOnce;
     int textDelay = 10;              // percent of the effect's length between one word or letter and the next (0 to 100)
+    SoundKind sound = SoundKind::None;   // played when the effect starts
+    QString soundMedia;              // with SoundKind::File: the sound's id among the document's media (Document::media)
+    QString soundName;               // and the name of its file, as the file keeps it
     QString dimColor;                // with AfterEffect::Dim: the color, a ColorRef as text ("#RRGGBB" or a theme slot such as "@1")
     double repeat = 1;
     double amount = 0;               // growshrink: percent (150); spin: degrees (360)
@@ -318,7 +340,7 @@ struct Anim {
     bool operator==(const Anim &o) const
     {
         return kind == o.kind && cls == o.cls && variant == o.variant && shape == o.shape && firstParagraph == o.firstParagraph && lastParagraph == o.lastParagraph && start == o.start &&
-               duration == o.duration && delay == o.delay && smoothStart == o.smoothStart && smoothEnd == o.smoothEnd && rewind == o.rewind && after == o.after && textBuild == o.textBuild && textDelay == o.textDelay && dimColor == o.dimColor && repeat == o.repeat &&
+               duration == o.duration && delay == o.delay && smoothStart == o.smoothStart && smoothEnd == o.smoothEnd && rewind == o.rewind && after == o.after && textBuild == o.textBuild && textDelay == o.textDelay && dimColor == o.dimColor && sound == o.sound && soundMedia == o.soundMedia && soundName == o.soundName && repeat == o.repeat &&
                amount == o.amount && group == o.group && xml == o.xml;
     }
     bool operator!=(const Anim &o) const { return !(*this == o); }

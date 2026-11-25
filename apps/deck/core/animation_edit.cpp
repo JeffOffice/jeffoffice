@@ -349,6 +349,7 @@ void canon(const QDomElement &e, QString *out, int depth)
     const QDomNamedNodeMap attrs = e.attributes();
     for (int i = 0; i < attrs.length(); ++i) {
         const QDomAttr a = attrs.item(i).toAttr();
+        if (a.name() == QLatin1String("xmlns") || a.name().startsWith(QLatin1String("xmlns:"))) continue;   // what a name stands for is no part of what is said
         if (a.localName() == QLatin1String("id") && e.localName() == QLatin1String("cTn")) continue;
         if (a.localName() == QLatin1String("val") && e.localName() == QLatin1String("tn")) continue;   // a time node's number
         list.push_back({a.localName(), a.value()});
@@ -564,15 +565,26 @@ QString effectXml(const Anim &a, int grpId, bool placeholder, Ids *ids)
     const QString dim = a.after == AfterEffect::Dim ? dimColorToXml(a.dimColor) : QString();
     if (!dim.isEmpty()) {
         // Dimmed at the next click, as the program writes it: the shape's color animated to the dim color.
-        after = QStringLiteral("<p:subTnLst><p:animClr clrSpc=\"rgb\" dir=\"cw\"><p:cBhvr override=\"childStyle\"><p:cTn dur=\"1\" fill=\"hold\" display=\"0\" masterRel=\"nextClick\" afterEffect=\"1\"/>%1"
-                               "<p:attrNameLst><p:attrName>ppt_c</p:attrName></p:attrNameLst></p:cBhvr><p:to>%2</p:to></p:animClr></p:subTnLst>")
+        after = QStringLiteral("<p:animClr clrSpc=\"rgb\" dir=\"cw\"><p:cBhvr override=\"childStyle\"><p:cTn dur=\"1\" fill=\"hold\" display=\"0\" masterRel=\"nextClick\" afterEffect=\"1\"/>%1"
+                               "<p:attrNameLst><p:attrName>ppt_c</p:attrName></p:attrNameLst></p:cBhvr><p:to>%2</p:to></p:animClr>")
                     .arg(targetXml(a), dim);
     } else if (a.after == AfterEffect::Hide || a.after == AfterEffect::HideOnNextClick) {
         const bool next = a.after == AfterEffect::HideOnNextClick;
         const QString cTn = QStringLiteral("<p:cTn dur=\"1\" fill=\"hold\" display=\"0\" masterRel=\"%1\" afterEffect=\"1\"").arg(next ? QStringLiteral("nextClick") : QStringLiteral("sameClick"))
                             + (next ? QStringLiteral("/>") : QStringLiteral("><p:stCondLst><p:cond evt=\"end\" delay=\"0\"><p:tn val=\"%1\"/></p:cond></p:stCondLst></p:cTn>").arg(id));
-        after = QStringLiteral("<p:subTnLst><p:set><p:cBhvr override=\"childStyle\">%1%2<p:attrNameLst><p:attrName>style.visibility</p:attrName></p:attrNameLst></p:cBhvr><p:to><p:strVal val=\"hidden\"/></p:to></p:set></p:subTnLst>").arg(cTn, targetXml(a));
+        after = QStringLiteral("<p:set><p:cBhvr override=\"childStyle\">%1%2<p:attrNameLst><p:attrName>style.visibility</p:attrName></p:attrNameLst></p:cBhvr><p:to><p:strVal val=\"hidden\"/></p:to></p:set>").arg(cTn, targetXml(a));
     }
+    // Its sound, as the program writes it: the first of what the effect does when it is over, beginning with the effect.
+    QString sound;
+    const QString begins = QStringLiteral("<p:stCondLst><p:cond evt=\"begin\" delay=\"0\"><p:tn val=\"%1\"/></p:cond></p:stCondLst>").arg(id);
+    if (a.sound == SoundKind::File && !a.soundMedia.isEmpty()) {
+        sound = QStringLiteral("<p:audio><p:cMediaNode><p:cTn display=\"0\" masterRel=\"sameClick\">%1<p:endCondLst><p:cond evt=\"onStopAudio\" delay=\"0\"><p:tgtEl><p:sldTgt/></p:tgtEl></p:cond></p:endCondLst></p:cTn>"
+                               "<p:tgtEl><p:sndTgt r:embed=\"media:%2\" name=\"%3\"/></p:tgtEl></p:cMediaNode></p:audio>")
+                    .arg(begins, a.soundMedia.toHtmlEscaped(), a.soundName.toHtmlEscaped().replace(QLatin1Char('"'), QStringLiteral("&quot;")));
+    } else if (a.sound == SoundKind::StopPrevious) {
+        sound = QStringLiteral("<p:cmd type=\"evt\" cmd=\"onstopaudio\"><p:cBhvr><p:cTn display=\"0\" masterRel=\"sameClick\">%1</p:cTn><p:tgtEl><p:sldTgt/></p:tgtEl></p:cBhvr></p:cmd>").arg(begins);
+    }
+    if (!sound.isEmpty() || !after.isEmpty()) after = QStringLiteral("<p:subTnLst>%1%2</p:subTnLst>").arg(sound, after);
     // Its text by word or by letter: a piece after the piece before, a share of the effect's length later (in thousandths of a percent).
     const QString iterate = a.textBuild == TextBuild::AllAtOnce ? QString()
                                                                : QStringLiteral("<p:iterate type=\"%1\"><p:tmPct val=\"%2\"/></p:iterate>").arg(a.textBuild == TextBuild::ByWord ? QStringLiteral("wd") : QStringLiteral("lt")).arg(qint64(a.textDelay) * 1000);
@@ -778,6 +790,7 @@ Anim readEffect(const QDomElement &par, const QDomElement &cTn, int span)
         const QString master = attr(hide, QStringLiteral("masterRel"));
         k.after = master == QLatin1String("nextClick") ? AfterEffect::HideOnNextClick : master == QLatin1String("sameClick") ? AfterEffect::Hide : AfterEffect::None;
     }
+    soundOfEffectNode(cTn, &k.sound, &k.soundMedia, &k.soundName);
     const QString count = attr(cTn, QStringLiteral("repeatCount"));
     k.repeat = count.isEmpty() ? 1 : std::max(1.0, count.toDouble() / 1000);
     if (found.kind->amount == EffectKind::Amount::Size) {
@@ -812,7 +825,7 @@ Anim readEffect(const QDomElement &par, const QDomElement &cTn, int span)
     Ids ids;
     QString again = effectXml(k, k.group, placeholder, &ids);
     if (again.isEmpty()) return a;
-    again.replace(0, 6, QStringLiteral("<p:par xmlns:p=\"%1\" xmlns:a=\"%2\"").arg(office::ns::P, office::ns::A));
+    again.replace(0, 6, QStringLiteral("<p:par xmlns:p=\"%1\" xmlns:a=\"%2\" xmlns:r=\"%3\"").arg(office::ns::P, office::ns::A, office::ns::R));
     if (canonOf(again) != canonOf(a.xml)) {
         // A transparency as a set of the opacity: the same effect, in the other form.
         static const QRegularExpression animForm(QStringLiteral("<p:anim calcmode=\"lin\" valueType=\"num\">(<p:cBhvr>.*?</p:cBhvr>)<p:tavLst>.*?<p:tav tm=\"100000\"><p:val><p:strVal val=\"([^\"]*)\"/></p:val></p:tav></p:tavLst></p:anim>"),
@@ -1419,12 +1432,14 @@ void copyEffects(AnimSequence &seq, int from, const QVector<int> &to)
 namespace {
 
 // The namespaces the written timing declares: the ones the file's timing did, and the presentation namespace the effects JeffDeck makes use.
-QString declarationsFor(const QString &declared, bool colors)
+QString declarationsFor(const QString &declared, bool colors, bool sounds)
 {
     QString out = declared;
     if (!out.contains(QStringLiteral(" xmlns:p=\"")) && !out.contains(QStringLiteral(" xmlns:p='"))) out += QStringLiteral(" xmlns:p=\"%1\"").arg(office::ns::P);
     // A dim names its color with a DrawingML element.
     if (colors && !out.contains(QStringLiteral(" xmlns:a=\"")) && !out.contains(QStringLiteral(" xmlns:a='"))) out += QStringLiteral(" xmlns:a=\"%1\"").arg(office::ns::A);
+    // A sound names the part it plays with a relationship.
+    if (sounds && !out.contains(QStringLiteral(" xmlns:r=\"")) && !out.contains(QStringLiteral(" xmlns:r='"))) out += QStringLiteral(" xmlns:r=\"%1\"").arg(office::ns::R);
     return out;
 }
 
@@ -1554,11 +1569,17 @@ QString animationsXml(const Document &doc, const Page &slide, const AnimSequence
 
     // What the file keeps beside the main sequence keeps its own numbers; the rest are numbered around them, in document order: each
     // click step, each part of it, each effect.
-    bool dims = false;
-    for (const Anim &a : std::as_const(effects)) dims = dims || a.after == AfterEffect::Dim;
+    bool dims = false, sounds = false;
+    for (const Anim &a : std::as_const(effects)) {
+        dims = dims || a.after == AfterEffect::Dim;
+        sounds = sounds || a.sound == SoundKind::File;
+    }
     for (const TriggerSeq &t : std::as_const(live.triggers))
-        for (const Anim &a : t.effects) dims = dims || a.after == AfterEffect::Dim;
-    const QString declared = declarationsFor(seq.declarations, dims);
+        for (const Anim &a : t.effects) {
+            dims = dims || a.after == AfterEffect::Dim;
+            sounds = sounds || a.sound == SoundKind::File;
+        }
+    const QString declared = declarationsFor(seq.declarations, dims, sounds);
     Ids ids;
     QSet<int> aimedAt;
     for (qsizetype k = 0; k < seq.kept.size(); ++k) {
