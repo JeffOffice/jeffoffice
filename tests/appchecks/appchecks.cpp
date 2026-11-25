@@ -211,7 +211,22 @@ bool Watch::eventFilter(QObject *o, QEvent *e)
     return false;
 }
 
+// The windows there are now, each held by a QPointer: a window deleted afterwards leaves a null, and a new one that the allocator puts at the same address is not that window.
+static QList<QPointer<QWidget>> topLevelsNow()
+{
+    QList<QPointer<QWidget>> now;
+    for (QWidget *top : QApplication::topLevelWidgets()) now.append(top);
+    return now;
+}
+
 int Watch::closeNewWindows(const QList<QWidget *> &keep)
+{
+    QList<QPointer<QWidget>> held;
+    for (QWidget *top : keep) held.append(top);
+    return closeNewWindows(held);
+}
+
+int Watch::closeNewWindows(const QList<QPointer<QWidget>> &keep)
 {
     int n = 0;
     for (QWidget *top : QApplication::topLevelWidgets()) {
@@ -690,7 +705,7 @@ static qint64 g_waitedMs = 0;   // (JP_CHECKS_TIMES: what observe() spent waitin
 Outcome observe(Adapter &app, jp::AppWindow *w, const QAction *skip, Watch &watch, const std::function<void()> &doIt, bool quiet, int ceiling)
 {
     Outcome out;
-    const QList<QWidget *> before = QApplication::topLevelWidgets();
+    const QList<QPointer<QWidget>> before = topLevelsNow();
     if (!quiet) settledState(app, w, skip, QStringLiteral("before the command"), out.warnings);
     const QString screen = fingerprint(w, skip);
     const QString doc = app.docState(w);

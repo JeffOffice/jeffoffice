@@ -37,6 +37,8 @@ public:
     void begin();
     // Closes the windows that opened since begin() (not the ones given), and says how many there were.
     int closeNewWindows(const QList<QWidget *> &keep);
+    // (the windows as they were, each held so that a window deleted since is not taken for a new one that has its address)
+    int closeNewWindows(const QList<QPointer<QWidget>> &keep);
     // Dialogs and menus that opened, by class and text ("QMessageBox: Do you want to save...").
     QStringList dialogs;
     QStringList warnings;

@@ -26,12 +26,14 @@
 
 #include <QClipboard>
 #include <QFileInfo>
+#include <QFrame>
 #include <QGuiApplication>
 #include <QTimer>
 #include <QLabel>
 #include <QToolButton>
 #include <QStatusBar>
 #include <memory>
+#include <new>
 
 using namespace jp;
 using namespace appchecks;
@@ -835,6 +837,32 @@ private Q_SLOTS:
             QVERIFY2(!asCrunch(w.get())->busyForTest(), qPrintable(c.name));
             QVERIFY2(quiet(asCrunch(w.get())), qPrintable(c.name));
         }
+    }
+
+    // A window that is closed, deleted, and made again at the same address (a menu or box that the program builds anew at each use) is a new window: the allocator hands the freed memory to
+    // the next one, so a window is told apart by more than its address (Nov 25: Ctrl+Q of Quick Analysis "did nothing" when the new box had the old one's address).
+    void aWindowMadeAgainAtTheSameAddressIsSeen()
+    {
+        std::unique_ptr<AppWindow> w(m_app.launch());
+        QVERIFY(w);
+        alignas(QFrame) char room[sizeof(QFrame)];
+        auto *box = new (room) QFrame(nullptr, Qt::Popup);
+        box->show();
+        box->hide();
+        QVERIFY(QApplication::topLevelWidgets().contains(box));
+        Watch watch;
+        bool sameAddress = false;
+        const Outcome o = observe(m_app, w.get(), nullptr, watch, [&] {
+            box->~QFrame();
+            box = new (room) QFrame(nullptr, Qt::Popup);
+            sameAddress = reinterpret_cast<char *>(box) == room;
+            box->show();
+        });
+        QVERIFY(sameAddress);
+        QCOMPARE(o.how, QStringLiteral("opened a window"));
+        QCOMPARE(o.windows, 1);
+        QVERIFY(!box->isVisible());   // (closed again, as every window a command opens is)
+        box->~QFrame();
     }
 
     // ---- 3. every command
