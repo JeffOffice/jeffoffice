@@ -2037,6 +2037,187 @@ private Q_SLOTS:
         QCOMPARE(dlg.result().after, deck::AfterEffect::HideOnNextClick);
     }
 
+    // Animate Text: by word or by letter, a piece after the piece before (a percent of the effect's length later). It is written as an iterate
+    // with a percent, reads back as the same effect (not a kept one), has the pieces the text has when the document is known, and plays one piece
+    // after another. Fails when off: yes (with the iterate not read for playing, no piece is found).
+    void animationTextByWordAndByLetter()
+    {
+        auto d = showDeck(1);
+        Page &slide = *d->pages[0];
+        numberShowShapes(slide);
+        QTextDocument *story = d->storyDoc(static_cast<TextItem *>(slide.items[0].get())->storyId);
+        story->setPlainText(QStringLiteral("one two three four five"));
+        deck::AnimSequence seq;
+        deck::Anim a = deck::makeAnim(QStringLiteral("entr.fade"), 2);
+        a.duration = 1000;
+        a.textBuild = deck::TextBuild::ByWord;
+        a.textDelay = 10;
+        seq.add(a);
+        deck::setAnimations(*d, slide, seq);
+        const QString xml = slide.props.value(QStringLiteral("timingXml")).toString();
+        QVERIFY(xml.contains(QStringLiteral("</p:stCondLst><p:iterate type=\"wd\"><p:tmPct val=\"10000\"/></p:iterate><p:childTnLst>")));
+        deck::AnimSequence back = deck::readAnimations(slide);
+        QCOMPARE(int(back.effects.size()), 1);
+        QVERIFY(!back.effects[0].custom());
+        QCOMPARE(back.effects[0].textBuild, deck::TextBuild::ByWord);
+        QCOMPARE(back.effects[0].textDelay, 10);
+        deck::setAnimations(*d, slide, back);
+        QCOMPARE(slide.props.value(QStringLiteral("timingXml")).toString(), xml);   // the same bytes
+        // An interval in time (not in percent) has no form in the box: the effect is kept as written, and plays all the same.
+        QString absolute = xml;
+        absolute.replace(QStringLiteral("<p:tmPct val=\"10000\"/>"), QStringLiteral("<p:tmAbs val=\"100\"/>"));
+        slide.props[QStringLiteral("timingXml")] = absolute;
+        QVERIFY(deck::readAnimations(slide).effects[0].custom());
+        QCOMPARE(deck::playableTimeline(*d, slide).steps[0].effects[0].units, 5);
+        slide.props[QStringLiteral("timingXml")] = xml;
+        // Five words; with no document the pieces are not known and the text plays whole.
+        deck::Timeline tl = deck::playableTimeline(*d, slide);
+        QCOMPARE(tl.steps[0].effects[0].units, 5);
+        QCOMPARE(deck::playableTimeline(slide).steps[0].effects[0].units, 0);
+        // One run is 1,000 ms; the last of five words starts four tenths of that later.
+        QCOMPARE(tl.steps[0].effects[0].once(), 1400.0);
+        const deck::Geometry g = deck::geometryOf(*d, slide);
+        auto pieces = [&](double ms) { return deck::statesAt(tl, g, 0, ms).value(deck::Target{2}); };
+        deck::TargetState mid = pieces(500);
+        QCOMPARE(int(mid.pieces.size()), 5);
+        QCOMPARE(mid.textBuild, 1);
+        QVERIFY(mid.visible);
+        for (int i = 0; i < 5; ++i) QVERIFY2(qAbs(mid.pieces[i].opacity - std::clamp((500 - 100.0 * i) / 1000, 0.0, 1.0)) < 0.01, qPrintable(QString::number(i)));
+        QVERIFY(!pieces(0).visible);    // nothing is in yet
+        QVERIFY(pieces(0).pieces.isEmpty());
+        const deck::TargetState done = deck::statesAt(tl, g, 1, -1).value(deck::Target{2});
+        QVERIFY(done.visible && done.pieces.isEmpty() && done.textBuild == 0);   // all of it, as the slide has it
+        // Painted: partway there is some of the text, not none and not all of it.
+        LayoutCache cache;
+        auto ink = [&](const deck::TargetState &st) {
+            deck::States states;
+            states.insert(deck::Target{2}, st);
+            const QImage img = paintedSlide(d.get(), &cache, 0, [&](PaintContext &ctx) { deck::animate(ctx, *d, states); });
+            const QRect box = slide.items[0]->rect.toAlignedRect().adjusted(0, 0, 0, 0).intersected(img.rect());
+            qint64 sum = 0;
+            for (int y = box.top(); y <= box.bottom(); ++y)
+                for (int x = box.left(); x <= box.right(); ++x) sum += 255 - qGray(img.pixel(x, y));
+            return sum;
+        };
+        const qint64 all = ink(deck::TargetState()), part = ink(mid);
+        deck::TargetState none = mid;
+        for (deck::PieceState &ps : none.pieces) ps.visible = false;
+        QVERIFY2(part > ink(none) && part < all, qPrintable(QStringLiteral("%1 %2 %3").arg(ink(none)).arg(part).arg(all)));
+        // By letter, the letters (19) are the pieces, and the delay is theirs.
+        back.effects[0].textBuild = deck::TextBuild::ByLetter;
+        back.effects[0].textDelay = 20;
+        deck::setAnimations(*d, slide, back);
+        tl = deck::playableTimeline(*d, slide);
+        QCOMPARE(tl.steps[0].effects[0].units, 19);
+        QCOMPARE(tl.steps[0].effects[0].once(), 1000.0 + 18 * 200);
+        QVERIFY(slide.props.value(QStringLiteral("timingXml")).toString().contains(QStringLiteral("<p:iterate type=\"lt\"><p:tmPct val=\"20000\"/>")));
+        QCOMPARE(int(deck::statesAt(tl, g, 0, 1500).value(deck::Target{2}).pieces.size()), 19);
+        // A text of 20,000 letters is played in at most 300 pieces (groups of neighbors), however long it is.
+        story->setPlainText(QString(QStringLiteral("abcdefghi ")).repeated(2222));
+        tl = deck::playableTimeline(*d, slide);
+        // (19,998 letters in groups of 67: 299 pieces; 2,222 words in groups of 8: 278.)
+        QCOMPARE(tl.steps[0].effects[0].units, 299);
+        const deck::TargetState big = deck::statesAt(tl, g, 0, 5000).value(deck::Target{2});
+        QCOMPARE(int(big.pieces.size()), 299);
+        QCOMPARE(int(deck::textPieces(*story, -1, -1, 2).size()), 299);
+        QCOMPARE(int(deck::textPieces(*story, -1, -1, 1).size()), 278);
+        QVERIFY(ink(big) > 0);
+        story->setPlainText(QStringLiteral("one two three four five"));
+        QCOMPARE(int(deck::textPieces(*story, -1, -1, 1).size()), 5);
+    }
+
+    // A build by paragraph and the text by word keep each other: each paragraph's effect plays its own words, and the file has both.
+    void animationTextByWordInAParagraphBuild()
+    {
+        auto d = showDeck(1);
+        Page &slide = *d->pages[0];
+        numberShowShapes(slide);
+        d->storyDoc(static_cast<TextItem *>(slide.items[0].get())->storyId)->setPlainText(QStringLiteral("one two\nthree four five"));
+        deck::AnimSequence seq;
+        seq.add(deck::makeAnim(QStringLiteral("entr.fade"), 2));
+        deck::setByParagraph(seq, 0, true, *d, slide);
+        QCOMPARE(int(seq.effects.size()), 2);
+        for (deck::Anim &e : seq.effects) {
+            e.textBuild = deck::TextBuild::ByWord;
+            e.duration = 500;
+        }
+        deck::setAnimations(*d, slide, seq);
+        const deck::AnimSequence back = deck::readAnimations(slide);
+        QCOMPARE(int(back.effects.size()), 2);
+        for (const deck::Anim &e : back.effects) {
+            QVERIFY(!e.custom() && e.paragraphs());
+            QCOMPARE(e.textBuild, deck::TextBuild::ByWord);
+        }
+        const deck::Timeline tl = deck::playableTimeline(*d, slide);
+        QCOMPARE(int(tl.steps.size()), 2);
+        QCOMPARE(tl.steps[0].effects[0].units, 2);
+        QCOMPARE(tl.steps[1].effects[0].units, 3);
+        const deck::States second = deck::statesAt(tl, deck::geometryOf(*d, slide), 1, 250);
+        const deck::TargetState st = second.value(deck::Target{2, 1, 1});
+        QCOMPARE(int(st.pieces.size()), 3);
+        QVERIFY(second.value(deck::Target{2, 0, 0}).pieces.isEmpty());   // the first paragraph is all there
+    }
+
+    // The Text Animation tab gives the choice back, and takes it away for a shape with no text.
+    void animationTextBoxHasTheChoice()
+    {
+        deck::Anim a = deck::makeAnim(QStringLiteral("entr.fade"), 3);
+        a.textBuild = deck::TextBuild::ByLetter;
+        a.textDelay = 35;
+        AnimationOptionsDialog dlg(a, true, AnimationOptionsDialog::TextTab);
+        auto *build = dlg.findChild<QComboBox *>(QStringLiteral("animTextBuild"));
+        auto *delay = dlg.findChild<QDoubleSpinBox *>(QStringLiteral("animTextDelay"));
+        QVERIFY(build && delay && build->isEnabled() && delay->isEnabled());
+        QCOMPARE(build->currentData().toInt(), int(deck::TextBuild::ByLetter));
+        QCOMPARE(delay->value(), 35.0);
+        QCOMPARE(dlg.result().textBuild, deck::TextBuild::ByLetter);
+        QCOMPARE(dlg.result().textDelay, 35);
+        build->setCurrentIndex(build->findData(int(deck::TextBuild::AllAtOnce)));
+        QVERIFY(!delay->isEnabled());
+        QCOMPARE(dlg.result().textBuild, deck::TextBuild::AllAtOnce);
+        AnimationOptionsDialog none(a, false, AnimationOptionsDialog::TextTab);
+        QVERIFY(!none.findChild<QComboBox *>(QStringLiteral("animTextBuild"))->isEnabled());
+        QCOMPARE(none.result().textBuild, deck::TextBuild::ByLetter);   // (what it had stays)
+    }
+
+    // The app's own save and open: text by letter is kept in .pptx, and .odp, which saves the whole text as one, tells the person.
+    // Fails when off: yes (with the iterate not written, the open has the text all at once).
+    void windowTextByLetterSurvivesSaveAndOpen()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        for (const char *ext : {"pptx", "odp"}) {
+            DeckWindow w;
+            w.resize(1200, 800);
+            w.show();
+            Editor *ed = w.editor();
+            triggerSlide(ed, animTiming(animSteps({animFadeIn(10, 500)})));
+            Page &page = *ed->doc()->pages[0];
+            deck::AnimSequence seq = deck::readAnimations(page, ed->doc());
+            QCOMPARE(int(seq.effects.size()), 1);
+            seq.effects[0].textBuild = deck::TextBuild::ByLetter;
+            seq.effects[0].textDelay = 25;
+            deck::setAnimations(*ed->doc(), page, seq);
+            w.setNotifier([](const QString &, const QString &) {});
+            const QString path = dir.filePath(QStringLiteral("letters.") + QLatin1String(ext));
+            QVERIFY2(w.saveTo(path), ext);
+            if (QLatin1String(ext) == QLatin1String("odp")) {
+                QString exportError;
+                QStringList told;
+                QVERIFY(!deck::exportOdp(*ed->doc(), false, &exportError, &told).isEmpty());
+                QVERIFY2(told.join(QString()).contains(QStringLiteral("animated by word or by letter is saved as one animation")), qPrintable(told.join(QLatin1Char('|'))));
+                continue;
+            }
+            DeckWindow second;
+            QVERIFY2(second.openFile(path), ext);
+            const deck::AnimSequence opened = deck::readAnimations(*second.editor()->doc()->pages[0], second.editor()->doc());
+            QCOMPARE(int(opened.effects.size()), 1);
+            QVERIFY(!opened.effects[0].custom());
+            QCOMPARE(opened.effects[0].textBuild, deck::TextBuild::ByLetter);
+            QCOMPARE(opened.effects[0].textDelay, 25);
+        }
+    }
+
     // The box with a dim chosen and the picture of the slide after the dim, when JO_SHOT_DIR names a folder.
     void animationDimScreenshots()
     {
@@ -2065,6 +2246,33 @@ private Q_SLOTS:
         LayoutCache cache;
         const QImage img = paintedSlide(d.get(), &cache, 0, [&](PaintContext &ctx) { deck::animate(ctx, *d, states); });
         QVERIFY(img.save(QDir(folder).filePath(QStringLiteral("dim-slide.png"))));
+    }
+
+    // The Text Animation tab and the slide partway through a title played by word, when JO_SHOT_DIR names a folder.
+    void animationTextScreenshots()
+    {
+        const QString folder = qEnvironmentVariable("JO_SHOT_DIR");
+        if (folder.isEmpty()) QSKIP("JO_SHOT_DIR is not set");
+        jp::applyUiTheme(1);
+        auto d = showDeck(1);
+        Page &slide = *d->pages[0];
+        numberShowShapes(slide);
+        d->storyDoc(static_cast<TextItem *>(slide.items[0].get())->storyId)->setPlainText(QStringLiteral("Animate this title word by word"));
+        deck::Anim a = deck::makeAnim(QStringLiteral("entr.fade"), 2);
+        a.duration = 1000;
+        a.textBuild = deck::TextBuild::ByWord;
+        a.textDelay = 40;
+        deck::AnimSequence seq;
+        seq.add(a);
+        deck::setAnimations(*d, slide, seq);
+        AnimationOptionsDialog dlg(a, true, AnimationOptionsDialog::TextTab, nullptr, d->colors);
+        dlg.show();
+        QVERIFY(dlg.grab().save(QDir(folder).filePath(QStringLiteral("text-options.png"))));
+        const deck::Timeline tl = deck::playableTimeline(*d, slide);
+        const deck::States states = deck::statesAt(tl, deck::geometryOf(*d, slide), 0, 700);
+        LayoutCache cache;
+        const QImage img = paintedSlide(d.get(), &cache, 0, [&](PaintContext &ctx) { deck::animate(ctx, *d, states); });
+        QVERIFY(img.save(QDir(folder).filePath(QStringLiteral("text-by-word.png"))));
     }
 
     // The app's own save and open: a dim is kept in .pptx (the same dim after the open), and .odp, which has no place for it, tells the person.

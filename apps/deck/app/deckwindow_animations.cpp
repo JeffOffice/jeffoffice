@@ -606,6 +606,8 @@ void DeckWindow::createAnimationActions()
                 if (e.duration > 0) e.duration = r.duration;
                 e.repeat = r.repeat;
                 e.rewind = r.rewind;
+                e.textBuild = r.textBuild;
+                e.textDelay = r.textDelay;
                 e.after = e.cls == deck::EffectClass::Exit ? deck::AfterEffect::None : r.after;
                 e.dimColor = e.after == deck::AfterEffect::Dim ? r.dimColor : QString();
             }

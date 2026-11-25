@@ -27,6 +27,7 @@
 #include "render/renderer.h"
 
 #include <QDomElement>
+#include <QTextDocument>
 #include <QHash>
 #include <QPainterPath>
 #include <QPointF>
@@ -110,6 +111,14 @@ struct Effect {
     double repeat = 1;               // times the whole effect plays (a repeat "until the end" counts once)
     bool remove = false;             // it takes its work with it when it ends (rewind when done playing)
     bool hideOnNextClick = false;    // its shape is hidden when the next click step starts
+    int iterate = 0;                 // its text plays by word (1) or by letter (2), each piece a little after the one before
+    double iteratePct = 0.1;         // how long after the piece before, as a share of one run (the file's percent of the effect)
+    double iterateMs = -1;           // or, when the file says so, this many ms (-1: not so)
+    int units = 0;                   // how many pieces its text has (textPieces): set where the document is known, 0 for none or not known
+    // How long one play takes, the pieces' delays not counted.
+    double single() const;
+    // Between one piece and the next, given the length of one play.
+    double gap(double one) const { return iterateMs >= 0 ? iterateMs : iteratePct * one; }
     bool implied = false;            // not in the file: the hiding another effect asks for at this step's click
     QVector<Behavior> behaviors;
     // ms after its step starts, when its last behavior with an end has ended
@@ -167,6 +176,24 @@ Timeline playableTimeline(const Page &slide);
 // The same without the effects of shapes the slide no longer has (or paragraphs it no longer has): they take no click.
 Timeline playableTimeline(const Document &doc, const Page &slide);
 
+// One piece of a text (a word, a letter, or a group of them: see textPieces) while the text is animated by word or by letter.
+struct PieceState {
+    bool visible = true;
+    double opacity = 1;
+    QPointF offset;                  // in points, from where the slide has it
+    bool operator==(const PieceState &o) const { return visible == o.visible && opacity == o.opacity && offset == o.offset; }
+};
+
+// The text a story holds, cut into the pieces an effect plays one after the other: `build` 1 is by word, 2 is by letter. The paragraphs
+// `firstParagraph` to `lastParagraph` (-1 for all). Spaces belong to no piece. A text with more words or letters than kMaxTextPieces is cut
+// into that many groups of neighbors, so that a long text plays in work that does not grow with it; a text of more than 200,000 words or
+// letters is cut only as far as that.
+constexpr int kMaxTextPieces = 300;
+struct TextPiece {
+    int from = 0, to = 0;            // document positions, to just past the last character
+};
+QVector<TextPiece> textPieces(const QTextDocument &story, int firstParagraph, int lastParagraph, int build);
+
 // How a shape is, partway through its animations.
 struct TargetState {
     bool visible = true;
@@ -179,6 +206,8 @@ struct TargetState {
     bool masked = false;             // only the part inside `mask` is shown (checkerboard, circle, wheel, ...)
     QPainterPath mask;               // over the unit square: its width and height are 1
     QString tint;                    // dimmed to this color (a ColorRef as text); empty for none
+    int textBuild = 0;               // with `pieces`: 1 when the text is played by word, 2 by letter
+    QVector<PieceState> pieces;      // one for each of textPieces(), while a text effect is partway; empty for the text as a whole
     bool operator==(const TargetState &o) const;
     bool operator!=(const TargetState &o) const { return !(*this == o); }
 };
@@ -252,6 +281,9 @@ const EffectKind *effectKind(const QString &id);
 QString dimColorFromXml(const QDomElement &choice);
 QString dimColorToXml(const QString &colorRef);
 
+// How the text of a shape is animated: the whole text at once, by word, or by letter (Anim::textDelay is the time between pieces).
+enum class TextBuild { AllAtOnce, ByWord, ByLetter };
+
 // What an effect does to its shape when it is over: nothing, hide it at once, hide it at the next click, or dim it to a color (Anim::dimColor).
 enum class AfterEffect { None, Hide, HideOnNextClick, Dim };
 
@@ -266,6 +298,8 @@ struct Anim {
     bool smoothStart = false, smoothEnd = false;
     bool rewind = false;             // goes back to how it was when it ends
     AfterEffect after = AfterEffect::None;
+    TextBuild textBuild = TextBuild::AllAtOnce;
+    int textDelay = 10;              // percent of the effect's length between one word or letter and the next (0 to 100)
     QString dimColor;                // with AfterEffect::Dim: the color, a ColorRef as text ("#RRGGBB" or a theme slot such as "@1")
     double repeat = 1;
     double amount = 0;               // growshrink: percent (150); spin: degrees (360)
@@ -278,7 +312,7 @@ struct Anim {
     bool operator==(const Anim &o) const
     {
         return kind == o.kind && cls == o.cls && variant == o.variant && shape == o.shape && firstParagraph == o.firstParagraph && lastParagraph == o.lastParagraph && start == o.start &&
-               duration == o.duration && delay == o.delay && smoothStart == o.smoothStart && smoothEnd == o.smoothEnd && rewind == o.rewind && after == o.after && dimColor == o.dimColor && repeat == o.repeat &&
+               duration == o.duration && delay == o.delay && smoothStart == o.smoothStart && smoothEnd == o.smoothEnd && rewind == o.rewind && after == o.after && textBuild == o.textBuild && textDelay == o.textDelay && dimColor == o.dimColor && repeat == o.repeat &&
                amount == o.amount && group == o.group && xml == o.xml;
     }
     bool operator!=(const Anim &o) const { return !(*this == o); }

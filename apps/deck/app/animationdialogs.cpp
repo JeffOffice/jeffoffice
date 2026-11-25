@@ -162,6 +162,40 @@ AnimationOptionsDialog::AnimationOptionsDialog(const deck::Anim &anim, bool hasT
     m_byParagraphButton->setEnabled(textTab);
     column->addWidget(m_allAtOnce);
     column->addWidget(m_byParagraphButton);
+    column->addWidget(new QLabel(tr("Animate text")));
+    m_textBuild = new QComboBox();
+    m_textBuild->setObjectName(QStringLiteral("animTextBuild"));
+    m_textBuild->setAccessibleName(tr("Animate text"));
+    m_textBuild->addItem(tr("All at once"), int(deck::TextBuild::AllAtOnce));
+    m_textBuild->addItem(tr("By word"), int(deck::TextBuild::ByWord));
+    m_textBuild->addItem(tr("By letter"), int(deck::TextBuild::ByLetter));
+    m_textBuild->setCurrentIndex(std::max(0, m_textBuild->findData(int(anim.textBuild))));
+    m_textBuild->setEnabled(textTab);
+    column->addWidget(m_textBuild);
+    m_textDelay = new QDoubleSpinBox();
+    m_textDelay->setObjectName(QStringLiteral("animTextDelay"));
+    m_textDelay->setRange(0, 100);
+    m_textDelay->setDecimals(0);
+    m_textDelay->setSingleStep(5);
+    m_textDelay->setSuffix(tr(" % of the effect's length"));
+    m_textDelay->setValue(anim.textDelay);
+    m_textDelay->setAccessibleName(tr("Delay between words or letters"));
+    m_textDelay->setToolTip(tr("How long after one word or letter the next one starts, as a share of how long the effect takes"));
+    auto *delayLabel = new QLabel(tr("Delay between words or letters"));
+    auto showDelay = [this, delayLabel] {
+        const bool on = m_textBuild->isEnabled() && m_textBuild->currentData().toInt() != int(deck::TextBuild::AllAtOnce);
+        m_textDelay->setEnabled(on);
+        delayLabel->setEnabled(on);
+        delayLabel->setText(m_textBuild->currentData().toInt() == int(deck::TextBuild::ByLetter) ? tr("Delay between letters") : tr("Delay between words"));
+    };
+    connect(m_textBuild, &QComboBox::currentIndexChanged, this, showDelay);
+    showDelay();
+    column->addWidget(delayLabel);
+    column->addWidget(m_textDelay);
+    auto *longNote = new QLabel(tr("Text with more than %1 words or letters is animated in groups of them, so that the slide show stays smooth.").arg(deck::kMaxTextPieces));
+    longNote->setTextFormat(Qt::PlainText);
+    longNote->setWordWrap(true);
+    column->addWidget(longNote);
     if (!textTab) {
         auto *note = new QLabel(kind ? tr("This shape has no text.") : tr("This effect keeps the way it was made."));
         note->setWordWrap(true);
@@ -204,6 +238,10 @@ deck::Anim AnimationOptionsDialog::result() const
     if (m_duration->isEnabled()) a.duration = qRound(m_duration->value() * 1000);
     if (m_repeat->isEnabled()) a.repeat = m_repeat->currentData().toDouble();
     a.rewind = m_rewind->isChecked();
+    if (m_textBuild->isEnabled()) {
+        a.textBuild = deck::TextBuild(m_textBuild->currentData().toInt());
+        a.textDelay = int(m_textDelay->value());
+    }
     if (m_after && m_after->isEnabled()) a.after = deck::AfterEffect(m_after->currentData().toInt());
     if (m_dimColor && a.after == deck::AfterEffect::Dim) {
         // A tinted theme color has no plain form in the file: it is kept as the color it shows.

@@ -43,6 +43,8 @@ private:
     QDoubleSpinBox *m_amount = nullptr, *m_delay = nullptr, *m_duration = nullptr;
     QCheckBox *m_smoothStart = nullptr, *m_smoothEnd = nullptr, *m_rewind = nullptr;
     QRadioButton *m_allAtOnce = nullptr, *m_byParagraphButton = nullptr;
+    QComboBox *m_textBuild = nullptr;
+    QDoubleSpinBox *m_textDelay = nullptr;
 };
 
 } // namespace jp

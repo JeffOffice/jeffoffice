@@ -120,12 +120,18 @@ bool playsBehavior(const Behavior &b)
 
 } // namespace
 
-double Effect::once() const
+double Effect::single() const
 {
     double e = begin;
     for (const Behavior &b : behaviors)
         if (!b.afterwards && b.timing.duration >= 0) e = std::max(e, b.timing.end());
     return e - begin;
+}
+
+double Effect::once() const
+{
+    const double one = single();
+    return iterate > 0 && units > 1 ? one + (units - 1) * gap(one) : one;
 }
 
 double Effect::repeats() const
@@ -153,7 +159,7 @@ bool Step::visual() const { return std::any_of(effects.begin(), effects.end(), [
 
 bool TargetState::operator==(const TargetState &o) const
 {
-    return visible == o.visible && opacity == o.opacity && offset == o.offset && scaleX == o.scaleX && scaleY == o.scaleY && rotation == o.rotation && clip == o.clip && clip2 == o.clip2 && masked == o.masked && mask == o.mask && tint == o.tint;
+    return visible == o.visible && opacity == o.opacity && offset == o.offset && scaleX == o.scaleX && scaleY == o.scaleY && rotation == o.rotation && clip == o.clip && clip2 == o.clip2 && masked == o.masked && mask == o.mask && tint == o.tint && textBuild == o.textBuild && pieces == o.pieces;
 }
 
 namespace {
@@ -453,6 +459,13 @@ void collectEffects(const QDomElement &childTnLst, double base, QVector<Effect> 
             e.presetId = int(office::parseInt(attr(cTn, QStringLiteral("presetID")), 0));
             e.presetSubtype = int(office::parseInt(attr(cTn, QStringLiteral("presetSubtype")), 0));
             e.begin = begin;
+            // Its text plays by word or by letter, a piece after the piece before.
+            if (const QDomElement iterate = pChild(cTn, "iterate"); !iterate.isNull()) {
+                const QString type = attr(iterate, QStringLiteral("type"));
+                e.iterate = type == QLatin1String("wd") ? 1 : type == QLatin1String("lt") ? 2 : 0;
+                if (const QDomElement pct = pChild(iterate, "tmPct"); !pct.isNull()) e.iteratePct = std::clamp(numberOr(attr(pct, QStringLiteral("val")), 10000) / 100000, 0.0, 10.0);
+                else if (const QDomElement ms = pChild(iterate, "tmAbs"); !ms.isNull()) e.iterateMs = std::clamp(numberOr(attr(ms, QStringLiteral("val")), 0), 0.0, 60000.0);
+            }
             collectBehaviors(pChild(cTn, "childTnLst"), begin, e);
             // What the effect says of its whole run: it plays that many times, takes its work with it when it
             // ends, and speeds up and slows down (each behavior does, unless it says otherwise).
@@ -958,6 +971,37 @@ void applyBehavior(TargetState &s, const Behavior &b, const Geometry &g, double 
     }
 }
 
+// The share of a unit square a clip shows.
+double shownShare(const TargetState &s)
+{
+    if (s.clip.isNull()) return 1;
+    return std::clamp(s.clip.width() * s.clip.height() + s.clip2.width() * s.clip2.height(), 0.0, 1.0);
+}
+
+// A text effect partway: each piece is `i` gaps behind the one before it. What an effect does to a whole shape (a turn, a mask) is played on
+// the pieces as a fade, or not at all; their visibility, opacity, and movement are played as they are.
+void applyPieces(TargetState &s, const Effect &e, const Target &target, const Geometry &g, double t)
+{
+    const int n = e.units;
+    QVector<PieceState> now = s.pieces.size() == n ? s.pieces : QVector<PieceState>(n, PieceState{s.visible, s.opacity, QPointF()});
+    const double gap = e.gap(e.single());
+    for (int i = 0; i < n; ++i) {
+        TargetState scratch;
+        scratch.visible = now[i].visible;
+        scratch.opacity = now[i].opacity;
+        scratch.offset = now[i].offset;
+        for (const Behavior &b : e.behaviors)
+            if (!b.afterwards && b.target == target && playsBehavior(b)) applyBehavior(scratch, b, g, t - i * gap);
+        now[i] = PieceState{scratch.visible, scratch.opacity * shownShare(scratch), scratch.offset};
+    }
+    const bool plain = std::all_of(now.cbegin(), now.cend(), [](const PieceState &p) { return p == PieceState(); });
+    const bool gone = std::none_of(now.cbegin(), now.cend(), [](const PieceState &p) { return p.visible && p.opacity > 0; });
+    s.textBuild = e.iterate;
+    s.pieces = plain || gone ? QVector<PieceState>() : now;
+    s.visible = !gone;
+    if (plain) s.textBuild = 0;
+}
+
 void applyStep(States &states, const Step &step, const Geometry &g, double ms)
 {
     for (const Effect &e : step.effects) {
@@ -974,8 +1018,18 @@ void applyStep(States &states, const Step &step, const Geometry &g, double ms)
                 t = e.begin + std::fmod(local, once);
             }
         }
+        // Its text by word or by letter: the pieces take the effect's own behaviors, each its time later.
+        Target byPiece;
+        if (e.iterate > 0 && e.units > 1)
+            for (const Behavior &b : e.behaviors)
+                if (b.target.shape > 0 && playsBehavior(b) && !b.afterwards) {
+                    byPiece = b.target;
+                    break;
+                }
+        if (byPiece.shape > 0 && !gone && t >= e.begin) applyPieces(states[byPiece], e, byPiece, g, t);
         for (const Behavior &b : e.behaviors) {
             if (b.target.shape <= 0 || !playsBehavior(b)) continue;
+            if (byPiece.shape > 0 && !b.afterwards && b.target == byPiece) continue;
             // What it does to its shape when it is over goes on its own time, however the effect went.
             if (b.afterwards) applyBehavior(states[b.target], b, g, ms);
             else if (!gone) applyBehavior(states[b.target], b, g, t);
@@ -1054,6 +1108,38 @@ void armTriggers(Timeline &tl, const QSet<int> &clickable)
         if (!more) break;
     }
     for (int i = 0; i < n; ++i) tl.triggers[i].hides = reached[i];
+}
+
+QVector<TextPiece> textPieces(const QTextDocument &story, int firstParagraph, int lastParagraph, int build)
+{
+    constexpr int kMaxUnits = 200000;
+    QVector<TextPiece> units;
+    int index = 0;
+    for (QTextBlock b = story.begin(); b.isValid() && units.size() < kMaxUnits; b = b.next(), ++index) {
+        if (firstParagraph >= 0 && (index < firstParagraph || index > lastParagraph)) continue;
+        const QString text = b.text();
+        int i = 0;
+        while (i < text.size() && units.size() < kMaxUnits) {
+            if (text[i].isSpace()) {
+                ++i;
+                continue;
+            }
+            int j = i + 1;
+            if (build == 1) {
+                while (j < text.size() && !text[j].isSpace()) ++j;
+            } else if (text[i].isHighSurrogate() && j < text.size() && text[j].isLowSurrogate()) {
+                ++j;
+            }
+            units.push_back(TextPiece{b.position() + i, b.position() + j});
+            i = j;
+        }
+    }
+    if (units.size() <= kMaxTextPieces) return units;
+    // Too many to play one by one: groups of neighbors, as many as the cap allows.
+    QVector<TextPiece> groups;
+    const int size = int((units.size() + kMaxTextPieces - 1) / kMaxTextPieces);
+    for (int i = 0; i < units.size(); i += size) groups.push_back(TextPiece{units[i].from, units[std::min<int>(i + size, int(units.size())) - 1].to});
+    return groups;
 }
 
 // ---- painting a page with the states ----
@@ -1172,9 +1258,16 @@ public:
     void paintText(QPainter *p, const Item &it, const StoryLayout &layout, int frame, const Draw &paintText)
     {
         const auto keys = m_active && it.sourceId > 0 ? m_paragraphs.constFind(it.sourceId) : m_paragraphs.constEnd();
-        const QTextDocument *story = keys == m_paragraphs.constEnd() ? nullptr : m_doc->storyDoc(storyOf(it));
+        // A whole text played by word or by letter.
+        const auto whole = m_active && it.sourceId > 0 ? m_states.constFind(Target{it.sourceId, -1, -1}) : m_states.constEnd();
+        const bool byPiece = whole != m_states.constEnd() && !whole->pieces.isEmpty() && whole->visible;
+        const QTextDocument *story = keys == m_paragraphs.constEnd() && !byPiece ? nullptr : m_doc->storyDoc(storyOf(it));
         if (!story) {
             paintText(p);
+            return;
+        }
+        if (byPiece && keys == m_paragraphs.constEnd()) {
+            paintPieces(p, layout, frame, *story, -1, -1, *whole, paintText);
             return;
         }
         // Where each paragraph's lines are in this frame, and the band of the frame it owns: from halfway
@@ -1245,7 +1338,8 @@ public:
             for (const auto &b : o.bands) mine.addRect(QRectF(-kFar, b.first, 2 * kFar, b.second - b.first));
             p->setClipPath(mine, Qt::IntersectClip);
             if (!s.clip.isNull() || s.masked) setClip(p, o.box, s);
-            if (!s.tint.isEmpty()) drawFaded(p, o.box, s.opacity, s.tint, paintText);
+            if (!s.pieces.isEmpty()) paintPieces(p, layout, frame, *story, o.target.firstParagraph, o.target.lastParagraph, s, paintText);
+            else if (!s.tint.isEmpty()) drawFaded(p, o.box, s.opacity, s.tint, paintText);
             else {
                 if (s.opacity < 1) p->setOpacity(p->opacity() * s.opacity);
                 paintText(p);
@@ -1255,6 +1349,69 @@ public:
     }
 
 private:
+    // A text played by word or by letter: painted once into a layer, and each piece cut out of it, in its own opacity and place. What
+    // is not in a piece (a bullet or a number) is cut out as it is.
+    void paintPieces(QPainter *p, const StoryLayout &layout, int frame, const QTextDocument &story, int first, int last, const TargetState &s, const Draw &draw)
+    {
+        const QVector<TextPiece> pieces = textPieces(story, first, last, s.textBuild);
+        if (pieces.size() != s.pieces.size()) {
+            draw(p);
+            return;
+        }
+        QVector<QVector<QRectF>> rects(pieces.size());
+        QRectF all;
+        for (qsizetype i = 0; i < pieces.size(); ++i) {
+            rects[i] = layout.rangeRects(frame, pieces[i].from, pieces[i].to);
+            for (const QRectF &r : std::as_const(rects[i])) all = all.united(r);
+        }
+        const QPaintDevice *device = p->device();
+        const qreal ratio = device->devicePixelRatioF();
+        const QTransform w = p->worldTransform();
+        if (all.isNull() || w.type() > QTransform::TxScale) {
+            draw(p);
+            return;
+        }
+        QRectF reach = w.mapRect(all.adjusted(-80, -40, 80, 40)).intersected(QRectF(0, 0, device->width() / ratio, device->height() / ratio));
+        const QRectF clipped = p->clipBoundingRect();
+        if (!clipped.isEmpty()) reach = reach.intersected(w.mapRect(clipped));
+        const QRect area = reach.toAlignedRect();
+        if (area.isEmpty()) return;
+        QImage layer(QSize(int(std::ceil(area.width() * ratio)), int(std::ceil(area.height() * ratio))), QImage::Format_ARGB32_Premultiplied);
+        layer.setDevicePixelRatio(ratio);
+        layer.fill(Qt::transparent);
+        {
+            QPainter lp(&layer);
+            lp.setRenderHints(p->renderHints());
+            lp.translate(-area.topLeft());
+            lp.setTransform(w, true);
+            draw(&lp);
+        }
+        QRegion rest(area);
+        for (const QVector<QRectF> &list : std::as_const(rects))
+            for (const QRectF &r : list) rest -= w.mapRect(r).toAlignedRect();
+        p->save();
+        p->setWorldTransform(QTransform());
+        const double base = p->opacity();
+        p->setClipRegion(rest, Qt::IntersectClip);
+        p->drawImage(area.topLeft(), layer);
+        p->restore();
+        p->save();
+        p->setWorldTransform(QTransform());
+        for (qsizetype i = 0; i < pieces.size(); ++i) {
+            const PieceState &ps = s.pieces[i];
+            if (!ps.visible || ps.opacity <= 0) continue;
+            p->setOpacity(base * ps.opacity);
+            for (const QRectF &r : std::as_const(rects[i])) {
+                const QRect dev = w.mapRect(r).toAlignedRect().intersected(area);
+                if (dev.isEmpty()) continue;
+                const QPointF shift = w.map(r.topLeft() + ps.offset) - w.map(r.topLeft());
+                const QRectF src((dev.x() - area.x()) * ratio, (dev.y() - area.y()) * ratio, dev.width() * ratio, dev.height() * ratio);
+                p->drawImage(QPointF(dev.topLeft()) + shift, layer, src);
+            }
+        }
+        p->restore();
+    }
+
     // The object painted into a layer and the layer painted half see-through, so
     // that what is in the object does not show through itself.
     void drawFaded(QPainter *p, const QRectF &box, double opacity, const QString &tint, const Draw &draw)

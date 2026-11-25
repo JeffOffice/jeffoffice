@@ -574,7 +574,10 @@ QString effectXml(const Anim &a, int grpId, bool placeholder, Ids *ids)
                             + (next ? QStringLiteral("/>") : QStringLiteral("><p:stCondLst><p:cond evt=\"end\" delay=\"0\"><p:tn val=\"%1\"/></p:cond></p:stCondLst></p:cTn>").arg(id));
         after = QStringLiteral("<p:subTnLst><p:set><p:cBhvr override=\"childStyle\">%1%2<p:attrNameLst><p:attrName>style.visibility</p:attrName></p:attrNameLst></p:cBhvr><p:to><p:strVal val=\"hidden\"/></p:to></p:set></p:subTnLst>").arg(cTn, targetXml(a));
     }
-    return QStringLiteral("<p:par><p:cTn id=\"%1\"%2><p:stCondLst><p:cond delay=\"%3\"/></p:stCondLst><p:childTnLst>%4</p:childTnLst>%5</p:cTn></p:par>").arg(id).arg(attrs).arg(a.delay).arg(body, after);
+    // Its text by word or by letter: a piece after the piece before, a share of the effect's length later (in thousandths of a percent).
+    const QString iterate = a.textBuild == TextBuild::AllAtOnce ? QString()
+                                                               : QStringLiteral("<p:iterate type=\"%1\"><p:tmPct val=\"%2\"/></p:iterate>").arg(a.textBuild == TextBuild::ByWord ? QStringLiteral("wd") : QStringLiteral("lt")).arg(qint64(a.textDelay) * 1000);
+    return QStringLiteral("<p:par><p:cTn id=\"%1\"%2><p:stCondLst><p:cond delay=\"%3\"/></p:stCondLst>%6<p:childTnLst>%4</p:childTnLst>%5</p:cTn></p:par>").arg(id).arg(attrs).arg(a.delay).arg(body, after, iterate);
 }
 
 // ---- what a slide's shapes are ----
@@ -760,6 +763,15 @@ Anim readEffect(const QDomElement &par, const QDomElement &cTn, int span)
     k.smoothStart = attr(cTn, QStringLiteral("accel")).toLongLong() > 0;
     k.smoothEnd = attr(cTn, QStringLiteral("decel")).toLongLong() > 0;
     k.rewind = attr(cTn, QStringLiteral("fill")) == QLatin1String("remove");
+    if (const QDomElement iterate = pChild(cTn, "iterate"); !iterate.isNull()) {
+        const QString type = attr(iterate, QStringLiteral("type"));
+        const QDomElement pct = pChild(iterate, "tmPct");
+        const qint64 thousandths = attr(pct, QStringLiteral("val")).toLongLong();
+        if ((type == QLatin1String("wd") || type == QLatin1String("lt")) && !pct.isNull() && thousandths >= 0 && thousandths <= 100000 && thousandths % 1000 == 0) {
+            k.textBuild = type == QLatin1String("wd") ? TextBuild::ByWord : TextBuild::ByLetter;
+            k.textDelay = int(thousandths / 1000);
+        }
+    }
     if (const QDomElement clr = pChild(pChild(cTn, "subTnLst"), "animClr"); !clr.isNull()) {
         k.dimColor = dimColorFromXml(pChild(clr, "to"));
         if (!k.dimColor.isEmpty()) k.after = AfterEffect::Dim;
@@ -1280,6 +1292,8 @@ void changeKind(Anim &anim, const EffectKind &kind)
     a.delay = anim.delay;
     a.duration = duration;
     a.group = anim.group;
+    a.textBuild = anim.textBuild;
+    a.textDelay = anim.textDelay;
     if (kind.cls != EffectClass::Exit) {
         a.after = anim.after;
         a.dimColor = anim.dimColor;
@@ -1773,6 +1787,25 @@ Timeline playableTimeline(const Document &doc, const Page &slide)
         // A trigger on a shape the slide no longer has, or with nothing left to play, takes no click.
         for (Trigger &trigger : tl.triggers) trigger.effects.erase(std::remove_if(trigger.effects.begin(), trigger.effects.end(), gone), trigger.effects.end());
         tl.triggers.erase(std::remove_if(tl.triggers.begin(), tl.triggers.end(), [&](const Trigger &t) { return t.effects.isEmpty() || !shapes.value(t.shape).found || !t.step().visual(); }), tl.triggers.end());
+        // How many pieces the text of an effect by word or by letter has.
+        QHash<int, const Item *> items;
+        walkItems(slide.items, [&](const ItemPtr &it) {
+            if (it->sourceId > 0 && !items.contains(it->sourceId)) items.insert(it->sourceId, it.get());
+        });
+        auto count = [&](Effect &e) {
+            if (e.iterate <= 0) return;
+            for (const Behavior &b : e.behaviors) {
+                if (b.target.shape <= 0) continue;
+                const Item *item = items.value(b.target.shape);
+                const QTextDocument *story = item && !storyOf(*item).isEmpty() ? doc.storyDoc(storyOf(*item)) : nullptr;
+                e.units = story ? int(textPieces(*story, b.target.firstParagraph, b.target.lastParagraph, e.iterate).size()) : 0;
+                return;
+            }
+        };
+        for (Step &step : tl.steps)
+            for (Effect &e : step.effects) count(e);
+        for (Trigger &trigger : tl.triggers)
+            for (Effect &e : trigger.effects) count(e);
     }
     tl.steps.erase(std::remove_if(tl.steps.begin(), tl.steps.end(), [](const Step &s) { return !s.visual(); }), tl.steps.end());
     return tl;
