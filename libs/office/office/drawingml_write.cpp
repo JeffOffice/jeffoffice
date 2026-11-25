@@ -6,6 +6,7 @@
 #include "core/items.h"
 #include "core/blipeffects.h"
 #include "core/picturefx.h"
+#include "office/picturefx_blip.h"
 #include "core/connsites.h"
 #include "office/connectionsites.h"
 #include "core/textdirection.h"
@@ -1074,7 +1075,7 @@ void writePicture(QXmlStreamWriter &w, const PictureItem &p, DrawingWriteContext
             begin(w, "jfx:filters");
             w.writeAttribute(QStringLiteral("xmlns:jfx"), QString::fromLatin1(kPictureFxNamespace));
             attribute(w, "r:embed", rId);
-            attribute(w, "data", QString::fromLatin1(QJsonDocument(QJsonObject{{"effects", blipEffectsToJson(filters)}}).toJson(QJsonDocument::Compact).toBase64()));
+            attribute(w, "data", pictureFxData(filters));
             w.writeEndElement();
             w.writeEndElement();
         }

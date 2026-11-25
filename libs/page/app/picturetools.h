@@ -12,6 +12,7 @@
 #include <QImage>
 #include <atomic>
 #include <functional>
+#include <vector>
 
 namespace jp {
 
@@ -56,6 +57,15 @@ void applyArtisticEffect(Editor *ed, QWidget *window, int style);
 // Changes the selected pictures that hold a picture (not a movie or a chart) with `change` as one step `step`. A filter that would take longer than half a second is worked out first on a
 // thread of its own, with a box that can cancel it (nothing changes then), so the window is not held; the picture is drawn from what was worked out, never worked out again.
 void changePicturesWithFilter(Editor *ed, QWidget *window, const QString &step, const std::function<void(PictureItem &)> &change);
+// The filters of one picture to be worked out before a command changes the document (`sourceKey` names the picture for blipAdjusted's cache, as it does there; empty: by its pixels). With more than half
+// a second of work they are worked out on a thread of its own, with a box that can cancel it; false when it was cancelled (nothing is to change then). Every app that changes a picture's filters
+// goes through here, whatever way it keeps its pictures.
+struct PictureFilterJob {
+    QImage image;
+    QVector<BlipEffect> filters;
+    QString sourceKey;
+};
+bool workOutPictureFilters(QWidget *window, const std::vector<PictureFilterJob> &jobs);
 // How many times changePicturesWithFilter worked on a thread of its own (for tests).
 int pictureFxThreadedRuns();
 // Called at the start of the work on its thread, with the flag the Cancel button sets (for tests, as Editor::removeBgWorkerHook is).

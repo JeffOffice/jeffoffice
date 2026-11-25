@@ -6,6 +6,7 @@
 #include "core/items.h"
 #include "core/blipeffects.h"
 #include "core/picturefx.h"
+#include "office/picturefx_blip.h"
 #include "core/connsites.h"
 #include "office/connectionsites.h"
 #include "core/textdirection.h"
@@ -1060,7 +1061,7 @@ ItemPtr Reader::pic(const QDomElement &e, const QVector<QDomElement> &inheritsFr
         const QDomElement kept = childNamed(ext, "filters");
         const QString data = attr(kept, QStringLiteral("data"));
         if (kept.isNull() || data.isEmpty() || data.size() > 1024 * 1024) continue;
-        const QVector<BlipEffect> listed = blipFilters(blipEffectsFromJson(QJsonDocument::fromJson(QByteArray::fromBase64(data.toLatin1())).object()["effects"].toArray()));
+        const QVector<BlipEffect> listed = pictureFxFromData(data);
         if (listed.isEmpty()) continue;
         if (p->imageId.isEmpty()) {
             const QString original = loadImage(attrNs(kept, ns::R, QStringLiteral("embed")), styleContext());

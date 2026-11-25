@@ -360,21 +360,10 @@ int pictureFxThreadedRuns() { return threadedRuns; }
 
 std::function<void(const std::atomic<bool> &)> pictureFxWorkerHook;
 
-void changePicturesWithFilter(Editor *ed, QWidget *window, const QString &step, const std::function<void(PictureItem &)> &change)
+bool workOutPictureFilters(QWidget *window, const std::vector<PictureFilterJob> &jobs)
 {
-    // What the pictures would have for filters after the change, and what that costs: worked out beside the document, which is not touched until the work is done.
-    struct Job { QImage image; QVector<BlipEffect> filters; };
-    std::vector<Job> jobs;
     qint64 work = 0;
-    for (Item *it : ed->selectedItems()) {
-        if (!plainPicture(it)) continue;
-        PictureItem probe(*static_cast<PictureItem *>(it));
-        change(probe);
-        Job job{ed->doc()->image(probe.imageId), blipFilters(probe.blipEffects)};
-        if (job.image.isNull() || !blipEffectsChange(job.filters) || probe.removal.isValid()) continue;   // (a removal changes the picture first: drawn, not prepared)
-        work += blipEffectsWork(qint64(job.image.width()) * job.image.height(), job.filters);
-        jobs.push_back(std::move(job));
-    }
+    for (const PictureFilterJob &j : jobs) work += blipEffectsWork(qint64(j.image.width()) * j.image.height(), j.filters);
     if (work > kPictureFxBusyWork && window) {
         std::atomic<bool> stop{false};
         QEventLoop loop;
@@ -387,16 +376,31 @@ void changePicturesWithFilter(Editor *ed, QWidget *window, const QString &step, 
         bool finished = false;
         WorkThread thread([&jobs, &stop, &loop, &finished] {
             if (pictureFxWorkerHook) pictureFxWorkerHook(stop);
-            for (const Job &j : jobs) blipAdjusted(j.image, j.filters, &stop);
+            for (const PictureFilterJob &j : jobs) blipAdjusted(j.image, j.filters, &stop, j.sourceKey);
             QMetaObject::invokeMethod(&loop, [&loop, &finished] { finished = true; loop.quit(); }, Qt::QueuedConnection);
         });
         if (!thread.started()) stop = true;
         else loop.exec();
         thread.join();
-        if (stop || !finished) return;   // (cancelled: nothing changes)
-    } else {
-        for (const Job &j : jobs) blipAdjusted(j.image, j.filters);
+        return !stop && finished;   // (cancelled: nothing changes)
     }
+    for (const PictureFilterJob &j : jobs) blipAdjusted(j.image, j.filters, nullptr, j.sourceKey);
+    return true;
+}
+
+void changePicturesWithFilter(Editor *ed, QWidget *window, const QString &step, const std::function<void(PictureItem &)> &change)
+{
+    // What the pictures would have for filters after the change, and what that costs: worked out beside the document, which is not touched until the work is done.
+    std::vector<PictureFilterJob> jobs;
+    for (Item *it : ed->selectedItems()) {
+        if (!plainPicture(it)) continue;
+        PictureItem probe(*static_cast<PictureItem *>(it));
+        change(probe);
+        PictureFilterJob job{ed->doc()->image(probe.imageId), blipFilters(probe.blipEffects), QString()};
+        if (job.image.isNull() || !blipEffectsChange(job.filters) || probe.removal.isValid()) continue;   // (a removal changes the picture first: drawn, not prepared)
+        jobs.push_back(std::move(job));
+    }
+    if (!workOutPictureFilters(window, jobs)) return;
     ed->forEachSelected(step, [&change](Item *it) {
         if (plainPicture(it)) change(*static_cast<PictureItem *>(it));
     });
