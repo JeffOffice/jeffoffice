@@ -3252,6 +3252,7 @@ QStringList publisherLosses(const Document &doc)
     doc.forEachItem([&](Item *it, int, const QString &) { anyHidden = anyHidden || it->hidden; });
     if (anyHidden) phrases << QCoreApplication::translate("jp::PubExport", "hidden objects (the .pub format can't keep them hidden, so they are visible the next time it opens)");
     phrases << publisherListLosses(doc);
+    if (!doc.merge.isEmpty()) phrases << QCoreApplication::translate("jp::PubExport", "the mail merge list, and which of its recipients are left out");
     // (what the writer itself leaves out: written to memory, as a save would, and nothing put on disk)
     QStringList skipped;
     PubWriter w(doc, QString(), QImage());

@@ -6,6 +6,7 @@
 
 #include "app/filedialogs.h"
 #include "app/maildialogs.h"
+#include "app/mergefiles.h"
 #include "app/mailpreview.h"
 #include "app/mergedialogs.h"
 #include "app/pageoutput.h"
@@ -20,6 +21,7 @@
 #include "core/tableops.h"
 
 #include <QAction>
+#include <QBuffer>
 #include <QApplication>
 #include <QDockWidget>
 #include <QFile>
@@ -110,7 +112,8 @@ public:
              {{T::translate("jp::WriteMail", "Edit Individual Documents…"), QStringLiteral("mail.finish.edit")},
               {T::translate("jp::WriteMail", "Print Documents…"), QStringLiteral("mail.finish.print")},
               {T::translate("jp::WriteMail", "Save as PDF…"), QStringLiteral("mail.finish.pdf")},
-              {T::translate("jp::WriteMail", "Send Email Messages…"), QStringLiteral("mail.finish.email")}}},
+              {T::translate("jp::WriteMail", "Send Email Messages…"), QStringLiteral("mail.finish.email")},
+              {T::translate("jp::WriteMail", "Save Each as a File…"), QStringLiteral("mail.finish.files")}}},
             {T::translate("jp::WriteMail", "Step 6 of 6: Done"), T::translate("jp::WriteMail", "The merge is finished. Save your document to keep the merge for next time."), {}},
         };
         m_step = std::clamp(step, 0, int(steps.size()) - 1);
@@ -193,6 +196,7 @@ struct MailUi {
             const QString path = listFileFor(original);
             if (!path.isEmpty() && write::mail::loadSource(*s, path)) {
                 s->sourcePath = original;   // (the link in the file is as it was)
+                sayExclusions(*s);
                 if (s->data.truncated) message(QCoreApplication::translate("jp::WriteMail", "The list was too big to read whole. %1 recipients are in it.").arg(s->data.rows.size()));
                 return true;
             }
@@ -348,6 +352,15 @@ struct MailUi {
         return takeList(path);
     }
 
+    // What of the recipients left out before no longer fits the list that was read: said once, and not again.
+    void sayExclusions(write::mail::State &s)
+    {
+        if (s.exclusionsNote.isEmpty()) return;
+        const QString note = s.exclusionsNote;
+        s.exclusionsNote.clear();
+        w->notice(QCoreApplication::translate("jp::WriteMail", "Mail Merge"), note);
+    }
+
     bool takeList(const QString &path)
     {
         QString error;
@@ -364,11 +377,16 @@ struct MailUi {
         write::mail::dropBlankRecords(m);
         const bool cut = m.truncated || m.rows.size() > write::mail::kMostRecords;
         write::mail::limitRecords(m);
+        // (the recipients left out belong to the list they were chosen in: the same file again has them, another file has none)
+        const bool sameList = !s.sourcePath.isEmpty() && QFileInfo(s.sourcePath).absoluteFilePath() == QFileInfo(path).absoluteFilePath();
+        if (!sameList) s.exclusions = MergeExclusions();
+        s.exclusionsNote = applyExclusions(m, s.exclusions).problem;
         s.data = m;
         s.sourcePath = QFileInfo(path).absoluteFilePath();
         s.loaded = true;
         touch();
         refreshPreview();
+        sayExclusions(s);
         message(cut ? QCoreApplication::translate("jp::WriteMail", "The list was too big to read whole. %1 recipients are in it.").arg(s.data.rows.size())
                                                          : QCoreApplication::translate("jp::WriteMail", "%1 recipients are in the list.").arg(m.rows.size()));
         return true;
@@ -382,6 +400,7 @@ struct MailUi {
         write::mail::State &s = make();
         if (s.kind() == write::mail::Kind::None) s.settings.type = write::mail::kindValue(write::mail::Kind::Letters);
         s.data = m;
+        s.exclusions = exclusionsOf(m);
         s.sourcePath = m.path;
         s.loaded = true;
         touch();
@@ -395,6 +414,7 @@ struct MailUi {
         MergeSource m = s.data;
         if (!editRecipientList(w, m, false)) return;
         s.data = m;
+        s.exclusions = exclusionsOf(m);
         touch();
         refreshPreview();
     }
@@ -695,6 +715,66 @@ struct MailUi {
         else message(QCoreApplication::translate("jp::WriteMail", "Saved %1").arg(QFileInfo(path).fileName()));
     }
 
+    // One file for each recipient, in the folder the person chooses: a .docx file or a PDF. All of it runs on the window's thread, between turns of the event loop that let Cancel be seen: the
+    // merge and the PDF use the text engine, which the window owns.
+    void finishFiles()
+    {
+        if (!doc() || !list(true)) return;
+        const QVector<int> rows = state()->data.includedRows();
+        if (rows.isEmpty()) {
+            w->notice(QCoreApplication::translate("jp::WriteMail", "Mail Merge"), QCoreApplication::translate("jp::WriteMail", "No recipient is included."));
+            return;
+        }
+        MergeFilesKinds kinds;
+        kinds.ownLabel = QCoreApplication::translate("jp::WriteMail", "Document (.docx)");
+        kinds.ownExtension = QStringLiteral(".docx");
+        MergeFilesChoice choice;
+        const QString start = w->m_path.isEmpty() ? QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation) : QFileInfo(w->m_path).absolutePath();
+        if (!mergeFilesDialog(w, state()->data, rows, kinds, start, &choice)) return;
+        const QStringList names = mergeFileNames(state()->data, rows, choice.pattern, choice.pdf ? QStringLiteral(".pdf") : kinds.ownExtension);
+        if (!confirmMergeFiles(w, choice.folder, names)) return;
+        // (the answers to the document's questions are asked for once, and every recipient's file has them)
+        QHash<QString, QString> answers;
+        write::mail::State &s = *state();
+        const MergeFilesResult result = runMergeFiles(w, choice.folder, rows, names, [&](int row, const QString &path, QString *why) {
+            write::mail::MergeOptions o;
+            o.rows = {row};
+            o.ask = [&](const QString &prompt, const QString &def) {
+                if (!answers.contains(prompt)) {
+                    bool ok = false;
+                    answers.insert(prompt, QInputDialog::getText(w, QCoreApplication::translate("jp::WriteMail", "Mail Merge"), prompt, QLineEdit::Normal, def, &ok));
+                    if (!ok) answers[prompt] = def;
+                }
+                return answers.value(prompt);
+            };
+            QString error;
+            auto out = write::mail::mergeToDocument(*doc(), s.data, s.fieldMap, o, &error);
+            if (!out) { *why = error; return false; }
+            QByteArray bytes;
+            if (choice.pdf) {
+                QBuffer buffer(&bytes);
+                buffer.open(QIODevice::WriteOnly);
+                {
+                    QPdfWriter pdf(&buffer);
+                    pdf.setCreator(appInfo().name);
+                    pdf.setResolution(1200);
+                    pdf.setPageMargins(QMarginsF(0, 0, 0, 0));
+                    QVector<int> pages;
+                    const int count = out->pager().pageCount();
+                    for (int i = 0; i < count; ++i) pages << i;
+                    if (pages.isEmpty() || !write::paintSheets(*out, &pdf, pages, count)) { *why = QCoreApplication::translate("jp::WriteMail", "The PDF can't be made."); return false; }
+                }
+            } else {
+                bytes = out->toDocx(&error);
+                if (bytes.isEmpty()) { *why = error; return false; }
+            }
+            QSaveFile file(path);
+            if (!file.open(QIODevice::WriteOnly) || file.write(bytes) != bytes.size() || !file.commit()) { *why = file.errorString(); return false; }
+            return true;
+        });
+        Q_UNUSED(result)
+    }
+
     void finishEmail()
     {
         if (!doc() || !list(true)) return;
@@ -836,6 +916,7 @@ void WriteWindow::createMailActions()
     mk("mail.finish.print", tr("Print Documents…"), "printer", QKeySequence(), [m] { m->finishEdit(true); });
     mk("mail.finish.pdf", tr("Save as PDF…"), "file-text", QKeySequence(), [m] { m->finishPdf(); });
     mk("mail.finish.email", tr("Send Email Messages…"), "mail", QKeySequence(), [m] { m->finishEmail(); });
+    mk("mail.finish.files", tr("Save Each as a File…"), "files", QKeySequence(), [m] { m->finishFiles(); });
 }
 
 void WriteWindow::refreshMailUi()
@@ -843,7 +924,7 @@ void WriteWindow::refreshMailUi()
     const bool listed = m_mail && m_mail->hasList();
     for (const char *id : {"mail.editList", "mail.addressBlock", "mail.greeting", "mail.matchFields", "mail.rule.if", "mail.rule.ask", "mail.rule.fillin", "mail.rule.nextIf",
                            "mail.rule.set", "mail.rule.skipIf", "mail.preview", "mail.first", "mail.prev", "mail.next", "mail.last", "mail.find", "mail.check", "mail.finish.edit",
-                           "mail.finish.print", "mail.finish.pdf", "mail.finish.email"})
+                           "mail.finish.print", "mail.finish.pdf", "mail.finish.email", "mail.finish.files"})
         if (QAction *a = act(QString::fromLatin1(id))) a->setEnabled(listed);
     const write::mail::State *s = m_doc ? write::mail::stateIfAny(*m_doc) : nullptr;
     act(QStringLiteral("mail.updateLabels"))->setEnabled(s && s->kind() == write::mail::Kind::Labels);

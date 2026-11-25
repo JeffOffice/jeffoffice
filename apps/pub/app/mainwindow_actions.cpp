@@ -29,6 +29,7 @@
 #include "app/dialogs.h"
 #include "app/duplicatedialog.h"
 #include "app/mergedialogs.h"
+#include "core/mergeextras.h"
 #include "app/formatops.h"
 #include "app/formatpresets.h"
 #include "app/guidesdialog.h"
@@ -747,6 +748,12 @@ void MainWindow::createActions()
         MergeSource src;
         QString err;
         if (!loadMergeSource(p, &src, &err)) { jp::plainWarning(this, title, err); return; }
+        // (the same list again: the recipients left out before are left out again, and what no longer fits is said)
+        const MergeSource &before = m_ed->doc()->merge;
+        if (!before.isEmpty() && !before.path.isEmpty() && QFileInfo(before.path).absoluteFilePath() == QFileInfo(src.path.isEmpty() ? p : src.path).absoluteFilePath()) {
+            const ExclusionResult kept = applyExclusions(src, exclusionsOf(before));
+            if (!kept.problem.isEmpty()) jp::plainInformation(this, title, kept.problem);
+        }
         m_ed->selectRecipients(src);
         recipientsDialog(this, m_ed, false);
     };
@@ -820,6 +827,7 @@ void MainWindow::createActions()
     mk("mm.mergeEmail", tr("Merge to Email…"), "mail", QKeySequence(), [this] {
         mergeToEmailFiles(this, m_ed);
     });
+    mk("mm.mergeFiles", tr("Save Each as a File…"), "files", QKeySequence(), [this] { mergeToFiles(this, m_ed); });
     mk("mm.exportList", tr("Export Recipient List…"), "file-down", QKeySequence(), [this] {
         const QString p = askSavePath(this, tr("Export Recipient List"), QString(), tr("CSV (*.csv)"));
         if (p.isEmpty()) return;

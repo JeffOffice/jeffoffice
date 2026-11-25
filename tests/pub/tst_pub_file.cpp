@@ -1,6 +1,8 @@
 #include "tst_pub_file.h"
 #include "../office/dochelpers.h"
 #include "doc/doc.h"
+#include "core/mergeextras.h"
+#include "io/importers.h"
 #include "odt/odt.h"
 
 void PubFileTests::initTestCase() { initPubTestCase(); }
@@ -1325,6 +1327,63 @@ void PubFileTests::aRecipientListOverTheLimitIsRefusedBeforeItIsRead()
     QVERIFY2(err.contains(QStringLiteral("too large")), qPrintable(err));
     QVERIFY2(jp::loadMergeSource(path, &m, &err, QFileInfo(path).size()), qPrintable(err));
     QCOMPARE(m.rows.size(), 2);
+}
+
+static jp::MergeSource threeRecipients()
+{
+    jp::MergeSource m;
+    m.fields = {"Name", "Email"};
+    for (const QStringList &r : {QStringList{"Ann", "ann@example.com"}, QStringList{"Bo", "bo@example.com"}, QStringList{"Cy", "cy@example.com"}}) {
+        m.rows << r;
+        m.include << true;
+    }
+    return m;
+}
+
+void PubFileTests::recipientsLeftOutAndTheirKeyColumnAreKeptInTheFile()
+{
+    auto doc = jp::Document::blank(QSizeF(612, 792));
+    doc->merge = threeRecipients();
+    doc->merge.keyColumn = QStringLiteral("Email");
+    doc->merge.include[1] = false;
+    QString err;
+    auto back = jp::publicationFromBytes(jp::publicationBytes(*doc, QImage()), &err);
+    QVERIFY2(back, qPrintable(err));
+    QCOMPARE(back->merge.keyColumn, QStringLiteral("Email"));
+    QCOMPARE(back->merge.include, (QVector<bool>{true, false, true}));
+    // The same list read again from its file has them left out again, by key, in any order.
+    jp::MergeSource again = threeRecipients();
+    std::swap(again.rows[0], again.rows[2]);
+    const jp::ExclusionResult kept = jp::applyExclusions(again, jp::exclusionsOf(back->merge));
+    QCOMPARE(kept.applied, 1);
+    QVERIFY(kept.problem.isEmpty());
+    QCOMPARE(again.include, (QVector<bool>{true, false, true}));
+    // A list with no key column adds nothing to the file.
+    QVERIFY(!threeRecipients().toJson().contains(QStringLiteral("keyColumn")));
+}
+
+void PubFileTests::aMergeOfOneRecordMakesThePagesOfThatRecordOnly()
+{
+    auto doc = jp::Document::blank(QSizeF(612, 792));
+    doc->merge = threeRecipients();
+    QCOMPARE(int(jp::mergeToNewPublication(*doc)->pages.size()), 3);
+    const QVector<int> one{2};
+    QCOMPARE(int(jp::mergeToNewPublication(*doc, &one)->pages.size()), 1);
+    doc->merge.include[0] = false;
+    QCOMPARE(int(jp::mergeToNewPublication(*doc)->pages.size()), 2);
+}
+
+void PubFileTests::aPubFileCopyListsTheMailMergeListAsNotKept()
+{
+    auto doc = jp::Document::blank(QSizeF(612, 792));
+    auto mentions = [&] {
+        bool found = false;
+        for (const QString &line : jp::publisherLosses(*doc)) found = found || line.contains(QStringLiteral("mail merge list"));
+        return found;
+    };
+    QVERIFY(!mentions());
+    doc->merge = threeRecipients();
+    QVERIFY(mentions());
 }
 
 // Each reader of Insert File and of recipient lists is given its file damaged in many ways (bytes changed, the end cut off, a run of junk put in): it

@@ -94,6 +94,7 @@ Features JeffPub has that Publisher never did, then the ones planned before Jeff
 - [x] **1.0** Crop marks, bleed marks, registration marks, density bars, color bars, job information, and "allow bleeds"
 - [x] **1.0** Separations (CMYK and spot plates): a plate per process ink and per spot color; tints of a spot color print as lighter ink on its plate, and spot colors are knocked out of the process plates
 - [x] **1.0** Mail merge and catalog merge printing
+- [x] **1.0** Mail merge: the recipients left out are remembered with a key column, and Save Each as a File makes one `.jpub` publication for each recipient *(shared: JeffWrite; a PDF for each recipient is not made yet)*
 
 ### Share and Export
 - [x] **1.0** Create PDF (standard, minimum size, high quality, commercial press; page ranges; document properties; PDF/A; PDF/X-1a; open the PDF after saving it; a booklet as its printed sheets, two pages to a side in folding order, as Publisher makes it, or as single pages)

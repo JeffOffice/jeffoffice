@@ -288,6 +288,7 @@ bool loadSource(State &state, const QString &fromPath)
     if (!loadMergeSource(path, &m, nullptr)) return false;
     dropBlankRecords(m);
     limitRecords(m);
+    state.exclusionsNote = applyExclusions(m, state.exclusions).problem;
     state.data = m;
     state.sourcePath = path;
     state.loaded = true;
@@ -316,6 +317,13 @@ void WriteDoc::readMailSettings(const QByteArray &settings)
             state->sourcePath = target;
         }
     state->fieldMap = state->fieldMapRead = mail::fieldMapOf(found.odso);
+    for (const office::Relationship &r : m_wml.mainRelationships) {
+        if (r.type != QLatin1String(mail::kExclusionsRel) || r.external) continue;
+        const QString name = r.target.startsWith(QLatin1Char('/')) ? r.target : QStringLiteral("/word/") + r.target;
+        for (const office::wml::KeptPart &part : std::as_const(m_wml.parts))
+            if (part.name.compare(name, Qt::CaseInsensitive) == 0 && exclusionsFromBytes(part.data, &state->exclusions)) break;
+        break;
+    }
     mailMerge = state;
 }
 
@@ -358,6 +366,39 @@ void WriteDoc::writeMailSettings(office::wml::Document *out)
     }
     if (state.fieldMap != state.fieldMapRead) m.odso = mail::odsoWithFieldMap(m.odso, state.fieldMap, state.data.fields);
     part->data = office::wml::settingsWithMailMerge(part->data, m);
+    writeExclusionsPart(out, state);
+}
+
+// The recipients left out are kept in a part of our own (the file's own place for them is not one a program can write so that the other program reads it right): written when there are some,
+// and taken out of the package when there are none.
+void WriteDoc::writeExclusionsPart(office::wml::Document *out, const mail::State &state)
+{
+    const QByteArray bytes = state.kind() == mail::Kind::None ? QByteArray() : exclusionsToBytes(state.exclusions);
+    for (int i = int(out->mainRelationships.size()) - 1; i >= 0; --i) {
+        if (out->mainRelationships[i].type != QLatin1String(mail::kExclusionsRel)) continue;
+        const QString target = out->mainRelationships[i].target;
+        const QString name = target.startsWith(QLatin1Char('/')) ? target : QStringLiteral("/word/") + target;
+        for (int k = int(out->parts.size()) - 1; k >= 0; --k)
+            if (out->parts[k].name.compare(name, Qt::CaseInsensitive) == 0) out->parts.removeAt(k);
+        out->mainRelationships.removeAt(i);
+    }
+    if (bytes.isEmpty()) return;
+    office::wml::KeptPart kept;
+    kept.name = QStringLiteral("/word/mergeexclusions.json");
+    auto taken = [&](const QString &name) {
+        for (const office::wml::KeptPart &k : std::as_const(out->parts))
+            if (k.name.compare(name, Qt::CaseInsensitive) == 0) return true;
+        return false;
+    };
+    for (int n = 2; taken(kept.name); ++n) kept.name = QStringLiteral("/word/mergeexclusions%1.json").arg(n);
+    kept.contentType = QStringLiteral("application/json");
+    kept.data = bytes;
+    out->parts.push_back(kept);
+    office::Relationship r;
+    r.id = nextRelationshipId(out->mainRelationships);
+    r.type = QString(mail::kExclusionsRel);
+    r.target = kept.name;
+    out->mainRelationships.push_back(r);
 }
 
 } // namespace jp::write

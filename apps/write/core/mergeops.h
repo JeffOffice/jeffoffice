@@ -4,6 +4,7 @@
 // The list is read by the shared reader of libs/page/core/mergesource.h.
 
 #include "fields/fieldcode.h"
+#include "core/mergeextras.h"
 #include "core/mergesource.h"
 #include "core/writedoc.h"
 #include "wml/wml.h"
@@ -21,6 +22,9 @@
 #include <optional>
 
 namespace jp::write::mail {
+
+// The relationship from the document to the part that keeps the recipients left out.
+constexpr char kExclusionsRel[] = "http://schemas.jeffoffice.com/2026/relationships/mergeExclusions";
 
 // The most records one merge makes (a larger list is merged in its first records), and the most characters of a prompt or an answer.
 constexpr int kMostRecords = 100000;
@@ -50,6 +54,8 @@ struct State {
     bool changed = false;                // what the file has differs: it is written when the document is saved
     QHash<QString, QString> fieldMap;    // a field of the address block (see logicalFields()) -> the column that holds it (as Match Fields set it)
     QHash<QString, QString> fieldMapRead;   // what the file said of it (written again only where it differs)
+    MergeExclusions exclusions;          // the recipients left out, as the file keeps them (applied to `data` where the list is read again)
+    QString exclusionsNote;              // what of them no longer fit the list read, as a sentence (empty: all fit); said once, by the window
     Kind kind() const { return kindOfValue(settings.type); }
 };
 

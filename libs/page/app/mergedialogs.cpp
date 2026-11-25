@@ -9,6 +9,7 @@
 #include "text/mergeformat.h"
 #include "text/textprops.h"
 #include "app/plaintext.h"
+#include "core/mergeextras.h"
 #include "core/mergesource.h"
 
 #include <QBrush>
@@ -26,6 +27,7 @@
 #include <QLineEdit>
 #include <QPushButton>
 #include <QRegularExpression>
+#include <QSet>
 #include <QTableWidget>
 #include <QVBoxLayout>
 
@@ -71,6 +73,21 @@ bool editRecipientList(QWidget *p, MergeSource &m, bool typeNew)
     auto *search = new QLineEdit(&dlg.d);
     search->setPlaceholderText(QCoreApplication::translate("Dialogs", "Filter recipients"));
     dlg.v->addWidget(search);
+    // Which column tells one recipient from another, for remembering who is left out when the list is read again (none: by place in the list).
+    auto *keyRow = new QHBoxLayout();
+    auto *keyLabel = new QLabel(QCoreApplication::translate("Dialogs", "Remember who is left out by"), &dlg.d);
+    auto *keyBox = new QComboBox(&dlg.d);
+    keyBox->setObjectName(QStringLiteral("mergeKeyColumn"));
+    keyBox->addItem(QCoreApplication::translate("Dialogs", "Place in the list"));
+    keyBox->addItems(m.fields);
+    keyBox->setCurrentIndex(m.keyColumn.isEmpty() ? 0 : std::max(0, int(m.fields.indexOf(m.keyColumn)) + 1));
+    auto *keyNote = new QLabel(&dlg.d);
+    keyNote->setObjectName(QStringLiteral("mergeKeyNote"));
+    keyNote->setTextFormat(Qt::PlainText);
+    keyRow->addWidget(keyLabel);
+    keyRow->addWidget(keyBox);
+    keyRow->addWidget(keyNote, 1);
+    dlg.v->addLayout(keyRow);
     auto *table = new QTableWidget(m.rows.size(), m.fields.size() + 1, &dlg.d);
     QStringList headers{QString()};
     headers << m.fields;
@@ -83,6 +100,20 @@ bool editRecipientList(QWidget *p, MergeSource &m, bool typeNew)
     }
     table->setSortingEnabled(true);
     dlg.v->addWidget(table, 1);
+    auto checkKey = [=] {
+        const int c = keyBox->currentIndex();
+        QSet<QString> seen;
+        bool repeats = false;
+        for (int r = 0; r < table->rowCount() && !repeats && c > 0; ++r)
+            if (table->item(r, c)) {
+                const QString v = table->item(r, c)->text().trimmed().toLower();
+                repeats = seen.contains(v);
+                seen.insert(v);
+            }
+        keyNote->setText(repeats ? QCoreApplication::translate("Dialogs", "Some recipients have the same value in this column, so they can't be told apart later.") : QString());
+    };
+    QObject::connect(keyBox, &QComboBox::currentIndexChanged, &dlg.d, [=](int) { checkKey(); });
+    checkKey();
     auto *row = new QHBoxLayout();
     auto *add = new QPushButton(QCoreApplication::translate("Dialogs", "New Entry"), &dlg.d);
     auto *del = new QPushButton(QCoreApplication::translate("Dialogs", "Delete Entry"), &dlg.d);
@@ -159,6 +190,7 @@ bool editRecipientList(QWidget *p, MergeSource &m, bool typeNew)
     MergeSource out;
     out.path = m.path;
     out.pictureField = m.pictureField;
+    out.keyColumn = keyBox->currentIndex() > 0 ? keyBox->currentText() : QString();
     for (int c = 1; c < table->columnCount(); ++c) out.fields << table->horizontalHeaderItem(c)->text();
     for (int r = 0; r < table->rowCount(); ++r) {
         QStringList rowv;

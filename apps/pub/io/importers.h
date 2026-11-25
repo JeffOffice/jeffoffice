@@ -41,8 +41,11 @@ bool loadTextFileInto(QTextDocument *doc, const QString &path, QString *problem 
 // ...and `cut`, when given, is set when it has more than kMaxInsertParagraphs paragraphs and the rest was not read.
 QString docxToHtml(const QByteArray &docx, int *left = nullptr, bool *cut = nullptr);
 
-std::unique_ptr<Document> mergeToNewPublication(const Document &src);
+// With `only`, the records (rows of the list) it names and not the ones the list includes.
+std::unique_ptr<Document> mergeToNewPublication(const Document &src, const QVector<int> *only = nullptr);
 void mergeToEmailFiles(QWidget *parent, Editor *ed);
+// One file of the publication's own kind for each recipient, in a folder the person chooses (Save Each as a File).
+void mergeToFiles(QWidget *parent, Editor *ed);
 
 std::unique_ptr<Document> loadAnyPublication(const QString &path, QString *error, qint64 most = office::kMaxOpenFileBytes);
 

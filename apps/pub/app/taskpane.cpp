@@ -547,7 +547,7 @@ public:
                 nav->addWidget(b);
             }
             l->addLayout(nav);
-            for (const char *id : {"mm.mergeNew", "mm.mergePdf", "mm.mergePrint", "mm.mergeEmail", "mm.exportList"}) {
+            for (const char *id : {"mm.mergeNew", "mm.mergePdf", "mm.mergePrint", "mm.mergeEmail", "mm.mergeFiles", "mm.exportList"}) {
                 auto *b = new QPushButton(win->act(id)->icon(), win->act(id)->text(), w);
                 QAction *a = win->act(id);
                 connect(b, &QPushButton::clicked, a, &QAction::trigger);

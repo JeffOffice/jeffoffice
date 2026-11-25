@@ -13,6 +13,7 @@
 #include "core/commentops.h"
 #include "core/inspectops.h"
 #include "core/reviewops.h"
+#include "core/mergeops.h"
 #include "io/crypto.h"
 
 #include <QApplication>
@@ -270,7 +271,15 @@ CompatAnswer WriteWindow::odtAnswer()
     QStringList notKept;
     const QByteArray bytes = m_doc->toOdt(&err, &notKept);
     if (bytes.isEmpty()) return CompatAnswer::failed(err);
-    return notKept;
+    return withMergeExclusions(notKept);
+}
+
+// The recipients left out of a mail merge are kept only in a .docx file.
+CompatAnswer WriteWindow::withMergeExclusions(CompatAnswer answer)
+{
+    const write::mail::State *merge = m_doc ? write::mail::stateIfAny(*m_doc) : nullptr;
+    if (merge && !merge->exclusions.isEmpty()) answer.found << tr("Which recipients are left out of the mail merge.");
+    return answer;
 }
 
 // The kinds Check Compatibility offers: each one a way to save that is not a .docx, with the list its own writer gives.
@@ -286,7 +295,7 @@ jp::CompatHost WriteWindow::compatHost()
         QStringList kept;
         QString err;
         if (m_doc->toRtf(&err, &kept).isEmpty()) return done(CompatAnswer::failed(err));
-        CompatAnswer answer(kept);
+        CompatAnswer answer = withMergeExclusions(CompatAnswer(kept));
         if (m_fileProtected) answer.cannotSave = tr("This document is protected with a password, and a .rtf file can't hold one. Save it as a .docx file, or remove the password first (File > Info).");
         done(answer);
     }});
@@ -308,7 +317,7 @@ jp::CompatHost WriteWindow::compatHost()
                     break;
                 }
         }
-        CompatAnswer answer(kept);
+        CompatAnswer answer = withMergeExclusions(CompatAnswer(kept));
         if (m_fileProtected) answer.cannotSave = tr("This document is protected with a password, and a plain text file can't hold one. Save it as a .docx file, or remove the password first (File > Info).");
         done(answer);
     }});

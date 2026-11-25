@@ -188,6 +188,7 @@ struct MergeSource {
     QVector<QStringList> rows;
     QVector<bool> include;      // per row
     QString pictureField;       // field holding picture file paths
+    QString keyColumn;          // the column whose value tells a recipient from the others, for remembering who is left out (empty: by place in the list)
     bool truncated = false;     // the file held more than a list may (see mostMergeColumns), and the rest was left out
     bool isEmpty() const { return fields.isEmpty(); }
     QString value(int row, const QString &field) const;

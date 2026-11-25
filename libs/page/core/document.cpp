@@ -591,7 +591,9 @@ QJsonObject MergeSource::toJson() const
     QJsonArray rs, inc;
     for (const auto &r : rows) rs.append(QJsonArray::fromStringList(r));
     for (bool b : include) inc.append(b);
-    return {{"path", path}, {"fields", QJsonArray::fromStringList(fields)}, {"rows", rs}, {"include", inc}, {"pictureField", pictureField}};
+    QJsonObject o = {{"path", path}, {"fields", QJsonArray::fromStringList(fields)}, {"rows", rs}, {"include", inc}, {"pictureField", pictureField}};
+    if (!keyColumn.isEmpty()) o["keyColumn"] = keyColumn;
+    return o;
 }
 MergeSource MergeSource::fromJson(const QJsonObject &o)
 {
@@ -605,6 +607,7 @@ MergeSource MergeSource::fromJson(const QJsonObject &o)
     }
     for (const auto &b : o["include"].toArray()) m.include << b.toBool();
     m.pictureField = o["pictureField"].toString();
+    m.keyColumn = o["keyColumn"].toString();
     return m;
 }
 

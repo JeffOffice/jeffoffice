@@ -205,7 +205,7 @@
       ]},
       {"name": "Finish", "keytip": "ZF", "items": [
         {"large": {"id": "ribbon.finishMerge", "text": "Finish & Merge", "icon": "send"}, "keytip": "FM", "menu": [
-          "mm.mergePrint", "mm.mergeNew", "mm.mergePdf", "mm.mergeEmail", "-", "mm.exportList"]}
+          "mm.mergePrint", "mm.mergeNew", "mm.mergePdf", "mm.mergeEmail", "mm.mergeFiles", "-", "mm.exportList"]}
       ]}
     ]},
     {"name": "Review", "keytip": "R", "groups": [

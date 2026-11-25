@@ -1159,6 +1159,7 @@ private:
     quint64 m_sourcesRevision = 0;
     void readMailSettings(const QByteArray &settings);
     void writeMailSettings(office::wml::Document *out);
+    void writeExclusionsPart(office::wml::Document *out, const mail::State &state);
     void writeCommentParts(office::wml::Document *out);
     mutable QHash<QString, std::shared_ptr<office::wml::StyleSheet>> m_scratch;
     QVector<office::wml::Style> m_addedTableStyles;                    // built-in table styles that tables made have (see ensureTableStyle)

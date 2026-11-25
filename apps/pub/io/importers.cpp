@@ -1,5 +1,6 @@
 #include "io/importers.h"
 #include "app/uistyle.h"
+#include "app/mergefiles.h"
 #include "app/printpage.h"
 
 #include "app/editor.h"
@@ -36,7 +37,9 @@
 #include <QDateTime>
 #include <QPrinter>
 #include <QRegularExpression>
+#include <QSaveFile>
 #include <QSet>
+#include <QStandardPaths>
 #include <QStringDecoder>
 #include <QTextCursor>
 #include <QTextDocument>
@@ -483,7 +486,7 @@ static std::unique_ptr<Document> copyOfPublication(const Document &src, QString 
     return copy;
 }
 
-std::unique_ptr<Document> mergeToNewPublication(const Document &src)
+std::unique_ptr<Document> mergeToNewPublication(const Document &src, const QVector<int> *only)
 {
     QString err;
     auto out = copyOfPublication(src, &err);
@@ -491,7 +494,7 @@ std::unique_ptr<Document> mergeToNewPublication(const Document &src)
     out->pages.clear();
     out->catalog = CatalogArea();
     auto tmpl = copyOfPublication(src, &err);
-    const QVector<int> records = src.merge.includedRows();
+    const QVector<int> records = only ? *only : src.merge.includedRows();
     auto copyPage = [&](const Page &pg) {
         auto np = out->addPage(-1, pg.masterId);
         np->background = pg.background;
@@ -541,6 +544,42 @@ std::unique_ptr<Document> mergeToNewPublication(const Document &src)
     if (out->pages.isEmpty()) out->addPage();
     out->props.title = QCoreApplication::translate("Import", "%1 (merged)").arg(src.props.title);
     return out;
+}
+
+void mergeToFiles(QWidget *parent, Editor *ed)
+{
+    const Document &d = *ed->doc();
+    if (d.merge.isEmpty()) {
+        jp::plainInformation(parent, QCoreApplication::translate("Import", "Save Each as a File"), QCoreApplication::translate("Import", "Select a recipient list first."));
+        return;
+    }
+    const QVector<int> rows = d.merge.includedRows();
+    if (rows.isEmpty()) {
+        jp::plainInformation(parent, QCoreApplication::translate("Import", "Save Each as a File"), QCoreApplication::translate("Import", "No recipient is included."));
+        return;
+    }
+    MergeFilesKinds kinds;
+    kinds.ownLabel = QCoreApplication::translate("Import", "Publication (.jpub)");
+    kinds.ownExtension = QStringLiteral(".jpub");
+    kinds.canPdf = false;
+    MergeFilesChoice choice;
+    const QString file = ed->filePath();
+    const QString start = file.isEmpty() ? QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation) : QFileInfo(file).absolutePath();
+    if (!mergeFilesDialog(parent, d.merge, rows, kinds, start, &choice)) return;
+    const QStringList names = mergeFileNames(d.merge, rows, choice.pattern, kinds.ownExtension);
+    if (!confirmMergeFiles(parent, choice.folder, names)) return;
+    runMergeFiles(parent, choice.folder, rows, names, [&](int row, const QString &path, QString *why) {
+        const QVector<int> one{row};
+        auto merged = mergeToNewPublication(d, &one);
+        if (!merged) { *why = QCoreApplication::translate("Import", "The publication can't be made."); return false; }
+        const QByteArray bytes = publicationBytes(*merged, QImage(), choice.folder);
+        QSaveFile out(path);
+        if (bytes.isEmpty() || !out.open(QIODevice::WriteOnly) || out.write(bytes) != bytes.size() || !out.commit()) {
+            *why = bytes.isEmpty() ? QCoreApplication::translate("Import", "The publication can't be made.") : out.errorString();
+            return false;
+        }
+        return true;
+    });
 }
 
 void mergeToEmailFiles(QWidget *parent, Editor *ed)

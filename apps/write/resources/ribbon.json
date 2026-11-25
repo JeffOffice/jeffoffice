@@ -1211,7 +1211,8 @@
                 "mail.finish.edit",
                 "mail.finish.print",
                 "mail.finish.pdf",
-                "mail.finish.email"
+                "mail.finish.email",
+                "mail.finish.files"
               ]
             }
           ]

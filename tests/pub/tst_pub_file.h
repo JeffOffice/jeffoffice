@@ -105,6 +105,9 @@ private Q_SLOTS:
     void aDroppedTextFileThatCantBeReadIsToldAboutAndTheOthersComeIn();
     void aPublicationFileOverTheLimitIsRefusedBeforeItIsRead();
     void aRecipientListOverTheLimitIsRefusedBeforeItIsRead();
+    void recipientsLeftOutAndTheirKeyColumnAreKeptInTheFile();
+    void aMergeOfOneRecordMakesThePagesOfThatRecordOnly();
+    void aPubFileCopyListsTheMailMergeListAsNotKept();
     void aDamagedTextFileOrListIsTakenInOrRefusedWithAReason();
     void changeTemplateGallery();
     void templatesFitTheirText();

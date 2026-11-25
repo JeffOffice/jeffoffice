@@ -3,6 +3,7 @@
 
 #include "../withdialog.h"
 #include "app/mailpreview.h"
+#include "app/mergefiles.h"
 #include "app/pageview.h"
 #include "app/writeinfo.h"
 #include "app/writewindow.h"
@@ -14,6 +15,7 @@
 #include "core/fonts.h"
 #include "core/labelops.h"
 #include "core/fieldops.h"
+#include "core/mergeextras.h"
 #include "core/mergeops.h"
 #include "core/mergesource.h"
 #include "core/pictureops.h"
@@ -975,6 +977,258 @@ private Q_SLOTS:
         QVERIFY(mail::stateIfAny(*reopened));
         QCOMPARE(mail::stateIfAny(*reopened)->sourcePath, QStringLiteral("/other/people.csv"));
         QCOMPARE(mail::stateIfAny(*reopened)->settings.activeRecord, 2);
+    }
+
+    // ---- recipients left out, and one file for each recipient (Nov 25)
+    static QByteArray listCsv(const QStringList &rows)
+    {
+        return (QStringLiteral("Name,Email\n") + rows.join(QLatin1Char('\n')) + QLatin1Char('\n')).toUtf8();
+    }
+    static QString writeList(const QTemporaryDir &dir, const QStringList &rows)
+    {
+        const QString path = dir.filePath(QStringLiteral("list.csv"));
+        QFile f(path);
+        if (f.open(QIODevice::WriteOnly)) f.write(listCsv(rows));
+        return path;
+    }
+    static QByteArray mergeSettings(const QString &list)
+    {
+        Q_UNUSED(list)
+        return "<?xml version=\"1.0\"?><w:settings " + QByteArray(kNs) + "><w:mailMerge><w:mainDocumentType w:val=\"formLetters\"/><w:dataType w:val=\"textFile\"/><w:dataSource r:id=\"rId1\"/></w:mailMerge></w:settings>";
+    }
+
+    void recipientsLeftOutAreKeptWithTheDocumentAndFoundAgainByKey()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        const QStringList rows{"Ann,ann@example.com", "Bo,bo@example.com", "Cy,cy@example.com", "Di,di@example.com"};
+        const QString list = writeList(dir, rows);
+        auto doc = open(makeDocx(para(run("x")), mergeSettings(list), QUrl::fromLocalFile(list).toString()));
+        QVERIFY(doc);
+        mail::State &state = mail::stateOf(*doc);
+        QVERIFY(mail::loadSource(state, list));
+        state.data.keyColumn = QStringLiteral("Email");
+        state.data.include[1] = false;
+        state.data.include[3] = false;
+        state.exclusions = exclusionsOf(state.data);
+        state.changed = true;
+        const QByteArray saved = doc->toDocx();
+        // (no recipient's own words are in the file for it: the keys are fingerprints)
+        QVERIFY(!partOf(saved, QStringLiteral("/word/mergeexclusions.json")).contains("example.com"));
+        // The list is rewritten in another order with a new recipient first: the same two are left out, by their keys.
+        writeList(dir, {"Ed,ed@example.com", "Di,di@example.com", "Cy,cy@example.com", "Bo,bo@example.com", "Ann,ann@example.com"});
+        auto again = open(saved);
+        QVERIFY(again);
+        mail::State *back = mail::stateIfAny(*again);
+        QVERIFY(back);
+        QCOMPARE(back->exclusions, state.exclusions);
+        QVERIFY(mail::loadSource(*back, list));
+        QVERIFY(back->exclusionsNote.isEmpty());
+        QCOMPARE(back->data.include, (QVector<bool>{true, false, true, false, true}));
+        // Saved again without a change, the file keeps them; with none left out, the part is gone.
+        QCOMPARE(partOf(again->toDocx(), QStringLiteral("/word/mergeexclusions.json")), partOf(saved, QStringLiteral("/word/mergeexclusions.json")));
+        back->exclusions = MergeExclusions();
+        back->changed = true;
+        QVERIFY(partOf(again->toDocx(), QStringLiteral("/word/mergeexclusions.json")).isEmpty());
+    }
+
+    void recipientsLeftOutByPlaceAreAppliedOnlyToAListOfTheSameSize()
+    {
+        MergeSource m = threePeople();
+        m.include[2] = false;
+        const MergeExclusions saved = exclusionsOf(m);
+        QCOMPARE(saved.places, (QVector<int>{2}));
+        QVERIFY(saved.keyColumn.isEmpty());
+        MergeSource same = threePeople();
+        const ExclusionResult ok = applyExclusions(same, saved);
+        QCOMPARE(ok.applied, 1);
+        QVERIFY(ok.problem.isEmpty());
+        QCOMPARE(same.include, (QVector<bool>{true, true, false}));
+        // A list with another number of recipients is told about, and nobody is left out or put back by guessing.
+        MergeSource longer = threePeople();
+        longer.rows << QStringList{"Di", "di@example.com"};
+        longer.include << true;
+        const ExclusionResult bad = applyExclusions(longer, saved);
+        QCOMPARE(bad.applied, 0);
+        QVERIFY(!bad.problem.isEmpty());
+        QCOMPARE(longer.include, (QVector<bool>{true, true, true, true}));
+    }
+
+    void recipientsThatNoLongerFitAreToldAbout()
+    {
+        MergeSource m = threePeople();
+        m.keyColumn = QStringLiteral("Email");
+        m.include[0] = false;
+        m.include[1] = false;
+        const MergeExclusions saved = exclusionsOf(m);
+        QCOMPARE(saved.keys.size(), 2);
+        // The column is gone.
+        MergeSource noColumn;
+        noColumn.fields = {"Name"};
+        noColumn.rows << QStringList{"Ann"};
+        noColumn.include << true;
+        ExclusionResult r = applyExclusions(noColumn, saved);
+        QCOMPARE(r.applied, 0);
+        QVERIFY(r.problem.contains(QLatin1String("Email")));
+        QCOMPARE(noColumn.include, (QVector<bool>{true}));
+        // One left-out recipient is no longer in the list; the other is left out again.
+        MergeSource fewer = threePeople();
+        fewer.rows.removeFirst();
+        fewer.include.removeFirst();
+        r = applyExclusions(fewer, saved);
+        QCOMPARE(r.applied, 1);
+        QVERIFY(!r.problem.isEmpty());
+        QCOMPARE(fewer.include, (QVector<bool>{false, true}));
+        // Two recipients now share the key of one left out: neither is guessed at.
+        MergeSource twice = threePeople();
+        twice.rows << QStringList{"Bo again", "BO@example.com "};
+        twice.include << true;
+        r = applyExclusions(twice, saved);
+        QCOMPARE(r.applied, 1);
+        QVERIFY(!r.problem.isEmpty());
+        QCOMPARE(twice.include, (QVector<bool>{false, true, true, true}));
+    }
+
+    void whatIsKeptOfTheRecipientsLeftOutIsBoundedWhenItIsRead()
+    {
+        MergeExclusions out;
+        QVERIFY(!exclusionsFromBytes(QByteArray("not json"), &out));
+        QVERIFY(!exclusionsFromBytes(QByteArray(), &out));
+        QJsonArray many;
+        for (int i = 0; i < kMostSavedExclusions + 1; ++i) many.append(i);
+        QVERIFY(!exclusionsFromBytes(QJsonDocument(QJsonObject{{"version", 1}, {"rows", 5}, {"places", many}}).toJson(QJsonDocument::Compact), &out));
+        MergeExclusions e;
+        e.rows = 3;
+        e.places = {0, 2};
+        QVERIFY(exclusionsFromBytes(exclusionsToBytes(e), &out));
+        QCOMPARE(out, e);
+        QVERIFY(exclusionsToBytes(MergeExclusions()).isEmpty());
+        // A list of any size leaves out no more than the limit remembers.
+        MergeSource big;
+        big.fields = {"Name"};
+        for (int i = 0; i < kMostSavedExclusions + 50; ++i) {
+            big.rows << QStringList{QString::number(i)};
+            big.include << false;
+        }
+        QCOMPARE(exclusionsOf(big).places.size(), kMostSavedExclusions);
+    }
+
+    void fileNamesAreMadeSafeNumberedAndShort()
+    {
+        QCOMPARE(safeMergeFileName(QStringLiteral("../../x")), QStringLiteral("x"));
+        QCOMPARE(safeMergeFileName(QStringLiteral("a/b\\c:d*e?f\"g<h>i|j")), QStringLiteral("a b c d e f g h i j"));
+        QCOMPARE(safeMergeFileName(QStringLiteral("CON")), QStringLiteral("_CON"));
+        QCOMPARE(safeMergeFileName(QStringLiteral("nul.txt")), QStringLiteral("_nul.txt"));
+        QCOMPARE(safeMergeFileName(QStringLiteral(" .. ")), QStringLiteral("Recipient"));
+        QCOMPARE(safeMergeFileName(QString(2000000, QLatin1Char('x'))).size(), kMostMergeNameChars);
+        QVERIFY(safeMergeFileName(QString(5000, QChar(0x4E2D))).toUtf8().size() <= kMostMergeNameBytes);
+        MergeSource m;
+        m.fields = {"Last Name", "First Name"};
+        for (const QStringList &r : {QStringList{"Smith", "Ann"}, QStringList{"smith", "ann"}, QStringList{"Smith", "Ann"}, QStringList{"", ""}, QStringList{"../../x", "y"}}) {
+            m.rows << r;
+            m.include << true;
+        }
+        QCOMPARE(defaultFileNamePattern(m), QStringLiteral("{Last Name}, {First Name}"));
+        const QStringList names = mergeFileNames(m, {0, 1, 2, 3, 4}, defaultFileNamePattern(m), QStringLiteral(".pdf"));
+        QCOMPARE(names, (QStringList{"Smith, Ann.pdf", "smith, ann (2).pdf", "Smith, Ann (3).pdf", "Recipient 4.pdf", "x, y.pdf"}));
+        for (const QString &n : names) QVERIFY(nameStaysInFolder(QDir::tempPath(), n));
+        QVERIFY(!nameStaysInFolder(QDir::tempPath(), QStringLiteral("../x")));
+        QVERIFY(!nameStaysInFolder(QDir::tempPath(), QStringLiteral("a/b")));
+        QVERIFY(!nameStaysInFolder(QDir::tempPath(), QStringLiteral("..")));
+        // A value of a million characters makes a name of a limited size, and a pattern of a thousand fields is cut.
+        m.rows << QStringList{QString(1000000, QLatin1Char('q')), QString()};
+        m.include << true;
+        const QStringList huge = mergeFileNames(m, {5}, QStringLiteral("{Last Name}"), QStringLiteral(".docx"));
+        QCOMPARE(huge.size(), 1);
+        QVERIFY(huge[0].size() <= kMostMergeNameChars + 5);
+    }
+
+    void aRunOfFilesStopsBetweenFilesAndKeepsWhatIsWritten()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        const QString folder = dir.filePath(QStringLiteral("out"));
+        const QVector<int> rows{0, 1, 2, 3, 4};
+        const QStringList names{"a.txt", "b.txt", "c.txt", "d.txt", "e.txt"};
+        int made = 0;
+        auto make = [&](int row, const QString &path, QString *) {
+            QFile f(path);
+            if (!f.open(QIODevice::WriteOnly)) return false;
+            f.write(QByteArray::number(row));
+            ++made;
+            return true;
+        };
+        const MergeFilesResult stopped = makeMergeFiles(folder, rows, names, make, [](int done, int) { return done < 2; });
+        QVERIFY(stopped.stopped);
+        QCOMPARE(stopped.written, 2);
+        QCOMPARE(made, 2);
+        QCOMPARE(QDir(folder).entryList(QDir::Files).size(), 2);
+        QCOMPARE(mergeFilesThatExist(folder, names), 2);
+        const MergeFilesResult all = makeMergeFiles(folder, rows, names, make);
+        QVERIFY(!all.stopped);
+        QVERIFY(all.error.isEmpty());
+        QCOMPARE(all.written, 5);
+        // A name that would leave the folder is never made, whatever made it.
+        QCOMPARE(dir.path().isEmpty(), false);
+        int calls = 0;
+        const MergeFilesResult out = makeMergeFiles(folder, {0}, {QStringLiteral("../escape.txt")}, [&](int, const QString &, QString *) { ++calls; return true; });
+        QVERIFY(!out.error.isEmpty());
+        QCOMPARE(calls, 0);
+        QVERIFY(!QFileInfo::exists(dir.filePath(QStringLiteral("escape.txt"))));
+        // A million recipients are refused before any file is made.
+        QVector<int> million(1000000);
+        QStringList manyNames(1000000, QStringLiteral("x"));
+        const MergeFilesResult refused = makeMergeFiles(folder, million, manyNames, [&](int, const QString &, QString *) { ++calls; return true; });
+        QVERIFY(!refused.error.isEmpty());
+        QCOMPARE(refused.written, 0);
+        QCOMPARE(calls, 0);
+    }
+
+    void saveEachAsAFileMakesOneDocumentForEachRecipientThroughTheWindow()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        const QString folder = dir.filePath(QStringLiteral("letters"));
+        WriteWindow w;
+        w.setNotifier([](const QString &, const QString &) {});
+        write::WriteDoc *doc = w.document();
+        QTextCursor c = w.view()->cursor();
+        insertText(*doc, c, QStringLiteral("Dear "));
+        QVERIFY(mail::insertRule(*doc, c, mail::mergeFieldCode(QStringLiteral("Name")), QStringLiteral("«Name»")));
+        mail::State &state = mail::stateOf(*doc);
+        state.settings.type = mail::kindValue(mail::Kind::Letters);
+        state.data = threePeople();
+        state.data.rows[2][0] = QStringLiteral("../../Cy");
+        state.data.include[1] = false;
+        state.loaded = true;
+        w.act(QStringLiteral("mail.finish.files"))->setEnabled(true);
+        QStringList said;
+        QTimer boxes;
+        QObject::connect(&boxes, &QTimer::timeout, [&] {
+            if (auto *box = qobject_cast<QMessageBox *>(QApplication::activeModalWidget())) {
+                said << box->text();
+                box->accept();
+            }
+        });
+        boxes.start(20);
+        withDialog([&] { w.act(QStringLiteral("mail.finish.files"))->trigger(); }, QStringLiteral("mergeFilesDialog"), [&](QDialog *d) {
+            d->findChild<QLineEdit *>(QStringLiteral("mergeFilesFolder"))->setText(folder);
+            d->findChild<QLineEdit *>(QStringLiteral("mergeFilesPattern"))->setText(QStringLiteral("Letter to {Name}"));
+            QVERIFY(d->findChild<QLabel *>(QStringLiteral("mergeFilesPreview"))->text().contains(QLatin1String("Letter to Ann.docx")));
+        });
+        boxes.stop();
+        const QStringList files = QDir(folder).entryList(QDir::Files, QDir::Name);
+        QCOMPARE(files, (QStringList{"Letter to Ann.docx", "Letter to Cy.docx"}));
+        QVERIFY(!said.isEmpty());
+        // (nothing was written beside the folder)
+        QCOMPARE(QDir(dir.path()).entryList(QDir::Files).size(), 0);
+        // Each file, opened again, holds its own recipient and no other.
+        QFile f(QDir(folder).filePath(QStringLiteral("Letter to Cy.docx")));
+        QVERIFY(f.open(QIODevice::ReadOnly));
+        auto cy = open(f.readAll());
+        QVERIFY(cy);
+        QVERIFY(cy->story()->toPlainText().contains(QStringLiteral("Dear ../../Cy")));
+        QVERIFY(!cy->story()->toPlainText().contains(QStringLiteral("Ann")));
     }
 
     void aDocumentWithNoMergeGetsOneOnlyWhenOneIsMade()
