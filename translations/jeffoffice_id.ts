@@ -8772,7 +8772,7 @@ Buka dengan program email Anda untuk mengirimnya.</translation>
         <translation type="unfinished">Konten publikasi rusak: %1</translation>
     </message>
     <message>
-        <location filename="../apps/pub/io/pubimport.cpp" line="+1296"/>
+        <location filename="../apps/pub/io/pubimport.cpp" line="+1301"/>
         <source>A %1 picture could not be displayed.</source>
         <translation type="unfinished">Gambar %1 tidak dapat ditampilkan.</translation>
     </message>
@@ -9695,7 +9695,7 @@ Unduh dari %2 sekarang? (%3, sekali saja.)</translation>
 <context>
     <name>OdpImport</name>
     <message>
-        <location filename="../apps/deck/io/odpimport.cpp" line="+98"/>
+        <location filename="../apps/deck/io/odpimport.cpp" line="+99"/>
         <source>The part is missing from the file.</source>
         <translation type="unfinished">Bagian tersebut tidak ada dalam berkas.</translation>
     </message>
@@ -9754,7 +9754,7 @@ Unduh dari %2 sekarang? (%3, sekali saja.)</translation>
         <translation type="unfinished">Tata Letak Kustom %1</translation>
     </message>
     <message>
-        <location line="+153"/>
+        <location line="+162"/>
         <source>Only the first 10,000 slides are read.</source>
         <translation type="unfinished">Hanya 10.000 slaid pertama yang dibaca.</translation>
     </message>
@@ -9764,7 +9764,7 @@ Unduh dari %2 sekarang? (%3, sekali saja.)</translation>
         <translation type="unfinished">Slaid %1 tidak disertakan: berkas tidak memiliki halaman master untuknya.</translation>
     </message>
     <message>
-        <location line="+92"/>
+        <location line="+94"/>
         <source>a text document</source>
         <translation type="unfinished">dokumen teks</translation>
     </message>
@@ -11291,7 +11291,7 @@ Unduh dari %2 sekarang? (%3, sekali saja.)</translation>
 <context>
     <name>PptxExport</name>
     <message>
-        <location filename="../apps/deck/io/pptxexport.cpp" line="+829"/>
+        <location filename="../apps/deck/io/pptxexport.cpp" line="+832"/>
         <source>%1: a table, chart, or other frame that can&apos;t be read was left out.</source>
         <translation type="unfinished">%1: tabel, bagan, atau bingkai lain yang tidak dapat dibaca dilewati.</translation>
     </message>
@@ -11407,7 +11407,7 @@ Unduh dari %2 sekarang? (%3, sekali saja.)</translation>
         <translation type="unfinished">animasi</translation>
     </message>
     <message>
-        <location line="+604"/>
+        <location line="+606"/>
         <source>The presentation has more slide masters and layouts than a file can number.</source>
         <translation type="unfinished">Presentasi memiliki lebih banyak master slaid dan tata letak daripada yang dapat dinomori oleh sebuah berkas.</translation>
     </message>
@@ -37248,7 +37248,7 @@ Berkas tidak dapat dibaca.</translation>
         <location line="+1"/>
         <location line="+25"/>
         <location line="+1"/>
-        <location filename="../apps/deck/app/deckwindow_save.cpp" line="+409"/>
+        <location filename="../apps/deck/app/deckwindow_save.cpp" line="+420"/>
         <source>Open</source>
         <translation type="unfinished">Buka</translation>
     </message>
@@ -38755,8 +38755,8 @@ Berkas tidak dapat dibaca.</translation>
         <location line="+7"/>
         <location filename="../apps/deck/app/deckwindow_output.cpp" line="-93"/>
         <location line="+215"/>
-        <location filename="../apps/deck/app/deckwindow_save.cpp" line="-228"/>
-        <location line="+102"/>
+        <location filename="../apps/deck/app/deckwindow_save.cpp" line="-239"/>
+        <location line="+113"/>
         <source>%1 couldn&apos;t save &quot;%2&quot;.
 %3%4</source>
         <translation type="unfinished">%1 tidak dapat menyimpan &quot;%2&quot;.
@@ -39729,17 +39729,17 @@ Berkas tidak dapat dibaca.</translation>
     <message>
         <location filename="../apps/deck/app/deckwindow.cpp" line="+0"/>
         <location filename="../apps/deck/app/deckwindow_outline.cpp" line="+9"/>
-        <location filename="../apps/deck/app/deckwindow_save.cpp" line="-232"/>
+        <location filename="../apps/deck/app/deckwindow_save.cpp" line="-243"/>
         <location line="+113"/>
-        <location line="+69"/>
+        <location line="+76"/>
         <location line="+1"/>
-        <location line="+49"/>
+        <location line="+53"/>
         <location line="+3"/>
         <source>Save</source>
         <translation type="unfinished">Simpan</translation>
     </message>
     <message>
-        <location filename="../apps/deck/app/deckwindow_save.cpp" line="-234"/>
+        <location filename="../apps/deck/app/deckwindow_save.cpp" line="-245"/>
         <location line="+73"/>
         <source>Save As</source>
         <translation type="unfinished">Simpan Sebagai</translation>
@@ -39881,7 +39881,7 @@ Berkas tidak dapat dibaca.</translation>
     </message>
     <message>
         <location filename="../apps/deck/app/deckwindow_outline.cpp" line="-13"/>
-        <location filename="../apps/deck/app/deckwindow_save.cpp" line="+46"/>
+        <location filename="../apps/deck/app/deckwindow_save.cpp" line="+53"/>
         <source>A copy can&apos;t be saved over &quot;%1&quot;. Choose another name.</source>
         <translation type="unfinished">Salinan tidak dapat disimpan menimpa &quot;%1&quot;. Pilih nama lain.</translation>
     </message>
@@ -39891,7 +39891,7 @@ Berkas tidak dapat dibaca.</translation>
         <translation type="unfinished">Presentasi ini dibuka hanya untuk dibaca. Pilih nama lain untuknya.</translation>
     </message>
     <message>
-        <location line="+58"/>
+        <location line="+62"/>
         <source>Saved a copy as %1</source>
         <translation type="unfinished">Salinan disimpan sebagai %1</translation>
     </message>
@@ -39902,7 +39902,7 @@ Berkas tidak dapat dibaca.</translation>
         <translation type="unfinished">Disimpan %1</translation>
     </message>
     <message>
-        <location filename="../apps/deck/app/deckwindow_save.cpp" line="-167"/>
+        <location filename="../apps/deck/app/deckwindow_save.cpp" line="-178"/>
         <source>Markdown Outline (*.md)</source>
         <translation type="unfinished">Garis Besar Markdown (*.md)</translation>
     </message>
@@ -39912,7 +39912,7 @@ Berkas tidak dapat dibaca.</translation>
         <translation type="unfinished">animasi (berkas memilikinya, tetapi hilang saat dibuka lagi di sini)</translation>
     </message>
     <message>
-        <location line="+94"/>
+        <location line="+105"/>
         <source>Saved %1. Left out, as this kind of file can&apos;t hold it: %2</source>
         <translation type="unfinished">Disimpan %1. Dihilangkan, karena jenis berkas ini tidak dapat menyimpannya: %2</translation>
     </message>
@@ -41833,8 +41833,8 @@ Berkas tidak dapat dibaca.</translation>
     </message>
     <message>
         <location line="-3"/>
-        <location filename="../apps/deck/app/deckwindow_save.cpp" line="-74"/>
-        <location line="+23"/>
+        <location filename="../apps/deck/app/deckwindow_save.cpp" line="-85"/>
+        <location line="+30"/>
         <source>presentation</source>
         <translation type="unfinished">presentasi</translation>
     </message>

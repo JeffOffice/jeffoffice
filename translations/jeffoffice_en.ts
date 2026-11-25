@@ -83,7 +83,7 @@
 <context>
     <name>OdpImport</name>
     <message numerus="yes">
-        <location filename="../apps/deck/io/odpimport.cpp" line="+891"/>
+        <location filename="../apps/deck/io/odpimport.cpp" line="+903"/>
         <source>The animations of %n slide(s) were left out.</source>
         <translation>
             <numerusform>The animations of %n slide were left out.</numerusform>
@@ -497,7 +497,7 @@
         </translation>
     </message>
     <message numerus="yes">
-        <location filename="../apps/deck/app/deckwindow_save.cpp" line="+316"/>
+        <location filename="../apps/deck/app/deckwindow_save.cpp" line="+327"/>
         <source>Saved %1, but %n object(s) can&apos;t be saved in this kind of file yet.</source>
         <translation>
             <numerusform>Saved %1, but %n object can&apos;t be saved in this kind of file yet.</numerusform>

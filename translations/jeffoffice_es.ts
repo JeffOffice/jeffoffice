@@ -8779,7 +8779,7 @@ Open them with your email program to send.</source>
         <translation type="unfinished">El contenido de la publicación está dañado: %1</translation>
     </message>
     <message>
-        <location filename="../apps/pub/io/pubimport.cpp" line="+1296"/>
+        <location filename="../apps/pub/io/pubimport.cpp" line="+1301"/>
         <source>A %1 picture could not be displayed.</source>
         <translation type="unfinished">No se pudo mostrar una imagen %1.</translation>
     </message>
@@ -9703,7 +9703,7 @@ Download it from %2 now? (%3, once.)</source>
 <context>
     <name>OdpImport</name>
     <message>
-        <location filename="../apps/deck/io/odpimport.cpp" line="+98"/>
+        <location filename="../apps/deck/io/odpimport.cpp" line="+99"/>
         <source>The part is missing from the file.</source>
         <translation type="unfinished">Falta la parte en el archivo.</translation>
     </message>
@@ -9762,7 +9762,7 @@ Download it from %2 now? (%3, once.)</source>
         <translation type="unfinished">Diseño personalizado %1</translation>
     </message>
     <message>
-        <location line="+153"/>
+        <location line="+162"/>
         <source>Only the first 10,000 slides are read.</source>
         <translation type="unfinished">Solo se leen las primeras 10.000 diapositivas.</translation>
     </message>
@@ -9772,7 +9772,7 @@ Download it from %2 now? (%3, once.)</source>
         <translation type="unfinished">Se omitió la diapositiva %1: el archivo no tiene una página maestra para ella.</translation>
     </message>
     <message>
-        <location line="+92"/>
+        <location line="+94"/>
         <source>a text document</source>
         <translation type="unfinished">un documento de texto</translation>
     </message>
@@ -11306,7 +11306,7 @@ Download it from %2 now? (%3, once.)</source>
 <context>
     <name>PptxExport</name>
     <message>
-        <location filename="../apps/deck/io/pptxexport.cpp" line="+829"/>
+        <location filename="../apps/deck/io/pptxexport.cpp" line="+832"/>
         <source>%1: a table, chart, or other frame that can&apos;t be read was left out.</source>
         <translation type="unfinished">%1: se omitió una tabla, un gráfico u otro marco que no se puede leer.</translation>
     </message>
@@ -11422,7 +11422,7 @@ Download it from %2 now? (%3, once.)</source>
         <translation type="unfinished">animación</translation>
     </message>
     <message>
-        <location line="+604"/>
+        <location line="+606"/>
         <source>The presentation has more slide masters and layouts than a file can number.</source>
         <translation type="unfinished">La presentación tiene más patrones de diapositivas y diseños de los que un archivo puede numerar.</translation>
     </message>
@@ -37301,7 +37301,7 @@ No se puede leer el archivo.</translation>
         <location line="+1"/>
         <location line="+25"/>
         <location line="+1"/>
-        <location filename="../apps/deck/app/deckwindow_save.cpp" line="+409"/>
+        <location filename="../apps/deck/app/deckwindow_save.cpp" line="+420"/>
         <source>Open</source>
         <translation type="unfinished">Abrir</translation>
     </message>
@@ -38809,8 +38809,8 @@ No se puede leer el archivo.</translation>
         <location line="+7"/>
         <location filename="../apps/deck/app/deckwindow_output.cpp" line="-93"/>
         <location line="+215"/>
-        <location filename="../apps/deck/app/deckwindow_save.cpp" line="-228"/>
-        <location line="+102"/>
+        <location filename="../apps/deck/app/deckwindow_save.cpp" line="-239"/>
+        <location line="+113"/>
         <source>%1 couldn&apos;t save &quot;%2&quot;.
 %3%4</source>
         <translation type="unfinished">%1 no pudo guardar &quot;%2&quot;.
@@ -39777,17 +39777,17 @@ No se puede leer el archivo.</translation>
     <message>
         <location filename="../apps/deck/app/deckwindow.cpp" line="+0"/>
         <location filename="../apps/deck/app/deckwindow_outline.cpp" line="+9"/>
-        <location filename="../apps/deck/app/deckwindow_save.cpp" line="-232"/>
+        <location filename="../apps/deck/app/deckwindow_save.cpp" line="-243"/>
         <location line="+113"/>
-        <location line="+69"/>
+        <location line="+76"/>
         <location line="+1"/>
-        <location line="+49"/>
+        <location line="+53"/>
         <location line="+3"/>
         <source>Save</source>
         <translation type="unfinished">Guardar</translation>
     </message>
     <message>
-        <location filename="../apps/deck/app/deckwindow_save.cpp" line="-234"/>
+        <location filename="../apps/deck/app/deckwindow_save.cpp" line="-245"/>
         <location line="+73"/>
         <source>Save As</source>
         <translation type="unfinished">Guardar como</translation>
@@ -39930,7 +39930,7 @@ No se puede leer el archivo.</translation>
     </message>
     <message>
         <location filename="../apps/deck/app/deckwindow_outline.cpp" line="-13"/>
-        <location filename="../apps/deck/app/deckwindow_save.cpp" line="+46"/>
+        <location filename="../apps/deck/app/deckwindow_save.cpp" line="+53"/>
         <source>A copy can&apos;t be saved over &quot;%1&quot;. Choose another name.</source>
         <translation type="unfinished">No se puede guardar una copia sobre &quot;%1&quot;. Elija otro nombre.</translation>
     </message>
@@ -39940,7 +39940,7 @@ No se puede leer el archivo.</translation>
         <translation type="unfinished">Esta presentación está abierta solo para lectura. Elija otro nombre para ella.</translation>
     </message>
     <message>
-        <location line="+58"/>
+        <location line="+62"/>
         <source>Saved a copy as %1</source>
         <translation type="unfinished">Se guardó una copia como %1</translation>
     </message>
@@ -39951,7 +39951,7 @@ No se puede leer el archivo.</translation>
         <translation type="unfinished">Se guardó %1</translation>
     </message>
     <message>
-        <location filename="../apps/deck/app/deckwindow_save.cpp" line="-167"/>
+        <location filename="../apps/deck/app/deckwindow_save.cpp" line="-178"/>
         <source>Markdown Outline (*.md)</source>
         <translation type="unfinished">Esquema de Markdown (*.md)</translation>
     </message>
@@ -39961,7 +39961,7 @@ No se puede leer el archivo.</translation>
         <translation type="unfinished">animaciones (el archivo las tiene, pero se pierden al volver a abrirlo aquí)</translation>
     </message>
     <message>
-        <location line="+94"/>
+        <location line="+105"/>
         <source>Saved %1. Left out, as this kind of file can&apos;t hold it: %2</source>
         <translation type="unfinished">Se guardó %1. Se omitió lo siguiente, porque este tipo de archivo no lo admite: %2</translation>
     </message>
@@ -41891,8 +41891,8 @@ No se puede leer el archivo.</translation>
     </message>
     <message>
         <location line="-3"/>
-        <location filename="../apps/deck/app/deckwindow_save.cpp" line="-74"/>
-        <location line="+23"/>
+        <location filename="../apps/deck/app/deckwindow_save.cpp" line="-85"/>
+        <location line="+30"/>
         <source>presentation</source>
         <translation type="unfinished">presentación</translation>
     </message>

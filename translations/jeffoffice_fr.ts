@@ -8779,7 +8779,7 @@ Ouvrez-les avec votre programme de messagerie pour les envoyer.</translation>
         <translation type="unfinished">Le contenu de la composition est endommagé : %1</translation>
     </message>
     <message>
-        <location filename="../apps/pub/io/pubimport.cpp" line="+1296"/>
+        <location filename="../apps/pub/io/pubimport.cpp" line="+1301"/>
         <source>A %1 picture could not be displayed.</source>
         <translation type="unfinished">Une image %1 n&apos;a pas pu être affichée.</translation>
     </message>
@@ -9703,7 +9703,7 @@ Le télécharger depuis %2 maintenant ? (%3, une seule fois.)</translation>
 <context>
     <name>OdpImport</name>
     <message>
-        <location filename="../apps/deck/io/odpimport.cpp" line="+98"/>
+        <location filename="../apps/deck/io/odpimport.cpp" line="+99"/>
         <source>The part is missing from the file.</source>
         <translation type="unfinished">Cette partie est absente du fichier.</translation>
     </message>
@@ -9762,7 +9762,7 @@ Le télécharger depuis %2 maintenant ? (%3, une seule fois.)</translation>
         <translation type="unfinished">Disposition personnalisée %1</translation>
     </message>
     <message>
-        <location line="+153"/>
+        <location line="+162"/>
         <source>Only the first 10,000 slides are read.</source>
         <translation type="unfinished">Seules les 10 000 premières diapositives sont lues.</translation>
     </message>
@@ -9772,7 +9772,7 @@ Le télécharger depuis %2 maintenant ? (%3, une seule fois.)</translation>
         <translation type="unfinished">La diapositive %1 a été omise : le fichier ne contient pas de page maître pour elle.</translation>
     </message>
     <message>
-        <location line="+92"/>
+        <location line="+94"/>
         <source>a text document</source>
         <translation type="unfinished">un document texte</translation>
     </message>
@@ -11306,7 +11306,7 @@ Le télécharger depuis %2 maintenant ? (%3, une seule fois.)</translation>
 <context>
     <name>PptxExport</name>
     <message>
-        <location filename="../apps/deck/io/pptxexport.cpp" line="+829"/>
+        <location filename="../apps/deck/io/pptxexport.cpp" line="+832"/>
         <source>%1: a table, chart, or other frame that can&apos;t be read was left out.</source>
         <translation type="unfinished">%1 : un tableau, un graphique ou un autre cadre illisible a été ignoré.</translation>
     </message>
@@ -11422,7 +11422,7 @@ Le télécharger depuis %2 maintenant ? (%3, une seule fois.)</translation>
         <translation type="unfinished">animation</translation>
     </message>
     <message>
-        <location line="+604"/>
+        <location line="+606"/>
         <source>The presentation has more slide masters and layouts than a file can number.</source>
         <translation type="unfinished">La présentation contient plus de masques des diapositives et de dispositions qu&apos;un fichier ne peut en numéroter.</translation>
     </message>
@@ -37301,7 +37301,7 @@ Le fichier est illisible.</translation>
         <location line="+1"/>
         <location line="+25"/>
         <location line="+1"/>
-        <location filename="../apps/deck/app/deckwindow_save.cpp" line="+409"/>
+        <location filename="../apps/deck/app/deckwindow_save.cpp" line="+420"/>
         <source>Open</source>
         <translation type="unfinished">Ouvrir</translation>
     </message>
@@ -38809,8 +38809,8 @@ Le fichier est illisible.</translation>
         <location line="+7"/>
         <location filename="../apps/deck/app/deckwindow_output.cpp" line="-93"/>
         <location line="+215"/>
-        <location filename="../apps/deck/app/deckwindow_save.cpp" line="-228"/>
-        <location line="+102"/>
+        <location filename="../apps/deck/app/deckwindow_save.cpp" line="-239"/>
+        <location line="+113"/>
         <source>%1 couldn&apos;t save &quot;%2&quot;.
 %3%4</source>
         <translation type="unfinished">%1 n&apos;a pas pu enregistrer « %2 ».
@@ -39777,17 +39777,17 @@ Le fichier est illisible.</translation>
     <message>
         <location filename="../apps/deck/app/deckwindow.cpp" line="+0"/>
         <location filename="../apps/deck/app/deckwindow_outline.cpp" line="+9"/>
-        <location filename="../apps/deck/app/deckwindow_save.cpp" line="-232"/>
+        <location filename="../apps/deck/app/deckwindow_save.cpp" line="-243"/>
         <location line="+113"/>
-        <location line="+69"/>
+        <location line="+76"/>
         <location line="+1"/>
-        <location line="+49"/>
+        <location line="+53"/>
         <location line="+3"/>
         <source>Save</source>
         <translation type="unfinished">Enregistrer</translation>
     </message>
     <message>
-        <location filename="../apps/deck/app/deckwindow_save.cpp" line="-234"/>
+        <location filename="../apps/deck/app/deckwindow_save.cpp" line="-245"/>
         <location line="+73"/>
         <source>Save As</source>
         <translation type="unfinished">Enregistrer sous</translation>
@@ -39930,7 +39930,7 @@ Le fichier est illisible.</translation>
     </message>
     <message>
         <location filename="../apps/deck/app/deckwindow_outline.cpp" line="-13"/>
-        <location filename="../apps/deck/app/deckwindow_save.cpp" line="+46"/>
+        <location filename="../apps/deck/app/deckwindow_save.cpp" line="+53"/>
         <source>A copy can&apos;t be saved over &quot;%1&quot;. Choose another name.</source>
         <translation type="unfinished">Une copie ne peut pas être enregistrée par-dessus « %1 ». Choisissez un autre nom.</translation>
     </message>
@@ -39940,7 +39940,7 @@ Le fichier est illisible.</translation>
         <translation type="unfinished">Cette présentation est ouverte en lecture seule. Choisissez un autre nom pour elle.</translation>
     </message>
     <message>
-        <location line="+58"/>
+        <location line="+62"/>
         <source>Saved a copy as %1</source>
         <translation type="unfinished">Copie enregistrée sous %1</translation>
     </message>
@@ -39951,7 +39951,7 @@ Le fichier est illisible.</translation>
         <translation type="unfinished">%1 enregistré</translation>
     </message>
     <message>
-        <location filename="../apps/deck/app/deckwindow_save.cpp" line="-167"/>
+        <location filename="../apps/deck/app/deckwindow_save.cpp" line="-178"/>
         <source>Markdown Outline (*.md)</source>
         <translation type="unfinished">Plan Markdown (*.md)</translation>
     </message>
@@ -39961,7 +39961,7 @@ Le fichier est illisible.</translation>
         <translation type="unfinished">animations (le fichier les contient, mais elles sont perdues lorsqu&apos;il est de nouveau ouvert ici)</translation>
     </message>
     <message>
-        <location line="+94"/>
+        <location line="+105"/>
         <source>Saved %1. Left out, as this kind of file can&apos;t hold it: %2</source>
         <translation type="unfinished">%1 enregistré. Éléments omis, car ce type de fichier ne peut pas les contenir : %2</translation>
     </message>
@@ -41891,8 +41891,8 @@ Le fichier est illisible.</translation>
     </message>
     <message>
         <location line="-3"/>
-        <location filename="../apps/deck/app/deckwindow_save.cpp" line="-74"/>
-        <location line="+23"/>
+        <location filename="../apps/deck/app/deckwindow_save.cpp" line="-85"/>
+        <location line="+30"/>
         <source>presentation</source>
         <translation type="unfinished">présentation</translation>
     </message>

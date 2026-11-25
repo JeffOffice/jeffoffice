@@ -8779,7 +8779,7 @@ Open deze bestanden in uw e-mailprogramma om ze te verzenden.</translation>
         <translation type="unfinished">De publicatie-inhoud is beschadigd: %1</translation>
     </message>
     <message>
-        <location filename="../apps/pub/io/pubimport.cpp" line="+1296"/>
+        <location filename="../apps/pub/io/pubimport.cpp" line="+1301"/>
         <source>A %1 picture could not be displayed.</source>
         <translation type="unfinished">Een %1-afbeelding kan niet worden weergegeven.</translation>
     </message>
@@ -9703,7 +9703,7 @@ Nu downloaden van %2? (%3, eenmalig.)</translation>
 <context>
     <name>OdpImport</name>
     <message>
-        <location filename="../apps/deck/io/odpimport.cpp" line="+98"/>
+        <location filename="../apps/deck/io/odpimport.cpp" line="+99"/>
         <source>The part is missing from the file.</source>
         <translation type="unfinished">Het onderdeel ontbreekt in het bestand.</translation>
     </message>
@@ -9762,7 +9762,7 @@ Nu downloaden van %2? (%3, eenmalig.)</translation>
         <translation type="unfinished">Aangepaste indeling %1</translation>
     </message>
     <message>
-        <location line="+153"/>
+        <location line="+162"/>
         <source>Only the first 10,000 slides are read.</source>
         <translation type="unfinished">Alleen de eerste 10.000 dia&apos;s worden gelezen.</translation>
     </message>
@@ -9772,7 +9772,7 @@ Nu downloaden van %2? (%3, eenmalig.)</translation>
         <translation type="unfinished">Dia %1 is weggelaten: het bestand bevat er geen basispagina voor.</translation>
     </message>
     <message>
-        <location line="+92"/>
+        <location line="+94"/>
         <source>a text document</source>
         <translation type="unfinished">een tekstdocument</translation>
     </message>
@@ -11306,7 +11306,7 @@ Nu downloaden van %2? (%3, eenmalig.)</translation>
 <context>
     <name>PptxExport</name>
     <message>
-        <location filename="../apps/deck/io/pptxexport.cpp" line="+829"/>
+        <location filename="../apps/deck/io/pptxexport.cpp" line="+832"/>
         <source>%1: a table, chart, or other frame that can&apos;t be read was left out.</source>
         <translation type="unfinished">%1: een onleesbare tabel, grafiek of ander kader is weggelaten.</translation>
     </message>
@@ -11422,7 +11422,7 @@ Nu downloaden van %2? (%3, eenmalig.)</translation>
         <translation type="unfinished">animatie</translation>
     </message>
     <message>
-        <location line="+604"/>
+        <location line="+606"/>
         <source>The presentation has more slide masters and layouts than a file can number.</source>
         <translation type="unfinished">De presentatie heeft meer diamodellen en indelingen dan een bestand kan nummeren.</translation>
     </message>
@@ -37301,7 +37301,7 @@ Het bestand kan niet worden gelezen.</translation>
         <location line="+1"/>
         <location line="+25"/>
         <location line="+1"/>
-        <location filename="../apps/deck/app/deckwindow_save.cpp" line="+409"/>
+        <location filename="../apps/deck/app/deckwindow_save.cpp" line="+420"/>
         <source>Open</source>
         <translation type="unfinished">Openen</translation>
     </message>
@@ -38809,8 +38809,8 @@ Het bestand kan niet worden gelezen.</translation>
         <location line="+7"/>
         <location filename="../apps/deck/app/deckwindow_output.cpp" line="-93"/>
         <location line="+215"/>
-        <location filename="../apps/deck/app/deckwindow_save.cpp" line="-228"/>
-        <location line="+102"/>
+        <location filename="../apps/deck/app/deckwindow_save.cpp" line="-239"/>
+        <location line="+113"/>
         <source>%1 couldn&apos;t save &quot;%2&quot;.
 %3%4</source>
         <translation type="unfinished">%1 kan &quot;%2&quot; niet opslaan.
@@ -39777,17 +39777,17 @@ Het bestand kan niet worden gelezen.</translation>
     <message>
         <location filename="../apps/deck/app/deckwindow.cpp" line="+0"/>
         <location filename="../apps/deck/app/deckwindow_outline.cpp" line="+9"/>
-        <location filename="../apps/deck/app/deckwindow_save.cpp" line="-232"/>
+        <location filename="../apps/deck/app/deckwindow_save.cpp" line="-243"/>
         <location line="+113"/>
-        <location line="+69"/>
+        <location line="+76"/>
         <location line="+1"/>
-        <location line="+49"/>
+        <location line="+53"/>
         <location line="+3"/>
         <source>Save</source>
         <translation type="unfinished">Opslaan</translation>
     </message>
     <message>
-        <location filename="../apps/deck/app/deckwindow_save.cpp" line="-234"/>
+        <location filename="../apps/deck/app/deckwindow_save.cpp" line="-245"/>
         <location line="+73"/>
         <source>Save As</source>
         <translation type="unfinished">Opslaan als</translation>
@@ -39930,7 +39930,7 @@ Het bestand kan niet worden gelezen.</translation>
     </message>
     <message>
         <location filename="../apps/deck/app/deckwindow_outline.cpp" line="-13"/>
-        <location filename="../apps/deck/app/deckwindow_save.cpp" line="+46"/>
+        <location filename="../apps/deck/app/deckwindow_save.cpp" line="+53"/>
         <source>A copy can&apos;t be saved over &quot;%1&quot;. Choose another name.</source>
         <translation type="unfinished">Een kopie kan niet over &quot;%1&quot; worden opgeslagen. Kies een andere naam.</translation>
     </message>
@@ -39940,7 +39940,7 @@ Het bestand kan niet worden gelezen.</translation>
         <translation type="unfinished">Deze presentatie is alleen-lezen geopend. Kies een andere naam ervoor.</translation>
     </message>
     <message>
-        <location line="+58"/>
+        <location line="+62"/>
         <source>Saved a copy as %1</source>
         <translation type="unfinished">Kopie opgeslagen als %1</translation>
     </message>
@@ -39951,7 +39951,7 @@ Het bestand kan niet worden gelezen.</translation>
         <translation type="unfinished">%1 opgeslagen</translation>
     </message>
     <message>
-        <location filename="../apps/deck/app/deckwindow_save.cpp" line="-167"/>
+        <location filename="../apps/deck/app/deckwindow_save.cpp" line="-178"/>
         <source>Markdown Outline (*.md)</source>
         <translation type="unfinished">Markdown-overzicht (*.md)</translation>
     </message>
@@ -39961,7 +39961,7 @@ Het bestand kan niet worden gelezen.</translation>
         <translation type="unfinished">animaties (het bestand bevat ze, maar ze gaan verloren wanneer het hier opnieuw wordt geopend)</translation>
     </message>
     <message>
-        <location line="+94"/>
+        <location line="+105"/>
         <source>Saved %1. Left out, as this kind of file can&apos;t hold it: %2</source>
         <translation type="unfinished">%1 opgeslagen. Weggelaten omdat dit bestandstype het niet kan bevatten: %2</translation>
     </message>
@@ -41891,8 +41891,8 @@ Het bestand kan niet worden gelezen.</translation>
     </message>
     <message>
         <location line="-3"/>
-        <location filename="../apps/deck/app/deckwindow_save.cpp" line="-74"/>
-        <location line="+23"/>
+        <location filename="../apps/deck/app/deckwindow_save.cpp" line="-85"/>
+        <location line="+30"/>
         <source>presentation</source>
         <translation type="unfinished">presentatie</translation>
     </message>

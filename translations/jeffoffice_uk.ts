@@ -8816,7 +8816,7 @@ Open them with your email program to send.</source>
         <translation type="unfinished">Вміст публікації пошкоджено: %1</translation>
     </message>
     <message>
-        <location filename="../apps/pub/io/pubimport.cpp" line="+1296"/>
+        <location filename="../apps/pub/io/pubimport.cpp" line="+1301"/>
         <source>A %1 picture could not be displayed.</source>
         <translation type="unfinished">Не вдалося показати малюнок у форматі %1.</translation>
     </message>
@@ -9711,7 +9711,7 @@ Download it from %2 now? (%3, once.)</source>
 <context>
     <name>OdpImport</name>
     <message>
-        <location filename="../apps/deck/io/odpimport.cpp" line="+98"/>
+        <location filename="../apps/deck/io/odpimport.cpp" line="+99"/>
         <source>The part is missing from the file.</source>
         <translation type="unfinished">Частина відсутня у файлі.</translation>
     </message>
@@ -9770,7 +9770,7 @@ Download it from %2 now? (%3, once.)</source>
         <translation type="unfinished">Користувацький макет %1</translation>
     </message>
     <message>
-        <location line="+153"/>
+        <location line="+162"/>
         <source>Only the first 10,000 slides are read.</source>
         <translation type="unfinished">Читаються лише перші 10 000 слайдів.</translation>
     </message>
@@ -9780,7 +9780,7 @@ Download it from %2 now? (%3, once.)</source>
         <translation type="unfinished">Слайд %1 пропущено: у файлі немає для нього головної сторінки.</translation>
     </message>
     <message>
-        <location line="+92"/>
+        <location line="+94"/>
         <source>a text document</source>
         <translation type="unfinished">текстовий документ</translation>
     </message>
@@ -11321,7 +11321,7 @@ Download it from %2 now? (%3, once.)</source>
 <context>
     <name>PptxExport</name>
     <message>
-        <location filename="../apps/deck/io/pptxexport.cpp" line="+829"/>
+        <location filename="../apps/deck/io/pptxexport.cpp" line="+832"/>
         <source>%1: a table, chart, or other frame that can&apos;t be read was left out.</source>
         <translation type="unfinished">%1: таблицю, діаграму або інший фрейм, який не можна прочитати, пропущено.</translation>
     </message>
@@ -11437,7 +11437,7 @@ Download it from %2 now? (%3, once.)</source>
         <translation type="unfinished">анімація</translation>
     </message>
     <message>
-        <location line="+604"/>
+        <location line="+606"/>
         <source>The presentation has more slide masters and layouts than a file can number.</source>
         <translation type="unfinished">Презентація містить більше зразків слайдів і макетів, ніж може пронумерувати файл.</translation>
     </message>
@@ -37354,7 +37354,7 @@ The file can&apos;t be read.</source>
         <location line="+1"/>
         <location line="+25"/>
         <location line="+1"/>
-        <location filename="../apps/deck/app/deckwindow_save.cpp" line="+409"/>
+        <location filename="../apps/deck/app/deckwindow_save.cpp" line="+420"/>
         <source>Open</source>
         <translation type="unfinished">Відкрити</translation>
     </message>
@@ -38857,11 +38857,11 @@ The file can&apos;t be read.</source>
     <message>
         <location filename="../apps/deck/app/deckwindow.cpp" line="+0"/>
         <location filename="../apps/deck/app/deckwindow_outline.cpp" line="+77"/>
-        <location filename="../apps/deck/app/deckwindow_save.cpp" line="-358"/>
+        <location filename="../apps/deck/app/deckwindow_save.cpp" line="-369"/>
         <location line="+113"/>
-        <location line="+69"/>
+        <location line="+76"/>
         <location line="+1"/>
-        <location line="+49"/>
+        <location line="+53"/>
         <location line="+3"/>
         <source>Save</source>
         <translation type="unfinished">Зберегти</translation>
@@ -38914,8 +38914,8 @@ The file can&apos;t be read.</source>
         <location line="+7"/>
         <location filename="../apps/deck/app/deckwindow_output.cpp" line="+139"/>
         <location line="+215"/>
-        <location filename="../apps/deck/app/deckwindow_save.cpp" line="-105"/>
-        <location line="+102"/>
+        <location filename="../apps/deck/app/deckwindow_save.cpp" line="-116"/>
+        <location line="+113"/>
         <source>%1 couldn&apos;t save &quot;%2&quot;.
 %3%4</source>
         <translation type="unfinished">%1 не вдалося зберегти «%2».
@@ -39616,8 +39616,8 @@ The file can&apos;t be read.</source>
     </message>
     <message>
         <location line="-3"/>
-        <location filename="../apps/deck/app/deckwindow_save.cpp" line="-74"/>
-        <location line="+23"/>
+        <location filename="../apps/deck/app/deckwindow_save.cpp" line="-85"/>
+        <location line="+30"/>
         <source>presentation</source>
         <translation type="unfinished">презентацію</translation>
     </message>
@@ -40415,7 +40415,7 @@ The file can&apos;t be read.</source>
     </message>
     <message>
         <location line="-4"/>
-        <location filename="../apps/deck/app/deckwindow_save.cpp" line="+58"/>
+        <location filename="../apps/deck/app/deckwindow_save.cpp" line="+62"/>
         <source>Saved %1</source>
         <translation type="unfinished">Збережено %1</translation>
     </message>
@@ -40916,7 +40916,7 @@ The file can&apos;t be read.</source>
         <translation type="unfinished">Стрілки ліворуч і праворуч зменшують і збільшують масштаб.</translation>
     </message>
     <message>
-        <location filename="../apps/deck/app/deckwindow_save.cpp" line="-254"/>
+        <location filename="../apps/deck/app/deckwindow_save.cpp" line="-265"/>
         <location line="+73"/>
         <source>Save As</source>
         <translation type="unfinished">Зберегти як</translation>
@@ -41065,22 +41065,22 @@ The file can&apos;t be read.</source>
     </message>
     <message>
         <location filename="../apps/deck/app/deckwindow_outline.cpp" line="-13"/>
-        <location filename="../apps/deck/app/deckwindow_save.cpp" line="+19"/>
+        <location filename="../apps/deck/app/deckwindow_save.cpp" line="+26"/>
         <source>A copy can&apos;t be saved over &quot;%1&quot;. Choose another name.</source>
         <translation type="unfinished">Копію не можна зберегти поверх «%1». Виберіть іншу назву.</translation>
     </message>
     <message>
-        <location filename="../apps/deck/app/deckwindow_save.cpp" line="-93"/>
+        <location filename="../apps/deck/app/deckwindow_save.cpp" line="-100"/>
         <source>Markdown Outline (*.md)</source>
         <translation type="unfinished">Структура Markdown (*.md)</translation>
     </message>
     <message>
-        <location line="+93"/>
+        <location line="+100"/>
         <source>This presentation is open for reading only. Choose another name for it.</source>
         <translation type="unfinished">Цю презентацію відкрито лише для читання. Виберіть для неї іншу назву.</translation>
     </message>
     <message>
-        <location line="+58"/>
+        <location line="+62"/>
         <source>Saved a copy as %1</source>
         <translation type="unfinished">Копію збережено як %1</translation>
     </message>
