@@ -2,6 +2,10 @@
 // built here from a few lines of XML.
 
 #include "core/workthread.h"
+#include "app/picturetools.h"
+#include "core/blipeffects.h"
+#include "core/picturefx.h"
+#include "office/picturefx_blip.h"
 #include "../isolatesettings.h"
 #include "../withdialog.h"
 #include "../chartmenu.h"
@@ -7025,6 +7029,76 @@ private Q_SLOTS:
         info = pictureAt(*doc, doc->story(), 7);
         QVERIFY(info.lineColor.isEmpty() && info.brightness == 0 && info.contrast == 0);
         QVERIFY(!documentXml(doc->toDocx()).contains("<a:ln"));
+    }
+
+    // The picture filters: the blip is the finished picture and an extension keeps the settings and the original (office/picturefx_blip.h).
+    void aPictureTakesFiltersKeepsItsOriginalAndResetPictureBringsItBack()
+    {
+        auto doc = textDoc({"Before after"});
+        QTextCursor c(doc->story());
+        c.setPosition(7);
+        QImage checks(96, 96, QImage::Format_RGB32);
+        for (int y = 0; y < checks.height(); ++y)
+            for (int x = 0; x < checks.width(); ++x) checks.setPixel(x, y, ((x / 8 + y / 8) % 2) ? qRgb(240, 240, 240) : qRgb(20, 40, 60));
+        QByteArray original;
+        QBuffer out(&original);
+        out.open(QIODevice::WriteOnly);
+        checks.save(&out, "PNG");
+        QCOMPARE(insertPicture(*doc, c, original), PictureResult::Ok);
+        // (Any edit writes the drawing out in the program's own form: a first edit that changes nothing is made, so that "as it was" is the form the later edits keep.)
+        QVERIFY(setPictureCorrections(*doc, 7, 0.1, 0));
+        QVERIFY(setPictureCorrections(*doc, 7, 0, 0));
+        const QByteArray plain = documentXml(doc->toDocx());
+        QVERIFY(!plain.contains("jfx:filters"));
+        QVector<BlipEffect> sharp, blur;
+        for (const PictureFxCommand &cmd : pictureSharpenCommands())
+            if (cmd.id == QLatin1String("pic.sharpen.50")) {
+                PictureItem probe;
+                cmd.apply(probe);
+                sharp = blipFilters(probe.blipEffects);
+            }
+        {
+            PictureItem probe;
+            probe.setArtistic(int(ArtisticStyle::Blur));
+            blur = blipFilters(probe.blipEffects);
+        }
+        QVERIFY(!sharp.isEmpty() && !blur.isEmpty());
+        QVERIFY(setPictureFilters(*doc, 7, sharp));
+        QVERIFY(!setPictureFilters(*doc, 7, sharp));   // (the same again is no change)
+        QCOMPARE(pictureAt(*doc, doc->story(), 7).filters.size(), sharp.size());
+        const QByteArray x = documentXml(doc->toDocx());
+        office::PictureFxBlip blip;
+        QVERIFY(office::readPictureFxBlip(x, &blip) && blip.present);
+        QVERIFY(blip.shownRid != blip.originalRid);
+        // The original is kept as it came in, and the blip shows another picture: the finished one.
+        QCOMPARE(doc->relatedPartData(blip.originalRid), original);
+        const QImage finished = QImage::fromData(doc->relatedPartData(blip.shownRid));
+        QVERIFY(!finished.isNull() && finished.size() == checks.size() && finished != checks);
+        // It is drawn as the original with the filters over it.
+        auto pic = pictureOfPage(*doc);
+        QVERIFY(pic && blipEffectsChange(blipFilters(pic->blipEffects)));
+        // Save and open, through the program's own paths: the settings and the original come back.
+        auto back = open(doc->toDocx());
+        QCOMPARE(pictureAt(*back, back->story(), 7).filters.size(), sharp.size());
+        QVERIFY(blipEffectsChange(blipFilters(pictureOfPage(*back)->blipEffects)));
+        // Another filter takes the place of the first, worked from the original (not from the finished picture); the old finished picture goes.
+        QVERIFY(setPictureFilters(*doc, 7, blur));
+        const QByteArray y = documentXml(doc->toDocx());
+        office::PictureFxBlip again;
+        QVERIFY(office::readPictureFxBlip(y, &again) && again.present && again.originalRid == blip.originalRid && again.shownRid != blip.shownRid);
+        QCOMPARE(pictureAt(*doc, doc->story(), 7).filters.first().style, int(ArtisticStyle::Blur));
+        // One step each, and Undo restores the bytes.
+        QVERIFY(doc->undo());
+        QCOMPARE(documentXml(doc->toDocx()), x);
+        QVERIFY(doc->redo());
+        QVERIFY(resetPicture(*doc, 7));
+        QVERIFY(pictureAt(*doc, doc->story(), 7).filters.isEmpty());
+        QCOMPARE(documentXml(doc->toDocx()), plain);   // (a picture that took them off is saved as one that never had them)
+        QVERIFY(doc->undo());
+        QCOMPARE(documentXml(doc->toDocx()), y);
+        // Taking them off by setting none is the same.
+        QVERIFY(setPictureFilters(*doc, 7, {}));
+        QCOMPARE(documentXml(doc->toDocx()), plain);
     }
 
     void aPictureIsChangedForAnotherInTheSameFrameKeepingItsPlaceAndAltText()

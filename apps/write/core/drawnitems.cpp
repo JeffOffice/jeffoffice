@@ -26,7 +26,7 @@ ColorRef colorOf(const QString &rgb) { return ColorRef::rgb(QColor(QLatin1Char('
 
 } // namespace
 
-void dressPicture(PictureItem &pic, const Shape &s, const office::Theme *theme)
+void dressPicture(PictureItem &pic, const Shape &s, const office::Theme *theme, bool withFilters)
 {
     const double w = pic.rect.width(), h = pic.rect.height();
     const double keepW = 1 - s.cropL - s.cropR, keepH = 1 - s.cropT - s.cropB;
@@ -59,6 +59,8 @@ void dressPicture(PictureItem &pic, const Shape &s, const office::Theme *theme)
         }
         if (!listed.isEmpty()) pic.takeEffects(listed);
     }
+    // The picture filters come after the colors (as the shared reader keeps them): the picture drawn is the original, and these are worked out over it.
+    if (withFilters && !s.filters.isEmpty()) pic.blipEffects += s.filters;
     // (The shape is named as the drawing format names it; the picture's mask is by the shape library's name for it.)
     if (!s.cropShape.isEmpty()) pic.maskShape = office::shapeForPreset(s.cropShape).isEmpty() ? s.cropShape : office::shapeForPreset(s.cropShape);
     pic.rotation = s.rotation;

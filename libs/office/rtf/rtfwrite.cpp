@@ -1,3 +1,4 @@
+#include "office/picturefx_blip.h"
 #include "rtf/rtfwrite.h"
 
 #include "office/theme.h"
@@ -442,6 +443,7 @@ struct Writer {
         }
         static const QRegularExpression flipped(QStringLiteral("\\bflip[HV]\\s*=\\s*\"(1|true)\""));
         if (flipped.match(xml).hasMatch()) note(QStringLiteral("pictures that are flipped (saved as they were before the flip)"));
+        if (xml.contains(QLatin1String(office::pictureFxExtensionUri()))) note(QCoreApplication::translate("rtf", "pictures with sharpen, soften, color temperature, or an artistic effect (saved as the finished picture, and the effect can't be changed or taken off again)"));
         const qint64 cx = x.hasMatch() ? x.captured(1).toLongLong() : 0, cy = x.hasMatch() ? x.captured(2).toLongLong() : 0;
         const int w = int(std::clamp<qint64>(cx / 635, 20, 31680)), h = int(std::clamp<qint64>(cy / 635, 20, 31680));
         QByteArray o = "{\\pict" + QByteArray(kind) + "\\picw" + QByteArray::number(w / 15) + "\\pich" + QByteArray::number(h / 15) + "\\picwgoal" + QByteArray::number(w) + "\\pichgoal" +

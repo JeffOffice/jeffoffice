@@ -12,6 +12,7 @@
 // Properties hold only what the paragraph, run, or style states (std::optional is "not stated"); the style that applies and the
 // document's defaults give the rest (StyleSheet::paragraph, StyleSheet::run).
 
+#include "core/blipeffect.h"
 #include "office/embeddedfonts.h"
 #include "office/relationship.h"
 #include "ole/embedobj.h"
@@ -631,6 +632,8 @@ struct Shape {
     QString alt;                          // its description
     QString barcodePngHash, barcodeSvgHash;   // the fingerprints of the pictures the marker was written with
     QString svgEmbed;                     // the Id of the picture's SVG (the blip's svgBlip), where it has one
+    QString filterEmbed;                  // the Id of the original of a picture made by the picture filters (our extension of the blip: the blip is the finished picture), and the filters it was made with
+    QVector<BlipEffect> filters;
     QJsonObject barcode;                  // a barcode of ours: the settings its wp:docPr holds as the marker (office/barcodemarker.h); the picture beside it is what other programs show
     bool hidden = false;                  // the file hides it (wp:docPr's hidden): it is kept, and neither drawn nor given room
     QByteArray textBox;                   // the w:txbxContent element of a text box, as written (insets: below)

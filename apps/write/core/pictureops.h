@@ -5,6 +5,7 @@
 // one step that undoes and the file saved says what the pages show. Only pictures that are one plain drawing (a picture in line, or one anchored) can be changed; any other
 // (a picture of the older drawing format, a group) is kept as it is.
 
+#include "core/blipeffect.h"
 #include "core/picturestyles.h"
 #include "core/style.h"
 #include "core/wrapoutline.h"
@@ -98,6 +99,7 @@ struct PictureInfo {
     double cropLeft = 0, cropTop = 0, cropRight = 0, cropBottom = 0;
     bool grayscale = false, blackWhite = false;
     double brightness = 0, contrast = 0;
+    QVector<BlipEffect> filters;   // the picture filters it has (core/picturefx.h; the file keeps the finished picture beside the settings), in order
     // The shape a picture is cut to (a preset name; "rect" for none), where a floating object is aligned ("left", "center", "right", "inside", "outside" across; "top", "center",
     // "bottom" down; empty when it is set by an offset), and a shape's gradient fill (the two end colors as RRGGBB, and the angle in degrees; empty colors for none).
     QString cropShape = QStringLiteral("rect");
@@ -220,6 +222,12 @@ bool setPictureCrop(WriteDoc &doc, int position, double left, double top, double
 // How bright and how contrasting the picture is drawn, each from -1 to 1 (0 is as it is).
 bool setPictureCorrections(WriteDoc &doc, int position, double brightness, double contrast);
 bool setPictureRecolor(WriteDoc &doc, int position, PictureRecolor recolor);
+// The picture filters (sharpen and soften, color temperature, the artistic effects; core/picturefx.h): the blip becomes the finished picture and an extension of ours keeps the settings and the
+// original, so that they can be changed or taken off (Reset Picture does). `filters` are all the picture is to have (none takes them off); one step. False where nothing changes, the picture is a graphic, a
+// barcode, or a linked picture, or the pictures of the document are as large together as one may be (doc.pictureNotice says so).
+bool setPictureFilters(WriteDoc &doc, int position, const QVector<BlipEffect> &filters);
+// The picture the filters of the one at `position` are worked from (its original, or the picture itself where it has none), and the key that names it for blipAdjusted; null for what has no filters to give.
+QImage pictureOriginalAt(const WriteDoc &doc, int position, QString *key);
 // Takes off the cut, the corrections, the recolor, the border, the shape it is cut to, and the effects: the picture as it came in, at the scale it has (so its frame grows by what the cut took off).
 bool resetPicture(WriteDoc &doc, int position);
 // Reset Picture & Size: the same, and the picture is the size it has in its file (96 pixels to the inch, held to the sizes a picture may be), the frame growing or shrinking at its corner.

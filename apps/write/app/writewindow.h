@@ -546,6 +546,8 @@ private:
     void editChartTitle();
     void editChartAxisTitle(bool values);
     void cropSelectedPicture();
+    // Sharpen and soften, color temperature, and the artistic effects: `change` sets what the selected picture's filters come to (the shared commands of app/picturetools.h).
+    void changePictureFilters(const std::function<void(PictureItem &)> &change);
     void editWrapPoints();
     void addWrapDetails(QMenu *menu);
     void wrapDistanceDialog();

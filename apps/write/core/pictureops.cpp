@@ -13,6 +13,9 @@
 #include "core/textboxops.h"
 #include "app/compresspictures.h"
 #include "office/barcodemarker.h"
+#include "office/picturefx_blip.h"
+#include "core/blipeffects.h"
+#include "core/picturefx.h"
 #include "office/chart.h"
 #include "office/chart_write.h"
 #include "sheet/chartembed.h"
@@ -919,6 +922,7 @@ PictureInfo pictureAt(const WriteDoc &doc, const QTextDocument *story, int posit
     if (info.kind == DrawnKind::Picture) {
         info.svg = info.barcode.isEmpty() && !graphicSvgOf(doc, m.graphic).isEmpty();
         info.cropLeft = s.cropL;
+        info.filters = s.filters;
         info.cropTop = s.cropT;
         info.cropRight = s.cropR;
         info.cropBottom = s.cropB;
@@ -4744,6 +4748,81 @@ bool setPictureRecolor(WriteDoc &doc, int position, PictureRecolor recolor)
 
 namespace {
 
+// The picture the filters work from: its original in the file's parts (no linked picture, graphic, or barcode: those are not filtered).
+QImage filterSourceOf(const WriteDoc &doc, const QByteArray &graphic, QString *originalRid, QString *key, bool *has)
+{
+    office::PictureFxBlip blip;
+    if (!office::readPictureFxBlip(graphic, &blip) || !isBlipPicture(graphic) || blip.shownRid.isEmpty()) return QImage();
+    const QByteArray bytes = doc.relatedPartData(blip.originalRid);
+    if (bytes.isEmpty() || svg::startsLikeSvg(bytes) || !blipRefsOf(graphic).svg.isEmpty()) return QImage();
+    if (originalRid) *originalRid = blip.originalRid;
+    if (key) *key = office::pictureFxKeyFor(bytes);
+    if (has) *has = blip.present;
+    return QImage::fromData(bytes);
+}
+
+} // namespace
+
+QImage pictureOriginalAt(const WriteDoc &doc, int position, QString *key)
+{
+    const QTextDocument *story = doc.story();
+    Inline atom;
+    Model m;
+    if (!story || position < 0 || position + 1 > story->characterCount() - 1 || !drawingAtomOf(formatAfter(story, position), &atom) || !parseDrawing(atom.raw, &m)) return QImage();
+    return filterSourceOf(doc, m.graphic, nullptr, key, nullptr);
+}
+
+namespace {
+
+// The picture's filters made `filters`: the blip shows the finished picture (or the original, with none), and the extension keeps the settings. `letGo` is the finished picture it showed before.
+// False where nothing changes.
+bool applyFilters(WriteDoc &doc, Model &m, const QVector<BlipEffect> &wanted, QString *letGo, QString *madeRid)
+{
+    QVector<BlipEffect> filters = blipFilters(wanted);
+    if (!blipEffectsChange(filters)) filters.clear();
+    office::PictureFxBlip now;
+    if (!office::readPictureFxBlip(m.graphic, &now)) return false;
+    if (!now.present && filters.isEmpty()) return false;
+    if (now.present && blipEffectsKey(now.filters) == blipEffectsKey(filters)) return false;
+    if (filters.isEmpty()) {
+        m.graphic = office::withPictureFxBlip(m.graphic, now.originalRid, now.originalRid, {});
+        *letGo = now.shownRid;
+        return true;
+    }
+    QString original, key;
+    const QImage source = filterSourceOf(doc, m.graphic, &original, &key, nullptr);
+    if (source.isNull()) return false;
+    const QByteArray png = office::pictureFxFinishedPng(source, filters, key);
+    if (png.isEmpty()) return false;
+    bool added = false;
+    const QString shown = doc.addMedia(png, QStringLiteral("png"), QStringLiteral("image/png"), &added);
+    if (added && doc.mediaBytes() > doc.mediaLimit) {
+        doc.removeMedia(shown);
+        doc.pictureNotice = QCoreApplication::translate("jp::write::Pictures", "The pictures in this document are as large together as JeffWrite puts in one, so this one is not added.");
+        return false;
+    }
+    if (added) *madeRid = shown;
+    m.graphic = office::withPictureFxBlip(m.graphic, shown, original, filters);
+    if (now.present) *letGo = now.shownRid;
+    return true;
+}
+
+} // namespace
+
+bool setPictureFilters(WriteDoc &doc, int position, const QVector<BlipEffect> &filters)
+{
+    QString letGo, made;
+    const bool changed = changePicture(doc, position, [&](Model &m) { return applyFilters(doc, m, filters, &letGo, &made); });
+    if (!changed) {
+        if (!made.isEmpty()) doc.removeMedia(made);
+        return false;
+    }
+    if (!letGo.isEmpty()) doc.letGoOfMediaIfUnused(letGo);
+    return true;
+}
+
+namespace {
+
 // The size of the picture file a blip names, in pixels (empty when it can't be read: a linked picture, one of a kind Qt does not read).
 QSize blipPixelSize(WriteDoc &doc, const QByteArray &graphic)
 {
@@ -4765,6 +4844,11 @@ bool resetPictureOf(WriteDoc &doc, int position, bool andSize)
         if (!m.graphic.contains("blip")) return false;
         bool changed = applyCut(m, std::array<double, 4>{0, 0, 0, 0}.data());
         changed = applyColors(m, 0, 0, PictureRecolor::None) || changed;
+        QString letGo, made;
+        if (applyFilters(doc, m, {}, &letGo, &made)) {
+            changed = true;
+            doc.letGoOfMediaIfUnused(letGo);
+        }
         SpPr sp;
         if (splitSpPr(m.graphic, &sp)) {
             // The border, the shape the picture is cut to, and the effects.

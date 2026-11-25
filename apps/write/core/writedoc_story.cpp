@@ -1768,8 +1768,10 @@ bool WriteDoc::drawnObjects(const Inline &atom, const QString &part, QTextCharFo
         return true;
     };
     bool shownMissing = false;   // (the picture the last call made is the mark of a picture that cannot be shown)
+    bool shownFiltered = true;   // (the picture the last call made is the original of a filtered picture, or one with no filters: false where the original is not in the file and the blip's own picture is shown)
     std::function<int(const Shape &)> pictureOf = [&](const Shape &s) -> int {
         shownMissing = false;
+        shownFiltered = true;
         // A barcode of ours is drawn from the settings its marker holds (as vectors), not from the picture beside it that other programs show, when the pictures in the file are the ones
         // the marker was written with (not another picture put in their place), and the document does not hold as many barcode pictures as are honored.
         if (!s.barcode.isEmpty() && otherImages() < kMostImages) {
@@ -1848,8 +1850,14 @@ bool WriteDoc::drawnObjects(const Inline &atom, const QString &part, QTextCharFo
         if (s.embed.isEmpty() || otherImages() >= kMostImages) return -1;
         QString target;
         const QVector<Relationship> &links = part.isEmpty() ? m_wml.mainRelationships : m_wml.partRelationships.value(part);
+        // A picture the filters made is drawn from its original, with the filters worked out over it (the blip is the finished picture, for the programs that don't read them).
+        if (!s.filters.isEmpty()) {
+            for (const Relationship &r : links)
+                if (r.id == s.filterEmbed && !r.external && !partData(r.target).isEmpty()) target = r.target;
+            shownFiltered = !target.isEmpty();
+        }
         for (const Relationship &r : links)
-            if (r.id == s.embed && !r.external) target = r.target;
+            if (target.isEmpty() && r.id == s.embed && !r.external) target = r.target;
         if (target.isEmpty()) return -1;
         QByteArray bytes = partData(target);
         // (A picture whose other form is one that is not drawn is shown as a picture that cannot be.)
@@ -1928,7 +1936,7 @@ bool WriteDoc::drawnObjects(const Inline &atom, const QString &part, QTextCharFo
                         if (image < 0 || part.width <= 0 || part.height <= 0) continue;
                         auto pic = std::make_shared<PictureItem>();
                         pic->rect = QRectF(0, 0, part.width, part.height);
-                        dressPicture(*pic, part, theme());
+                        dressPicture(*pic, part, theme(), shownFiltered);
                         pic->imageId = QStringLiteral("flow-img:%1").arg(image);
                         pic->altText = part.alt;
                         child = pic;
@@ -1973,7 +1981,7 @@ bool WriteDoc::drawnObjects(const Inline &atom, const QString &part, QTextCharFo
             // A picture in the line: an object set in the text, with no room round it of its own.
             auto pic = std::make_shared<PictureItem>();
             pic->rect = QRectF(0, 0, s.width, s.height);
-            dressPicture(*pic, s, theme());
+            dressPicture(*pic, s, theme(), shownFiltered);
             if (shownMissing) showAsMissing(*pic);
             pic->imageId = QStringLiteral("flow-img:%1").arg(image);
             pic->wrap.left = pic->wrap.right = pic->wrap.top = pic->wrap.bottom = 0;
@@ -2027,7 +2035,7 @@ bool WriteDoc::drawnObjects(const Inline &atom, const QString &part, QTextCharFo
             if (image < 0) continue;
             auto pic = std::make_shared<PictureItem>();
             pic->rect = QRectF(0, 0, s.width, s.height);
-            dressPicture(*pic, s, theme());
+            dressPicture(*pic, s, theme(), shownFiltered);
             if (shownMissing) showAsMissing(*pic);
             pic->altText = s.alt;
             o.item = pic;

@@ -15,6 +15,8 @@
 #include "app/ribbonbuilder.h"
 #include "app/settings.h"
 #include "app/picturetools.h"
+#include "core/blipeffects.h"
+#include "core/picturefx.h"
 #include "app/widgets.h"
 #include "core/equationops.h"
 #include "app/equationdialog.h"
@@ -809,6 +811,11 @@ void WriteWindow::createPictureAdjustActions()
             m_view->setFocus(Qt::OtherFocusReason);
         }, true);
     }
+    // Sharpen and soften, and color temperature: the shared picture filters (libs/page/app/picturetools), the same names in every app.
+    for (const PictureFxCommand &c : pictureSharpenCommands() + pictureTemperatureCommands()) {
+        const auto apply = c.apply;
+        mk(c.id, c.text, QString(), QKeySequence(), [this, apply] { changePictureFilters(apply); });
+    }
     mk("picture.recolor.washout", tr("Washout"), "palette", QKeySequence(), [this] {
         m_view->changeSelectedPicture([](write::WriteDoc &d, int position) {
             const bool a = write::setPictureRecolor(d, position, write::PictureRecolor::None);
@@ -817,6 +824,28 @@ void WriteWindow::createPictureAdjustActions()
         });
         m_view->setFocus(Qt::OtherFocusReason);
     });
+}
+
+void WriteWindow::changePictureFilters(const std::function<void(PictureItem &)> &change)
+{
+    const int at = m_view ? m_view->selectedPicture() : -1;
+    if (!m_doc || at < 0 || refuseIfReadOnly()) return;
+    PictureItem probe;
+    probe.blipEffects = write::pictureAt(*m_doc, m_doc->story(), at).filters;
+    change(probe);
+    const QVector<BlipEffect> filters = blipFilters(probe.blipEffects);
+    QString key;
+    const QImage original = write::pictureOriginalAt(*m_doc, at, &key);
+    if (original.isNull()) {
+        statusBar()->showMessage(tr("This picture can't be changed this way."), 6000);
+        return;
+    }
+    // (A filter that takes long is worked out first, beside the window, with a box that can cancel it; the picture is made from what was worked out.)
+    if (blipEffectsChange(filters) && !workOutPictureFilters(this, {PictureFilterJob{original, filters, key}})) return;
+    m_doc->pictureNotice.clear();
+    if (!m_view->changeSelectedPicture([filters](write::WriteDoc &d, int position) { return write::setPictureFilters(d, position, filters); }) && !m_doc->pictureNotice.isEmpty())
+        statusBar()->showMessage(m_doc->pictureNotice, 8000);
+    m_view->setFocus(Qt::OtherFocusReason);
 }
 
 void WriteWindow::cropSelectedPicture()
@@ -954,6 +983,9 @@ void WriteWindow::shapeRibbonParts(RibbonParts &parts)
             for (const int v : {-40, -20, 20, 40}) m->addAction(act(QStringLiteral("picture.correct.%1.%2").arg(QLatin1String(kind)).arg(v)));
             m->addSeparator();
         }
+        m->addSeparator();
+        for (const PictureFxCommand &c : pictureSharpenCommands()) m->addAction(act(c.id));
+        m->addSeparator();
         m->addAction(act("picture.correct.none"));
         return m;
     };
@@ -966,7 +998,20 @@ void WriteWindow::shapeRibbonParts(RibbonParts &parts)
             m->addAction(a);
         }
         m->addAction(act("picture.recolor.washout"));
+        m->addSeparator();
+        for (const PictureFxCommand &c : pictureTemperatureCommands()) m->addAction(act(c.id));
         return m;
+    };
+    parts.widgets[QStringLiteral("artisticEffectsButton")] = [this]() -> QWidget * {
+        return artisticEffectsButton(
+            [this] {
+                const int at = m_view ? m_view->selectedPicture() : -1;
+                return m_doc && at >= 0 ? write::pictureOriginalAt(*m_doc, at, nullptr) : QImage();
+            },
+            [this](int style) {
+                changePictureFilters([style](PictureItem &p) { p.setArtistic(style); });
+            },
+            QStringLiteral("artisticEffectsButton"));
     };
     parts.widgets[QStringLiteral("pictureStyles")] = [this]() -> QWidget * {
         auto *g = new Gallery(QSize(60, 46), 6);

@@ -2242,6 +2242,10 @@
               "menu": "@pictureColor"
             },
             {
+              "widget": "artisticEffectsButton",
+              "keytip": "AE"
+            },
+            {
               "large": "picture.change",
               "keytip": "CH"
             },

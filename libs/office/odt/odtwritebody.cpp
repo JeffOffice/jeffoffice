@@ -1,5 +1,6 @@
 // .docx to OpenDocument text: the body (paragraphs, lists, tables, fields, pictures, notes).
 
+#include "office/picturefx_blip.h"
 #include "odt/odtwrite.h"
 #include "office/drawingml.h"
 #include "office/drawingml_geometry.h"
@@ -1361,6 +1362,8 @@ QByteArray Writer::drawingXml(const T &t, int drawing, ParaCtx *pc, int depth, b
     }
     // A picture's shape, border, and effects (what its shape properties hold besides its place): kept as written in an attribute of ours, so that a picture reads back as it was, and the
     // border also as the format's own.
+    if (blip >= 0 && t.raw(blip).contains(office::pictureFxExtensionUri()))
+        left(QCoreApplication::translate("odt", "pictures with sharpen, soften, color temperature, or an artistic effect (saved as the finished picture, and the effect can't be changed or taken off again)"));
     if (blip >= 0) {
         const int pic = t.parent(t.parent(blip));
         int sp = -1;

@@ -7,6 +7,7 @@
 #include "core/wrapoutline.h"
 #include "office/barcodemarker.h"
 #include "core/blipeffects.h"
+#include "office/picturefx_blip.h"
 
 #include <QCache>
 #include <QHash>
@@ -762,6 +763,16 @@ void readDrawing(const XmlTree &t, int drawing, QVector<Shape> *out)
                     for (int ext = t.firstChild(k); ext >= 0 && s.svgEmbed.isEmpty(); ext = t.next(ext))
                         for (int m = t.firstChild(ext); m >= 0; m = t.next(m))
                             if (t.localName(m) == "svgBlip") s.svgEmbed = t.attr(m, "embed", NsR);
+                // The picture filters: the settings, and the original the finished picture of the blip was made from.
+                for (int k = t.firstChild(n); k >= 0 && s.filters.isEmpty(); k = t.next(k))
+                    for (int ext = t.firstChild(k); ext >= 0 && s.filters.isEmpty(); ext = t.next(ext))
+                        for (int m = t.firstChild(ext); m >= 0; m = t.next(m))
+                            if (t.localName(m) == "filters" && !t.attr(m, "embed", NsR).isEmpty()) {
+                                s.filters = pictureFxFromData(t.attr(m, "data"));
+                                if (!blipEffectsChange(s.filters)) s.filters.clear();
+                                else s.filterEmbed = t.attr(m, "embed", NsR);
+                                break;
+                            }
                 // The cut edges are beside the blip, in its fill (thousandths of a percent).
                 for (int k = t.firstChild(t.parent(n)); k >= 0; k = t.next(k))
                     if (t.localName(k) == "srcRect") {
