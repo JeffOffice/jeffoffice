@@ -5841,7 +5841,7 @@ Artigo da contracapa	4</translation>
     <message>
         <location filename="../libs/page/app/saveoptions.cpp" line="-15"/>
         <location filename="../apps/pub/app/mainwindow.cpp" line="+462"/>
-        <location filename="../apps/write/app/writewindow.cpp" line="+840"/>
+        <location filename="../apps/write/app/writewindow.cpp" line="+846"/>
         <source>Save</source>
         <translation type="unfinished">Guardar</translation>
     </message>
@@ -24442,6 +24442,117 @@ Origem: %3</translation>
     </message>
 </context>
 <context>
+    <name>jp::ClipboardPane</name>
+    <message>
+        <location filename="../libs/shell/app/clipboardpane.cpp" line="+30"/>
+        <source>Text</source>
+        <translation type="unfinished">Texto</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Formatted text</source>
+        <translation type="unfinished">Texto formatado</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Cells</source>
+        <translation type="unfinished">Células</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Picture</source>
+        <translation type="unfinished">Imagem</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Shapes</source>
+        <translation type="unfinished">Formas</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Slides</source>
+        <translation type="unfinished">Diapositivos</translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Other</source>
+        <translation type="unfinished">Outro</translation>
+    </message>
+    <message>
+        <location line="+24"/>
+        <location filename="../apps/pub/app/mainwindow_actions.cpp" line="+156"/>
+        <location filename="../apps/deck/app/deckwindow.cpp" line="+325"/>
+        <location filename="../apps/crunch/app/crunchwindow_clip.cpp" line="+55"/>
+        <source>Paste All</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <location line="+156"/>
+        <source>Delete</source>
+        <translation type="unfinished">Eliminar</translation>
+    </message>
+    <message>
+        <location line="-154"/>
+        <source>Clear All</source>
+        <translation>Limpar Tudo</translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>Copy or cut something and it will be here.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+9"/>
+        <location line="+164"/>
+        <source>Clipboard</source>
+        <translation type="unfinished">Área de Transferência</translation>
+    </message>
+    <message>
+        <location line="-156"/>
+        <source>Keep collecting when this pane is closed</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Also collect what is copied in other programs</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Only plain text and pictures are kept (a picture of up to about 2 million pixels), and nothing a password manager marks as secret. With this on, a copy made in another program is read in full before this program decides whether to keep it, so a very large copy can make this program pause for a moment and use as much memory as the copy is big. Only one form of it is read: its text when it has text, otherwise one picture. With this off, nothing copied in other programs is read.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Items are kept in this program only, and nothing is saved to a file. They are cleared when the last window of the program is closed. An item stays here after the document it came from is closed.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message numerus="yes">
+        <location line="+65"/>
+        <source>%n copy was too large to keep (the limit is 8 MB for one copy).</source>
+        <comment>%n is a count</comment>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <location line="+2"/>
+        <source>%n oldest copy was dropped to stay under 64 MB in all.</source>
+        <comment>%n is a count</comment>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
+    </message>
+    <message>
+        <location line="+55"/>
+        <source>Paste</source>
+        <translation type="unfinished">Colar</translation>
+    </message>
+</context>
+<context>
     <name>jp::ColorButton</name>
     <message>
         <location filename="../libs/shell/app/widgets.cpp" line="-1058"/>
@@ -26042,7 +26153,7 @@ Origem: %3</translation>
         <location line="+289"/>
         <location filename="../apps/crunch/app/crunchwindow_calc.cpp" line="+190"/>
         <location filename="../apps/crunch/app/crunchwindow_cells.cpp" line="+117"/>
-        <location filename="../apps/crunch/app/crunchwindow_clip.cpp" line="+187"/>
+        <location filename="../apps/crunch/app/crunchwindow_clip.cpp" line="+138"/>
         <location line="+125"/>
         <location line="+5"/>
         <location filename="../apps/crunch/app/crunchwindow_copy.cpp" line="+157"/>
@@ -26843,8 +26954,8 @@ Origem: %3</translation>
     <message>
         <location line="-10"/>
         <location line="+27"/>
-        <location filename="../apps/crunch/app/crunchwindow_clip.cpp" line="-277"/>
-        <location line="+230"/>
+        <location filename="../apps/crunch/app/crunchwindow_clip.cpp" line="-282"/>
+        <location line="+235"/>
         <location line="+41"/>
         <location filename="../apps/crunch/app/crunchwindow_ops.cpp" line="+193"/>
         <location line="+8"/>
@@ -27015,7 +27126,7 @@ Origem: %3</translation>
         <translation type="unfinished">Ajuda</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow_clip.cpp" line="-270"/>
+        <location filename="../apps/crunch/app/crunchwindow_clip.cpp" line="-275"/>
         <source>Cut</source>
         <translation type="unfinished">Cortar</translation>
     </message>
@@ -27025,7 +27136,7 @@ Origem: %3</translation>
         <location line="+17"/>
         <location line="+12"/>
         <location filename="../apps/crunch/app/crunchwindow_clip.cpp" line="+4"/>
-        <location line="+308"/>
+        <location line="+313"/>
         <location line="+136"/>
         <location line="+161"/>
         <location line="+3"/>
@@ -29994,13 +30105,18 @@ Origem: %3</translation>
         <translation type="unfinished">Nenhum</translation>
     </message>
     <message>
-        <location line="-324"/>
-        <location line="+625"/>
+        <location line="-329"/>
+        <location line="+630"/>
         <source>Insert Cut or Copied Cells</source>
         <translation type="unfinished">Inserir Células Recortadas ou Copiadas</translation>
     </message>
     <message>
-        <location line="-301"/>
+        <location line="-621"/>
+        <source>Clipboard</source>
+        <translation type="unfinished">Área de Transferência</translation>
+    </message>
+    <message>
+        <location line="+320"/>
         <source>Add</source>
         <translation type="unfinished">Adicionar</translation>
     </message>
@@ -37349,7 +37465,7 @@ Não é possível ler o ficheiro.</translation>
     <message>
         <location line="+1"/>
         <location filename="../apps/deck/app/deckwindow_output.cpp" line="+1"/>
-        <location filename="../apps/deck/app/deckwindow_ribbon.cpp" line="+127"/>
+        <location filename="../apps/deck/app/deckwindow_ribbon.cpp" line="+128"/>
         <source>Outline</source>
         <translation type="unfinished">Destaque</translation>
     </message>
@@ -37452,7 +37568,7 @@ Não é possível ler o ficheiro.</translation>
         <translation type="unfinished">Não existem diapositivos para imprimir.</translation>
     </message>
     <message>
-        <location filename="../apps/deck/app/deckwindow.cpp" line="+73"/>
+        <location filename="../apps/deck/app/deckwindow.cpp" line="-251"/>
         <source>Presentation1</source>
         <translation type="unfinished">Apresentação1</translation>
     </message>
@@ -37530,7 +37646,12 @@ Não é possível ler o ficheiro.</translation>
         <translation type="unfinished">Colar</translation>
     </message>
     <message>
-        <location line="+1"/>
+        <location line="+2"/>
+        <source>Clipboard</source>
+        <translation type="unfinished">Área de Transferência</translation>
+    </message>
+    <message>
+        <location line="+5"/>
         <location filename="../apps/deck/app/deckwindow_pasteoffer.cpp" line="+80"/>
         <location line="+81"/>
         <source>Keep Source Formatting</source>
@@ -48998,7 +49119,7 @@ Origem: %3</translation>
     <name>jp::MainWindow</name>
     <message>
         <location filename="../apps/pub/app/mainwindow.cpp" line="-1672"/>
-        <location filename="../apps/pub/app/mainwindow_actions.cpp" line="+655"/>
+        <location filename="../apps/pub/app/mainwindow_actions.cpp" line="+505"/>
         <source>%1 (%2)</source>
         <translation type="unfinished">%1 (%2)</translation>
     </message>
@@ -49031,7 +49152,7 @@ Origem: %3</translation>
         <location line="+4"/>
         <location line="+1"/>
         <location line="+249"/>
-        <location filename="../apps/pub/app/mainwindow_actions.cpp" line="-527"/>
+        <location filename="../apps/pub/app/mainwindow_actions.cpp" line="-532"/>
         <source>Open</source>
         <translation type="unfinished">Abrir</translation>
     </message>
@@ -49264,7 +49385,7 @@ Origem: %3</translation>
     <message>
         <location line="+9"/>
         <location line="+7"/>
-        <location filename="../apps/pub/app/mainwindow_actions.cpp" line="+588"/>
+        <location filename="../apps/pub/app/mainwindow_actions.cpp" line="+593"/>
         <location filename="../apps/pub/app/mainwindow_comments.cpp" line="+25"/>
         <source>Delete</source>
         <translation type="unfinished">Eliminar</translation>
@@ -49309,7 +49430,7 @@ Origem: %3</translation>
         <location line="+21"/>
         <location line="+52"/>
         <location line="+15"/>
-        <location filename="../apps/pub/app/mainwindow_actions.cpp" line="-584"/>
+        <location filename="../apps/pub/app/mainwindow_actions.cpp" line="-589"/>
         <source>Create PDF</source>
         <translation type="unfinished">Criar PDF</translation>
     </message>
@@ -49426,7 +49547,7 @@ Origem: %3</translation>
     <message>
         <location line="-582"/>
         <location line="+582"/>
-        <location filename="../apps/pub/app/mainwindow_actions.cpp" line="+605"/>
+        <location filename="../apps/pub/app/mainwindow_actions.cpp" line="+610"/>
         <source>All Files (*)</source>
         <translation type="unfinished">Todos os ficheiros (*)</translation>
     </message>
@@ -49565,8 +49686,8 @@ Origem: %3</translation>
         <location line="+19"/>
         <location line="+8"/>
         <location line="+4"/>
-        <location filename="../apps/pub/app/mainwindow_actions.cpp" line="-1421"/>
-        <location line="+1294"/>
+        <location filename="../apps/pub/app/mainwindow_actions.cpp" line="-1426"/>
+        <location line="+1299"/>
         <source>Save as Picture</source>
         <translation type="unfinished">Guardar como Imagem</translation>
     </message>
@@ -49677,7 +49798,7 @@ Origem: %3</translation>
     </message>
     <message>
         <location line="+75"/>
-        <location filename="../apps/pub/app/mainwindow_actions.cpp" line="-1293"/>
+        <location filename="../apps/pub/app/mainwindow_actions.cpp" line="-1298"/>
         <source>Save as Web Page</source>
         <translation type="unfinished">Guardar como Página Web</translation>
     </message>
@@ -49699,7 +49820,7 @@ Origem: %3</translation>
     </message>
     <message>
         <location line="-47"/>
-        <location filename="../apps/pub/app/mainwindow_actions.cpp" line="+1147"/>
+        <location filename="../apps/pub/app/mainwindow_actions.cpp" line="+1152"/>
         <source>Change Picture</source>
         <translation type="unfinished">Alterar Imagem</translation>
     </message>
@@ -49755,14 +49876,14 @@ Origem: %3</translation>
     </message>
     <message>
         <location line="+36"/>
-        <location filename="../apps/pub/app/mainwindow_ribbon.cpp" line="+349"/>
+        <location filename="../apps/pub/app/mainwindow_ribbon.cpp" line="+350"/>
         <location line="+1"/>
         <location line="+726"/>
         <source>Zoom</source>
         <translation>Zoom</translation>
     </message>
     <message>
-        <location filename="../apps/pub/app/mainwindow_actions.cpp" line="-438"/>
+        <location filename="../apps/pub/app/mainwindow_actions.cpp" line="-443"/>
         <source>New</source>
         <translation type="unfinished">Novo</translation>
     </message>
@@ -49773,7 +49894,7 @@ Origem: %3</translation>
     </message>
     <message>
         <location filename="../apps/pub/app/mainwindow.cpp" line="-1686"/>
-        <location filename="../apps/pub/app/mainwindow_actions.cpp" line="+199"/>
+        <location filename="../apps/pub/app/mainwindow_actions.cpp" line="+204"/>
         <source>Publications (*.jpub *.pub)</source>
         <translation type="unfinished">Publicações (*.jpub *.pub)</translation>
     </message>
@@ -49783,7 +49904,7 @@ Origem: %3</translation>
         <translation type="unfinished">Publicações do JeffPub (*.jpub)</translation>
     </message>
     <message>
-        <location filename="../apps/pub/app/mainwindow_actions.cpp" line="-192"/>
+        <location filename="../apps/pub/app/mainwindow_actions.cpp" line="-197"/>
         <location line="+1"/>
         <source>Print</source>
         <translation>Imprimir</translation>
@@ -49829,7 +49950,7 @@ Origem: %3</translation>
         <translation type="unfinished">Colar</translation>
     </message>
     <message>
-        <location line="+1"/>
+        <location line="+6"/>
         <source>Keep Text Only</source>
         <translation type="unfinished">Manter Apenas Texto</translation>
     </message>
@@ -49927,8 +50048,8 @@ Origem: %3</translation>
         <translation>Localizar</translation>
     </message>
     <message>
-        <location line="-101"/>
-        <location line="+102"/>
+        <location line="-106"/>
+        <location line="+107"/>
         <source>Replace</source>
         <translation>Substituir</translation>
     </message>
@@ -50925,7 +51046,7 @@ Origem: %3</translation>
         <translation type="unfinished">Inserir Data</translation>
     </message>
     <message>
-        <location line="-356"/>
+        <location line="-361"/>
         <source>Click in text where the page number goes, then choose the design.</source>
         <translation type="unfinished">Clique no texto onde deve ficar o número de página e, depois, escolha a estrutura.</translation>
     </message>
@@ -50953,6 +51074,11 @@ Origem: %3</translation>
     </message>
     <message>
         <location line="+40"/>
+        <source>Clipboard</source>
+        <translation type="unfinished">Área de Transferência</translation>
+    </message>
+    <message>
+        <location line="+5"/>
         <source>Spreadsheet Cells as Table</source>
         <translation type="unfinished">Células da Folha de Cálculo como Tabela</translation>
     </message>
@@ -53345,7 +53471,7 @@ O seu browser irá abrir o LibreTranslate, um serviço de tradução gratuito e 
         <translation type="unfinished">Voltou a &quot;%1&quot;. Guarde a publicação para o manter.</translation>
     </message>
     <message>
-        <location filename="../apps/pub/app/mainwindow_actions.cpp" line="-1402"/>
+        <location filename="../apps/pub/app/mainwindow_actions.cpp" line="-1407"/>
         <source>Info</source>
         <translation type="unfinished">Informações</translation>
     </message>
@@ -62745,7 +62871,7 @@ O seu browser irá abrir o LibreTranslate, um serviço de tradução gratuito e 
 <context>
     <name>jp::WriteWindow</name>
     <message>
-        <location filename="../apps/write/app/writewindow.cpp" line="-749"/>
+        <location filename="../apps/write/app/writewindow.cpp" line="-754"/>
         <source>Document%1</source>
         <translation type="unfinished">Documento%1</translation>
     </message>
@@ -62816,7 +62942,12 @@ O seu browser irá abrir o LibreTranslate, um serviço de tradução gratuito e 
         <translation type="unfinished">Colar</translation>
     </message>
     <message>
-        <location line="+1"/>
+        <location line="+3"/>
+        <source>Clipboard</source>
+        <translation type="unfinished">Área de Transferência</translation>
+    </message>
+    <message>
+        <location line="+3"/>
         <source>Select All</source>
         <translation type="unfinished">Selecionar Tudo</translation>
     </message>
@@ -64481,7 +64612,7 @@ O seu browser irá abrir o LibreTranslate, um serviço de tradução gratuito e 
         <translation type="unfinished">Tabelas Pré-formatadas</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/writewindow_ribbon.cpp" line="+159"/>
+        <location filename="../apps/write/app/writewindow_ribbon.cpp" line="+160"/>
         <location filename="../apps/write/app/writewindow_tables.cpp" line="+32"/>
         <source>Shading</source>
         <translation type="unfinished">Sombreado</translation>
@@ -84253,24 +84384,24 @@ Não foi possível aplicar a palavra-passe ao ficheiro.</translation>
         <translation type="unfinished">+%1 mais</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/pageview_input.cpp" line="+137"/>
-        <location line="+506"/>
+        <location filename="../apps/write/app/pageview_input.cpp" line="+138"/>
+        <location line="+545"/>
         <source>Keep Source Formatting</source>
         <translation type="unfinished">Manter Formatação de Origem</translation>
     </message>
     <message>
-        <location line="-429"/>
+        <location line="-468"/>
         <source>The Spike is full. Paste it to empty it.</source>
         <translation type="unfinished">A Área de Transferência Temporária está cheia. Cole-a para a esvaziar.</translation>
     </message>
     <message>
         <location line="-76"/>
-        <location line="+506"/>
+        <location line="+545"/>
         <source>Merge Formatting</source>
         <translation type="unfinished">Unir Formatação</translation>
     </message>
     <message>
-        <location line="-547"/>
+        <location line="-586"/>
         <source>A table with changes tracked in it is copied as its words, not as a table. Accept or reject the changes to copy it as a table.</source>
         <translation type="unfinished">Uma tabela com alterações registadas é copiada como as suas palavras, não como tabela. Aceite ou rejeite as alterações para copiar como tabela.</translation>
     </message>
@@ -84286,12 +84417,12 @@ Não foi possível aplicar a palavra-passe ao ficheiro.</translation>
     </message>
     <message>
         <location line="+40"/>
-        <location line="+507"/>
+        <location line="+546"/>
         <source>Keep Text Only</source>
         <translation type="unfinished">Manter Apenas o Texto</translation>
     </message>
     <message>
-        <location line="-506"/>
+        <location line="-545"/>
         <source>Pasting within the same document</source>
         <translation type="unfinished">Colar dentro do mesmo documento</translation>
     </message>
@@ -84306,7 +84437,7 @@ Não foi possível aplicar a palavra-passe ao ficheiro.</translation>
         <translation type="unfinished">Colar de outros programas</translation>
     </message>
     <message>
-        <location line="+506"/>
+        <location line="+545"/>
         <source>Continue List</source>
         <translation type="unfinished">Continuar Lista</translation>
     </message>

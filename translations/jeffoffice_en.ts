@@ -292,6 +292,27 @@
     </message>
 </context>
 <context>
+    <name>jp::ClipboardPane</name>
+    <message numerus="yes">
+        <location filename="../libs/shell/app/clipboardpane.cpp" line="+162"/>
+        <source>%n copy was too large to keep (the limit is 8 MB for one copy).</source>
+        <comment>%n is a count</comment>
+        <translation>
+            <numerusform>%n copy was too large to keep (the limit is 8 MB for one copy).</numerusform>
+            <numerusform>%n copies were too large to keep (the limit is 8 MB for one copy).</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <location line="+2"/>
+        <source>%n oldest copy was dropped to stay under 64 MB in all.</source>
+        <comment>%n is a count</comment>
+        <translation>
+            <numerusform>%n oldest copy was dropped to stay under 64 MB in all.</numerusform>
+            <numerusform>%n oldest copies were dropped to stay under 64 MB in all.</numerusform>
+        </translation>
+    </message>
+</context>
+<context>
     <name>jp::CompatibilityDialog</name>
     <message numerus="yes">
         <location filename="../libs/base/core/lossnotes.h" line="+32"/>
@@ -584,7 +605,7 @@
         </translation>
     </message>
     <message numerus="yes">
-        <location filename="../apps/pub/app/mainwindow_actions.cpp" line="+992"/>
+        <location filename="../apps/pub/app/mainwindow_actions.cpp" line="+998"/>
         <source>Made %n shapes.</source>
         <translation>
             <numerusform>Made %n shape.</numerusform>
@@ -689,7 +710,7 @@
 <context>
     <name>jp::WriteWindow</name>
     <message numerus="yes">
-        <location filename="../apps/write/app/writewindow.cpp" line="+816"/>
+        <location filename="../apps/write/app/writewindow.cpp" line="+822"/>
         <source>%1 of %n word(s)</source>
         <translation>
             <numerusform>%1 of %n word</numerusform>

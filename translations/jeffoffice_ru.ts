@@ -5842,7 +5842,7 @@ Back page story	4</source>
     <message>
         <location filename="../libs/page/app/saveoptions.cpp" line="-15"/>
         <location filename="../apps/pub/app/mainwindow.cpp" line="+462"/>
-        <location filename="../apps/write/app/writewindow.cpp" line="+840"/>
+        <location filename="../apps/write/app/writewindow.cpp" line="+846"/>
         <source>Save</source>
         <translation type="unfinished">Сохранить</translation>
     </message>
@@ -24473,6 +24473,119 @@ Source: %3</source>
     </message>
 </context>
 <context>
+    <name>jp::ClipboardPane</name>
+    <message>
+        <location filename="../libs/shell/app/clipboardpane.cpp" line="+30"/>
+        <source>Text</source>
+        <translation type="unfinished">Текст</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Formatted text</source>
+        <translation type="unfinished">Форматированный текст</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Cells</source>
+        <translation type="unfinished">Ячейки</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Picture</source>
+        <translation type="unfinished">Рисунок</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Shapes</source>
+        <translation type="unfinished">Фигуры</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Slides</source>
+        <translation type="unfinished">Слайды</translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Other</source>
+        <translation type="unfinished">Другой</translation>
+    </message>
+    <message>
+        <location line="+24"/>
+        <location filename="../apps/pub/app/mainwindow_actions.cpp" line="+156"/>
+        <location filename="../apps/deck/app/deckwindow.cpp" line="+325"/>
+        <location filename="../apps/crunch/app/crunchwindow_clip.cpp" line="+55"/>
+        <source>Paste All</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <location line="+156"/>
+        <source>Delete</source>
+        <translation type="unfinished">Удалить</translation>
+    </message>
+    <message>
+        <location line="-154"/>
+        <source>Clear All</source>
+        <translation>Удалить все</translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>Copy or cut something and it will be here.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+9"/>
+        <location line="+164"/>
+        <source>Clipboard</source>
+        <translation type="unfinished">Буфер обмена</translation>
+    </message>
+    <message>
+        <location line="-156"/>
+        <source>Keep collecting when this pane is closed</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Also collect what is copied in other programs</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Only plain text and pictures are kept (a picture of up to about 2 million pixels), and nothing a password manager marks as secret. With this on, a copy made in another program is read in full before this program decides whether to keep it, so a very large copy can make this program pause for a moment and use as much memory as the copy is big. Only one form of it is read: its text when it has text, otherwise one picture. With this off, nothing copied in other programs is read.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Items are kept in this program only, and nothing is saved to a file. They are cleared when the last window of the program is closed. An item stays here after the document it came from is closed.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message numerus="yes">
+        <location line="+65"/>
+        <source>%n copy was too large to keep (the limit is 8 MB for one copy).</source>
+        <comment>%n is a count</comment>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <location line="+2"/>
+        <source>%n oldest copy was dropped to stay under 64 MB in all.</source>
+        <comment>%n is a count</comment>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
+    </message>
+    <message>
+        <location line="+55"/>
+        <source>Paste</source>
+        <translation type="unfinished">Вставить</translation>
+    </message>
+</context>
+<context>
     <name>jp::ColorButton</name>
     <message>
         <location filename="../libs/shell/app/widgets.cpp" line="-1058"/>
@@ -26099,7 +26212,7 @@ Source: %3</source>
         <location line="+289"/>
         <location filename="../apps/crunch/app/crunchwindow_calc.cpp" line="+190"/>
         <location filename="../apps/crunch/app/crunchwindow_cells.cpp" line="+117"/>
-        <location filename="../apps/crunch/app/crunchwindow_clip.cpp" line="+187"/>
+        <location filename="../apps/crunch/app/crunchwindow_clip.cpp" line="+138"/>
         <location line="+125"/>
         <location line="+5"/>
         <location filename="../apps/crunch/app/crunchwindow_copy.cpp" line="+157"/>
@@ -27824,8 +27937,8 @@ Source: %3</source>
     <message>
         <location line="-10"/>
         <location line="+27"/>
-        <location filename="../apps/crunch/app/crunchwindow_clip.cpp" line="-327"/>
-        <location line="+230"/>
+        <location filename="../apps/crunch/app/crunchwindow_clip.cpp" line="-332"/>
+        <location line="+235"/>
         <location line="+41"/>
         <location filename="../apps/crunch/app/crunchwindow_ops.cpp" line="-263"/>
         <location line="+8"/>
@@ -27878,8 +27991,8 @@ Source: %3</source>
         <location filename="../apps/crunch/app/crunchwindow_charts.cpp" line="+30"/>
         <location line="+17"/>
         <location line="+12"/>
-        <location filename="../apps/crunch/app/crunchwindow_clip.cpp" line="-266"/>
-        <location line="+308"/>
+        <location filename="../apps/crunch/app/crunchwindow_clip.cpp" line="-271"/>
+        <location line="+313"/>
         <location line="+136"/>
         <location line="+161"/>
         <location line="+3"/>
@@ -27919,18 +28032,23 @@ Source: %3</source>
         <translation type="unfinished">Диаграмма вставлена с числами, которые она показывала: она не читает ячейки этой книги.</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow_clip.cpp" line="-612"/>
+        <location filename="../apps/crunch/app/crunchwindow_clip.cpp" line="-617"/>
         <source>Cut</source>
         <translation type="unfinished">Вырезать</translation>
     </message>
     <message>
         <location line="+2"/>
-        <location line="+625"/>
+        <location line="+630"/>
         <source>Insert Cut or Copied Cells</source>
         <translation type="unfinished">Вставить вырезанные или скопированные ячейки</translation>
     </message>
     <message>
-        <location line="-617"/>
+        <location line="-621"/>
+        <source>Clipboard</source>
+        <translation type="unfinished">Буфер обмена</translation>
+    </message>
+    <message>
+        <location line="+4"/>
         <location line="+305"/>
         <location line="+44"/>
         <location filename="../apps/crunch/app/crunchwindow_pasteoffer.cpp" line="+110"/>
@@ -37402,7 +37520,7 @@ The file can&apos;t be read.</source>
     <message>
         <location line="+1"/>
         <location filename="../apps/deck/app/deckwindow_output.cpp" line="+1"/>
-        <location filename="../apps/deck/app/deckwindow_ribbon.cpp" line="+127"/>
+        <location filename="../apps/deck/app/deckwindow_ribbon.cpp" line="+128"/>
         <source>Outline</source>
         <translation type="unfinished">Контур</translation>
     </message>
@@ -37505,7 +37623,7 @@ The file can&apos;t be read.</source>
         <translation type="unfinished">Нет слайдов для печати.</translation>
     </message>
     <message>
-        <location filename="../apps/deck/app/deckwindow.cpp" line="+73"/>
+        <location filename="../apps/deck/app/deckwindow.cpp" line="-251"/>
         <source>Presentation1</source>
         <translation type="unfinished">Презентация1</translation>
     </message>
@@ -37583,7 +37701,12 @@ The file can&apos;t be read.</source>
         <translation type="unfinished">Вставить</translation>
     </message>
     <message>
-        <location line="+1"/>
+        <location line="+2"/>
+        <source>Clipboard</source>
+        <translation type="unfinished">Буфер обмена</translation>
+    </message>
+    <message>
+        <location line="+5"/>
         <location filename="../apps/deck/app/deckwindow_pasteoffer.cpp" line="+80"/>
         <location line="+81"/>
         <source>Keep Source Formatting</source>
@@ -49060,7 +49183,7 @@ Source: %3</source>
     <name>jp::MainWindow</name>
     <message>
         <location filename="../apps/pub/app/mainwindow.cpp" line="-1672"/>
-        <location filename="../apps/pub/app/mainwindow_actions.cpp" line="+655"/>
+        <location filename="../apps/pub/app/mainwindow_actions.cpp" line="+505"/>
         <source>%1 (%2)</source>
         <translation type="unfinished">%1 (%2)</translation>
     </message>
@@ -49093,7 +49216,7 @@ Source: %3</source>
         <location line="+4"/>
         <location line="+1"/>
         <location line="+249"/>
-        <location filename="../apps/pub/app/mainwindow_actions.cpp" line="-527"/>
+        <location filename="../apps/pub/app/mainwindow_actions.cpp" line="-532"/>
         <source>Open</source>
         <translation type="unfinished">Открыть</translation>
     </message>
@@ -49316,7 +49439,7 @@ Source: %3</source>
     <message>
         <location line="+9"/>
         <location line="+7"/>
-        <location filename="../apps/pub/app/mainwindow_actions.cpp" line="+588"/>
+        <location filename="../apps/pub/app/mainwindow_actions.cpp" line="+593"/>
         <location filename="../apps/pub/app/mainwindow_comments.cpp" line="+25"/>
         <source>Delete</source>
         <translation type="unfinished">Удалить</translation>
@@ -49361,7 +49484,7 @@ Source: %3</source>
         <location line="+21"/>
         <location line="+52"/>
         <location line="+15"/>
-        <location filename="../apps/pub/app/mainwindow_actions.cpp" line="-584"/>
+        <location filename="../apps/pub/app/mainwindow_actions.cpp" line="-589"/>
         <source>Create PDF</source>
         <translation type="unfinished">Создать PDF</translation>
     </message>
@@ -49477,7 +49600,7 @@ Source: %3</source>
     </message>
     <message>
         <location line="+302"/>
-        <location filename="../apps/pub/app/mainwindow_actions.cpp" line="+1422"/>
+        <location filename="../apps/pub/app/mainwindow_actions.cpp" line="+1427"/>
         <source>Page %1</source>
         <translation type="unfinished">Страница %1</translation>
     </message>
@@ -49650,8 +49773,8 @@ Source: %3</source>
         <location line="+21"/>
         <location line="+8"/>
         <location line="+4"/>
-        <location filename="../apps/pub/app/mainwindow_actions.cpp" line="-604"/>
-        <location line="+1294"/>
+        <location filename="../apps/pub/app/mainwindow_actions.cpp" line="-609"/>
+        <location line="+1299"/>
         <source>Save as Picture</source>
         <translation type="unfinished">Сохранить как рисунок</translation>
     </message>
@@ -49741,7 +49864,7 @@ Source: %3</source>
     </message>
     <message>
         <location line="+75"/>
-        <location filename="../apps/pub/app/mainwindow_actions.cpp" line="-1293"/>
+        <location filename="../apps/pub/app/mainwindow_actions.cpp" line="-1298"/>
         <source>Save as Web Page</source>
         <translation type="unfinished">Сохранить как веб-страницу</translation>
     </message>
@@ -49763,7 +49886,7 @@ Source: %3</source>
     </message>
     <message>
         <location line="-47"/>
-        <location filename="../apps/pub/app/mainwindow_actions.cpp" line="+1147"/>
+        <location filename="../apps/pub/app/mainwindow_actions.cpp" line="+1152"/>
         <source>Change Picture</source>
         <translation type="unfinished">Заменить рисунок</translation>
     </message>
@@ -49819,14 +49942,14 @@ Source: %3</source>
     </message>
     <message>
         <location line="+36"/>
-        <location filename="../apps/pub/app/mainwindow_ribbon.cpp" line="+349"/>
+        <location filename="../apps/pub/app/mainwindow_ribbon.cpp" line="+350"/>
         <location line="+1"/>
         <location line="+726"/>
         <source>Zoom</source>
         <translation>Масштаб</translation>
     </message>
     <message>
-        <location filename="../apps/pub/app/mainwindow_actions.cpp" line="-438"/>
+        <location filename="../apps/pub/app/mainwindow_actions.cpp" line="-443"/>
         <source>New</source>
         <translation type="unfinished">Создать</translation>
     </message>
@@ -49837,7 +49960,7 @@ Source: %3</source>
     </message>
     <message>
         <location filename="../apps/pub/app/mainwindow.cpp" line="-1686"/>
-        <location filename="../apps/pub/app/mainwindow_actions.cpp" line="+199"/>
+        <location filename="../apps/pub/app/mainwindow_actions.cpp" line="+204"/>
         <source>Publications (*.jpub *.pub)</source>
         <translation type="unfinished">Публикации (*.jpub *.pub)</translation>
     </message>
@@ -49847,7 +49970,7 @@ Source: %3</source>
         <translation type="unfinished">Публикации JeffPub (*.jpub)</translation>
     </message>
     <message>
-        <location filename="../apps/pub/app/mainwindow_actions.cpp" line="-192"/>
+        <location filename="../apps/pub/app/mainwindow_actions.cpp" line="-197"/>
         <location line="+1"/>
         <source>Print</source>
         <translation>Печать</translation>
@@ -49893,7 +50016,7 @@ Source: %3</source>
         <translation type="unfinished">Вставить</translation>
     </message>
     <message>
-        <location line="+1"/>
+        <location line="+6"/>
         <source>Keep Text Only</source>
         <translation type="unfinished">Сохранить только текст</translation>
     </message>
@@ -49991,8 +50114,8 @@ Source: %3</source>
         <translation>Найти</translation>
     </message>
     <message>
-        <location line="-101"/>
-        <location line="+102"/>
+        <location line="-106"/>
+        <location line="+107"/>
         <source>Replace</source>
         <translation>Заменить</translation>
     </message>
@@ -51079,7 +51202,7 @@ Source: %3</source>
         <translation type="unfinished">Вставить дату</translation>
     </message>
     <message>
-        <location line="-356"/>
+        <location line="-361"/>
         <source>Click in text where the page number goes, then choose the design.</source>
         <translation type="unfinished">Щёлкните в тексте, где должен быть номер страницы, затем выберите оформление.</translation>
     </message>
@@ -51112,6 +51235,11 @@ Source: %3</source>
     </message>
     <message>
         <location line="+12"/>
+        <source>Clipboard</source>
+        <translation type="unfinished">Буфер обмена</translation>
+    </message>
+    <message>
+        <location line="+5"/>
         <source>Spreadsheet Cells as Table</source>
         <translation type="unfinished">Ячейки таблицы как таблица</translation>
     </message>
@@ -62819,7 +62947,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
 <context>
     <name>jp::WriteWindow</name>
     <message>
-        <location filename="../apps/write/app/writewindow.cpp" line="-749"/>
+        <location filename="../apps/write/app/writewindow.cpp" line="-754"/>
         <source>Document%1</source>
         <translation type="unfinished">Документ%1</translation>
     </message>
@@ -62890,7 +63018,12 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
         <translation type="unfinished">Вставить</translation>
     </message>
     <message>
-        <location line="+1"/>
+        <location line="+3"/>
+        <source>Clipboard</source>
+        <translation type="unfinished">Буфер обмена</translation>
+    </message>
+    <message>
+        <location line="+3"/>
         <source>Select All</source>
         <translation type="unfinished">Выделить всё</translation>
     </message>
@@ -64836,7 +64969,7 @@ The password couldn&apos;t be put on the file.</source>
     </message>
     <message>
         <location filename="../apps/write/app/writewindow_layout.cpp" line="-22"/>
-        <location filename="../apps/write/app/writewindow_ribbon.cpp" line="+144"/>
+        <location filename="../apps/write/app/writewindow_ribbon.cpp" line="+145"/>
         <source>Automatic</source>
         <translation type="unfinished">Автоматически</translation>
     </message>
@@ -84364,24 +84497,24 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished">+%1 ещё</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/pageview_input.cpp" line="+137"/>
-        <location line="+506"/>
+        <location filename="../apps/write/app/pageview_input.cpp" line="+138"/>
+        <location line="+545"/>
         <source>Keep Source Formatting</source>
         <translation type="unfinished">Сохранить исходное форматирование</translation>
     </message>
     <message>
-        <location line="-429"/>
+        <location line="-468"/>
         <source>The Spike is full. Paste it to empty it.</source>
         <translation type="unfinished">Буфер «Спайк» заполнен. Вставьте его, чтобы очистить.</translation>
     </message>
     <message>
         <location line="-76"/>
-        <location line="+506"/>
+        <location line="+545"/>
         <source>Merge Formatting</source>
         <translation type="unfinished">Объединить форматирование</translation>
     </message>
     <message>
-        <location line="-547"/>
+        <location line="-586"/>
         <source>A table with changes tracked in it is copied as its words, not as a table. Accept or reject the changes to copy it as a table.</source>
         <translation type="unfinished">Таблица с отслеживаемыми исправлениями копируется как текст, а не как таблица. Примите или отклоните исправления, чтобы скопировать её как таблицу.</translation>
     </message>
@@ -84397,12 +84530,12 @@ The password couldn&apos;t be put on the file.</source>
     </message>
     <message>
         <location line="+40"/>
-        <location line="+507"/>
+        <location line="+546"/>
         <source>Keep Text Only</source>
         <translation type="unfinished">Только текст</translation>
     </message>
     <message>
-        <location line="-506"/>
+        <location line="-545"/>
         <source>Pasting within the same document</source>
         <translation type="unfinished">Вставка внутри того же документа</translation>
     </message>
@@ -84417,7 +84550,7 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished">Вставка из других программ</translation>
     </message>
     <message>
-        <location line="+506"/>
+        <location line="+545"/>
         <source>Continue List</source>
         <translation type="unfinished">Продолжить список</translation>
     </message>

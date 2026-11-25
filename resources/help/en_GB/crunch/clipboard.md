@@ -75,3 +75,16 @@ When you copy, JeffCrunch also puts the cells on the clipboard as text (cells ap
 ## What can't be pasted
 
 JeffCrunch tells you and changes nothing when the paste would reach into part of an **array formula**, over the row of column names of a **table**, into locked cells of a **protected sheet**, past the end of the sheet, or into more than 100,000 cells. A whole **array formula** can be cut and moved (select all of its cells); part of one, a data table, or the names row of a table can't.
+
+## The Clipboard pane
+
+The Clipboard pane remembers the last 24 things you copied or cut in this window's program, so you can paste an older one without copying it again. Click the small arrow in the corner of the **Clipboard** group on the **Home** tab (or press **Alt**, then **H**, then **FO**) to open it. A panel appears beside the page.
+
+Each item shows a small preview and what kind of thing it is: text, formatted text, cells, a picture, shapes, or slides. The newest one is at the top. Click an item to paste it where the cursor or the selection is. It pastes like any other paste: one step of **Undo** takes it back, and the Paste Options button appears as usual.
+
+- **Paste All** pastes every item, the oldest first, so they read in the order you copied them.
+- **Delete** removes the item you picked. **Clear All** removes all of them.
+- The pane collects only while it is open. To keep collecting after you close it, tick **Keep collecting when this pane is closed**. The choice is remembered, and collecting starts when the program starts, before you open the pane.
+- To also collect what you copy in other programs, tick **Also collect what is copied in other programs**. Only plain text and pictures are kept, and it starts off again each time you open the program. With this on, a copy made in another program is read in full before this program decides whether to keep it, so a very large copy can make this program pause for a moment and use as much memory as the copy is big. Only one form of it is read: its text when it has text, otherwise one picture. With this off, nothing copied in other programs is read.
+
+The items are kept in the program's memory only. Nothing is saved to a file, and the list is emptied when you close the last window of the program. An item stays in the list after the document it came from is closed. An item bigger than 8 MB is not kept, and the pane tells you when that happens; a picture counts 4 bytes for each dot (pixel), so a picture of more than about 2 million pixels is too big. All the items together are held to 64 MB, and the oldest go first. Anything a password manager marks as secret is never kept.
