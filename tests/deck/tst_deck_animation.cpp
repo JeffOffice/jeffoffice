@@ -14,6 +14,7 @@
 #include "sheet/chartedit.h"
 
 #include <QClipboard>
+#include <QMimeData>
 #include <QGuiApplication>
 #include <QInputDialog>
 #include <QMessageBox>
@@ -3259,6 +3260,16 @@ private Q_SLOTS:
         const QByteArray wav = soundWav();
         const QString source = dir.filePath(QStringLiteral("source.pptx"));
         QVERIFY(writeSoundFile(source, wav));
+        // (what was on the clipboard is put back at the end)
+        struct Clip {
+            QMimeData *kept = new QMimeData;
+            Clip()
+            {
+                if (const QMimeData *now = QGuiApplication::clipboard()->mimeData())
+                    for (const QString &f : now->formats()) kept->setData(f, now->data(f));
+            }
+            ~Clip() { QGuiApplication::clipboard()->setMimeData(kept); }
+        } clip;
         DeckWindow from;
         from.resize(1200, 800);
         from.show();
@@ -3295,7 +3306,6 @@ private Q_SLOTS:
         const QString undone = dir.filePath(QStringLiteral("undone.pptx"));
         QVERIFY(w.saveTo(undone));
         QCOMPARE(soundPartsIn(undone, wav), 0);
-        QGuiApplication::clipboard()->clear();
     }
 
     // A sound that can't come with a slide (the presentation has no room, or it is larger than the sound of an effect may be) is taken out of its effect alone: the
@@ -3362,6 +3372,57 @@ private Q_SLOTS:
         }
     }
 
+    // A hostile slide naming 5,000 distinct sounds brings at most 64 of them (the rest are left out of their effects, the note is shown once), and finding what is
+    // stored costs the sounds of one size only: counted compares stay under 64 times the stored sounds of that size. Fails when off: yes (with the cap at 5,000 the
+    // presentation gets 5,000 sounds and the compares reach 500,000).
+    void aSlideBringsAtMostSixtyFourSounds()
+    {
+        auto src = showDeck(1);
+        Page &slide = *src->pages[0];
+        numberShowShapes(slide);
+        QStringList effects;
+        for (int i = 0; i < 5000; ++i) {
+            const QString id = QStringLiteral("s%1").arg(i);
+            src->media.insert(id, MediaData{QByteArray::number(100000 + i), QStringLiteral("audio/wav"), QStringLiteral("wav")});
+            effects << withSub(animFadeIn(2, 100, "withEffect"), soundNode(id));
+        }
+        slide.props[QStringLiteral("timingXml")] = namespacesForSounds(animTiming(animStep({animGroup(0, effects)})));
+        auto dest = showDeck(1);
+        for (int i = 0; i < 100; ++i) dest->addMedia(QByteArray::number(900000 + i), QStringLiteral("audio/wav"), QStringLiteral("wav"));
+        int compares = 0;
+        deck::setSoundCompareCounter(&compares);
+        QStringList notes;
+        const int made = deck::insertSlideFrom(*dest, 1, *src, 0, false, &notes);
+        deck::setSoundCompareCounter(nullptr);
+        QCOMPARE(made, 1);
+        QCOMPARE(notes, QStringList({QStringLiteral("Sounds of animation effects that don't fit in this presentation were left out.")}));
+        QCOMPARE(int(dest->media.size()), 100 + deck::kMostBroughtSounds);
+        QCOMPARE(int(deck::timingSoundIds(dest->pages[1]->props.value(QStringLiteral("timingXml")).toString()).size()), int(deck::kMostBroughtSounds));
+        QVERIFY(compares <= deck::kMostBroughtSounds * (100 + deck::kMostBroughtSounds));
+    }
+
+    // Two effects naming sounds "1" and "11" each keep their own sound after the bring (an id is found where it is remapped, so none is copied and left naming the
+    // source). Fails when off: yes (with an id the finder misses, the effect keeps naming the source's id and has no sound).
+    void idsThatBeginAlikeEachKeepTheirSound()
+    {
+        auto src = showDeck(1);
+        Page &slide = *src->pages[0];
+        numberShowShapes(slide);
+        const QByteArray one = soundWav(440), eleven = soundWav(880);
+        src->media.insert(QStringLiteral("1"), MediaData{one, QStringLiteral("audio/wav"), QStringLiteral("wav")});
+        src->media.insert(QStringLiteral("11"), MediaData{eleven, QStringLiteral("audio/wav"), QStringLiteral("wav")});
+        slide.props[QStringLiteral("timingXml")] = namespacesForSounds(animTiming(animSteps({withSub(animFadeIn(2, 500), soundNode(QStringLiteral("1"))), withSub(animFadeIn(3, 500), soundNode(QStringLiteral("11")))})));
+        auto dest = showDeck(1);
+        QStringList notes;
+        QCOMPARE(deck::insertSlideFrom(*dest, 1, *src, 0, false, &notes), 1);
+        QVERIFY(notes.isEmpty());
+        const deck::AnimSequence seq = deck::readAnimations(*dest->pages[1], dest.get());
+        QCOMPARE(int(seq.effects.size()), 2);
+        QCOMPARE(dest->media.value(seq.effects[0].soundMedia).bytes, one);
+        QCOMPARE(dest->media.value(seq.effects[1].soundMedia).bytes, eleven);
+        QCOMPARE(int(dest->media.size()), 2);
+    }
+
     // A slide duplicated inside one presentation, and the slides after a reorder, keep the sounds of their effects (the same sound, stored once); saved and opened,
     // they play. Fails when off: no (a guard: the copies name sounds that are in the same presentation).
     void duplicateKeepsTheSoundsOfEffects()
@@ -3395,8 +3456,8 @@ private Q_SLOTS:
         }
     }
 
-    // A step starts at most EffectSounds::kMostTogether sounds, however many its effects name: 2,000 cues at one moment make 8 requests to the output, the rest are
-    // skipped and counted (never kept for later), and the next step starts 8 more. Fails when off: yes (with no limit 2,000 sounds are asked for).
+    // At most EffectSounds::kMostTogether sounds play at the same time, however many its effects name: 2,000 cues at one moment make 8 requests to the output, the rest
+    // are skipped and counted (never kept for later), and a cue that comes when one has ended plays. Fails when off: yes (with no limit 2,000 sounds are asked for).
     void stepStartsAtMostEightSounds()
     {
         auto d = showDeck(1);
@@ -3430,7 +3491,38 @@ private Q_SLOTS:
         QCOMPARE(sounds.skipped(), 1992);
         sounds.beginStep();
         sounds.cue(cue);
+        QCOMPARE(asked, 8);   // (8 still play)
+        sounds.outputEnded();
+        sounds.cue(cue);
         QCOMPARE(asked, 9);
+    }
+
+    // A step with 10 sounds spaced over time, each ended before the next, plays all 10; a step starts at most 64 however far apart, and 8 play together. Fails when off:
+    // yes (with 8 started in a step as a whole, only 8 of the 10 play).
+    void soundsSpacedOverTimeAllPlay()
+    {
+        auto d = showDeck(1);
+        const QString one = d->addMedia(soundWav(), QStringLiteral("audio/wav"), QStringLiteral("wav"));
+        EffectSounds sounds(d.get());
+        int asked = 0;
+        sounds.setOutput([&asked](const EffectSounds::Request &r) { asked += r.kind == EffectSounds::Request::Kind::Play ? 1 : 0; });
+        const deck::SoundCue cue{deck::SoundKind::File, one, 0};
+        sounds.beginStep();
+        for (int i = 0; i < 10; ++i) {
+            sounds.cue(cue);
+            sounds.outputEnded();
+        }
+        QCOMPARE(asked, 10);
+        QCOMPARE(sounds.skipped(), 0);
+        for (int i = 0; i < 100; ++i) {
+            sounds.cue(cue);
+            sounds.outputEnded();
+        }
+        QCOMPARE(asked, 64);
+        QCOMPARE(sounds.skipped(), 46);
+        sounds.beginStep();
+        sounds.cue(cue);
+        QCOMPARE(asked, 65);
     }
 
     // A sound that can't be played does not stay: its player is dropped, and none is left playing (counted: no decoder was started for it). Fails when off: yes (the
