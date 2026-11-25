@@ -1,9 +1,15 @@
 #include "tst_pub_file.h"
 #include "../office/dochelpers.h"
+#include "../withdialog.h"
 #include "doc/doc.h"
 #include "core/mergeextras.h"
 #include "io/importers.h"
 #include "odt/odt.h"
+#include <QLineEdit>
+#include <QMessageBox>
+#include <QTableWidget>
+#include <QTemporaryDir>
+#include <QTimer>
 
 void PubFileTests::initTestCase() { initPubTestCase(); }
 
@@ -1384,6 +1390,106 @@ void PubFileTests::aPubFileCopyListsTheMailMergeListAsNotKept()
     QVERIFY(!mentions());
     doc->merge = threeRecipients();
     QVERIFY(mentions());
+}
+
+static jp::MergeSource fourRecipients()
+{
+    jp::MergeSource m;
+    m.fields = {"Name", "Email"};
+    for (const QStringList &r : {QStringList{"Ann", "ann@example.com"}, QStringList{"Bo", "bo@example.com"}, QStringList{"Cy", "cy@example.com"}, QStringList{"Di", "di@example.com"}}) {
+        m.rows << r;
+        m.include << true;
+    }
+    return m;
+}
+
+void PubFileTests::aRecipientLeftOutInASortedBoxIsLeftOutAgainByItsPlaceInTheList()
+{
+    jp::MainWindow w;
+    auto doc = jp::Document::blank(QSizeF(612, 792));
+    doc->merge = fourRecipients();
+    w.editor()->setDocument(std::move(doc));
+    w.act(QStringLiteral("mm.editList"))->setEnabled(true);
+    bool shown = false;
+    withDialog([&] { w.act(QStringLiteral("mm.editList"))->trigger(); }, QStringLiteral("mergeRecipientsDialog"), [&](QDialog *d) {
+        shown = true;
+        auto *table = d->findChild<QTableWidget *>();
+        QVERIFY(table);
+        table->sortByColumn(1, Qt::DescendingOrder);   // Di, Cy, Bo, Ann
+        d->findChild<QLineEdit *>()->setText(QStringLiteral("di@"));
+        for (int r = 0; r < table->rowCount(); ++r)
+            if (!table->isRowHidden(r) && table->item(r, 1)->text() == QLatin1String("Di")) table->item(r, 0)->setCheckState(Qt::Unchecked);
+    });
+    QVERIFY(shown);
+    const jp::Document &now = *w.editor()->doc();
+    QCOMPARE(now.merge.rows.value(0).value(0), QStringLiteral("Di"));   // (the box handed the rows back as shown)
+    QCOMPARE(now.merge.place, (QVector<int>{3, 2, 1, 0}));
+    QString err;
+    auto back = jp::publicationFromBytes(jp::publicationBytes(now, QImage()), &err);
+    QVERIFY2(back, qPrintable(err));
+    QCOMPARE(back->merge.place, now.merge.place);
+    // The same list read again from its file, in the order of the file: the one who was unticked is left out, and nobody else.
+    jp::MergeSource again = fourRecipients();
+    const jp::ExclusionResult kept = jp::applyExclusions(again, jp::exclusionsOf(back->merge));
+    QCOMPARE(kept.applied, 1);
+    QVERIFY(kept.problem.isEmpty());
+    QCOMPARE(again.include, (QVector<bool>{true, true, true, false}));
+}
+
+void PubFileTests::saveEachAsAFileMakesOnePublicationForEachRecipientThroughTheWindow()
+{
+    QTemporaryDir dir;
+    QVERIFY(dir.isValid());
+    const QString folder = dir.filePath(QStringLiteral("out"));
+    QVERIFY(QDir().mkpath(folder));
+    // A file in the folder that is a link to a file outside it is replaced by a file, and the one it led to is not touched.
+    QFile outside(dir.filePath(QStringLiteral("outside.txt")));
+    QVERIFY(outside.open(QIODevice::WriteOnly));
+    outside.write("KEEP");
+    outside.close();
+    const bool linked = QFile::link(outside.fileName(), folder + QStringLiteral("/Ann.jpub")) && QFileInfo(folder + QStringLiteral("/Ann.jpub")).isSymLink();
+    jp::MainWindow w;
+    auto doc = jp::Document::blank(QSizeF(612, 792));
+    doc->addPage(-1, doc->pages[0]->masterId);   // (two pages: a file of one recipient has the two, and not the pages of all)
+    doc->merge = fourRecipients();
+    doc->merge.path = dir.filePath(QStringLiteral("people.csv"));
+    doc->merge.include[1] = false;
+    doc->merge.include[3] = false;
+    w.editor()->setDocument(std::move(doc));
+    w.act(QStringLiteral("mm.mergeFiles"))->setEnabled(true);
+    QStringList said;
+    QTimer boxes;
+    QObject::connect(&boxes, &QTimer::timeout, [&] {
+        auto *box = qobject_cast<QMessageBox *>(QApplication::activeModalWidget());
+        if (!box) return;
+        said << box->text();
+        if (QAbstractButton *yes = box->button(QMessageBox::Yes)) yes->click();
+        else box->accept();
+    });
+    boxes.start(20);
+    withDialog([&] { w.act(QStringLiteral("mm.mergeFiles"))->trigger(); }, QStringLiteral("mergeFilesDialog"), [&](QDialog *d) {
+        d->findChild<QLineEdit *>(QStringLiteral("mergeFilesFolder"))->setText(folder);
+        d->findChild<QLineEdit *>(QStringLiteral("mergeFilesPattern"))->setText(QStringLiteral("{Name}"));
+    });
+    boxes.stop();
+    QCOMPARE(QDir(folder).entryList(QDir::Files, QDir::Name), (QStringList{"Ann.jpub", "Cy.jpub"}));
+    QVERIFY(!said.isEmpty());
+    if (linked) {
+        QVERIFY(!QFileInfo(folder + QStringLiteral("/Ann.jpub")).isSymLink());
+        QVERIFY2(said.first().contains(QLatin1String("1 file")), qPrintable(said.first()));   // (the link is in the question about files that are there)
+        QVERIFY(outside.open(QIODevice::ReadOnly));
+        QCOMPARE(outside.readAll(), QByteArray("KEEP"));
+    }
+    // Each file, opened again through the program's reader, is one recipient's pages (two) and holds nothing of the list.
+    for (const QString &name : {QStringLiteral("Ann.jpub"), QStringLiteral("Cy.jpub")}) {
+        QString err;
+        auto one = jp::loadAnyPublication(QDir(folder).filePath(name), &err);
+        QVERIFY2(one, qPrintable(err));
+        QCOMPARE(int(one->pages.size()), 2);
+        QVERIFY(one->merge.isEmpty());
+        QVERIFY(one->merge.path.isEmpty());
+        QVERIFY(one->merge.rows.isEmpty());
+    }
 }
 
 // Each reader of Insert File and of recipient lists is given its file damaged in many ways (bytes changed, the end cut off, a run of junk put in): it

@@ -1,5 +1,6 @@
 #include "office/packageprops.h"
 #include "core/inspectops.h"
+#include "core/mergeops.h"
 
 #include "core/commentops.h"
 #include "core/fieldops.h"
@@ -780,6 +781,25 @@ int removeCustomXml(WriteDoc &doc)
     for (const QString &name : doc.packagePartNames())
         if (name.startsWith(QLatin1String("/customXml/"), Qt::CaseInsensitive)) doc.removePackagePart(name);
     if (n > 0) doc.setModified(true);
+    return n;
+}
+
+int mergeExclusionCount(WriteDoc &doc)
+{
+    const mail::State *state = mail::stateIfAny(doc);
+    return state ? int(state->exclusions.keys.size() + state->exclusions.places.size()) : 0;
+}
+
+int removeMergeExclusions(WriteDoc &doc)
+{
+    const int n = mergeExclusionCount(doc);
+    if (n == 0) return 0;
+    mail::State &state = mail::stateOf(doc);
+    state.exclusions = MergeExclusions();
+    state.exclusionsNote.clear();
+    state.exclusionsUnread.clear();
+    state.changed = true;   // (written again without the part)
+    doc.setModified(true);
     return n;
 }
 

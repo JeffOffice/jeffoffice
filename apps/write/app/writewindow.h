@@ -333,6 +333,8 @@ public:
     // Lists what an .odt file can't hold of the document; Check Compatibility offers it with .rtf and .txt (the shared box, libs/shell/app/compatdialog.h).
     QStringList incompatibilities();
     jp::CompatAnswer odtAnswer();   // the same, or that it could not be worked out
+    // A test's hook: called after each file Save Each as a File has made, with the number made so far (empty in the program).
+    std::function<void(int)> afterMergeFileForTest;
     jp::CompatAnswer withMergeExclusions(jp::CompatAnswer answer);   // with the line for the recipients a mail merge leaves out, where it has some
     jp::CompatHost compatHost();
     void checkCompatibility(int format = 0);

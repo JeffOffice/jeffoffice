@@ -288,7 +288,7 @@ bool loadSource(State &state, const QString &fromPath)
     if (!loadMergeSource(path, &m, nullptr)) return false;
     dropBlankRecords(m);
     limitRecords(m);
-    state.exclusionsNote = applyExclusions(m, state.exclusions).problem;
+    state.exclusionsNote = (state.exclusionsUnread + QLatin1Char(' ') + applyExclusions(m, state.exclusions).problem).trimmed();
     state.data = m;
     state.sourcePath = path;
     state.loaded = true;
@@ -321,7 +321,8 @@ void WriteDoc::readMailSettings(const QByteArray &settings)
         if (r.type != QLatin1String(mail::kExclusionsRel) || r.external) continue;
         const QString name = r.target.startsWith(QLatin1Char('/')) ? r.target : QStringLiteral("/word/") + r.target;
         for (const office::wml::KeptPart &part : std::as_const(m_wml.parts))
-            if (part.name.compare(name, Qt::CaseInsensitive) == 0 && exclusionsFromBytes(part.data, &state->exclusions)) break;
+            if (part.name.compare(name, Qt::CaseInsensitive) == 0 && !exclusionsFromBytes(part.data, &state->exclusions))
+                state->exclusionsUnread = QCoreApplication::translate("jp::write::Mail", "The record of which recipients you left out could not be read, so all recipients are included.");
         break;
     }
     mailMerge = state;
@@ -367,6 +368,19 @@ void WriteDoc::writeMailSettings(office::wml::Document *out)
     if (state.fieldMap != state.fieldMapRead) m.odso = mail::odsoWithFieldMap(m.odso, state.fieldMap, state.data.fields);
     part->data = office::wml::settingsWithMailMerge(part->data, m);
     writeExclusionsPart(out, state);
+}
+
+void WriteDoc::dropMailMerge()
+{
+    const QString type = QStringLiteral("http://schemas.openxmlformats.org/officeDocument/2006/relationships/mailMergeSource");
+    for (office::wml::KeptPart &part : m_wml.parts)
+        if (!m_wml.settingsName.isEmpty() && part.name.compare(m_wml.settingsName, Qt::CaseInsensitive) == 0) part.data = office::wml::settingsWithMailMerge(part.data, office::wml::MailMergeSettings());
+    auto rels = m_wml.partRelationships.find(m_wml.settingsName);
+    if (rels != m_wml.partRelationships.end())
+        for (int i = int(rels->size()) - 1; i >= 0; --i)
+            if ((*rels)[i].type == type) rels->removeAt(i);
+    writeExclusionsPart(&m_wml, mail::State());   // (no merge: the part, its relationship, and its content type go)
+    mailMerge.reset();
 }
 
 // The recipients left out are kept in a part of our own (the file's own place for them is not one a program can write so that the other program reads it right): written when there are some,
@@ -1003,6 +1017,7 @@ std::unique_ptr<WriteDoc> mergeToDocument(WriteDoc &source, const MergeSource &d
     if (!prepare(source, &run, error)) return nullptr;
     std::unique_ptr<WriteDoc> out = WriteDoc::fromDocx(run.bytes, error);
     if (!out) return nullptr;
+    out->dropMailMerge();   // (the result holds nothing of the list: not its link, the settings, or who was left out)
     const QVector<int> rows = rowsOf(data, options);
     QTextDocument *target = out->story();
     target->setUndoRedoEnabled(false);

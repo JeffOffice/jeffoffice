@@ -37,6 +37,7 @@
 #include <QDateTime>
 #include <QPrinter>
 #include <QRegularExpression>
+#include <QPointer>
 #include <QSaveFile>
 #include <QSet>
 #include <QStandardPaths>
@@ -548,6 +549,7 @@ std::unique_ptr<Document> mergeToNewPublication(const Document &src, const QVect
 
 void mergeToFiles(QWidget *parent, Editor *ed)
 {
+    if (refuseWhileMergeFilesRun(parent)) return;
     const Document &d = *ed->doc();
     if (d.merge.isEmpty()) {
         jp::plainInformation(parent, QCoreApplication::translate("Import", "Save Each as a File"), QCoreApplication::translate("Import", "Select a recipient list first."));
@@ -568,18 +570,23 @@ void mergeToFiles(QWidget *parent, Editor *ed)
     if (!mergeFilesDialog(parent, d.merge, rows, kinds, start, &choice)) return;
     const QStringList names = mergeFileNames(d.merge, rows, choice.pattern, kinds.ownExtension);
     if (!confirmMergeFiles(parent, choice.folder, names)) return;
-    runMergeFiles(parent, choice.folder, rows, names, [&](int row, const QString &path, QString *why) {
-        const QVector<int> one{row};
-        auto merged = mergeToNewPublication(d, &one);
-        if (!merged) { *why = QCoreApplication::translate("Import", "The publication can't be made."); return false; }
-        const QByteArray bytes = publicationBytes(*merged, QImage(), choice.folder);
-        QSaveFile out(path);
-        if (bytes.isEmpty() || !out.open(QIODevice::WriteOnly) || out.write(bytes) != bytes.size() || !out.commit()) {
-            *why = bytes.isEmpty() ? QCoreApplication::translate("Import", "The publication can't be made.") : out.errorString();
+    // Nothing the run holds is a bare pointer to the editor or the publication: the editor is guarded, and the run stops before the next file when it is gone, holds another publication, or the
+    // publication was changed (every file is made from the publication as it was when the person chose Save).
+    QPointer<Editor> guarded(ed);
+    const Document *const same = ed->doc();
+    const int step = ed->undoStack()->index();
+    runMergeFiles(parent, choice.folder, rows, names, [guarded, same, folder = choice.folder](int row, const QString &path, QString *why) {
+        if (!guarded || guarded->doc() != same) {
+            *why = QCoreApplication::translate("Import", "The publication is gone.");
             return false;
         }
-        return true;
-    });
+        const QVector<int> one{row};
+        auto merged = mergeToNewPublication(*guarded->doc(), &one);
+        if (!merged) { *why = QCoreApplication::translate("Import", "The publication can't be made."); return false; }
+        const QByteArray bytes = publicationBytes(*merged, QImage(), folder);
+        if (bytes.isEmpty()) { *why = QCoreApplication::translate("Import", "The publication can't be made."); return false; }
+        return writeMergeFile(path, bytes, why);
+    }, [guarded, same, step] { return guarded && guarded->doc() == same && guarded->undoStack()->index() == step; });
 }
 
 void mergeToEmailFiles(QWidget *parent, Editor *ed)

@@ -22,6 +22,10 @@ int clearHeadersAndFooters(WriteDoc &doc);
 // The parts of custom XML the file carries (data for other programs).
 int customXmlCount(WriteDoc &doc);
 int removeCustomXml(WriteDoc &doc);
+// The recipients a mail merge leaves out, kept with the document (how many: the keys and the places), and taking that record out (the document is saved without it, and the people are not left
+// out the next time the list is read).
+int mergeExclusionCount(WriteDoc &doc);
+int removeMergeExclusions(WriteDoc &doc);
 
 // Links of the text to other files, not web addresses: a picture or an object that is only linked (the file it shows is not in the document), and a field that takes its result from
 // another file (INCLUDEPICTURE, INCLUDETEXT, LINK, DDE, and DDEAUTO). The count is of those in the body, the headers and footers, and the footnotes. Removing turns each such field into its

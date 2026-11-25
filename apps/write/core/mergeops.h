@@ -56,6 +56,7 @@ struct State {
     QHash<QString, QString> fieldMapRead;   // what the file said of it (written again only where it differs)
     MergeExclusions exclusions;          // the recipients left out, as the file keeps them (applied to `data` where the list is read again)
     QString exclusionsNote;              // what of them no longer fit the list read, as a sentence (empty: all fit); said once, by the window
+    QString exclusionsUnread;            // set where the file's record of them could not be read (damaged, or not what this writes): said with the note, and the people are all included
     Kind kind() const { return kindOfValue(settings.type); }
 };
 

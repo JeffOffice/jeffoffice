@@ -3,6 +3,7 @@
 
 #include "../withdialog.h"
 #include "app/mailpreview.h"
+#include "app/infopage.h"
 #include "app/mergefiles.h"
 #include "app/pageview.h"
 #include "app/theme.h"
@@ -26,11 +27,14 @@
 
 #include <QComboBox>
 #include <QDialog>
+#include <QCryptographicHash>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QLabel>
 #include <QLineEdit>
 #include <QMessageBox>
+#include <QPointer>
+#include <QTableWidget>
 #include <QTimer>
 #include <QDir>
 #include <QElapsedTimer>
@@ -67,7 +71,7 @@ QByteArray field(const QByteArray &code, const QByteArray &result)
 }
 
 // A document of these paragraphs; `settings` is the settings part (none if empty) and `source` the target of its data source relationship.
-QByteArray makeDocx(const QByteArray &body, const QByteArray &settings = QByteArray(), const QString &source = QString())
+QByteArray makeDocx(const QByteArray &body, const QByteArray &settings = QByteArray(), const QString &source = QString(), const QByteArray &exclusions = QByteArray())
 {
     office::PackageWriter w;
     w.addPart(QStringLiteral("/word/document.xml"), QByteArray("<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\r\n<w:document ") + kNs + "><w:body>" + body + "</w:body></w:document>",
@@ -81,8 +85,53 @@ QByteArray makeDocx(const QByteArray &body, const QByteArray &settings = QByteAr
         w.addRelationship(QStringLiteral("/word/document.xml"), kRel + QStringLiteral("settings"), QStringLiteral("/word/settings.xml"));
         if (!source.isEmpty()) w.addRelationshipWithId(QStringLiteral("/word/settings.xml"), QStringLiteral("rId1"), kRel + QStringLiteral("mailMergeSource"), source, true);
     }
+    if (!exclusions.isEmpty()) {
+        w.addPart(QStringLiteral("/word/mergeexclusions.json"), exclusions, QStringLiteral("application/json"));
+        w.addRelationship(QStringLiteral("/word/document.xml"), QString(mail::kExclusionsRel), QStringLiteral("/word/mergeexclusions.json"));
+    }
     return w.finish();
 }
+
+// The quit event the program is sent as it quits. Taken by the test before the program acts on it (it would end the test program), and counted; installed first, so that what a run watches for sees it first.
+struct QuitTaker : QObject {
+    int seen = 0;
+    QuitTaker() { qApp->installEventFilter(this); }
+    ~QuitTaker() override { qApp->removeEventFilter(this); }
+    bool eventFilter(QObject *o, QEvent *e) override
+    {
+        if (o != qApp || e->type() != QEvent::Quit) return false;
+        ++seen;
+        return true;
+    }
+};
+void sendQuit()
+{
+    QEvent quit(QEvent::Quit);
+    QCoreApplication::sendEvent(qApp, &quit);
+}
+
+// Answers the boxes a command shows (a question with Yes, a message with OK); a dialog of another kind is closed and its name kept. The boxes the test itself answers, and the one that shows the files
+// being made, are left alone.
+struct Answerer {
+    QStringList said, strays;
+    QTimer timer;
+    Answerer()
+    {
+        QObject::connect(&timer, &QTimer::timeout, [this] {
+            QWidget *top = QApplication::activeModalWidget();
+            if (!top || top->objectName() == QLatin1String("mergeFilesBox") || top->objectName() == QLatin1String("mergeFilesDialog") || top->objectName() == QLatin1String("mergeRecipientsDialog")) return;
+            if (auto *box = qobject_cast<QMessageBox *>(top)) {
+                said << box->text();
+                if (QAbstractButton *yes = box->button(QMessageBox::Yes)) yes->click();
+                else box->accept();
+            } else if (auto *dialog = qobject_cast<QDialog *>(top)) {
+                strays << dialog->objectName();
+                dialog->reject();
+            }
+        });
+        timer.start(20);
+    }
+};
 
 QByteArray partOf(const QByteArray &zip, const QString &name)
 {
@@ -1106,6 +1155,7 @@ private Q_SLOTS:
         QVERIFY(!exclusionsFromBytes(QJsonDocument(QJsonObject{{"version", 1}, {"rows", 5}, {"places", many}}).toJson(QJsonDocument::Compact), &out));
         MergeExclusions e;
         e.rows = 3;
+        e.salt = newExclusionSalt();
         e.places = {0, 2};
         QVERIFY(exclusionsFromBytes(exclusionsToBytes(e), &out));
         QCOMPARE(out, e);
@@ -1256,6 +1306,463 @@ private Q_SLOTS:
         QVERIFY(cy);
         QVERIFY(cy->story()->toPlainText().contains(QStringLiteral("Dear ../../Cy")));
         QVERIFY(!cy->story()->toPlainText().contains(QStringLiteral("Ann")));
+    }
+
+    // ---- fixes after the review (Nov 25)
+    // Every part of a package, with its name and type, and the relationship parts, as one text: what a file holds, to look through for what must not be there.
+    static QByteArray wholePackage(const QByteArray &zip)
+    {
+        office::Package p;
+        p.read(zip);
+        QStringList names = p.partNames();
+        QByteArray all;
+        for (const QString &name : names) all += name.toUtf8() + ' ' + p.contentType(name).toUtf8() + '\n' + p.part(name) + '\n';
+        // (the relationships of the package and of every part: their kinds and where they lead)
+        QStringList sources = names;
+        sources << QStringLiteral("/");
+        for (const QString &source : sources)
+            for (const office::Relationship &r : p.relationships(source)) all += r.type.toUtf8() + ' ' + r.target.toUtf8() + '\n';
+        return all;
+    }
+
+    // Four people in a list file, a window that has read it, and the box for editing the list answered by `fill`; true where the box was there.
+    static bool editedRecipients(WriteWindow &w, const QString &list, const std::function<void(QDialog *)> &fill)
+    {
+        mail::State &state = mail::stateOf(*w.document());
+        state.settings.type = mail::kindValue(mail::Kind::Letters);
+        if (!mail::loadSource(state, list)) return false;
+        state.loaded = true;
+        w.act(QStringLiteral("mail.editList"))->setEnabled(true);
+        bool shown = false;
+        withDialog([&] { w.act(QStringLiteral("mail.editList"))->trigger(); }, QStringLiteral("mergeRecipientsDialog"), [&](QDialog *d) {
+            shown = true;
+            fill(d);
+        });
+        return shown;
+    }
+
+    void aRecipientLeftOutIsRememberedByItsPlaceInTheListAsReadNotAsShown()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        const QString list = writeList(dir, {"Ann,ann@example.com", "Bo,bo@example.com", "Cy,cy@example.com", "Di,di@example.com"});
+        for (const bool filtered : {false, true}) {
+            WriteWindow w;
+            w.setNotifier([](const QString &, const QString &) {});
+            QVERIFY(editedRecipients(w, list, [&](QDialog *d) {
+                // (the way the box asks for the person: "Tell recipients apart by", and not the old words)
+                bool asked = false;
+                for (QLabel *l : d->findChildren<QLabel *>()) {
+                    QVERIFY(l->text() != QLatin1String("Remember who is left out by"));
+                    asked = asked || l->text() == QLatin1String("Tell recipients apart by");
+                }
+                QVERIFY(asked);
+                auto *table = d->findChild<QTableWidget *>();
+                QVERIFY(table);
+                table->sortByColumn(1, Qt::DescendingOrder);   // Di, Cy, Bo, Ann
+                if (filtered) d->findChild<QLineEdit *>()->setText(QStringLiteral("di@"));
+                int unticked = 0;
+                for (int r = 0; r < table->rowCount(); ++r)
+                    if (!table->isRowHidden(r) && table->item(r, 1)->text() == QLatin1String("Di")) {
+                        table->item(r, 0)->setCheckState(Qt::Unchecked);
+                        ++unticked;
+                    }
+                QCOMPARE(unticked, 1);
+            }));
+            mail::State &state = mail::stateOf(*w.document());
+            // The box hands the rows back as shown; the place it remembers is the place in the list file.
+            QCOMPARE(state.data.rows.value(0).value(0), QStringLiteral("Di"));
+            QCOMPARE(state.exclusions.places, (QVector<int>{3}));
+            const QByteArray saved = w.document()->toDocx();
+            auto again = open(saved);
+            QVERIFY(again);
+            mail::State *back = mail::stateIfAny(*again);
+            QVERIFY(back);
+            QVERIFY(mail::loadSource(*back, list));
+            QVERIFY(back->exclusionsNote.isEmpty());
+            QCOMPARE(back->data.include, (QVector<bool>{true, true, true, false}));
+        }
+    }
+
+    void theFingerprintOfARecipientIsKeyedByASaltMadeForTheDocument()
+    {
+        MergeSource m = threePeople();
+        m.keyColumn = QStringLiteral("Email");
+        m.include[0] = false;
+        const MergeExclusions a = exclusionsOf(m);
+        QCOMPARE(a.salt.size(), kSaltDigits);
+        // Another document's record has another salt, so the same person looks different in it; the same document's salt is kept.
+        const MergeExclusions other = exclusionsOf(m);
+        QVERIFY(other.salt != a.salt);
+        QVERIFY(other.keys != a.keys);
+        QCOMPARE(exclusionsOf(m, a.salt), a);
+        // A list of guesses made without the salt finds nothing.
+        const QString unsalted = QString::fromLatin1(QCryptographicHash::hash(QByteArray("ann@example.com"), QCryptographicHash::Sha256).toHex().left(16));
+        QVERIFY(!a.keys.contains(unsalted));
+        QCOMPARE(mergeKeyFingerprint(QStringLiteral("  ANN@Example.com "), a.salt), mergeKeyFingerprint(QStringLiteral("ann@example.com"), a.salt));
+        QCOMPARE(a.keys, (QStringList{mergeKeyFingerprint(QStringLiteral("ann@example.com"), a.salt)}));
+        // The salt is kept in the part, and the part holds no address.
+        const QByteArray bytes = exclusionsToBytes(a);
+        QVERIFY(bytes.contains(a.salt.toLatin1()));
+        QVERIFY(!bytes.contains("example.com"));
+        MergeExclusions back;
+        QVERIFY(exclusionsFromBytes(bytes, &back));
+        QCOMPARE(back, a);
+        // A record with keys and no salt, or a salt that is not 64 digits, is refused.
+        const auto made = [&](const QJsonObject &o) { return QJsonDocument(o).toJson(QJsonDocument::Compact); };
+        const QJsonObject good{{"version", 1}, {"rows", 3}, {"key", "Email"}, {"keys", QJsonArray{"0123456789abcdef"}}, {"salt", a.salt}};
+        QVERIFY(exclusionsFromBytes(made(good), &back));
+        QJsonObject noSalt = good;
+        noSalt.remove("salt");
+        QVERIFY(!exclusionsFromBytes(made(noSalt), &back));
+        QJsonObject shortSalt = good;
+        shortSalt["salt"] = QStringLiteral("abcd");
+        QVERIFY(!exclusionsFromBytes(made(shortSalt), &back));
+    }
+
+    void aSavedRecordWithAnAbsurdSizeIsRefusedInWords()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        const QString list = writeList(dir, {"Ann,ann@example.com", "Bo,bo@example.com"});
+        const QString salt(kSaltDigits, QLatin1Char('a'));
+        const auto made = [&](const QJsonValue &rows, const QJsonValue &places) {
+            return QJsonDocument(QJsonObject{{"version", 1}, {"rows", rows}, {"salt", salt}, {"places", QJsonArray{places}}}).toJson(QJsonDocument::Compact);
+        };
+        MergeExclusions out;
+        for (const QJsonValue &rows : {QJsonValue(1e300), QJsonValue(-1), QJsonValue(1.5), QJsonValue(1e10), QJsonValue(QStringLiteral("many"))}) {
+            QVERIFY2(!exclusionsFromBytes(made(rows, 0), &out), qPrintable(QString::number(rows.toDouble())));
+        }
+        QVERIFY(!exclusionsFromBytes(made(2, 1e300), &out));   // a place outside the list
+        QVERIFY(!exclusionsFromBytes(made(2, 2), &out));
+        QVERIFY(exclusionsFromBytes(made(2, 1), &out));
+        // A file with such a record opens, and the person is told, with everyone included.
+        auto doc = open(makeDocx(para(run("x")), mergeSettings(list), QUrl::fromLocalFile(list).toString(), made(1e300, 0)));
+        QVERIFY(doc);
+        mail::State *s = mail::stateIfAny(*doc);
+        QVERIFY(s);
+        QVERIFY(s->exclusions.isEmpty());
+        QVERIFY(!s->exclusionsUnread.isEmpty());
+        QVERIFY(mail::loadSource(*s, list));
+        QVERIFY(s->exclusionsNote.contains(s->exclusionsUnread));
+        QCOMPARE(s->data.include, (QVector<bool>{true, true}));
+        // A record that is read fine says nothing.
+        auto fine = open(makeDocx(para(run("x")), mergeSettings(list), QUrl::fromLocalFile(list).toString(), made(2, 1)));
+        QVERIFY(fine);
+        QVERIFY(mail::stateIfAny(*fine)->exclusionsUnread.isEmpty());
+        QCOMPARE(mail::stateIfAny(*fine)->exclusions.places, (QVector<int>{1}));
+    }
+
+    void aMergedFileHoldsNothingOfTheListItCameFrom()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        const QString list = writeList(dir, {"Ann,ann@example.com", "Bo,bo@example.com", "Cy,cy@example.com"});
+        auto source = open(makeDocx(para(run("Dear ") + field("MERGEFIELD Name", "«Name»")), mergeSettings(list), QUrl::fromLocalFile(list).toString()));
+        QVERIFY(source);
+        mail::State &state = mail::stateOf(*source);
+        QVERIFY(mail::loadSource(state, list));
+        state.data.keyColumn = QStringLiteral("Email");
+        state.data.include[1] = false;
+        state.exclusions = exclusionsOf(state.data);
+        state.changed = true;
+        const QByteArray letter = source->toDocx();
+        // (the document itself has all of it, so that the looks below are not empty ones)
+        const QByteArray own = wholePackage(letter);
+        for (const char *what : {"mergeexclusions", "mergeExclusions", "mailMerge", "MERGEFIELD"}) QVERIFY2(own.contains(what), what);
+        QVERIFY(own.contains(dir.path().toUtf8()));
+        auto holdsNothing = [&](const QByteArray &zip, const char *which) {
+            const QByteArray all = wholePackage(zip);
+            for (const char *what : {"mergeexclusions", "mergeExclusions", "mailMerge", "MERGEFIELD", "application/json"})
+                if (all.contains(what)) QFAIL(qPrintable(QStringLiteral("%1 holds %2").arg(QLatin1String(which), QLatin1String(what))));
+            if (all.contains(dir.path().toUtf8())) QFAIL(qPrintable(QStringLiteral("%1 holds the folder of the list").arg(QLatin1String(which))));
+        };
+        // One document of all the recipients (Edit Individual Documents makes it with this).
+        QString error;
+        mail::MergeOptions options;
+        auto merged = mail::mergeToDocument(*source, state.data, {}, options, &error);
+        QVERIFY2(merged, qPrintable(error));
+        QVERIFY(merged->story()->toPlainText().contains(QStringLiteral("Dear Ann")));
+        holdsNothing(merged->toDocx(), "the merged document");
+        QVERIFY(!mail::stateIfAny(*merged));
+        // One file for each recipient, through the window.
+        const QString letterPath = writeFile(dir, QStringLiteral("letter.docx"), letter);
+        const QString folder = dir.filePath(QStringLiteral("letters"));
+        WriteWindow w;
+        w.setNotifier([](const QString &, const QString &) {});
+        QVERIFY(w.openFile(letterPath));
+        w.act(QStringLiteral("mail.finish.files"))->setEnabled(true);
+        Answerer answer;
+        withDialog([&] { w.act(QStringLiteral("mail.finish.files"))->trigger(); }, QStringLiteral("mergeFilesDialog"), [&](QDialog *d) {
+            d->findChild<QLineEdit *>(QStringLiteral("mergeFilesFolder"))->setText(folder);
+            d->findChild<QLineEdit *>(QStringLiteral("mergeFilesPattern"))->setText(QStringLiteral("Letter to {Name}"));
+        });
+        answer.timer.stop();
+        const QStringList files = QDir(folder).entryList(QDir::Files, QDir::Name);
+        QCOMPARE(files, (QStringList{"Letter to Ann.docx", "Letter to Cy.docx"}));   // (Bo was left out, found again by the key)
+        for (const QString &name : files) {
+            QFile f(QDir(folder).filePath(name));
+            QVERIFY(f.open(QIODevice::ReadOnly));
+            holdsNothing(f.readAll(), qPrintable(name));
+        }
+    }
+
+    void aLinkInTheFolderIsReplacedByAFileAndWhatItLedToIsNotTouched()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        const QString folder = dir.filePath(QStringLiteral("out"));
+        QVERIFY(QDir().mkpath(folder));
+        const QString outside = writeFile(dir, QStringLiteral("outside.txt"), "KEEP");
+        const QString nowhere = dir.filePath(QStringLiteral("nowhere.txt"));
+        const QString good = folder + QStringLiteral("/a.docx"), dangling = folder + QStringLiteral("/b.docx");
+        if (!QFile::link(outside, good) || !QFile::link(nowhere, dangling) || !QFileInfo(good).isSymLink() || !QFileInfo(dangling).isSymLink()) QSKIP("this system can't make symbolic links");
+        auto read = [](const QString &path) {
+            QFile f(path);
+            return f.open(QIODevice::ReadOnly) ? f.readAll() : QByteArray("<missing>");
+        };
+        // Both links count as files that are already there, whether they lead anywhere or not.
+        QCOMPARE(mergeFilesThatExist(folder, {"a.docx", "b.docx", "c.docx"}), 2);
+        QString why;
+        QVERIFY2(writeMergeFile(good, "NEW-A", &why), qPrintable(why));
+        QVERIFY2(writeMergeFile(dangling, "NEW-B", &why), qPrintable(why));
+        QVERIFY2(writeMergeFile(folder + QStringLiteral("/c.docx"), "NEW-C", &why), qPrintable(why));
+        QCOMPARE(read(outside), QByteArray("KEEP"));
+        QVERIFY(!QFileInfo::exists(nowhere));
+        QVERIFY(!QFileInfo(good).isSymLink());
+        QVERIFY(!QFileInfo(dangling).isSymLink());
+        QCOMPARE(read(good), QByteArray("NEW-A"));
+        QCOMPARE(read(dangling), QByteArray("NEW-B"));
+        QCOMPARE(read(folder + QStringLiteral("/c.docx")), QByteArray("NEW-C"));
+    }
+
+    void saveEachCountsLinksInItsQuestionAndReplacesThemInsideTheFolder()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        const QString folder = dir.filePath(QStringLiteral("letters"));
+        QVERIFY(QDir().mkpath(folder));
+        const QString outside = writeFile(dir, QStringLiteral("outside.txt"), "KEEP");
+        const QString nowhere = dir.filePath(QStringLiteral("nowhere.txt"));
+        const QString toOutside = folder + QStringLiteral("/Letter to Ann.docx"), toNowhere = folder + QStringLiteral("/Letter to Cy.docx");
+        if (!QFile::link(outside, toOutside) || !QFile::link(nowhere, toNowhere) || !QFileInfo(toOutside).isSymLink()) QSKIP("this system can't make symbolic links");
+        WriteWindow w;
+        w.setNotifier([](const QString &, const QString &) {});
+        write::WriteDoc *doc = w.document();
+        QTextCursor c = w.view()->cursor();
+        insertText(*doc, c, QStringLiteral("Dear "));
+        QVERIFY(mail::insertRule(*doc, c, mail::mergeFieldCode(QStringLiteral("Name")), QStringLiteral("«Name»")));
+        mail::State &state = mail::stateOf(*doc);
+        state.settings.type = mail::kindValue(mail::Kind::Letters);
+        state.data = threePeople();
+        state.data.include[1] = false;
+        state.loaded = true;
+        w.act(QStringLiteral("mail.finish.files"))->setEnabled(true);
+        Answerer answer;
+        withDialog([&] { w.act(QStringLiteral("mail.finish.files"))->trigger(); }, QStringLiteral("mergeFilesDialog"), [&](QDialog *d) {
+            d->findChild<QLineEdit *>(QStringLiteral("mergeFilesFolder"))->setText(folder);
+            d->findChild<QLineEdit *>(QStringLiteral("mergeFilesPattern"))->setText(QStringLiteral("Letter to {Name}"));
+        });
+        answer.timer.stop();
+        QVERIFY(!answer.said.isEmpty());
+        QVERIFY2(answer.said.first().contains(QLatin1String("2 file")), qPrintable(answer.said.first()));   // (both links are in the question)
+        QFile f(outside);
+        QVERIFY(f.open(QIODevice::ReadOnly));
+        QCOMPARE(f.readAll(), QByteArray("KEEP"));
+        QVERIFY(!QFileInfo::exists(nowhere));
+        for (const QString &path : {toOutside, toNowhere}) {
+            QVERIFY(!QFileInfo(path).isSymLink());
+            QFile made(path);
+            QVERIFY(made.open(QIODevice::ReadOnly));
+            QVERIFY(open(made.readAll()));
+        }
+    }
+
+    void inspectDocumentFindsAndRemovesTheRecipientsLeftOut()
+    {
+        WriteWindow w;
+        w.setNotifier([](const QString &, const QString &) {});
+        mail::State &state = mail::stateOf(*w.document());
+        state.settings.type = mail::kindValue(mail::Kind::Letters);
+        state.data = threePeople();
+        state.data.keyColumn = QStringLiteral("Email");
+        state.data.include[0] = false;
+        state.data.include[1] = false;
+        state.exclusions = exclusionsOf(state.data);
+        state.changed = true;
+        state.loaded = true;
+        QVERIFY(!partOf(w.document()->toDocx(), QStringLiteral("/word/mergeexclusions.json")).isEmpty());
+        auto row = [&] {
+            for (const InspectItem &item : w.inspectItems())
+                if (item.title.contains(QLatin1String("left out"))) return item;
+            return InspectItem();
+        };
+        InspectItem item = row();
+        QVERIFY(item.count);
+        QCOMPARE(item.count(), 2);
+        QCOMPARE(item.remove(), 2);
+        QCOMPARE(row().count(), 0);
+        QVERIFY(w.document()->isModified());
+        const QByteArray saved = w.document()->toDocx();
+        QVERIFY(partOf(saved, QStringLiteral("/word/mergeexclusions.json")).isEmpty());
+        QVERIFY(!wholePackage(saved).contains("mergeexclusions"));
+        auto again = open(saved);
+        QVERIFY(again);
+        QVERIFY(mail::stateIfAny(*again)->exclusions.isEmpty());
+        // By place, the count is the places.
+        state.data.keyColumn.clear();
+        state.data.include = {false, true, false};
+        state.exclusions = exclusionsOf(state.data);
+        QCOMPARE(row().count(), 2);
+    }
+
+    void aRunOfFilesStopsBeforeTheNextFileWhenItsWindowGoes()
+    {
+        for (const int how : {0, 1, 2}) {   // the window closed, the window destroyed, the program quitting
+            QuitTaker quitTaker;
+            QTemporaryDir dir;
+            QVERIFY(dir.isValid());
+            const QString folder = dir.filePath(QStringLiteral("out"));
+            QPointer<QWidget> win = new QWidget;
+            win->show();
+            Answerer answer;
+            int made = 0;
+            const MergeFilesResult res = runMergeFiles(win, folder, {0, 1, 2, 3, 4}, {"a.txt", "b.txt", "c.txt", "d.txt", "e.txt"}, [&](int row, const QString &path, QString *why) {
+                if (!writeMergeFile(path, QByteArray::number(row), why)) return false;
+                if (++made == 2) {
+                    if (how == 0) win->close();
+                    else if (how == 1) delete win.data();
+                    else sendQuit();
+                }
+                return true;
+            });
+            answer.timer.stop();
+            QCOMPARE(made, 2);
+            QCOMPARE(quitTaker.seen, how == 2 ? 1 : 0);
+            QCOMPARE(res.written, 2);
+            QVERIFY(res.stopped);
+            QCOMPARE(QDir(folder).entryList(QDir::Files).size(), 2);
+            QVERIFY2(answer.said.isEmpty(), qPrintable(answer.said.join(QLatin1Char('|'))));   // (a window that is gone is told nothing)
+            QVERIFY(answer.strays.isEmpty());
+            if (how == 1) QVERIFY(!win);
+            else {
+                QVERIFY(win);
+                QVERIFY(!mergeFilesRunning(win));
+                delete win.data();
+            }
+        }
+    }
+
+    void aSecondRunOrCommandIsRefusedWhileFilesAreBeingMade()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        const QString folder = dir.filePath(QStringLiteral("out"));
+        QWidget win;
+        win.show();
+        Answerer answer;
+        bool running = false, commandRefused = false, runRefused = false;
+        int nestedCalls = 0, nestedWritten = -1;
+        const MergeFilesResult res = runMergeFiles(&win, folder, {0, 1, 2}, {"a.txt", "b.txt", "c.txt"}, [&](int row, const QString &path, QString *why) {
+            if (row == 1) {
+                running = mergeFilesRunning(&win);
+                commandRefused = refuseWhileMergeFilesRun(&win);
+                const MergeFilesResult nested = runMergeFiles(&win, folder, {0}, {"nested.txt"}, [&](int, const QString &, QString *) { ++nestedCalls; return true; });
+                nestedWritten = nested.written;
+                runRefused = !nested.error.isEmpty();
+            }
+            return writeMergeFile(path, "x", why);
+        });
+        answer.timer.stop();
+        QVERIFY(running);
+        QVERIFY(commandRefused);
+        QVERIFY(runRefused);
+        QCOMPARE(nestedCalls, 0);
+        QCOMPARE(nestedWritten, 0);
+        QCOMPARE(res.written, 3);
+        QVERIFY(!mergeFilesRunning(&win));
+        QVERIFY(!QFileInfo::exists(folder + QStringLiteral("/nested.txt")));
+        int told = 0;
+        for (const QString &said : answer.said) told += said.contains(QLatin1String("still being saved"));
+        QCOMPARE(told, 2);
+        QVERIFY(answer.strays.isEmpty());
+    }
+
+    void saveEachStopsBeforeTheNextFileWhenTheWindowOrTheDocumentGoesOrChanges()
+    {
+        for (const int how : {0, 1, 2, 3}) {   // the window closed, the document edited, the program quitting, commands tried
+            QuitTaker quitTaker;
+            QTemporaryDir dir;
+            QVERIFY(dir.isValid());
+            const QString folder = dir.filePath(QStringLiteral("letters"));
+            WriteWindow w;
+            w.setNotifier([](const QString &, const QString &) {});
+            write::WriteDoc *doc = w.document();
+            QTextCursor c = w.view()->cursor();
+            insertText(*doc, c, QStringLiteral("Dear "));
+            QVERIFY(mail::insertRule(*doc, c, mail::mergeFieldCode(QStringLiteral("Name")), QStringLiteral("«Name»")));
+            mail::State &state = mail::stateOf(*doc);
+            state.settings.type = mail::kindValue(mail::Kind::Letters);
+            state.data = threePeople();
+            state.loaded = true;
+            w.act(QStringLiteral("mail.finish.files"))->setEnabled(true);
+            w.act(QStringLiteral("mail.finish.edit"))->setEnabled(true);
+            w.show();
+            Answerer answer;
+            w.afterMergeFileForTest = [&](int made) {
+                if (made != 1) return;
+                if (how == 0) {
+                    doc->setModified(false);
+                    w.close();
+                } else if (how == 1) {
+                    QTextCursor edit(doc->story());
+                    insertText(*doc, edit, QStringLiteral("x"));
+                } else if (how == 2) {
+                    sendQuit();
+                } else {
+                    w.act(QStringLiteral("mail.finish.edit"))->trigger();
+                    w.act(QStringLiteral("mail.finish.files"))->trigger();
+                }
+            };
+            withDialog([&] { w.act(QStringLiteral("mail.finish.files"))->trigger(); }, QStringLiteral("mergeFilesDialog"), [&](QDialog *d) {
+                d->findChild<QLineEdit *>(QStringLiteral("mergeFilesFolder"))->setText(folder);
+                d->findChild<QLineEdit *>(QStringLiteral("mergeFilesPattern"))->setText(QStringLiteral("Letter to {Name}"));
+            });
+            answer.timer.stop();
+            const int files = int(QDir(folder).entryList(QDir::Files).size());
+            QCOMPARE(files, how == 3 ? 3 : 1);
+            QCOMPARE(quitTaker.seen, how == 2 ? 1 : 0);
+            QVERIFY(answer.strays.isEmpty());
+            if (how == 3) {
+                int told = 0;
+                for (const QString &said : answer.said) told += said.contains(QLatin1String("still being saved"));
+                QCOMPARE(told, 2);
+            }
+            // Every file that was made is a whole document of its own.
+            for (const QString &name : QDir(folder).entryList(QDir::Files)) {
+                QFile f(QDir(folder).filePath(name));
+                QVERIFY(f.open(QIODevice::ReadOnly));
+                QVERIFY(open(f.readAll()));
+            }
+            QVERIFY(!mergeFilesRunning(&w));
+        }
+    }
+
+    void twoNamesThatDifferOnlyByHowALetterIsComposedAreTheSameName()
+    {
+        MergeSource m;
+        m.fields = {"Name"};
+        for (const QString &n : {QStringLiteral("José"), QStringLiteral("José"), QStringLiteral("JOSÉ")}) {
+            m.rows << QStringList{n};
+            m.include << true;
+        }
+        const QStringList names = mergeFileNames(m, {0, 1, 2}, QStringLiteral("{Name}"), QStringLiteral(".docx"));
+        QCOMPARE(names.size(), 3);
+        QSet<QString> seen;
+        for (const QString &n : names) seen.insert(n.normalized(QString::NormalizationForm_C).toCaseFolded());
+        QCOMPARE(seen.size(), 3);
+        QVERIFY(names[1].contains(QLatin1String("(2)")));
+        QVERIFY(names[2].contains(QLatin1String("(3)")));
     }
 
     void aDocumentWithNoMergeGetsOneOnlyWhenOneIsMade()

@@ -29,6 +29,7 @@
 #include "app/dialogs.h"
 #include "app/duplicatedialog.h"
 #include "app/mergedialogs.h"
+#include "app/mergefiles.h"
 #include "core/mergeextras.h"
 #include "app/formatops.h"
 #include "app/formatpresets.h"
@@ -740,8 +741,14 @@ void MainWindow::createActions()
     mk("mp.close", tr("Close Master Page"), "x", QKeySequence(), [ed] { ed->setMasterView(QString()); });
 
     // ---------------- Mailings ----------------
-    mk("mm.wizard", tr("Step-by-Step Mail Merge Wizard"), "wand-sparkles", QKeySequence(), [this] { showTaskPane("mailmerge"); });
-    mk("mm.typeNew", tr("Type a New List…"), "user-plus", QKeySequence(), [this] { recipientsDialog(this, m_ed, true); });
+    // (a mail merge command is not carried out while Save Each as a File is making files)
+    auto mkm = [this](const QString &id, const QString &text, const QString &iconName, const QKeySequence &key, const std::function<void()> &fn) {
+        return mk(id, text, iconName, key, [this, fn] {
+            if (!jp::refuseWhileMergeFilesRun(this)) fn();
+        });
+    };
+    mkm("mm.wizard", tr("Step-by-Step Mail Merge Wizard"), "wand-sparkles", QKeySequence(), [this] { showTaskPane("mailmerge"); });
+    mkm("mm.typeNew", tr("Type a New List…"), "user-plus", QKeySequence(), [this] { recipientsDialog(this, m_ed, true); });
     auto useList = [this](const QString &title, const QString &filter) {
         const QString p = QFileDialog::getOpenFileName(this, title, QString(), filter + QStringLiteral(";;") + tr("All Files (*)"));
         if (p.isEmpty()) return;
@@ -757,19 +764,19 @@ void MainWindow::createActions()
         m_ed->selectRecipients(src);
         recipientsDialog(this, m_ed, false);
     };
-    mk("mm.existing", tr("Use an Existing List…"), "file-spreadsheet", QKeySequence(), [useList] {
+    mkm("mm.existing", tr("Use an Existing List…"), "file-spreadsheet", QKeySequence(), [useList] {
         useList(tr("Select Data Source"), tr("Data Sources (*.csv *.txt *.tsv *.xlsx *.xlsm *.xls *.ods *.fods *.vcf)"));
     });
     // The other program reads one mail program's contacts; JeffPub reads the
     // contacts any address book can save, as vCard files.
-    mk("mm.contacts", tr("Select from Contacts…"), "contact", QKeySequence(), [useList] {
+    mkm("mm.contacts", tr("Select from Contacts…"), "contact", QKeySequence(), [useList] {
         useList(tr("Select from Contacts"), tr("Contacts (*.vcf *.vcard)"));
     });
-    mk("mm.editList", tr("Edit Recipient List"), "user-pen", QKeySequence(), [this] { recipientsDialog(this, m_ed, false); });
-    mk("mm.addressBlock", tr("Address Block"), "mail-open", QKeySequence(), [this] { mergeFieldDialog(this, m_ed, 0); });
-    mk("mm.greeting", tr("Greeting Line"), "hand", QKeySequence(), [this] { mergeFieldDialog(this, m_ed, 1); });
-    mk("mm.formatField", tr("Format Merge Field…"), "braces", QKeySequence(), [this, ed] { mergeFieldFormatDialog(this, ed); });
-    mk("mm.pictureField", tr("Picture Field"), "image", QKeySequence(), [this] {
+    mkm("mm.editList", tr("Edit Recipient List"), "user-pen", QKeySequence(), [this] { recipientsDialog(this, m_ed, false); });
+    mkm("mm.addressBlock", tr("Address Block"), "mail-open", QKeySequence(), [this] { mergeFieldDialog(this, m_ed, 0); });
+    mkm("mm.greeting", tr("Greeting Line"), "hand", QKeySequence(), [this] { mergeFieldDialog(this, m_ed, 1); });
+    mkm("mm.formatField", tr("Format Merge Field…"), "braces", QKeySequence(), [this, ed] { mergeFieldFormatDialog(this, ed); });
+    mkm("mm.pictureField", tr("Picture Field"), "image", QKeySequence(), [this] {
         const QStringList fields = m_ed->doc()->merge.fields;
         if (fields.isEmpty()) { jp::plainInformation(this, tr("Picture Field"), tr("Select a recipient list first.")); return; }
         bool ok = false;
@@ -797,11 +804,11 @@ void MainWindow::createActions()
         else i = std::clamp(i + (how == 1 ? -step : step), 0, int(rows.size()) - 1);
         ed->setMergeRecord(rows[i]);
     };
-    mk("mm.first", tr("First Record"), "chevrons-left", QKeySequence(), [stepRecord] { stepRecord(0); });
-    mk("mm.prev", tr("Previous Record"), "chevron-left", QKeySequence(), [stepRecord] { stepRecord(1); });
-    mk("mm.next", tr("Next Record"), "chevron-right", QKeySequence(), [stepRecord] { stepRecord(2); });
-    mk("mm.last", tr("Last Record"), "chevrons-right", QKeySequence(), [stepRecord] { stepRecord(3); });
-    mk("mm.findRecipient", tr("Find Recipient"), "search", QKeySequence(), [this] {
+    mkm("mm.first", tr("First Record"), "chevrons-left", QKeySequence(), [stepRecord] { stepRecord(0); });
+    mkm("mm.prev", tr("Previous Record"), "chevron-left", QKeySequence(), [stepRecord] { stepRecord(1); });
+    mkm("mm.next", tr("Next Record"), "chevron-right", QKeySequence(), [stepRecord] { stepRecord(2); });
+    mkm("mm.last", tr("Last Record"), "chevrons-right", QKeySequence(), [stepRecord] { stepRecord(3); });
+    mkm("mm.findRecipient", tr("Find Recipient"), "search", QKeySequence(), [this] {
         bool ok = false;
         const QString q = QInputDialog::getText(this, tr("Find Recipient"), tr("Find:"), QLineEdit::Normal, QString(), &ok);
         if (!ok || q.isEmpty()) return;
@@ -811,24 +818,24 @@ void MainWindow::createActions()
                 if (v.contains(q, Qt::CaseInsensitive)) { m_ed->setMergeRecord(r); return; }
         statusBar()->showMessage(tr("No recipient matches \"%1\".").arg(q), 4000);
     });
-    mk("mm.mergeNew", tr("Merge to New Publication"), "files", QKeySequence(), [this] {
+    mkm("mm.mergeNew", tr("Merge to New Publication"), "files", QKeySequence(), [this] {
         if (m_ed->doc()->merge.isEmpty()) { jp::plainInformation(this, tr("Merge"), tr("Select a recipient list first.")); return; }
         if (!maybeSave()) return;
         newPublication(mergeToNewPublication(*m_ed->doc()));
     });
-    mk("mm.mergePrint", tr("Merge to Printer…"), "printer", QKeySequence(), [this] {
+    mkm("mm.mergePrint", tr("Merge to Printer…"), "printer", QKeySequence(), [this] {
         if (m_ed->doc()->merge.isEmpty()) { jp::plainInformation(this, tr("Merge"), tr("Select a recipient list first.")); return; }
         showBackstage("print");
     });
-    mk("mm.mergePdf", tr("Merge to PDF…"), "file-text", QKeySequence(), [this] {
+    mkm("mm.mergePdf", tr("Merge to PDF…"), "file-text", QKeySequence(), [this] {
         if (m_ed->doc()->merge.isEmpty()) { jp::plainInformation(this, tr("Merge"), tr("Select a recipient list first.")); return; }
         exportPdf(QString(), true);
     });
-    mk("mm.mergeEmail", tr("Merge to Email…"), "mail", QKeySequence(), [this] {
+    mkm("mm.mergeEmail", tr("Merge to Email…"), "mail", QKeySequence(), [this] {
         mergeToEmailFiles(this, m_ed);
     });
-    mk("mm.mergeFiles", tr("Save Each as a File…"), "files", QKeySequence(), [this] { mergeToFiles(this, m_ed); });
-    mk("mm.exportList", tr("Export Recipient List…"), "file-down", QKeySequence(), [this] {
+    mkm("mm.mergeFiles", tr("Save Each as a File…"), "files", QKeySequence(), [this] { mergeToFiles(this, m_ed); });
+    mkm("mm.exportList", tr("Export Recipient List…"), "file-down", QKeySequence(), [this] {
         const QString p = askSavePath(this, tr("Export Recipient List"), QString(), tr("CSV (*.csv)"));
         if (p.isEmpty()) return;
         saveMergeCsv(m_ed->doc()->merge, p);

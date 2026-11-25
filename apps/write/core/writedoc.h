@@ -387,6 +387,9 @@ public:
     std::shared_ptr<void> commentCache;
     // The mail merge of the document (core/mergeops.h): null for a document that is not merged.
     std::shared_ptr<mail::State> mailMerge;
+    // Takes the mail merge out of the document altogether: its settings, the link to the list, and the part that keeps the recipients left out (a merged result is a document of its own, and
+    // holds none of what belongs to the list it was made from).
+    void dropMailMerge();
 
     // What core/reviewops.cpp keeps of the text boxes that hold changes: where they are in the text (found again when the text changes, which moves them), what is known of each drawing by its bytes,
     // and the words of each box as a story that the changes are listed and settled in, by its drawing's bytes and which of the drawings written so it is (a drawing that is as it was is not read

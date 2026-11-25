@@ -358,6 +358,7 @@ struct MailUi {
         if (s.exclusionsNote.isEmpty()) return;
         const QString note = s.exclusionsNote;
         s.exclusionsNote.clear();
+        s.exclusionsUnread.clear();
         w->notice(QCoreApplication::translate("jp::WriteMail", "Mail Merge"), note);
     }
 
@@ -379,8 +380,11 @@ struct MailUi {
         write::mail::limitRecords(m);
         // (the recipients left out belong to the list they were chosen in: the same file again has them, another file has none)
         const bool sameList = !s.sourcePath.isEmpty() && QFileInfo(s.sourcePath).absoluteFilePath() == QFileInfo(path).absoluteFilePath();
-        if (!sameList) s.exclusions = MergeExclusions();
-        s.exclusionsNote = applyExclusions(m, s.exclusions).problem;
+        if (!sameList) {
+            s.exclusions = MergeExclusions();
+            s.exclusionsUnread.clear();
+        }
+        s.exclusionsNote = (s.exclusionsUnread + QLatin1Char(' ') + applyExclusions(m, s.exclusions).problem).trimmed();
         s.data = m;
         s.sourcePath = QFileInfo(path).absoluteFilePath();
         s.loaded = true;
@@ -400,7 +404,7 @@ struct MailUi {
         write::mail::State &s = make();
         if (s.kind() == write::mail::Kind::None) s.settings.type = write::mail::kindValue(write::mail::Kind::Letters);
         s.data = m;
-        s.exclusions = exclusionsOf(m);
+        s.exclusions = exclusionsOf(m, s.exclusions.salt);
         s.sourcePath = m.path;
         s.loaded = true;
         touch();
@@ -414,7 +418,7 @@ struct MailUi {
         MergeSource m = s.data;
         if (!editRecipientList(w, m, false)) return;
         s.data = m;
-        s.exclusions = exclusionsOf(m);
+        s.exclusions = exclusionsOf(m, s.exclusions.salt);
         touch();
         refreshPreview();
     }
@@ -719,7 +723,7 @@ struct MailUi {
     // merge and the PDF use the text engine, which the window owns.
     void finishFiles()
     {
-        if (!doc() || !list(true)) return;
+        if (refuseWhileMergeFilesRun(w) || !doc() || !list(true)) return;
         const QVector<int> rows = state()->data.includedRows();
         if (rows.isEmpty()) {
             w->notice(QCoreApplication::translate("jp::WriteMail", "Mail Merge"), QCoreApplication::translate("jp::WriteMail", "No recipient is included."));
@@ -733,22 +737,34 @@ struct MailUi {
         if (!mergeFilesDialog(w, state()->data, rows, kinds, start, &choice)) return;
         const QStringList names = mergeFileNames(state()->data, rows, choice.pattern, choice.pdf ? QStringLiteral(".pdf") : kinds.ownExtension);
         if (!confirmMergeFiles(w, choice.folder, names)) return;
-        // (the answers to the document's questions are asked for once, and every recipient's file has them)
-        QHash<QString, QString> answers;
-        write::mail::State &s = *state();
-        const MergeFilesResult result = runMergeFiles(w, choice.folder, rows, names, [&](int row, const QString &path, QString *why) {
+        // Nothing the run holds is a bare pointer to the window or the document: they are guarded, the list and the answers are copies, and the run stops before the next file when either is gone,
+        // the window is closed, or the document is changed (what the files hold is the document as it was when the person chose Save).
+        QPointer<WriteWindow> win(w);
+        QPointer<write::WriteDoc> source(doc());
+        const int revision = doc()->story()->revision();
+        const MergeSource data = state()->data;
+        const QHash<QString, QString> fieldMap = state()->fieldMap;
+        auto answers = std::make_shared<QHash<QString, QString>>();   // (the answers to the document's questions are asked for once, and every recipient's file has them)
+        auto made = std::make_shared<int>(0);
+        runMergeFiles(w, choice.folder, rows, names, [=](int row, const QString &path, QString *why) {
+            if (!win || !source) {
+                *why = QCoreApplication::translate("jp::WriteMail", "The document is gone.");
+                return false;
+            }
+            bool cancelled = false;
             write::mail::MergeOptions o;
             o.rows = {row};
+            o.cancelled = &cancelled;
             o.ask = [&](const QString &prompt, const QString &def) {
-                if (!answers.contains(prompt)) {
+                if (!answers->contains(prompt)) {
                     bool ok = false;
-                    answers.insert(prompt, QInputDialog::getText(w, QCoreApplication::translate("jp::WriteMail", "Mail Merge"), prompt, QLineEdit::Normal, def, &ok));
-                    if (!ok) answers[prompt] = def;
+                    if (win) answers->insert(prompt, QInputDialog::getText(win, QCoreApplication::translate("jp::WriteMail", "Mail Merge"), prompt, QLineEdit::Normal, def, &ok));
+                    if (!ok) answers->insert(prompt, def);
                 }
-                return answers.value(prompt);
+                return answers->value(prompt);
             };
             QString error;
-            auto out = write::mail::mergeToDocument(*doc(), s.data, s.fieldMap, o, &error);
+            auto out = write::mail::mergeToDocument(*source, data, fieldMap, o, &error);
             if (!out) { *why = error; return false; }
             QByteArray bytes;
             if (choice.pdf) {
@@ -768,11 +784,10 @@ struct MailUi {
                 bytes = out->toDocx(&error);
                 if (bytes.isEmpty()) { *why = error; return false; }
             }
-            QSaveFile file(path);
-            if (!file.open(QIODevice::WriteOnly) || file.write(bytes) != bytes.size() || !file.commit()) { *why = file.errorString(); return false; }
+            if (!writeMergeFile(path, bytes, why)) return false;
+            if (win && win->afterMergeFileForTest) win->afterMergeFileForTest(++*made);
             return true;
-        });
-        Q_UNUSED(result)
+        }, [win, source, revision] { return win && source && win->document() == source.data() && source->story()->revision() == revision; });
     }
 
     void finishEmail()
@@ -874,49 +889,55 @@ void WriteWindow::createMailActions()
     m_mail = ui.get();
     MailUi *m = m_mail;
     using write::mail::Kind;
-    mk("mail.type.letters", tr("Letters"), "mail", QKeySequence(), [m] { m->start(Kind::Letters); });
-    mk("mail.type.email", tr("Email Messages"), "mail", QKeySequence(), [m] { m->start(Kind::Email); });
-    mk("mail.type.envelopes", tr("Envelopes…"), "mail-open", QKeySequence(), [m] { m->start(Kind::Envelopes); });
-    mk("mail.type.labels", tr("Labels…"), "tag", QKeySequence(), [m] { m->start(Kind::Labels); });
-    mk("mail.type.directory", tr("Directory"), "book-user", QKeySequence(), [m] { m->start(Kind::Directory); });
-    mk("mail.type.clear", tr("Clear Merge Type"), "circle-x", QKeySequence(), [m] { m->clear(); });
-    mk("mail.wizard", tr("Step-by-Step Mail Merge Wizard"), "wand-sparkles", QKeySequence(), [m] { m->wizard(); });
-    mk("mail.recipients.existing", tr("Use an Existing List…"), "file-spreadsheet", QKeySequence(), [m] {
+    // (a mail merge command is not carried out while Save Each as a File is making files: the document is as the run began it until the run is done)
+    auto mkm = [this](const QString &id, const QString &text, const QString &iconName, const QKeySequence &key, const std::function<void()> &fn) {
+        return mk(id, text, iconName, key, [this, fn] {
+            if (!jp::refuseWhileMergeFilesRun(this)) fn();
+        });
+    };
+    mkm("mail.type.letters", tr("Letters"), "mail", QKeySequence(), [m] { m->start(Kind::Letters); });
+    mkm("mail.type.email", tr("Email Messages"), "mail", QKeySequence(), [m] { m->start(Kind::Email); });
+    mkm("mail.type.envelopes", tr("Envelopes…"), "mail-open", QKeySequence(), [m] { m->start(Kind::Envelopes); });
+    mkm("mail.type.labels", tr("Labels…"), "tag", QKeySequence(), [m] { m->start(Kind::Labels); });
+    mkm("mail.type.directory", tr("Directory"), "book-user", QKeySequence(), [m] { m->start(Kind::Directory); });
+    mkm("mail.type.clear", tr("Clear Merge Type"), "circle-x", QKeySequence(), [m] { m->clear(); });
+    mkm("mail.wizard", tr("Step-by-Step Mail Merge Wizard"), "wand-sparkles", QKeySequence(), [m] { m->wizard(); });
+    mkm("mail.recipients.existing", tr("Use an Existing List…"), "file-spreadsheet", QKeySequence(), [m] {
         if (m->chooseList(false)) m->editList();
     });
-    mk("mail.recipients.contacts", tr("Select from Contacts…"), "contact", QKeySequence(), [m] {
+    mkm("mail.recipients.contacts", tr("Select from Contacts…"), "contact", QKeySequence(), [m] {
         if (m->chooseList(true)) m->editList();
     });
-    mk("mail.recipients.typeNew", tr("Type a New List…"), "user-plus", QKeySequence(), [m] { m->typeNew(); });
-    mk("mail.editList", tr("Edit Recipient List"), "user-pen", QKeySequence(), [m] { m->editList(); });
-    mk("mail.addressBlock", tr("Address Block…"), "mail-open", QKeySequence(), [m] { m->addressBlock(); });
-    mk("mail.greeting", tr("Greeting Line…"), "hand", QKeySequence(), [m] { m->greeting(); });
+    mkm("mail.recipients.typeNew", tr("Type a New List…"), "user-plus", QKeySequence(), [m] { m->typeNew(); });
+    mkm("mail.editList", tr("Edit Recipient List"), "user-pen", QKeySequence(), [m] { m->editList(); });
+    mkm("mail.addressBlock", tr("Address Block…"), "mail-open", QKeySequence(), [m] { m->addressBlock(); });
+    mkm("mail.greeting", tr("Greeting Line…"), "hand", QKeySequence(), [m] { m->greeting(); });
     mk("mail.highlight", tr("Highlight Merge Fields"), "highlighter", QKeySequence(), [this] { m_view->setShadeFields(act("mail.highlight")->isChecked()); }, true);
-    mk("mail.matchFields", tr("Match Fields…"), "arrow-left-right", QKeySequence(), [m] { m->matchFields(); });
-    mk("mail.updateLabels", tr("Update Labels"), "refresh-cw", QKeySequence(), [m] { m->updateLabels(); });
-    mk("mail.rule.if", tr("If…Then…Else…"), "", QKeySequence(), [m] { m->rule(QStringLiteral("IF")); });
-    mk("mail.rule.ask", tr("Ask…"), "", QKeySequence(), [m] { m->rule(QStringLiteral("ASK")); });
-    mk("mail.rule.fillin", tr("Fill-in…"), "", QKeySequence(), [m] { m->rule(QStringLiteral("FILLIN")); });
-    mk("mail.rule.mergeRec", tr("Merge Record #"), "", QKeySequence(), [m] { m->rule(QStringLiteral("MERGEREC")); });
-    mk("mail.rule.mergeSeq", tr("Merge Sequence #"), "", QKeySequence(), [m] { m->rule(QStringLiteral("MERGESEQ")); });
-    mk("mail.rule.next", tr("Next Record"), "", QKeySequence(), [m] { m->rule(QStringLiteral("NEXT")); });
-    mk("mail.rule.nextIf", tr("Next Record If…"), "", QKeySequence(), [m] { m->rule(QStringLiteral("NEXTIF")); });
-    mk("mail.rule.set", tr("Set Bookmark…"), "", QKeySequence(), [m] { m->rule(QStringLiteral("SET")); });
-    mk("mail.rule.skipIf", tr("Skip Record If…"), "", QKeySequence(), [m] { m->rule(QStringLiteral("SKIPIF")); });
-    mk("mail.envelopes", tr("Envelopes…"), "mail", QKeySequence(), [m] { m->envelopes(); });
-    mk("mail.labels", tr("Labels…"), "tag", QKeySequence(), [m] { m->labels(); });
+    mkm("mail.matchFields", tr("Match Fields…"), "arrow-left-right", QKeySequence(), [m] { m->matchFields(); });
+    mkm("mail.updateLabels", tr("Update Labels"), "refresh-cw", QKeySequence(), [m] { m->updateLabels(); });
+    mkm("mail.rule.if", tr("If…Then…Else…"), "", QKeySequence(), [m] { m->rule(QStringLiteral("IF")); });
+    mkm("mail.rule.ask", tr("Ask…"), "", QKeySequence(), [m] { m->rule(QStringLiteral("ASK")); });
+    mkm("mail.rule.fillin", tr("Fill-in…"), "", QKeySequence(), [m] { m->rule(QStringLiteral("FILLIN")); });
+    mkm("mail.rule.mergeRec", tr("Merge Record #"), "", QKeySequence(), [m] { m->rule(QStringLiteral("MERGEREC")); });
+    mkm("mail.rule.mergeSeq", tr("Merge Sequence #"), "", QKeySequence(), [m] { m->rule(QStringLiteral("MERGESEQ")); });
+    mkm("mail.rule.next", tr("Next Record"), "", QKeySequence(), [m] { m->rule(QStringLiteral("NEXT")); });
+    mkm("mail.rule.nextIf", tr("Next Record If…"), "", QKeySequence(), [m] { m->rule(QStringLiteral("NEXTIF")); });
+    mkm("mail.rule.set", tr("Set Bookmark…"), "", QKeySequence(), [m] { m->rule(QStringLiteral("SET")); });
+    mkm("mail.rule.skipIf", tr("Skip Record If…"), "", QKeySequence(), [m] { m->rule(QStringLiteral("SKIPIF")); });
+    mkm("mail.envelopes", tr("Envelopes…"), "mail", QKeySequence(), [m] { m->envelopes(); });
+    mkm("mail.labels", tr("Labels…"), "tag", QKeySequence(), [m] { m->labels(); });
     mk("mail.preview", tr("Preview Results"), "eye", QKeySequence(), [m, this] { m->showPreview(act("mail.preview")->isChecked()); }, true);
-    mk("mail.first", tr("First Record"), "chevrons-left", QKeySequence(), [m] { m->go(0); });
-    mk("mail.prev", tr("Previous Record"), "chevron-left", QKeySequence(), [m] { m->go(1); });
-    mk("mail.next", tr("Next Record"), "chevron-right", QKeySequence(), [m] { m->go(2); });
-    mk("mail.last", tr("Last Record"), "chevrons-right", QKeySequence(), [m] { m->go(3); });
-    mk("mail.find", tr("Find Recipient"), "search", QKeySequence(), [m] { m->find(); });
-    mk("mail.check", tr("Check for Errors"), "circle-check", QKeySequence(), [m] { m->check(); });
-    mk("mail.finish.edit", tr("Edit Individual Documents…"), "files", QKeySequence(), [m] { m->finishEdit(false); });
-    mk("mail.finish.print", tr("Print Documents…"), "printer", QKeySequence(), [m] { m->finishEdit(true); });
-    mk("mail.finish.pdf", tr("Save as PDF…"), "file-text", QKeySequence(), [m] { m->finishPdf(); });
-    mk("mail.finish.email", tr("Send Email Messages…"), "mail", QKeySequence(), [m] { m->finishEmail(); });
-    mk("mail.finish.files", tr("Save Each as a File…"), "files", QKeySequence(), [m] { m->finishFiles(); });
+    mkm("mail.first", tr("First Record"), "chevrons-left", QKeySequence(), [m] { m->go(0); });
+    mkm("mail.prev", tr("Previous Record"), "chevron-left", QKeySequence(), [m] { m->go(1); });
+    mkm("mail.next", tr("Next Record"), "chevron-right", QKeySequence(), [m] { m->go(2); });
+    mkm("mail.last", tr("Last Record"), "chevrons-right", QKeySequence(), [m] { m->go(3); });
+    mkm("mail.find", tr("Find Recipient"), "search", QKeySequence(), [m] { m->find(); });
+    mkm("mail.check", tr("Check for Errors"), "circle-check", QKeySequence(), [m] { m->check(); });
+    mkm("mail.finish.edit", tr("Edit Individual Documents…"), "files", QKeySequence(), [m] { m->finishEdit(false); });
+    mkm("mail.finish.print", tr("Print Documents…"), "printer", QKeySequence(), [m] { m->finishEdit(true); });
+    mkm("mail.finish.pdf", tr("Save as PDF…"), "file-text", QKeySequence(), [m] { m->finishPdf(); });
+    mkm("mail.finish.email", tr("Send Email Messages…"), "mail", QKeySequence(), [m] { m->finishEmail(); });
+    mkm("mail.finish.files", tr("Save Each as a File…"), "files", QKeySequence(), [m] { m->finishFiles(); });
 }
 
 void WriteWindow::refreshMailUi()

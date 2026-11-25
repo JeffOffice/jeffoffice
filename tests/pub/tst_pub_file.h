@@ -108,6 +108,8 @@ private Q_SLOTS:
     void recipientsLeftOutAndTheirKeyColumnAreKeptInTheFile();
     void aMergeOfOneRecordMakesThePagesOfThatRecordOnly();
     void aPubFileCopyListsTheMailMergeListAsNotKept();
+    void aRecipientLeftOutInASortedBoxIsLeftOutAgainByItsPlaceInTheList();
+    void saveEachAsAFileMakesOnePublicationForEachRecipientThroughTheWindow();
     void aDamagedTextFileOrListIsTakenInOrRefusedWithAReason();
     void changeTemplateGallery();
     void templatesFitTheirText();

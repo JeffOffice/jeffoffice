@@ -221,6 +221,8 @@ QVector<InspectItem> WriteWindow::inspectItems()
                      [doc] { return write::clearHeadersAndFooters(*doc); }, true, QString()});
     items.push_back({tr("Custom XML data"), tr("Data that other programs added to the file, which you can't see on a page."), [doc] { return write::customXmlCount(*doc); },
                      [doc] { return write::removeCustomXml(*doc); }, true, QString()});
+    items.push_back({tr("Recipients left out of a mail merge"), tr("Which recipients of a mail merge you left out, kept with the document. Removing it means everyone is included the next time the list is read."),
+                     [doc] { return write::mergeExclusionCount(*doc); }, [doc] { return write::removeMergeExclusions(*doc); }, true, QString()});
     // (the box asks for the count and then for the sentence: one look through the document serves both, and a removal makes the next look a new one)
     auto looked = std::make_shared<std::optional<write::ExternalLinkScan>>();
     items.push_back({tr("External links"), tr("Linked pictures and objects, the template the document is attached to, and fields that read another file. Removing turns fields into text, takes out linked pictures and objects, including those in comments and text boxes, and detaches the template. Links in comments and other kept parts can't be undone. Web links stay."),
