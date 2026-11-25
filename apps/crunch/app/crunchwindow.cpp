@@ -607,18 +607,6 @@ void CrunchWindow::createActions()
                 layout->addRow(english);
                 calc->englishNames = english;
             }
-            // the rules of Error Checking: which problems are marked and stepped through (kept in this program's settings, not in the workbook)
-            layout->addRow(new QLabel(tr("Error Checking marks cells that have"), page));
-            static const char *const ruleNames[] = {QT_TR_NOOP("A formula that gives an error"), QT_TR_NOOP("A number kept as text"), QT_TR_NOOP("A formula that is not like the ones beside it"),
-                                                    QT_TR_NOOP("A date kept as text with a year of two digits"), QT_TR_NOOP("A formula in a cell that is not locked"),
-                                                    QT_TR_NOOP("A formula that leaves out a number next to the cells it uses"), QT_TR_NOOP("A formula that uses an empty cell")};
-            for (size_t i = 0; i < calc->errorRules.size(); ++i) {
-                auto *rule = new QCheckBox(tr(ruleNames[i]), page);
-                rule->setObjectName(QStringLiteral("optionErrorRule%1").arg(i));
-                rule->setChecked(m_errorRules & (quint32(1) << i));
-                layout->addRow(rule);
-                calc->errorRules[i] = rule;
-            }
             auto *about = new QLabel(open ? tr("These settings belong to this workbook. They are saved in its file and are not kept for other workbooks.") : tr("These settings belong to a workbook. Open one to change them."), page);
             about->setWordWrap(true);
             about->setTextFormat(Qt::PlainText);
@@ -660,6 +648,18 @@ void CrunchWindow::createActions()
             connect(iterate, &QCheckBox::toggled, change, &QWidget::setEnabled);
             if (!open)
                 for (QWidget *w : {static_cast<QWidget *>(mode), static_cast<QWidget *>(beforeSave), static_cast<QWidget *>(iterate)}) w->setEnabled(false);
+            // the rules of Error Checking: which problems are marked and stepped through (kept in this program's settings, not in the workbook)
+            layout->addRow(new QLabel(tr("Error Checking marks cells that have"), page));
+            static const char *const ruleNames[] = {QT_TR_NOOP("A formula that gives an error"), QT_TR_NOOP("A number kept as text"), QT_TR_NOOP("A formula that is not like the ones beside it"),
+                                                    QT_TR_NOOP("A date kept as text with a year of two digits"), QT_TR_NOOP("A formula in a cell that is not locked"),
+                                                    QT_TR_NOOP("A formula that leaves out a number next to the cells it uses"), QT_TR_NOOP("A formula that uses an empty cell")};
+            for (size_t i = 0; i < calc->errorRules.size(); ++i) {
+                auto *rule = new QCheckBox(tr(ruleNames[i]), page);
+                rule->setObjectName(QStringLiteral("optionErrorRule%1").arg(i));
+                rule->setChecked(m_errorRules & (quint32(1) << i));
+                layout->addRow(rule);
+                calc->errorRules[i] = rule;
+            }
             calc->fields = {mode, beforeSave, iterate, rounds, change};
             return static_cast<QWidget *>(page);
         }, [this, calc] {

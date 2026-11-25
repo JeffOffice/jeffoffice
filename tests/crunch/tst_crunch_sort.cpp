@@ -1,5 +1,6 @@
 // Tests of Sort on the edit session: the order of the kinds of value, several levels, headers, case, left to right, lists, colors, formulas that go with their rows, merged cells, the cells
 // that must not be moved, one step for Undo, and the work being counted and stoppable. Every workbook is built here.
+#include "app/theme.h"
 #include "app/crunchinfo.h"
 #include "app/crunchwindow.h"
 #include "app/sortdialog.h"
@@ -156,6 +157,20 @@ private Q_SLOTS:
         initial.natural = true;
         SortDialog again(provider, initial, nullptr);
         QVERIFY(again.findChild<QCheckBox *>(QStringLiteral("sortNatural"))->isChecked());
+    }
+
+    void theSortDialogPictureForTheDocs()
+    {
+        const QString shotDir = QString::fromLocal8Bit(qgetenv("JC_SHOT_DIR"));
+        if (shotDir.isEmpty()) QSKIP("set JC_SHOT_DIR to take the picture");
+        jp::applyUiTheme(1);
+        SortDialog::Provider provider;
+        provider.names = [](bool, bool) { return QStringList{QStringLiteral("Item"), QStringLiteral("Amount")}; };
+        SortSpec initial = byColumn(0);
+        initial.natural = true;
+        SortDialog d(provider, initial, nullptr);
+        d.show();
+        QVERIFY(d.grab().save(shotDir + QStringLiteral("/sort-natural.png")));
     }
 
     void formulasAreWrittenForTheRowTheyGoTo()

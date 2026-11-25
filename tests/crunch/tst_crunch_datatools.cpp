@@ -1,5 +1,6 @@
 // Tests of the Data tools that change cells: Remove Duplicates (which rows go, that the rows under them move up in the range and what is under the range stays, headers, case, columns
 // compared, formulas and formats that go with their rows, one step of Undo) and Text to Columns (separators, a qualifier, fixed places, kinds of piece, a destination). Every workbook is built here.
+#include "app/theme.h"
 #include "app/crunchinfo.h"
 #include "app/crunchwindow.h"
 #include "app/dataformdialog.h"
@@ -286,6 +287,26 @@ private Q_SLOTS:
         QCOMPARE(spec.types.at(2), 2);
         QVERIFY(d.findChild<QLabel *>(QStringLiteral("splitPreview"))->text().contains(QLatin1String("a | b")));
         QVERIFY(!d.findChild<QLabel *>(QStringLiteral("splitPreview"))->text().contains(QLatin1String("c")));
+    }
+
+    void theTextToColumnsDialogPictureForTheDocs()
+    {
+        const QString shotDir = QString::fromLocal8Bit(qgetenv("JC_SHOT_DIR"));
+        if (shotDir.isEmpty()) QSKIP("set JC_SHOT_DIR to take the picture");
+        jp::applyUiTheme(1);
+        TextToColumnsDialog d(QStringList{QStringLiteral("Smith,03/14/2026,007,x"), QStringLiteral("Lee,11/02/2025,008,y")}, QStringLiteral("B1"), nullptr);
+        auto *piece = d.findChild<QSpinBox *>(QStringLiteral("splitPiece"));
+        auto *kind = d.findChild<QComboBox *>(QStringLiteral("splitPieceKind"));
+        QVERIFY(piece && kind);
+        piece->setValue(2);
+        kind->setCurrentIndex(kind->findData(3));
+        piece->setValue(3);
+        kind->setCurrentIndex(kind->findData(1));
+        piece->setValue(4);
+        kind->setCurrentIndex(kind->findData(2));
+        piece->setValue(2);
+        d.show();
+        QVERIFY(d.grab().save(shotDir + QStringLiteral("/text-to-columns-kinds.png")));
     }
 
     void piecesOfTextAreKeptAsTextAndColumnsCanBeLeftOut()

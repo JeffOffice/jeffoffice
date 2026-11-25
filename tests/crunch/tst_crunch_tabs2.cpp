@@ -1,4 +1,5 @@
 // Tests of tools on the Data, Formulas, Review, and View tabs: Workbook Statistics, Goal Seek, Subtotal, and Advanced Filter. Every workbook is built here.
+#include "app/theme.h"
 #include "app/crunchinfo.h"
 #include "app/crunchwindow.h"
 #include "app/proofingdialogs.h"
@@ -30,6 +31,7 @@
 #include <QCheckBox>
 #include <QListWidget>
 #include <QMenu>
+#include <QTabWidget>
 #include <QTableWidget>
 #include <QSettings>
 #include <QToolButton>
@@ -556,6 +558,32 @@ private Q_SLOTS:
         QCOMPARE(w.errorRules(), (crunch::kDefaultErrorRules & ~crunch::errorRuleBit(crunch::FormulaProblem::Kind::NumberAsText)) | crunch::errorRuleBit(crunch::FormulaProblem::Kind::EmptyReference));
         CrunchWindow second;   // (a window made afterward starts with what was kept)
         QCOMPARE(second.errorRules(), w.errorRules());
+    }
+
+    void theOptionsPicturesForTheDocs()
+    {
+        const QString shotDir = QString::fromLocal8Bit(qgetenv("JC_SHOT_DIR"));
+        if (shotDir.isEmpty()) QSKIP("set JC_SHOT_DIR to take the picture");
+        jp::applyUiTheme(1);
+        EditWindow e;
+        QVERIFY(e.open(sheetOf({"A1=1"})));
+        CrunchWindow &w = e.win.w;
+        bool shot = false;
+        auto *watch = new QTimer(&w);
+        watch->setInterval(10);
+        connect(watch, &QTimer::timeout, watch, [&] {
+            QWidget *dialog = QApplication::activeModalWidget();
+            if (!dialog || dialog->findChildren<QCheckBox *>(QStringLiteral("optionErrorRule0")).isEmpty()) return;
+            watch->stop();
+            if (auto *tabs = dialog->findChild<QTabWidget *>())
+                for (int i = 0; i < tabs->count(); ++i)
+                    if (tabs->tabText(i) == QStringLiteral("Formulas")) tabs->setCurrentIndex(i);
+            shot = dialog->grab().save(shotDir + QStringLiteral("/options-error-checking.png"));
+            dialog->findChild<QDialogButtonBox *>()->button(QDialogButtonBox::Cancel)->click();
+        });
+        watch->start();
+        w.act(QStringLiteral("file.options"))->trigger();
+        QVERIFY(shot);
     }
 
     void theWatchWindowListsWatchedCellsAndKeepsTheirValuesCurrent()
