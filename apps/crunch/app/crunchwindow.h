@@ -1577,7 +1577,9 @@ private:
     void themeRibbonParts(RibbonParts &parts);
     bool changeTheme(const QString &step, const std::function<jp::office::Theme(const jp::office::Theme &, bool *)> &make);
     bool applyThemeFile(const QString &path);
+public:
     bool saveThemeFile(const QString &path);
+private:
     bool resetTheme();
     bool themeDiffers() const;
     void onThemeChanged();
