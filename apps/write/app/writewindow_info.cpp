@@ -229,11 +229,15 @@ QVector<InspectItem> WriteWindow::inspectItems()
     for (const PictureKept kind : {PictureKept::FilterOriginals, PictureKept::CroppedAreas}) {
         int notChanged = 0, leftAsIs = 0;
         write::keptPictureParts(*doc, kind, &notChanged, &leftAsIs);
+        notChanged -= write::keptPicturesInFills(*doc, kind);   // (a picture fill is told on its own)
         InspectItem row = pictureKeptInspectRow(kind, [doc, kind] { return write::keptPictureParts(*doc, kind); }, [doc, kind] { return write::removeKeptPictureParts(*doc, kind); }, notChanged, leftAsIs);
         // (the comments are kept as the file has them: a picture there is told, and the row is never "None found" while one is left)
         row.unread = [this, doc, kind] {
-            const int inComments = write::keptPicturesInComments(*doc, kind);
-            return inComments > 0 ? tr("%n picture in a comment cannot be changed here.", nullptr, inComments) : QString();
+            const int inComments = write::keptPicturesInComments(*doc, kind), inFills = write::keptPicturesInFills(*doc, kind);
+            QStringList said;
+            if (inFills > 0) said << tr("%n picture filling a shape is left as it is, because changing it would change how the shape looks.", nullptr, inFills);
+            if (inComments > 0) said << tr("%n picture in a comment cannot be changed here.", nullptr, inComments);
+            return said.join(QLatin1Char(' '));
         };
         items.push_back(row);
     }

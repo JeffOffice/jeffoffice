@@ -5395,6 +5395,14 @@ int keptPictureParts(WriteDoc &doc, jp::PictureKept kind, int *notChanged, int *
     return n;
 }
 
+int keptPicturesInFills(WriteDoc &doc, jp::PictureKept kind)
+{
+    int n = 0;
+    for (const KeptPicture &k : keptPictures(doc))
+        if (k.fill && (kind == jp::PictureKept::CroppedAreas ? k.anyCrop : k.filtered)) ++n;
+    return n;
+}
+
 int removeKeptPictureParts(WriteDoc &doc, jp::PictureKept kind)
 {
     int n = 0;

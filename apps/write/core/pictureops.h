@@ -290,6 +290,8 @@ qint64 compressAllPictures(WriteDoc &doc, double ppi, bool deleteCropped);
 // How many pictures in the document's comments (kept as the file has them, not read into the document) have what the row `kind` is about (an effect with its original, a crop): Inspect cannot
 // change them, and says so.
 int keptPicturesInComments(const WriteDoc &doc, jp::PictureKept kind);
+// The pictures that fill a shape and hold an original (FilterOriginals) or cropped pixels (CroppedAreas): the page draws a fill whole, so the rows leave them as they are.
+int keptPicturesInFills(WriteDoc &doc, jp::PictureKept kind);
 
 // What Inspect finds in the pictures of the whole document (the body, headers, footers, notes, table cells, text boxes, groups, and fills; the rows of libs/page/app/picturetools.h): the originals kept under picture filters, and the parts of pictures cropped out of sight. The count
 // is of pictures; `notChanged` and `leftAsIs` (when given) are what the row tells it leaves: drawings, linked pictures, and ones too large to look through, and crops that another picture shows more of.

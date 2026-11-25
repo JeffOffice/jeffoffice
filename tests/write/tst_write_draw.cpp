@@ -7698,6 +7698,45 @@ private Q_SLOTS:
         QCOMPARE(picturesOfWidth(doc->toDocx(), 48), 3);
     }
 
+    // A group of two pictures, the first whole and the second cropped: the first reads no crop (the cut is looked for inside each picture's own fill, not in the next one's).
+    void aWholePictureBeforeACroppedOneInAGroupReadsNoCrop()
+    {
+        const QString rel = QStringLiteral("http://schemas.openxmlformats.org/officeDocument/2006/relationships/");
+        office::PackageWriter w;
+        const QString main = QStringLiteral("/word/document.xml");
+        QByteArray members;
+        for (int i = 0; i < 2; ++i) {
+            QImage noise(48, 48, QImage::Format_RGB32);
+            quint32 state = quint32(i * 7919 + 17);
+            for (int y = 0; y < 48; ++y)
+                for (int x = 0; x < 48; ++x) {
+                    state = state * 1664525u + 1013904223u;
+                    noise.setPixel(x, y, qRgb(int(state >> 24), int((state >> 16) & 255), int((state >> 8) & 255)));
+                }
+            QByteArray bytes;
+            QBuffer buffer(&bytes);
+            buffer.open(QIODevice::WriteOnly);
+            noise.save(&buffer, "PNG");
+            const QString file = QStringLiteral("/word/media/g%1.png").arg(i);
+            w.addPart(file, bytes, QStringLiteral("image/png"));
+            const QString rid = w.addRelationship(main, rel + QStringLiteral("image"), QStringLiteral("media/g%1.png").arg(i));
+            members += "<pic:pic><pic:nvPicPr><pic:cNvPr id=\"" + QByteArray::number(i) + "\" name=\"p.png\"/><pic:cNvPicPr/></pic:nvPicPr><pic:blipFill><a:blip r:embed=\"" + rid.toUtf8() + "\"/>"
+                       + (i == 1 ? QByteArray("<a:srcRect l=\"25000\" t=\"25000\" r=\"25000\" b=\"25000\"/>") : QByteArray()) + "<a:stretch><a:fillRect/></a:stretch></pic:blipFill><pic:spPr><a:xfrm><a:off x=\"0\" y=\"0\"/>"
+                       "<a:ext cx=\"635000\" cy=\"635000\"/></a:xfrm><a:prstGeom prst=\"rect\"><a:avLst/></a:prstGeom></pic:spPr></pic:pic>";
+        }
+        const QByteArray group = "<w:drawing><wp:inline distT=\"0\" distB=\"0\" distL=\"0\" distR=\"0\"><wp:extent cx=\"1270000\" cy=\"1270000\"/><wp:docPr id=\"5\" name=\"Group 5\"/><wp:cNvGraphicFramePr/>"
+                                 "<a:graphic><a:graphicData uri=\"http://schemas.microsoft.com/office/word/2010/wordprocessingGroup\"><wpg:wgp><wpg:cNvGrpSpPr/><wpg:grpSpPr><a:xfrm><a:off x=\"0\" y=\"0\"/><a:ext cx=\"1270000\" cy=\"1270000\"/>"
+                                 "<a:chOff x=\"0\" y=\"0\"/><a:chExt cx=\"1270000\" cy=\"1270000\"/></a:xfrm></wpg:grpSpPr>" + members + "</wpg:wgp></a:graphicData></a:graphic></wp:inline></w:drawing>";
+        const QByteArray ns = QByteArray(kNs) + " xmlns:pic=\"http://schemas.openxmlformats.org/drawingml/2006/picture\"";
+        w.addPart(main, QByteArray("<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\r\n<w:document ") + ns + "><w:body><w:p><w:r>" + group + "</w:r></w:p></w:body></w:document>",
+                  QStringLiteral("application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"));
+        w.addRelationship(QStringLiteral("/"), rel + QStringLiteral("officeDocument"), main);
+        auto doc = open(w.finish());
+        QVERIFY(doc);
+        int notChanged = 0, leftAsIs = 0;
+        QCOMPARE(keptPictureParts(*doc, jp::PictureKept::CroppedAreas, &notChanged, &leftAsIs), 1);
+    }
+
     // Compress Pictures looks in every place the Inspect rows do (a header, a text box, a group, a note), not only the body.
     void compressPicturesLooksInEveryPlace()
     {
@@ -7711,6 +7750,48 @@ private Q_SLOTS:
         // One step.
         QVERIFY(doc->undo());
         QCOMPARE(picturesOfWidth(doc->toDocx(), 48), before);
+    }
+
+    // A shape filled with a picture that holds an original or cropped pixels is left alone, and the row says so in words (never "None found", and not "a drawing or a linked picture").
+    void aPictureFillLeftAloneIsToldInWords()
+    {
+        const EverywhereFile file = everywhereFile(6, true, false, true);
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        const QString docx = dir.filePath(QStringLiteral("f.docx"));
+        {
+            QFile f(docx);
+            QVERIFY(f.open(QIODevice::WriteOnly));
+            f.write(file.docx);
+        }
+        WriteWindow w;
+        w.setNotifier([](const QString &, const QString &) {});
+        QVERIFY(w.openFile(docx));
+        QCOMPARE(keptPicturesInFills(*w.document(), jp::PictureKept::FilterOriginals), 1);
+        QCOMPARE(keptPicturesInFills(*w.document(), jp::PictureKept::CroppedAreas), 1);
+        const QVector<InspectItem> items = w.inspectItems();
+        auto find = [&](const char *title) -> const InspectItem * {
+            for (const InspectItem &i : items)
+                if (i.title == QLatin1String(title)) return &i;
+            return nullptr;
+        };
+        const InspectItem *originals = find("Original pictures kept under picture effects"), *cropped = find("Cropped-away parts of pictures");
+        QVERIFY(originals && cropped);
+        for (const InspectItem *row : {originals, cropped}) {
+            QCOMPARE(row->unread(), QStringLiteral("1 picture filling a shape is left as it is, because changing it would change how the shape looks."));
+            QVERIFY(!row->detail.contains(QStringLiteral("drawing or a linked picture")));
+        }
+        // After the row has done what it can, the fill's picture is still there, and the row still does not say "None found".
+        QCOMPARE(originals->remove(), file.filtered - 1);
+        QCOMPARE(originals->count(), 0);
+        QVERIFY(cropped->remove() > 0);
+        QCOMPARE(cropped->count(), 0);
+        InspectDialog dialog(QStringLiteral("Inspect"), items, nullptr);
+        int told = 0;
+        for (const QString &line : dialog.summaries())
+            if (line.startsWith(QStringLiteral("Original pictures kept under picture effects")) || line.startsWith(QStringLiteral("Cropped-away parts of pictures")))
+                told += line.contains(QStringLiteral("Not fully checked")) && !line.contains(QStringLiteral("None found"));
+        QCOMPARE(told, 2);
     }
 
     // A picture in a comment is kept as the file has it (the comments are not read into the document): the row says so and counts them, and never says "None found" while one is left.
