@@ -3858,9 +3858,11 @@ private Q_SLOTS:
         QTimer ticker;
         QObject::connect(&ticker, &QTimer::timeout, [&] { if (++ticks == 6) cancelRunningForTest(); });
         ticker.start(10);
-        QTimer::singleShot(10000, [] { cancelRunningForTest(); });   // (the events never came: fail below, don't hang)
-        const bool finished = runWithCancel(nullptr, QStringLiteral("working"), [](const std::atomic<bool> *cancel) {
-            while (!cancel->load()) QThread::msleep(5);
+        // (no timer outlives the test to cancel a later one's work: a stuck run ends in the work itself, and the checks below fail)
+        QElapsedTimer guard;
+        guard.start();
+        const bool finished = runWithCancel(nullptr, QStringLiteral("working"), [&guard](const std::atomic<bool> *cancel) {
+            while (!cancel->load() && guard.elapsed() < 10000 * std::max(1, qEnvironmentVariableIntValue("JP_TEST_TIME_SCALE"))) QThread::msleep(5);
         });
         QVERIFY(!finished);
         QVERIFY2(ticks > 5, "the window's events were not handled while the work ran");
