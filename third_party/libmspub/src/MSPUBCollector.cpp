@@ -1371,7 +1371,15 @@ std::function<void(void)> MSPUBCollector::paintShape(const ShapeInfo &info, cons
     m_painter->setStyle(graphicsProps);
     librevenge::RVNGPropertyList props;
     setRectCoordProps(textCoord, &props);
-    double textRotation = thisTransform.getRotation();
+    // JeffPub: a text frame in a turned or flipped group turns and moves with its group:
+    // the folded transform holds the group's, where the shape's own holds only its own.
+    const double textRotation = foldedTransform.getRotation();
+    const Vector2D groupShift = foldedTransform.transform(Vector2D(0, 0));
+    if (groupShift.m_x != 0 || groupShift.m_y != 0)
+    {
+      props.insert("svg:x", textCoord.getXIn(m_width) + groupShift.m_x);
+      props.insert("svg:y", textCoord.getYIn(m_height) + groupShift.m_y);
+    }
     if (textRotation != 0)
     {
       props.insert("librevenge:rotate", textRotation * 180 / M_PI);

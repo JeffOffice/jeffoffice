@@ -11,6 +11,62 @@
 #include "canvas/canvasaccessible.h"
 #include "app/lossywarning.h"
 #include "app/findreplace.h"
+#include "MSPUBCollector.h"
+#include <librevenge/librevenge.h>
+
+// A painter that ignores everything (the tests below watch only some calls).
+struct QuietPainter : librevenge::RVNGDrawingInterface {
+    void startDocument(const librevenge::RVNGPropertyList &propList) override {}
+    void endDocument() override {}
+    void setDocumentMetaData(const librevenge::RVNGPropertyList &propList) override {}
+    void defineEmbeddedFont(const librevenge::RVNGPropertyList &propList) override {}
+    void startPage(const librevenge::RVNGPropertyList &propList) override {}
+    void endPage() override {}
+    void startMasterPage(const librevenge::RVNGPropertyList &propList) override {}
+    void endMasterPage() override {}
+    void setStyle(const librevenge::RVNGPropertyList &propList) override {}
+    void startLayer(const librevenge::RVNGPropertyList &propList) override {}
+    void endLayer() override {}
+    void startEmbeddedGraphics(const librevenge::RVNGPropertyList &propList) override {}
+    void endEmbeddedGraphics() override {}
+    void openGroup(const librevenge::RVNGPropertyList &propList) override {}
+    void closeGroup() override {}
+    void drawRectangle(const librevenge::RVNGPropertyList &propList) override {}
+    void drawEllipse(const librevenge::RVNGPropertyList &propList) override {}
+    void drawPolygon(const librevenge::RVNGPropertyList &propList) override {}
+    void drawPath(const librevenge::RVNGPropertyList &) override {}
+    void drawPolyline(const librevenge::RVNGPropertyList &propList) override {}
+    void drawGraphicObject(const librevenge::RVNGPropertyList &propList) override {}
+    void drawConnector(const librevenge::RVNGPropertyList &propList) override {}
+    void endTextObject() override {}
+    void startTableObject(const librevenge::RVNGPropertyList &propList) override {}
+    void openTableRow(const librevenge::RVNGPropertyList &propList) override {}
+    void closeTableRow() override {}
+    void openTableCell(const librevenge::RVNGPropertyList &propList) override {}
+    void closeTableCell() override {}
+    void insertCoveredTableCell(const librevenge::RVNGPropertyList &propList) override {}
+    void endTableObject() override {}
+    void insertTab() override {}
+    void insertSpace() override {}
+    void insertText(const librevenge::RVNGString &text) override {}
+    void insertLineBreak() override {}
+    void insertField(const librevenge::RVNGPropertyList &propList) override {}
+    void openOrderedListLevel(const librevenge::RVNGPropertyList &propList) override {}
+    void openUnorderedListLevel(const librevenge::RVNGPropertyList &propList) override {}
+    void closeOrderedListLevel() override {}
+    void closeUnorderedListLevel() override {}
+    void openListElement(const librevenge::RVNGPropertyList &propList) override {}
+    void closeListElement() override {}
+    void defineParagraphStyle(const librevenge::RVNGPropertyList &propList) override {}
+    void openParagraph(const librevenge::RVNGPropertyList &propList) override {}
+    void closeParagraph() override {}
+    void defineCharacterStyle(const librevenge::RVNGPropertyList &propList) override {}
+    void openSpan(const librevenge::RVNGPropertyList &propList) override {}
+    void closeSpan() override {}
+    void openLink(const librevenge::RVNGPropertyList &propList) override {}
+    void closeLink() override {}
+    void startTextObject(const librevenge::RVNGPropertyList &) override {}
+};
 
 class PubObjectsTests : public QObject {
     Q_OBJECT
@@ -3133,6 +3189,74 @@ private Q_SLOTS:
         QVERIFY2(jp::SelectionPane::rowsTouchedForTest() - rows3 <= 2 * n, qPrintable(QString::number(jp::SelectionPane::rowsTouchedForTest() - rows3)));
         QVERIFY2(jp::Document::itemsWalkedForTest() - walked3 <= 2 * n, qPrintable(QString::number(jp::Document::itemsWalkedForTest() - walked3)));
         stuck("a drag of 1,000 places");
+    }
+
+    // A text frame in a turned group turns and moves with its group, as a drawn shape does
+    // (the frame kept its own place and angle, and the text stood flat beside its turned box).
+    void textInTurnedGroupFollowsGroup()
+    {
+        struct Seen : QuietPainter {
+            QRectF text;
+            double textTurn = 0;
+            int texts = 0;
+            void startTextObject(const librevenge::RVNGPropertyList &p) override
+            {
+                text = QRectF(p["svg:x"]->getDouble(), p["svg:y"]->getDouble(), p["svg:width"]->getDouble(), p["svg:height"]->getDouble());
+                textTurn = p["librevenge:rotate"] ? p["librevenge:rotate"]->getDouble() : 0;
+                ++texts;
+            }
+        };
+        const auto emu = [](double inches) { return int(inches * 914400); };
+        const auto run = [&](Seen &seen, double groupTurn, bool inGroup, double ownTurn = 0) {
+            libmspub::MSPUBCollector c(&seen);
+            c.setWidthInEmu(emu(8.5));
+            c.setHeightInEmu(emu(11));
+            c.addPage(1);
+            c.setNextPage(1);
+            if (inGroup) {
+                c.beginGroup();
+                c.setCurrentGroupSeqNum(10);
+                c.setShapeCoordinatesInEmu(10, emu(1), emu(1), emu(5), emu(3));
+                c.setShapeRotation(10, groupTurn);
+            }
+            c.setShapeOrder(11);
+            c.setShapeType(11, libmspub::RECTANGLE);
+            c.setShapeCoordinatesInEmu(11, emu(1), emu(1), emu(2), emu(2));
+            if (ownTurn != 0)
+                c.setShapeRotation(11, ownTurn);
+            {
+                std::vector<unsigned char> chars{'H', 'i'};
+                std::vector<libmspub::TextSpan> spans{libmspub::TextSpan(chars, libmspub::CharacterStyle())};
+                c.addTextString(std::vector<libmspub::TextParagraph>{libmspub::TextParagraph(spans, libmspub::ParagraphStyle())}, 7);
+                c.addTextShape(7, 11);
+            }
+            if (inGroup) {
+                c.endGroup();
+                c.setShapePage(10, 1);
+            } else {
+                c.setShapePage(11, 1);
+            }
+            c.go();
+        };
+        // A group turned a quarter turn: the frame takes the group's turn, and its middle swings about the group's middle.
+        Seen flat, ownTurned, turned, same;
+        run(flat, 0, false);
+        run(ownTurned, 0, false, 90);
+        run(turned, 90, true);
+        QCOMPARE(flat.texts, 1);
+        QCOMPARE(turned.texts, 1);
+        QCOMPARE(flat.textTurn, 0.0);
+        QVERIFY2(qAbs(ownTurned.textTurn) > 89, qPrintable(QString::number(ownTurned.textTurn)));
+        QCOMPARE(turned.textTurn, ownTurned.textTurn);
+        // The frame's middle is 1.5 inches left of and half an inch above the group's middle: a clockwise quarter turn
+        // about the group's middle takes that offset (-1.5, -0.5) to (0.5, -1.5), a move of (2, -1).
+        QVERIFY2(qAbs(turned.text.center().x() - (flat.text.center().x() + 2.0)) < 0.01 && qAbs(turned.text.center().y() - (flat.text.center().y() - 1.0)) < 0.01,
+                 qPrintable(QStringLiteral("%1,%2 from %3,%4").arg(turned.text.center().x()).arg(turned.text.center().y()).arg(flat.text.center().x()).arg(flat.text.center().y())));
+        QCOMPARE(turned.text.size(), flat.text.size());
+        // A group that is not turned leaves its frames where they were.
+        run(same, 0, true);
+        QCOMPARE(same.text, flat.text);
+        QCOMPARE(same.textTurn, 0.0);
     }
 };
 
