@@ -26,7 +26,7 @@
 <context>
     <name>Export</name>
     <message numerus="yes">
-        <location filename="../apps/pub/io/pubexport.cpp" line="+2419"/>
+        <location filename="../apps/pub/io/pubexport.cpp" line="+2427"/>
         <source>%n object(s) couldn&apos;t be saved to .pub</source>
         <translation>
             <numerusform>%n object couldn&apos;t be saved to .pub</numerusform>
@@ -34,7 +34,7 @@
         </translation>
     </message>
     <message numerus="yes">
-        <location line="+5"/>
+        <location line="+6"/>
         <source>%n table cell(s) couldn&apos;t be saved to .pub</source>
         <translation>
             <numerusform>%n table cell couldn&apos;t be saved to .pub</numerusform>
@@ -505,7 +505,7 @@
         </translation>
     </message>
     <message numerus="yes">
-        <location filename="../apps/deck/app/deckwindow_info.cpp" line="+315"/>
+        <location filename="../apps/deck/app/deckwindow_info.cpp" line="+316"/>
         <source>Author field on %n slide(s)</source>
         <translation>
             <numerusform>Author field on %n slide</numerusform>
@@ -622,6 +622,25 @@
         <translation>
             <numerusform>%n more link does not say where it goes. Use words that name the page it opens.</numerusform>
             <numerusform>%n more links do not say where they go. Use words that name the page each one opens.</numerusform>
+        </translation>
+    </message>
+</context>
+<context>
+    <name>jp::PictureTools</name>
+    <message numerus="yes">
+        <location filename="../libs/page/app/picturetools.cpp" line="+719"/>
+        <source>%n picture is a drawing or a linked picture, which cannot be changed here.</source>
+        <translation>
+            <numerusform>%n picture is a drawing or a linked picture, which cannot be changed here.</numerusform>
+            <numerusform>%n pictures are drawings or linked pictures, which cannot be changed here.</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <location line="+3"/>
+        <source>%n picture is left as it is, because another object shows more of the same picture.</source>
+        <translation>
+            <numerusform>%n picture is left as it is, because another object shows more of the same picture.</numerusform>
+            <numerusform>%n pictures are left as they are, because other objects show more of the same pictures.</numerusform>
         </translation>
     </message>
 </context>

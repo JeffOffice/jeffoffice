@@ -197,6 +197,10 @@
         <translation>an RGB colour space JeffPub couldn't convert</translation>
     </message>
     <message>
+        <source>pictures with sharpen, soften, color temperature, or an artistic effect were saved as the finished pictures, so the effect can't be changed or taken off in a .pub file</source>
+        <translation>pictures with sharpen, soften, colour temperature, or an artistic effect were saved as the finished pictures, so the effect can't be changed or taken off in a .pub file</translation>
+    </message>
+    <message>
         <source>text highlight colors couldn't be saved to .pub</source>
         <translation>text highlight colours couldn't be saved to .pub</translation>
     </message>
@@ -262,6 +266,13 @@ Download it from %2 now? (%3, once.)</translation>
     </message>
 </context>
 <context>
+    <name>OdpExport</name>
+    <message>
+        <source>A picture with sharpen, soften, color temperature, or an artistic effect is kept as the finished picture, and the effect can't be changed or taken off again.</source>
+        <translation>A picture with sharpen, soften, colour temperature, or an artistic effect is kept as the finished picture, and the effect can't be changed or taken off again.</translation>
+    </message>
+</context>
+<context>
     <name>OutlineImport</name>
     <message>
         <source>the look of the slides (layouts, themes, colors, fonts, and backgrounds), animations, and transitions</source>
@@ -287,6 +298,17 @@ Download it from %2 now? (%3, once.)</translation>
     <message>
         <source>the PDF has no catalog</source>
         <translation>the PDF has no catalogue</translation>
+    </message>
+</context>
+<context>
+    <name>PictureFx</name>
+    <message>
+        <source>Color Temperature</source>
+        <translation>Colour Temperature</translation>
+    </message>
+    <message>
+        <source>Pencil Grayscale</source>
+        <translation>Pencil Greyscale</translation>
     </message>
 </context>
 <context>
@@ -1215,6 +1237,10 @@ Download it from %2 now? (%3, once.)</translation>
     <message>
         <source>More Outline Colors…</source>
         <translation>More Outline Colours…</translation>
+    </message>
+    <message>
+        <source>Color Temperature</source>
+        <translation>Colour Temperature</translation>
     </message>
 </context>
 <context>

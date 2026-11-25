@@ -1528,7 +1528,7 @@ Artículo de contraportada	4</translation>
         <translation type="unfinished">Tab selecciona el siguiente objeto, las teclas de flecha lo mueven, Entrar modifica su texto y Supr lo elimina. F6 va a la cinta de opciones.</translation>
     </message>
     <message>
-        <location line="+353"/>
+        <location line="+354"/>
         <source>Catalog area: %1 per page</source>
         <translation type="unfinished">Área de catálogo: %1 por página</translation>
     </message>
@@ -1543,7 +1543,7 @@ Artículo de contraportada	4</translation>
         <translation type="unfinished">Crear vínculo de cuadro de texto</translation>
     </message>
     <message>
-        <location line="-1623"/>
+        <location line="-1624"/>
         <source>Move Ruler Zero Point</source>
         <translation type="unfinished">Mover el punto cero de la regla</translation>
     </message>
@@ -1558,7 +1558,7 @@ Artículo de contraportada	4</translation>
         <translation type="unfinished">Arrastre para mover el punto cero de ambas reglas. Haga doble clic para devolverlo a la esquina de la página.</translation>
     </message>
     <message>
-        <location line="+1639"/>
+        <location line="+1640"/>
         <source>Delete Wrap Point</source>
         <translation type="unfinished">Eliminar punto de ajuste</translation>
     </message>
@@ -2316,7 +2316,7 @@ Artículo de contraportada	4</translation>
         <translation type="unfinished">Ecuación</translation>
     </message>
     <message>
-        <location line="+970"/>
+        <location line="+1039"/>
         <source>Your Text Here</source>
         <translation type="unfinished">Escriba aquí el texto</translation>
     </message>
@@ -6508,7 +6508,7 @@ Artículo de contraportada	4</translation>
 <context>
     <name>DrawingWriter</name>
     <message>
-        <location filename="../libs/office/office/drawingml_write.cpp" line="+748"/>
+        <location filename="../libs/office/office/drawingml_write.cpp" line="+751"/>
         <location line="+162"/>
         <source>Placeholder</source>
         <translation type="unfinished">Marcador de posición</translation>
@@ -6539,7 +6539,7 @@ Artículo de contraportada	4</translation>
         <translation type="unfinished">&quot;%1&quot;: se omitió una imagen que no se puede leer.</translation>
     </message>
     <message>
-        <location line="+21"/>
+        <location line="+36"/>
         <source>Picture</source>
         <translation type="unfinished">Imagen</translation>
     </message>
@@ -6549,7 +6549,7 @@ Artículo de contraportada	4</translation>
         <translation type="unfinished">&quot;%1&quot;: el quitado de fondo que otro programa había hecho en esta imagen se reemplazó por el hecho aquí.</translation>
     </message>
     <message>
-        <location line="+168"/>
+        <location line="+178"/>
         <source>Line</source>
         <translation type="unfinished">Línea</translation>
     </message>
@@ -7096,12 +7096,17 @@ Artículo de contraportada	4</translation>
         <translation type="unfinished">no es un PDF creado por este programa</translation>
     </message>
     <message numerus="yes">
-        <location filename="../apps/pub/io/pubexport.cpp" line="+2419"/>
+        <location filename="../apps/pub/io/pubexport.cpp" line="+2427"/>
         <source>%n object(s) couldn&apos;t be saved to .pub</source>
         <translation type="unfinished">
             <numerusform>No se pudo guardar %n objeto en .pub</numerusform>
             <numerusform>No se pudieron guardar %n objetos en .pub</numerusform>
         </translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>pictures with sharpen, soften, color temperature, or an artistic effect were saved as the finished pictures, so the effect can&apos;t be changed or taken off in a .pub file</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <location line="+1"/>
@@ -9660,7 +9665,7 @@ Download it from %2 now? (%3, once.)</source>
         <translation type="unfinished">No se puede guardar la última diapositiva del intervalo que se va a mostrar; la presentación continúa hasta el final.</translation>
     </message>
     <message>
-        <location filename="../apps/deck/io/odpexport_shape.cpp" line="+215"/>
+        <location filename="../apps/deck/io/odpexport_shape.cpp" line="+216"/>
         <source>Equations that can&apos;t be saved as formulas are saved as pictures.</source>
         <translation type="unfinished">Las ecuaciones que no se pueden guardar como fórmulas se guardan como imágenes.</translation>
     </message>
@@ -9678,6 +9683,11 @@ Download it from %2 now? (%3, once.)</source>
         <location line="+56"/>
         <source>A picture whose background was removed is kept as the finished picture, and its background can&apos;t be brought back or marked again.</source>
         <translation type="unfinished">Una imagen cuyo fondo se quitó se conserva como imagen terminada, y su fondo no puede recuperarse ni volver a marcarse.</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>A picture with sharpen, soften, color temperature, or an artistic effect is kept as the finished picture, and the effect can&apos;t be changed or taken off again.</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <location line="+1"/>
@@ -11095,6 +11105,44 @@ Download it from %2 now? (%3, once.)</source>
         <location line="+1"/>
         <source>A %1 file can&apos;t have see-through parts, and some could not be made solid (%2). Turn %1 off to export it.</source>
         <translation type="unfinished">Un archivo %1 no puede tener partes transparentes, y algunas no se pudieron volver opacas (%2). Desactive %1 para exportarlo.</translation>
+    </message>
+</context>
+<context>
+    <name>PictureFx</name>
+    <message>
+        <location filename="../libs/draw/core/picturefx.cpp" line="+328"/>
+        <source>Soften</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Sharpen</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Color Temperature</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Blur</source>
+        <translation type="unfinished">Desenfoque</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Pencil Grayscale</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Glow Edges</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Mosaic</source>
+        <translation type="unfinished"></translation>
     </message>
 </context>
 <context>
@@ -37159,7 +37207,7 @@ No se puede leer el archivo.</translation>
     <message>
         <location line="+1"/>
         <location line="+22"/>
-        <location filename="../apps/deck/app/deckwindow_info.cpp" line="+137"/>
+        <location filename="../apps/deck/app/deckwindow_info.cpp" line="+138"/>
         <location filename="../apps/deck/app/deckwindow_output.cpp" line="+1"/>
         <location line="+22"/>
         <source>Slides</source>
@@ -37319,7 +37367,7 @@ No se puede leer el archivo.</translation>
         <location filename="../apps/deck/app/deckwindow_media.cpp" line="+104"/>
         <location line="+102"/>
         <location filename="../apps/deck/app/deckwindow_outline.cpp" line="-70"/>
-        <location filename="../apps/deck/app/deckwindow_picture.cpp" line="+231"/>
+        <location filename="../apps/deck/app/deckwindow_picture.cpp" line="+237"/>
         <source>All Files (*)</source>
         <translation type="unfinished">Todos los archivos (*)</translation>
     </message>
@@ -39280,7 +39328,7 @@ No se puede leer el archivo.</translation>
         <translation type="unfinished">Sin relleno</translation>
     </message>
     <message>
-        <location filename="../apps/deck/app/deckwindow_picture.cpp" line="-187"/>
+        <location filename="../apps/deck/app/deckwindow_picture.cpp" line="-193"/>
         <source>Crop</source>
         <translation type="unfinished">Recortar</translation>
     </message>
@@ -39409,7 +39457,7 @@ No se puede leer el archivo.</translation>
         <translation>Saturación</translation>
     </message>
     <message>
-        <location line="+2"/>
+        <location line="+8"/>
         <source>No Recolor</source>
         <translation>Sin volver a colorear</translation>
     </message>
@@ -41658,12 +41706,12 @@ No se puede leer el archivo.</translation>
     </message>
     <message>
         <location line="+21"/>
-        <location line="+179"/>
+        <location line="+180"/>
         <source>Hidden slides</source>
         <translation type="unfinished">Diapositivas ocultas</translation>
     </message>
     <message>
-        <location line="-178"/>
+        <location line="-179"/>
         <source>Slides with notes</source>
         <translation type="unfinished">Diapositivas con notas</translation>
     </message>
@@ -41713,7 +41761,7 @@ No se puede leer el archivo.</translation>
         <translation type="unfinished">La presentación se protege con contraseña al guardar.</translation>
     </message>
     <message>
-        <location line="+188"/>
+        <location line="+189"/>
         <location line="+11"/>
         <location line="+5"/>
         <location line="+17"/>
@@ -41727,7 +41775,7 @@ No se puede leer el archivo.</translation>
         <translation type="unfinished">Algunas versiones conservadas antes no pudieron recibir la nueva contraseña y siguen igual.</translation>
     </message>
     <message>
-        <location filename="../apps/deck/app/deckwindow_info.cpp" line="-206"/>
+        <location filename="../apps/deck/app/deckwindow_info.cpp" line="-207"/>
         <source>Comments</source>
         <translation>Comentarios</translation>
     </message>
@@ -41780,7 +41828,7 @@ No se puede leer el archivo.</translation>
         <translation type="unfinished">Un campo que muestra el nombre del autor en el texto de una diapositiva. Con Quitar información personal activado, se guarda sin texto.</translation>
     </message>
     <message>
-        <location line="+2"/>
+        <location line="+3"/>
         <source>Slides that are set to be hidden: the slide show skips them, but they are in the file. Show them to see what they hold.</source>
         <translation type="unfinished">Diapositivas configuradas como ocultas: la presentación con diapositivas las omite, pero están en el archivo. Muéstrelas para ver su contenido.</translation>
     </message>
@@ -42563,7 +42611,7 @@ No se puede leer el archivo.</translation>
 <context>
     <name>jp::Editor</name>
     <message>
-        <location filename="../libs/page/app/editor.cpp" line="+166"/>
+        <location filename="../libs/page/app/editor.cpp" line="+173"/>
         <source>Publication1</source>
         <translation type="unfinished">Publicación1</translation>
     </message>
@@ -49257,7 +49305,7 @@ Origen: %3</translation>
     </message>
     <message>
         <location line="-394"/>
-        <location filename="../apps/pub/app/mainwindow_info.cpp" line="+354"/>
+        <location filename="../apps/pub/app/mainwindow_info.cpp" line="+356"/>
         <source>publication</source>
         <translation type="unfinished">publicación</translation>
     </message>
@@ -49338,7 +49386,7 @@ Origen: %3</translation>
     </message>
     <message>
         <location line="+37"/>
-        <location filename="../apps/pub/app/mainwindow_actions.cpp" line="+815"/>
+        <location filename="../apps/pub/app/mainwindow_actions.cpp" line="+817"/>
         <source>Page %1</source>
         <translation type="unfinished">Página %1</translation>
     </message>
@@ -49390,8 +49438,8 @@ Origen: %3</translation>
         <location line="+19"/>
         <location line="+8"/>
         <location line="+4"/>
-        <location filename="../apps/pub/app/mainwindow_actions.cpp" line="-1419"/>
-        <location line="+1292"/>
+        <location filename="../apps/pub/app/mainwindow_actions.cpp" line="-1421"/>
+        <location line="+1294"/>
         <source>Save as Picture</source>
         <translation type="unfinished">Guardar como imagen</translation>
     </message>
@@ -49502,7 +49550,7 @@ Origen: %3</translation>
     </message>
     <message>
         <location line="+75"/>
-        <location filename="../apps/pub/app/mainwindow_actions.cpp" line="-1291"/>
+        <location filename="../apps/pub/app/mainwindow_actions.cpp" line="-1293"/>
         <source>Save as Web Page</source>
         <translation type="unfinished">Guardar como página web</translation>
     </message>
@@ -49582,7 +49630,7 @@ Origen: %3</translation>
         <location line="+36"/>
         <location filename="../apps/pub/app/mainwindow_ribbon.cpp" line="+349"/>
         <location line="+1"/>
-        <location line="+718"/>
+        <location line="+726"/>
         <source>Zoom</source>
         <translation>Zoom</translation>
     </message>
@@ -49619,7 +49667,7 @@ Origen: %3</translation>
         <translation type="unfinished">Cerrar</translation>
     </message>
     <message>
-        <location filename="../apps/pub/app/mainwindow_info.cpp" line="-296"/>
+        <location filename="../apps/pub/app/mainwindow_info.cpp" line="-297"/>
         <source>Properties</source>
         <translation type="unfinished">Propiedades</translation>
     </message>
@@ -49724,7 +49772,7 @@ Origen: %3</translation>
     </message>
     <message>
         <location line="-167"/>
-        <location filename="../apps/pub/app/mainwindow_ribbon.cpp" line="-636"/>
+        <location filename="../apps/pub/app/mainwindow_ribbon.cpp" line="-644"/>
         <location line="+1"/>
         <source>Shapes</source>
         <translation type="unfinished">Formas</translation>
@@ -49737,7 +49785,7 @@ Origen: %3</translation>
     <message>
         <location line="+0"/>
         <location line="+177"/>
-        <location filename="../apps/pub/app/mainwindow_ribbon.cpp" line="+171"/>
+        <location filename="../apps/pub/app/mainwindow_ribbon.cpp" line="+179"/>
         <source>Text Art</source>
         <translation type="unfinished">Texto artístico</translation>
     </message>
@@ -49867,38 +49915,38 @@ Origen: %3</translation>
     </message>
     <message>
         <location line="+15"/>
-        <location line="+1241"/>
+        <location line="+1243"/>
         <source>Very Tight</source>
         <translation type="unfinished">Muy estrecho</translation>
     </message>
     <message>
-        <location line="-1241"/>
+        <location line="-1243"/>
         <location line="+297"/>
-        <location line="+944"/>
+        <location line="+946"/>
         <source>Tight</source>
         <translation type="unfinished">Estrecho</translation>
     </message>
     <message>
-        <location line="-1241"/>
+        <location line="-1243"/>
         <location line="+439"/>
-        <location line="+802"/>
+        <location line="+804"/>
         <source>Normal</source>
         <translation type="unfinished">Normal</translation>
     </message>
     <message>
-        <location line="-1241"/>
-        <location line="+1241"/>
+        <location line="-1243"/>
+        <location line="+1243"/>
         <source>Loose</source>
         <translation type="unfinished">Amplio</translation>
     </message>
     <message>
-        <location line="-1241"/>
-        <location line="+1241"/>
+        <location line="-1243"/>
+        <location line="+1243"/>
         <source>Very Loose</source>
         <translation type="unfinished">Muy amplio</translation>
     </message>
     <message>
-        <location line="-1235"/>
+        <location line="-1237"/>
         <source>Character Spacing</source>
         <translation type="unfinished">Espaciado entre caracteres</translation>
     </message>
@@ -49969,12 +50017,12 @@ Origen: %3</translation>
     </message>
     <message>
         <location line="-239"/>
-        <location line="+1225"/>
+        <location line="+1227"/>
         <source>Center</source>
         <translation type="unfinished">Centrar</translation>
     </message>
     <message>
-        <location line="-1224"/>
+        <location line="-1226"/>
         <location line="+240"/>
         <source>Align Right</source>
         <translation type="unfinished">Alinear a la derecha</translation>
@@ -51359,7 +51407,7 @@ Su explorador web abrirá LibreTranslate, un servicio de traducción gratuito y 
     </message>
     <message>
         <location line="+65"/>
-        <location filename="../apps/pub/app/mainwindow_ribbon.cpp" line="-518"/>
+        <location filename="../apps/pub/app/mainwindow_ribbon.cpp" line="-526"/>
         <source>Line</source>
         <translation type="unfinished">Línea</translation>
     </message>
@@ -51443,14 +51491,14 @@ Su explorador web abrirá LibreTranslate, un servicio de traducción gratuito y 
     <message>
         <location line="+4"/>
         <location line="+10"/>
-        <location line="+313"/>
+        <location line="+315"/>
         <location line="+1"/>
         <location filename="../apps/pub/app/mainwindow_ribbon.cpp" line="-72"/>
         <source>Fill</source>
         <translation type="unfinished">Relleno</translation>
     </message>
     <message>
-        <location line="-322"/>
+        <location line="-324"/>
         <source>Picture Fill…</source>
         <translation type="unfinished">Relleno de imagen…</translation>
     </message>
@@ -51922,7 +51970,7 @@ Su explorador web abrirá LibreTranslate, un servicio de traducción gratuito y 
         <translation type="unfinished">Correcciones</translation>
     </message>
     <message>
-        <location line="+6"/>
+        <location line="+8"/>
         <source>No Recolor</source>
         <translation type="unfinished">Sin volver a colorear</translation>
     </message>
@@ -52136,7 +52184,7 @@ Su explorador web abrirá LibreTranslate, un servicio de traducción gratuito y 
     </message>
     <message>
         <location line="+0"/>
-        <location filename="../apps/pub/app/mainwindow_ribbon.cpp" line="+236"/>
+        <location filename="../apps/pub/app/mainwindow_ribbon.cpp" line="+244"/>
         <source>Picture Shape</source>
         <translation type="unfinished">Forma de imagen</translation>
     </message>
@@ -52221,7 +52269,7 @@ Su explorador web abrirá LibreTranslate, un servicio de traducción gratuito y 
         <translation type="unfinished">Dividir hacia arriba</translation>
     </message>
     <message>
-        <location line="-472"/>
+        <location line="-474"/>
         <source>Drag a point to reshape. Ctrl+click a point to delete it, or an edge to add one. Shift+click puts a glue point for connectors on the shape, or takes it away. Press Esc when done.</source>
         <translation type="unfinished">Arrastre un punto para dar nueva forma. Ctrl+clic en un punto para eliminarlo, o en un borde para agregar uno. Mayús+clic coloca un punto de unión para conectores en la forma, o lo quita. Presione Esc al terminar.</translation>
     </message>
@@ -52310,7 +52358,7 @@ Su explorador web abrirá LibreTranslate, un servicio de traducción gratuito y 
         <translation type="unfinished">No autoajustar</translation>
     </message>
     <message>
-        <location line="+304"/>
+        <location line="+306"/>
         <source>No Division</source>
         <translation type="unfinished">Sin división</translation>
     </message>
@@ -52497,7 +52545,7 @@ Su explorador web abrirá LibreTranslate, un servicio de traducción gratuito y 
         <translation type="unfinished">Contraer la cinta de opciones (Ctrl+F1): solo se muestran los nombres de las pestañas, lo que deja más espacio para la página. Vuelva a usarlo para mostrarla.</translation>
     </message>
     <message>
-        <location filename="../apps/pub/app/mainwindow_ribbon.cpp" line="-275"/>
+        <location filename="../apps/pub/app/mainwindow_ribbon.cpp" line="-283"/>
         <source>Font Color</source>
         <translation type="unfinished">Color de fuente</translation>
     </message>
@@ -52652,7 +52700,7 @@ Su explorador web abrirá LibreTranslate, un servicio de traducción gratuito y 
         <translation type="unfinished">curvado</translation>
     </message>
     <message>
-        <location line="+23"/>
+        <location line="+31"/>
         <source>Crop to Shape</source>
         <translation type="unfinished">Recortar a la forma</translation>
     </message>
@@ -53103,7 +53151,7 @@ Su explorador web abrirá LibreTranslate, un servicio de traducción gratuito y 
         <translation type="unfinished">Eliminar objetos del área de trabajo</translation>
     </message>
     <message>
-        <location line="+12"/>
+        <location line="+13"/>
         <source>Inspect Publication</source>
         <translation type="unfinished">Inspeccionar publicación</translation>
     </message>
@@ -53170,7 +53218,7 @@ Su explorador web abrirá LibreTranslate, un servicio de traducción gratuito y 
         <translation type="unfinished">Se volvió a &quot;%1&quot;. Guarde la publicación para conservarlo.</translation>
     </message>
     <message>
-        <location filename="../apps/pub/app/mainwindow_actions.cpp" line="-1400"/>
+        <location filename="../apps/pub/app/mainwindow_actions.cpp" line="-1402"/>
         <source>Info</source>
         <translation type="unfinished">Información</translation>
     </message>
@@ -55750,7 +55798,7 @@ Su explorador web abrirá LibreTranslate, un servicio de traducción gratuito y 
 <context>
     <name>jp::PictureTools</name>
     <message>
-        <location filename="../libs/page/app/picturetools.cpp" line="+94"/>
+        <location filename="../libs/page/app/picturetools.cpp" line="+101"/>
         <location line="+15"/>
         <source>Picture Style</source>
         <translation type="unfinished">Estilo de imagen</translation>
@@ -55874,6 +55922,149 @@ Su explorador web abrirá LibreTranslate, un servicio de traducción gratuito y 
         <location line="+14"/>
         <source>Crop to Shape</source>
         <translation type="unfinished">Recortar a forma</translation>
+    </message>
+    <message>
+        <location line="+22"/>
+        <source>Sharpen and Soften</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Sharpen: 0% (Normal)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Soften: %1%</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Sharpen: %1%</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+9"/>
+        <source>Color Temperature</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Temperature: 0% (Normal)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Temperature: %1 (Cooler)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Temperature: %1 (Warmer)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+24"/>
+        <source>No Artistic Effect</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+20"/>
+        <location line="+9"/>
+        <source>Artistic Effects</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+25"/>
+        <source>Changing the picture…</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Cancel</source>
+        <translation type="unfinished">Cancelar</translation>
+    </message>
+    <message>
+        <location line="+316"/>
+        <source>Remove Original Pictures</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Remove Pictures Under Removed Backgrounds</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Remove Cropped Areas</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message numerus="yes">
+        <location line="+20"/>
+        <source>%n picture is a drawing or a linked picture, which cannot be changed here.</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <location line="+3"/>
+        <source>%n picture is left as it is, because another object shows more of the same picture.</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
+    </message>
+    <message>
+        <location line="+7"/>
+        <source>Original pictures kept under picture effects</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>A picture effect such as Blur or Mosaic changes how a picture looks, but the original picture stays in the file, and anyone who gets the file can take it out. Removing it keeps only the finished picture: Reset Picture can then no longer bring the original back.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <location line="+3"/>
+        <source>Remove Originals</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-2"/>
+        <source>Whole pictures kept under removed backgrounds</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>When you remove the background of a picture, the whole original picture stays in the file. Removing it keeps only the picture without its background: Remove Background can then no longer bring the background back.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Cropped-away parts of pictures</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>A cropped picture still holds the parts you cropped away, and anyone who gets the file can see them. Removing them clears each picture outside what shows (a thin border around it stays), so that the page looks exactly as before: the crop can then no longer be undone by dragging its edges out. A picture with a picture effect, such as Blur, is first made into its finished picture, so Reset Picture can no longer bring its original back. The picture file may get larger.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Remove Cropped Parts</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>Picture effects that are left out</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>A picture in this file has more effects than can be worked out. It shows the first ones, and the rest are left out. Take effects off the picture to see it as it should look.</source>
+        <translation type="unfinished"></translation>
     </message>
 </context>
 <context>
@@ -58702,12 +58893,12 @@ Su explorador web abrirá LibreTranslate, un servicio de traducción gratuito y 
 <context>
     <name>jp::SlideSorter</name>
     <message>
-        <location filename="../apps/deck/app/slidesorter.cpp" line="+95"/>
+        <location filename="../apps/deck/app/slidesorter.cpp" line="+99"/>
         <source>Slide Sorter</source>
         <translation type="unfinished">Clasificador de diapositivas</translation>
     </message>
     <message>
-        <location line="+618"/>
+        <location line="+619"/>
         <source>Slide %1 of %2</source>
         <translation type="unfinished">Diapositiva %1 de %2</translation>
     </message>
@@ -58818,7 +59009,7 @@ Su explorador web abrirá LibreTranslate, un servicio de traducción gratuito y 
         <translation>Diapositivas</translation>
     </message>
     <message>
-        <location line="+99"/>
+        <location line="+100"/>
         <source>Slide %1, hidden</source>
         <translation type="unfinished">Diapositiva %1, oculta</translation>
     </message>
