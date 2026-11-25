@@ -440,15 +440,40 @@ QRect shownPixels(const PictureItem &p, const QSize &px)
     return QRect(QPoint(x0 - margin, y0 - margin), QPoint(x1 + margin, y1 + margin)).intersected(QRect(QPoint(0, 0), px));
 }
 
-// Whether any pixel of `img` outside `keep` is not clear.
-bool hasContentOutside(const QImage &img, const QRect &keep)
+// Whether the picture has no transparency (a photograph): it is then cleared to one opaque color, not to clear, so that it stays the kind of picture it was.
+bool hasNoTransparency(const QImage &img)
 {
+    if (!img.hasAlphaChannel()) return true;
     const QImage a = img.format() == QImage::Format_ARGB32 ? img : img.convertToFormat(QImage::Format_ARGB32);
     for (int y = 0; y < a.height(); ++y) {
         const QRgb *row = reinterpret_cast<const QRgb *>(a.constScanLine(y));
-        const bool inside = y >= keep.top() && y <= keep.bottom();
         for (int x = 0; x < a.width(); ++x)
-            if (qAlpha(row[x]) != 0 && !(inside && x >= keep.left() && x <= keep.right())) return true;
+            if (qAlpha(row[x]) != 255) return false;
+    }
+    return true;
+}
+
+// Whether any pixel of `img` outside `keep` is something: not clear, and (in a picture with no transparency) not all one color, as a picture already cleared is.
+bool hasContentOutside(const QImage &img, const QRect &keep)
+{
+    const QImage a = img.format() == QImage::Format_ARGB32 ? img : img.convertToFormat(QImage::Format_ARGB32);
+    const bool opaque = hasNoTransparency(a);
+    bool first = true;
+    QRgb flat = 0;
+    for (int y = 0; y < a.height(); ++y) {
+        const QRgb *row = reinterpret_cast<const QRgb *>(a.constScanLine(y));
+        const bool inside = y >= keep.top() && y <= keep.bottom();
+        for (int x = 0; x < a.width(); ++x) {
+            if (inside && x >= keep.left() && x <= keep.right()) continue;
+            if (!opaque) {
+                if (qAlpha(row[x]) != 0) return true;
+            } else if (first) {
+                flat = row[x];
+                first = false;
+            } else if (row[x] != flat) {
+                return true;
+            }
+        }
     }
     return false;
 }
@@ -543,7 +568,7 @@ QString addPng(Document &doc, const QImage &img)
     QByteArray png;
     QBuffer buffer(&png);
     buffer.open(QIODevice::WriteOnly);
-    if (!img.convertToFormat(QImage::Format_ARGB32).save(&buffer, "PNG")) return QString();
+    if (!(img.format() == QImage::Format_RGB32 ? img : img.convertToFormat(QImage::Format_ARGB32)).save(&buffer, "PNG")) return QString();
     return doc.addImage(png, QStringLiteral("png"));
 }
 
@@ -566,13 +591,33 @@ bool cutPicture(Document &doc, PictureItem &p, const CutPlan &plan, QHash<QStrin
 {
     auto cleared = [&plan](const QImage &in) {
         QImage img = in.convertToFormat(QImage::Format_ARGB32);
+        // A picture with no transparency stays one: its outside is the average color of the edge of what is kept, opaque, and it is stored with no alpha channel.
+        const bool opaque = hasNoTransparency(img);
+        QRgb outside = 0;
+        if (opaque) {
+            const QRect k = plan.keep.intersected(img.rect());
+            qint64 r = 0, g = 0, b = 0, n = 0;
+            for (int y = k.top(); y <= k.bottom(); ++y)
+                for (int x = k.left(); x <= k.right(); ++x) {
+                    if (y != k.top() && y != k.bottom() && x != k.left() && x != k.right()) {
+                        x = k.right() - 1;
+                        continue;
+                    }
+                    const QRgb c = img.pixel(x, y);
+                    r += qRed(c);
+                    g += qGreen(c);
+                    b += qBlue(c);
+                    ++n;
+                }
+            outside = n ? qRgb(int(r / n), int(g / n), int(b / n)) : qRgb(128, 128, 128);
+        }
         for (int y = 0; y < img.height(); ++y) {
             QRgb *row = reinterpret_cast<QRgb *>(img.scanLine(y));
             const bool inside = y >= plan.keep.top() && y <= plan.keep.bottom();
             for (int x = 0; x < img.width(); ++x)
-                if (!(inside && x >= plan.keep.left() && x <= plan.keep.right())) row[x] = 0;
+                if (!(inside && x >= plan.keep.left() && x <= plan.keep.right())) row[x] = outside;
         }
-        return img;
+        return opaque ? img.convertToFormat(QImage::Format_RGB32) : img;
     };
     if (plan.finish) {
         const QImage img = finishedPicture(doc, p, p.removal.isValid() && p.removal.source == doc.imageSize(p.imageId), true);
@@ -692,7 +737,7 @@ QVector<InspectItem> pictureInspectItems(Editor *ed)
             QCoreApplication::translate("jp::PictureTools", "When you remove the background of a picture, the whole original picture stays in the file. Removing it keeps only the picture without its background: Remove Background can then no longer bring the background back."),
             QCoreApplication::translate("jp::PictureTools", "Remove Originals")),
         row(PictureKept::CroppedAreas, QCoreApplication::translate("jp::PictureTools", "Cropped-away parts of pictures"),
-            QCoreApplication::translate("jp::PictureTools", "A cropped picture still holds the parts you cropped away, and anyone who gets the file can see them. Removing them clears each picture outside what shows (a thin border around it stays), so that the page looks exactly as before: the crop can then no longer be undone by dragging its edges out. A picture with a picture effect, such as Blur, is first made into its finished picture, so Reset Picture can no longer bring its original back."),
+            QCoreApplication::translate("jp::PictureTools", "A cropped picture still holds the parts you cropped away, and anyone who gets the file can see them. Removing them clears each picture outside what shows (a thin border around it stays), so that the page looks exactly as before: the crop can then no longer be undone by dragging its edges out. A picture with a picture effect, such as Blur, is first made into its finished picture, so Reset Picture can no longer bring its original back. The picture file may get larger."),
             QCoreApplication::translate("jp::PictureTools", "Remove Cropped Parts")),
     };
     // (only a file can hold more effects than can be worked out: said, never left out silently)

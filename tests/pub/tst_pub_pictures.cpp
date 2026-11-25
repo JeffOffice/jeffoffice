@@ -785,6 +785,56 @@ private Q_SLOTS:
         QVERIFY(page(1) == one);
     }
 
+    // A picture with no transparency (a photograph) keeps its own kind when its cropped parts are cleared: the outside is one opaque color, there is no alpha channel, and the kept
+    // pixels decode to the very same colors, so the page is the same at every scale (a clear outside moved 54,022 pixels of a photograph's page by up to 3 levels). A second run finds nothing.
+    void inspectKeepsAPictureWithoutTransparencyOpaque()
+    {
+        jp::MainWindow w;
+        w.resize(1400, 900);
+        w.show();
+        jp::Editor *ed = w.editor();
+        QImage im(400, 300, QImage::Format_RGB32);
+        for (int y = 0; y < im.height(); ++y)
+            for (int x = 0; x < im.width(); ++x) im.setPixel(x, y, qRgb((x * 3 + y) % 256, (x + y * 2) % 256, (x * y / 50) % 256));
+        QByteArray jpeg;
+        QBuffer buffer(&jpeg);
+        buffer.open(QIODevice::WriteOnly);
+        QVERIFY(im.save(&buffer, "JPEG", 90));
+        const QImage decoded = QImage::fromData(jpeg);
+        QVERIFY(!decoded.hasAlphaChannel());
+        auto p = std::make_shared<jp::PictureItem>();
+        p->imageId = ed->doc()->addImage(jpeg, "jpeg");
+        p->rect = QRectF(100, 100, 100, 75);
+        p->imgRect = QRectF(-50, -37.5, 200, 150);
+        ed->addItem(p);
+        auto page = [&](double scale) {
+            jp::PaintContext ctx;
+            ctx.doc = ed->doc();
+            ctx.cache = &ed->cache();
+            return jp::Renderer::renderToImage(ctx, 0, scale);
+        };
+        const QImage one = page(1), three = page(3);
+        const jp::InspectItem *crop = nullptr;
+        const QVector<jp::InspectItem> rows = w.inspectItems();
+        for (const jp::InspectItem &r : rows)
+            if (r.title == QStringLiteral("Cropped-away parts of pictures")) crop = &r;
+        QVERIFY(crop);
+        QCOMPARE(crop->count(), 1);
+        QCOMPARE(crop->remove(), 1);
+        QVERIFY(page(1) == one);
+        QVERIFY(page(3) == three);
+        const QImage after = ed->doc()->image(p->imageId);
+        QVERIFY(!after.hasAlphaChannel());
+        QCOMPARE(after.size(), decoded.size());
+        QCOMPARE(after.pixel(1, 1), after.pixel(after.width() - 2, after.height() - 2));
+        QCOMPARE(qAlpha(after.pixel(1, 1)), 255);
+        // (the middle, where the picture shows, is exactly what it was)
+        for (int y = 100; y < 200; ++y)
+            for (int x = 100; x < 300; ++x)
+                if (after.pixel(x, y) != decoded.pixel(x, y)) QFAIL(qPrintable(QStringLiteral("pixel %1,%2").arg(x).arg(y)));
+        QCOMPARE(crop->count(), 0);
+    }
+
     // The Background Removal tab, for the docs, when JO_SHOT_DIR names a folder.
     void theBackgroundRemovalTabPicture()
     {
