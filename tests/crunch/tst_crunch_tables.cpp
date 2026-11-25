@@ -2245,6 +2245,15 @@ private Q_SLOTS:
         QCOMPARE(valueOf(e, QStringLiteral("C4")), QStringLiteral("-"));
         // a changed shape, then a missing file: said, and nothing changes
         const int steps = e.win.w.undoStack()->count();
+        // (the same number of columns with other names)
+        e.folder.write(QStringLiteral("rows.json"), "[{\"p\":1,\"q\":1,\"r\":1,\"s\":1,\"t\":1,\"u\":1}]");
+        e.win.w.act(QStringLiteral("data.refresh"))->trigger();
+        QVERIFY(e.settle());
+        QCOMPARE(e.win.told.size(), 1);
+        QVERIFY(e.win.told.last().contains(QLatin1String("not the table's")));
+        QCOMPARE(e.win.w.undoStack()->count(), steps);
+        QCOMPARE(valueOf(e, QStringLiteral("C3")), QStringLiteral("s:Zed"));
+        e.win.told.clear();
         e.folder.write(QStringLiteral("rows.json"), "[{\"other\":1}]");
         e.win.w.act(QStringLiteral("data.refresh"))->trigger();
         QVERIFY(e.settle());
