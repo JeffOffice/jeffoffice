@@ -6418,6 +6418,7 @@ private Q_SLOTS:
         w.setDocument(open(makeDocx(para(run("Two words")))), QString());
         jp::clipcheck::paneWiring(&w, [&] {
             w.act(QStringLiteral("edit.selectAll"))->trigger();
+            QTRY_VERIFY(w.act(QStringLiteral("edit.copy"))->isEnabled());
             w.act(QStringLiteral("edit.copy"))->trigger();
         }, jp::ClipboardHistory::Kind::FormattedText);
     }
