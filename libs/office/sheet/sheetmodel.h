@@ -1511,6 +1511,7 @@ struct SheetFormat {
     quint8 outlineLevelRow = 0;     // the deepest outline levels of the rows and of the columns (what the buttons of the outline show)
     quint8 outlineLevelCol = 0;
     bool summaryBelow = true, summaryRight = true;   // the lines that sum up an outline's groups are below the rows and to the right of the columns (`outlinePr` of `sheetPr`)
+    bool summaryEdited = false;     // a person changed those places in this session (they are then written whole, whatever the file said; else the file's element stays as it is)
 };
 
 // `sheetView`: how the sheet was left on the screen.

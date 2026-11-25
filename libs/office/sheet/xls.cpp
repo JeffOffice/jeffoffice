@@ -2284,6 +2284,8 @@ private:
             if (!b.bad()) {
                 m_s.transitionEvaluation = v & 0x4000;
                 m_s.transitionEntry = v & 0x8000;
+                m_format.summaryBelow = v & 0x40;
+                m_format.summaryRight = v & 0x80;
             }
             readXlsPrintRecord(r.id, m_d, r.pos, r.len, m_b8, [this](const char *p, int n) { return text(p, n); }, &m_s.page);   // (and the page's fit to pages)
             return true;

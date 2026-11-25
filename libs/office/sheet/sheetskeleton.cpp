@@ -334,7 +334,9 @@ QByteArray newSheetSkeleton(const Sheet &sheet)
     QByteArray transition;
     if (sheet.transitionEvaluation) transition += attr("transitionEvaluation", "1");
     if (sheet.transitionEntry) transition += attr("transitionEntry", "1");
-    if (!tab.isEmpty() || !transition.isEmpty()) o += "<sheetPr" + transition + ">" + tab + "</sheetPr>";
+    QByteArray outline;
+    if (sheet.format.summaryEdited) outline = "<outlinePr" + attr("summaryBelow", sheet.format.summaryBelow ? "1" : "0") + attr("summaryRight", sheet.format.summaryRight ? "1" : "0") + "/>";
+    if (!tab.isEmpty() || !outline.isEmpty() || !transition.isEmpty()) o += "<sheetPr" + transition + ">" + tab + outline + "</sheetPr>";
     QByteArray view = "<sheetView";
     if (!v.showGridLines) view += attr("showGridLines", "0");
     if (!v.showHeadings) view += attr("showRowColHeaders", "0");

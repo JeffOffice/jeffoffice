@@ -512,7 +512,9 @@ public:
         QByteArray transition;
         if (m_sheet.transitionEvaluation) transition += attr("transitionEvaluation", "1");
         if (m_sheet.transitionEntry) transition += attr("transitionEntry", "1");
-        if (!tab.isEmpty() || !fit.isEmpty() || !transition.isEmpty()) m_out += "<sheetPr" + transition + ">" + tab + fit + "</sheetPr>";
+        QByteArray outline;
+        if (!m_sheet.format.summaryBelow || !m_sheet.format.summaryRight) outline = "<outlinePr" + attr("summaryBelow", m_sheet.format.summaryBelow ? "1" : "0") + attr("summaryRight", m_sheet.format.summaryRight ? "1" : "0") + "/>";
+        if (!tab.isEmpty() || !outline.isEmpty() || !fit.isEmpty() || !transition.isEmpty()) m_out += "<sheetPr" + transition + ">" + tab + outline + fit + "</sheetPr>";
         if (m_sheet.dimension.valid) m_out += "<dimension" + attr("ref", rangeName(m_sheet.dimension).toLatin1()) + "/>";
         // how the sheet was left on the screen
         QByteArray view = "<sheetView";

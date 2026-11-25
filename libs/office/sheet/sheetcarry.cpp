@@ -224,14 +224,28 @@ QByteArray skeletonWithExtras(const QByteArray &skeleton, const SheetExtras &x, 
         out.insert(rootEnd, add);
     }
     // sheetPr: the properties after the tab color
-    if (!x.sheetPr.isEmpty()) {
+    QByteArray carried = x.sheetPr;
+    if (out.contains("outlinePr")) {
+        // (the skeleton says where the summary lines are, as a person set it: the file's element would say it twice)
+        const qsizetype name = carried.indexOf("outlinePr");
+        const qsizetype open = name < 0 ? -1 : carried.lastIndexOf('<', name);
+        if (open >= 0) {
+            qsizetype end = xmlscan::tagEnd(carried, open);
+            if (end > 1 && carried[end - 2] != '/') {
+                const qsizetype closeAt = carried.indexOf("outlinePr>", end);
+                end = closeAt < 0 ? end : closeAt + 10;
+            }
+            if (end > 0) carried.remove(open, end - open);
+        }
+    }
+    if (!carried.isEmpty()) {
         const qsizetype close = out.indexOf("</sheetPr>");
         if (close >= 0) {
-            out.insert(close, x.sheetPr);
+            out.insert(close, carried);
         } else {
             const qsizetype start = out.indexOf("<worksheet");
             const qsizetype at = start < 0 ? -1 : out.indexOf('>', start) + 1;
-            if (at > 0) out.insert(at, "<sheetPr>" + x.sheetPr + "</sheetPr>");
+            if (at > 0) out.insert(at, "<sheetPr>" + carried + "</sheetPr>");
         }
     }
     // the protection, filter, and the like follow the data

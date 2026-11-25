@@ -364,6 +364,64 @@ QByteArray tabColorFromChange(const QByteArray &head, const ColorSpec &color, co
     return head.left(sheetPrEnd) + element + head.mid(sheetPrEnd);
 }
 
+// The head of a sheet with the places of its outline's summary lines (`summaryBelow` and `summaryRight` of `outlinePr`) said: the attributes of the file's element set (a head that already
+// says so is not touched), or the element put in `sheetPr` after the tab color (which is made, first in the sheet, if the file has none).
+QByteArray outlinePrFromChange(const QByteArray &head, bool below, bool right, const QByteArray &defaultPrefix)
+{
+    Tag t;
+    qsizetype pos = 0, rootEnd = -1, sheetPrStart = -1, sheetPrEnd = -1, closeStart = -1, outStart = -1, outEnd = -1, tabEnd = -1;
+    bool sheetPrSelf = false;
+    QByteArray prefix = defaultPrefix;
+    while (xmlscan::nextTag(head, pos, &t)) {
+        pos = t.end;
+        if (rootEnd < 0 && !t.closing) {
+            rootEnd = t.end;
+            prefix = QByteArray(xmlscan::prefixOf(t.name));
+            if (t.selfClosing) break;
+            continue;
+        }
+        if (t.closing) {
+            if (sheetPrStart >= 0 && closeStart < 0 && t.local == "sheetPr") closeStart = t.start;
+            continue;
+        }
+        if (t.local == "sheetPr" && sheetPrStart < 0) {
+            sheetPrStart = t.start;
+            sheetPrEnd = t.end;
+            sheetPrSelf = t.selfClosing;
+        } else if (sheetPrStart >= 0 && closeStart < 0 && !sheetPrSelf && t.local == "outlinePr" && outStart < 0) {
+            outStart = t.start;
+            outEnd = t.end;
+        } else if (sheetPrStart >= 0 && closeStart < 0 && !sheetPrSelf && t.local == "tabColor" && tabEnd < 0) {
+            tabEnd = t.end;
+        }
+        if (t.local == "sheetData") break;
+    }
+    if (rootEnd < 0) return head;
+    if (outStart >= 0) {
+        QByteArray tag = head.mid(outStart, outEnd - outStart);
+        qsizetype vs = 0, ve = 0;
+        auto says = [&](const char *name) {
+            if (!xmlscan::attributeValue(tag, name, &vs, &ve)) return true;   // (not said: the default, which is yes)
+            const QByteArray v = tag.mid(vs, ve - vs).trimmed();
+            return !(v == "0" || v == "false");
+        };
+        if (says("summaryBelow") == below && says("summaryRight") == right) return head;
+        setAttr(&tag, "summaryBelow", below ? "1" : "0");
+        setAttr(&tag, "summaryRight", right ? "1" : "0");
+        return head.left(outStart) + tag + head.mid(outEnd);
+    }
+    QByteArray element = "<" + prefix + "outlinePr summaryBelow=\"" + (below ? "1" : "0") + "\" summaryRight=\"" + (right ? "1" : "0") + "\"/>";
+    if (sheetPrStart < 0) return head.left(rootEnd) + "<" + prefix + "sheetPr>" + element + "</" + prefix + "sheetPr>" + head.mid(rootEnd);
+    if (sheetPrSelf) {
+        QByteArray open = head.mid(sheetPrStart, sheetPrEnd - sheetPrStart);
+        open.chop(2);
+        while (!open.isEmpty() && isSpaceByte(open.back())) open.chop(1);
+        return head.left(sheetPrStart) + open + ">" + element + "</" + prefix + "sheetPr>" + head.mid(sheetPrEnd);
+    }
+    const qsizetype at = tabEnd >= 0 ? tabEnd : sheetPrEnd;
+    return head.left(at) + element + head.mid(at);
+}
+
 // The head of a sheet with its first view said to be the one that is open (`tabSelected`), or not: the attribute put on or taken off the first `sheetView`; for a sheet that is to be
 // open and has no view, one made before the sizes of its columns (or before the cells).
 QByteArray tabSelectedFromChange(const QByteArray &head, bool selected, const QByteArray &defaultPrefix)
@@ -2467,6 +2525,7 @@ private:
         QByteArray before = m_buf.left(dataStart);
         if (dimStart >= 0 && !m_cells.empty()) before = withDimension(before, dimStart, dimEnd);
         if (m_tabColor) before = tabColorFromChange(before, *m_tabColor, m_prefix);
+        if (m_format && m_format->summaryEdited) before = outlinePrFromChange(before, m_format->summaryBelow, m_format->summaryRight, m_prefix);
         if (m_filterMode >= 0) before = filterModeFromChange(before, m_filterMode != 0, m_prefix);
         if (m_tabSelected >= 0) before = tabSelectedFromChange(before, m_tabSelected != 0, m_prefix);
         if (m_viewKind >= 0) before = viewKindFromChange(before, m_viewKind, m_viewZoom, m_viewNormalZoom, m_prefix);

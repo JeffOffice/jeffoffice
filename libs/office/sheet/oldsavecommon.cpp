@@ -142,6 +142,8 @@ void Features::note(const Sheet &sheet)
         }
     if (sheet.autoFilter.valid()) add(QT_TRANSLATE_NOOP("Sheet", "filters"));
     if (sheet.isProtected) add(QT_TRANSLATE_NOOP("Sheet", "sheet protection"));
+    // (an OpenDocument spreadsheet has no place for where an outline puts its summary lines)
+    if (m_kind == CopyKind::Ods && (!sheet.format.summaryBelow || !sheet.format.summaryRight)) add(QT_TRANSLATE_NOOP("Sheet", "the places of an outline's summary lines (they are put below the rows and right of the columns)"));
     if (sheet.tabColor.isSet() && m_kind == CopyKind::Xls) add(QT_TRANSLATE_NOOP("Sheet", "tab colors"));
     // (the old form writes the page setup; OpenDocument's page styles are written as far as margins, orientation, scale, and the texts of headers and footers)
     if (!sheet.page.headerFooter.pictures.isEmpty()) add(QT_TRANSLATE_NOOP("Sheet", "pictures in headers and footers"));
