@@ -17,6 +17,7 @@
 
 #include "ColorReference.h"
 #include "Fill.h"
+#include "FillType.h"
 #include "Line.h"
 #include "MSPUBCollector.h"
 #include "ShapeType.h"
@@ -56,6 +57,9 @@ MSPUBParser2k::MSPUBParser2k(librevenge::RVNGInputStream *input, MSPUBCollector 
     m_imageDataChunkIndices(),
     m_quillColorEntries(),
     m_chunkChildIndicesById(),
+    m_listedPageIds(),
+    m_listedMasterId(0),
+    m_pageListRead(false),
     m_chunksBeingRead(),
     m_layoutMarker(0),
     m_chunkStarts()
@@ -246,6 +250,19 @@ unsigned MSPUBParser2k::translate2kColorReference(unsigned ref2k)
     return (c.r) | (c.g << 8) | (c.b << 16);
   }
   }
+}
+
+// JeffPub patch: a palette color's third byte is its tint: 0xE4 is the color itself, and
+// 0x80 plus the percent (20, 40, 60, 80) mixes it with white.
+ColorReference MSPUBParser2k::tinted2kColorReference(unsigned ref2k)
+{
+  const unsigned base = translate2kColorReference(ref2k);
+  const unsigned tint = (ref2k >> 16) & 0xFF;
+  const unsigned type = (ref2k >> 24) & 0xFF;
+  if ((type != 0xC0 && type != 0xE0) || tint <= 0x80 || tint >= 0xE4)
+    return ColorReference(base);
+  const unsigned intensity = (tint - 0x80) * 0xFF / 100;
+  return ColorReference(base, (0x10u << 24) | (intensity << 16) | (0x02u << 8));
 }
 
 //FIXME: Valek found different values; what does this depend on?
@@ -466,6 +483,7 @@ bool MSPUBParser2k::parseContents(librevenge::RVNGInputStream *input)
     MSPUB_DEBUG_MSG(("No document chunk found.\n"));
     return false;
   }
+  readPageList(input);
 
 
   for (unsigned int paletteChunkIndex : m_paletteChunkIndices)
@@ -640,8 +658,21 @@ void MSPUBParser2k::parseShapeFill(librevenge::RVNGInputStream *input, unsigned 
   {
     input->seek(chunkOffset + getShapeFillColorOffset(), librevenge::RVNG_SEEK_SET);
     unsigned fillColorReference = readU32(input);
-    unsigned translatedFillColorReference = translate2kColorReference(fillColorReference);
-    m_collector->setShapeFill(seqNum, std::shared_ptr<Fill>(new SolidFill(ColorReference(translatedFillColorReference), 1, m_collector)), false);
+    m_collector->setShapeFill(seqNum, std::shared_ptr<Fill>(new SolidFill(tinted2kColorReference(fillColorReference), 1, m_collector)), false);
+  }
+  // JeffPub patch: 0x80 plus n is a shaded fill from the first color to the second;
+  // n = 0x0A runs top to bottom and n = 0x0C left to right (the only two seen in files
+  // whose pictures show them); the other styles stay unfilled.
+  else if ((fillType == 0x8A || fillType == 0x8C) && recordHolds(chunkOffset, getShapeFillColorOffset(), 8))
+  {
+    input->seek(chunkOffset + getShapeFillColorOffset(), librevenge::RVNG_SEEK_SET);
+    const unsigned first = readU32(input);
+    const unsigned second = readU32(input);
+    std::shared_ptr<GradientFill> gradient(new GradientFill(m_collector, 0, SHADE_SCALE));
+    gradient->setStoredAngle(fillType == 0x8A ? 180 : 270);
+    gradient->addColor(tinted2kColorReference(first), 0, 1);
+    gradient->addColor(tinted2kColorReference(second), 100, 1);
+    m_collector->setShapeFill(seqNum, gradient, false);
   }
 }
 
@@ -657,7 +688,7 @@ bool MSPUBParser2k::parseGroup(librevenge::RVNGInputStream *input, unsigned seqN
     for (unsigned int chunkChildIndex : chunkChildIndices)
     {
       const ContentChunkReference &childChunk = m_contentChunks.at(chunkChildIndex);
-      if (childChunk.type == SHAPE || childChunk.type == GROUP)
+      if (childChunk.type == SHAPE || childChunk.type == GROUP || childChunk.type == IMAGE_2K)
       {
         retVal = retVal && parse2kShapeChunk(childChunk, input, page, false);
       }
@@ -853,8 +884,65 @@ bool MSPUBParser2k::parse()
   return m_collector->go();
 }
 
+// JeffPub patch: the older layouts end the document chunk with the page list:
+// the count twice, the word 2, two zero words, then that many chunk ids. The
+// first id is a blank page, the second the master page, the last three are
+// special pages (one of them a blank page of another size); the ids between
+// are the pages, in order.
+void MSPUBParser2k::readPageList(librevenge::RVNGInputStream *input)
+{
+  m_pageListRead = false;
+  m_listedPageIds.clear();
+  m_listedMasterId = 0;
+  if (!m_documentChunkIndex)
+    return;
+  const unsigned docOffset = m_contentChunks[m_documentChunkIndex.get()].offset;
+  const std::vector<unsigned>::const_iterator next = std::upper_bound(m_chunkStarts.begin(), m_chunkStarts.end(), docOffset);
+  if (next == m_chunkStarts.end() || *next < docOffset + 0x44 + 10)
+    return;
+  const unsigned docEnd = *next;
+  // the shortest list holds a master and one page; the longest read is 0x400 ids
+  for (unsigned n = 6; n <= 0x400 && 10 + 2 * n + 0x44 <= docEnd - docOffset; ++n)
+  {
+    const unsigned countAt = docEnd - 2 * n - 10;
+    input->seek(countAt, librevenge::RVNG_SEEK_SET);
+    if (readU16(input) != n || readU16(input) != n || readU16(input) != 2 || readU16(input) != 0 || readU16(input) != 0)
+      continue;
+    std::vector<unsigned> ids;
+    for (unsigned i = 0; i < n; ++i)
+      ids.push_back(readU16(input));
+    std::set<unsigned> pageChunkIds;
+    for (unsigned int pageIndex : m_pageChunkIndices)
+      pageChunkIds.insert(m_contentChunks.at(pageIndex).seqNum);
+    std::set<unsigned> pages;
+    for (unsigned i = 2; i + 3 < n; ++i)
+    {
+      if (!pageChunkIds.count(ids[i]) || m_scratchPageIds.count(ids[i]))
+        return;
+      pages.insert(ids[i]);
+    }
+    if (pages.size() != n - 5 || !pageChunkIds.count(ids[1]))
+      return;
+    m_listedPageIds = pages;
+    m_listedMasterId = ids[1];
+    m_pageListRead = true;
+    for (unsigned i = 2; i + 3 < n; ++i)
+      m_collector->setNextPage(ids[i]);
+    m_collector->setPageListGiven();
+    return;
+  }
+}
+
 PageType MSPUBParser2k::getPageTypeBySeqNum(unsigned seqNum)
 {
+  if (m_pageListRead)
+  {
+    if (m_scratchPageIds.count(seqNum))
+      return DUMMY_PAGE;
+    if (m_listedPageIds.count(seqNum))
+      return NORMAL;
+    return seqNum == m_listedMasterId ? MASTER : DUMMY_PAGE;
+  }
   if (m_scratchPageIds.count(seqNum))
     return DUMMY_PAGE;
   switch (seqNum)

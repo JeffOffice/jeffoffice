@@ -148,6 +148,10 @@ private Q_SLOTS:
     void pubOldLayoutPagesWithoutSize();
     void pubOldLayoutFillOffsetsByMarker();
     void pubOldLayoutGroupMarker0e();
+    void pubOldLayoutPageListNamesThePages();
+    void pubOldLayoutPaletteTint();
+    void pubOldLayoutShadedFills();
+    void pubOldLayoutPictureInGroup();
     void pubFirstPageMarkedSpecialIsKept();
     void pubContentWithNoObjectIsRefused();
     void pubShadowFromLineColor();

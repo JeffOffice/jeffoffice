@@ -15,6 +15,7 @@
 #include <vector>
 #include <map>
 
+#include "ColorReference.h"
 #include "MSPUBParser.h"
 #include "ShapeType.h"
 
@@ -28,6 +29,10 @@ class MSPUBParser2k : public MSPUBParser
   std::vector<unsigned> m_quillColorEntries;
   std::map<unsigned, std::vector<unsigned> > m_chunkChildIndicesById;
   std::set<unsigned> m_scratchPageIds; // JeffPub patch: page chunks holding the scratch area
+  std::set<unsigned> m_listedPageIds; // JeffPub patch: pages the document chunk's page list names, between the first two entries and the last three
+  unsigned m_listedMasterId; // JeffPub patch: the page list's second entry
+  bool m_pageListRead;
+  void readPageList(librevenge::RVNGInputStream *input);
   std::deque<unsigned> m_chunksBeingRead;
   unsigned short m_layoutMarker; // JeffPub patch: header word at 0x0c of the Contents stream (older layouts: 0x02cd, 0x0268, ...)
   std::vector<unsigned> m_chunkStarts; // JeffPub patch: sorted chunk offsets, then the block table's offset
@@ -65,6 +70,7 @@ protected:
   static Color getColorBy2kIndex(unsigned char index);
   static Color getColorBy2kHex(unsigned hex);
   static unsigned translate2kColorReference(unsigned ref2k);
+  static ColorReference tinted2kColorReference(unsigned ref2k);
   PageType getPageTypeBySeqNum(unsigned seqNum);
   virtual void parseContentsTextIfNecessary(librevenge::RVNGInputStream *input);
 public:

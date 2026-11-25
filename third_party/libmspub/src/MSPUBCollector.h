@@ -67,6 +67,7 @@ public:
   void collectMetaData(const librevenge::RVNGPropertyList &metaData);
 
   bool addPage(unsigned seqNum);
+  void setPageListGiven() { m_pageListGiven = true; } // JeffPub patch: the parser read the page list, so no page is guessed special
   bool addTextString(const std::vector<TextParagraph> &str, unsigned id);
   void addTextShape(unsigned stringId, unsigned seqNum);
   bool addImage(unsigned index, ImgType type, librevenge::RVNGBinaryData img);
@@ -270,6 +271,7 @@ private:
   mutable std::vector<unsigned> m_calculationBusy;
   mutable unsigned m_calculationStamp = 0;
   std::vector<unsigned> m_pageSeqNumsOrdered;
+  bool m_pageListGiven;
   bool m_encodingHeuristic;
   std::vector<unsigned char> m_allText;
   mutable boost::optional<const char *> m_calculatedEncoding;

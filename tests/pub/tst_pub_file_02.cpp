@@ -1118,7 +1118,8 @@ namespace {
 // With a marker, a record, and quill set, the file is the one with the Quill part (the 2k reader): the header word at 0x0c is the marker, and each
 // shape is a record of recSize bytes that starts with the bytes in rec (from offset 6) instead of the solid-fill byte at 0x20.
 QByteArray oldLayoutPub(const QVector<QPair<quint16, quint32>> &pages, const QVector<QPair<quint16, quint16>> &shapes, quint16 marker = 0,
-                        const QByteArray &rec = QByteArray(), int recSize = 0x100, bool quill = false, quint16 groupType = 0)
+                        const QByteArray &rec = QByteArray(), int recSize = 0x100, bool quill = false, quint16 groupType = 0,
+                        const QVector<quint16> &pageList = {}, const QVector<quint32> &palette = {}, bool groupImage = false)
 {
     QByteArray c(0x100, '\0');
     auto put32 = [](QByteArray &b, int at, quint32 v) { for (int i = 0; i < 4; ++i) b[at + i] = char((v >> (8 * i)) & 0xff); };
@@ -1137,9 +1138,23 @@ QByteArray oldLayoutPub(const QVector<QPair<quint16, quint32>> &pages, const QVe
         c.append(b);
         return int(chunks.back().at);
     };
-    const int doc = add(1, 0, 0x15, 0x40);
+    // (a page list ends the document chunk: the count twice, 2, two zero words, then the ids)
+    const int doc = add(1, 0, 0x15, pageList.isEmpty() ? 0x40 : 0x44 + 10 + 2 * pageList.size());
     put32(c, doc + 0x14, 8 * 914400);
     put32(c, doc + 0x18, 10 * 914400);
+    if (!pageList.isEmpty()) {
+        const int at = doc + 0x44;
+        put16(c, at, quint32(pageList.size()));
+        put16(c, at + 2, quint32(pageList.size()));
+        put16(c, at + 4, 2);
+        for (int i = 0; i < pageList.size(); ++i)
+            put16(c, at + 10 + 2 * i, pageList[i]);
+    }
+    if (!palette.isEmpty()) {   // a palette chunk: eight colors from 0xA0
+        const int at = add(2, 1, 0x47, 0xA0 + 8 * 4);
+        for (int i = 0; i < palette.size() && i < 8; ++i)
+            put32(c, at + 0xA0 + 4 * i, palette[i]);
+    }
     for (const auto &p : pages) {
         const int at = add(p.first, 1, 0x14, 0x40);
         put32(c, at + 12, p.second);
@@ -1147,6 +1162,23 @@ QByteArray oldLayoutPub(const QVector<QPair<quint16, quint32>> &pages, const QVe
     }
     if (groupType)   // a group chunk with id 30 on the last page
         add(30, pages.last().first, groupType, 0x40);
+    if (groupType && groupImage) {   // a picture inside the group: a metafile with only its header and end record
+        const int img = add(31, 30, 0x02, 0x40);
+        const quint32 origin = 25 * 914400;
+        put32(c, img + 6, origin + 914400);
+        put32(c, img + 10, origin + 914400);
+        put32(c, img + 14, origin + 3 * 914400);
+        put32(c, img + 18, origin + 3 * 914400);
+        QByteArray wmf(18, '\0');
+        wmf[0] = 1;
+        wmf[2] = 9;
+        wmf[5] = 3;
+        wmf.append(QByteArray::fromHex("030000000000"));
+        const int data = add(32, 31, 0x21, 8 + wmf.size());
+        put32(c, data + 4, quint32(wmf.size()));
+        for (int i = 0; i < wmf.size(); ++i)
+            c[data + 8 + i] = wmf[i];
+    }
     for (const auto &s : shapes) {
         const int at = add(s.first, s.second, 0x05, recSize);
         if (rec.isEmpty())
@@ -1299,6 +1331,103 @@ void PubFileTests::pubOldLayoutGroupMarker0e()
         QVERIFY2(doc, qPrintable(err));
         QCOMPARE(rep.shapes, type == 0x0d ? 0 : 1);
     }
+}
+
+// The older layouts end the document chunk with the page list: the first id is a blank page, the second the master page, the last three are special
+// pages, and the ids between are the pages. Seven ids name two pages; a list that does not hold together (a count that disagrees with the one before
+// it, or a page that is no page chunk) is not used, and the pages are then found as before.
+void PubFileTests::pubOldLayoutPageListNamesThePages()
+{
+    QString err;
+    QByteArray rec(0x41 - 6, '\0');
+    rec[0x2A - 6] = 2;
+    const QVector<QPair<quint16, quint32>> pages = {{10, 0}, {11, 5 * 914400}, {12, 5 * 914400}, {13, 5 * 914400}, {14, 5 * 914400}, {15, 5 * 914400}, {16, 5 * 914400}};
+    const QVector<QPair<quint16, quint16>> shapes = {{20, 13}, {21, 14}, {22, 15}, {23, 16}};
+    auto pageCount = [&](const QVector<quint16> &list) {
+        PubImportReport rep;
+        auto doc = importPublisher(oldLayoutPub(pages, shapes, 0x02cd, rec, 0x46, true, 0, list), &err, &rep);
+        return doc ? int(doc->pages.size()) : -1;
+    };
+    QCOMPARE(pageCount({11, 12, 13, 14, 15, 16, 99}), 2);
+    QCOMPARE(pageCount({}), 4);
+    QCOMPARE(pageCount({11, 12, 13, 14, 99, 98, 97}), 2);   // (the ids between the first two and the last three: 13 and 14)
+    QCOMPARE(pageCount({11, 12, 13, 14, 15, 16, 17, 18, 19}), 4);   // (page 17 is no page chunk: the list is not used)
+    QCOMPARE(pageCount({11, 12, 13, 99}), 4);   // (too short to hold a page between its ends)
+}
+
+// A palette color's third byte is its tint: 0xE4 is the color itself, 0x80 plus the percent mixes it with white (0xBC is 60 percent).
+void PubFileTests::pubOldLayoutPaletteTint()
+{
+    QString err;
+    auto fillOf = [&](quint32 colorWord) {
+        QByteArray rec(0x41 - 6, '\0');
+        rec[0x2A - 6] = 2;
+        for (int i = 0; i < 4; ++i)
+            rec[0x22 - 6 + i] = char((colorWord >> (8 * i)) & 0xff);
+        auto doc = importPublisher(oldLayoutPub({{10, 0}, {11, 5 * 914400}}, {{20, 11}}, 0x02cd, rec, 0x46, true, 0, {}, {0, 0x20336600}), &err);
+        QColor got;
+        if (doc && !doc->pages.isEmpty()) {
+            QVector<const Item *> all;
+            collectItems(doc->pages[0]->items, all);
+            for (const Item *it : all)
+                if (!it->fill.isNone())
+                    got = it->fill.color.rgbValue();
+        }
+        return got;
+    };
+    const QColor whole = fillOf(0xC0E40001);   // palette entry 1, no tint
+    QCOMPARE(whole, QColor(0x00, 0x66, 0x33));
+    const QColor tinted = fillOf(0xC0BC0001);   // 60 percent
+    QVERIFY(tinted.isValid());
+    QVERIFY2(std::abs(tinted.red() - 0x66) <= 2 && std::abs(tinted.green() - 0xA3) <= 2 && std::abs(tinted.blue() - 0x85) <= 2, qPrintable(tinted.name()));
+    const QColor faint = fillOf(0xC0940001);   // 20 percent
+    QVERIFY2(std::abs(faint.red() - 0xCC) <= 2 && std::abs(faint.green() - 0xE0) <= 2 && std::abs(faint.blue() - 0xD6) <= 2, qPrintable(faint.name()));
+}
+
+// Fill kinds 0x8A and 0x8C are shaded fills from the first color to the second, one running down the shape and the other across it; the kinds this
+// has not seen in a picture stay unfilled.
+void PubFileTests::pubOldLayoutShadedFills()
+{
+    QString err;
+    auto fillOf = [&](unsigned char kind) -> Fill {
+        QByteArray rec(0x41 - 6, '\0');
+        rec[0x2A - 6] = char(kind);
+        const quint32 first = 0x20336600, second = 0x20ffcc99;
+        for (int i = 0; i < 4; ++i) {
+            rec[0x22 - 6 + i] = char((first >> (8 * i)) & 0xff);
+            rec[0x26 - 6 + i] = char((second >> (8 * i)) & 0xff);
+        }
+        auto doc = importPublisher(oldLayoutPub({{10, 0}, {11, 5 * 914400}}, {{20, 11}}, 0x02cd, rec, 0x46, true), &err);
+        Fill got = Fill::none();
+        if (doc && !doc->pages.isEmpty()) {
+            QVector<const Item *> all;
+            collectItems(doc->pages[0]->items, all);
+            for (const Item *it : all)
+                if (!it->fill.isNone())
+                    got = it->fill;
+        }
+        return got;
+    };
+    const Fill down = fillOf(0x8A), across = fillOf(0x8C);
+    QCOMPARE(int(down.type), int(Fill::Gradient));
+    QCOMPARE(int(across.type), int(Fill::Gradient));
+    QCOMPARE(down.color.rgbValue(), QColor(0x00, 0x66, 0x33));
+    QCOMPARE(down.color2.rgbValue(), QColor(0x99, 0xCC, 0xFF));
+    QCOMPARE(down.angle, 90.0);   // top to bottom
+    QCOMPARE(across.angle, 0.0);   // left to right
+    QVERIFY(fillOf(0x8B).isNone());
+}
+
+// A picture inside a group is read: older layouts keep the picture's own chunk (type 2) under the group's.
+void PubFileTests::pubOldLayoutPictureInGroup()
+{
+    QString err;
+    PubImportReport rep;
+    QByteArray rec(0x41 - 6, '\0');
+    rec[0x2A - 6] = 2;
+    auto doc = importPublisher(oldLayoutPub({{10, 0}, {11, 5 * 914400}}, {{31 + 10, 30}}, 0x02cd, rec, 0x46, true, 0x0f, {}, {}, true), &err, &rep);
+    QVERIFY2(doc, qPrintable(err));
+    QCOMPARE(rep.pictures, 1);
 }
 
 // A page marked 0 is a special one, but the first page listed is a real page: a file can list four special pages after a single page marked 0.

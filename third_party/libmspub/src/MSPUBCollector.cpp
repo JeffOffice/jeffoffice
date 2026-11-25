@@ -581,7 +581,7 @@ MSPUBCollector::MSPUBCollector(librevenge::RVNGDrawingInterface *painter) :
   m_shapesWithCoordinatesRotated90(),
   m_masterPagesByPageSeqNum(),
   m_tableCellTextEndsByTextId(), m_stringOffsetsByTextId(),
-  m_calculationValues(), m_calculationDone(), m_calculationBusy(), m_pageSeqNumsOrdered(),
+  m_calculationValues(), m_calculationDone(), m_calculationBusy(), m_pageSeqNumsOrdered(), m_pageListGiven(false),
   m_encodingHeuristic(false), m_allText(),
   m_calculatedEncoding(),
   m_metaData()
@@ -2641,7 +2641,7 @@ bool MSPUBCollector::go()
     return pg == m_pagesBySeqNum.end() || pg->second.m_shapeGroupsOrdered.empty();
   };
   std::set<unsigned> special;
-  for (size_t k = listed.size(); k > 0 && listed.size() - k < 4; --k)
+  for (size_t k = listed.size(); !m_pageListGiven && k > 0 && listed.size() - k < 4; --k)
   {
     const unsigned seq = listed[k - 1];
     const bool knownSpecial = seq == 0x10d || seq == 0x110 || seq == 0x113 || seq == 0x117;
