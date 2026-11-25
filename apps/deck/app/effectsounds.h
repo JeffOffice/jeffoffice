@@ -40,11 +40,15 @@ public:
     void cue(const deck::SoundCue &cue);
     // Everything the effects started stops.
     void stopAll();
-    // The most sounds that play together: a slide that starts more stops the oldest.
+    // The most sounds that play at the same time: a cue that comes while that many play is skipped (never kept for later).
     static constexpr int kMostTogether = 8;
+    // The most sounds one step starts, however far apart in time (a file's bound).
+    static constexpr int kMostInStep = 64;
     // How many sounds the program is playing now (not counting a test's output).
     int playing() const { return int(m_players.size()); }
-    // A step begins: the sounds it may start are counted from nothing. A step starts at most kMostTogether; a cue past that is skipped (never kept for later).
+    // The output says a sound it was asked to play has ended (the program's own players say it themselves).
+    void outputEnded() { if (m_outputPlaying > 0) --m_outputPlaying; }
+    // A step begins: the sounds it may start are counted from nothing.
     void beginStep() { m_startedInStep = 0; }
     // How many cues were skipped so far for that, and how many players were dropped because their sound could not be played.
     int skipped() const { return m_skipped; }
@@ -53,7 +57,7 @@ public:
 private:
     void play(const QString &mediaId);
     void drop(MediaPlayback *player);
-    int m_startedInStep = 0, m_skipped = 0, m_failed = 0;
+    int m_startedInStep = 0, m_skipped = 0, m_failed = 0, m_outputPlaying = 0;
     const Document *m_doc = nullptr;
     std::function<void(const Request &)> m_output;
     QList<QPointer<MediaPlayback>> m_players;

@@ -26,8 +26,9 @@ void EffectSounds::play(const QString &mediaId)
     const auto data = m_doc->media.constFind(mediaId);
     if (data == m_doc->media.cend() || data->bytes.isEmpty()) return;
     const QString extension = deck::mediaExtensionFor(data->extension);
-    // A step starts only so many sounds, however many its effects name: each would be a decoder started on the thread that draws.
-    if (m_startedInStep >= kMostTogether) {
+    // Only so many sounds play together, and a step starts only so many, however many its effects name: each would be a decoder started on the thread that draws.
+    m_players.removeIf([](const QPointer<MediaPlayback> &p) { return p.isNull(); });
+    if (m_startedInStep >= kMostInStep || (m_output ? m_outputPlaying : int(m_players.size())) >= kMostTogether) {
         ++m_skipped;
         return;
     }
@@ -37,21 +38,16 @@ void EffectSounds::play(const QString &mediaId)
         r.media = mediaId;
         r.bytes = data->bytes;
         r.extension = extension;
+        ++m_outputPlaying;
         m_output(r);
         return;
     }
-    // The oldest stops when there are too many.
-    m_players.removeIf([](const QPointer<MediaPlayback> &p) { return p.isNull(); });
-    while (m_players.size() >= kMostTogether) {
-        if (m_players.first()) {
-            m_players.first()->stop();
-            m_players.first()->deleteLater();
-        }
-        m_players.removeFirst();
-    }
     auto *pb = new MediaPlayback(this);
     pb->setFile(data->bytes, extension);
-    connect(pb, &MediaPlayback::ended, pb, &QObject::deleteLater);
+    connect(pb, &MediaPlayback::ended, pb, [this, pb] {
+        m_players.removeAll(QPointer<MediaPlayback>(pb));
+        pb->deleteLater();
+    });
     // A sound that can't be played does not stay.
     connect(pb, &MediaPlayback::changed, pb, [this, pb] {
         if (pb->failed()) drop(pb);
@@ -75,6 +71,7 @@ void EffectSounds::stopAll()
         r.kind = Request::Kind::StopAll;
         m_output(r);
     }
+    m_outputPlaying = 0;
     for (const QPointer<MediaPlayback> &p : std::as_const(m_players)) {
         if (!p) continue;
         p->stop();
