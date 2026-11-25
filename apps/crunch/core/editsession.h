@@ -17,6 +17,7 @@
 #include "core/nametable.h"
 #include "core/sortspec.h"
 #include "core/objectstate.h"
+#include "sheet/datasource.h"
 #include "sheet/entry.h"
 #include "sheet/fnnames.h"
 #include "sheet/namerefs.h"
@@ -600,6 +601,15 @@ public:
     // named, and two of one name are numbered); without, the table has no header row and its columns are named Column1, Column2, and so on. A table needs a row of data: a single row
     // with headers is given the empty row under it. `made` is the table's place.
     Outcome makeTable(int sheet, const jp::office::sheet::CellRange &range, bool hasHeaders, const QString &style, int *made = nullptr);
+    // ---- Get Data (editdata.cpp). The rows of `data` become a table at the cell, with its header row first and each column in its kind ('t' text, 'n' number, 'b' true or false, 'd' date); `source` is kept in the
+    // table (DataConnection::text). Cells that hold something are replaced only when `replace` says so (cellsHoldData tells the window to ask). refreshDataTable puts the rows of a table read again in the
+    // table, which grows or shrinks to them; the columns must be the table's. `made` is the table's place.
+    Outcome placeDataTable(int sheet, quint32 row, quint32 col, const jp::office::sheet::DataRows &data, const QVector<char> &kinds, const QString &source, bool replace, int *made = nullptr);
+    Outcome refreshDataTable(int table, const jp::office::sheet::DataRows &data, const QVector<char> &kinds);
+    Outcome removeDataLinks(int *removed = nullptr);   // the link to the file of every table that has one: the tables stay
+    int dataLinkCount() const;
+    bool cellsHoldData(int sheet, const jp::office::sheet::CellRange &range) const;
+    QStringList dataTableNames(const QStringList &header) const;   // the names the columns of a loaded table get
     // Why a name can't be a table's (not `except`'s own), in a sentence; empty when it can: not a valid name, or another table's or a defined name, in any case.
     QString tableNameProblem(const QString &name, int except) const;
     // Whether a table (on a sheet that is there) has the name (any case): a defined name can't be the same.
@@ -1533,6 +1543,7 @@ private:
     CellChange clearedCell(int sheet, quint32 row, quint32 col);
     bool tableFree(int sheet, const jp::office::sheet::CellRange &range, int except, QString *why) const;
     bool cellsEmpty(int sheet, const jp::office::sheet::CellRange &range) const;
+    CellChange dataCell(int sheet, quint32 row, quint32 col, const jp::office::sheet::DataCell &cell, char kind);
     bool cellsHoldAnything(int sheet, quint32 row, quint32 col) const;
     jp::office::sheet::EntryOptions entryOptions(int sheet, bool textFormat) const;
     // The change typing `typed` into a cell makes (not a header cell's, not checked against the cell's rule): false, with the problem, if it can't be put in; `none` if it changes nothing.
