@@ -22,6 +22,8 @@ namespace jp {
 struct ClipboardPaneHost {
     std::function<void()> paste;       // the app's own Paste, on what the clipboard holds now
     std::function<void()> focusBack;   // gives the keyboard back to what is being edited (unset: nothing)
+    std::function<void()> beginSteps;  // Paste All is made one step of Undo between these two (unset: each item is a step; every app gives these)
+    std::function<void()> endSteps;
 };
 
 class JO_COMMON_EXPORT ClipboardPane : public QWidget {
@@ -45,6 +47,7 @@ public:
     QPushButton *clearAllButton() const { return m_clearAll; }
     QPushButton *deleteButton() const { return m_delete; }
     QLabel *statusLabel() const { return m_status; }
+    QLabel *noteLabel() const { return m_note; }
     // The name of a kind of item, as the pane shows it.
     static QString kindName(ClipboardHistory::Kind kind);
 
@@ -56,7 +59,7 @@ private:
     void updateStatus();
     ClipboardPaneHost m_host;
     QListWidget *m_list = nullptr;
-    QLabel *m_empty = nullptr, *m_status = nullptr;
+    QLabel *m_empty = nullptr, *m_status = nullptr, *m_note = nullptr;
     QPushButton *m_pasteAll = nullptr, *m_delete = nullptr, *m_clearAll = nullptr;
     QCheckBox *m_closedBox = nullptr, *m_othersBox = nullptr;
     bool m_counted = false;

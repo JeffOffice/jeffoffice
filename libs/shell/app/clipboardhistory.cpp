@@ -6,6 +6,7 @@
 #include <QGuiApplication>
 #include <QImageReader>
 #include <QMimeData>
+#include <QSet>
 #include <QSettings>
 #include <algorithm>
 
@@ -40,31 +41,109 @@ QImage thumbnailOf(const QImage &picture)
     return picture.scaled(64, 64, Qt::KeepAspectRatio, Qt::SmoothTransformation);
 }
 
-// A picture another program put on the clipboard, read only if its bytes and its pixels are within the bounds.
-QImage otherProgramPicture(const QMimeData *mime, bool *tooBig)
+// The platform's offer, or a copy made here, as a source. (The platform gives no size and no bounded read: a form is fetched whole, so the history asks for only the forms it keeps.)
+class MimeSource : public ClipboardSource {
+public:
+    MimeSource(const QMimeData *mime, bool own) : m_mime(mime), m_own(own) {}
+    QStringList formats() const override { return m_mime->formats(); }
+    qint64 sizeOf(const QString &format) const override { return m_own ? m_mime->data(format).size() : -1; }   // (a copy made here is in memory, and sharing its bytes copies nothing)
+    QByteArray read(const QString &format, qint64 most, bool *over) const override
+    {
+        const QByteArray bytes = m_mime->data(format);
+        if (bytes.size() > most) {
+            *over = true;
+            return QByteArray();
+        }
+        return bytes;
+    }
+    QImage ownImage() const override { return m_own && m_mime->hasImage() ? qvariant_cast<QImage>(m_mime->imageData()) : QImage(); }
+
+private:
+    const QMimeData *m_mime;
+    bool m_own;
+};
+
+bool isSecretSource(const ClipboardSource &source)
+{
+    for (const QString &f : source.formats()) {
+        if (isHintName(f)) return true;
+        if (f.toLower().contains(QLatin1String("canincludeinclipboardhistory"))) {
+            bool over = false;
+            const QByteArray v = source.read(f, 16, &over);
+            if (over || v.isEmpty() || v.at(0) == 0) return true;
+        }
+    }
+    return false;
+}
+
+bool isStandardName(const QString &f)
+{
+    return f == QLatin1String("text/plain") || f == QLatin1String("text/html") || f.contains(QLatin1String("rtf"));
+}
+
+// The forms of a copy made here that are kept: the program's own first, then the standard text ones, then the rest in the order they were put, at most kMostFormats; no picture form (that is the picture).
+QStringList formsToKeep(const QStringList &formats)
+{
+    QStringList own, standard, rest;
+    for (const QString &f : formats) {
+        if (isImageName(f)) continue;
+        if (f.startsWith(QLatin1String("application/x-jeff"))) own << f;
+        else if (isStandardName(f)) standard << f;
+        else rest << f;
+    }
+    QSet<QString> keep;
+    for (const QStringList *group : {&own, &standard, &rest})
+        for (const QString &f : *group)
+            if (keep.size() < ClipboardHistory::kMostFormats) keep.insert(f);
+    QStringList out;
+    for (const QString &f : formats)
+        if (keep.contains(f)) {
+            out << f;
+            keep.remove(f);   // (a name offered twice is kept once)
+        }
+    return out;
+}
+
+// A picture another program put on the clipboard: one form, read within what is left of the item's bytes, its size read from the header before anything is decoded.
+QImage otherProgramPicture(const ClipboardSource &source, const QStringList &formats, qint64 room, bool *tooBig)
 {
     for (const char *form : {"image/png", "image/jpeg", "image/bmp", "image/gif"}) {
-        if (!mime->hasFormat(QLatin1String(form))) continue;
-        const QByteArray bytes = mime->data(QLatin1String(form));
-        if (bytes.isEmpty()) continue;
-        if (bytes.size() > ClipboardHistory::kMostItemBytes) {
+        const QString name = QLatin1String(form);
+        if (!formats.contains(name)) continue;
+        const qint64 offered = source.sizeOf(name);
+        if (offered > room) {
             *tooBig = true;
             return QImage();
         }
+        bool over = false;
+        const QByteArray bytes = source.read(name, room, &over);
+        if (over) {
+            *tooBig = true;
+            return QImage();
+        }
+        if (bytes.isEmpty()) return QImage();
         QBuffer buffer;
         buffer.setData(bytes);
         buffer.open(QIODevice::ReadOnly);
         QImageReader reader(&buffer);
         const QSize size = reader.size();
-        if (size.isValid() && qint64(size.width()) * size.height() > ClipboardHistory::kMostImagePixels) {
+        if (!size.isValid()) return QImage();   // (a picture that does not say how big it is is not decoded)
+        if (qint64(size.width()) * size.height() > ClipboardHistory::kMostImagePixels) {
             *tooBig = true;
             return QImage();
         }
         const QImage image = reader.read();
-        if (!image.isNull()) return image;
+        if (image.sizeInBytes() > room) {
+            *tooBig = true;
+            return QImage();
+        }
+        return image;
     }
     return QImage();
 }
+
+std::function<std::any(const QMimeData *)> g_takeOwnState;
+std::function<void(const std::any &)> g_giveOwnState;
 
 } // namespace
 
@@ -126,62 +205,94 @@ void ClipboardHistory::onClipboard()
 {
     if (m_putting) return;
     QClipboard *cb = QGuiApplication::clipboard();
+    if (m_put && cb->mimeData() == m_put.data()) return;   // (the notice of an item put back, which may come after putOnClipboard has returned)
     noteClipboard(cb->mimeData(), m_owns ? m_owns() : cb->ownsClipboard());
 }
 
 bool ClipboardHistory::isSecret(const QMimeData *mime)
 {
     if (!mime) return false;
-    for (const QString &f : mime->formats()) {
-        if (isHintName(f)) return true;
-        if (f.toLower().contains(QLatin1String("canincludeinclipboardhistory"))) {
-            const QByteArray v = mime->data(f);
-            if (v.isEmpty() || v.at(0) == 0) return true;
-        }
-    }
-    return false;
+    return isSecretSource(MimeSource(mime, false));
+}
+
+void ClipboardHistory::startIfAsked()
+{
+    if (QSettings().value(QLatin1String(kSettingsKey), false).toBool()) instance();
+}
+
+void ClipboardHistory::setOwnStateHooks(const std::function<std::any(const QMimeData *)> &take, const std::function<void(const std::any &)> &give)
+{
+    g_takeOwnState = take;
+    g_giveOwnState = give;
 }
 
 quint64 ClipboardHistory::noteClipboard(const QMimeData *mime, bool own)
 {
     if (!mime || !collecting() || (!own && !m_others)) return 0;
-    if (isSecret(mime)) return 0;
+    const quint64 id = noteSource(MimeSource(mime, own), own);
+    if (id && own && g_takeOwnState)
+        for (Item &it : m_items)
+            if (it.id == id) it.ownState = g_takeOwnState(mime);
+    return id;
+}
+
+quint64 ClipboardHistory::noteSource(const ClipboardSource &source, bool own)
+{
+    if (!collecting() || (!own && !m_others)) return 0;
+    if (isSecretSource(source)) return 0;
     Item item;
     item.fromOtherProgram = !own;
     bool tooBig = false;
-    const QStringList formats = mime->formats();
+    const QStringList formats = source.formats();
+    QImage preview;   // the picture the thumbnail is made from
     if (own) {
+        // The forms the pane needs to put the copy back, each read within what is left of the 8 MB (a size known beforehand refuses a copy without reading it).
         qint64 bytes = 0;
-        for (const QString &f : formats) {
-            if (isImageName(f)) continue;
-            bytes += mime->data(f).size();
-            if (bytes > kMostItemBytes) break;
+        for (const QString &f : formsToKeep(formats)) {
+            const qint64 offered = source.sizeOf(f);
+            if (offered > kMostItemBytes - bytes) {
+                tooBig = true;
+                break;
+            }
+            bool over = false;
+            const QByteArray data = source.read(f, kMostItemBytes - bytes, &over);
+            if (over) {
+                tooBig = true;
+                break;
+            }
+            bytes += data.size();
+            item.formats.append({f, data});
         }
-        QImage picture;
-        if (bytes <= kMostItemBytes && mime->hasImage()) {
-            picture = qvariant_cast<QImage>(mime->imageData());
-            bytes += picture.sizeInBytes();
+        // The picture form is not what the pane pastes from when the copy has forms of its own: it counts only while it fits, and only a small preview is kept when it does not.
+        const QImage picture = tooBig ? QImage() : source.ownImage();
+        if (!picture.isNull()) {
+            const qint64 pictureBytes = picture.sizeInBytes();
+            if (bytes + pictureBytes <= kMostItemBytes) {
+                item.picture = picture;
+                bytes += pictureBytes;
+            } else if (item.formats.isEmpty()) {
+                tooBig = true;
+            } else {
+                preview = picture;
+            }
         }
-        if (bytes > kMostItemBytes) {
-            tooBig = true;
-        } else {
-            for (const QString &f : formats)
-                if (!isImageName(f)) item.formats.append({f, mime->data(f)});
-            item.picture = picture;
-            item.bytes = bytes;
-        }
+        item.bytes = bytes;
     } else {
-        // Plain text and a picture, nothing else.
-        if (mime->hasText()) {
-            const QByteArray text = mime->text().toUtf8();
-            if (text.size() > kMostItemBytes) tooBig = true;
-            else if (!text.isEmpty()) item.formats.append({QStringLiteral("text/plain"), text});
-            item.bytes += text.size();
+        // Plain text and one picture form, nothing else, and nothing else is fetched.
+        const QString plain = QStringLiteral("text/plain");
+        if (formats.contains(plain)) {
+            const qint64 offered = source.sizeOf(plain);
+            bool over = false;
+            const QByteArray text = offered > kMostItemBytes ? QByteArray() : source.read(plain, kMostItemBytes, &over);
+            if (offered > kMostItemBytes || over) tooBig = true;
+            else if (!text.isEmpty()) {
+                item.formats.append({plain, text});
+                item.bytes += text.size();
+            }
         }
         if (!tooBig) {
-            item.picture = otherProgramPicture(mime, &tooBig);
+            item.picture = otherProgramPicture(source, formats, kMostItemBytes - item.bytes, &tooBig);
             item.bytes += item.picture.sizeInBytes();
-            if (item.bytes > kMostItemBytes) tooBig = true;
         }
     }
     if (tooBig) {
@@ -206,8 +317,9 @@ quint64 ClipboardHistory::noteClipboard(const QMimeData *mime, bool own)
         else if (hasText) item.kind = Kind::Text;
         else if (!item.picture.isNull()) item.kind = Kind::Picture;
     }
-    item.preview = mime->hasText() ? mime->text().left(200) : QString();
-    item.thumbnail = thumbnailOf(item.picture);
+    for (const auto &f : item.formats)
+        if (f.first == QLatin1String("text/plain")) item.preview = QString::fromUtf8(f.second.left(1000)).left(200);
+    item.thumbnail = thumbnailOf(item.picture.isNull() ? preview : item.picture);
     // The same as one kept already: kept once, and brought to the front.
     for (int i = 0; i < m_items.size(); ++i)
         if (m_items.at(i).formats == item.formats && m_items.at(i).picture == item.picture) {
@@ -248,6 +360,9 @@ bool ClipboardHistory::putOnClipboard(quint64 id)
 {
     QMimeData *md = mimeOf(id);
     if (!md) return false;
+    for (const Item &it : m_items)
+        if (it.id == id && it.ownState.has_value() && g_giveOwnState) g_giveOwnState(it.ownState);
+    m_put = md;
     m_putting = true;
     QGuiApplication::clipboard()->setMimeData(md);
     m_putting = false;

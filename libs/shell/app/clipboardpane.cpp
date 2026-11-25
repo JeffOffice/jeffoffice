@@ -89,12 +89,12 @@ ClipboardPane::ClipboardPane(const ClipboardPaneHost &host, QWidget *parent) : Q
     col->addWidget(m_closedBox);
     m_othersBox = new QCheckBox(QCoreApplication::translate("jp::ClipboardPane", "Also collect what is copied in other programs"), this);
     m_othersBox->setObjectName(QStringLiteral("clipboardCollectOthers"));
-    m_othersBox->setToolTip(QCoreApplication::translate("jp::ClipboardPane", "Only plain text and pictures are kept, and nothing a password manager marks as secret."));
+    m_othersBox->setToolTip(QCoreApplication::translate("jp::ClipboardPane", "Only plain text and pictures are kept (a picture of up to about 2 million pixels), and nothing a password manager marks as secret."));
     col->addWidget(m_othersBox);
     if (!ClipboardHistory::canCollectOtherPrograms()) m_othersBox->hide();
-    auto *note = plainLabel(new QLabel(QCoreApplication::translate("jp::ClipboardPane", "Items are kept in this program only, until it is closed. Nothing is saved to a file."), this));
-    note->setWordWrap(true);
-    col->addWidget(note);
+    m_note = plainLabel(new QLabel(QCoreApplication::translate("jp::ClipboardPane", "Items are kept in this program only, and nothing is saved to a file. They are cleared when the last window of the program is closed. An item stays here after the document it came from is closed."), this));
+    m_note->setWordWrap(true);
+    col->addWidget(m_note);
 
     ClipboardHistory *h = ClipboardHistory::instance();
     m_closedBox->setChecked(h->collectWhenClosed());
@@ -176,7 +176,10 @@ void ClipboardPane::pasteAll()
 {
     QList<quint64> ids;
     for (const ClipboardHistory::Item &it : ClipboardHistory::instance()->items()) ids.prepend(it.id);
+    const bool grouped = m_host.beginSteps && m_host.endSteps;
+    if (grouped) m_host.beginSteps();
     for (quint64 id : ids) pasteItem(id);
+    if (grouped) m_host.endSteps();
 }
 
 void ClipboardPane::clearAll()

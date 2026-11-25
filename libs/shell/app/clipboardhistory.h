@@ -11,6 +11,9 @@
 #include <QList>
 #include <QObject>
 #include <QPair>
+#include <QPointer>
+#include <QStringList>
+#include <any>
 #include <QString>
 #include <functional>
 
@@ -18,13 +21,27 @@ class QMimeData;
 
 namespace jp {
 
+// What is offered on the clipboard, as the history asks about it: the names of the forms, a size where one is known without fetching, and a read that stops at a limit. The platform's own offer
+// (a mime data) is wrapped by ClipboardHistory::noteClipboard; the tests give one that counts every byte it hands over.
+class JO_COMMON_EXPORT ClipboardSource {
+public:
+    virtual ~ClipboardSource() = default;
+    virtual QStringList formats() const = 0;
+    virtual qint64 sizeOf(const QString &format) const { Q_UNUSED(format); return -1; }   // -1: not known without fetching
+    // The bytes of a form, at most `most` of them: when there are more, `*over` is set and nothing is returned.
+    virtual QByteArray read(const QString &format, qint64 most, bool *over) const = 0;
+    // A picture of this program's own copy (already in memory, so its size is known without copying it).
+    virtual QImage ownImage() const { return QImage(); }
+};
+
 class JO_COMMON_EXPORT ClipboardHistory : public QObject {
     Q_OBJECT
 public:
     static constexpr int kMostItems = 24;
     static constexpr qint64 kMostItemBytes = qint64(8) << 20;
     static constexpr qint64 kMostTotalBytes = qint64(64) << 20;
-    static constexpr qint64 kMostImagePixels = 40000000;   // a picture over this is not decoded
+    static constexpr int kMostFormats = 32;                    // forms kept of one of this program's copies (its own forms and the standard text and picture ones come first)
+    static constexpr qint64 kMostImagePixels = kMostItemBytes / 4;   // a picture is counted at 4 bytes a pixel: one over this is refused from its header, before it is decoded
 
     enum class Kind { Text, FormattedText, Cells, Picture, Shapes, Slides, Other };
 
@@ -37,6 +54,7 @@ public:
         QList<QPair<QString, QByteArray>> formats;                // every form but the picture, in the order the copy made them
         QImage picture;                                           // the picture form, when there is one
         qint64 bytes = 0;
+        std::any ownState;                                        // what the app keeps of its own copy besides the clipboard (see setOwnStateHooks), handed back when the item is put back
     };
 
     // The one history of this run (a child of the application: its end is the program's).
@@ -52,6 +70,9 @@ public:
     void addOpenPane(int by);   // +1 when a pane is shown, -1 when it is hidden or gone
     bool paneOpen() const { return m_openPanes > 0; }
     void setCollectWhenClosed(bool on);   // kept in the settings (an option of the pane)
+    // Called once as an app starts: when the person asked to keep collecting with the pane closed, the history is made now (one settings read), so that it collects from the first copy. When not,
+    // nothing is made and nothing watches the clipboard.
+    static void startIfAsked();
     bool collectWhenClosed() const { return m_whenClosed; }
     // What other programs copy (plain text and pictures only), off until the person turns it on, and not kept between runs. Not offered on a system whose secret hint the program cannot read.
     static bool canCollectOtherPrograms();
@@ -62,11 +83,16 @@ public:
     // Makes an item of what is on the clipboard now (the seam of the tests: the slot that watches the clipboard calls this). `own` says this program put it there. Returns the item's id, or 0
     // when nothing was kept (it was secret, empty, too large, the same as the newest, or another program's and not wanted).
     quint64 noteClipboard(const QMimeData *mime, bool own);
+    quint64 noteSource(const ClipboardSource &source, bool own);
     // The same, from a mime data that is not the clipboard (for the tests of the bounds).
     static bool isSecret(const QMimeData *mime);
 
+    // An app that keeps something of its own copy outside the clipboard (JeffWrite keeps the copied text with its structure) gives the history a way to take it as an own copy is noted and to give it
+    // back before the item is put on the clipboard again, so that an older item pastes as it did when it was the newest. `take` may return an empty value.
+    static void setOwnStateHooks(const std::function<std::any(const QMimeData *)> &take, const std::function<void(const std::any &)> &give);
+
     // An ordinary copy of the item: its forms put on the clipboard (the history does not add it again). False when it is gone.
-    bool putOnClipboard(quint64 id);
+    bool putOnClipboard(quint64 id);   // (the change notice this makes, however late it comes, is not a copy)
     QMimeData *mimeOf(quint64 id) const;   // a copy of the item's forms (the caller owns it); null when it is gone
     void remove(quint64 id);
     void clear();
@@ -89,6 +115,7 @@ private:
     bool m_whenClosed = false, m_others = false, m_watching = false, m_putting = false;
     int m_tooLarge = 0, m_dropped = 0;
     std::function<bool()> m_owns;
+    QPointer<QMimeData> m_put;   // what putOnClipboard gave the clipboard: while it is what the clipboard holds, a change notice is not a new copy
 };
 
 } // namespace jp

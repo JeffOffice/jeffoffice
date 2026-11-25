@@ -15,7 +15,9 @@
 #include <QMainWindow>
 #include <QMimeData>
 #include <QPushButton>
+#include <QSettings>
 #include <QtTest>
+#include <any>
 
 using namespace jp;
 
@@ -28,8 +30,19 @@ QMimeData *textCopy(const QString &text)
     return md;
 }
 
+// The setting "keep collecting when the pane is closed" as the test found it.
+struct CollectSettingGuard {
+    QVariant was = QSettings().value(QStringLiteral("clipboard/collectWhenClosed"));
+    ~CollectSettingGuard()
+    {
+        if (was.isValid()) QSettings().setValue(QStringLiteral("clipboard/collectWhenClosed"), was);
+        else QSettings().remove(QStringLiteral("clipboard/collectWhenClosed"));
+    }
+};
+
 // The history of the test, started over, collecting.
 struct Fresh {
+    CollectSettingGuard setting;
     ClipboardHistory *h = nullptr;
     Fresh()
     {
@@ -55,6 +68,59 @@ struct ClipboardGuard {
     }
     ~ClipboardGuard() { QApplication::clipboard()->setMimeData(was); }
 };
+
+// An offer that never holds the bytes: it counts what a read hands over, which is at most what was asked for (a bounded read), or nothing when the size was told beforehand.
+class CountingSource : public ClipboardSource {
+public:
+    QMap<QString, qint64> offered;   // form -> bytes offered
+    bool tellSizes = false;
+    mutable qint64 handed = 0;
+    mutable QStringList asked;
+    QByteArray smallPng;
+    QStringList formats() const override { return offered.keys(); }
+    qint64 sizeOf(const QString &format) const override { return tellSizes ? offered.value(format) : -1; }
+    QByteArray read(const QString &format, qint64 most, bool *over) const override
+    {
+        asked << format;
+        if (!smallPng.isEmpty() && format.startsWith(QLatin1String("image/"))) {
+            handed += smallPng.size();
+            return smallPng;
+        }
+        const qint64 total = offered.value(format);
+        handed += std::min(total, most + 1);
+        if (total > most) {
+            *over = true;
+            return QByteArray();
+        }
+        return QByteArray(int(total), 'x');
+    }
+};
+
+// A mime data that says what was fetched from it, as the platform's offer does.
+class FetchLogMime : public QMimeData {
+public:
+    QMap<QString, QByteArray> have;
+    mutable QStringList fetched;
+    QStringList formats() const override { return have.keys(); }
+
+protected:
+    QVariant retrieveData(const QString &format, QMetaType) const override
+    {
+        fetched << format;
+        return have.value(format);
+    }
+};
+
+QByteArray pngOf(int w, int h, QImage::Format format)
+{
+    QImage image(w, h, format);
+    image.fill(0);
+    QByteArray png;
+    QBuffer buffer(&png);
+    buffer.open(QIODevice::WriteOnly);
+    image.save(&buffer, "PNG");
+    return png;
+}
 
 QString textOnClipboard()
 {
@@ -180,7 +246,225 @@ private Q_SLOTS:
         QCOMPARE(f.h->droppedCount(), 1);
     }
 
-    // A picture from another program is not decoded past 40 million pixels, and a small one is kept with a thumbnail of at most 64 pixels.
+    // Another program's copy of 300 MB is never fetched whole: the read stops at the cap, and a size told beforehand refuses it without any read.
+    void anOfferFromAnotherProgramIsReadOnlyUpToTheCap()
+    {
+        if (!ClipboardHistory::canCollectOtherPrograms()) QSKIP("other programs are not collected here");
+        Fresh f;
+        f.h->setCollectOtherPrograms(true);
+        CountingSource text;
+        text.offered.insert(QStringLiteral("text/plain"), qint64(300) << 20);
+        QCOMPARE(f.h->noteSource(text, false), quint64(0));
+        QCOMPARE(f.h->tooLargeCount(), 1);
+        QVERIFY(text.handed <= ClipboardHistory::kMostItemBytes + 1);
+        CountingSource told;
+        told.tellSizes = true;
+        told.offered.insert(QStringLiteral("text/plain"), qint64(300) << 20);
+        QCOMPARE(f.h->noteSource(told, false), quint64(0));
+        QCOMPARE(told.handed, qint64(0));
+        QVERIFY(told.asked.isEmpty());
+        QCOMPARE(f.h->tooLargeCount(), 2);
+        // A big picture form the same way.
+        CountingSource picture;
+        picture.offered.insert(QStringLiteral("image/png"), qint64(300) << 20);
+        QCOMPARE(f.h->noteSource(picture, false), quint64(0));
+        QVERIFY(picture.handed <= ClipboardHistory::kMostItemBytes + 1);
+        QCOMPARE(f.h->tooLargeCount(), 3);
+    }
+
+    // A copy made here is checked by the size it tells before its bytes are taken.
+    void anOwnCopyIsRefusedBySizeBeforeAnyByteIsTaken()
+    {
+        Fresh f;
+        CountingSource own;
+        own.tellSizes = true;
+        own.offered.insert(QStringLiteral("application/x-test"), qint64(300) << 20);
+        QCOMPARE(f.h->noteSource(own, true), quint64(0));
+        QCOMPARE(own.handed, qint64(0));
+        QCOMPARE(f.h->tooLargeCount(), 1);
+    }
+
+    // Of what another program offers, only the plain text and one picture form are fetched.
+    void onlyTheTwoFormsKeptAreFetchedFromAnotherProgram()
+    {
+        if (!ClipboardHistory::canCollectOtherPrograms()) QSKIP("other programs are not collected here");
+        Fresh f;
+        f.h->setCollectOtherPrograms(true);
+        FetchLogMime md;
+        md.have.insert(QStringLiteral("text/plain"), "hello");
+        md.have.insert(QStringLiteral("text/html"), "<b>hello</b>");
+        md.have.insert(QStringLiteral("application/x-other"), QByteArray(1000, 'z'));
+        md.have.insert(QStringLiteral("image/png"), pngOf(20, 10, QImage::Format_RGB32));
+        md.have.insert(QStringLiteral("image/jpeg"), QByteArray("not a picture"));
+        QVERIFY(f.h->noteClipboard(&md, false) != 0);
+        QStringList got = md.fetched;
+        got.sort();
+        QCOMPARE(got, (QStringList{QStringLiteral("image/png"), QStringLiteral("text/plain")}));
+        QCOMPARE(f.h->items().first().preview, QStringLiteral("hello"));
+    }
+
+    // A picture's size is read from its header: a big one that would decode to less than 8 MB is still refused before it is decoded, and the limit is one number.
+    void aPictureOverThePixelLimitIsRefusedFromItsHeader()
+    {
+        if (!ClipboardHistory::canCollectOtherPrograms()) QSKIP("other programs are not collected here");
+        Fresh f;
+        f.h->setCollectOtherPrograms(true);
+        QCOMPARE(ClipboardHistory::kMostImagePixels * 4, ClipboardHistory::kMostItemBytes);
+        CountingSource source;
+        source.offered.insert(QStringLiteral("image/png"), 1);
+        source.smallPng = pngOf(3000, 3000, QImage::Format_Mono);   // 9 million pixels, about 1 MB decoded, a few KB of file
+        QVERIFY(source.smallPng.size() < 100000);
+        QCOMPARE(f.h->noteSource(source, false), quint64(0));
+        QCOMPARE(f.h->tooLargeCount(), 1);
+        source.smallPng = pngOf(1000, 1000, QImage::Format_Mono);   // a million: kept
+        QVERIFY(f.h->noteSource(source, false) != 0);
+    }
+
+    // A copy made here keeps what the pane needs to paste it back, not its picture form when that is large; and it keeps a bounded number of forms.
+    void aLargePictureFormDoesNotDropAnOwnCopy()
+    {
+        Fresh f;
+        auto *md = new QMimeData;
+        md->setData(QStringLiteral("application/x-jeffcrunch-cells"), "cells");
+        md->setText(QStringLiteral("a\tb"));
+        QImage big(3000, 3000, QImage::Format_ARGB32);   // 36 MB
+        big.fill(Qt::blue);
+        md->setImageData(big);
+        const std::unique_ptr<QMimeData> keep(md);
+        QVERIFY(f.h->noteClipboard(md, true) != 0);
+        QCOMPARE(f.h->tooLargeCount(), 0);
+        const ClipboardHistory::Item item = f.h->items().first();
+        QCOMPARE(item.kind, ClipboardHistory::Kind::Cells);
+        QVERIFY(item.picture.isNull());
+        QVERIFY(!item.thumbnail.isNull() && item.thumbnail.width() <= 64);
+        QVERIFY(item.bytes < 1000);
+        // A picture alone that is over the cap is not kept, and it is said.
+        auto *only = new QMimeData;
+        only->setImageData(big);
+        const std::unique_ptr<QMimeData> keepOnly(only);
+        QCOMPARE(f.h->noteClipboard(only, true), quint64(0));
+        QCOMPARE(f.h->tooLargeCount(), 1);
+    }
+
+    void aCopyWithThousandsOfFormsKeepsAFewIncludingTheAppsOwn()
+    {
+        Fresh f;
+        auto *md = new QMimeData;
+        for (int i = 0; i < 10001; ++i) md->setData(QStringLiteral("application/x-filler-%1").arg(i), "x");
+        md->setData(QStringLiteral("application/x-jeffcrunch-cells"), "cells");
+        md->setText(QStringLiteral("text"));
+        const std::unique_ptr<QMimeData> keep(md);
+        QVERIFY(f.h->noteClipboard(md, true) != 0);
+        const ClipboardHistory::Item item = f.h->items().first();
+        QVERIFY(item.formats.size() <= ClipboardHistory::kMostFormats);
+        QStringList names;
+        for (const auto &p : item.formats) names << p.first;
+        QVERIFY(names.contains(QStringLiteral("application/x-jeffcrunch-cells")));
+        QVERIFY(names.contains(QStringLiteral("text/plain")));
+        QCOMPARE(item.kind, ClipboardHistory::Kind::Cells);
+    }
+
+    // "Keep collecting when this pane is closed" is in force from the first copy of a new run, without the pane being opened; when it is off nothing is made.
+    void collectingWhenClosedStartsWithTheApp()
+    {
+        ClipboardGuard guard;
+        CollectSettingGuard setting;
+        delete ClipboardHistory::instance();
+        QSettings().setValue(QStringLiteral("clipboard/collectWhenClosed"), false);
+        ClipboardHistory::startIfAsked();
+        QVERIFY(!qApp->findChild<ClipboardHistory *>(QString(), Qt::FindDirectChildrenOnly));
+        QSettings().setValue(QStringLiteral("clipboard/collectWhenClosed"), true);
+        ClipboardHistory::startIfAsked();
+        ClipboardHistory *h = qApp->findChild<ClipboardHistory *>(QString(), Qt::FindDirectChildrenOnly);
+        QVERIFY(h);
+        QVERIFY(!h->paneOpen());
+        h->setOwnerCheckForTest([] { return true; });
+        QApplication::clipboard()->setMimeData(textCopy(QStringLiteral("before any pane")));
+        QTRY_COMPARE(h->items().size(), 1);
+        delete h;
+    }
+
+    // The sentence under the list says what the history does: it goes with the last window, and an item stays after its document is closed.
+    void theNoteSaysWhenItemsGo()
+    {
+        Fresh f;
+        ClipboardPane pane{ClipboardPaneHost()};
+        const QString note = pane.noteLabel()->text();
+        QVERIFY2(note.contains(QStringLiteral("last window")), qPrintable(note));
+        QVERIFY2(note.contains(QStringLiteral("after the document")), qPrintable(note));
+        QVERIFY(!note.contains(QStringLiteral("until it is closed")));
+    }
+
+    // Putting an item back is not a new copy when the change notice comes after putOnClipboard has returned: the list does not move.
+    void aLateChangeNoticeOfAnItemPutBackIsNotACopy()
+    {
+        ClipboardGuard guard;
+        Fresh f;
+        f.h->setOwnerCheckForTest([] { return true; });
+        for (const char *w : {"x", "y"}) {
+            const std::unique_ptr<QMimeData> md(textCopy(QLatin1String(w)));
+            f.h->noteClipboard(md.get(), true);
+        }
+        const quint64 older = f.h->items().last().id;
+        QVERIFY(f.h->putOnClipboard(older));
+        for (int turn = 0; turn < 3; ++turn) QCoreApplication::processEvents();
+        Q_EMIT QApplication::clipboard()->dataChanged();   // (a system that tells late)
+        QCOMPARE(f.h->items().first().preview, QStringLiteral("y"));
+        QCOMPARE(f.h->items().size(), 2);
+        // A real copy of the same words afterwards is a copy: it comes to the front.
+        QApplication::clipboard()->setMimeData(textCopy(QStringLiteral("x")));
+        QTRY_COMPARE(f.h->items().first().preview, QStringLiteral("x"));
+    }
+
+    // What an app keeps of its own copy outside the clipboard goes with the item and is given back when it is put back.
+    void anItemCarriesWhatTheAppKeptOfItsCopy()
+    {
+        ClipboardGuard guard;
+        Fresh f;
+        f.h->setOwnerCheckForTest([] { return true; });
+        QString state = QStringLiteral("newest");
+        QStringList given;
+        ClipboardHistory::setOwnStateHooks([&state](const QMimeData *) { return std::any(state); }, [&given](const std::any &a) { given << std::any_cast<QString>(a); });
+        struct Reset {
+            ~Reset() { ClipboardHistory::setOwnStateHooks(nullptr, nullptr); }
+        } reset;
+        for (const char *w : {"one", "two"}) {
+            state = QLatin1String(w);
+            const std::unique_ptr<QMimeData> md(textCopy(QLatin1String(w)));
+            f.h->noteClipboard(md.get(), true);
+        }
+        QVERIFY(f.h->putOnClipboard(f.h->items().last().id));
+        QCOMPARE(given, QStringList{QStringLiteral("one")});
+    }
+
+    // Two panes of one app (two windows) share the history and the count of open panes; Delete and Clear All reach both.
+    void twoPanesShareOneHistory()
+    {
+        Fresh f;
+        f.h->addOpenPane(-1);
+        ClipboardPane a{ClipboardPaneHost()}, b{ClipboardPaneHost()};
+        a.setShown(true);
+        b.setShown(true);
+        QVERIFY(f.h->paneOpen());
+        for (const char *w : {"p", "q", "r"}) {
+            const std::unique_ptr<QMimeData> md(textCopy(QLatin1String(w)));
+            f.h->noteClipboard(md.get(), true);
+        }
+        QCOMPARE(a.list()->count(), 3);
+        QCOMPARE(b.list()->count(), 3);
+        a.list()->setCurrentRow(0);
+        a.deleteCurrent();
+        QCOMPARE(b.list()->count(), 2);
+        a.setShown(false);
+        QVERIFY(f.h->paneOpen());
+        b.clearAll();
+        QCOMPARE(a.list()->count(), 0);
+        QVERIFY(f.h->items().isEmpty());
+        b.setShown(false);
+        QVERIFY(!f.h->paneOpen());
+    }
+
+    // A picture from another program is not decoded past the pixel limit, and a small one is kept with a thumbnail of at most 64 pixels.
     void aHugePictureFromAnotherProgramIsNotDecoded()
     {
         if (!ClipboardHistory::canCollectOtherPrograms()) QSKIP("other programs are not collected here");
