@@ -32,7 +32,6 @@
 #include <QUndoStack>
 
 #include "../testrunner.h"
-#include "app/filedialogs.h"
 
 using namespace jp;
 using namespace crunchtest;
@@ -606,7 +605,7 @@ private Q_SLOTS:
         QVERIFY(colors->actions().isEmpty());
     }
 
-    // Save Current Theme on a workbook with no theme part says there is nothing to save, and asks for no file (it did nothing, silently, while it was on).
+    // Save Current Theme on a workbook with no theme part says there is nothing to save, and opens no file box (it did nothing, silently, while it was on).
     void saveCurrentThemeOnAWorkbookWithNoThemeSaysSo()
     {
         EditWindow e;
@@ -615,18 +614,31 @@ private Q_SLOTS:
         QVERIFY(!e.win.w.session()->hasTheme());
         QStringList told;
         e.win.w.setNotifier([&told](const QString &title, const QString &text) { told << title + QStringLiteral(": ") + text; });
-        int asked = 0;
-        jp::setSavePathStandIn([&asked](const QString &, const QString &, const QString &, QString *) {
-            ++asked;
-            return QString();
-        });
         QAction *save = e.win.w.act(QStringLiteral("design.themes.save"));
         QVERIFY(save && save->isEnabled());
         save->trigger();
-        jp::setSavePathStandIn({});
-        QCOMPARE(asked, 0);
+        QVERIFY(QApplication::activeModalWidget() == nullptr);   // (no file box was opened)
         QCOMPARE(told.size(), 1);
         QVERIFY2(told.first().startsWith(QStringLiteral("Save Current Theme: ")), qPrintable(told.first()));
+    }
+
+    // The theme of a workbook that has one is written to a theme file (a package of one theme), which is what Save Current Theme does once a file is chosen.
+    void theCurrentThemeIsWrittenToAThemeFile()
+    {
+        EditWindow e;
+        QVERIFY(e.openBlank());
+        QVERIFY(e.settle());
+        QVERIFY(e.win.w.session()->hasTheme());
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        const QString file = dir.filePath(QStringLiteral("saved.thmx"));
+        QVERIFY(e.win.w.saveThemeFile(file));
+        QFile f(file);
+        QVERIFY(f.open(QIODevice::ReadOnly));
+        const QByteArray bytes = f.readAll();
+        f.close();
+        QVERIFY(bytes.startsWith("PK"));
+        QVERIFY(bytes.size() > 100);
     }
 
     // A theme part larger than a theme may be is left as it is: the workbook has the usual colors and takes no theme.
