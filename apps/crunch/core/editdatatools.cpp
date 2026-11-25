@@ -2,6 +2,7 @@
 #include "core/editsession.h"
 
 #include "calc/value.h"
+#include "core/syslocale.h"
 
 #include <QCoreApplication>
 #include <QDate>
@@ -72,7 +73,7 @@ namespace {
 int monthNamed(const QString &word)
 {
     if (word.size() < 3) return 0;
-    for (const QLocale &locale : {QLocale(QLocale::English), QLocale()})
+    for (const QLocale &locale : {QLocale(QLocale::English), jp::workerLocale()})
         for (int m = 1; m <= 12; ++m)
             if (locale.monthName(m, QLocale::LongFormat).startsWith(word, Qt::CaseInsensitive) || locale.monthName(m, QLocale::ShortFormat).startsWith(word, Qt::CaseInsensitive)) return m;
     return 0;
