@@ -282,6 +282,7 @@ void paintPage(QPainter *p, flow::MaterializedPage &page, LayoutCache *layouts, 
     ctx.opt.maxImageDpi = d.maxImageDpi;
     ctx.opt.flattenTransparency = d.flattenTransparency;
     ctx.opt.exactImageDpi = true;
+    ctx.opt.filtersLater = d.filtersLater;
     if (d.tagger) d.tagger->install(&ctx, page);
     const QString bodyId = bodyStoryId(page);
     const Story *body = bodyId.isEmpty() ? nullptr : page.doc->story(bodyId);

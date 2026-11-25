@@ -84,6 +84,14 @@ int picturesNotChanged(const Document &doc, PictureKept kind);
 // How many pictures have filters left out (more than can be worked out on the picture: only a file can have them).
 int picturesWithEffectsLeftOut(const Document &doc);
 QVector<InspectItem> pictureInspectItems(Editor *ed);
+// One row of the above, for an app that keeps its pictures another way (the word processor's are the text of a drawing): the words are here, once; `count` and `remove` are the app's, and
+// `notChanged` and `leftAsIs` the numbers the row tells (drawings and linked pictures it can't change; crops it leaves because another object shows more of the same picture).
+InspectItem pictureKeptInspectRow(PictureKept kind, const std::function<int()> &count, const std::function<int()> &remove, int notChanged, int leftAsIs);
+// The pixels of a picture of `px` pixels that `p` shows (and a margin all round), the test whether any pixel outside `keep` is something, and the picture with all outside `keep` cleared, as
+// the cropped-parts row does them, for an app that clears pictures its own way.
+QRect pictureShownPixels(const PictureItem &p, const QSize &px);
+bool pictureHasContentOutside(const QImage &img, const QRect &keep);
+QImage pictureClearedOutside(const QImage &in, const QRect &keep);
 
 // Crop to Shape's gallery: the closed shapes of the Shapes gallery that a file keeps by a preset name (the id is the shape's id: office::presetForShape gives its preset).
 QVector<GalleryItem> cropShapeItems();

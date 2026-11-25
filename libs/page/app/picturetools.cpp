@@ -601,24 +601,28 @@ bool bakePicture(Document &doc, PictureItem &p, PictureKept kind)
     return true;
 }
 
+// `in` with every pixel outside `keep` made what it is cleared to.
+QImage clearedOutside(const QImage &in, const QRect &keep)
+{
+    QImage img = in.convertToFormat(QImage::Format_ARGB32);
+    // A picture with no transparency stays one: its outside is the average color of the edge of what is kept, opaque, and it is stored with no alpha channel when it had none (one that
+    // had a channel that is all opaque keeps it, as it is drawn the way its kind is).
+    const bool opaque = hasNoTransparency(img);
+    const QRgb outside = opaque ? edgeAverage(img, keep) : 0;
+    for (int y = 0; y < img.height(); ++y) {
+        QRgb *row = reinterpret_cast<QRgb *>(img.scanLine(y));
+        const bool inside = y >= keep.top() && y <= keep.bottom();
+        for (int x = 0; x < img.width(); ++x)
+            if (!(inside && x >= keep.left() && x <= keep.right())) row[x] = outside;
+    }
+    return opaque && !in.hasAlphaChannel() ? img.convertToFormat(QImage::Format_RGB32) : img;
+}
+
 // Clears `p` (and the others of `images`, which hold the same picture) outside the plan's pixels: the picture keeps its size, its place, and its crop, so each pixel that shows is
 // drawn where it was. A removal's mask is cleared the same way (its strokes are not kept: they were shares of the whole picture).
 bool cutPicture(Document &doc, PictureItem &p, const CutPlan &plan, QHash<QString, QString> &images)
 {
-    auto cleared = [&plan](const QImage &in) {
-        QImage img = in.convertToFormat(QImage::Format_ARGB32);
-        // A picture with no transparency stays one: its outside is the average color of the edge of what is kept, opaque, and it is stored with no alpha channel when it had none (one that
-        // had a channel that is all opaque keeps it, as it is drawn the way its kind is).
-        const bool opaque = hasNoTransparency(img);
-        const QRgb outside = opaque ? edgeAverage(img, plan.keep) : 0;
-        for (int y = 0; y < img.height(); ++y) {
-            QRgb *row = reinterpret_cast<QRgb *>(img.scanLine(y));
-            const bool inside = y >= plan.keep.top() && y <= plan.keep.bottom();
-            for (int x = 0; x < img.width(); ++x)
-                if (!(inside && x >= plan.keep.left() && x <= plan.keep.right())) row[x] = outside;
-        }
-        return opaque && !in.hasAlphaChannel() ? img.convertToFormat(QImage::Format_RGB32) : img;
-    };
+    auto cleared = [&plan](const QImage &in) { return clearedOutside(in, plan.keep); };
     if (plan.finish) {
         const QImage img = finishedPicture(doc, p, p.removal.isValid() && p.removal.source == doc.imageSize(p.imageId), true);
         if (img.size() != plan.size) return false;   // (a picture too big to be worked on is not finished: it is left as it is)
@@ -712,34 +716,47 @@ int removeKeptPictureParts(Editor *ed, PictureKept kind)
     return n;
 }
 
+QRect pictureShownPixels(const PictureItem &p, const QSize &px) { return shownPixels(p, px); }
+bool pictureHasContentOutside(const QImage &img, const QRect &keep) { return hasContentOutside(img, keep); }
+QImage pictureClearedOutside(const QImage &in, const QRect &keep) { return clearedOutside(in, keep); }
+
+InspectItem pictureKeptInspectRow(PictureKept kind, const std::function<int()> &count, const std::function<int()> &remove, int notChanged, int leftAsIs)
+{
+    InspectItem item;
+    switch (kind) {
+    case PictureKept::FilterOriginals:
+        item.title = QCoreApplication::translate("jp::PictureTools", "Original pictures kept under picture effects");
+        item.detail = QCoreApplication::translate("jp::PictureTools", "A picture effect such as Blur or Mosaic changes how a picture looks, but the original picture stays in the file, and anyone who gets the file can take it out. Removing it keeps only the finished picture: Reset Picture can then no longer bring the original back.");
+        item.action = QCoreApplication::translate("jp::PictureTools", "Remove Originals");
+        break;
+    case PictureKept::RemovedBackgrounds:
+        item.title = QCoreApplication::translate("jp::PictureTools", "Whole pictures kept under removed backgrounds");
+        item.detail = QCoreApplication::translate("jp::PictureTools", "When you remove the background of a picture, the whole original picture stays in the file. Removing it keeps only the picture without its background: Remove Background can then no longer bring the background back.");
+        item.action = QCoreApplication::translate("jp::PictureTools", "Remove Originals");
+        break;
+    case PictureKept::CroppedAreas:
+        item.title = QCoreApplication::translate("jp::PictureTools", "Cropped-away parts of pictures");
+        item.detail = QCoreApplication::translate("jp::PictureTools", "A cropped picture still holds the parts you cropped away, and anyone who gets the file can see them. Removing them clears each picture outside what shows (a thin border around it stays), so that the page looks exactly as before: the crop can then no longer be undone by dragging its edges out. A picture with a picture effect, such as Blur, is first made into its finished picture, so Reset Picture can no longer bring its original back. The picture file may get larger.");
+        item.action = QCoreApplication::translate("jp::PictureTools", "Remove Cropped Parts");
+        break;
+    }
+    if (notChanged > 0)
+        item.detail += QLatin1Char(' ') + QCoreApplication::translate("jp::PictureTools", "%n picture is a drawing or a linked picture, which cannot be changed here.", nullptr, notChanged);
+    if (kind == PictureKept::CroppedAreas && leftAsIs > 0)
+        item.detail += QLatin1Char(' ') + QCoreApplication::translate("jp::PictureTools", "%n picture is left as it is, because another object shows more of the same picture.", nullptr, leftAsIs);
+    item.count = count;
+    item.remove = remove;
+    return item;
+}
+
 QVector<InspectItem> pictureInspectItems(Editor *ed)
 {
     // (a drawing or a linked picture, and a crop that would look different if it were cut, are told and left as they are: never skipped silently)
-    auto row = [ed](PictureKept kind, const QString &title, const QString &detail, const QString &action) {
-        InspectItem item;
-        item.title = title;
-        item.detail = detail;
-        if (const int n = picturesNotChanged(*ed->doc(), kind); n > 0)
-            item.detail += QLatin1Char(' ') + QCoreApplication::translate("jp::PictureTools", "%n picture is a drawing or a linked picture, which cannot be changed here.", nullptr, n);
-        if (kind == PictureKept::CroppedAreas)
-            if (const int n = picturesCroppedAndLeft(*ed->doc()); n > 0)
-                item.detail += QLatin1Char(' ') + QCoreApplication::translate("jp::PictureTools", "%n picture is left as it is, because another object shows more of the same picture.", nullptr, n);
-        item.count = [ed, kind] { return picturesKeeping(*ed->doc(), kind); };
-        item.remove = [ed, kind] { return removeKeptPictureParts(ed, kind); };
-        item.action = action;
-        return item;
+    auto row = [ed](PictureKept kind) {
+        return pictureKeptInspectRow(kind, [ed, kind] { return picturesKeeping(*ed->doc(), kind); }, [ed, kind] { return removeKeptPictureParts(ed, kind); }, picturesNotChanged(*ed->doc(), kind),
+                                     kind == PictureKept::CroppedAreas ? picturesCroppedAndLeft(*ed->doc()) : 0);
     };
-    QVector<InspectItem> rows{
-        row(PictureKept::FilterOriginals, QCoreApplication::translate("jp::PictureTools", "Original pictures kept under picture effects"),
-            QCoreApplication::translate("jp::PictureTools", "A picture effect such as Blur or Mosaic changes how a picture looks, but the original picture stays in the file, and anyone who gets the file can take it out. Removing it keeps only the finished picture: Reset Picture can then no longer bring the original back."),
-            QCoreApplication::translate("jp::PictureTools", "Remove Originals")),
-        row(PictureKept::RemovedBackgrounds, QCoreApplication::translate("jp::PictureTools", "Whole pictures kept under removed backgrounds"),
-            QCoreApplication::translate("jp::PictureTools", "When you remove the background of a picture, the whole original picture stays in the file. Removing it keeps only the picture without its background: Remove Background can then no longer bring the background back."),
-            QCoreApplication::translate("jp::PictureTools", "Remove Originals")),
-        row(PictureKept::CroppedAreas, QCoreApplication::translate("jp::PictureTools", "Cropped-away parts of pictures"),
-            QCoreApplication::translate("jp::PictureTools", "A cropped picture still holds the parts you cropped away, and anyone who gets the file can see them. Removing them clears each picture outside what shows (a thin border around it stays), so that the page looks exactly as before: the crop can then no longer be undone by dragging its edges out. A picture with a picture effect, such as Blur, is first made into its finished picture, so Reset Picture can no longer bring its original back. The picture file may get larger."),
-            QCoreApplication::translate("jp::PictureTools", "Remove Cropped Parts")),
-    };
+    QVector<InspectItem> rows{row(PictureKept::FilterOriginals), row(PictureKept::RemovedBackgrounds), row(PictureKept::CroppedAreas)};
     // (only a file can hold more effects than can be worked out: said, never left out silently)
     if (picturesWithEffectsLeftOut(*ed->doc()) > 0) {
         InspectItem left;

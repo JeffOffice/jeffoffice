@@ -137,10 +137,7 @@ QByteArray withPictureFxBlip(const QByteArray &xml, const QString &shownRid, con
 
 const char *pictureFxExtensionUri() { return dmlwrite::kPictureFxExtension; }
 
-QString pictureFxKeyFor(const QByteArray &originalBytes)
-{
-    return QStringLiteral("fx|%1|%2").arg(originalBytes.size()).arg(qHash(originalBytes));
-}
+QString pictureFxKeyFor(const QByteArray &originalBytes, const QSize &pixels) { return blipSourceKey(originalBytes, pixels); }
 
 QByteArray pictureFxFinishedPng(const QImage &original, const QVector<BlipEffect> &filters, const QString &sourceKey, const std::atomic<bool> *stop)
 {

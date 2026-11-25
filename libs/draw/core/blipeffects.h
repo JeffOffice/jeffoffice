@@ -68,6 +68,9 @@ int blipFiltersLeftOut(qint64 pixels, const QVector<BlipEffect> &effects);
 // profile applied), so that what it comes to is kept once.
 // With `stop` set to true the work ends early; what comes back then is not finished, and is not kept.
 QImage blipAdjusted(const QImage &image, const QVector<BlipEffect> &effects, const std::atomic<bool> *stop = nullptr, const QString &sourceKey = QString());
+// The picture's own name for that cache: its file's bytes and its size in pixels (not the image decoded from them, which is another each time it is decoded, and not the place it is drawn). The
+// renderer and an edit that works the filters out first both use it, so that a picture made by the edit is found by the next draw (`slide`: drawn as a slide's picture is).
+QString blipSourceKey(const QByteArray &fileBytes, const QSize &pixels, bool slide = false);
 // The same without waiting: what was kept if there is one; otherwise `image` as it is, with `*pending` set, and the work is queued for a thread of its own (a few at the most, one at a
 // time). When it is done the listeners are called on the application's thread, and the same call gives the finished picture.
 QImage blipAdjustedLater(const QImage &image, const QVector<BlipEffect> &effects, const QString &sourceKey, bool *pending);

@@ -16,6 +16,7 @@
 #include "app/grammarcheck.h"
 #include "core/spellcheck.h"
 #include "render/renderer.h"
+#include "core/blipeffects.h"
 #include "text/textprops.h"
 
 #include <QApplication>
@@ -110,6 +111,7 @@ PageView::PageView(QWidget *parent) : QAbstractScrollArea(parent)
         m_clipFetched.reset();
         m_clipFetchedOf = nullptr;
     });
+    m_filterListener = addBlipFilterListener([this] { viewport()->update(); });
     m_blink.setInterval(QApplication::cursorFlashTime() > 0 ? QApplication::cursorFlashTime() / 2 : 530);
     connect(&m_blink, &QTimer::timeout, this, &PageView::blink);
     m_autoscroll.setInterval(40);
@@ -133,7 +135,11 @@ PageView::PageView(QWidget *parent) : QAbstractScrollArea(parent)
     });
 }
 
-PageView::~PageView() { cancelMerge(); }
+PageView::~PageView()
+{
+    removeBlipFilterListener(m_filterListener);
+    cancelMerge();
+}
 
 void PageView::setDocument(WriteDoc *doc)
 {
@@ -748,6 +754,7 @@ void PageView::paintEvent(QPaintEvent *e)
             d.gridlines = m_gridlines;
             d.shadeFields = m_shadeFields;
             d.draft = m_draft || m_web;
+            d.filtersLater = true;   // (the view draws again when a picture's filters are done)
             d.found = m_findHighlights.isEmpty() ? nullptr : &m_findHighlights;
             if (m_doc && !m_hf.active && !m_note.active) d.controls = &controlMarks();
             d.foundIn = m_findSide;

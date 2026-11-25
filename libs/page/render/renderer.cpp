@@ -997,7 +997,10 @@ QImage Renderer::processedImage(const Document &doc, const PictureItem &pic, con
     if (QImage *c = cache.object(key + QLatin1Char('|') + effectsKey)) return *c;
     // What the filters come to is kept under the picture's own name (its id and size, and what is done to it before them: a removal, a profile), not under the pixels they are given, which
     // a removal or a profile makes again each time the picture is drawn.
-    const QString filterSource = QStringLiteral("%1|%2x%3|%4|%5").arg(pic.imageId).arg(src.width()).arg(src.height()).arg(QString::number(src.cacheKey()), (slide ? QStringLiteral("s") : QStringLiteral("p")) + (removed && !tinted ? pic.removal.key() : QString()));
+    // The picture's own name is its file's bytes and size (as an edit that worked the filters out first names it: blipSourceKey), so that what the edit made is what the next draw finds.
+    const QByteArray fileBytes = doc.images.value(pic.imageId).bytes;
+    const QString filterSource = (fileBytes.isEmpty() ? QStringLiteral("%1|%2x%3|%4").arg(pic.imageId).arg(src.width()).arg(src.height()).arg(QString::number(src.cacheKey()))
+                                                      : blipSourceKey(fileBytes, src.size(), slide)) + (removed && !tinted ? QLatin1Char('|') + pic.removal.key() : QString());
     bool filtersPending = false;
     const auto filtered = [&](const QImage &im) {
         const QVector<BlipEffect> filters = blipFilters(effects);

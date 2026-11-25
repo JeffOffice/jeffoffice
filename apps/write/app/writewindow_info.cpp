@@ -12,6 +12,8 @@
 #include "app/versionstore.h"
 #include "core/commentops.h"
 #include "core/inspectops.h"
+#include "app/picturetools.h"
+#include "core/pictureops.h"
 #include "core/reviewops.h"
 #include "core/mergeops.h"
 #include "io/crypto.h"
@@ -223,6 +225,12 @@ QVector<InspectItem> WriteWindow::inspectItems()
                      [doc] { return write::removeCustomXml(*doc); }, true, QString()});
     items.push_back({tr("Recipients left out of a mail merge"), tr("Which recipients of a mail merge you left out, kept with the document. Removing it means everyone is included the next time the list is read."),
                      [doc] { return write::mergeExclusionCount(*doc); }, [doc] { return write::removeMergeExclusions(*doc); }, true, QString()});
+    // The original under a picture effect, and the cropped-away parts of pictures: the rows the other programs have (libs/page/app/picturetools), with their words.
+    for (const PictureKept kind : {PictureKept::FilterOriginals, PictureKept::CroppedAreas}) {
+        int notChanged = 0, leftAsIs = 0;
+        write::keptPictureParts(*doc, kind, &notChanged, &leftAsIs);
+        items.push_back(pictureKeptInspectRow(kind, [doc, kind] { return write::keptPictureParts(*doc, kind); }, [doc, kind] { return write::removeKeptPictureParts(*doc, kind); }, notChanged, leftAsIs));
+    }
     // (the box asks for the count and then for the sentence: one look through the document serves both, and a removal makes the next look a new one)
     auto looked = std::make_shared<std::optional<write::ExternalLinkScan>>();
     items.push_back({tr("External links"), tr("Linked pictures and objects, the template the document is attached to, and fields that read another file. Removing turns fields into text, takes out linked pictures and objects, including those in comments and text boxes, and detaches the template. Links in comments and other kept parts can't be undone. Web links stay."),

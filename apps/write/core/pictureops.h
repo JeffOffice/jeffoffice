@@ -31,6 +31,10 @@
 #include <optional>
 #include <utility>
 
+namespace jp {
+enum class PictureKept;   // (app/picturetools.h)
+}
+
 namespace jp::write {
 
 enum class PictureWrap { Inline, Square, Tight, TopAndBottom, BehindText, InFrontOfText };
@@ -280,6 +284,13 @@ QVector<int> picturePositions(const WriteDoc &doc);
 // `deleteCropped`, the parts a picture is cut away from are taken out of the file's picture and the cut is gone, the frame and what shows staying as they were. All is one step that
 // undoes. The picture's own file part is let go of at save when nothing else names it. Returns the bytes saved (0 when nothing was smaller; no step is made then).
 qint64 compressPictures(WriteDoc &doc, double ppi, const QVector<int> &positions, bool deleteCropped);
+
+// What Inspect finds in the pictures of the text (the rows of libs/page/app/picturetools.h): the originals kept under picture filters, and the parts of pictures cropped out of sight. The count
+// is of pictures; `notChanged` and `leftAsIs` (when given) are what the row tells it leaves: drawings, linked pictures, and ones too large to look through, and crops that another picture shows more of.
+// The removal makes each picture keep only what shows, as a picture of its own, and the page looks the same (a cropped picture keeps its size and place, with the rest of its picture cleared); one
+// step. RemovedBackgrounds is not a kind of this program (it has no Remove Background).
+int keptPictureParts(const WriteDoc &doc, jp::PictureKept kind, int *notChanged = nullptr, int *leftAsIs = nullptr);
+int removeKeptPictureParts(WriteDoc &doc, jp::PictureKept kind);
 
 // ---- Shapes and text boxes
 

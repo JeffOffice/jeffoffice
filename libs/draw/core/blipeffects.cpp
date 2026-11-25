@@ -561,6 +561,11 @@ Later &later()
 
 } // namespace
 
+QString blipSourceKey(const QByteArray &fileBytes, const QSize &pixels, bool slide)
+{
+    return QStringLiteral("fx|%1|%2|%3x%4|%5").arg(fileBytes.size()).arg(qHash(fileBytes)).arg(pixels.width()).arg(pixels.height()).arg(slide ? QLatin1Char('s') : QLatin1Char('p'));
+}
+
 QImage blipAdjusted(const QImage &image, const QVector<BlipEffect> &effects, const std::atomic<bool> *stop, const QString &sourceKey)
 {
     if (image.isNull() || changing(effects).isEmpty()) return image;

@@ -910,6 +910,7 @@ private:
     QHash<int, std::shared_ptr<Rendered>> m_rendered;
     QList<int> m_recent;
     QTimer m_pagination, m_blink, m_autoscroll;
+    int m_filterListener = 0;   // (blipeffects.h: the view draws again when a picture's filters are done)
     bool m_caretOn = true;
     double m_wantedX = -1;          // the x that Up and Down keep (frame-local), -1 for none
     bool m_dragging = false;

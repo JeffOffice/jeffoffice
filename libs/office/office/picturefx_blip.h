@@ -32,8 +32,8 @@ bool readPictureFxBlip(const QByteArray &xml, PictureFxBlip *out);
 QByteArray withPictureFxBlip(const QByteArray &xml, const QString &shownRid, const QString &originalRid, const QVector<BlipEffect> &filters);
 // The extension's own identifier, for a writer that keeps only the finished picture and has to say so (the OpenDocument and Rich Text writers' Check Compatibility lines).
 const char *pictureFxExtensionUri();
-// What names a picture for the cache of finished pictures (blipAdjusted): its bytes, not the image decoded from them, which is another each time.
-QString pictureFxKeyFor(const QByteArray &originalBytes);
+// What names a picture for the cache of finished pictures (blipAdjusted): its bytes and size, as the renderer names it (blipSourceKey), so that the picture an edit made is found by the next draw.
+QString pictureFxKeyFor(const QByteArray &originalBytes, const QSize &pixels);
 // The finished picture of `original` with `filters` (a PNG; empty when it can't be made). `sourceKey` names the picture for the cache, so that a second save of the same picture does not work it out again.
 QByteArray pictureFxFinishedPng(const QImage &original, const QVector<BlipEffect> &filters, const QString &sourceKey, const std::atomic<bool> *stop = nullptr);
 

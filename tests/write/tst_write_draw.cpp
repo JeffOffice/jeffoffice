@@ -3,6 +3,7 @@
 
 #include "core/workthread.h"
 #include "app/picturetools.h"
+#include "app/infopage.h"
 #include "core/blipeffects.h"
 #include "core/picturefx.h"
 #include "office/picturefx_blip.h"
@@ -562,6 +563,75 @@ std::shared_ptr<PictureItem> pictureOfPage(WriteDoc &doc)
     for (const auto &it : page->doc->pages[0]->items)
         if (it->type() == ItemType::Picture) return std::static_pointer_cast<PictureItem>(it);
     return nullptr;
+}
+
+// A document with a picture of tiles after "Before " (position 7): `seed` makes the tiles of this picture its own (the finished pictures are kept by what they were made from, and tests run in one process).
+std::unique_ptr<WriteDoc> tilesDoc(int seed, QByteArray *file = nullptr, int tile = 8)
+{
+    auto doc = textDoc({"Before after"});
+    QTextCursor c(doc->story());
+    c.setPosition(7);
+    QImage tiles(96, 96, QImage::Format_RGB32);
+    for (int y = 0; y < tiles.height(); ++y)
+        for (int x = 0; x < tiles.width(); ++x) tiles.setPixel(x, y, ((x / tile + y / tile) % 2) ? qRgb(240 - seed, 230, 240) : qRgb(20 + seed, 40, 60 + seed));
+    QByteArray bytes;
+    QBuffer out(&bytes);
+    out.open(QIODevice::WriteOnly);
+    tiles.save(&out, "PNG");
+    if (file) *file = bytes;
+    if (insertPicture(*doc, c, bytes) != PictureResult::Ok) return nullptr;
+    // (Any edit writes the drawing out in the program's own form: a first edit that changes nothing is made, so that "as it was" is the form the later edits keep.)
+    setPictureCorrections(*doc, 7, 0.1, 0);
+    setPictureCorrections(*doc, 7, 0, 0);
+    return doc;
+}
+
+// A Blur of this strength as the filters of a picture.
+QVector<BlipEffect> blurOf(double strength)
+{
+    PictureItem probe;
+    probe.setArtistic(int(ArtisticStyle::Blur), strength);
+    return blipFilters(probe.blipEffects);
+}
+
+// The picture filters' worker, held: the test holds it at the start of each job so that what the window shows before the filters are done can be read.
+struct HeldFilterWorker {
+    static std::atomic<bool> &hold() { static std::atomic<bool> h{false}; return h; }
+    static std::atomic<int> &entered() { static std::atomic<int> n{0}; return n; }
+    HeldFilterWorker()
+    {
+        hold() = true;
+        entered() = 0;
+        blipFilterWorkerHook = [](const std::atomic<bool> &stop) {
+            if (!hold()) return;
+            ++entered();
+            for (long i = 0; hold() && !stop && i < 1'000'000'000L; ++i) QThread::yieldCurrentThread();
+        };
+    }
+    void release() { hold() = false; }
+    ~HeldFilterWorker() { release(); }   // (the hook stays, off: the thread may still be reading it)
+};
+
+// How many pixels of the two pictures differ.
+int differingPixels(const QImage &a, const QImage &b)
+{
+    if (a.size() != b.size()) return a.width() * a.height() + 1;
+    const QImage x = a.convertToFormat(QImage::Format_ARGB32), y = b.convertToFormat(QImage::Format_ARGB32);
+    int n = 0;
+    for (int row = 0; row < x.height(); ++row)
+        for (int col = 0; col < x.width(); ++col)
+            if (x.pixel(col, row) != y.pixel(col, row)) ++n;
+    return n;
+}
+
+// The first page as the output draws it (it waits for the filters), at one and at three times the width of a page at 96 pixels to the inch.
+QImage pageAt(write::WriteDoc &doc, int times)
+{
+    PageView view;
+    view.resize(1000, 700);
+    view.setDocument(&doc);
+    view.show();
+    return view.pageImage(0, 816 * times);
 }
 
 // A document with a diagram after the words "Diagram: ", as the word processor writes one: the frame names the data, layout, style, and colors parts, the data part names the link of the
@@ -7099,6 +7169,316 @@ private Q_SLOTS:
         // Taking them off by setting none is the same.
         QVERIFY(setPictureFilters(*doc, 7, {}));
         QCOMPARE(documentXml(doc->toDocx()), plain);
+    }
+
+    // The edit works the finished picture out, and the first draw finds it: one computation for an edit followed by a draw (the renderer names the picture as the edit does).
+    void anEditFollowedByTheFirstDrawWorksTheFiltersOutOnce()
+    {
+        auto doc = tilesDoc(11);
+        QVERIFY(doc);
+        const int made = blipAdjustedMade();
+        QVERIFY(setPictureFilters(*doc, 7, blurOf(0.37)));
+        QCOMPARE(blipAdjustedMade(), made + 1);
+        const QImage first = pageAt(*doc, 1);
+        QCOMPARE(blipAdjustedMade(), made + 1);
+        QCOMPARE(differingPixels(first, pageAt(*doc, 1)), 0);
+        QCOMPARE(blipAdjustedMade(), made + 1);
+        // It is the filtered picture that was drawn, not the original.
+        QVERIFY(differingPixels(first, pageAt(*tilesDoc(11), 1)) > 100);
+        // The same picture opened again from the saved file (decoded afresh, in another document) is found too.
+        auto back = open(doc->toDocx());
+        QVERIFY(back);
+        QCOMPARE(differingPixels(pageAt(*back, 1), first), 0);
+        QCOMPARE(blipAdjustedMade(), made + 1);
+    }
+
+    // The window draws a picture whose filters are not done as it is (a flat patch where the effect hides it), and again when they are; print, PDF, and the picture of a page wait.
+    void theWindowDrawsFiltersLaterAndTheOutputWaits()
+    {
+        // A file whose picture has filters nobody has worked out yet: the settings are changed in the saved text.
+        auto made = tilesDoc(13);
+        QVERIFY(made && setPictureFilters(*made, 7, blurOf(0.31)));
+        const QString was = office::pictureFxData(blurOf(0.31));
+        auto fileWith = [&](double strength) {
+            return withPartReplaced(made->toDocx(), QStringLiteral("word/document.xml"), [&](const QByteArray &x) {
+                QByteArray out = x;
+                out.replace(was.toUtf8(), office::pictureFxData(blurOf(strength)).toUtf8());
+                return out;
+            });
+        };
+        auto plain = tilesDoc(13);
+        QVERIFY(plain);
+        auto drawn = open(fileWith(0.43));
+        QVERIFY(drawn && pictureAt(*drawn, drawn->story(), 7).filters.size() == 1);
+        // (Where the picture is in the window: the pixels of the picture's tiles, in the window with no filters.)
+        auto grab = [](write::WriteDoc &doc, PageView &view) {
+            view.resize(1000, 700);
+            view.setDocument(&doc);
+            view.show();
+            return view.viewport()->grab().toImage();
+        };
+        PageView plainView;
+        const QImage original = grab(*plain, plainView);
+        QRect box;
+        for (int y = 0; y < original.height(); ++y)
+            for (int x = 0; x < original.width(); ++x)
+                if (original.pixelColor(x, y) == QColor(20 + 13, 40, 60 + 13)) box = box.isNull() ? QRect(x, y, 1, 1) : box.united(QRect(x, y, 1, 1));
+        QVERIFY(box.width() > 40 && box.height() > 40);
+        const QRect inner = box.adjusted(4, 4, -4, -4);
+        auto colorsIn = [&](const QImage &im) {
+            QSet<QRgb> seen;
+            for (int y = inner.top(); y <= inner.bottom(); ++y)
+                for (int x = inner.left(); x <= inner.right(); ++x) seen.insert(im.pixel(x, y));
+            return int(seen.size());
+        };
+        QVERIFY(colorsIn(original) >= 2);
+        const int asked = blipFiltersAsked();
+        QImage before;
+        int paintsBefore = 0;
+        {
+            HeldFilterWorker held;
+            PageView view;
+            int paints = 0;
+            struct Count : QObject {
+                int *n;
+                bool eventFilter(QObject *, QEvent *e) override
+                {
+                    if (e->type() == QEvent::Paint) ++*n;
+                    return false;
+                }
+            } count;
+            count.n = &paints;
+            view.viewport()->installEventFilter(&count);
+            before = grab(*drawn, view);
+            // Not done: one flat patch of the picture's color stands in (never the picture the effect hides), and the work was asked for once.
+            QCOMPARE(colorsIn(before), 1);
+            QCOMPARE(blipFiltersAsked(), asked + 1);
+            QTRY_COMPARE(HeldFilterWorker::entered().load(), 1);
+            paintsBefore = paints;
+            held.release();
+            // Done: the window is told to draw again, and does.
+            QTRY_VERIFY(paints > paintsBefore);
+            QVERIFY(colorsIn(view.viewport()->grab().toImage()) > 1);
+        }
+        // Print, PDF, and the picture of a page wait for the filters: another picture, never worked out, is the finished picture at once, with nothing asked of the worker beside the window.
+        auto output = open(fileWith(0.47));
+        QVERIFY(output);
+        const int askedBefore = blipFiltersAsked(), madeBefore = blipAdjustedMade();
+        const QImage page = pageAt(*output, 1);
+        QCOMPARE(blipFiltersAsked(), askedBefore);
+        QCOMPARE(blipAdjustedMade(), madeBefore + 1);
+        QVERIFY(differingPixels(page, pageAt(*tilesDoc(13), 1)) > 100);
+    }
+
+    // Inspect's rows for pictures, with the words the other programs have: the original kept under a picture effect goes, the picture keeps its finished look.
+    void theOriginalsRowTakesTheOriginalAndThePageLooksTheSame()
+    {
+        QByteArray original;
+        auto doc = tilesDoc(17, &original);
+        QVERIFY(doc && setPictureFilters(*doc, 7, blurOf(0.29)));
+        QCOMPARE(keptPictureParts(*doc, jp::PictureKept::FilterOriginals), 1);
+        QCOMPARE(keptPictureParts(*doc, jp::PictureKept::CroppedAreas), 0);
+        const QImage before1 = pageAt(*doc, 1), before3 = pageAt(*doc, 3);
+        const QByteArray saved = documentXml(doc->toDocx());
+        QCOMPARE(mediaOf(doc->toDocx()).size(), 2);
+        QCOMPARE(removeKeptPictureParts(*doc, jp::PictureKept::FilterOriginals), 1);
+        QCOMPARE(keptPictureParts(*doc, jp::PictureKept::FilterOriginals), 0);
+        // The page looks the same, at one and at three times the size.
+        QCOMPARE(differingPixels(pageAt(*doc, 1), before1), 0);
+        QCOMPARE(differingPixels(pageAt(*doc, 3), before3), 0);
+        // The removed data is gone from the saved file: one picture of the document, and it is not the original.
+        const QMap<QString, QByteArray> media = mediaOf(doc->toDocx());
+        QCOMPARE(media.size(), 1);
+        QVERIFY(media.first() != original);
+        QVERIFY(!documentXml(doc->toDocx()).contains("jfx:filters"));
+        QVERIFY(pictureAt(*doc, doc->story(), 7).filters.isEmpty());
+        // One step: Undo brings the original and the settings back, and the next Undo is the edit before it.
+        QVERIFY(doc->undo());
+        QCOMPARE(documentXml(doc->toDocx()), saved);
+        QCOMPARE(mediaOf(doc->toDocx()).size(), 2);
+        QCOMPARE(keptPictureParts(*doc, jp::PictureKept::FilterOriginals), 1);
+        QVERIFY(doc->redo());
+        QCOMPARE(keptPictureParts(*doc, jp::PictureKept::FilterOriginals), 0);
+        QVERIFY(doc->undo());
+        QVERIFY(doc->undo());
+        QCOMPARE(keptPictureParts(*doc, jp::PictureKept::FilterOriginals), 0);
+        QVERIFY(pictureAt(*doc, doc->story(), 7).filters.isEmpty());
+        // Nothing to take: nothing is done.
+        QCOMPARE(removeKeptPictureParts(*doc, jp::PictureKept::FilterOriginals), 0);
+    }
+
+    void theCroppedPartsRowClearsWhatIsCroppedAwayAndThePageLooksTheSame()
+    {
+        QByteArray original;
+        auto doc = tilesDoc(19, &original);
+        QVERIFY(doc);
+        QCOMPARE(keptPictureParts(*doc, jp::PictureKept::CroppedAreas), 0);
+        QVERIFY(setPictureCrop(*doc, 7, 0.25, 0.25, 0.25, 0.25));
+        int notChanged = -1, left = -1;
+        QCOMPARE(keptPictureParts(*doc, jp::PictureKept::CroppedAreas, &notChanged, &left), 1);
+        QCOMPARE(notChanged, 0);
+        QCOMPARE(left, 0);
+        const QImage before1 = pageAt(*doc, 1), before3 = pageAt(*doc, 3);
+        const QByteArray saved = documentXml(doc->toDocx());
+        QCOMPARE(removeKeptPictureParts(*doc, jp::PictureKept::CroppedAreas), 1);
+        QCOMPARE(keptPictureParts(*doc, jp::PictureKept::CroppedAreas), 0);
+        QCOMPARE(differingPixels(pageAt(*doc, 1), before1), 0);
+        QCOMPARE(differingPixels(pageAt(*doc, 3), before3), 0);
+        // The file's picture is cleared outside what shows (a corner of it is not the corner that was) and the middle is as it was; the crop and the frame stay.
+        const QMap<QString, QByteArray> media = mediaOf(doc->toDocx());
+        QCOMPARE(media.size(), 1);
+        const QImage cleared = QImage::fromData(media.first()), wasImage = QImage::fromData(original);
+        QCOMPARE(cleared.size(), wasImage.size());
+        QVERIFY(cleared.pixel(0, 0) != wasImage.pixel(0, 0) || cleared.pixel(1, 1) != wasImage.pixel(1, 1));
+        QCOMPARE(cleared.pixel(48, 48), wasImage.pixel(48, 48));
+        QCOMPARE(cleared.pixel(30, 60), wasImage.pixel(30, 60));
+        QCOMPARE(pictureAt(*doc, doc->story(), 7).cropLeft, 0.25);
+        // One step of Undo.
+        QVERIFY(doc->undo());
+        QCOMPARE(documentXml(doc->toDocx()), saved);
+        QCOMPARE(keptPictureParts(*doc, jp::PictureKept::CroppedAreas), 1);
+        QCOMPARE(mediaOf(doc->toDocx()).values().first(), original);
+        QVERIFY(doc->undo());
+        QCOMPARE(pictureAt(*doc, doc->story(), 7).cropLeft, 0.0);
+    }
+
+    // A picture with an effect and a crop becomes its finished picture, cleared outside what shows: the page looks the same, and neither the original nor the settings are in the file.
+    void theCroppedPartsRowMakesAPictureWithEffectsIntoItsFinishedPicture()
+    {
+        QByteArray original;
+        auto doc = tilesDoc(23, &original);
+        QVERIFY(doc && setPictureFilters(*doc, 7, blurOf(0.33)) && setPictureCrop(*doc, 7, 0.2, 0.3, 0.2, 0.1));
+        QCOMPARE(keptPictureParts(*doc, jp::PictureKept::CroppedAreas), 1);
+        QCOMPARE(keptPictureParts(*doc, jp::PictureKept::FilterOriginals), 1);
+        const QImage before1 = pageAt(*doc, 1), before3 = pageAt(*doc, 3);
+        QCOMPARE(removeKeptPictureParts(*doc, jp::PictureKept::CroppedAreas), 1);
+        QCOMPARE(differingPixels(pageAt(*doc, 1), before1), 0);
+        QCOMPARE(differingPixels(pageAt(*doc, 3), before3), 0);
+        QVERIFY(pictureAt(*doc, doc->story(), 7).filters.isEmpty());
+        QCOMPARE(keptPictureParts(*doc, jp::PictureKept::FilterOriginals), 0);
+        QCOMPARE(mediaOf(doc->toDocx()).size(), 1);
+        QVERIFY(!documentXml(doc->toDocx()).contains("jfx:filters"));
+        QVERIFY(doc->undo());
+        QCOMPARE(keptPictureParts(*doc, jp::PictureKept::FilterOriginals), 1);
+        QCOMPARE(mediaOf(doc->toDocx()).size(), 2);
+    }
+
+    // Two pictures of one file: a crop that another picture shows more of is left as it is, and the row says so.
+    void aCropThatAnotherPictureShowsMoreOfIsLeftAsItIs()
+    {
+        QByteArray original;
+        auto doc = tilesDoc(29, &original);
+        QVERIFY(doc);
+        QTextCursor c(doc->story());
+        c.setPosition(1);
+        QVERIFY(insertPicture(*doc, c, original) == PictureResult::Ok);
+        QCOMPARE(mediaOf(doc->toDocx()).size(), 1);   // (the same file is one part)
+        QVERIFY(setPictureCrop(*doc, 8, 0.3, 0.3, 0.3, 0.3));
+        int notChanged = -1, left = -1;
+        QCOMPARE(keptPictureParts(*doc, jp::PictureKept::CroppedAreas, &notChanged, &left), 0);
+        QCOMPARE(left, 1);
+        QCOMPARE(removeKeptPictureParts(*doc, jp::PictureKept::CroppedAreas), 0);
+        QCOMPARE(mediaOf(doc->toDocx()).values().first(), original);
+    }
+
+    // The rows are in Inspect, in the words the other programs have (one source for them), and they count and remove what the functions do.
+    void inspectHasTheTwoPictureRowsInTheWordsOfTheOtherPrograms()
+    {
+        WriteWindow w;
+        WriteDoc &doc = *w.document();
+        QByteArray file;
+        {
+            QImage tiles(64, 64, QImage::Format_RGB32);
+            for (int y = 0; y < 64; ++y)
+                for (int x = 0; x < 64; ++x) tiles.setPixel(x, y, ((x / 8 + y / 8) % 2) ? qRgb(200, 90, 40) : qRgb(30, 70, 150));
+            QBuffer out(&file);
+            out.open(QIODevice::WriteOnly);
+            tiles.save(&out, "PNG");
+        }
+        QTextCursor c(doc.story());
+        QCOMPARE(insertPicture(doc, c, file), PictureResult::Ok);
+        QVERIFY(setPictureFilters(doc, 0, blurOf(0.35)) && setPictureCrop(doc, 0, 0.25, 0.25, 0.25, 0.25));
+        const QVector<InspectItem> items = w.inspectItems();
+        auto find = [&](const char *title) -> const InspectItem * {
+            for (const InspectItem &i : items)
+                if (i.title == QLatin1String(title)) return &i;
+            return nullptr;
+        };
+        const InspectItem *originals = find("Original pictures kept under picture effects"), *cropped = find("Cropped-away parts of pictures");
+        QVERIFY(originals && cropped);
+        // The words are the ones the shared row gives the other programs.
+        const InspectItem shared = jp::pictureKeptInspectRow(jp::PictureKept::FilterOriginals, nullptr, nullptr, 0, 0), sharedCrop = jp::pictureKeptInspectRow(jp::PictureKept::CroppedAreas, nullptr, nullptr, 0, 0);
+        QCOMPARE(originals->detail, shared.detail);
+        QCOMPARE(originals->action, shared.action);
+        QCOMPARE(cropped->detail, sharedCrop.detail);
+        QCOMPARE(cropped->action, sharedCrop.action);
+        QCOMPARE(originals->count(), 1);
+        QCOMPARE(cropped->count(), 1);
+        QCOMPARE(cropped->remove(), 1);
+        QCOMPARE(originals->count(), 0);
+        QCOMPARE(cropped->count(), 0);
+        QCOMPARE(originals->remove(), 0);
+        // (What the box says of the rows when nothing is left.)
+        InspectDialog dialog(QStringLiteral("Inspect"), items, nullptr);
+        QVERIFY(!dialog.summaries().isEmpty());
+    }
+
+    // Compress Pictures on a picture with an effect: the original and the finished picture are both made smaller, the effect stays, Reset Picture still brings the (smaller) original back.
+    void compressPicturesMakesAFilteredPicturesOriginalAndFinishedPictureSmaller()
+    {
+        auto doc = textDoc({"Before after"});
+        QByteArray original;
+        {
+            QImage noise(360, 360, QImage::Format_RGB32);
+            QRandomGenerator rng(7);
+            for (int y = 0; y < noise.height(); ++y)
+                for (int x = 0; x < noise.width(); ++x) noise.setPixel(x, y, qRgb(int(rng.bounded(256)), int(rng.bounded(256)), int(rng.bounded(256))));
+            QBuffer out(&original);
+            out.open(QIODevice::WriteOnly);
+            noise.save(&out, "PNG");
+        }
+        QTextCursor c(doc->story());
+        c.setPosition(7);
+        QCOMPARE(insertPicture(*doc, c, original), PictureResult::Ok);
+        QVERIFY(setPictureCorrections(*doc, 7, 0.1, 0));
+        QVERIFY(setPictureCorrections(*doc, 7, 0, 0));
+        QVERIFY(setPictureCrop(*doc, 7, 0.25, 0.25, 0.25, 0.25));
+        QVERIFY(setPictureFilters(*doc, 7, blurOf(0.45)));
+        const PictureInfo was = pictureAt(*doc, doc->story(), 7);
+        const QMap<QString, QByteArray> mediaWas = mediaOf(doc->toDocx());
+        QCOMPARE(mediaWas.size(), 2);
+        qint64 bytesWas = 0;
+        for (const QByteArray &b : mediaWas) bytesWas += b.size();
+        QVERIFY(compressPictures(*doc, 30, {7}, true) > 0);
+        const QMap<QString, QByteArray> mediaNow = mediaOf(doc->toDocx());
+        QCOMPARE(mediaNow.size(), 2);   // (the original and the finished picture, each made smaller; none of the old ones stays)
+        qint64 bytesNow = 0;
+        for (const QByteArray &b : mediaNow) bytesNow += b.size();
+        QVERIFY(bytesNow < bytesWas);
+        for (const QByteArray &b : mediaNow) QVERIFY(!mediaWas.values().contains(b));
+        // The effect is still on, the frame is as it was, and the cut is gone (what the picture shows is what is left of the file's picture).
+        const PictureInfo now = pictureAt(*doc, doc->story(), 7);
+        QCOMPARE(now.filters.size(), was.filters.size());
+        QCOMPARE(now.width, was.width);
+        QCOMPARE(now.height, was.height);
+        QCOMPARE(now.cropLeft, 0.0);
+        office::PictureFxBlip blip;
+        QVERIFY(office::readPictureFxBlip(documentXml(doc->toDocx()), &blip) && blip.present);
+        const QImage smallOriginal = QImage::fromData(doc->relatedPartData(blip.originalRid)), smallFinished = QImage::fromData(doc->relatedPartData(blip.shownRid));
+        QVERIFY(!smallOriginal.isNull() && smallOriginal.size() == smallFinished.size() && smallOriginal.width() < 180);
+        // It is drawn as the original with the effect over it, the whole of what is left.
+        const auto pic = pictureOfPage(*doc);
+        QVERIFY(pic && blipEffectsChange(blipFilters(pic->blipEffects)));
+        QCOMPARE(pic->imgRect, QRectF(QPointF(0, 0), pic->rect.size()));
+        // Reset Picture takes the effect off (the smaller original is what shows then).
+        QVERIFY(resetPicture(*doc, 7));
+        QVERIFY(pictureAt(*doc, doc->story(), 7).filters.isEmpty());
+        QCOMPARE(mediaOf(doc->toDocx()).size(), 1);
+        // One step.
+        QVERIFY(doc->undo());
+        QCOMPARE(pictureAt(*doc, doc->story(), 7).filters.size(), 1);
+        QVERIFY(doc->undo());
+        QCOMPARE(mediaOf(doc->toDocx()), mediaWas);
     }
 
     void aPictureIsChangedForAnotherInTheSameFrameKeepingItsPlaceAndAltText()
