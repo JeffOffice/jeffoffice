@@ -4,6 +4,7 @@
 // byte for byte as it was read.
 
 #include "core/writedoc.h"
+#include "core/pictureops.h"
 
 #include <QByteArray>
 #include <QDate>
@@ -16,7 +17,7 @@ class QTextDocument;
 
 namespace jp::write {
 
-enum class ControlKind { PlainText, DropDown, Date, CheckBox, Other };
+enum class ControlKind { PlainText, DropDown, Date, CheckBox, RichText, Picture, ComboBox, RepeatingSection, Other };
 
 struct ControlItem {
     QString display, value;
@@ -28,10 +29,11 @@ struct ControlProps {
     QString title, tag;
     bool lockDelete = false;       // "The control cannot be deleted" (w:lock sdtLocked)
     bool lockContents = false;     // "The contents cannot be edited" (w:lock contentLocked)
-    QVector<ControlItem> items;    // a drop-down list's
+    QVector<ControlItem> items;    // a drop-down list's, or a combo box's
     QString dateFormat;            // a date picker's (as a person writes it: M/d/yyyy)
     QDate date;                    // the date it holds (invalid for none)
     QString lid;                   // the language its date is written in (w:lid, "en-US"); empty: the program's
+    bool sectionItem = false;      // it is an item of a repeating section (w15:repeatingSectionItem)
     bool checked = false;          // a check box's
     QString lastValue;             // a drop-down list's: the value of the item chosen
     bool operator==(const ControlProps &o) const;
@@ -44,16 +46,19 @@ struct ContentControl {
     bool placeholder = false;      // it shows the words that stand for what is not yet put in
     bool editable = false;         // its properties can be changed here (it was read whole, and is of a kind known here)
     int depth = 0;                 // how many controls hold it
+    bool block = false;            // it holds whole paragraphs (its two ends are kept pieces before the first and after the last, as the table of contents' wrapper is); start and end are then the first and last paragraph's
+    int openIndex = -1;            // a block control: which of the first paragraph's kept pieces opens it
     QString text;                  // what it shows
     bool valid() const { return start >= 0; }
-    // Whether a place in the text is inside it: after its first atom, up to its last.
-    bool contains(int position) const { return position > start && position <= end; }
+    // Whether a place in the text is inside it: after its first atom, up to its last (a block control: from its first paragraph's start to its last paragraph's end).
+    bool contains(int position) const { return block ? position >= start && position <= end : position > start && position <= end; }
 };
 
 // The most each of these is read or made: items in a list, controls in a file, controls inside one another.
 constexpr int kMostControlItems = 1000;
 constexpr int kMostControls = 10000;
 constexpr int kMostControlDepth = 8;
+constexpr int kMostRepeatingItems = 1000;   // items in one repeating section
 
 // What the start of a control (the XML its first atom keeps) says. `ok` says it was read whole; a start that can't be read (not well formed, or in a namespace prefix other than the usual)
 // has a kind of Other and is left as it is.
@@ -82,6 +87,29 @@ bool toggleControlCheck(WriteDoc &doc, int start);
 bool setControlChecked(WriteDoc &doc, int start, bool checked);
 // Selects everything the control holds.
 void selectControlContents(QTextCursor &c, const ContentControl &control);
+
+// ---- picture controls (a placeholder that takes a picture; a picture in its place keeps the size the first had)
+// Puts the picture file's bytes in the picture control that begins at `start` (the one step that undoes), fitted in the size the control had (two inches square for the first), kept in
+// proportion; the result says what a refused picture was (the picture limits are pictureops.h's).
+PictureResult setControlPicture(WriteDoc &doc, int start, const QByteArray &bytes, const QString &name = QString());
+// Takes the picture out: the placeholder shows again. False where there is none to take out or the contents are locked.
+bool clearControlPicture(WriteDoc &doc, int start);
+
+// ---- block controls: a control round whole paragraphs (and the lists, tables, and controls in them); `block` is set, `start` and `end` are the places of the first and last paragraph
+// Every block control of the story, and the innermost one that holds the place (not valid where there is none).
+QVector<ContentControl> blockControls(WriteDoc &doc, QTextDocument *story = nullptr);
+ContentControl blockControlAt(WriteDoc &doc, int position, QTextDocument *story = nullptr);
+// The control the caret is in: the innermost one in the words, else the innermost one round the paragraphs.
+ContentControl controlAtCaret(WriteDoc &doc, const QTextCursor &c);
+// Puts a rich text control round the paragraphs the selection touches (a repeating section, with one item holding them): refused where they hold only part of a table or another control.
+bool insertBlockControl(WriteDoc &doc, QTextCursor &c, ControlKind kind, QString *problem = nullptr);
+bool setBlockControlProps(WriteDoc &doc, const ContentControl &ctl, const ControlProps &props, QString *problem = nullptr);
+// The repeating item that holds the place and, in `section`, the section it is in (not valid where there is none).
+ContentControl repeatingItemAt(WriteDoc &doc, int position, ContentControl *section = nullptr, QTextDocument *story = nullptr);
+// Adds an item after the last of the section that holds the place, a copy of the last one with every control in it showing its placeholder (the one step that undoes); removes the item that
+// holds the place (a section keeps one). False, with `problem`, where it can't.
+bool addRepeatingItem(WriteDoc &doc, int position, QString *problem = nullptr);
+bool removeRepeatingItem(WriteDoc &doc, int position, QString *problem = nullptr);
 
 // A date written in a format of the picker (d, dd, ddd, dddd, M, MM, MMM, MMMM, yy, yyyy and the text round them).
 QString formatControlDate(const QDate &date, const QString &format, const QString &lid = QString());

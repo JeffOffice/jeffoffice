@@ -1,12 +1,16 @@
 #include "core/contentcontrolops.h"
 
 #include "core/editops.h"
+#include "core/pictureops.h"
+#include "core/tableops.h"
 #include "core/writeprops.h"
 #include "text/textprops.h"
 #include "core/syslocale.h"
 
 #include <QCoreApplication>
 #include <QLocale>
+#include <QPointer>
+#include <QTextDocumentFragment>
 #include <QRandomGenerator>
 #include <QHash>
 #include <QTextBlock>
@@ -208,7 +212,7 @@ bool childrenOf(const QByteArray &inner, QVector<QByteArray> *out)
 // The start of a control (what its first atom keeps), in pieces: the tag of the control, what comes before its properties, the properties' children, and what comes after.
 struct Pieces {
     bool ok = false;
-    QByteArray head, tail;
+    QByteArray head, tail, prTag;   // (prTag: the start of the properties when it has attributes, such as a namespace the file declares there)
     QVector<QByteArray> kids;
 };
 
@@ -233,9 +237,16 @@ Pieces piecesOf(const QByteArray &raw)
         }
     } else if (raw.mid(pr, 8) == "<w:sdtPr") {
         const qsizetype e = tagEnd(raw, pr);
-        if (e < 0 || raw[e - 1] != '/') return p;
+        if (e < 0) return p;
         p.head = raw.left(pr);
-        p.tail = raw.mid(e + 1);
+        if (raw[e - 1] == '/') {
+            p.tail = raw.mid(e + 1);
+        } else {
+            p.prTag = raw.mid(pr, e - pr + 1);
+            const qsizetype close = raw.indexOf("</w:sdtPr>", e);
+            if (close < 0 || !childrenOf(raw.mid(e + 1, close - e - 1), &p.kids)) return p;
+            p.tail = raw.mid(close + 10);
+        }
     } else {
         p.head = raw.left(pr);
         p.tail = raw.mid(pr);
@@ -304,7 +315,7 @@ QByteArray dateElement(const ControlProps &p, const QByteArray &old)
     return out + "</w:date>";
 }
 
-QByteArray dropDownElement(const ControlProps &p, const QByteArray &old)
+QByteArray dropDownElement(const ControlProps &p, const QByteArray &old, const char *name = "w:dropDownList")
 {
     const QString last = p.lastValue;
     bool known = last.isEmpty();
@@ -319,7 +330,7 @@ QByteArray dropDownElement(const ControlProps &p, const QByteArray &old)
         ++count;
     }
     const QByteArray put = !last.isEmpty() && known ? "w:lastValue=\"" + escaped(last) + "\"" : QByteArray();
-    return (old.isEmpty() ? QByteArray("<w:dropDownList") + (put.isEmpty() ? QByteArray() : " " + put) : tagWithAttribute(old, "lastValue", put)) + ">" + items + "</w:dropDownList>";
+    return (old.isEmpty() ? QByteArray("<") + name + (put.isEmpty() ? QByteArray() : " " + put) : tagWithAttribute(old, "lastValue", put)) + ">" + items + "</" + name + ">";
 }
 
 // The XML of a control's start: the properties given over what `old` kept (what is not known is in place, as it was).
@@ -327,7 +338,7 @@ QByteArray buildStart(const ControlProps &np, bool placeholder, const Pieces &ol
 {
     QVector<QByteArray> before, others;
     QByteArray idKid, oldType;
-    const char *typeName = np.kind == ControlKind::PlainText ? "text" : np.kind == ControlKind::DropDown ? "dropDownList" : np.kind == ControlKind::Date ? "date" : np.kind == ControlKind::CheckBox ? "checkbox" : "";
+    const char *typeName = np.kind == ControlKind::PlainText ? "text" : np.kind == ControlKind::DropDown ? "dropDownList" : np.kind == ControlKind::Date ? "date" : np.kind == ControlKind::CheckBox ? "checkbox" : np.kind == ControlKind::RichText ? "richText" : np.kind == ControlKind::Picture ? "picture" : np.kind == ControlKind::ComboBox ? "comboBox" : np.kind == ControlKind::RepeatingSection ? "repeatingSection" : "";
     for (const QByteArray &k : old.kids) {
         const QString name = localName(k);
         if (name == QLatin1String("rPr")) before.push_back(k);
@@ -354,9 +365,13 @@ QByteArray buildStart(const ControlProps &np, bool placeholder, const Pieces &ol
     case ControlKind::DropDown: pr += dropDownElement(np, oldType); break;
     case ControlKind::Date: pr += dateElement(np, oldType); break;
     case ControlKind::CheckBox: pr += checkboxElement(np, oldType); break;
+    case ControlKind::RichText: pr += oldType.isEmpty() ? QByteArray("<w:richText/>") : oldType; break;
+    case ControlKind::Picture: pr += oldType.isEmpty() ? QByteArray("<w:picture/>") : oldType; break;
+    case ControlKind::ComboBox: pr += dropDownElement(np, oldType, "w:comboBox"); break;
+    case ControlKind::RepeatingSection: pr += oldType.isEmpty() ? QByteArray("<w15:repeatingSection/>") : oldType; break;
     case ControlKind::Other: break;
     }
-    return old.head + (pr.isEmpty() ? QByteArray("<w:sdtPr/>") : "<w:sdtPr>" + pr + "</w:sdtPr>") + old.tail;
+    return old.head + (pr.isEmpty() && old.prTag.isEmpty() ? QByteArray("<w:sdtPr/>") : (old.prTag.isEmpty() ? QByteArray("<w:sdtPr>") : old.prTag) + pr + "</w:sdtPr>") + old.tail;
 }
 
 Inline controlAtom(bool open, const QByteArray &raw)
@@ -426,6 +441,9 @@ QString placeholderText(ControlKind kind)
     case ControlKind::PlainText: return QCoreApplication::translate("jp::write::ContentControls", "Enter text");
     case ControlKind::DropDown: return QCoreApplication::translate("jp::write::ContentControls", "Choose an item");
     case ControlKind::Date: return QCoreApplication::translate("jp::write::ContentControls", "Pick a date");
+    case ControlKind::RichText: return QCoreApplication::translate("jp::write::ContentControls", "Enter text");
+    case ControlKind::ComboBox: return QCoreApplication::translate("jp::write::ContentControls", "Choose or type an item");
+    case ControlKind::Picture: return QCoreApplication::translate("jp::write::ContentControls", "Add a picture");
     default: return QString();
     }
 }
@@ -465,7 +483,7 @@ QString glyphFontOf(const QByteArray &startXml, bool checked)
     return kSymbolFont;
 }
 
-bool chosenOnly(ControlKind kind) { return kind == ControlKind::DropDown || kind == ControlKind::Date || kind == ControlKind::CheckBox; }
+bool chosenOnly(ControlKind kind) { return kind == ControlKind::DropDown || kind == ControlKind::Date || kind == ControlKind::CheckBox || kind == ControlKind::Picture; }
 
 // A control as the atoms of a paragraph say: positions only (the properties are read from the start by whoever needs them).
 struct Span {
@@ -649,9 +667,11 @@ Parsed parseProps(const QByteArray &startXml)
     if (startXml.size() > kMostStartXml) return {p, false, false};
     const Pieces pieces = piecesOf(startXml);
     if (!pieces.ok) return {p, false, false};
-    bool galleryOrOther = false;
+    bool galleryOrOther = false, typed = false;
     for (const QByteArray &k : pieces.kids) {
         const QString name = localName(k);
+        typed = typed || name == QLatin1String("text") || name == QLatin1String("dropDownList") || name == QLatin1String("comboBox") || name == QLatin1String("date") || name == QLatin1String("checkbox") || name == QLatin1String("richText")
+                || name == QLatin1String("picture") || name == QLatin1String("repeatingSection");
         if (name == QLatin1String("alias")) {
             p.title = attrOf(k, "val");
         } else if (name == QLatin1String("tag")) {
@@ -664,8 +684,8 @@ Parsed parseProps(const QByteArray &startXml)
             if (placeholder) *placeholder = attrOf(k, "val") != QLatin1String("0") && attrOf(k, "val") != QLatin1String("false");
         } else if (name == QLatin1String("text")) {
             p.kind = ControlKind::PlainText;
-        } else if (name == QLatin1String("dropDownList")) {
-            p.kind = ControlKind::DropDown;
+        } else if (name == QLatin1String("dropDownList") || name == QLatin1String("comboBox")) {
+            p.kind = name == QLatin1String("comboBox") ? ControlKind::ComboBox : ControlKind::DropDown;
             p.lastValue = attrOf(k, "lastValue");
             QVector<QByteArray> kids;
             const qsizetype s = tagEnd(k, 0), e = k.lastIndexOf("</");
@@ -702,12 +722,21 @@ Parsed parseProps(const QByteArray &startXml)
             if (s > 0 && k[s - 1] != '/' && e > s && childrenOf(k.mid(s + 1, e - s - 1), &kids))
                 for (const QByteArray &d : kids)
                     if (localName(d) == QLatin1String("checked")) p.checked = attrOf(d, "val") == QLatin1String("1") || attrOf(d, "val") == QLatin1String("true");
-        } else if (name == QLatin1String("docPartObj") || name == QLatin1String("docPartList") || name == QLatin1String("comboBox") || name == QLatin1String("richText") || name == QLatin1String("picture")
-                   || name == QLatin1String("group") || name == QLatin1String("citation") || name == QLatin1String("bibliography") || name == QLatin1String("equation") || name == QLatin1String("repeatingSection")) {
+        } else if (name == QLatin1String("repeatingSectionItem")) {
+            p.sectionItem = true;
+        } else if (name == QLatin1String("richText")) {
+            p.kind = ControlKind::RichText;
+        } else if (name == QLatin1String("picture")) {
+            p.kind = ControlKind::Picture;
+        } else if (name == QLatin1String("repeatingSection")) {
+            p.kind = ControlKind::RepeatingSection;
+        } else if (name == QLatin1String("docPartObj") || name == QLatin1String("docPartList")
+                   || name == QLatin1String("group") || name == QLatin1String("citation") || name == QLatin1String("bibliography") || name == QLatin1String("equation")) {
             galleryOrOther = true;
         }
     }
     if (galleryOrOther) p.kind = ControlKind::Other;
+    else if (!typed && !p.sectionItem) p.kind = ControlKind::RichText;   // (a control that names no kind holds formatted text)
     bool tooLong = p.title.size() > kMostText || p.tag.size() > kMostText;
     for (const ControlItem &it : p.items) tooLong = tooLong || it.display.size() > kMostText || it.value.size() > kMostText;
     if (tooLong) {
@@ -747,6 +776,12 @@ ContentControl contentControlAt(WriteDoc &doc, int position, QTextDocument *stor
 bool insertContentControl(WriteDoc &doc, QTextCursor &c, ControlKind kind, QString *problem)
 {
     QTextDocument *story = doc.story();
+    if (kind == ControlKind::RepeatingSection) return insertBlockControl(doc, c, kind, problem);
+    if (kind == ControlKind::RichText && c.document() == story) {
+        // (Over paragraphs, or in a paragraph with nothing in it, a rich text control holds paragraphs; elsewhere it holds the words of one.)
+        const QTextBlock first = story->findBlock(c.selectionStart()), last = story->findBlock(c.hasSelection() ? c.selectionEnd() - 1 : c.position());
+        if (first != last || (!c.hasSelection() && first.text().isEmpty() && first.length() == 1 && !isLocked(first))) return insertBlockControl(doc, c, kind, problem);
+    }
     if (c.document() != story || kind == ControlKind::Other) {
         if (problem) *problem = QCoreApplication::translate("jp::write::ContentControls", "A content control goes in the text, not in a header, a footer, or a note.");
         return false;
@@ -755,7 +790,7 @@ bool insertContentControl(WriteDoc &doc, QTextCursor &c, ControlKind kind, QStri
     if (c.hasSelection()) {
         const int a = c.selectionStart(), b = c.selectionEnd();
         const bool oneParagraph = story->findBlock(a) == story->findBlock(b > a ? b - 1 : b);
-        if (kind == ControlKind::PlainText && oneParagraph) {
+        if ((kind == ControlKind::PlainText || kind == ControlKind::RichText) && oneParagraph) {
             from = a;
             to = b;
         } else {
@@ -853,7 +888,7 @@ bool chooseControlItem(WriteDoc &doc, int start, int index)
 {
     QTextDocument *story = doc.story();
     const ContentControl ctl = contentControlAt(doc, start + 1, story);
-    if (!ctl.valid() || ctl.start != start || ctl.props.kind != ControlKind::DropDown || !ctl.editable || index < 0 || index >= ctl.props.items.size()) return false;
+    if (!ctl.valid() || ctl.start != start || (ctl.props.kind != ControlKind::DropDown && ctl.props.kind != ControlKind::ComboBox) || !ctl.editable || index < 0 || index >= ctl.props.items.size()) return false;
     ControlProps np = ctl.props;
     const ControlItem item = np.items[index];
     np.lastValue = item.value.isEmpty() ? item.display : item.value;
@@ -913,7 +948,7 @@ QString formatControlDate(const QDate &date, const QString &format, const QStrin
 
 int controlItemShown(const ContentControl &control)
 {
-    if (control.props.kind != ControlKind::DropDown || control.placeholder) return -1;
+    if ((control.props.kind != ControlKind::DropDown && control.props.kind != ControlKind::ComboBox) || control.placeholder) return -1;
     for (int i = 0; i < control.props.items.size(); ++i) {
         const ControlItem &it = control.props.items[i];
         if ((it.display.isEmpty() ? it.value : it.display) == control.text) return i;
@@ -935,15 +970,135 @@ bool splitsContentControl(QTextDocument *story, int from, int to)
 bool restoreEmptyPlaceholder(WriteDoc &doc, int position)
 {
     const ContentControl ctl = contentControlAt(doc, position);
-    if (!ctl.valid() || !ctl.editable || ctl.props.kind != ControlKind::PlainText || ctl.placeholder || ctl.end != ctl.start + 1) return false;
+    if (!ctl.valid() || !ctl.editable || (ctl.props.kind != ControlKind::PlainText && ctl.props.kind != ControlKind::RichText && ctl.props.kind != ControlKind::ComboBox) || ctl.placeholder || ctl.end != ctl.start + 1) return false;
     const WriteDoc::StepGroup group(doc);
-    putContents(doc, ctl, placeholderText(ControlKind::PlainText), true, ctl.props);
+    putContents(doc, ctl, placeholderText(ctl.props.kind), true, ctl.props);
     return true;
 }
 
+namespace {
+
+struct BlockSpan {
+    int first = 0, last = 0;   // the places of its first and last paragraph
+    int openIndex = -1;        // which of the first paragraph's kept pieces opens it
+    int depth = 0;
+    bool rowish = false;       // it holds rows or cells (the table's own structure), not paragraphs: not a control to edit
+    QByteArray raw;
+};
+
+QVector<Block> keptOf(const QTextBlock &b, int key)
+{
+    return b.isValid() && b.blockFormat().hasProperty(key) ? unpackBlocks(storedBytes(b.blockFormat(), key)) : QVector<Block>();
+}
+
+void setKept(QTextBlock b, int key, const QVector<Block> &list)
+{
+    QTextBlockFormat nf = b.blockFormat();
+    if (list.isEmpty()) nf.clearProperty(key);
+    else setStored(nf, key, packBlocks(list));
+    QTextCursor c(b);
+    c.setBlockFormat(nf);
+}
+
+bool isRowTag(const QString &tag) { return tag == QLatin1String("tr") || tag == QLatin1String("tc"); }
+
+QVector<BlockSpan> scanBlockSpans(QTextDocument *story)
+{
+    struct Open {
+        int block, index;
+        bool rowish;
+        QByteArray raw;
+    };
+    struct Item {
+        const Block *k;   // null: the paragraph itself
+        bool beforeParagraph;
+        int index;
+    };
+    QVector<Open> stack;
+    QVector<BlockSpan> out;
+    int budget = kMostControls;
+    for (QTextBlock b = story->begin(); b.isValid(); b = b.next()) {
+        const QTextBlockFormat bf = b.blockFormat();
+        if (!bf.hasProperty(prop::RawBefore) && !bf.hasProperty(prop::RawAfter)) continue;
+        const QVector<Block> before = keptOf(b, prop::RawBefore), after = keptOf(b, prop::RawAfter);
+        QVector<Item> seq;   // (what is kept before, the paragraph, and what is kept after, in the order the file has them)
+        for (int i = 0; i < before.size(); ++i) seq.push_back({&before[i], true, i});
+        seq.push_back({nullptr, false, -1});
+        for (int i = 0; i < after.size(); ++i) seq.push_back({&after[i], false, i});
+        for (qsizetype s = 0; s < seq.size(); ++s) {
+            const Item &it = seq[s];
+            if (!it.k || it.k->tag != QLatin1String("sdt")) continue;
+            if (it.k->role == Inline::Open) {
+                const bool rowish = s + 1 < seq.size() && seq[s + 1].k && seq[s + 1].k->role == Inline::Open && isRowTag(seq[s + 1].k->tag);
+                const QTextBlock at = it.beforeParagraph ? b : b.next();
+                if (stack.size() < 4 * kMostControlDepth) stack.push_back({at.isValid() ? at.position() : -1, it.beforeParagraph ? it.index : -1, rowish, it.k->raw});
+            } else if (it.k->role == Inline::Close && !stack.isEmpty()) {
+                const Open o = stack.takeLast();
+                const QTextBlock last = it.beforeParagraph ? b.previous() : b;
+                const int depth = int(stack.size());
+                if (o.block < 0 || !last.isValid() || last.position() < o.block || depth >= kMostControlDepth || budget <= 0) continue;
+                --budget;
+                const bool closesRow = s > 0 && seq[s - 1].k && seq[s - 1].k->role == Inline::Close && isRowTag(seq[s - 1].k->tag);
+                BlockSpan span;
+                span.first = o.block;
+                span.last = last.position();
+                span.openIndex = o.index;
+                span.depth = depth;
+                span.rowish = o.rowish || closesRow;
+                span.raw = o.raw;
+                out.push_back(span);
+            }
+        }
+    }
+    std::sort(out.begin(), out.end(), [](const BlockSpan &a, const BlockSpan &z) { return a.first != z.first ? a.first < z.first : a.depth < z.depth; });
+    return out;
+}
+
+// The block controls of a story, found again after any change to it.
+struct BlockWatch : QObject {
+    QPointer<QTextDocument> story;
+    QVector<BlockSpan> spans;
+    bool fresh = false;
+    QMetaObject::Connection link;
+};
+
+const QVector<BlockSpan> &blockSpans(QTextDocument *story)
+{
+    static BlockWatch watch;
+    if (watch.story != story) {
+        QObject::disconnect(watch.link);
+        watch.story = story;
+        watch.fresh = false;
+        watch.link = QObject::connect(story, &QTextDocument::contentsChanged, &watch, [] { watch.fresh = false; });
+    }
+    if (!watch.fresh) {
+        watch.spans = scanBlockSpans(story);
+        watch.fresh = true;
+    }
+    return watch.spans;
+}
+
+ContentControl blockControlOf(QTextDocument *story, const BlockSpan &s)
+{
+    ContentControl c;
+    c.block = true;
+    c.start = s.first;
+    const QTextBlock last = story->findBlock(s.last);
+    c.end = last.position() + last.length() - 1;
+    c.depth = s.depth;
+    c.openIndex = s.openIndex;
+    bool ok = false, placeholder = false;
+    c.props = controlPropsOf(s.raw, &ok, &placeholder);
+    c.placeholder = placeholder;
+    c.editable = ok && !s.rowish && s.openIndex >= 0 && !inTable(story->findBlock(s.first)) && !inTable(last);
+    if (s.rowish) c.props.kind = ControlKind::Other;
+    return c;
+}
+
+} // namespace
+
 bool contentControlsAllow(WriteDoc &doc, QTextDocument *story, int from, int to, bool typing)
 {
-    Q_UNUSED(doc)
     if (!story || from < 0) return true;
     if (to < from) std::swap(from, to);
     const int last = std::max(from, to);
@@ -960,6 +1115,17 @@ bool contentControlsAllow(WriteDoc &doc, QTextDocument *story, int from, int to,
             if (intoContents && (props.lockContents || chosenOnly(props.kind))) return false;
         }
     }
+    // (A control round whole paragraphs: its lock on the paragraphs' words, and on all of them taken out together.)
+    for (const BlockSpan &s : blockSpans(story)) {
+        const QTextBlock lastBlock = story->findBlock(s.last);
+        const int sEnd = lastBlock.position() + lastBlock.length() - 1;
+        if (s.first > last || sEnd < from || s.rowish) continue;
+        const ControlProps props = controlPropsOf(s.raw);
+        const bool covers = to > from && from <= s.first && to >= sEnd;
+        if (props.lockDelete && covers) return false;
+        const bool touches = (to > from && to > s.first && from < sEnd) || (typing && from >= s.first && from <= sEnd);
+        if (props.lockContents && touches && !covers) return false;
+    }
     return true;
 }
 
@@ -970,7 +1136,7 @@ static ContentControl placeholderControlFor(WriteDoc &doc, const QTextCursor &c)
     if (story != doc.story()) return ContentControl();
     const int at = c.hasSelection() ? c.selectionStart() : c.position();
     const ContentControl ctl = contentControlAt(doc, c.hasSelection() ? at + 1 : at, story);
-    if (!ctl.valid() || !ctl.placeholder || !ctl.editable || ctl.props.kind != ControlKind::PlainText || ctl.props.lockContents) return ContentControl();
+    if (!ctl.valid() || !ctl.placeholder || !ctl.editable || (ctl.props.kind != ControlKind::PlainText && ctl.props.kind != ControlKind::RichText && ctl.props.kind != ControlKind::ComboBox) || ctl.props.lockContents) return ContentControl();
     if (c.hasSelection() && (c.selectionStart() < ctl.start + 1 || c.selectionEnd() > ctl.end)) return ContentControl();
     return ctl;
 }
@@ -996,5 +1162,491 @@ bool caretInKnownControl(WriteDoc &doc, const QTextCursor &c)
     const ContentControl ctl = contentControlAt(doc, c.position(), c.document());
     return ctl.valid() && ctl.props.kind != ControlKind::Other;
 }
+
+// ---- picture controls
+
+namespace {
+void removeContentsBetween(QTextDocument *story, int from, int to)
+{
+    // (What is in the control that is not text, a bookmark or a field's mark, stays; the rest goes.)
+    QVector<QPair<int, int>> gone;
+    const QTextBlock b = story->findBlock(from);
+    for (QTextBlock::iterator it = b.begin(); !it.atEnd(); ++it) {
+        const QTextFragment fr = it.fragment();
+        const int a = std::max(fr.position(), from), z = std::min(fr.position() + fr.length(), to);
+        if (z > a && !fr.charFormat().hasProperty(prop::Atom)) gone.push_back({a, z});
+    }
+    QTextCursor edit(story);
+    for (qsizetype i = gone.size() - 1; i >= 0; --i) {
+        edit.setPosition(gone[i].first);
+        edit.setPosition(gone[i].second, QTextCursor::KeepAnchor);
+        edit.removeSelectedText();
+    }
+}
+constexpr double kPicturePlaceholderSide = 144;   // the box a first picture is fitted in: two inches
+} // namespace
+
+PictureResult setControlPicture(WriteDoc &doc, int start, const QByteArray &bytes, const QString &name)
+{
+    QTextDocument *story = doc.story();
+    const ContentControl ctl = contentControlAt(doc, start + 1, story);
+    if (!ctl.valid() || ctl.start != start || ctl.props.kind != ControlKind::Picture || !ctl.editable || ctl.props.lockContents) return PictureResult::Refused;
+    // (A picture put in the place of another takes the size the first had, kept in proportion; the first takes two inches.)
+    double fitW = kPicturePlaceholderSide, fitH = kPicturePlaceholderSide;
+    if (!ctl.placeholder) {
+        const PictureInfo old = pictureAt(doc, story, ctl.start + 1);
+        if (old.valid && old.width > 0 && old.height > 0) {
+            fitW = old.width;
+            fitH = old.height;
+        }
+    }
+    Inline atom;
+    if (!startOf(story, ctl.start, &atom)) return PictureResult::Refused;
+    const Pieces pieces = piecesOf(atom.raw);
+    if (!pieces.ok) return PictureResult::Refused;
+    const WriteDoc::StepGroup group(doc);
+    EditScope scope(doc, story);
+    QTextCursor edit(story);
+    edit.beginEditBlock();
+    edit.setPosition(ctl.start + 1);
+    const PictureResult made = insertPicture(doc, edit, bytes, name);
+    if (made != PictureResult::Ok) {
+        edit.endEditBlock();
+        return made;
+    }
+    const ContentControl now = contentControlAt(doc, start + 1, story);
+    if (now.valid() && now.start == start) removeContentsBetween(story, ctl.start + 2, now.end);
+    const PictureInfo shown = pictureAt(doc, story, ctl.start + 1);
+    if (shown.valid && shown.width > 0 && shown.height > 0) {
+        const double scale = std::min(fitW / shown.width, fitH / shown.height);
+        double w = shown.width * scale, h = shown.height * scale;
+        clampKeepingRatio(&w, &h);
+        setPictureSize(doc, ctl.start + 1, w, h);
+    }
+    setStartXml(story, ctl.start, buildStart(ctl.props, false, pieces, false));
+    edit.endEditBlock();
+    return PictureResult::Ok;
+}
+
+bool clearControlPicture(WriteDoc &doc, int start)
+{
+    QTextDocument *story = doc.story();
+    const ContentControl ctl = contentControlAt(doc, start + 1, story);
+    if (!ctl.valid() || ctl.start != start || ctl.props.kind != ControlKind::Picture || !ctl.editable || ctl.props.lockContents || ctl.placeholder) return false;
+    const WriteDoc::StepGroup group(doc);
+    putContents(doc, ctl, placeholderText(ControlKind::Picture), true, ctl.props);
+    return true;
+}
+
+// ---- block controls: a control round whole paragraphs (and what they hold: lists, tables, other controls), kept as the pieces that open it before its first paragraph and close it after its last
+
+QVector<ContentControl> blockControls(WriteDoc &doc, QTextDocument *story)
+{
+    if (!story) story = doc.story();
+    QVector<ContentControl> out;
+    for (const BlockSpan &s : blockSpans(story)) out.push_back(blockControlOf(story, s));
+    return out;
+}
+
+ContentControl blockControlAt(WriteDoc &doc, int position, QTextDocument *story)
+{
+    if (!story) story = doc.story();
+    ContentControl best;
+    for (const BlockSpan &s : blockSpans(story)) {
+        const ContentControl c = blockControlOf(story, s);
+        if (position >= c.start && position <= c.end && (!best.valid() || c.depth >= best.depth)) best = c;
+    }
+    return best;
+}
+
+ContentControl controlAtCaret(WriteDoc &doc, const QTextCursor &c)
+{
+    QTextDocument *story = c.document();
+    if (story != doc.story()) return ContentControl();
+    const int at = c.hasSelection() ? c.selectionStart() + 1 : c.position();
+    const ContentControl inner = contentControlAt(doc, at, story);
+    if (inner.valid()) return inner;
+    return blockControlAt(doc, c.hasSelection() ? c.selectionStart() : c.position(), story);
+}
+
+namespace {
+QByteArray newIdXml() { return "<w:id w:val=\"" + QByteArray::number(QRandomGenerator::global()->bounded(1, 2147483647)) + "\"/>"; }
+
+// Puts a new id in the start of a control, whatever it had.
+QByteArray withNewId(const QByteArray &raw)
+{
+    const Pieces p = piecesOf(raw);
+    if (!p.ok) return raw;
+    QByteArray pr;
+    bool placed = false;
+    for (const QByteArray &k : p.kids) {
+        if (localName(k) == QLatin1String("id")) {
+            pr += newIdXml();
+            placed = true;
+        } else {
+            pr += k;
+        }
+    }
+    if (!placed) pr += newIdXml();
+    return p.head + (p.prTag.isEmpty() ? QByteArray("<w:sdtPr>") : p.prTag) + pr + "</w:sdtPr>" + p.tail;
+}
+
+} // namespace
+
+bool setBlockControlProps(WriteDoc &doc, const ContentControl &ctl, const ControlProps &props, QString *problem)
+{
+    QTextDocument *story = doc.story();
+    if (!ctl.valid() || !ctl.block || !ctl.editable || ctl.props.kind != props.kind) return false;
+    if (props.items.size() > kMostControlItems) {
+        if (problem) *problem = QCoreApplication::translate("jp::write::ContentControls", "A list holds at most %1 items.").arg(kMostControlItems);
+        return false;
+    }
+    if (props == ctl.props) return true;
+    const QTextBlock b = story->findBlock(ctl.start);
+    QVector<Block> list = keptOf(b, prop::RawBefore);
+    if (ctl.openIndex < 0 || ctl.openIndex >= list.size() || list[ctl.openIndex].tag != QLatin1String("sdt") || list[ctl.openIndex].role != Inline::Open) return false;
+    const Pieces pieces = piecesOf(list[ctl.openIndex].raw);
+    if (!pieces.ok) return false;
+    list[ctl.openIndex].raw = buildStart(props, ctl.placeholder, pieces, false);
+    const WriteDoc::StepGroup group(doc);
+    EditScope scope(doc, story);
+    QTextCursor edit(story);
+    edit.beginEditBlock();
+    setKept(b, prop::RawBefore, list);
+    edit.endEditBlock();
+    return true;
+}
+
+namespace {
+// The pieces kept between the paragraph `z` and the one after it, in the order of the file: what the paragraph keeps after it and what the next keeps before it (a file's reader puts
+// the end of a control in either).
+QVector<Block> gapAfter(const QTextBlock &z)
+{
+    QVector<Block> gap = keptOf(z, prop::RawAfter);
+    if (z.next().isValid()) gap += keptOf(z.next(), prop::RawBefore);
+    return gap;
+}
+
+// Puts the pieces between `z` and the paragraph after it: the first `inAfter` kept after `z` (where a split paragraph's end goes with its last half), the rest before the next.
+void setGapAfter(const QTextBlock &z, const QVector<Block> &gap, int inAfter)
+{
+    const QTextBlock next = z.next();
+    if (!next.isValid()) inAfter = int(gap.size());
+    setKept(z, prop::RawAfter, gap.mid(0, inAfter));
+    if (next.isValid()) setKept(next, prop::RawBefore, gap.mid(inAfter));
+}
+
+// Whether the paragraphs from `a` to `z` hold the pieces kept round them in balance: what they open, they close, and (in `*closing`) how many of the pieces that come after `z` close what
+// they opened. `*skip` pieces at the start of what is kept before `a` close what was opened before it, and are not the control's.
+bool balancedRange(const QTextBlock &a, const QTextBlock &z, int *skip, int *closing)
+{
+    const QVector<Block> head = keptOf(a, prop::RawBefore);
+    int leading = 0;
+    while (leading < head.size() && head[leading].role == Inline::Close) ++leading;
+    int depth = 0, visited = 0;
+    for (QTextBlock b = a; b.isValid() && visited < 200000; b = b.next(), ++visited) {
+        if (b.blockFormat().hasProperty(prop::RawBlock)) return false;
+        const QVector<Block> before = keptOf(b, prop::RawBefore);
+        for (qsizetype i = b == a ? leading : 0; i < before.size(); ++i) {
+            depth += before[i].role == Inline::Open ? 1 : before[i].role == Inline::Close ? -1 : 0;
+            if (depth < 0) return false;
+        }
+        if (b == z) break;
+        for (const Block &k : keptOf(b, prop::RawAfter)) {
+            depth += k.role == Inline::Open ? 1 : k.role == Inline::Close ? -1 : 0;
+            if (depth < 0) return false;
+        }
+    }
+    // (The pieces after the last paragraph that close what is open are the first of them.)
+    const QVector<Block> gap = gapAfter(z);
+    if (depth > gap.size()) return false;
+    for (int i = 0; i < depth; ++i)
+        if (gap[i].role != Inline::Close) return false;
+    *skip = leading;
+    *closing = depth;
+    return true;
+}
+} // namespace
+
+bool insertBlockControl(WriteDoc &doc, QTextCursor &c, ControlKind kind, QString *problem)
+{
+    QTextDocument *story = doc.story();
+    auto refuse = [&](const QString &why) {
+        if (problem) *problem = why;
+        return false;
+    };
+    if (c.document() != story || (kind != ControlKind::RichText && kind != ControlKind::RepeatingSection))
+        return refuse(QCoreApplication::translate("jp::write::ContentControls", "A content control goes in the text, not in a header, a footer, or a note."));
+    const int a = c.selectionStart(), z = c.selectionEnd();
+    const QTextBlock first = story->findBlock(a), last = story->findBlock(z > a ? z - 1 : z);
+    if (!first.isValid() || !last.isValid()) return false;
+    int skip = 0, closing = 0;
+    // (A control round paragraphs starts and ends outside a table; a table in between is inside it whole.)
+    if (inTable(first) || inTable(last) || !balancedRange(first, last, &skip, &closing))
+        return refuse(QCoreApplication::translate("jp::write::ContentControls", "The paragraphs chosen hold only part of a table or of another content control."));
+    if (int(blockSpans(story).size() + contentControls(doc).size()) >= kMostControls) return refuse(QCoreApplication::translate("jp::write::ContentControls", "The document has the most content controls it can hold."));
+    for (QTextBlock b = first;; b = b.next()) {
+        if (!contentControlsAllow(doc, story, b.position(), b.position() + b.length() - 1, true)) return refuse(QCoreApplication::translate("jp::write::ContentControls", "The content control there can't be changed."));
+        if (b == last) break;
+    }
+    const ContentControl outer = blockControlAt(doc, first.position(), story);
+    if (outer.valid() && outer.depth + (kind == ControlKind::RepeatingSection ? 3 : 1) >= kMostControlDepth) return refuse(QCoreApplication::translate("jp::write::ContentControls", "Content controls can hold each other only so deep."));
+    ControlProps props;
+    props.kind = kind;
+    Pieces blank;
+    blank.head = "<w:sdt>";
+    blank.tail = "<w:sdtContent>";
+    blank.ok = true;
+    Block open, close;
+    open.isRaw = close.isRaw = true;
+    open.tag = close.tag = QStringLiteral("sdt");
+    open.role = Inline::Open;
+    close.role = Inline::Close;
+    open.raw = buildStart(props, false, blank, true);
+    close.raw = kClosingXml;
+    QVector<Block> opens{open}, closes{close};
+    if (kind == ControlKind::RepeatingSection) {
+        Block item = open, itemClose = close;
+        item.raw = "<w:sdt><w:sdtPr>" + newIdXml() + "<w15:repeatingSectionItem/></w:sdtPr><w:sdtContent>";
+        opens.push_back(item);
+        closes.push_front(itemClose);
+    }
+    const WriteDoc::StepGroup group(doc);
+    EditScope scope(doc, story);
+    QTextCursor edit(story);
+    edit.beginEditBlock();
+    QVector<Block> gap = gapAfter(last);
+    for (qsizetype i = 0; i < closes.size(); ++i) gap.insert(closing + i, closes[i]);
+    QVector<Block> head = keptOf(first, prop::RawBefore);
+    for (qsizetype i = 0; i < opens.size(); ++i) head.insert(skip + i, opens[i]);
+    // (The pieces after the last paragraph: those that end what it holds and the new control's end are kept after it, the rest before the next paragraph.)
+    setGapAfter(last, gap, closing + int(closes.size()));
+    setKept(story->findBlock(first.position()), prop::RawBefore, head);
+    edit.endEditBlock();
+    c.setPosition(story->findBlock(first.position()).position());
+    return true;
+}
+
+
+ContentControl repeatingItemAt(WriteDoc &doc, int position, ContentControl *section, QTextDocument *story)
+{
+    if (!story) story = doc.story();
+    ContentControl item, outer;
+    for (const BlockSpan &s : blockSpans(story)) {
+        const ContentControl c = blockControlOf(story, s);
+        if (position < c.start || position > c.end) continue;
+        if (c.props.sectionItem) item = c;
+        else if (c.props.kind == ControlKind::RepeatingSection) outer = c;
+    }
+    if (item.valid() && outer.valid() && item.depth > outer.depth) {
+        if (section) *section = outer;
+        return item;
+    }
+    return ContentControl();
+}
+
+namespace {
+// Gives a copy of a repeating item's paragraphs what a new item starts with: every control in it shows its placeholder (a check box is empty), and every control has its own id.
+void freshenItem(WriteDoc &doc, int fromBlock, int paragraphs)
+{
+    QTextDocument *story = doc.story();
+    QTextBlock b = story->findBlock(fromBlock);
+    for (int count = 0; b.isValid() && count < paragraphs; b = b.next(), ++count) {
+        QVector<Block> before = keptOf(b, prop::RawBefore), after = keptOf(b, prop::RawAfter);
+        bool changed = false;
+        for (Block &k : before)
+            if (k.tag == QLatin1String("sdt") && k.role == Inline::Open) {
+                k.raw = withNewId(k.raw);
+                changed = true;
+            }
+        if (changed) setKept(b, prop::RawBefore, before);
+        // (Controls in the text of the paragraph, the last first, so that what comes before has not moved.)
+        const QVector<ContentControl> inline_ = contentControlsOf(b);
+        for (qsizetype i = inline_.size() - 1; i >= 0; --i) {
+            ContentControl ctl = inline_[i];
+            Inline atom;
+            if (startOf(story, ctl.start, &atom)) {
+                const Pieces p = piecesOf(atom.raw);
+                if (p.ok) setStartXml(story, ctl.start, withNewId(atom.raw));
+            }
+            ctl = contentControlAt(doc, ctl.start + 1, story);
+            if (!ctl.valid() || !ctl.editable || ctl.props.lockContents) continue;
+            const ControlKind k = ctl.props.kind;
+            if (k == ControlKind::CheckBox) {
+                ControlProps np = ctl.props;
+                np.checked = false;
+                putContents(doc, ctl, QString(), false, np, glyphOf(atom.raw, false), glyphFontOf(atom.raw, false));
+            } else if (k == ControlKind::PlainText || k == ControlKind::RichText || k == ControlKind::ComboBox || k == ControlKind::DropDown || k == ControlKind::Date || k == ControlKind::Picture) {
+                ControlProps np = ctl.props;
+                np.date = QDate();
+                np.lastValue.clear();
+                putContents(doc, ctl, placeholderText(k), true, np);
+            }
+        }
+    }
+}
+} // namespace
+
+namespace {
+// Where the closing piece of the item that ends in the paragraph `z` is among the pieces kept after it (the closes of controls inside the item come first, in the order they were
+// opened); -1 for none.
+int itemCloseIndex(QTextDocument *story, const QVector<Block> &gap, const QTextBlock &z, int itemDepth)
+{
+    int inner = 0;
+    for (const BlockSpan &s : blockSpans(story))
+        if (s.last == z.position() && s.depth > itemDepth) ++inner;
+    int seen = 0;
+    for (qsizetype i = 0; i < gap.size(); ++i)
+        if (gap[i].tag == QLatin1String("sdt") && gap[i].role == Inline::Close && seen++ == inner) return int(i);
+    return -1;
+}
+
+int itemsIn(QTextDocument *story, const ContentControl &section, const ContentControl &item, ContentControl *last)
+{
+    int count = 0;
+    for (const BlockSpan &s : blockSpans(story)) {
+        const ContentControl c = blockControlOf(story, s);
+        if (!c.props.sectionItem || c.depth != item.depth || c.start < section.start || c.end > section.end) continue;
+        ++count;
+        if (last && (!last->valid() || c.start > last->start)) *last = c;
+    }
+    return count;
+}
+
+// How many of the pieces from `from` on are closes, one after another.
+int closesFrom(const QVector<Block> &gap, int from)
+{
+    int n = from;
+    while (n < gap.size() && gap[n].role == Inline::Close) ++n;
+    return n;
+}
+} // namespace
+
+bool addRepeatingItem(WriteDoc &doc, int position, QString *problem)
+{
+    QTextDocument *story = doc.story();
+    ContentControl section;
+    const ContentControl item = repeatingItemAt(doc, position, &section, story);
+    if (!item.valid() || !section.valid() || !item.editable || !section.editable) return false;
+    if (section.props.lockContents) {
+        if (problem) *problem = QCoreApplication::translate("jp::write::ContentControls", "The contents of this section can't be edited.");
+        return false;
+    }
+    // (The last item of the section is the one copied, and the new one comes after it.)
+    ContentControl last;
+    const int count = itemsIn(story, section, item, &last);
+    if (count >= kMostRepeatingItems) {
+        if (problem) *problem = QCoreApplication::translate("jp::write::ContentControls", "A repeating section holds at most %1 items.").arg(kMostRepeatingItems);
+        return false;
+    }
+    if (int(blockSpans(story).size() + contentControls(doc).size()) >= kMostControls) {
+        if (problem) *problem = QCoreApplication::translate("jp::write::ContentControls", "The document has the most content controls it can hold.");
+        return false;
+    }
+    const QTextBlock a = story->findBlock(last.start), z = story->findBlock(last.end);
+    QVector<QVector<Block>> was[2];   // (the pieces each paragraph of the item keeps, before and after)
+    int paragraphs = 0;
+    for (QTextBlock b = a; b.isValid(); b = b.next(), ++paragraphs) {
+        was[0].push_back(keptOf(b, prop::RawBefore));
+        was[1].push_back(keptOf(b, prop::RawAfter));
+        if (b == z) break;
+    }
+    ++paragraphs;
+    const QVector<Block> gap = gapAfter(z);
+    const int closeAt = itemCloseIndex(story, gap, z, last.depth);
+    if (closeAt < 0 || last.openIndex < 0 || last.openIndex >= was[0].first().size()) return false;
+    const int tailEnd = closesFrom(gap, closeAt + 1);   // (what closes what holds the section goes with the new item, what opens the next paragraph's stays)
+    const int lastPos = z.position();
+    const WriteDoc::StepGroup group(doc);
+    EditScope scope(doc, story);
+    QTextCursor edit(story);
+    edit.beginEditBlock();
+    QTextCursor copy(story);
+    copy.setPosition(a.position());
+    copy.setPosition(z.position() + z.length() - 1, QTextCursor::KeepAnchor);
+    const QTextDocumentFragment fragment = copy.selection();
+    QTextCursor put(story);
+    put.setPosition(z.position() + z.length() - 1);
+    put.insertBlock();
+    put.insertFragment(fragment);
+    QVector<int> made;
+    QTextBlock n = story->findBlock(lastPos).next();
+    for (int i = 0; i < paragraphs && n.isValid(); ++i, n = n.next()) made.push_back(n.position());
+    if (made.size() != paragraphs) {
+        edit.endEditBlock();
+        doc.undo();
+        if (problem) *problem = QCoreApplication::translate("jp::write::ContentControls", "The item could not be added.");
+        return false;
+    }
+    // The copy's first paragraph has the item's start and what was opened with it, its last has the item's end and what closes the section; the old last paragraph ends the old item, and the
+    // next paragraph keeps what was before it and not the ends that have gone to the copy.
+    for (int i = 0; i < paragraphs; ++i) {
+        QVector<Block> before = i == 0 ? was[0][0].mid(last.openIndex) : was[0][i];
+        for (Block &k : before)
+            if (k.tag == QLatin1String("sdt") && k.role == Inline::Open) k.raw = withNewId(k.raw);
+        setKept(story->findBlock(made[i]), prop::RawBefore, before);
+        setKept(story->findBlock(made[i]), prop::RawAfter, i == paragraphs - 1 ? gap.mid(0, tailEnd) : was[1][i]);
+    }
+    const QTextBlock oldLast = story->findBlock(lastPos);
+    setKept(oldLast, prop::RawAfter, gap.mid(0, closeAt + 1));
+    const QTextBlock after = story->findBlock(made.last()).next();
+    if (after.isValid()) setKept(after, prop::RawBefore, gap.mid(tailEnd));
+    freshenItem(doc, made.first(), paragraphs);
+    edit.endEditBlock();
+    return true;
+}
+
+bool removeRepeatingItem(WriteDoc &doc, int position, QString *problem)
+{
+    QTextDocument *story = doc.story();
+    ContentControl section;
+    const ContentControl item = repeatingItemAt(doc, position, &section, story);
+    if (!item.valid() || !section.valid() || !item.editable) return false;
+    if (itemsIn(story, section, item, nullptr) <= 1) {
+        if (problem) *problem = QCoreApplication::translate("jp::write::ContentControls", "A repeating section keeps at least one item.");
+        return false;
+    }
+    if (item.props.lockDelete || section.props.lockContents) {
+        if (problem) *problem = QCoreApplication::translate("jp::write::ContentControls", "The item can't be deleted.");
+        return false;
+    }
+    const QTextBlock a = story->findBlock(item.start), z = story->findBlock(item.end);
+    const QVector<Block> aBefore = keptOf(a, prop::RawBefore), gap = gapAfter(z);
+    const int closeAt = itemCloseIndex(story, gap, z, item.depth);
+    if (closeAt < 0 || item.openIndex < 0 || item.openIndex >= aBefore.size()) return false;
+    // What stands before the item's start (the section's own start, when it is the first item) and after its end (the section's end, when it is the last) stays: the pieces between the
+    // paragraph before the item and the paragraph after it are what was before the item's start and what was after its end.
+    const QTextBlock previous = a.previous(), next = z.next();
+    QVector<Block> between = previous.isValid() ? keptOf(previous, prop::RawAfter) : QVector<Block>();
+    between += aBefore.mid(0, item.openIndex);
+    between += gap.mid(closeAt + 1);
+    const int previousPos = previous.isValid() ? previous.position() : -1;
+    const WriteDoc::StepGroup group(doc);
+    EditScope scope(doc, story);
+    QTextCursor edit(story);
+    edit.beginEditBlock();
+    QTextCursor del(story);
+    if (next.isValid()) {
+        del.setPosition(a.position());
+        del.setPosition(next.position(), QTextCursor::KeepAnchor);
+    } else {
+        del.setPosition(previous.position() + previous.length() - 1);
+        del.setPosition(z.position() + z.length() - 1, QTextCursor::KeepAnchor);
+    }
+    del.removeSelectedText();
+    // (Closes go after the paragraph before, from the first piece that opens on they go before the paragraph after.)
+    int closing = 0;
+    while (closing < between.size() && between[closing].role == Inline::Close) ++closing;
+    if (previousPos >= 0 && next.isValid()) {
+        setGapAfter(story->findBlock(previousPos), between, closing);
+    } else if (previousPos >= 0) {
+        setKept(story->findBlock(previousPos), prop::RawAfter, between);
+    } else if (next.isValid()) {
+        setKept(story->findBlock(a.position()), prop::RawBefore, between);
+    }
+    edit.endEditBlock();
+    return true;
+}
+
 
 } // namespace jp::write

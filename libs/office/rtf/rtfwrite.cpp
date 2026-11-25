@@ -767,6 +767,7 @@ struct Writer {
                         continue;
                     }
                 }
+                if (b.role == Inline::Open && b.tag == QLatin1String("sdt") && !b.raw.contains("docPartGallery")) note(QCoreApplication::translate("rtf", "content controls (the text in them is kept)"));
                 if (b.role == Inline::Single && !b.display.isEmpty()) o += "\\pard " + text(b.display) + "\\par\n";
                 continue;
             }

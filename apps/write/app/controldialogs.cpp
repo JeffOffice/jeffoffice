@@ -44,6 +44,13 @@ bool contentControlDialog(QWidget *parent, WriteDoc *doc, int start)
     if (!doc) return false;
     const ContentControl ctl = contentControlAt(*doc, start + 1);
     if (!ctl.valid() || ctl.start != start || !ctl.editable) return false;
+    return contentControlDialog(parent, doc, ctl);
+}
+
+bool contentControlDialog(QWidget *parent, WriteDoc *doc, const ContentControl &ctl)
+{
+    if (!doc || !ctl.valid() || !ctl.editable) return false;
+    const int start = ctl.start;
     QDialog dlg(parent);
     dlg.setObjectName(QStringLiteral("contentControlDialog"));
     dlg.setWindowTitle(QCoreApplication::translate("jp::write::ControlDialogs", "Content Control Properties"));
@@ -83,7 +90,7 @@ bool contentControlDialog(QWidget *parent, WriteDoc *doc, int start)
     }
     v->addLayout(form);
     QListWidget *items = nullptr;
-    if (ctl.props.kind == ControlKind::DropDown) {
+    if (ctl.props.kind == ControlKind::DropDown || ctl.props.kind == ControlKind::ComboBox) {
         auto *label = new QLabel(QCoreApplication::translate("jp::write::ControlDialogs", "Items in the list"), &dlg);
         v->addWidget(label);
         items = new QListWidget(&dlg);
@@ -159,7 +166,7 @@ bool contentControlDialog(QWidget *parent, WriteDoc *doc, int start)
             }
         }
         QString why;
-        applied = setContentControlProps(*doc, start, p, &why);
+        applied = ctl.block ? setBlockControlProps(*doc, ctl, p, &why) : setContentControlProps(*doc, start, p, &why);
         if (!applied && !why.isEmpty()) jp::plainWarning(&dlg, dlg.windowTitle(), why);
         return applied;
     };
@@ -175,7 +182,7 @@ QMenu *controlChoicesMenu(QWidget *parent, WriteDoc *doc, int start, const std::
     if (!doc) return nullptr;
     const ContentControl ctl = contentControlAt(*doc, start + 1);
     if (!ctl.valid() || ctl.start != start || !ctl.editable) return nullptr;
-    if (ctl.props.kind == ControlKind::DropDown) {
+    if (ctl.props.kind == ControlKind::DropDown || ctl.props.kind == ControlKind::ComboBox) {
         auto *menu = new QMenu(parent);
         menu->setObjectName(QStringLiteral("controlChoices"));
         menu->setAttribute(Qt::WA_DeleteOnClose);

@@ -20,9 +20,13 @@ class SpellCheck;
 class WriteTagger;
 
 // A content control that is drawn with a box: the places of its first and last atoms, whether the caret is in it (its box is outlined and its title is on a tab above), and its title.
+// How wide the button at the end of a repeating section is, in points (the page view finds a click on it by the same number).
+constexpr double kAddButtonWidth = 14;
+
 struct ControlMark {
     int from = 0, to = 0;
     bool focus = false;
+    bool add = false;   // a repeating section: its end has a button that adds an item
     QString title;
 };
 

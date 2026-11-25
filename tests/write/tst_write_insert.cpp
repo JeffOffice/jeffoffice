@@ -6,6 +6,7 @@
 #include "app/barcodedialog.h"
 #include "app/linktargetpicker.h"
 #include "app/navpane.h"
+#include "app/pagepaint.h"
 #include "app/pageview.h"
 #include "app/settings.h"
 #include "app/theme.h"
@@ -41,6 +42,7 @@
 #include "wml/wml.h"
 
 #include <QBuffer>
+#include <QImage>
 #include <QScopeGuard>
 #include <QCalendarWidget>
 #include <QCheckBox>
@@ -2450,7 +2452,7 @@ private Q_SLOTS:
         auto other = open(makeDocx("<w:p>" + combo + "</w:p>"));
         QCOMPARE(documentXml(other->toDocx()).contains(combo), true);
         const ContentControl oc = contentControls(*other).first();
-        QCOMPARE(oc.props.kind, ControlKind::Other);
+        QCOMPARE(oc.props.kind, ControlKind::ComboBox);
         QVERIFY(oc.props.lockDelete && oc.props.lockContents);
         QTextCursor c(other->story());
         c.setPosition(oc.end);
@@ -2541,6 +2543,57 @@ private Q_SLOTS:
         const QVector<ContentControl> all = contentControls(*w.document());
         QCOMPARE(all.size(), 4);
         QVERIFY(w.document()->canUndo());
+    }
+
+    void newContentControlScreenshots()
+    {
+        const QString dir = qEnvironmentVariable("JW_SHOT_DIR");
+        if (dir.isEmpty()) QSKIP("JW_SHOT_DIR is not set");
+        jp::applyUiTheme(1);
+        Win win({"Comments:", "Alpha line", "Beta line", "Photo: ", "Size: ", "Tasks:", "Task one", "Task two"});
+        WriteWindow &w = win.w;
+        WriteDoc &doc = *w.document();
+        w.resize(1100, 760);
+        QTextDocument *story = doc.story();
+        auto block = [&](int n) { return story->findBlockByNumber(n); };
+        QTextCursor c(story);
+        // The rows are made last first, so that the places do not move.
+        c.setPosition(block(6).position());
+        c.setPosition(block(7).position() + 3, QTextCursor::KeepAnchor);
+        QVERIFY(insertContentControl(doc, c, ControlKind::RepeatingSection));
+        c.setPosition(block(4).position() + int(block(4).text().size()));
+        QVERIFY(insertContentControl(doc, c, ControlKind::ComboBox));
+        c.setPosition(block(3).position() + int(block(3).text().size()));
+        QVERIFY(insertContentControl(doc, c, ControlKind::Picture));
+        c.setPosition(block(1).position());
+        c.setPosition(block(2).position() + 3, QTextCursor::KeepAnchor);
+        QVERIFY(insertContentControl(doc, c, ControlKind::RichText));
+        const QVector<ContentControl> inline_ = contentControls(doc);
+        QCOMPARE(inline_.size(), 2);
+        ControlProps p = blockControls(doc).first().props;
+        p.title = QStringLiteral("Comments");
+        QVERIFY(setBlockControlProps(doc, blockControls(doc).first(), p));
+        for (qsizetype i = inline_.size() - 1; i >= 0; --i) {   // (the last first: a picture changes the places after it)
+            const ContentControl &x = inline_[i];
+            if (x.props.kind == ControlKind::ComboBox) {
+                ControlProps q = x.props;
+                q.items = {{QStringLiteral("Small"), QStringLiteral("s")}, {QStringLiteral("Medium"), QStringLiteral("m")}};
+                QVERIFY(setContentControlProps(doc, x.start, q));
+                QVERIFY(chooseControlItem(doc, x.start, 1));
+            } else {
+                QCOMPARE(setControlPicture(doc, x.start, pngOf(240, 120), QStringLiteral("photo")), PictureResult::Ok);
+            }
+        }
+        w.show();
+        if (!QTest::qWaitForWindowActive(&w)) QSKIP("the window can't be made active here");
+        w.view()->paginateAll();
+        QTextCursor in(story);
+        in.setPosition(block(2).position() + 2);
+        w.view()->setCursor(in);
+        w.grab().save(dir + QLatin1String("/content-controls-rich-text.png"));
+        in.setPosition(block(6).position() + 2);
+        w.view()->setCursor(in);
+        w.grab().save(dir + QLatin1String("/content-controls-repeating.png"));
     }
 
     void aClickFlipsACheckBoxAndSelectsAPlaceholder()
@@ -3092,6 +3145,440 @@ private Q_SLOTS:
         QCOMPARE(contentControlAt(doc, start + 1).text, QStringLiteral("2026-03-09"));
         QCOMPARE(formatControlDate(QDate(2026, 3, 9), QStringLiteral("MMMM"), QStringLiteral("en-US")), QStringLiteral("March"));
         QCOMPARE(formatControlDate(QDate(2026, 3, 9), QStringLiteral("MMMM"), QStringLiteral("de-DE")), QStringLiteral("März"));
+    }
+
+    // ---- rich text, picture, combo box, and repeating section controls
+
+    static QByteArray pngOf(int width, int height)
+    {
+        QImage image(width, height, QImage::Format_RGB32);
+        image.fill(QColor(30, 120, 200));
+        QByteArray bytes;
+        QBuffer buffer(&bytes);
+        buffer.open(QIODevice::WriteOnly);
+        image.save(&buffer, "PNG");
+        return bytes;
+    }
+
+    static QByteArray sectionXml(int items, const QByteArray &inner = "<w:p><w:r><w:t>Item</w:t></w:r></w:p>")
+    {
+        const QByteArray ns = " xmlns:w15=\"http://schemas.microsoft.com/office/word/2012/wordml\"";
+        QByteArray body = "<w:sdt" + ns + "><w:sdtPr><w:alias w:val=\"Rows\"/><w:id w:val=\"100\"/><w15:repeatingSection/></w:sdtPr><w:sdtContent>";
+        for (int i = 0; i < items; ++i) body += "<w:sdt" + ns + "><w:sdtPr><w:id w:val=\"" + QByteArray::number(200 + i) + "\"/><w15:repeatingSectionItem/></w:sdtPr><w:sdtContent>" + inner + "</w:sdtContent></w:sdt>";
+        return body + "</w:sdtContent></w:sdt>";
+    }
+
+    static QByteArray tableXml()
+    {
+        return "<w:tbl><w:tblPr/><w:tblGrid><w:gridCol w:w=\"2000\"/></w:tblGrid><w:tr><w:tc><w:tcPr><w:tcW w:w=\"2000\" w:type=\"dxa\"/></w:tcPr><w:p><w:r><w:t>Cell</w:t></w:r></w:p></w:tc></w:tr></w:tbl>";
+    }
+
+    void richTextPictureAndComboBoxControlsAreMadeWrittenReadBackAndUndone()
+    {
+        struct Case {
+            ControlKind kind;
+            const char *element;
+        };
+        const Case cases[] = {{ControlKind::RichText, "<w:richText/>"}, {ControlKind::Picture, "<w:picture/>"}, {ControlKind::ComboBox, "<w:comboBox>"}};
+        for (const Case &k : cases) {
+            Win win;
+            const QByteArray before = documentXml(win.w.document()->toDocx());
+            const int start = makeControl(win, k.kind);
+            QVERIFY2(start >= 0, k.element);
+            const ContentControl c = contentControlAt(*win.w.document(), start + 1);
+            QCOMPARE(c.props.kind, k.kind);
+            QVERIFY(c.placeholder);
+            QVERIFY(c.editable);
+            QVERIFY(!c.text.isEmpty());
+            const QByteArray out = documentXml(win.w.document()->toDocx());
+            QVERIFY2(out.contains(k.element) && out.contains("<w:showingPlcHdr/>"), out.constData());
+            auto again = open(win.w.document()->toDocx());
+            const QVector<ContentControl> back = contentControls(*again);
+            QCOMPARE(back.size(), 1);
+            QCOMPARE(back.first().props.kind, k.kind);
+            QVERIFY(back.first().placeholder);
+            QCOMPARE(documentXml(again->toDocx()), out);   // (read and written again: the same bytes)
+            win.w.document()->undo();   // (one step)
+            QCOMPARE(documentXml(win.w.document()->toDocx()), before);
+        }
+    }
+
+    void aControlOfAKindWeDoNotModelIsKeptAsWritten()
+    {
+        const QByteArray sdt = "<w:sdt><w:sdtPr><w:id w:val=\"7\"/><w:equation/></w:sdtPr><w:sdtContent><w:r><w:t xml:space=\"preserve\">EQ</w:t></w:r></w:sdtContent></w:sdt>";
+        auto doc = open(makeDocx("<w:p>" + sdt + "</w:p>"));
+        QCOMPARE(contentControls(*doc).first().props.kind, ControlKind::Other);
+        const QByteArray saved = documentXml(doc->toDocx());
+        QVERIFY2(saved.contains(sdt), saved.constData());
+    }
+
+    void aComboBoxHoldsAnItemOrWhatIsTyped()
+    {
+        Win win;
+        WriteDoc &doc = *win.w.document();
+        const int start = makeControl(win, ControlKind::ComboBox);
+        ControlProps p = contentControlAt(doc, start + 1).props;
+        p.title = QStringLiteral("Size");
+        p.items = {{QStringLiteral("Small"), QStringLiteral("s")}, {QStringLiteral("Large"), QStringLiteral("l")}};
+        QVERIFY(setContentControlProps(doc, start, p));
+        QVERIFY(chooseControlItem(doc, start, 1));
+        QCOMPARE(contentControlAt(doc, start + 1).text, QStringLiteral("Large"));
+        QCOMPARE(controlItemShown(contentControlAt(doc, start + 1)), 1);
+        const QByteArray out = documentXml(doc.toDocx());
+        QVERIFY2(out.contains("<w:comboBox w:lastValue=\"l\">") && out.contains("<w:listItem w:displayText=\"Small\" w:value=\"s\"/>"), out.constData());
+        // Free typing is allowed in it.
+        const ContentControl c = contentControlAt(doc, start + 1);
+        QVERIFY(contentControlsAllow(doc, doc.story(), c.end, c.end, true));
+        auto again = open(doc.toDocx());
+        const ContentControl back = contentControls(*again).first();
+        QCOMPARE(back.props.kind, ControlKind::ComboBox);
+        QCOMPARE(back.props.items.size(), 2);
+        QCOMPARE(back.props.title, QStringLiteral("Size"));
+        QCOMPARE(back.props.lastValue, QStringLiteral("l"));
+        // The drop-down list holds only what is chosen.
+        Win dd;
+        const int d = makeControl(dd, ControlKind::DropDown);
+        const ContentControl dc = contentControlAt(*dd.w.document(), d + 1);
+        QVERIFY(!contentControlsAllow(*dd.w.document(), dd.w.document()->story(), dc.end, dc.end, true));
+    }
+
+    void aPictureControlTakesAPictureKeepsItsSizeAndIsCleared()
+    {
+        Win win;
+        WriteDoc &doc = *win.w.document();
+        const int start = makeControl(win, ControlKind::Picture);
+        QVERIFY(start >= 0);
+        const QByteArray empty = documentXml(doc.toDocx());
+        // Not a picture: refused, nothing changes.
+        QCOMPARE(setControlPicture(doc, start, QByteArray("not a picture"), QStringLiteral("x")), PictureResult::Unreadable);
+        QCOMPARE(documentXml(doc.toDocx()), empty);
+        QCOMPARE(setControlPicture(doc, start, pngOf(400, 200), QStringLiteral("wide")), PictureResult::Ok);
+        QVERIFY(!contentControlAt(doc, start + 1).placeholder);
+        const PictureInfo first = pictureAt(doc, doc.story(), start + 1);
+        QVERIFY(first.valid);
+        QVERIFY(first.width <= 144.5 && first.height <= 144.5);
+        QVERIFY(first.width > first.height);   // (the proportions stay)
+        const QByteArray withPicture = documentXml(doc.toDocx());
+        QVERIFY2(withPicture.contains("<w:picture/>") && withPicture.contains("<w:drawing") && !withPicture.contains("<w:showingPlcHdr/>"), withPicture.constData());
+        // A second picture takes the box the first had.
+        QCOMPARE(setControlPicture(doc, start, pngOf(100, 400), QStringLiteral("tall")), PictureResult::Ok);
+        const PictureInfo second = pictureAt(doc, doc.story(), start + 1);
+        QVERIFY(second.height <= first.height + 0.5 && second.width <= first.width + 0.5);
+        QVERIFY(second.height > second.width);
+        QCOMPARE(contentControls(doc).size(), 1);
+        QVERIFY(contentControlAt(doc, start + 1).text.isEmpty());
+        // One step undoes the change.
+        doc.undo();
+        QCOMPARE(documentXml(doc.toDocx()), withPicture);
+        // The file read again holds the same control with its picture; Clear brings the placeholder back.
+        auto again = open(doc.toDocx());
+        const ContentControl back = contentControls(*again).first();
+        QCOMPARE(back.props.kind, ControlKind::Picture);
+        QVERIFY(!back.placeholder);
+        QVERIFY(pictureAt(*again, again->story(), back.start + 1).valid);
+        QVERIFY(clearControlPicture(doc, start));
+        QVERIFY(contentControlAt(doc, start + 1).placeholder);
+        QVERIFY(!isPictureAt(doc.story(), start + 1));
+        doc.undo();
+        QCOMPARE(documentXml(doc.toDocx()), withPicture);
+        // With its contents locked it takes nothing, and it holds only a picture (typing is refused).
+        ControlProps p = contentControlAt(doc, start + 1).props;
+        p.lockContents = true;
+        QVERIFY(setContentControlProps(doc, start, p));
+        QCOMPARE(setControlPicture(doc, start, pngOf(10, 10)), PictureResult::Refused);
+        QVERIFY(!clearControlPicture(doc, start));
+        const ContentControl c = contentControlAt(doc, start + 1);
+        QVERIFY(!contentControlsAllow(doc, doc.story(), c.end, c.end, true));
+    }
+
+    void aPictureDroppedOnAPictureControlGoesInIt()
+    {
+        Win win;
+        WriteDoc &doc = *win.w.document();
+        const int start = makeControl(win, ControlKind::Picture);
+        QVERIFY(win.w.view()->putInPictureControl(start + 1, pngOf(50, 50), QStringLiteral("dropped")));
+        QVERIFY(!contentControlAt(doc, start + 1).placeholder);
+        QVERIFY(pictureAt(doc, doc.story(), start + 1).valid);
+        // Where there is no picture control it does nothing.
+        Win plain;
+        QVERIFY(!plain.w.view()->putInPictureControl(1, pngOf(50, 50), QStringLiteral("dropped")));
+    }
+
+    void aRichTextControlHoldsParagraphsAListAndATableAsWritten()
+    {
+        const QByteArray sdt = "<w:sdt><w:sdtPr><w:alias w:val=\"Notes\"/><w:tag w:val=\"n\"/><w:id w:val=\"9\"/><w:richText/></w:sdtPr><w:sdtContent><w:p><w:pPr><w:ind w:left=\"720\"/></w:pPr><w:r><w:rPr><w:b/></w:rPr><w:t>Bold item</w:t></w:r></w:p><w:p><w:r><w:t>Second</w:t></w:r></w:p>" + tableXml() + "<w:p><w:r><w:t>After table</w:t></w:r></w:p></w:sdtContent></w:sdt>";
+        auto doc = open(makeDocx("<w:p><w:r><w:t>Before</w:t></w:r></w:p>" + sdt + "<w:p><w:r><w:t>Outside</w:t></w:r></w:p>"));
+        QVERIFY(doc);
+        const QVector<ContentControl> blocks = blockControls(*doc);
+        QCOMPARE(blocks.size(), 1);
+        QCOMPARE(blocks.first().props.kind, ControlKind::RichText);
+        QCOMPARE(blocks.first().props.title, QStringLiteral("Notes"));
+        QVERIFY(blocks.first().editable && blocks.first().block);
+        QVERIFY(contentControls(*doc).isEmpty());
+        QCOMPARE(blockControlAt(*doc, blocks.first().start + 2).props.tag, QStringLiteral("n"));
+        QVERIFY(!blockControlAt(*doc, 0).valid());   // (the paragraph before is outside)
+        // A control nobody changed is written as it was read, with its indented and bold words and its table inside.
+        const QByteArray out = documentXml(doc->toDocx());
+        QVERIFY2(out.contains("<w:alias w:val=\"Notes\"/>") && out.contains("<w:richText/>") && out.contains("<w:tbl>"), out.constData());
+        QVERIFY(out.indexOf("<w:richText/>") < out.indexOf("Bold item") && out.indexOf("After table") < out.indexOf("</w:sdtContent></w:sdt>") && out.indexOf("</w:sdtContent></w:sdt>") < out.indexOf("Outside"));
+        QCOMPARE(out.count("<w:sdt>"), 1);
+        // Its title and locks change in one step that undoes.
+        ControlProps p = blocks.first().props;
+        p.title = QStringLiteral("Comments");
+        p.lockDelete = true;
+        QVERIFY(setBlockControlProps(*doc, blocks.first(), p));
+        const QByteArray changed = documentXml(doc->toDocx());
+        QVERIFY2(changed.contains("<w:alias w:val=\"Comments\"/>") && changed.contains("<w:lock w:val=\"sdtLocked\"/>"), changed.constData());
+        doc->undo();
+        QCOMPARE(documentXml(doc->toDocx()), out);
+        // Read again after a change, the model is the same.
+        QVERIFY(setBlockControlProps(*doc, blocks.first(), p));
+        auto again = open(doc->toDocx());
+        QCOMPARE(blockControls(*again).size(), 1);
+        QCOMPARE(blockControls(*again).first().props.title, QStringLiteral("Comments"));
+    }
+
+    void aRichTextControlIsMadeRoundTheParagraphsSelectedAndNotRoundHalfATable()
+    {
+        Win win({"One", "Two", "Three"});
+        WriteDoc &doc = *win.w.document();
+        const QByteArray before = documentXml(doc.toDocx());
+        QTextCursor &c = win.w.view()->cursor();
+        c.setPosition(1);
+        c.setPosition(doc.story()->findBlockByNumber(1).position() + 2, QTextCursor::KeepAnchor);
+        QString why;
+        QVERIFY2(insertContentControl(doc, c, ControlKind::RichText, &why), qPrintable(why));
+        const QVector<ContentControl> made = blockControls(doc);
+        QCOMPARE(made.size(), 1);
+        QVERIFY(contentControls(doc).isEmpty());
+        QCOMPARE(made.first().start, doc.story()->findBlockByNumber(0).position());
+        QCOMPARE(made.first().end, doc.story()->findBlockByNumber(1).position() + 3);
+        const QByteArray out = documentXml(doc.toDocx());
+        QVERIFY2(out.indexOf("<w:sdt>") < out.indexOf("One") && out.indexOf("Two") < out.indexOf("</w:sdtContent></w:sdt>") && out.indexOf("</w:sdtContent></w:sdt>") < out.indexOf("Three") && out.contains("<w:richText/>"), out.constData());
+        auto again = open(doc.toDocx());
+        QCOMPARE(blockControls(*again).size(), 1);
+        QCOMPARE(documentXml(again->toDocx()), out);
+        doc.undo();
+        QCOMPARE(documentXml(doc.toDocx()), before);
+        QCOMPARE(blockControls(doc).size(), 0);
+        // In a paragraph with nothing in it, a rich text control holds paragraphs.
+        Win blank({""});
+        QVERIFY(insertContentControl(*blank.w.document(), blank.w.view()->cursor(), ControlKind::RichText));
+        QCOMPARE(blockControls(*blank.w.document()).size(), 1);
+        // Round part of a table (its cell's paragraph): refused, nothing changes.
+        QByteArray twoCells = tableXml();
+        twoCells.replace("</w:tc></w:tr>", "</w:tc><w:tc><w:tcPr><w:tcW w:w=\"2000\" w:type=\"dxa\"/></w:tcPr><w:p><w:r><w:t>Next</w:t></w:r></w:p></w:tc></w:tr>");
+        twoCells.replace("<w:gridCol w:w=\"2000\"/>", "<w:gridCol w:w=\"2000\"/><w:gridCol w:w=\"2000\"/>");
+        auto withTable = open(makeDocx("<w:p><w:r><w:t>A</w:t></w:r></w:p>" + twoCells + "<w:p><w:r><w:t>B</w:t></w:r></w:p>"));
+        const QByteArray tableBefore = documentXml(withTable->toDocx());
+        QTextCursor t(withTable->story());
+        t.setPosition(withTable->story()->findBlockByNumber(1).position());
+        QVERIFY(!insertBlockControl(*withTable, t, ControlKind::RichText, &why));
+        QVERIFY(!why.isEmpty());
+        QCOMPARE(documentXml(withTable->toDocx()), tableBefore);
+        // Round the paragraph before the table, the table, and the paragraph after it: allowed, and the table stays inside.
+        t.setPosition(0);
+        t.setPosition(withTable->story()->characterCount() - 1, QTextCursor::KeepAnchor);
+        QVERIFY2(insertContentControl(*withTable, t, ControlKind::RichText, &why), qPrintable(why));
+        const QByteArray whole = documentXml(withTable->toDocx());
+        QVERIFY2(whole.indexOf("<w:sdt>") < whole.indexOf("<w:tbl>") && whole.indexOf("</w:tbl>") < whole.indexOf("</w:sdtContent>"), whole.constData());
+    }
+
+    void enterInARichTextControlMakesAnotherParagraphInsideIt()
+    {
+        Win win({"", "Outside"});
+        WriteWindow &w = win.w;
+        WriteDoc &doc = *w.document();
+        w.view()->cursor().setPosition(0);
+        QVERIFY(insertContentControl(doc, w.view()->cursor(), ControlKind::RichText));
+        QCOMPARE(blockControls(doc).size(), 1);
+        QTest::keyClicks(w.view()->viewport(), "ab");
+        QTest::keyClick(w.view()->viewport(), Qt::Key_Return);
+        QTest::keyClicks(w.view()->viewport(), "cd");
+        const QByteArray out = documentXml(doc.toDocx());
+        QVERIFY2(out.indexOf("<w:richText/>") < out.indexOf(">ab<") && out.indexOf(">ab<") < out.indexOf(">cd<") && out.indexOf(">cd<") < out.indexOf("</w:sdtContent></w:sdt>") && out.indexOf("</w:sdtContent></w:sdt>") < out.indexOf("Outside"), out.constData());
+        QCOMPARE(out.count("<w:sdt>"), 1);
+        QCOMPARE(blockControls(doc).first().end, doc.story()->findBlockByNumber(1).position() + 2);
+    }
+
+    void theLocksOfAControlRoundParagraphsAreKept()
+    {
+        const QByteArray sdt = "<w:sdt><w:sdtPr><w:id w:val=\"9\"/><w:lock w:val=\"sdtContentLocked\"/><w:richText/></w:sdtPr><w:sdtContent><w:p><w:r><w:t>Alpha</w:t></w:r></w:p><w:p><w:r><w:t>Beta</w:t></w:r></w:p></w:sdtContent></w:sdt>";
+        auto doc = open(makeDocx("<w:p><w:r><w:t>Out</w:t></w:r></w:p>" + sdt + "<w:p><w:r><w:t>End</w:t></w:r></w:p>"));
+        const ContentControl c = blockControls(*doc).first();
+        QVERIFY(c.props.lockDelete && c.props.lockContents);
+        QTextDocument *story = doc->story();
+        QVERIFY(!contentControlsAllow(*doc, story, c.start + 1, c.start + 1, true));    // typing inside
+        QVERIFY(!contentControlsAllow(*doc, story, c.start + 1, c.start + 3, false));   // taking words out
+        QVERIFY(!contentControlsAllow(*doc, story, c.start, c.end, false));             // taking it all out (it can't be deleted)
+        QVERIFY(contentControlsAllow(*doc, story, 0, 2, false));                        // outside is free
+        ControlProps p = c.props;
+        p.lockDelete = false;
+        QVERIFY(setBlockControlProps(*doc, c, p));
+        const ContentControl c2 = blockControls(*doc).first();
+        QVERIFY(contentControlsAllow(*doc, story, c2.start, c2.end, false));            // (contents locked only: it may go whole)
+        QVERIFY(!contentControlsAllow(*doc, story, c2.start + 1, c2.start + 3, false));
+    }
+
+    void aRepeatingSectionAddsAndRemovesItemsEachWithItsOwnControls()
+    {
+        const QByteArray inner = "<w:p><w:r><w:t xml:space=\"preserve\">Task: </w:t></w:r><w:sdt><w:sdtPr><w:id w:val=\"50\"/><w:text/></w:sdtPr><w:sdtContent><w:r><w:t>Done it</w:t></w:r></w:sdtContent></w:sdt></w:p><w:p><w:r><w:t>Notes</w:t></w:r></w:p>";
+        auto doc = open(makeDocx(sectionXml(2, inner)));
+        QVERIFY(doc);
+        QCOMPARE(blockControls(*doc).size(), 3);   // the section and its two items
+        ContentControl section;
+        const int inFirst = doc->story()->findBlockByNumber(0).position() + 1;
+        const ContentControl item = repeatingItemAt(*doc, inFirst, &section);
+        QVERIFY(item.valid() && item.props.sectionItem);
+        QCOMPARE(section.props.kind, ControlKind::RepeatingSection);
+        QCOMPARE(section.props.title, QStringLiteral("Rows"));
+        const QByteArray two = documentXml(doc->toDocx());
+        QCOMPARE(two.count("repeatingSectionItem"), 2);
+        // An item is added at the section's end, one step that undoes.
+        QString why;
+        QVERIFY2(addRepeatingItem(*doc, inFirst, &why), qPrintable(why));
+        QCOMPARE(blockControls(*doc).size(), 4);
+        QCOMPARE(doc->story()->blockCount(), 6);
+        const QByteArray three = documentXml(doc->toDocx());
+        QCOMPARE(three.count("repeatingSectionItem"), 3);
+        // The new item has its own control, showing its placeholder, with an id of its own; the old items are as they were.
+        const QVector<ContentControl> texts = contentControls(*doc);
+        QCOMPARE(texts.size(), 3);
+        QVERIFY(!texts[0].placeholder && !texts[1].placeholder && texts[2].placeholder);
+        QSet<QByteArray> ids;
+        for (int at = three.indexOf("<w:id w:val=\""); at >= 0; at = three.indexOf("<w:id w:val=\"", at + 5)) ids.insert(three.mid(at, three.indexOf("/>", at) - at));
+        QCOMPARE(ids.size(), 6);   // (the section, three items, and two controls: the fixture gives both old items one control id, and the new item has one of its own)
+        auto again = open(doc->toDocx());
+        QCOMPARE(blockControls(*again).size(), 4);
+        QCOMPARE(documentXml(again->toDocx()), three);
+        doc->undo();
+        QCOMPARE(documentXml(doc->toDocx()), two);
+        // An item is removed in one step; the last one stays.
+        QVERIFY2(removeRepeatingItem(*doc, inFirst, &why), qPrintable(why));
+        QCOMPARE(blockControls(*doc).size(), 2);
+        QCOMPARE(documentXml(doc->toDocx()).count("repeatingSectionItem"), 1);
+        auto reread = open(doc->toDocx());
+        QCOMPARE(blockControls(*reread).size(), 2);
+        QVERIFY(!removeRepeatingItem(*doc, inFirst, &why));
+        QVERIFY(!why.isEmpty());
+        QCOMPARE(blockControls(*doc).size(), 2);
+        doc->undo();
+        QCOMPARE(documentXml(doc->toDocx()), two);
+    }
+
+    void aRepeatingSectionIsMadeRoundTheParagraphAtTheCaretAndAHugeOneIsBounded()
+    {
+        Win win({"Row"});
+        WriteDoc &doc = *win.w.document();
+        const QByteArray before = documentXml(doc.toDocx());
+        QString why;
+        QVERIFY2(insertContentControl(doc, win.w.view()->cursor(), ControlKind::RepeatingSection, &why), qPrintable(why));
+        QCOMPARE(blockControls(doc).size(), 2);
+        const QByteArray out = documentXml(doc.toDocx());
+        QVERIFY2(out.contains("<w15:repeatingSection/>") && out.contains("<w15:repeatingSectionItem/>") && out.contains("xmlns:w15="), out.constData());
+        QVERIFY(out.indexOf("<w15:repeatingSection/>") < out.indexOf("<w15:repeatingSectionItem/>") && out.indexOf("<w15:repeatingSectionItem/>") < out.indexOf("Row"));
+        auto again = open(doc.toDocx());
+        QCOMPARE(blockControls(*again).size(), 2);
+        QCOMPARE(documentXml(again->toDocx()), out);
+        QVERIFY(addRepeatingItem(doc, doc.story()->findBlockByNumber(0).position(), &why));
+        doc.undo();
+        doc.undo();
+        QCOMPARE(documentXml(doc.toDocx()), before);
+        // At the most items, no more is added, and the count is the one asked for.
+        auto huge = open(makeDocx(sectionXml(kMostRepeatingItems)));
+        QVERIFY(huge);
+        QCOMPARE(blockControls(*huge).size(), kMostRepeatingItems + 1);
+        const int blocks = huge->story()->blockCount();
+        QVERIFY(!addRepeatingItem(*huge, 1, &why));
+        QVERIFY(!why.isEmpty());
+        QCOMPARE(huge->story()->blockCount(), blocks);
+    }
+
+    void controlsRoundParagraphsStopAtTheDepth()
+    {
+        QByteArray body, closing;
+        const int nested = kMostControlDepth + 6;
+        for (int i = 0; i < nested; ++i) {
+            body += "<w:sdt><w:sdtPr><w:id w:val=\"" + QByteArray::number(i + 1) + "\"/></w:sdtPr><w:sdtContent>";
+            closing += "</w:sdtContent></w:sdt>";
+        }
+        auto doc = open(makeDocx(body + "<w:p><w:r><w:t>Deep</w:t></w:r></w:p>" + closing));
+        QVERIFY(doc);
+        QCOMPARE(blockControls(*doc).size(), kMostControlDepth);   // (those deeper are kept in the file and not read as controls)
+        QCOMPARE(documentXml(doc->toDocx()).count("<w:sdt>"), nested);
+        QCOMPARE(documentXml(doc->toDocx()).count("</w:sdt>"), nested);
+    }
+
+    void theOtherFormatsSayTheyKeepOnlyTheWordsOfTheNewControls()
+    {
+        QString err;
+        {
+            Win win({"Row"});
+            QVERIFY(insertContentControl(*win.w.document(), win.w.view()->cursor(), ControlKind::RepeatingSection));
+            QStringList odt, rtf;
+            QVERIFY(!win.w.document()->toOdt(&err, &odt).isEmpty());
+            QVERIFY(!win.w.document()->toRtf(&err, &rtf).isEmpty());
+            QVERIFY2(odt.join(QLatin1Char('\n')).contains(QStringLiteral("content controls")), qPrintable(odt.join(QLatin1Char('\n'))));
+            QVERIFY2(rtf.join(QLatin1Char('\n')).contains(QStringLiteral("content controls")), qPrintable(rtf.join(QLatin1Char('\n'))));
+        }
+        for (ControlKind kind : {ControlKind::RichText, ControlKind::Picture, ControlKind::ComboBox}) {
+            Win one;
+            QVERIFY(makeControl(one, kind) >= 0);
+            QStringList notes;
+            QVERIFY(!one.w.document()->toOdt(&err, &notes).isEmpty());
+            QVERIFY(notes.join(QLatin1Char('\n')).contains(QStringLiteral("content controls")));
+        }
+    }
+
+    void theInsertMenuMakesTheNewControlsAndAddAndRemoveNeedASection()
+    {
+        Win win({"Row"});
+        WriteWindow &w = win.w;
+        for (const char *id : {"insert.control.richText", "insert.control.picture", "insert.control.comboBox", "insert.control.repeatingSection", "insert.control.addItem", "insert.control.removeItem", "insert.control.clearPicture"})
+            QVERIFY2(w.act(QString::fromLatin1(id)), id);
+        QVERIFY(!w.act(QStringLiteral("insert.control.addItem"))->isEnabled());
+        w.act(QStringLiteral("insert.control.repeatingSection"))->trigger();
+        QCOMPARE(blockControls(*w.document()).size(), 2);
+        QTRY_VERIFY(w.act(QStringLiteral("insert.control.addItem"))->isEnabled());
+        QTRY_VERIFY(w.act(QStringLiteral("insert.control.properties"))->isEnabled());
+        w.act(QStringLiteral("insert.control.addItem"))->trigger();
+        QCOMPARE(blockControls(*w.document()).size(), 3);
+        QVERIFY(w.act(QStringLiteral("insert.control.removeItem"))->isEnabled());
+        w.act(QStringLiteral("insert.control.removeItem"))->trigger();
+        QCOMPARE(blockControls(*w.document()).size(), 2);
+        // A command that can't act says why.
+        w.act(QStringLiteral("insert.control.removeItem"))->trigger();
+        QVERIFY(!w.statusBar()->currentMessage().isEmpty());
+        QCOMPARE(blockControls(*w.document()).size(), 2);
+    }
+
+    void aClickOnTheAddButtonOfARepeatingSectionAddsAnItem()
+    {
+        Win win({"Row"});
+        WriteWindow &w = win.w;
+        w.act(QStringLiteral("insert.control.repeatingSection"))->trigger();
+        w.view()->paginateAll();
+        QTextCursor &c = w.view()->cursor();
+        c.setPosition(1);
+        QRect end;
+        QVERIFY(w.view()->positionRect(blockControls(*w.document()).first().end, &end));
+        const double s = w.view()->zoom() * 96.0 / 72.0;
+        const QPoint button(end.right() + int((3 + kAddButtonWidth / 2) * s), end.center().y());
+        QTest::mouseClick(w.view()->viewport(), Qt::LeftButton, Qt::NoModifier, button);
+        QCOMPARE(blockControls(*w.document()).size(), 3);
+    }
+
+    void aKeyOnAPictureControlAsksForAPicture()
+    {
+        Win win;
+        WriteWindow &w = win.w;
+        const int start = makeControl(win, ControlKind::Picture);
+        int asked = -1;
+        QObject::disconnect(w.view(), &PageView::controlPictureWanted, nullptr, nullptr);   // (the window would open its file box)
+        QObject::connect(w.view(), &PageView::controlPictureWanted, &w, [&](int at) { asked = at; });
+        w.view()->cursor().setPosition(start + 1);
+        QTest::keyClick(w.view()->viewport(), Qt::Key_Return);
+        QCOMPARE(asked, start);
     }
 
     void choosingKeepsABookmarkInsideAndAnUnchangedBoxChangesNothing()

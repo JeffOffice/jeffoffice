@@ -519,10 +519,18 @@
               },
               "keytip": "CN",
               "menu": [
+                "insert.control.richText",
                 "insert.control.text",
+                "insert.control.picture",
+                "insert.control.comboBox",
                 "insert.control.dropDown",
                 "insert.control.date",
                 "insert.control.checkBox",
+                "insert.control.repeatingSection",
+                "-",
+                "insert.control.addItem",
+                "insert.control.removeItem",
+                "insert.control.clearPicture",
                 "-",
                 "insert.control.properties"
               ]

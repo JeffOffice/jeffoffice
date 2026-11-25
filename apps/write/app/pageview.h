@@ -204,6 +204,9 @@ public:
     // The control whose words (on one line: its box) the point of the window is on; the caret position a click there gives is beside the control's atoms, not always inside them.
     write::ContentControl controlUnder(int position, const QPoint &viewportPos);
     bool activateControlAtCaret(int key, const QPoint &globalPos);
+    // A click on the button at the end of the repeating section the caret is in adds an item; a picture put in the picture control at the place (a drop): false where there is none.
+    bool clickOnAddItem(const QPoint &viewportPos);
+    bool putInPictureControl(int at, const QByteArray &bytes, const QString &name);
     // The controls drawn with a box (the caret's has an outline and its title), worked out again when the text changes.
     const QVector<ControlMark> &controlMarks();
     // Edits the footnote whose mark is at the position (a double click on a mark), at the foot of its page; false where there is no mark.
@@ -486,6 +489,7 @@ Q_SIGNALS:
     void pagesChanged();                    // how many pages there are, or whether all are known
     void caretChanged();                    // the caret moved or the selection changed
     void contentChanged();                  // the text was edited
+    void controlPictureWanted(int start);   // a picture control was clicked: where its start is
     void controlChoiceWanted(int start, const QPoint &globalPos);   // a content control that holds a choice (a list, a date) was clicked: where its start is, and where to show the choices
     void selectionMade();                   // a click or a drag with the mouse ended: the selection (or the caret) is where it was left
     void contextMenuWanted(const QPoint &globalPos);

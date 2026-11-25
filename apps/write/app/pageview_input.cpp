@@ -1584,7 +1584,7 @@ const QVector<ControlMark> &PageView::controlMarks()
         m_controlConnection = connect(story, &QTextDocument::contentsChange, this, [this, story](int pos, int removed, int added) {
             if (m_controlsDirty) return;
             bool atoms = false;
-            if (added > 100000) atoms = true;
+            if (added > 100000 || (removed > 0 && added > 0)) atoms = true;   // (a change of a paragraph's kept pieces, which is what a control round paragraphs is, is a change in place)
             for (int i = 0; i < added && !atoms; ++i) atoms = story->characterAt(pos + i) == QChar::ObjectReplacementCharacter;
             if (!atoms && removed > 0)
                 for (const ControlMark &m : std::as_const(m_controlMarks))
@@ -1608,16 +1608,18 @@ const QVector<ControlMark> &PageView::controlMarks()
         m_controlsDirty = false;
         m_controlMarks.clear();
         for (const write::ContentControl &c : write::contentControls(*m_doc))
-            if (c.props.kind != write::ControlKind::Other) m_controlMarks.push_back({c.start, c.end, false, c.props.title});
+            if (c.props.kind != write::ControlKind::Other) m_controlMarks.push_back({c.start, c.end, false, false, c.props.title});
+        for (const write::ContentControl &c : write::blockControls(*m_doc))
+            if (c.editable && c.props.kind != write::ControlKind::Other) m_controlMarks.push_back({c.start, c.end - 1, false, c.props.kind == write::ControlKind::RepeatingSection, c.props.title});
+        std::stable_sort(m_controlMarks.begin(), m_controlMarks.end(), [](const ControlMark &a, const ControlMark &b) { return a.from < b.from; });
     }
     // (The control the caret is in has the outline: the innermost that holds it. Only the caret's paragraph is looked at.)
     for (ControlMark &mark : m_controlMarks) mark.focus = false;
     if (!m_controlMarks.isEmpty() && m_cursor.document() == story) {
-        const int at = m_cursor.hasSelection() ? m_cursor.selectionStart() + 1 : m_cursor.position();
-        const write::ContentControl here = write::contentControlAt(*m_doc, at);
+        const write::ContentControl here = write::controlAtCaret(*m_doc, m_cursor);
         if (here.valid())
             for (ControlMark &mark : m_controlMarks)
-                if (mark.from == here.start && mark.to == here.end) {
+                if (mark.from == here.start && mark.to == (here.block ? here.end - 1 : here.end)) {
                     mark.focus = true;
                     break;
                 }
@@ -1642,11 +1644,44 @@ write::ContentControl PageView::controlUnder(int at, const QPoint &viewportPos)
     return write::ContentControl();
 }
 
+bool PageView::clickOnAddItem(const QPoint &viewportPos)
+{
+    // (The button at the end of the repeating section the caret is in.)
+    if (!m_doc || m_cursor.document() != m_doc->story() || m_cursor.hasSelection()) return false;
+    write::ContentControl section;
+    if (!write::repeatingItemAt(*m_doc, m_cursor.position(), &section).valid() || section.props.lockContents) return false;
+    QRect r;
+    if (!positionRect(section.end, &r)) return false;
+    const double s = scale();
+    const QRect button(r.right() + int(3 * s), r.top(), int(kAddButtonWidth * s) + 1, std::max(r.height(), int(kAddButtonWidth * s)));
+    if (!button.contains(viewportPos)) return false;
+    QString why;
+    if (!write::addRepeatingItem(*m_doc, m_cursor.position(), &why) && !why.isEmpty()) Q_EMIT notice(why);
+    caretMoved();
+    return true;
+}
+
+bool PageView::putInPictureControl(int at, const QByteArray &bytes, const QString &name)
+{
+    if (!m_doc || editsBlocked() || m_hf.active || m_note.active || m_cursor.document() != m_doc->story()) return false;
+    const write::ContentControl c = write::contentControlAt(*m_doc, at);
+    if (!c.valid() || !c.editable || c.props.kind != write::ControlKind::Picture) return false;
+    if (c.props.lockContents) {
+        Q_EMIT notice(tr("The contents of this picture control can't be edited."));
+        return true;
+    }
+    const write::PictureResult made = write::setControlPicture(*m_doc, c.start, bytes, name);
+    if (made == write::PictureResult::TooLarge) Q_EMIT notice(tr("That picture is too large to put in a document."));
+    else if (made != write::PictureResult::Ok) Q_EMIT notice(tr("%1 can't be opened as a picture.").arg(name.isEmpty() ? tr("The file") : name));
+    return true;
+}
+
 bool PageView::clickInControl(int at, const QPoint &viewportPos, const QPoint &globalPos, int clicks)
 {
     if (!m_doc || editsBlocked() || m_hf.active || m_note.active || m_cursor.document() != m_doc->story() || at < 0) return false;
+    if (clicks == 1 && clickOnAddItem(viewportPos)) return true;
     const write::ContentControl c = controlUnder(at, viewportPos);
-    if (!c.valid() || !c.editable || (clicks > 1 && c.props.kind != write::ControlKind::CheckBox)) return false;   // (a check box flips at each click, however quick; the others are a double click's word)
+    if (!c.valid() || !c.editable || (clicks > 1 && c.props.kind != write::ControlKind::CheckBox && c.props.kind != write::ControlKind::ComboBox)) return false;   // (a check box flips at each click, however quick; the others are a double click's word)
     switch (c.props.kind) {
     case write::ControlKind::CheckBox:
         if (!c.props.lockContents) write::toggleControlCheck(*m_doc, c.start);
@@ -1659,8 +1694,24 @@ bool PageView::clickInControl(int at, const QPoint &viewportPos, const QPoint &g
         if (!c.props.lockContents) Q_EMIT controlChoiceWanted(c.start, globalPos);
         break;
     case write::ControlKind::PlainText:
+    case write::ControlKind::RichText:
         if (!c.placeholder || c.props.lockContents) return false;
         write::selectControlContents(m_cursor, c);
+        break;
+    case write::ControlKind::ComboBox:
+        if (c.props.lockContents) return false;
+        if (clicks > 1) {
+            m_cursor.setPosition(std::clamp(at, c.start + 1, c.end));
+            Q_EMIT controlChoiceWanted(c.start, globalPos);
+            break;
+        }
+        if (!c.placeholder) return false;
+        write::selectControlContents(m_cursor, c);
+        break;
+    case write::ControlKind::Picture:
+        if (c.props.lockContents) return false;
+        m_cursor.setPosition(c.start + 1);
+        Q_EMIT controlPictureWanted(c.start);
         break;
     default:
         return false;
@@ -1678,6 +1729,14 @@ bool PageView::activateControlAtCaret(int key, const QPoint &globalPos)
     if (c.props.kind == write::ControlKind::CheckBox && key == Qt::Key_Space) {
         write::toggleControlCheck(*m_doc, c.start);
         caretMoved();
+        return true;
+    }
+    if (c.props.kind == write::ControlKind::Picture && key != Qt::Key_Space) {
+        Q_EMIT controlPictureWanted(c.start);
+        return true;
+    }
+    if (c.props.kind == write::ControlKind::ComboBox && key == Qt::Key_Down) {
+        Q_EMIT controlChoiceWanted(c.start, globalPos);
         return true;
     }
     if ((c.props.kind == write::ControlKind::DropDown || c.props.kind == write::ControlKind::Date) && key != Qt::Key_Space) {

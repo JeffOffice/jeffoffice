@@ -184,17 +184,25 @@ void paintControlMarks(QPainter *p, flow::MaterializedPage &page, LayoutCache *l
             const int from = std::max(0, mark.from - page.storyFrom), to = std::min(length, mark.to + 1 - page.storyFrom);
             if (to <= from) continue;
             const QVector<QRectF> rects = fl.layout->rangeRects(fl.frame, from, to);
-            QRectF first;
+            QRectF first, lastRect;
             for (const QRectF &r : rects) {
                 const QRectF at = box->textTransform().mapRect(r).adjusted(-1, 0, 1, 0);
                 if (at.width() < 1.5) continue;
                 if (first.isNull()) first = at;
+                lastRect = at;
                 p->fillRect(at, QColor(0, 0, 0, mark.focus ? 10 : 22));
                 if (mark.focus) {
                     p->setPen(QPen(QColor(0x2b, 0x6c, 0xb0), 0.8));
                     p->setBrush(Qt::NoBrush);
                     p->drawRect(at);
                 }
+            }
+            if (mark.focus && mark.add && !lastRect.isNull()) {
+                const QRectF button(lastRect.right() + 3, lastRect.top(), kAddButtonWidth, std::max(lastRect.height(), kAddButtonWidth));
+                p->fillRect(button, QColor(0x2b, 0x6c, 0xb0));
+                p->setPen(QPen(Qt::white, 1.2));
+                p->drawLine(QPointF(button.center().x() - 3.5, button.center().y()), QPointF(button.center().x() + 3.5, button.center().y()));
+                p->drawLine(QPointF(button.center().x(), button.center().y() - 3.5), QPointF(button.center().x(), button.center().y() + 3.5));
             }
             if (mark.focus && !first.isNull() && !mark.title.isEmpty()) {
                 QFont f;

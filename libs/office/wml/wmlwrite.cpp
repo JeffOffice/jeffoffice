@@ -165,6 +165,7 @@ QByteArray withKnownPrefixes(QByteArray rootTag, const QVector<Block> &body, con
         rootTag.insert(int(qnameOf(rootTag).size()) + 1, " xmlns:" + prefix + "=\"" + known[1] + "\"");
         // (A program that does not know the w14 elements a run holds is told to pass them by.)
         if (prefix == "w14") ignorePrefix(&rootTag, "w14");
+        if (prefix == "w15") ignorePrefix(&rootTag, "w15");   // (the repeating section a content control makes)
     }
     return rootTag;
 }

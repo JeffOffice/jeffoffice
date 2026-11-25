@@ -1259,6 +1259,10 @@ void PageView::dropEvent(QDropEvent *e)
                                                           : QCoreApplication::translate("jp::write::Pictures", "%1 can't be opened as a picture.").arg(QFileInfo(u.toLocalFile()).fileName()));
             continue;
         }
+        if (inserted == 0 && at >= 0 && putInPictureControl(at, bytes, QFileInfo(u.toLocalFile()).completeBaseName())) {   // (a picture control takes it)
+            any = true;
+            break;
+        }
         any = insertPictureBytes(bytes, QFileInfo(u.toLocalFile()).completeBaseName()) || any;
         m_cursor.setPosition(m_cursor.selectionEnd());   // (the next one goes after this one)
         ++inserted;
