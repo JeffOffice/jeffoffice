@@ -33,6 +33,8 @@ class PubPictureTests : public QObject {
 
 private Q_SLOTS:
     void initTestCase() { initPubTestCase(); }
+    // (the filters' kept pictures are the program's: each test starts with none, and no job of the one before)
+    void init() { jp::resetBlipFiltersForTest(); }
 
     // A picture dragged onto another swaps with it, as the scratch area's
     // message says (nothing did): the dragged frame goes back, and the two
@@ -632,6 +634,21 @@ private Q_SLOTS:
             QVERIFY(!pic->removal.isValid());
             QCOMPARE(qAlpha(w.editor()->doc()->image(pic->imageId).pixel(2, 2)), 0);   // the finished picture
         }
+    }
+
+    // The edit works the finished picture out, and the first draw finds it (the edit names the picture as the renderer does): one computation for an edit followed by a draw.
+    void anEffectFollowedByTheFirstDrawIsWorkedOutOnce()
+    {
+        jp::MainWindow w;
+        w.resize(1400, 900);
+        w.show();
+        addDisc(w);
+        jp::Editor *ed = w.editor();
+        const int made = jp::blipAdjustedMade();
+        jp::applyArtisticEffect(ed, &w, int(jp::ArtisticStyle::Blur));
+        QCOMPARE(jp::blipAdjustedMade(), made + 1);
+        jp::Renderer::processedImage(*ed->doc(), *thePicture(ed), QSizeF(), QSizeF(240, 200), QColor(), true);
+        QCOMPARE(jp::blipAdjustedMade(), made + 1);
     }
 
     // Sharpen and soften, color temperature, and the artistic effects in JeffPub: one step each, kept exactly in .jpub, saved as the finished picture in .pub (and said so), and taken off by Reset Picture.

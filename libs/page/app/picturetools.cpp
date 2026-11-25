@@ -397,6 +397,10 @@ void changePicturesWithFilter(Editor *ed, QWidget *window, const QString &step, 
         PictureItem probe(*static_cast<PictureItem *>(it));
         change(probe);
         PictureFilterJob job{ed->doc()->image(probe.imageId), blipFilters(probe.blipEffects), QString()};
+        // (named as the renderer names the picture it draws, so that its first draw finds what is worked out here)
+        const QByteArray fileBytes = ed->doc()->images.value(probe.imageId).bytes;
+        const bool slide = ed->doc()->slidePictures && (probe.recolor == PictureItem::NoRecolor || probe.recolor == PictureItem::Grayscale || probe.recolor == PictureItem::BlackWhite);
+        if (!fileBytes.isEmpty()) job.sourceKey = blipSourceKey(fileBytes, job.image.size(), slide);
         if (job.image.isNull() || !blipEffectsChange(job.filters) || probe.removal.isValid()) continue;   // (a removal changes the picture first: drawn, not prepared)
         jobs.push_back(std::move(job));
     }

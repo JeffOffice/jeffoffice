@@ -151,6 +151,9 @@ class DeckLines11Tests : public QObject {
     Q_OBJECT
 
 private Q_SLOTS:
+    // (the filters' kept pictures are the program's: each test starts with none, and no job of the one before)
+    void init() { jp::resetBlipFiltersForTest(); }
+
     // A window deleted while a child holds typing nobody saved: the focus-out and editingFinished that deleting it sends must not begin any change
     // (the count of changes asked of the editor, taken from just before the delete): the window is half gone by then. The old tests called
     // giveUpTyping themselves and proved nothing about the destructor.
@@ -1215,6 +1218,22 @@ private Q_SLOTS:
         }
     }
 
+    // The edit works the finished picture out, and the first draw finds it (the edit names the picture as the renderer does): one computation for an edit followed by a draw.
+    void anEffectFollowedByTheFirstDrawIsWorkedOutOnce()
+    {
+        DeckWindow w;
+        w.resize(1200, 800);
+        w.show();
+        addPicture(w, QStringLiteral("Once"));
+        const int made = jp::blipAdjustedMade();
+        jp::applyArtisticEffect(w.editor(), &w, int(jp::ArtisticStyle::Blur));
+        QCOMPARE(jp::blipAdjustedMade(), made + 1);
+        const PictureItem *pic = pictureNamed(w, QStringLiteral("Once"));
+        QVERIFY(pic && jp::blipEffectsChange(jp::blipFilters(pic->blipEffects)));
+        Renderer::processedImage(*w.editor()->doc(), *pic, QSizeF(), QSizeF(240, 160), QColor(), true);
+        QCOMPARE(jp::blipAdjustedMade(), made + 1);
+    }
+
     // A caller that draws again by itself (the editing canvas, the thumbnails) may draw before the filters are done, but never a Blur or Mosaic as the picture it hides: a flat patch of the
     // picture's average color stands in, then the filtered picture. A color temperature alone may show the unfiltered picture first. A caller that does not ask waits.
     void aWindowThatDrawsAgainShowsAFlatPatchForBlurAndMosaicUntilTheyAreDone()
@@ -1225,8 +1244,7 @@ private Q_SLOTS:
             w.show();
             PictureItem *added = addPicture(w, QStringLiteral("Later"));
             const QString id = added->id;
-            // (A picture of its own size for each look: the finished pictures are kept by the file's bytes, so another test's picture of the same bytes would be found, not asked for.)
-            added->imageId = w.editor()->doc()->addImage(pureColorPng(391 + style, 300), QStringLiteral("png"));
+            added->imageId = w.editor()->doc()->addImage(pureColorPng(400, 300), QStringLiteral("png"));
             auto pic = [&] { return static_cast<PictureItem *>(w.editor()->doc()->item(id)); };
             pic()->rect = QRectF(100, 100, 400, 300);
             pic()->imgRect = QRectF(0, 0, 400, 300);

@@ -598,6 +598,16 @@ int blipFiltersFinished() { return finishedLater; }
 
 void restartBlipFiltersForTest() { later().restart(); }
 
+void resetBlipFiltersForTest()
+{
+    Later &l = later();
+    l.stopAll(60000);
+    l.restart();
+    Kept &k = kept();
+    QMutexLocker locked(&k.lock);
+    k.cache.clear();
+}
+
 int blipFiltersAsked() { return askedLater; }
 
 int blipFiltersQueued() { return later().count(); }

@@ -11,11 +11,12 @@
 #include <QDialog>
 #include <QDialogButtonBox>
 #include <QFormLayout>
+#include <QLabel>
 #include <QImageReader>
 
 namespace jp {
 
-bool askCompressPictures(QWidget *parent, const QString &allText, CompressChoices *choices)
+bool askCompressPictures(QWidget *parent, const QString &allText, CompressChoices *choices, const QString &note)
 {
     QDialog dlg(parent);
     dlg.setObjectName(QStringLiteral("compressPicturesDialog"));
@@ -34,6 +35,13 @@ bool askCompressPictures(QWidget *parent, const QString &allText, CompressChoice
     form->addRow(QCoreApplication::translate("jp::CompressPictures", "Target output"), target);
     form->addRow(all);
     form->addRow(crop);
+    if (!note.isEmpty()) {
+        auto *said = new QLabel(note, &dlg);
+        said->setObjectName(QStringLiteral("compressNote"));
+        said->setWordWrap(true);
+        said->setTextFormat(Qt::PlainText);
+        form->addRow(said);
+    }
     auto *bb = new jp::ButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dlg);
     form->addRow(bb);
     QObject::connect(bb, &QDialogButtonBox::accepted, &dlg, &QDialog::accept);
