@@ -175,8 +175,25 @@ bool dataReadBook(const QString &path, const QString &list, int maxRows, const D
         range.row2 = sheet.extentRows - 1;
         range.col2 = sheet.extentCols - 1;
     }
-    const bool columnsCut = qint64(range.col2) - range.col1 + 1 > limits.maxCols;
-    if (columnsCut) range.col2 = range.col1 + quint32(limits.maxCols) - 1;
+    // (the size comes from the cells that are there, never from the area asked for: one cell at the far corner is one cell)
+    bool columnsCut = false;
+    {
+        quint32 lastRow = range.row1, lastCol = range.col1;
+        const quint32 colLimit = quint32(std::min<qint64>(qint64(range.col1) + limits.maxCols - 1, qint64(range.col2)));
+        sheet.cells.forEachInRange(range.row1, range.col1, range.row2, range.col2, [&](quint32 row, quint32 col, const Cell &c) {
+            const DataCell cell = cellOf(book, sheet, c);
+            if (cell.kind == 0 && cell.text.isEmpty()) return true;
+            if (col > colLimit) {
+                columnsCut = true;
+                return true;
+            }
+            lastRow = std::max(lastRow, row);
+            lastCol = std::max(lastCol, col);
+            return true;
+        });
+        range.row2 = lastRow;
+        range.col2 = lastCol;
+    }
     const quint32 width = range.col2 - range.col1 + 1;
     // the cells of the rows wanted: the header, then the data
     const quint32 firstData = headerRow ? range.row1 + 1 : range.row1;

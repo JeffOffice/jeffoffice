@@ -52,6 +52,7 @@ struct DataConnection {
     QString kind, path, list;
     ArrayMode mode = ArrayMode::Join;
     bool asText = false;
+    QStringList columns;   // the names the file's columns had in the table when it was made, so that Refresh knows which columns are the file's and which the person added (left out when too many to keep)
     QString text() const;
     static bool parse(const QString &text, DataConnection *out);
 };

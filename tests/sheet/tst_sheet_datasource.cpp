@@ -49,6 +49,146 @@ private Q_SLOTS:
         QVERIFY(!dataReadJson("[{\"a\":1}] x", QStringLiteral("$"), ArrayMode::Join, 0, DataLimits(), &t, &why));
     }
 
+    // Two different sources never share a column: a name that collides gets a number, and the load's notes say so.
+    void jsonNamesThatCollideGetOwnColumns()
+    {
+        DataRows t;
+        QString why;
+        QVERIFY2(dataReadJson("[{\"a.b\":1,\"a\":{\"b\":2}}]", QStringLiteral("$"), ArrayMode::Join, 0, DataLimits(), &t, &why), qPrintable(why));
+        QCOMPARE(t.header, (QStringList{QStringLiteral("a.b"), QStringLiteral("a.b2")}));
+        QCOMPARE(cell(t, 0, QStringLiteral("a.b")), QStringLiteral("1"));
+        QCOMPARE(cell(t, 0, QStringLiteral("a.b2")), QStringLiteral("2"));
+        QVERIFY(t.notes.join(QLatin1Char(' ')).contains(QLatin1String("new name")));
+        // the other way round, and in different rows
+        QVERIFY(dataReadJson("[{\"a\":{\"b\":2},\"a.b\":1},{\"a.b\":3}]", QStringLiteral("$"), ArrayMode::Join, 0, DataLimits(), &t, &why));
+        QCOMPARE(t.header, (QStringList{QStringLiteral("a.b"), QStringLiteral("a.b2")}));
+        QCOMPARE(cell(t, 0, QStringLiteral("a.b")), QStringLiteral("2"));
+        QCOMPARE(cell(t, 0, QStringLiteral("a.b2")), QStringLiteral("1"));
+        QCOMPARE(cell(t, 1, QStringLiteral("a.b2")), QStringLiteral("3"));
+        // names that differ only in case are one name to a table, so they are two columns here too
+        QVERIFY(dataReadJson("[{\"Id\":1,\"id\":2}]", QStringLiteral("$"), ArrayMode::Join, 0, DataLimits(), &t, &why));
+        QCOMPARE(t.header.size(), 2);
+        QCOMPARE(cell(t, 0, QStringLiteral("Id")), QStringLiteral("1"));
+        // no collision: no note
+        QVERIFY(dataReadJson("[{\"a\":1,\"b\":2}]", QStringLiteral("$"), ArrayMode::Join, 0, DataLimits(), &t, &why));
+        QVERIFY(t.notes.isEmpty());
+    }
+
+    void jsonRepeatedKeyKeepsTheLastValueAndSaysSo()
+    {
+        DataRows t;
+        QString why;
+        QVERIFY2(dataReadJson("[{\"a\":1,\"a\":2,\"b\":\"x\",\"b\":\"y\"}]", QStringLiteral("$"), ArrayMode::Join, 0, DataLimits(), &t, &why), qPrintable(why));
+        QCOMPARE(t.header, (QStringList{QStringLiteral("a"), QStringLiteral("b")}));
+        QCOMPARE(cell(t, 0, QStringLiteral("a")), QStringLiteral("2"));
+        QCOMPARE(cell(t, 0, QStringLiteral("b")), QStringLiteral("y"));   // not "x; y"
+        QVERIFY(t.notes.join(QLatin1Char(' ')).contains(QLatin1String("repeats 2 name")));
+        // an object with many keys (found by the table of keys) keeps the last value too
+        QByteArray many = "[{";
+        for (int i = 0; i < 20; ++i) many += "\"k" + QByteArray::number(i) + "\":" + QByteArray::number(i) + ",";
+        many += "\"k3\":333,\"k19\":1919}]";
+        QVERIFY(dataReadJson(many, QStringLiteral("$"), ArrayMode::Join, 0, DataLimits(), &t, &why));
+        QCOMPARE(t.header.size(), 20);
+        QCOMPARE(cell(t, 0, QStringLiteral("k3")), QStringLiteral("333"));
+        QCOMPARE(cell(t, 0, QStringLiteral("k19")), QStringLiteral("1919"));
+        QVERIFY(t.notes.join(QLatin1Char(' ')).contains(QLatin1String("repeats 2 name")));
+    }
+
+    void xmlPrefixesKeepColumnsApartAndTopLevelTextIsKept()
+    {
+        DataRows t;
+        QString why;
+        const QByteArray xml = "<r xmlns:x=\"urn:x\"><i id=\"2\" x:id=\"1\"><name>A</name><x:name>B</x:name></i><i id=\"4\" x:id=\"3\"><name>C</name><x:name>D</x:name></i></r>";
+        QVERIFY2(dataReadXml(xml, QStringLiteral("/r/i"), 0, DataLimits(), &t, &why), qPrintable(why));
+        QCOMPARE(t.header, (QStringList{QStringLiteral("id"), QStringLiteral("x:id"), QStringLiteral("name"), QStringLiteral("x:name")}));
+        QCOMPARE(cell(t, 0, QStringLiteral("id")), QStringLiteral("2"));
+        QCOMPARE(cell(t, 0, QStringLiteral("x:id")), QStringLiteral("1"));
+        QCOMPARE(cell(t, 1, QStringLiteral("x:name")), QStringLiteral("D"));
+        QVERIFY(t.notes.join(QLatin1Char(' ')).contains(QLatin1String("new name")));
+        // the prefixed one first: it is the prefixed one that is named with its prefix
+        QVERIFY(dataReadXml("<r xmlns:x=\"urn:x\"><i x:id=\"1\" id=\"2\"/><i x:id=\"3\" id=\"4\"/></r>", QStringLiteral("/r/i"), 0, DataLimits(), &t, &why));
+        QCOMPARE(t.header, (QStringList{QStringLiteral("x:id"), QStringLiteral("id")}));
+        QCOMPARE(cell(t, 0, QStringLiteral("x:id")), QStringLiteral("1"));
+        QCOMPARE(cell(t, 0, QStringLiteral("id")), QStringLiteral("2"));
+        // two prefixes for one address are one column
+        QVERIFY(dataReadXml("<r xmlns:x=\"urn:x\" xmlns:y=\"urn:x\"><i x:id=\"1\"/><i y:id=\"2\"/></r>", QStringLiteral("/r/i"), 0, DataLimits(), &t, &why));
+        QCOMPARE(t.header.size(), 1);
+        QCOMPARE(cell(t, 1, QStringLiteral("id")), QStringLiteral("2"));
+        // text straight inside a row element that also has elements is kept
+        QVERIFY(dataReadXml("<r><i>t1<b>x</b>t2</i><i>u</i></r>", QStringLiteral("/r/i"), 0, DataLimits(), &t, &why));
+        QCOMPARE(cell(t, 0, QStringLiteral("text")), QStringLiteral("t1t2"));
+        QCOMPARE(cell(t, 0, QStringLiteral("b")), QStringLiteral("x"));
+        QCOMPARE(cell(t, 1, QStringLiteral("text")), QStringLiteral("u"));
+        QCOMPARE(t.header.size(), 2);
+    }
+
+    void jsonNumbersOutOfRangeAreKeptAsText()
+    {
+        DataRows t;
+        QString why;
+        QVERIFY2(dataReadJson("[{\"a\":1e400,\"b\":-1E-400,\"c\":5,\"d\":0e5,\"e\":1e308}]", QStringLiteral("$"), ArrayMode::Join, 0, DataLimits(), &t, &why), qPrintable(why));
+        QCOMPARE(cell(t, 0, QStringLiteral("a")), QStringLiteral("1e400"));
+        QCOMPARE(cell(t, 0, QStringLiteral("b")), QStringLiteral("-1E-400"));
+        QCOMPARE(t.rows[0][0].kind, 's');
+        QCOMPARE(t.rows[0][1].kind, 's');
+        QCOMPARE(t.rows[0][2].kind, 'n');
+        QCOMPARE(t.rows[0][3].kind, 'n');   // zero written with an exponent is zero
+        QCOMPARE(t.rows[0][4].kind, 'n');
+        QVERIFY(t.notes.join(QLatin1Char(' ')).contains(QLatin1String("2 number")));
+        const QVector<char> kinds = dataColumnKinds(t, false);
+        QCOMPARE(kinds[0], 't');   // text that looks like a number but does not fit one stays text
+        QCOMPARE(kinds[1], 't');
+        QCOMPARE(kinds[2], 'n');
+    }
+
+    void jsonFormsThatAreNotJsonAreRefusedWithAPosition()
+    {
+        DataRows t;
+        QString why;
+        for (const char *bad : {"[{\"a\":+1}]", "[{\"a\":.5}]", "[{\"a\":01}]", "[{\"a\":-}]", "[{\"a\":1.}]", "[{\"a\":1e}]", "[{\"a\":1e+}]", "[{\"a\":\"\\u12\"}]", "[{\"a\":\"\\u12g4\"}]", "[{\"a\":\"\\u+123\"}]", "[{\"a\":\"\\u 123\"}]", "[{\"a\":--1}]", "[{\"a\":0x10}]"}) {
+            why.clear();
+            QVERIFY2(!dataReadJson(bad, QStringLiteral("$"), ArrayMode::Join, 0, DataLimits(), &t, &why), bad);
+            QVERIFY2(why.contains(QLatin1String("not valid JSON")) && why.contains(QLatin1String("near byte")), bad);
+        }
+        for (const char *good : {"[{\"a\":0}]", "[{\"a\":-0}]", "[{\"a\":0.5}]", "[{\"a\":10e+2}]", "[{\"a\":-1.25E-2}]", "[{\"a\":\"\\u00E9\\uD83D\\uDE00\"}]"})
+            QVERIFY2(dataReadJson(good, QStringLiteral("$"), ArrayMode::Join, 0, DataLimits(), &t, &why), good);
+        QCOMPARE(cell(t, 0, QStringLiteral("a")), QString::fromUtf8("\xC3\xA9\xF0\x9F\x98\x80"));
+        QVERIFY(t.notes.isEmpty());
+    }
+
+    void jsonCharactersThatCannotBeReadAreReplacedAndSaid()
+    {
+        DataRows t;
+        QString why;
+        QVERIFY2(dataReadJson("[{\"a\":\"x\\ud800y\",\"b\":\"p\\udc00\\ud800q\"}]", QStringLiteral("$"), ArrayMode::Join, 0, DataLimits(), &t, &why), qPrintable(why));
+        QCOMPARE(cell(t, 0, QStringLiteral("a")), QStringLiteral("x\uFFFDy"));
+        QCOMPARE(cell(t, 0, QStringLiteral("b")), QStringLiteral("p\uFFFD\uFFFDq"));
+        QVERIFY(t.notes.join(QLatin1Char(' ')).contains(QLatin1String("could not be read")));
+        QVERIFY(dataReadJson("[{\"a\":\"x\xFF" "y\"}]", QStringLiteral("$"), ArrayMode::Join, 0, DataLimits(), &t, &why));
+        QCOMPARE(cell(t, 0, QStringLiteral("a")), QStringLiteral("x\uFFFDy"));
+        QVERIFY(t.notes.join(QLatin1Char(' ')).contains(QLatin1String("could not be read")));
+    }
+
+    void listsCutByALimitAreSaid()
+    {
+        DataRows t;
+        QString why;
+        QByteArray big = "[{\"v\":[";
+        for (int i = 0; i < 10001; ++i) big += (i ? ",1" : "1");
+        big += "]}]";
+        QVERIFY2(dataReadJson(big, QStringLiteral("$"), ArrayMode::Join, 0, DataLimits(), &t, &why), qPrintable(why));
+        QCOMPARE(cell(t, 0, QStringLiteral("v")).count(QLatin1Char(';')), 9999);   // 10,000 items
+        QVERIFY(t.notes.join(QLatin1Char(' ')).contains(QLatin1String("10,000")));
+        QByteArray wide = "[{\"v\":[";
+        for (int i = 0; i < 20; ++i) wide += (i ? ",1" : "1");
+        wide += "]}]";
+        QVERIFY(dataReadJson(wide, QStringLiteral("$"), ArrayMode::Columns, 0, DataLimits(), &t, &why));
+        QCOMPARE(t.header.size(), 16);
+        QVERIFY(t.notes.join(QLatin1Char(' ')).contains(QLatin1String("first 16 columns")));
+        QVERIFY(dataReadJson("[{\"v\":[1,2,3]}]", QStringLiteral("$"), ArrayMode::Columns, 0, DataLimits(), &t, &why));
+        QVERIFY(t.notes.isEmpty());
+    }
+
     void jsonNestingAndNodeCountsAreBounded()
     {
         QString why;
@@ -192,6 +332,58 @@ private Q_SLOTS:
         QVERIFY(!DataConnection::parse(QStringLiteral("jo-data:1?kind=exe&path=x"), &back));
     }
 
+    void aConnectionKeepsTheNamesOfTheFilesColumns()
+    {
+        DataConnection c;
+        c.kind = QStringLiteral("json");
+        c.path = QStringLiteral("/tmp/a b.json");
+        c.columns = QStringList{QStringLiteral("a,b"), QStringLiteral("c&d=e"), QStringLiteral("\u00e9 f"), QStringLiteral("100%")};
+        DataConnection back;
+        QVERIFY(DataConnection::parse(c.text(), &back));
+        QCOMPARE(back.columns, c.columns);
+        c.columns.clear();
+        QVERIFY(DataConnection::parse(c.text(), &back));
+        QVERIFY(back.columns.isEmpty());
+        // more names than fit are left out, and the link still reads
+        for (int i = 0; i < 256; ++i) c.columns << QString(255, QLatin1Char('&')) + QString::number(i);
+        QVERIFY(DataConnection::parse(c.text(), &back));
+        QVERIFY(back.columns.isEmpty());
+    }
+
+    void onlyTheExtensionWithOurAddressesIsRead()
+    {
+        Table t;
+        t.name = QStringLiteral("Table1");
+        t.row1 = 0;
+        t.col1 = 0;
+        t.row2 = 2;
+        t.col2 = 1;
+        t.columns = QStringList{QStringLiteral("a"), QStringLiteral("b")};
+        t.info.resize(2);
+        t.info[0].id = 1;
+        t.info[1].id = 2;
+        t.id = 1;
+        t.dataSource = QStringLiteral("jo-data:1?kind=json&path=p");
+        const QByteArray part = writeTablePart(t, QByteArray());
+        Table back;
+        back.columns = t.columns;
+        QVERIFY(readTableModel(part, &back));
+        QCOMPARE(back.dataSource, t.dataSource);
+        // the same local name under another namespace address, or in another extension, is another program's
+        QByteArray otherNs = part;
+        otherNs.replace("urn:jeffoffice:data-source", "urn:somebody:else");
+        QVERIFY(readTableModel(otherNs, &back));
+        QVERIFY(back.dataSource.isEmpty());
+        QByteArray otherExt = part;
+        otherExt.replace("{6A1F0C3E-5B7D-4E29-9C41-0D3B7A52E8F1}", "{00000000-0000-0000-0000-000000000000}");
+        QVERIFY(readTableModel(otherExt, &back));
+        QVERIFY(back.dataSource.isEmpty());
+        // and a table written over a part holding that other program's element keeps it
+        t.dataSource.clear();
+        const QByteArray over = writeTablePart(t, otherExt);
+        QVERIFY(over.contains("00000000-0000-0000-0000-000000000000"));
+    }
+
     void theConnectionIsSavedInTheTablePartAndTheOtherExtensionsStay()
     {
         Table t;
@@ -276,6 +468,37 @@ private Q_SLOTS:
         int asked = 0;
         QVERIFY(!dataReadFile(f.fileName(), DataLimits(), [&asked] { return ++asked > 0; }, &bytes, &why));
         QVERIFY(why.contains(QLatin1String("stopped")));
+    }
+
+    // The rows and columns made come from the cells that are there: one cell at the far corner of a sheet does not make a table the size of the limits.
+    void aSparseSheetIsSizedFromItsCells()
+    {
+        auto str = [](const char *ref, const char *text) { return QStringLiteral("<c r=\"%1\" t=\"inlineStr\"><is><t>%2</t></is></c>").arg(QLatin1String(ref), QLatin1String(text)); };
+        const QString rows = QStringLiteral("<row r=\"1\">") + str("A1", "name") + QStringLiteral("</row><row r=\"2\">") + str("A2", "Ann") + QStringLiteral("</row><row r=\"1048576\"><c r=\"XFD1048576\"><v>1</v></c></row>");
+        const QByteArray book = sheettest::buildXlsx({sheettest::worksheet(rows)}, QByteArray(), QString(), QString(), QByteArray(), QStringList{QStringLiteral("Data")});
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        QFile f(dir.filePath(QStringLiteral("sparse.xlsx")));
+        QVERIFY(f.open(QIODevice::WriteOnly));
+        f.write(book);
+        f.close();
+        DataRows t;
+        QString why;
+        QVERIFY2(dataReadBook(f.fileName(), QStringLiteral("sheet:Data"), 0, DataLimits(), nullptr, &t, &why), qPrintable(why));
+        // the cell in the corner is past the limits and is left out; what is made is as big as the cells read: one column, and no more rows than the cells that are there
+        QCOMPARE(t.header.size(), 1);
+        QCOMPARE(t.rows.size(), 1);
+        QCOMPARE(t.rows[0].size(), 1);
+        // inside the limits the size follows the cells too: the last cell is at column 3 and row 5
+        const QString rows2 = QStringLiteral("<row r=\"1\">") + str("A1", "a") + str("B1", "b") + QStringLiteral("</row><row r=\"2\">") + str("A2", "x") + QStringLiteral("</row><row r=\"5\">") + str("C5", "z") + QStringLiteral("</row>");
+        QFile g(dir.filePath(QStringLiteral("small.xlsx")));
+        QVERIFY(g.open(QIODevice::WriteOnly));
+        g.write(sheettest::buildXlsx({sheettest::worksheet(rows2)}, QByteArray(), QString(), QString(), QByteArray(), QStringList{QStringLiteral("Data")}, QStringLiteral("<definedName name=\"Wide\">Data!$A$1:$XFD$1000</definedName>")));
+        g.close();
+        QVERIFY(dataReadBook(g.fileName(), QStringLiteral("name:Wide"), 0, DataLimits(), nullptr, &t, &why));
+        QCOMPARE(t.header.size(), 3);
+        QCOMPARE(t.rows.size(), 4);
+        QCOMPARE(t.rows[0].size(), 3);
     }
 
     void aSheetAndANamedRangeOfAnotherWorkbookAreRows()

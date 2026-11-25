@@ -40,7 +40,7 @@ struct TableColumnInfo {
 };
 
 // The most characters of a table's data source kept in its part.
-constexpr int kMaxDataSourceChars = 4096;
+constexpr int kMaxDataSourceChars = 80000;
 
 struct Table {
     QString part;                   // the table's part, as the package names it

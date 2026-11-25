@@ -8,9 +8,11 @@
 #include <QHash>
 #include <QDate>
 #include <QSet>
+#include <QStringDecoder>
 #include <QXmlStreamReader>
 
 #include <algorithm>
+#include <cmath>
 #include <cstring>
 #include <vector>
 
@@ -30,6 +32,20 @@ QString clipped(const QString &text, const DataLimits &limits, bool *cut)
     return text.left(limits.maxStringChars);
 }
 
+// Whether a number as written can be held by a number cell: not too large, and not so small that it becomes zero.
+bool numberFits(const QString &text)
+{
+    bool ok = false;
+    const double d = text.toDouble(&ok);
+    if (!ok || !std::isfinite(d)) return false;
+    if (d != 0) return true;
+    for (const QChar ch : text) {
+        if (ch == QLatin1Char('e') || ch == QLatin1Char('E')) break;
+        if (ch >= QLatin1Char('1') && ch <= QLatin1Char('9')) return false;
+    }
+    return true;
+}
+
 // The columns of a table being made, in the order they first appear, and the rows.
 class Builder {
 public:
@@ -40,17 +56,37 @@ public:
         m_out->rows.push_back(QVector<DataCell>());
     }
 
-    void set(const QString &key, const DataCell &cell)
+    // `source` says where the value comes from (the path of keys, or of elements with their namespaces); two sources never share a column. `alt` is a second name to try before a number is added.
+    void set(const QString &name, const QString &source, const DataCell &cell, const QString &alt = QString())
     {
-        int col = m_index.value(key, -1);
+        int col = m_index.value(source, -1);
         if (col < 0) {
             if (m_out->header.size() >= m_limits.maxCols) {
                 m_overColumns = true;
                 return;
             }
             col = m_out->header.size();
-            m_index.insert(key, col);
-            m_out->header.push_back(key);
+            QString shown = name;
+            const auto taken = m_nameCol.constFind(shown.toLower());
+            if (taken != m_nameCol.cend()) {
+                ++m_renamed;
+                // (the column that was there first is the one with a prefix: it takes its prefixed name, and the new one keeps the plain one)
+                const int other = taken.value();
+                const QString otherAlt = m_alts.value(other);
+                if (!otherAlt.isEmpty() && otherAlt.toLower() != shown.toLower() && !m_nameCol.contains(otherAlt.toLower()) && (alt.isEmpty() || alt == name)) {
+                    m_nameCol.remove(shown.toLower());
+                    m_nameCol.insert(otherAlt.toLower(), other);
+                    m_out->header[other] = otherAlt;
+                } else if (!alt.isEmpty() && alt != name && !m_nameCol.contains(alt.toLower())) {
+                    shown = alt;
+                } else {
+                    for (int n = 2; m_nameCol.contains(shown.toLower()); ++n) shown = name + QString::number(n);
+                }
+            }
+            m_nameCol.insert(shown.toLower(), col);
+            m_alts << alt;
+            m_index.insert(source, col);
+            m_out->header.push_back(shown);
         }
         QVector<DataCell> &row = m_out->rows.last();
         if (row.size() <= col) row.resize(col + 1);
@@ -70,17 +106,30 @@ public:
         if (m_overColumns) m_out->notes << QCoreApplication::translate("jp::office::sheet::DataSource", "Only the first %1 columns are loaded; the rest are left out.").arg(m_limits.maxCols);
         if (m_cut) m_out->notes << QCoreApplication::translate("jp::office::sheet::DataSource", "Text longer than %1 characters is cut.").arg(m_limits.maxStringChars);
         if (m_deep) m_out->notes << QCoreApplication::translate("jp::office::sheet::DataSource", "Items inside items more than %1 levels deep are kept as text.").arg(m_limits.maxDepth);
+        if (m_listCut) m_out->notes << QCoreApplication::translate("jp::office::sheet::DataSource", "A list of values with more than 10,000 items is cut after the first 10,000.");
+        if (m_spreadCut) m_out->notes << QCoreApplication::translate("jp::office::sheet::DataSource", "A list of values with more than %1 items fills only the first %1 columns; the rest are left out.").arg(m_limits.arrayColumns);
+        if (m_renamed > 0) m_out->notes << QCoreApplication::translate("jp::office::sheet::DataSource", "%n column(s) got a new name, because another column had the same name.", nullptr, m_renamed);
+        m_out->notes << m_notes;
     }
 
     void deep() { m_deep = true; }
+    void listCut() { m_listCut = true; }
+    void spreadCut() { m_spreadCut = true; }
+    void note(const QString &text) { m_notes << text; }
 
 private:
     DataLimits m_limits;
     DataRows *m_out;
     QHash<QString, int> m_index;
+    QHash<QString, int> m_nameCol;   // a column's name in lower case, and where it is
+    QStringList m_alts;              // the second name each column could have
+    QStringList m_notes;
+    int m_renamed = 0;
     bool m_overColumns = false;
     bool m_cut = false;
     bool m_deep = false;
+    bool m_listCut = false;
+    bool m_spreadCut = false;
 };
 
 // ---- JSON ----
@@ -95,6 +144,7 @@ struct JNode {
     std::vector<JNode> items;                         // an Array
 };
 
+constexpr int kMaxConnectionChars = 80000;   // (the names of 256 columns, with the file's path and choices)
 constexpr int kMaxJsonDepth = 64;
 constexpr qint64 kMaxJsonNodes = 4000000;
 
@@ -112,9 +162,17 @@ public:
     qint64 where() const { return m_i; }
     bool tooDeep() const { return m_deep; }
     bool tooMany() const { return m_many; }
+    int duplicates() const { return m_dups; }
+    int outOfRange() const { return m_range; }
+    bool badCharacters() const { return m_badChars; }
 
 private:
     bool fail() { return false; }
+    bool failAt(qint64 at)
+    {
+        m_i = at;
+        return false;
+    }
     void skip()
     {
         while (m_i < m_s.size() && (m_s[m_i] == ' ' || m_s[m_i] == '\t' || m_s[m_i] == '\n' || m_s[m_i] == '\r')) ++m_i;
@@ -157,22 +215,66 @@ private:
     }
     bool number(JNode *out)
     {
+        // the forms JSON allows: -?(0|[1-9][0-9]*)(.[0-9]+)?([eE][+-]?[0-9]+)?
         const qint64 start = m_i;
-        if (m_i < m_s.size() && m_s[m_i] == '-') ++m_i;
+        auto digit = [&] { return m_i < m_s.size() && m_s[m_i] >= '0' && m_s[m_i] <= '9'; };
         int digits = 0;
-        while (m_i < m_s.size() && ((m_s[m_i] >= '0' && m_s[m_i] <= '9') || m_s[m_i] == '.' || m_s[m_i] == 'e' || m_s[m_i] == 'E' || m_s[m_i] == '+' || m_s[m_i] == '-')) {
-            if (m_s[m_i] >= '0' && m_s[m_i] <= '9') ++digits;
+        if (m_i < m_s.size() && m_s[m_i] == '-') ++m_i;
+        if (!digit()) return failAt(start);
+        if (m_s[m_i] == '0') {
             ++m_i;
-            if (m_i - start > 64) return fail();
+            ++digits;
+            if (digit()) return failAt(start);
+        } else {
+            while (digit() && m_i - start <= 64) {
+                ++m_i;
+                ++digits;
+            }
         }
-        if (digits == 0) return fail();
+        if (m_i < m_s.size() && m_s[m_i] == '.') {
+            ++m_i;
+            if (!digit()) return failAt(start);
+            while (digit() && m_i - start <= 64) {
+                ++m_i;
+                ++digits;
+            }
+        }
+        if (m_i < m_s.size() && (m_s[m_i] == 'e' || m_s[m_i] == 'E')) {
+            ++m_i;
+            if (m_i < m_s.size() && (m_s[m_i] == '+' || m_s[m_i] == '-')) ++m_i;
+            if (!digit()) return failAt(start);
+            while (digit() && m_i - start <= 64) ++m_i;
+        }
+        if (m_i - start > 64) return failAt(start);
         out->kind = JNode::Number;
         out->text = QString::fromLatin1(m_s.mid(int(start), int(m_i - start)));
-        bool ok = false;
-        out->text.toDouble(&ok);
-        if (!ok) return fail();
-        out->exactText = digits > 15;
+        // (a number too large or too small for a double is kept as written, as text)
+        const bool range = !numberFits(out->text);
+        if (range) ++m_range;
+        out->exactText = digits > 15 || range;
         return true;
+    }
+    // exactly four hex digits (the text "+1ab" or " 1a" is not a number here)
+    bool hex4(ushort *u)
+    {
+        if (m_i + 4 > m_s.size()) return false;
+        ushort v = 0;
+        for (int k = 0; k < 4; ++k) {
+            const char h = m_s[m_i + k];
+            const int d = (h >= '0' && h <= '9') ? h - '0' : (h >= 'a' && h <= 'f') ? h - 'a' + 10 : (h >= 'A' && h <= 'F') ? h - 'A' + 10 : -1;
+            if (d < 0) return false;
+            v = ushort(v * 16 + d);
+        }
+        m_i += 4;
+        *u = v;
+        return true;
+    }
+    QString decode(const QByteArray &raw)
+    {
+        QStringDecoder dec(QStringDecoder::Utf8);
+        const QString t = dec(raw);
+        if (dec.hasError()) m_badChars = true;
+        return t;
     }
     bool string(QString *out)
     {
@@ -189,7 +291,7 @@ private:
             } else {
                 if (m_i >= m_s.size()) return fail();
                 const char e = m_s[m_i++];
-                text += QString::fromUtf8(raw);
+                text += decode(raw);
                 raw.clear();
                 switch (e) {
                 case '"': text += QLatin1Char('"'); break;
@@ -201,12 +303,25 @@ private:
                 case 'r': text += QLatin1Char('\r'); break;
                 case 't': text += QLatin1Char('\t'); break;
                 case 'u': {
-                    if (m_i + 4 > m_s.size()) return fail();
-                    bool ok = false;
-                    const ushort u = m_s.mid(int(m_i), 4).toUShort(&ok, 16);
-                    if (!ok) return fail();
-                    text += QChar(u);
-                    m_i += 4;
+                    ushort u = 0;
+                    if (!hex4(&u)) return failAt(m_i - 2);
+                    if (u >= 0xD800 && u <= 0xDBFF && m_i + 6 <= m_s.size() && m_s[m_i] == '\\' && m_s[m_i + 1] == 'u') {
+                        const qint64 keep = m_i;
+                        m_i += 2;
+                        ushort low = 0;
+                        if (hex4(&low) && low >= 0xDC00 && low <= 0xDFFF) {
+                            text += QChar(u);
+                            text += QChar(low);
+                            break;
+                        }
+                        m_i = keep;
+                    }
+                    if (u >= 0xD800 && u <= 0xDFFF) {
+                        m_badChars = true;
+                        text += QChar(0xFFFD);
+                    } else {
+                        text += QChar(u);
+                    }
                     break;
                 }
                 default: return fail();
@@ -221,7 +336,7 @@ private:
                 break;
             }
         }
-        text += QString::fromUtf8(raw);
+        text += decode(raw);
         *out = text;
         return true;
     }
@@ -238,6 +353,7 @@ private:
             ++m_i;
             return true;
         }
+        QHash<QString, int> seen;   // filled only for an object with many keys
         while (true) {
             skip();
             if (m_i >= m_s.size() || m_s[m_i] != '"') return fail();
@@ -247,8 +363,25 @@ private:
             if (m_i >= m_s.size() || m_s[m_i] != ':') return fail();
             ++m_i;
             skip();
-            out->members.emplace_back(key, JNode());
-            if (!value(&out->members.back().second, depth + 1)) return false;
+            // (a key repeated in one object keeps its place and the last value, as the standard reader does)
+            JNode member;
+            if (!value(&member, depth + 1)) return false;
+            int at = -1;
+            if (out->members.size() <= 8) {
+                for (size_t k = 0; k < out->members.size() && at < 0; ++k)
+                    if (out->members[k].first == key) at = int(k);
+            } else {
+                if (seen.isEmpty())
+                    for (size_t k = 0; k < out->members.size(); ++k) seen.insert(out->members[k].first, int(k));
+                at = seen.value(key, -1);
+            }
+            if (at >= 0) {
+                out->members[size_t(at)].second = std::move(member);
+                ++m_dups;
+            } else {
+                if (!seen.isEmpty()) seen.insert(key, int(out->members.size()));
+                out->members.emplace_back(key, std::move(member));
+            }
             skip();
             if (m_i >= m_s.size()) return fail();
             if (m_s[m_i] == ',') {
@@ -296,10 +429,16 @@ private:
     DataLimits m_limits;
     qint64 m_i = 0;
     qint64 m_nodes = 0;
-    bool m_deep = false, m_many = false;
+    bool m_deep = false, m_many = false, m_badChars = false;
+    int m_dups = 0, m_range = 0;
 };
 
-bool parseJson(const QByteArray &bytes, const DataLimits &limits, JNode *root, QString *why)
+struct JsonFlags {
+    int duplicates = 0, outOfRange = 0;
+    bool badChars = false;
+};
+
+bool parseJson(const QByteArray &bytes, const DataLimits &limits, JNode *root, QString *why, JsonFlags *flags = nullptr)
 {
     if (bytes.size() > limits.maxBytes) {
         if (why) *why = tooBig(limits);
@@ -315,6 +454,11 @@ bool parseJson(const QByteArray &bytes, const DataLimits &limits, JNode *root, Q
             else *why = QCoreApplication::translate("jp::office::sheet::DataSource", "The file is not valid JSON (near byte %1).").arg(parser.where());
         }
         return false;
+    }
+    if (flags) {
+        flags->duplicates = parser.duplicates();
+        flags->outOfRange = parser.outOfRange();
+        flags->badChars = parser.badCharacters();
     }
     return true;
 }
@@ -398,36 +542,38 @@ DataCell scalarCell(const JNode &v)
     }
 }
 
-void flattenJson(Builder &b, const QString &key, const JNode &v, int depth, ArrayMode mode, const DataLimits &limits)
+void flattenJson(Builder &b, const QString &key, const QString &src, const JNode &v, int depth, ArrayMode mode, const DataLimits &limits)
 {
     switch (v.kind) {
     case JNode::Null:
     case JNode::Bool:
     case JNode::Number:
-    case JNode::String: b.set(key, scalarCell(v)); break;
+    case JNode::String: b.set(key, src, scalarCell(v)); break;
     case JNode::Object: {
         if (depth >= limits.maxDepth) {
             b.deep();
-            b.set(key, DataCell{compact(v), 's'});
+            b.set(key, src, DataCell{compact(v), 's'});
             break;
         }
-        for (const auto &m : v.members) flattenJson(b, key + QLatin1Char('.') + m.first, m.second, depth + 1, mode, limits);
+        for (const auto &m : v.members) flattenJson(b, key + QLatin1Char('.') + m.first, src + QLatin1Char('\x1f') + m.first, m.second, depth + 1, mode, limits);
         break;
     }
     case JNode::Array: {
         bool plain = true;
         for (size_t i = 0; i < v.items.size() && plain; ++i) plain = v.items[i].kind != JNode::Object && v.items[i].kind != JNode::Array;
         if (!plain) {
-            b.set(key, DataCell{compact(v), 's'});
+            b.set(key, src, DataCell{compact(v), 's'});
             break;
         }
         if (mode == ArrayMode::Columns) {
-            for (size_t i = 0; i < v.items.size() && int(i) < limits.arrayColumns; ++i) flattenJson(b, key + QLatin1Char('.') + QString::number(i + 1), v.items[i], depth + 1, mode, limits);
+            if (int(v.items.size()) > limits.arrayColumns) b.spreadCut();
+            for (size_t i = 0; i < v.items.size() && int(i) < limits.arrayColumns; ++i) flattenJson(b, key + QLatin1Char('.') + QString::number(i + 1), src + QLatin1Char('\x1e') + QString::number(i + 1), v.items[i], depth + 1, mode, limits);
             break;
         }
         QStringList parts;
+        if (v.items.size() > 10000) b.listCut();
         for (size_t i = 0; i < v.items.size() && i < 10000; ++i) parts << scalarCell(v.items[i]).text;
-        b.set(key, DataCell{parts.join(QStringLiteral("; ")), 's'});
+        b.set(key, src, DataCell{parts.join(QStringLiteral("; ")), 's'});
         break;
     }
     }
@@ -461,7 +607,8 @@ QStringList dataJsonLists(const QByteArray &bytes, const DataLimits &limits, QSt
 bool dataReadJson(const QByteArray &bytes, const QString &path, ArrayMode mode, int maxRows, const DataLimits &limits, DataRows *out, QString *why)
 {
     JNode root;
-    if (!parseJson(bytes, limits, &root, why)) return false;
+    JsonFlags flags;
+    if (!parseJson(bytes, limits, &root, why, &flags)) return false;
     const JNode *list = jsonAt(root, path);
     if (!list || list->kind != JNode::Array) {
         if (why) *why = QCoreApplication::translate("jp::office::sheet::DataSource", "That list is not in the file.");
@@ -476,11 +623,14 @@ bool dataReadJson(const QByteArray &bytes, const QString &path, ArrayMode mode, 
         b.newRow();
         ++taken;
         if (item.kind == JNode::Object) {
-            for (const auto &m : item.members) flattenJson(b, m.first, m.second, 1, mode, limits);
+            for (const auto &m : item.members) flattenJson(b, m.first, m.first, m.second, 1, mode, limits);
         } else {
-            flattenJson(b, QStringLiteral("value"), item, 1, mode, limits);
+            flattenJson(b, QStringLiteral("value"), QStringLiteral("value"), item, 1, mode, limits);
         }
     }
+    if (flags.duplicates > 0) b.note(QCoreApplication::translate("jp::office::sheet::DataSource", "The file repeats %n name(s) inside items; the last value of each is kept.", nullptr, flags.duplicates));
+    if (flags.outOfRange > 0) b.note(QCoreApplication::translate("jp::office::sheet::DataSource", "%n number(s) are too large or too small for a cell, so they are kept as text, as written.", nullptr, flags.outOfRange));
+    if (flags.badChars) b.note(QCoreApplication::translate("jp::office::sheet::DataSource", "Some characters in the file could not be read and are shown as a replacement mark."));
     b.finish();
     if (maxRows <= 0 && int(list->items.size()) > cap) out->notes << QCoreApplication::translate("jp::office::sheet::DataSource", "Only the first %1 rows are loaded; the rest are left out.").arg(cap);
     if (out->header.isEmpty()) {
@@ -541,11 +691,15 @@ QStringList dataXmlLists(const QByteArray &bytes, const DataLimits &limits, QStr
 
 namespace {
 
-// Reads one element's content (the start tag was just read) into columns named from `key`.
-bool readXmlElement(QXmlStreamReader &xml, Builder &b, const QString &key, int depth, const DataLimits &limits, QString *why)
+// Reads one element's content (the start tag was just read) into columns named from `key` (the names without prefixes); `qkey` is the same with the prefixes, tried when two columns would share a name, and `src` names the
+// source with namespaces, so that two different sources never share a column.
+bool readXmlElement(QXmlStreamReader &xml, Builder &b, const QString &key, const QString &qkey, const QString &src, int depth, const DataLimits &limits, QString *why)
 {
+    auto join = [](const QString &base, const QString &name, QChar sep) { return base.isEmpty() ? name : base + sep + name; };
     const QXmlStreamAttributes attrs = xml.attributes();
-    for (const QXmlStreamAttribute &a : attrs) b.set(key.isEmpty() ? a.name().toString() : key + QLatin1Char('.') + a.name().toString(), DataCell{a.value().toString(), 's'});
+    for (const QXmlStreamAttribute &a : attrs)
+        b.set(join(key, a.name().toString(), QLatin1Char('.')), join(src, QLatin1Char('@') + a.namespaceUri().toString() + QLatin1Char('|') + a.name().toString(), QLatin1Char('\x1f')),
+              DataCell{a.value().toString(), 's'}, join(qkey, a.qualifiedName().toString(), QLatin1Char('.')));
     QString text;
     bool children = false;
     while (!xml.atEnd()) {
@@ -559,23 +713,25 @@ bool readXmlElement(QXmlStreamReader &xml, Builder &b, const QString &key, int d
                 if (why) *why = QCoreApplication::translate("jp::office::sheet::DataSource", "The file has items inside items more deeply than any real file has.");
                 return false;
             }
-            const QString name = xml.name().toString();
-            const QString sub = key.isEmpty() ? name : key + QLatin1Char('.') + name;
+            const QString sub = join(key, xml.name().toString(), QLatin1Char('.'));
+            const QString qsub = join(qkey, xml.qualifiedName().toString(), QLatin1Char('.'));
+            const QString ssub = join(src, xml.namespaceUri().toString() + QLatin1Char('|') + xml.name().toString(), QLatin1Char('\x1f'));
             if (depth + 1 > limits.maxDepth) {
                 b.deep();
-                b.set(sub, DataCell{xml.readElementText(QXmlStreamReader::IncludeChildElements), 's'});
+                b.set(sub, ssub, DataCell{xml.readElementText(QXmlStreamReader::IncludeChildElements), 's'}, qsub);
                 if (xml.hasError()) return refuseXml(xml, why);
                 continue;
             }
-            if (!readXmlElement(xml, b, sub, depth + 1, limits, why)) return false;
+            if (!readXmlElement(xml, b, sub, qsub, ssub, depth + 1, limits, why)) return false;
         } else if (t == QXmlStreamReader::EndElement) {
             break;
         }
     }
     if (xml.hasError()) return refuseXml(xml, why);
     const QString trimmed = text.trimmed();
-    if (!children && !trimmed.isEmpty()) b.set(key.isEmpty() ? QStringLiteral("text") : key, DataCell{trimmed, 's'});
-    else if (children && !trimmed.isEmpty() && !key.isEmpty()) b.set(key + QStringLiteral(".text"), DataCell{trimmed, 's'});
+    // (the text of an element that also holds elements: in a column named for the element, or "text" at the top)
+    if (!children && !trimmed.isEmpty()) b.set(key.isEmpty() ? QStringLiteral("text") : key, src.isEmpty() ? QStringLiteral("#text") : src, DataCell{trimmed, 's'}, qkey);
+    else if (children && !trimmed.isEmpty()) b.set(key.isEmpty() ? QStringLiteral("text") : key + QStringLiteral(".text"), src.isEmpty() ? QStringLiteral("#text") : src + QStringLiteral("\x1f#text"), DataCell{trimmed, 's'}, key.isEmpty() ? QString() : qkey + QStringLiteral(".text"));
     return true;
 }
 
@@ -611,7 +767,7 @@ bool dataReadXml(const QByteArray &bytes, const QString &path, int maxRows, cons
                     break;
                 }
                 b.newRow();
-                if (!readXmlElement(xml, b, QString(), 0, limits, why)) return false;
+                if (!readXmlElement(xml, b, QString(), QString(), QString(), 0, limits, why)) return false;
                 continue;   // its end tag was read
             }
             stack.push_back(here);
@@ -645,12 +801,19 @@ bool dataPathIsRemote(const QString &path)
 QString DataConnection::text() const
 {
     auto enc = [](const QString &v) { return QString::fromLatin1(v.toUtf8().toPercentEncoding()); };
-    return QStringLiteral("jo-data:1?kind=%1&path=%2&list=%3&mode=%4&text=%5").arg(enc(kind), enc(path), enc(list), mode == ArrayMode::Columns ? QStringLiteral("columns") : QStringLiteral("join"), asText ? QStringLiteral("1") : QStringLiteral("0"));
+    QString text = QStringLiteral("jo-data:1?kind=%1&path=%2&list=%3&mode=%4&text=%5").arg(enc(kind), enc(path), enc(list), mode == ArrayMode::Columns ? QStringLiteral("columns") : QStringLiteral("join"), asText ? QStringLiteral("1") : QStringLiteral("0"));
+    if (!columns.isEmpty()) {
+        QStringList names;
+        for (const QString &c : columns) names << enc(c);
+        const QString all = enc(names.join(QLatin1Char(',')));
+        if (text.size() + all.size() + 6 <= kMaxConnectionChars) text += QStringLiteral("&cols=") + all;
+    }
+    return text;
 }
 
 bool DataConnection::parse(const QString &text, DataConnection *out)
 {
-    if (!text.startsWith(QLatin1String("jo-data:1?")) || text.size() > 4096) return false;
+    if (!text.startsWith(QLatin1String("jo-data:1?")) || text.size() > kMaxConnectionChars) return false;
     DataConnection c;
     const QStringList parts = text.mid(10).split(QLatin1Char('&'));
     for (const QString &part : parts) {
@@ -663,6 +826,10 @@ bool DataConnection::parse(const QString &text, DataConnection *out)
         else if (key == QLatin1String("list")) c.list = value;
         else if (key == QLatin1String("mode")) c.mode = value == QLatin1String("columns") ? ArrayMode::Columns : ArrayMode::Join;
         else if (key == QLatin1String("text")) c.asText = value == QLatin1String("1");
+        else if (key == QLatin1String("cols")) {
+            for (const QString &name : value.split(QLatin1Char(','))) c.columns << QUrl::fromPercentEncoding(name.toLatin1());
+            if (c.columns.size() > 4096) return false;
+        }
     }
     if (c.kind != QLatin1String("json") && c.kind != QLatin1String("xml") && c.kind != QLatin1String("workbook")) return false;
     if (c.path.isEmpty()) return false;
@@ -682,7 +849,7 @@ QVector<char> dataColumnKinds(const DataRows &table, bool asText)
             const DataCell cell = row.value(c);
             if (cell.kind == 0 && cell.text.isEmpty()) continue;
             any = true;
-            const bool numeric = cell.kind == 'n' || (cell.kind == 's' && number.match(cell.text).hasMatch() && cell.text.size() <= 16);
+            const bool numeric = cell.kind == 'n' || (cell.kind == 's' && number.match(cell.text).hasMatch() && cell.text.size() <= 16 && numberFits(cell.text));
             allN = allN && numeric && (cell.kind == 'n' || !cell.text.startsWith(QLatin1Char('0')) || cell.text.startsWith(QLatin1String("0.")) || cell.text == QLatin1String("0"));
             anyN = anyN || numeric;
             allB = allB && (cell.kind == 'b' || (cell.kind == 's' && (cell.text.compare(QLatin1String("true"), Qt::CaseInsensitive) == 0 || cell.text.compare(QLatin1String("false"), Qt::CaseInsensitive) == 0)));

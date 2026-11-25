@@ -315,9 +315,14 @@ bool readTableModel(const QByteArray &xml, Table *t)
             t->showRowStripes = flag(k.attrOr("showRowStripes"), false);
             t->showColumnStripes = flag(k.attrOr("showColumnStripes"), false);
         } else if (l == QLatin1String("extLst")) {
+            // (ours only: the extension's address and the name's own address are both checked, not the local name alone)
             for (const XNode &e : k.kids)
-                for (const XNode &d : e.kids)
-                    if (d.local() == QLatin1String("dataSource") && t->dataSource.isEmpty()) t->dataSource = d.attrOr("text").left(kMaxDataSourceChars);
+                for (const XNode &d : e.kids) {
+                    const QString prefix = d.prefix();
+                    const QString declared = d.attrOr((prefix.isEmpty() ? QStringLiteral("xmlns") : QStringLiteral("xmlns:") + prefix.chopped(1)).toLatin1().constData());
+                    if (d.local() == QLatin1String("dataSource") && e.attrOr("uri") == QLatin1String("{6A1F0C3E-5B7D-4E29-9C41-0D3B7A52E8F1}") && declared == QLatin1String("urn:jeffoffice:data-source") && t->dataSource.isEmpty())
+                        t->dataSource = d.attrOr("text").left(kMaxDataSourceChars);
+                }
         } else if (l == QLatin1String("tableColumns")) {
             for (const XNode &c : k.kids) {
                 if (c.local() != QLatin1String("tableColumn")) continue;
@@ -547,7 +552,7 @@ QByteArray writeTablePart(const Table &t, const QByteArray &original, bool *ok, 
         if (extList) {
             extList->kids.erase(std::remove_if(extList->kids.begin(), extList->kids.end(), [](XNode &e) {
                                     for (XNode &d : e.kids)
-                                        if (d.local() == QLatin1String("dataSource")) return true;
+                                        if (d.local() == QLatin1String("dataSource") && e.attrOr("uri") == QLatin1String("{6A1F0C3E-5B7D-4E29-9C41-0D3B7A52E8F1}")) return true;
                                     return false;
                                 }),
                                 extList->kids.end());
