@@ -1263,6 +1263,11 @@ public:
     // The cells of the sheet in view that Error Checking would show: a formula with an error, and a number kept as text (what was ignored is left out).
     // `patterns`: with the rule that looks at the neighbors worked out now (a person asks); else with what the slices found for the sheet.
     std::vector<crunch::FormulaProblem> formulaProblems(bool patterns = true) const;
+    // Which rules of Error Checking are on (Options > Formulas; a bit for each problem kind, jp::crunch::errorRuleBit): kept in the person's settings.
+    quint32 errorRules() const { return m_errorRules; }
+    void setErrorRules(quint32 rules);
+    // The cell's formula made as the problem's fix says (one step of Undo), for the problem at the cell.
+    void fixFormulaProblem(quint32 row, quint32 col);
     // Ignores the problem of that cell (kept in the file, one step of Undo).
     void ignoreFormulaProblem(quint32 row, quint32 col);
     // The cells the Watch Window lists (kept while the workbook is open), and adding one; false if it is watched already or too many are.
@@ -1343,6 +1348,8 @@ private:
     QPointer<QThread> m_sortThread;
     std::atomic<bool> m_sortCancel{false};
     bool m_sortOrderedOk = false;
+    quint32 m_errorRules = jp::crunch::kDefaultErrorRules;
+    bool m_sortNaturalAsked = false, m_sortNatural = false, m_naturalSortUsed = false;   // the sort being made asks for numbers in text by value; the last sort made did; one was made in this window's life
     bool m_sortOrdering = false;
     std::function<bool(const jp::office::sheet::CellRange &, jp::crunch::SortSpec *)> m_sortAsker;
     std::function<bool()> m_expandAsker;

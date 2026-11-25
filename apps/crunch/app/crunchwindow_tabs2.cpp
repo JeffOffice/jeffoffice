@@ -1,5 +1,6 @@
 // Tools of the Review, Data, and Formulas tabs that are not part of an older group: Workbook Statistics, Goal Seek, Subtotal, and Advanced Filter.
 #include "app/crunchwindow.h"
+#include "app/settings.h"
 #include "core/invalidcells.h"
 #include "app/sortdialog.h"
 #include "grid/pagelayoutview.h"
@@ -484,6 +485,8 @@ quint16 ignoreBitOf(crunch::FormulaProblem::Kind kind)
     case crunch::FormulaProblem::Kind::InconsistentFormula: return IgnoredError::Formula;
     case crunch::FormulaProblem::Kind::TwoDigitYear: return IgnoredError::TwoDigitTextYear;
     case crunch::FormulaProblem::Kind::UnlockedFormula: return IgnoredError::UnlockedFormula;
+    case crunch::FormulaProblem::Kind::OmittedCells: return IgnoredError::FormulaRange;
+    case crunch::FormulaProblem::Kind::EmptyReference: return IgnoredError::EmptyCellReference;
     default: return IgnoredError::NumberStoredAsText;
     }
 }
@@ -532,9 +535,9 @@ std::vector<crunch::FormulaProblem> CrunchWindow::formulaProblems(bool patterns)
 {
     std::vector<crunch::FormulaProblem> out;
     if (!m_session) return out;
-    std::vector<crunch::FormulaProblem> found = crunch::findFormulaProblems(*m_session, m_sheet, nullptr, patterns);
+    std::vector<crunch::FormulaProblem> found = crunch::findFormulaProblems(*m_session, m_sheet, nullptr, patterns, m_errorRules);
     // (a window that asks after each change has the neighbor rule from the slices that ran, for this sheet)
-    if (!patterns && m_patternSheet == m_sheet) found = crunch::mergeInconsistent(std::move(found), m_patternFound);
+    if (!patterns && m_patternSheet == m_sheet && (m_errorRules & crunch::errorRuleBit(crunch::FormulaProblem::Kind::InconsistentFormula))) found = crunch::mergeInconsistent(std::move(found), m_patternFound);
     const IgnoreIndex ignored(m_session->ignoredErrorsOf(m_sheet));
     for (const crunch::FormulaProblem &p : found)
         if (!ignored.has(ignoreBitOf(p.kind), p.row, p.col)) out.push_back(p);
@@ -564,6 +567,30 @@ void CrunchWindow::ignoreFormulaProblem(quint32 row, quint32 col)
     refreshCellFlags();
 }
 
+void CrunchWindow::setErrorRules(quint32 rules)
+{
+    rules &= crunch::kAllErrorRules;
+    if (rules == m_errorRules) return;
+    m_errorRules = rules;
+    Settings::get().setValue(QStringLiteral("crunch/errorRules"), int(rules));
+    startPatternScan();
+    refreshCellFlags();
+}
+
+void CrunchWindow::fixFormulaProblem(quint32 row, quint32 col)
+{
+    if (!m_session || !editingAllowed()) return;
+    for (const crunch::FormulaProblem &p : formulaProblems()) {
+        if (p.row != row || p.col != col || p.fixedFormula.isEmpty()) continue;
+        const qint64 before = m_loader.changesMade();
+        const crunch::EditSession::Outcome o = m_session->type(m_sheet, row, col, p.fixedFormula, false);
+        if (!o.ok) notice(tr("Error Checking"), o.problem);
+        else if (m_loader.changesMade() != before) m_calculating = true;
+        refreshCellFlags();
+        return;
+    }
+}
+
 void CrunchWindow::errorCheckingDialog()
 {
     if (m_edit.active) commitEdit(CellEditor::Way::Stay);
@@ -573,22 +600,28 @@ void CrunchWindow::errorCheckingDialog()
         notice(tr("Error Checking"), tr("No errors were found on this sheet."), false);
         return;
     }
-    QStringList cells, messages;
+    QStringList cells, messages, fixes;
     int first = 0;
     const grid::Selection &sel = m_view->selection();
     for (size_t i = 0; i < problems.size(); ++i) {
         cells << jp::office::sheet::cellName(problems[i].row, problems[i].col);
         messages << problems[i].explanation;
+        fixes << problems[i].fixLabel;
         if (first == 0 && (qint64(problems[i].row) > sel.activeRow || (qint64(problems[i].row) == sel.activeRow && qint64(problems[i].col) >= sel.activeCol))) first = int(i);
     }
     auto list = std::make_shared<std::vector<crunch::FormulaProblem>>(problems);
-    ErrorCheckDialog dialog(cells, messages, first, this);
+    ErrorCheckDialog dialog(cells, messages, first, this, fixes);
     connect(&dialog, &ErrorCheckDialog::showing, this, [this, list](int i) {
         if (i >= 0 && i < int(list->size())) m_view->selectCell((*list)[size_t(i)].row, (*list)[size_t(i)].col);
     });
     connect(&dialog, &ErrorCheckDialog::ignored, this, [this, list](int i) {
         if (i < 0 || i >= int(list->size())) return;
         ignoreFormulaProblem((*list)[size_t(i)].row, (*list)[size_t(i)].col);
+        list->erase(list->begin() + i);
+    });
+    connect(&dialog, &ErrorCheckDialog::fixed, this, [this, list](int i) {
+        if (i < 0 || i >= int(list->size())) return;
+        fixFormulaProblem((*list)[size_t(i)].row, (*list)[size_t(i)].col);
         list->erase(list->begin() + i);
     });
     dialog.exec();
@@ -828,7 +861,7 @@ std::vector<jp::office::sheet::CellRange> CrunchWindow::circledCells() const
 void CrunchWindow::startPatternScan()
 {
     m_patternScan.reset();
-    if (!m_session || !m_haveCalc || !m_session->calculation()) return;
+    if (!m_session || !m_haveCalc || !m_session->calculation() || !(m_errorRules & crunch::errorRuleBit(crunch::FormulaProblem::Kind::InconsistentFormula))) return;
     m_patternScan = std::make_unique<crunch::InconsistentScan>(*m_session, m_sheet);
     if (!m_patternTimer) {
         m_patternTimer = new QTimer(this);

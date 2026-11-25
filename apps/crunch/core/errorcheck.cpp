@@ -83,6 +83,74 @@ QString relativeKey(const QString &formula, quint32 row, quint32 col)
     return key + text.mid(at).toUpper();
 }
 
+// The cell `row`, `col` holds a number that was typed (no formula).
+bool typedNumberAt(const EditSession &session, const Calculation *calc, int sheet, qint64 row, qint64 col)
+{
+    if (row < 0 || col < 0 || row >= qint64(kMaxRows) || col >= qint64(kMaxColumns)) return false;
+    const std::optional<Cell> cell = calc->sheet(sheet).cells.find(quint32(row), quint32(col));
+    return cell && !cell->hasFormula() && !(cell->flags & ArrayMember) && session.valueAt(sheet, quint32(row), quint32(col)).isNumber();
+}
+
+// The same reference with its first or last end moved to `line` (a row or column of the sheet, from 0): the part of the text that names that end is rewritten.
+QString movedEnd(const QString &body, bool last, bool columns, quint32 line)
+{
+    static const QRegularExpression end(QStringLiteral("^(\\$?)([A-Za-z]*)(\\$?)(\\d*)$"));
+    QStringList ends = body.split(QLatin1Char(':'));
+    if (ends.size() != 2) return QString();
+    QString &one = ends[last ? 1 : 0];
+    const QRegularExpressionMatch m = end.match(one);
+    if (!m.hasMatch()) return QString();
+    one = columns ? m.captured(1) + columnName(line) + m.captured(3) + m.captured(4) : m.captured(1) + m.captured(2) + m.captured(3) + QString::number(line + 1);
+    return ends.join(QLatin1Char(':'));
+}
+
+// The two rules that read what a formula refers to. Fills in `p` and says whether the cell has a problem.
+bool referenceProblem(const EditSession &session, const Calculation *calc, int sheet, quint32 row, quint32 col, quint32 rules, FormulaProblem *p)
+{
+    const Calculation::CellContent content = calc->content(sheet, row, col);
+    if (!content.isFormula) return false;
+    const QString text = content.formula.startsWith(QLatin1Char('=')) ? content.formula.mid(1) : content.formula;
+    const std::vector<FormulaRef> refs = findReferences(text);
+    // (a reference with the sheet's name in front is of another sheet or of this one by name: only those without are looked at)
+    auto covered = [&](qint64 r, qint64 c) {
+        for (const FormulaRef &ref : refs)
+            if (ref.sheet.isEmpty() && qint64(ref.row1) <= r && r <= qint64(ref.row2) && qint64(ref.col1) <= c && c <= qint64(ref.col2)) return true;
+        return false;
+    };
+    if (rules & errorRuleBit(FormulaProblem::Kind::OmittedCells)) {
+        for (const FormulaRef &ref : refs) {
+            if (!ref.sheet.isEmpty() || ref.kind != FormulaRef::Kind::Range) continue;
+            const bool tall = ref.col1 == ref.col2 && ref.row2 > ref.row1, wide = ref.row1 == ref.row2 && ref.col2 > ref.col1;
+            if (!tall && !wide) continue;
+            // (the cell just before the first, and just after the last, of the cells the formula adds up)
+            for (const bool last : {false, true}) {
+                const qint64 r = tall ? (last ? qint64(ref.row2) + 1 : qint64(ref.row1) - 1) : qint64(ref.row1);
+                const qint64 c = wide ? (last ? qint64(ref.col2) + 1 : qint64(ref.col1) - 1) : qint64(ref.col1);
+                if ((r == qint64(row) && c == qint64(col)) || covered(r, c) || !typedNumberAt(session, calc, sheet, r, c)) continue;
+                const QString body = text.mid(ref.bodyStart, ref.start + ref.length - ref.bodyStart);
+                const QString moved = movedEnd(body, last, wide, quint32(tall ? r : c));
+                p->kind = FormulaProblem::Kind::OmittedCells;
+                p->explanation = QCoreApplication::translate("jp::crunch::ErrorCheck", "This formula leaves out a number that is next to the cells it uses. Include that cell, or ignore this if it is meant.");
+                if (!moved.isEmpty()) {
+                    p->fixLabel = QCoreApplication::translate("jp::crunch::ErrorCheck", "Include the Cell");
+                    p->fixedFormula = QLatin1Char('=') + text.left(ref.bodyStart) + moved + text.mid(ref.start + ref.length);
+                }
+                return true;
+            }
+        }
+    }
+    if (rules & errorRuleBit(FormulaProblem::Kind::EmptyReference)) {
+        for (const FormulaRef &ref : refs) {
+            if (!ref.sheet.isEmpty() || ref.kind != FormulaRef::Kind::Cell || (ref.row1 == row && ref.col1 == col)) continue;
+            if (!session.valueAt(sheet, ref.row1, ref.col1).isEmpty()) continue;
+            p->kind = FormulaProblem::Kind::EmptyReference;
+            p->explanation = QCoreApplication::translate("jp::crunch::ErrorCheck", "This formula uses a cell that is empty, so it counts as zero or as no text. Fill the cell, or ignore this if it is meant.");
+            return true;
+        }
+    }
+    return false;
+}
+
 } // namespace
 
 const QString &InconsistentScan::keyAt(qint64 row, qint64 col)
@@ -148,13 +216,15 @@ bool InconsistentScan::step(int cells)
     return m_next >= m_places.size();
 }
 
-std::vector<FormulaProblem> findFormulaProblems(const EditSession &session, int sheet, bool *truncated, bool patterns)
+std::vector<FormulaProblem> findFormulaProblems(const EditSession &session, int sheet, bool *truncated, bool patterns, quint32 rules)
 {
     std::vector<FormulaProblem> out;
     if (truncated) *truncated = false;
     const Calculation *calc = session.calculation();
     if (!calc || sheet < 0 || sheet >= calc->sheetCount()) return out;
     bool full = false;
+    qint64 referenceChecks = 0;
+    const bool readsReferences = rules & (errorRuleBit(FormulaProblem::Kind::OmittedCells) | errorRuleBit(FormulaProblem::Kind::EmptyReference));
     calc->sheet(sheet).cells.forEach([&](quint32 row, quint32 col, const Cell &c) {
         if (full || (c.flags & ArrayMember)) return;
         FormulaProblem p;
@@ -163,22 +233,25 @@ std::vector<FormulaProblem> findFormulaProblems(const EditSession &session, int 
         p.col = col;
         if (c.hasFormula()) {
             const Value v = session.valueAt(sheet, row, col);
-            if (v.isError()) {
+            if (v.isError() && (rules & errorRuleBit(FormulaProblem::Kind::ErrorValue))) {
                 p.kind = FormulaProblem::Kind::ErrorValue;
                 p.explanation = errorSentence(v.errorKind());
-            } else if (!session.styleIsLocked(c.style)) {
+            } else if (!v.isError() && !session.styleIsLocked(c.style) && (rules & errorRuleBit(FormulaProblem::Kind::UnlockedFormula))) {
                 p.kind = FormulaProblem::Kind::UnlockedFormula;
                 p.explanation = QCoreApplication::translate("jp::crunch::ErrorCheck", "This formula is in a cell that is not locked, so it can be changed even when the sheet is protected. Lock the cell to keep the formula safe.");
+            } else if (readsReferences && referenceChecks < kMaxReferenceChecks) {
+                ++referenceChecks;
+                if (!referenceProblem(session, calc, sheet, row, col, rules, &p)) return;
             } else {
                 return;
             }
         } else if (c.type == CellType::SharedString || c.type == CellType::InlineString) {
             const Value v = session.valueAt(sheet, row, col);
             if (!v.isText()) return;
-            if (looksLikeNumber(v.text())) {
+            if (looksLikeNumber(v.text()) && (rules & errorRuleBit(FormulaProblem::Kind::NumberAsText))) {
                 p.kind = FormulaProblem::Kind::NumberAsText;
                 p.explanation = QCoreApplication::translate("jp::crunch::ErrorCheck", "This number is kept as text, so formulas may skip it. Retype it, or change its format, to make it a number.");
-            } else if (looksLikeTwoDigitYear(v.text())) {
+            } else if (looksLikeTwoDigitYear(v.text()) && (rules & errorRuleBit(FormulaProblem::Kind::TwoDigitYear))) {
                 p.kind = FormulaProblem::Kind::TwoDigitYear;
                 p.explanation = QCoreApplication::translate("jp::crunch::ErrorCheck", "This date is kept as text and its year has two digits, so it may be read as the wrong century. Retype it with four digits.");
             } else {
@@ -194,7 +267,7 @@ std::vector<FormulaProblem> findFormulaProblems(const EditSession &session, int 
         }
         out.push_back(p);
     });
-    if (patterns) {
+    if (patterns && (rules & errorRuleBit(FormulaProblem::Kind::InconsistentFormula))) {
         InconsistentScan scan(session, sheet);
         while (!scan.step(1 << 20)) {}
         out = mergeInconsistent(std::move(out), scan.found(), truncated);

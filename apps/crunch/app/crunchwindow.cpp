@@ -418,6 +418,7 @@ void CrunchWindow::buildCentral()
     m_view = new grid::GridView(central);
     setSheetAccessibleText();
     m_view->setDragEditing(Settings::get().value(QStringLiteral("crunch/dragEditing"), true).toBool());
+    m_errorRules = Settings::get().value(QStringLiteral("crunch/errorRules"), int(crunch::kDefaultErrorRules)).toUInt() & crunch::kAllErrorRules;
     v->addWidget(buildOutlineGutters(central), 1);
     buildPageLayoutView(central, v);
     m_cellEditor = new CellEditor(m_view->viewport());
@@ -587,6 +588,7 @@ void CrunchWindow::createActions()
             crunch::CalcSettings shown;   // what the fields held when the page was made
             int roundsShown = 0;
             QPointer<QCheckBox> englishNames;   // (this program's own, not the workbook's)
+            std::array<QPointer<QCheckBox>, 7> errorRules;   // the rules of Error Checking, by the problem's kind (also this program's own)
         };
         auto calc = std::make_shared<CalcPage>();
         pages << OptionsPage{tr("Formulas"), [this, calc] {
@@ -604,6 +606,18 @@ void CrunchWindow::createActions()
                 english->setChecked(Settings::get().value(QStringLiteral("crunch/englishFunctionNames"), false).toBool());
                 layout->addRow(english);
                 calc->englishNames = english;
+            }
+            // the rules of Error Checking: which problems are marked and stepped through (kept in this program's settings, not in the workbook)
+            layout->addRow(new QLabel(tr("Error Checking marks cells that have"), page));
+            static const char *const ruleNames[] = {QT_TR_NOOP("A formula that gives an error"), QT_TR_NOOP("A number kept as text"), QT_TR_NOOP("A formula that is not like the ones beside it"),
+                                                    QT_TR_NOOP("A date kept as text with a year of two digits"), QT_TR_NOOP("A formula in a cell that is not locked"),
+                                                    QT_TR_NOOP("A formula that leaves out a number next to the cells it uses"), QT_TR_NOOP("A formula that uses an empty cell")};
+            for (size_t i = 0; i < calc->errorRules.size(); ++i) {
+                auto *rule = new QCheckBox(tr(ruleNames[i]), page);
+                rule->setObjectName(QStringLiteral("optionErrorRule%1").arg(i));
+                rule->setChecked(m_errorRules & (quint32(1) << i));
+                layout->addRow(rule);
+                calc->errorRules[i] = rule;
             }
             auto *about = new QLabel(open ? tr("These settings belong to this workbook. They are saved in its file and are not kept for other workbooks.") : tr("These settings belong to a workbook. Open one to change them."), page);
             about->setWordWrap(true);
@@ -662,6 +676,10 @@ void CrunchWindow::createActions()
                         w->updateBars();
                     }
             }
+            quint32 rules = 0;
+            for (size_t i = 0; i < calc->errorRules.size(); ++i)
+                if (calc->errorRules[i] && calc->errorRules[i]->isChecked()) rules |= quint32(1) << i;
+            setErrorRules(rules);
             if (!mode || !beforeSave || !iterate || !rounds || !change || !m_session || !m_loaded) return;
             // (only a field the person changed is written: a value the fields could not show as it is stays as the workbook has it)
             crunch::CalcSettings s = m_session->calcSettings();
@@ -910,6 +928,11 @@ void CrunchWindow::createActions()
     createWindowActions();
     createPageLayoutActions();
     createOutlineActions();
+    connect(this, &CrunchWindow::sortFinished, this, [this](bool made) {
+        if (!made) return;
+        m_sortNatural = m_sortNaturalAsked;
+        if (m_sortNatural) m_naturalSortUsed = true;
+    });
     m_design = new ChartDesign(this, this);
     createChartActions();
     createInsertObjectActions();

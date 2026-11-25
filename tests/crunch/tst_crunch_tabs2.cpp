@@ -25,6 +25,9 @@
 #include "savedok.h"
 
 #include <QAction>
+#include <QPushButton>
+#include <QDialogButtonBox>
+#include <QCheckBox>
 #include <QListWidget>
 #include <QMenu>
 #include <QTableWidget>
@@ -459,6 +462,100 @@ private Q_SLOTS:
         QVERIFY(w.act(QStringLiteral("formulas.errorChecking"))->isEnabled());
         w.act(QStringLiteral("formulas.errorChecking"))->trigger();
         QCOMPARE(told.size(), 1);
+    }
+
+    void errorCheckingFindsAFormulaThatLeavesOutANumberBesideItsCellsAndCanMendOrIgnoreIt()
+    {
+        EditWindow e;
+        QVERIFY(e.open(sheetOf({"A1=5", "A2=6", "A3=7", "A4=8", "B1==SUM(A2:A4)", "B2==SUM(A1:A4)", "D1=Total", "D2=1", "D3=2", "E1==SUM(D2:D3)", "F1=1", "F2=2", "F3=3", "G1==SUM(F1:F2)"})));
+        QVERIFY(e.settle());
+        CrunchWindow &w = e.win.w;
+        struct Restore {
+            CrunchWindow &w;
+            ~Restore() { w.setErrorRules(crunch::kDefaultErrorRules); }
+        } restore{w};
+        auto problems = w.formulaProblems();
+        QCOMPARE(problems.size(), size_t(2));   // (B2 uses them all, E1 has a word above it, so neither is marked)
+        QCOMPARE(int(problems[0].row), 0);
+        QCOMPARE(int(problems[0].col), 1);
+        QVERIFY(problems[0].kind == crunch::FormulaProblem::Kind::OmittedCells);
+        QCOMPARE(problems[0].fixedFormula, QStringLiteral("=SUM(A1:A4)"));
+        QCOMPARE(int(problems[1].col), 6);
+        QCOMPARE(problems[1].fixedFormula, QStringLiteral("=SUM(F1:F3)"));
+        // the fix is one step of Undo, and undo puts the formula back
+        const int steps = w.undoStack()->count();
+        w.fixFormulaProblem(0, 1);
+        QVERIFY(e.settle());
+        QCOMPARE(w.session()->editText(0, 0, 1), QStringLiteral("=SUM(A1:A4)"));
+        QCOMPARE(w.undoStack()->count(), steps + 1);
+        QCOMPARE(w.formulaProblems().size(), size_t(1));
+        pressUndo(&w);
+        QVERIFY(e.settle());
+        QCOMPARE(w.session()->editText(0, 0, 1), QStringLiteral("=SUM(A2:A4)"));
+        // Ignore Error is kept in the file's list under the rule's own kind
+        w.ignoreFormulaProblem(0, 1);
+        QCOMPARE(w.formulaProblems().size(), size_t(1));
+        QCOMPARE(w.session()->ignoredErrorsOf(0).value(0).kinds, quint16(jp::office::sheet::IgnoredError::FormulaRange));
+        // and the rule can be turned off
+        w.setErrorRules(crunch::kDefaultErrorRules & ~crunch::errorRuleBit(crunch::FormulaProblem::Kind::OmittedCells));
+        QVERIFY(w.formulaProblems().empty());
+    }
+
+    void errorCheckingFindsAFormulaThatUsesAnEmptyCellOnlyWhenThatRuleIsOn()
+    {
+        EditWindow e;
+        QVERIFY(e.open(sheetOf({"A1=1", "B1==A1+A9", "B2==A1+1"})));
+        QVERIFY(e.settle());
+        CrunchWindow &w = e.win.w;
+        struct Restore {
+            CrunchWindow &w;
+            ~Restore() { w.setErrorRules(crunch::kDefaultErrorRules); }
+        } restore{w};
+        QVERIFY(w.formulaProblems().empty());   // (off until asked for)
+        w.setErrorRules(crunch::kAllErrorRules);
+        const auto problems = w.formulaProblems();
+        QCOMPARE(problems.size(), size_t(1));
+        QCOMPARE(int(problems[0].row), 0);
+        QVERIFY(problems[0].kind == crunch::FormulaProblem::Kind::EmptyReference);
+        QVERIFY(problems[0].fixedFormula.isEmpty());
+        w.ignoreFormulaProblem(0, 1);
+        QVERIFY(w.formulaProblems().empty());
+        QCOMPARE(w.session()->ignoredErrorsOf(0).value(0).kinds, quint16(jp::office::sheet::IgnoredError::EmptyCellReference));
+    }
+
+    void theOptionsPageHasACheckboxForEachErrorCheckingRuleAndKeepsTheChoice()
+    {
+        EditWindow e;
+        QVERIFY(e.open(sheetOf({"A1=1"})));
+        CrunchWindow &w = e.win.w;
+        struct Restore {
+            CrunchWindow &w;
+            ~Restore() { w.setErrorRules(crunch::kDefaultErrorRules); }
+        } restore{w};
+        QCOMPARE(w.errorRules(), crunch::kDefaultErrorRules);
+        int seen = 0;
+        auto *watch = new QTimer(&w);
+        watch->setInterval(10);
+        connect(watch, &QTimer::timeout, watch, [&] {
+            QWidget *dialog = QApplication::activeModalWidget();
+            if (!dialog || dialog->findChildren<QCheckBox *>(QStringLiteral("optionErrorRule0")).isEmpty()) return;
+            watch->stop();
+            for (int i = 0; i < 7; ++i) {
+                auto *box = dialog->findChild<QCheckBox *>(QStringLiteral("optionErrorRule%1").arg(i));
+                if (!box) continue;
+                ++seen;
+                QCOMPARE(box->isChecked(), bool(crunch::kDefaultErrorRules & (quint32(1) << i)));
+            }
+            dialog->findChild<QCheckBox *>(QStringLiteral("optionErrorRule1"))->setChecked(false);   // a number kept as text
+            dialog->findChild<QCheckBox *>(QStringLiteral("optionErrorRule6"))->setChecked(true);    // an empty cell
+            dialog->findChild<QDialogButtonBox *>()->button(QDialogButtonBox::Ok)->click();
+        });
+        watch->start();
+        w.act(QStringLiteral("file.options"))->trigger();
+        QCOMPARE(seen, 7);
+        QCOMPARE(w.errorRules(), (crunch::kDefaultErrorRules & ~crunch::errorRuleBit(crunch::FormulaProblem::Kind::NumberAsText)) | crunch::errorRuleBit(crunch::FormulaProblem::Kind::EmptyReference));
+        CrunchWindow second;   // (a window made afterward starts with what was kept)
+        QCOMPARE(second.errorRules(), w.errorRules());
     }
 
     void theWatchWindowListsWatchedCellsAndKeepsTheirValuesCurrent()
