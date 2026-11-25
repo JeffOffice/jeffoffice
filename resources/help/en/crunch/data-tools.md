@@ -45,6 +45,7 @@ Use this when one column holds several pieces of text that you want in separate 
    - **Split at a separator**: check the marks that stand between the pieces: **Tab**, **Semicolon**, **Comma**, **Space**, or **Other**, where you type your own mark. **Treat separators in a row as one** keeps two commas in a row from making an empty piece. **Text in quotes** names the mark that wraps a piece that must not be split, such as "Lee, Bo". Inside the quotes, two marks in a row stand for one.
    - **Split at fixed places**: type the places where a new column begins, counting characters from 1. For example, 5, 12 starts a new column at the fifth and at the twelfth character.
 4. Choose what each piece is: **General** reads numbers and dates as if you typed them, and **Text** keeps every piece as it is, so "007" stays "007".
+   To treat one piece differently, type its number in **Piece** and choose how it is read: **Same as above**, **As typed**, **Text**, a date written as **month, day, year**, **day, month, year**, or **year, month, day**, or **Leave out**, which puts that piece nowhere. The first piece is 1.
 5. In **Put the pieces from**, type the first cell for the pieces. It starts as the first cell you selected.
 6. The box under the choices shows the first rows split the way you chose. Press **OK**.
 
