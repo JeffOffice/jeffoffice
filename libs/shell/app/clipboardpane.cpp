@@ -15,6 +15,8 @@
 #include <QMenu>
 #include <QPixmap>
 #include <QPushButton>
+#include <QUndoCommand>
+#include <QUndoStack>
 #include <QVBoxLayout>
 
 namespace jp {
@@ -89,7 +91,7 @@ ClipboardPane::ClipboardPane(const ClipboardPaneHost &host, QWidget *parent) : Q
     col->addWidget(m_closedBox);
     m_othersBox = new QCheckBox(QCoreApplication::translate("jp::ClipboardPane", "Also collect what is copied in other programs"), this);
     m_othersBox->setObjectName(QStringLiteral("clipboardCollectOthers"));
-    m_othersBox->setToolTip(QCoreApplication::translate("jp::ClipboardPane", "Only plain text and pictures are kept (a picture of up to about 2 million pixels), and nothing a password manager marks as secret."));
+    m_othersBox->setToolTip(QCoreApplication::translate("jp::ClipboardPane", "Only plain text and pictures are kept (a picture of up to about 2 million pixels), and nothing a password manager marks as secret. With this on, a copy made in another program is read in full before this program decides whether to keep it, so a very large copy can make this program pause for a moment and use as much memory as the copy is big. Only one form of it is read: its text when it has text, otherwise one picture. With this off, nothing copied in other programs is read."));
     col->addWidget(m_othersBox);
     if (!ClipboardHistory::canCollectOtherPrograms()) m_othersBox->hide();
     m_note = plainLabel(new QLabel(QCoreApplication::translate("jp::ClipboardPane", "Items are kept in this program only, and nothing is saved to a file. They are cleared when the last window of the program is closed. An item stays here after the document it came from is closed."), this));
@@ -162,6 +164,18 @@ void ClipboardPane::updateStatus()
         said << QCoreApplication::translate("jp::ClipboardPane", "%n oldest copy was dropped to stay under 64 MB in all.", "%n is a count", h->droppedCount());
     m_status->setText(said.join(QLatin1Char('\n')));
     m_status->setVisible(!said.isEmpty());
+}
+
+void endPasteSteps(QUndoStack *stack)
+{
+    stack->endMacro();
+    const int n = stack->count();
+    if (n == 0 || stack->index() != n || stack->command(n - 1)->childCount() > 0) return;
+    // (the empty step is set aside and a command that is obsolete as soon as it is pushed drops it, which leaves the stack as it was before the group)
+    stack->setIndex(n - 1);
+    QUndoCommand *drop = new QUndoCommand;
+    drop->setObsolete(true);
+    stack->push(drop);
 }
 
 void ClipboardPane::pasteItem(quint64 id)

@@ -77,6 +77,8 @@ public:
     mutable qint64 handed = 0;
     mutable QStringList asked;
     QByteArray smallPng;
+    quint64 id = 0;
+    quint64 identity() const override { return id; }
     QStringList formats() const override { return offered.keys(); }
     qint64 sizeOf(const QString &format) const override { return tellSizes ? offered.value(format) : -1; }
     QByteArray read(const QString &format, qint64 most, bool *over) const override
@@ -284,8 +286,8 @@ private Q_SLOTS:
         QCOMPARE(f.h->tooLargeCount(), 1);
     }
 
-    // Of what another program offers, only the plain text and one picture form are fetched.
-    void onlyTheTwoFormsKeptAreFetchedFromAnotherProgram()
+    // Of what another program offers, one form is fetched: the plain text, or when there is none, one picture form.
+    void onlyOneFormIsFetchedFromAnotherProgram()
     {
         if (!ClipboardHistory::canCollectOtherPrograms()) QSKIP("other programs are not collected here");
         Fresh f;
@@ -299,8 +301,58 @@ private Q_SLOTS:
         QVERIFY(f.h->noteClipboard(&md, false) != 0);
         QStringList got = md.fetched;
         got.sort();
-        QCOMPARE(got, (QStringList{QStringLiteral("image/png"), QStringLiteral("text/plain")}));
+        QCOMPARE(got, (QStringList{QStringLiteral("text/plain")}));
         QCOMPARE(f.h->items().first().preview, QStringLiteral("hello"));
+        FetchLogMime pic;
+        pic.have.insert(QStringLiteral("text/html"), "<b>x</b>");
+        pic.have.insert(QStringLiteral("image/png"), pngOf(20, 10, QImage::Format_RGB32));
+        pic.have.insert(QStringLiteral("image/jpeg"), pngOf(20, 10, QImage::Format_RGB32));
+        QVERIFY(f.h->noteClipboard(&pic, false) != 0);
+        QCOMPARE(pic.fetched, (QStringList{QStringLiteral("image/png")}));
+    }
+
+    // While one offer is being read (the platform may run the event loop meanwhile), a second offer is not read at all.
+    void anOfferArrivingWhileOneIsBeingReadIsNotRead()
+    {
+        if (!ClipboardHistory::canCollectOtherPrograms()) QSKIP("other programs are not collected here");
+        Fresh f;
+        f.h->setCollectOtherPrograms(true);
+        struct Nested : CountingSource {
+            ClipboardHistory *h = nullptr;
+            CountingSource *inner = nullptr;
+            mutable quint64 innerResult = 1;
+            QByteArray read(const QString &format, qint64 most, bool *over) const override
+            {
+                innerResult = h->noteSource(*inner, false);
+                return CountingSource::read(format, most, over);
+            }
+        } outer;
+        CountingSource inner;
+        inner.offered.insert(QStringLiteral("text/plain"), 5);
+        outer.offered.insert(QStringLiteral("text/plain"), 5);
+        outer.h = f.h;
+        outer.inner = &inner;
+        QVERIFY(f.h->noteSource(outer, false) != 0);
+        QCOMPARE(outer.innerResult, quint64(0));
+        QVERIFY(inner.asked.isEmpty());
+    }
+
+    // An offer refused for its size is not fetched a second time (same identity); a different offer is.
+    void aRefusedOfferIsNotFetchedAgain()
+    {
+        if (!ClipboardHistory::canCollectOtherPrograms()) QSKIP("other programs are not collected here");
+        Fresh f;
+        f.h->setCollectOtherPrograms(true);
+        CountingSource big;
+        big.id = 7;
+        big.offered.insert(QStringLiteral("text/plain"), qint64(300) << 20);
+        QCOMPARE(f.h->noteSource(big, false), quint64(0));
+        QCOMPARE(big.asked.size(), 1);
+        QCOMPARE(f.h->noteSource(big, false), quint64(0));
+        QCOMPARE(big.asked.size(), 1);
+        big.id = 8;
+        QCOMPARE(f.h->noteSource(big, false), quint64(0));
+        QCOMPARE(big.asked.size(), 2);
     }
 
     // A picture's size is read from its header: a big one that would decode to less than 8 MB is still refused before it is decoded, and the limit is one number.

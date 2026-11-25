@@ -32,6 +32,8 @@ public:
     virtual QByteArray read(const QString &format, qint64 most, bool *over) const = 0;
     // A picture of this program's own copy (already in memory, so its size is known without copying it).
     virtual QImage ownImage() const { return QImage(); }
+    // Which offer this is, where the platform tells one offer from the next (0: it does not).
+    virtual quint64 identity() const { return 0; }
 };
 
 class JO_COMMON_EXPORT ClipboardHistory : public QObject {
@@ -112,7 +114,8 @@ private:
     qint64 m_total = 0;
     quint64 m_lastId = 0;
     int m_openPanes = 0;
-    bool m_whenClosed = false, m_others = false, m_watching = false, m_putting = false;
+    bool m_whenClosed = false, m_others = false, m_watching = false, m_putting = false, m_fetching = false;
+    quint64 m_refusedIdentity = 0;
     int m_tooLarge = 0, m_dropped = 0;
     std::function<bool()> m_owns;
     QPointer<QMimeData> m_put;   // what putOnClipboard gave the clipboard: while it is what the clipboard holds, a change notice is not a new copy

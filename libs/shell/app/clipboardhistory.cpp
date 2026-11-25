@@ -278,7 +278,15 @@ quint64 ClipboardHistory::noteSource(const ClipboardSource &source, bool own)
         }
         item.bytes = bytes;
     } else {
-        // Plain text and one picture form, nothing else, and nothing else is fetched.
+        // One form at most: the plain text when the offer has text, else one picture form. The platform reads a form whole, so a second form would double what is read.
+        // An offer already refused (the same identity, where the platform gives one) or being read right now is not read again.
+        const quint64 identity = source.identity();
+        if (m_fetching || (identity != 0 && identity == m_refusedIdentity)) return 0;
+        struct Fetching {
+            bool &flag;
+            explicit Fetching(bool &f) : flag(f) { flag = true; }
+            ~Fetching() { flag = false; }
+        } fetching(m_fetching);
         const QString plain = QStringLiteral("text/plain");
         if (formats.contains(plain)) {
             const qint64 offered = source.sizeOf(plain);
@@ -289,11 +297,11 @@ quint64 ClipboardHistory::noteSource(const ClipboardSource &source, bool own)
                 item.formats.append({plain, text});
                 item.bytes += text.size();
             }
-        }
-        if (!tooBig) {
-            item.picture = otherProgramPicture(source, formats, kMostItemBytes - item.bytes, &tooBig);
+        } else {
+            item.picture = otherProgramPicture(source, formats, kMostItemBytes, &tooBig);
             item.bytes += item.picture.sizeInBytes();
         }
+        if (tooBig) m_refusedIdentity = identity;
     }
     if (tooBig) {
         ++m_tooLarge;
