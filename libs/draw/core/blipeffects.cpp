@@ -98,6 +98,7 @@ QVector<BlipEffect> changing(const QVector<BlipEffect> &effects)
 float moved(float v, float by) { return by >= 0 ? v + (1 - v) * by : v * (1 + by); }
 
 std::atomic<int> made{0};
+std::atomic<int> askedLater{0};
 std::atomic<int> finishedLater{0};
 
 // The most of one kind of cost: (the first `fit` of these filters fit in kMaxBlipFilterWork, on `pixels` of the work copy)
@@ -574,6 +575,7 @@ QImage blipAdjustedLater(const QImage &image, const QVector<BlipEffect> &effects
     // (a picture that is left as it is has nothing kept: it is made at once, as it costs nothing)
     if (qint64(image.width()) * image.height() > kMaxBlipPixels) return image;
     if (pending) *pending = true;
+    ++askedLater;
     later().add({key, sourceKey, image, effects});
     return image;
 }
@@ -583,6 +585,8 @@ std::function<void(const std::atomic<bool> &)> blipFilterWorkerHook;
 int blipFiltersFinished() { return finishedLater; }
 
 void restartBlipFiltersForTest() { later().restart(); }
+
+int blipFiltersAsked() { return askedLater; }
 
 int blipFiltersQueued() { return later().count(); }
 

@@ -81,6 +81,8 @@ int stopBlipFilters(int budgetMs);
 constexpr qint64 kBlipQueueMostPixels = 24LL * 1000 * 1000;
 // After stopBlipFilters, lets the thread work again (for a test: a program that has stopped them is ending).
 void restartBlipFiltersForTest();
+// How many pictures blipAdjustedLater has been asked to work on beside the window since the program began (a picture kept already is not counted): for tests.
+int blipFiltersAsked();
 int blipFiltersQueued();
 qint64 blipFiltersQueuedPixels();
 // Called at the start of each job on the thread beside the window, with the flag that ends the work (for tests, to hold a job).

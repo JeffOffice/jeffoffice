@@ -1200,11 +1200,14 @@ private Q_SLOTS:
             SlideShow show(w.editor()->doc(), &w.editor()->cache(), 0);
             show.resize(960, 540);
             const SlideShow::View view{0, 0};
+            const int asked = jp::blipFiltersAsked();
             const QImage first = show.renderView(view, -1, QSize(960, 540), 1);
-            // The same frame once the filters are known (every picture kept): the first frame is already that one, never the unfiltered one.
+            QCOMPARE(jp::blipFiltersAsked(), asked);   // (nothing was left for the thread beside the window: the show waited)
+            // The same frame once the filters are known to the cache (worked out here, by a caller that waits): the first frame is already that one, never a patch or the unfiltered one.
+            Renderer::processedImage(*w.editor()->doc(), *pic(), QSizeF(), QSizeF());
             const QImage again = show.renderView(view, -1, QSize(960, 540), 1);
             QCOMPARE(pixelBytes(first), pixelBytes(again));
-            QCOMPARE(held.entered().load(), 0);   // (nothing was left for the thread beside the window)
+            QCOMPARE(held.entered().load(), 0);
             pic()->blipEffects.clear();
             const QImage without = show.renderView(view, -1, QSize(960, 540), 1);
             QVERIFY(pureColorPixels(without) > 20000);
@@ -1237,7 +1240,9 @@ private Q_SLOTS:
             if (style >= 0) pic()->setArtistic(style, 0.8);
             else pic()->setTemperatureMove(80);
             HeldWorker held;
+            int asked = jp::blipFiltersAsked();
             const QImage first = draw(true);
+            QCOMPARE(jp::blipFiltersAsked(), asked + 1);
             QTRY_COMPARE(held.entered().load(), 1);
             const int pureOnPage = pureColorPixels(plainPage);
             QVERIFY(pureOnPage > 20000);
@@ -1253,13 +1258,15 @@ private Q_SLOTS:
                 QCOMPARE(pixelBytes(first), pixelBytes(plainPage));   // (a color temperature may show the picture as it is for a moment)
             }
             // A caller that does not ask waits: the filtered picture at once, whatever the thread beside the window is doing.
+            asked = jp::blipFiltersAsked();
             const QImage waited = draw(false);
+            QCOMPARE(jp::blipFiltersAsked(), asked);   // (it waited: nothing was left for the thread)
             QVERIFY(pixelBytes(waited) != pixelBytes(plainPage));
             if (style >= 0) QVERIFY(pureColorPixels(waited) < 2000);
-            held.release();
             const int finished = jp::blipFiltersFinished();
-            QTRY_VERIFY(jp::blipFiltersFinished() >= finished);
-            QTRY_COMPARE(pixelBytes(draw(true)), pixelBytes(waited));
+            held.release();
+            QTRY_VERIFY(jp::blipFiltersFinished() > finished);   // (the held job ends)
+            QCOMPARE(pixelBytes(draw(true)), pixelBytes(waited));
         }
     }
 
