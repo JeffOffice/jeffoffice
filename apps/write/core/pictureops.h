@@ -284,6 +284,12 @@ QVector<int> picturePositions(const WriteDoc &doc);
 // `deleteCropped`, the parts a picture is cut away from are taken out of the file's picture and the cut is gone, the frame and what shows staying as they were. All is one step that
 // undoes. The picture's own file part is let go of at save when nothing else names it. Returns the bytes saved (0 when nothing was smaller; no step is made then).
 qint64 compressPictures(WriteDoc &doc, double ppi, const QVector<int> &positions, bool deleteCropped);
+// The same for every picture of the document, wherever it is (the body, headers, footers, notes, table cells, text boxes, groups, and fills: the places Inspect looks in; one step). The pictures
+// in comments are kept as the file has them and are left as they are.
+qint64 compressAllPictures(WriteDoc &doc, double ppi, bool deleteCropped);
+// How many pictures in the document's comments (kept as the file has them, not read into the document) have what the row `kind` is about (an effect with its original, a crop): Inspect cannot
+// change them, and says so.
+int keptPicturesInComments(const WriteDoc &doc, jp::PictureKept kind);
 
 // What Inspect finds in the pictures of the whole document (the body, headers, footers, notes, table cells, text boxes, groups, and fills; the rows of libs/page/app/picturetools.h): the originals kept under picture filters, and the parts of pictures cropped out of sight. The count
 // is of pictures; `notChanged` and `leftAsIs` (when given) are what the row tells it leaves: drawings, linked pictures, and ones too large to look through, and crops that another picture shows more of.

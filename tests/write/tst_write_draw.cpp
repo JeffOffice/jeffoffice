@@ -760,9 +760,12 @@ struct EverywhereFile {
     QByteArray docx;
     QVector<QByteArray> originals;
     int filtered = 0, cropped = 0;
+    int inComments = 0;   // pictures in the comments (not counted in the two above: the rows cannot change them)
 };
 
-EverywhereFile everywhereFile(int seed)
+// `withFill`: two shapes more in the body whose fill is a picture (one with an effect, one cropped); `withComments`: a comment with a picture under an effect and a cropped one; `noisy`: pictures of
+// noise, which a smaller picture is smaller than (tiles are so small already that nothing is gained).
+EverywhereFile everywhereFile(int seed, bool withFill = false, bool withComments = false, bool noisy = false)
 {
     EverywhereFile out;
     const QString rel = QStringLiteral("http://schemas.openxmlformats.org/officeDocument/2006/relationships/");
@@ -773,6 +776,14 @@ EverywhereFile everywhereFile(int seed)
         const int s = seed * 100 + (++made);
         for (int y = 0; y < tiles.height(); ++y)
             for (int x = 0; x < tiles.width(); ++x) tiles.setPixel(x, y, ((x / 6 + y / 6) % 2) ? qRgb(240 - s % 200, 230, 100 + s % 90) : qRgb(20 + s % 200, 40 + s % 60, 60 + s % 150));
+        if (noisy) {
+            quint32 state = quint32(seed * 7919 + made * 104729 + 1);
+            for (int y = 0; y < tiles.height(); ++y)
+                for (int x = 0; x < tiles.width(); ++x) {
+                    state = state * 1664525u + 1013904223u;
+                    tiles.setPixel(x, y, qRgb(int(state >> 24), int((state >> 16) & 255), int((state >> 8) & 255)));
+                }
+        }
         QByteArray bytes;
         QBuffer buffer(&bytes);
         buffer.open(QIODevice::WriteOnly);
@@ -780,6 +791,7 @@ EverywhereFile everywhereFile(int seed)
         return std::pair<QImage, QByteArray>(tiles, bytes);
     };
     // One picture in the rules of `part` (the main part or a part of its own): the drawing's text. A picture with an effect shows its finished file and keeps its original; a cropped one is whole in the file.
+    QByteArray lastFill;   // the blip and the crop of the picture made last: what a shape's fill holds
     auto pictureIn = [&](const QString &part, bool effect, int id) {
         const auto [image, bytes] = pngOf();
         out.originals << bytes;
@@ -802,6 +814,7 @@ EverywhereFile everywhereFile(int seed)
             ++out.cropped;
             extras = "<a:srcRect l=\"25000\" t=\"25000\" r=\"25000\" b=\"25000\"/>";
         }
+        lastFill = blip + extras;
         return QByteArray("<w:drawing><wp:inline distT=\"0\" distB=\"0\" distL=\"0\" distR=\"0\"><wp:extent cx=\"1270000\" cy=\"1270000\"/><wp:docPr id=\"") + QByteArray::number(id) + "\" name=\"Picture " + QByteArray::number(id)
                + "\"/><wp:cNvGraphicFramePr/><a:graphic><a:graphicData uri=\"http://schemas.openxmlformats.org/drawingml/2006/picture\"><pic:pic><pic:nvPicPr><pic:cNvPr id=\"0\" name=\"p.png\"/><pic:cNvPicPr/></pic:nvPicPr><pic:blipFill>"
                + blip + extras + "<a:stretch><a:fillRect/></a:stretch></pic:blipFill><pic:spPr><a:xfrm><a:off x=\"0\" y=\"0\"/><a:ext cx=\"1270000\" cy=\"1270000\"/></a:xfrm><a:prstGeom prst=\"rect\"><a:avLst/></a:prstGeom></pic:spPr></pic:pic></a:graphicData></a:graphic></wp:inline></w:drawing>";
@@ -853,9 +866,32 @@ EverywhereFile everywhereFile(int seed)
     // The body: a picture with an effect and a cropped one, the same in a table cell, a text box, and a group; then a second page.
     const QByteArray b1 = pictureIn(main, true, ++id), b2 = pictureIn(main, false, ++id), c1 = pictureIn(main, true, ++id), c2 = pictureIn(main, false, ++id);
     const QByteArray t1 = pictureIn(main, true, ++id), t2 = pictureIn(main, false, ++id), g1 = pictureIn(main, true, ++id), g2 = pictureIn(main, false, ++id);
-    const QByteArray body = "<w:p><w:r><w:t xml:space=\"preserve\">Top </w:t></w:r><w:r>" + b1 + "</w:r><w:r>" + b2 + "</w:r><w:r><w:footnoteReference w:id=\"1\"/></w:r><w:r><w:endnoteReference w:id=\"1\"/></w:r></w:p>"
+    // A shape whose fill is a picture (the picture's blip and crop are the fill's), and a comment with two pictures.
+    auto shapeFilledWith = [&](bool effect) {
+        pictureIn(main, effect, ++id);
+        const QByteArray fill = lastFill;
+        return QByteArray("<w:drawing><wp:inline distT=\"0\" distB=\"0\" distL=\"0\" distR=\"0\"><wp:extent cx=\"1270000\" cy=\"1270000\"/><wp:docPr id=\"") + QByteArray::number(++id) + "\" name=\"Shape " + QByteArray::number(id)
+               + "\"/><wp:cNvGraphicFramePr/><a:graphic><a:graphicData uri=\"http://schemas.microsoft.com/office/word/2010/wordprocessingShape\"><wps:wsp><wps:cNvSpPr/><wps:spPr><a:xfrm><a:off x=\"0\" y=\"0\"/><a:ext cx=\"1270000\" cy=\"1270000\"/></a:xfrm>"
+                 "<a:prstGeom prst=\"rect\"><a:avLst/></a:prstGeom><a:blipFill>" + fill + "<a:stretch><a:fillRect/></a:stretch></a:blipFill></wps:spPr><wps:bodyPr/></wps:wsp></a:graphicData></a:graphic></wp:inline></w:drawing>";
+    };
+    QByteArray fills, commentRef;
+    if (withFill) fills = runs({shapeFilledWith(true), shapeFilledWith(false)});
+    if (withComments) {
+        const QString comments = QStringLiteral("/word/comments.xml");
+        const int filteredBefore = out.filtered, croppedBefore = out.cropped;
+        const QByteArray m1 = pictureIn(comments, true, ++id), m2 = pictureIn(comments, false, ++id);
+        out.filtered = filteredBefore;
+        out.cropped = croppedBefore;
+        out.inComments = 2;
+        w.addPart(comments, head + "<w:comments " + ns + "><w:comment w:id=\"0\" w:author=\"A\" w:initials=\"A\"><w:p><w:r>" + m1 + "</w:r><w:r>" + m2 + "</w:r></w:p></w:comment></w:comments>",
+                  QStringLiteral("application/vnd.openxmlformats-officedocument.wordprocessingml.comments+xml"));
+        w.addRelationship(main, rel + QStringLiteral("comments"), QStringLiteral("comments.xml"));
+        commentRef = "<w:commentRangeStart w:id=\"0\"/><w:r><w:t>commented</w:t></w:r><w:commentRangeEnd w:id=\"0\"/><w:r><w:commentReference w:id=\"0\"/></w:r>";
+    }
+    const QByteArray body = "<w:p><w:r><w:t xml:space=\"preserve\">Top </w:t></w:r>" + commentRef + "<w:r>" + b1 + "</w:r><w:r>" + b2 + "</w:r><w:r><w:footnoteReference w:id=\"1\"/></w:r><w:r><w:endnoteReference w:id=\"1\"/></w:r></w:p>"
                             "<w:tbl><w:tblPr><w:tblW w:w=\"0\" w:type=\"auto\"/></w:tblPr><w:tblGrid><w:gridCol w:w=\"4000\"/></w:tblGrid><w:tr><w:tc><w:p><w:r>" + c1 + "</w:r><w:r>" + c2 + "</w:r></w:p></w:tc></w:tr></w:tbl>"
                             + runs({inBox(t1, ++id), inBox(t2, ++id), inGroup(g1, ++id), inGroup(g2, ++id)})
+                            + fills
                             + "<w:p><w:r><w:br w:type=\"page\"/></w:r><w:r><w:t>Second page</w:t></w:r></w:p>";
     const QByteArray sect = "<w:sectPr><w:headerReference w:type=\"first\" r:id=\"" + h1.toUtf8() + "\"/><w:headerReference w:type=\"default\" r:id=\"" + h2.toUtf8()
                             + "\"/><w:pgSz w:w=\"12240\" w:h=\"15840\"/><w:pgMar w:top=\"1440\" w:right=\"1440\" w:bottom=\"1440\" w:left=\"1440\" w:header=\"720\" w:footer=\"720\" w:gutter=\"0\"/><w:titlePg/></w:sectPr>";
@@ -875,6 +911,17 @@ QVector<QImage> pagesAt(write::WriteDoc &doc, int times)
     QVector<QImage> pages;
     for (int i = 0; i < 2; ++i) pages << view.pageImage(i, 816 * times);
     return pages;
+}
+
+// How many picture files of the saved document are `width` pixels wide.
+int picturesOfWidth(const QByteArray &zip, int width)
+{
+    office::Package p;
+    p.read(zip);
+    int n = 0;
+    for (const QString &name : p.partNames())
+        if (name.contains(QStringLiteral("/media/")) && QImage::fromData(p.part(name)).width() == width) ++n;
+    return n;
 }
 
 // How many of the picture files of the saved document are these bytes.
@@ -1246,6 +1293,9 @@ class DrawTests : public QObject {
     Q_OBJECT
 private Q_SLOTS:
     void cleanupTestCase() { QVERIFY(jptest::settingsStayInTheRunsFolder()); }
+
+    // (the filters' kept pictures are the program's: each test starts with none, and no job of the one before)
+    void init() { resetBlipFiltersForTest(); }
 
     void initTestCase()
     {
@@ -7407,6 +7457,51 @@ private Q_SLOTS:
         QVERIFY(differingPixels(page, pageAt(*tilesDoc(13), 1)) > 100);
     }
 
+    // A picture of a hundred million pixels that arrives in a FILE (with its effect, nothing worked out) is worked on beside the window like any other: the first draw is a flat patch and asks for the work (once),
+    // and when the worker's turn is done the window shows the filtered picture. (Grayscale, in rows of one value, keeps the file small.)
+    void aHugePictureFromAFileGetsItsFiltersLater()
+    {
+        QImage lines(10000, 10000, QImage::Format_Grayscale8);
+        for (int y = 0; y < lines.height(); ++y) memset(lines.scanLine(y), y < lines.height() / 2 ? 0 : 255, size_t(lines.bytesPerLine()));   // (the top half dark: a flat patch is one gray, the picture is two)
+        QByteArray huge;
+        {
+            QBuffer buffer(&huge);
+            buffer.open(QIODevice::WriteOnly);
+            QVERIFY(lines.save(&buffer, "PNG"));
+        }
+        lines = QImage();
+        auto made = tilesDoc(51);
+        QVERIFY(made && setPictureFilters(*made, 7, blurOf(0.41)));
+        const QByteArray docx = made->toDocx();
+        QByteArray file;
+        {
+            QMap<QString, QByteArray> parts;
+            QVERIFY(readZip(docx, parts));
+            ZipWriter out;
+            for (auto it = parts.cbegin(); it != parts.cend(); ++it) out.add(it.key(), it.key().contains(QStringLiteral("/media/")) ? huge : it.value(), true);
+            file = out.finish();
+        }
+        auto doc = open(file);
+        QVERIFY(doc && pictureAt(*doc, doc->story(), 7).filters.size() == 1);
+        PageView view;
+        view.resize(1000, 700);
+        view.setDocument(doc.get());
+        view.show();
+        auto colors = [&] {
+            const QImage shot = view.viewport()->grab().toImage();
+            QSet<QRgb> seen;
+            for (int y = 0; y < shot.height(); y += 2)
+                for (int x = 0; x < shot.width(); x += 2) seen.insert(shot.pixel(x, y));
+            return int(seen.size());
+        };
+        const int asked = blipFiltersAsked(), finished = blipFiltersFinished();
+        const int flat = colors();
+        QCOMPARE(blipFiltersAsked(), asked + 1);   // (asked for, not left)
+        QTRY_COMPARE_WITH_TIMEOUT(blipFiltersFinished(), finished + 1, 60000);
+        QTRY_VERIFY_WITH_TIMEOUT(colors() > flat, 20000);   // (the picture shows: more colors than the flat patch)
+        QCOMPARE(blipFiltersFinished(), finished + 1);   // (one job did it all)
+    }
+
     // Inspect's rows for pictures, with the words the other programs have: the original kept under a picture effect goes, the picture keeps its finished look.
     void theOriginalsRowTakesTheOriginalAndThePageLooksTheSame()
     {
@@ -7575,6 +7670,86 @@ private Q_SLOTS:
         QVERIFY(doc->undo());
         QCOMPARE(keptPictureParts(*doc, jp::PictureKept::CroppedAreas), file.cropped);
         QCOMPARE(filesHolding(doc->toDocx(), file.originals), file.filtered + file.cropped);
+    }
+
+    // A picture used as the fill of a shape: the page draws a fill whole, whatever crop and effect its file gives it, so the rows leave it as it is and TELL it (never skip it in silence); every other
+    // picture is changed, and every page looks the same. Compress Pictures leaves it too.
+    void theRowsTellPictureFillsAndLeaveThemAlone()
+    {
+        const EverywhereFile file = everywhereFile(4, true, false, true);
+        auto doc = open(file.docx);
+        QVERIFY(doc);
+        QCOMPARE(file.filtered, 11);
+        QCOMPARE(file.cropped, 11);
+        int notChanged = 0, leftAsIs = 0;
+        QCOMPARE(keptPictureParts(*doc, jp::PictureKept::FilterOriginals, &notChanged, &leftAsIs), file.filtered - 1);
+        QCOMPARE(notChanged, 1);
+        QCOMPARE(keptPictureParts(*doc, jp::PictureKept::CroppedAreas, &notChanged, &leftAsIs), file.cropped - 1);
+        QCOMPARE(notChanged, 1);
+        QCOMPARE(leftAsIs, 0);
+        const QVector<QImage> before1 = pagesAt(*doc, 1);
+        QCOMPARE(removeKeptPictureParts(*doc, jp::PictureKept::CroppedAreas), file.cropped - 1);
+        QCOMPARE(removeKeptPictureParts(*doc, jp::PictureKept::FilterOriginals), file.filtered - 1);
+        for (int i = 0; i < 2; ++i) QCOMPARE(differingPixels(pagesAt(*doc, 1)[i], before1[i]), 0);
+        // What the fills keep is still in the file (told above), and is the only thing left.
+        QCOMPARE(filesHolding(doc->toDocx(), file.originals), 2);
+        // Compress Pictures leaves the fills as they are too: the three files of the two fills are all that stay as large as they were.
+        QVERIFY(compressAllPictures(*doc, 12, false) > 0);
+        QCOMPARE(picturesOfWidth(doc->toDocx(), 48), 3);
+    }
+
+    // Compress Pictures looks in every place the Inspect rows do (a header, a text box, a group, a note), not only the body.
+    void compressPicturesLooksInEveryPlace()
+    {
+        const EverywhereFile file = everywhereFile(3, false, false, true);
+        auto doc = open(file.docx);
+        QVERIFY(doc);
+        const int before = picturesOfWidth(doc->toDocx(), 48);
+        QVERIFY(before >= file.filtered + file.cropped);
+        QVERIFY(compressAllPictures(*doc, 12, false) > 0);
+        QCOMPARE(picturesOfWidth(doc->toDocx(), 48), 0);
+        // One step.
+        QVERIFY(doc->undo());
+        QCOMPARE(picturesOfWidth(doc->toDocx(), 48), before);
+    }
+
+    // A picture in a comment is kept as the file has it (the comments are not read into the document): the row says so and counts them, and never says "None found" while one is left.
+    void aPictureInACommentIsToldAndNeverSkippedInSilence()
+    {
+        const EverywhereFile file = everywhereFile(5, false, true);
+        QCOMPARE(file.inComments, 2);
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        const QString docx = dir.filePath(QStringLiteral("c.docx"));
+        {
+            QFile f(docx);
+            QVERIFY(f.open(QIODevice::WriteOnly));
+            f.write(file.docx);
+        }
+        WriteWindow w;
+        w.setNotifier([](const QString &, const QString &) {});
+        QVERIFY(w.openFile(docx));
+        QCOMPARE(keptPicturesInComments(*w.document(), jp::PictureKept::FilterOriginals), 1);
+        QCOMPARE(keptPicturesInComments(*w.document(), jp::PictureKept::CroppedAreas), 1);
+        const QVector<InspectItem> items = w.inspectItems();
+        auto find = [&](const char *title) -> const InspectItem * {
+            for (const InspectItem &i : items)
+                if (i.title == QLatin1String(title)) return &i;
+            return nullptr;
+        };
+        const InspectItem *originals = find("Original pictures kept under picture effects"), *cropped = find("Cropped-away parts of pictures");
+        QVERIFY(originals && cropped);
+        QCOMPARE(originals->count(), file.filtered);
+        QCOMPARE(originals->unread(), QStringLiteral("1 picture in a comment cannot be changed here."));
+        QCOMPARE(cropped->unread(), QStringLiteral("1 picture in a comment cannot be changed here."));
+        QCOMPARE(originals->remove(), file.filtered);
+        QCOMPARE(originals->count(), 0);
+        QVERIFY(!originals->unread().isEmpty());   // (nothing to remove is not nothing kept)
+        InspectDialog dialog(QStringLiteral("Inspect"), items, nullptr);
+        bool said = false;
+        for (const QString &line : dialog.summaries())
+            if (line.startsWith(QStringLiteral("Original pictures kept under picture effects"))) said = line.contains(QStringLiteral("Not fully checked")) && !line.contains(QStringLiteral("None found"));
+        QVERIFY(said);
     }
 
     // The rows are in Inspect, in the words the other programs have (one source for them), and they count and remove what the functions do.
@@ -8199,6 +8374,37 @@ private Q_SLOTS:
         QCOMPARE(now.height, was.height);
         QVERIFY(cut->undo());
         QVERIFY(pictureAt(*cut, cut->story(), 7).cropLeft > 0.24);
+    }
+
+    // The Compress Pictures box says, in one plain sentence, that a picture with an effect is made smaller together with the original kept under it, and its first box names the whole document.
+    void theCompressBoxTellsThatTheOriginalUnderAnEffectIsMadeSmallerToo()
+    {
+        Win win;
+        WriteWindow &w = win.w;
+        QVERIFY(w.view()->insertPictureBytes(noisyPng(64, 64), QStringLiteral("a")));
+        w.view()->selectPicture(picturePositions(*w.document()).first());
+        QTRY_VERIFY(w.act(QStringLiteral("picture.compress"))->isEnabled());
+        QString note, all;
+        bool seen = false;
+        auto answer = std::make_shared<std::function<void(int)>>();
+        *answer = [&](int tries) {
+            QTimer::singleShot(20, [&, tries] {
+                QWidget *top = QApplication::activeModalWidget();
+                if (top && top->objectName() == QLatin1String("compressPicturesDialog")) {
+                    seen = true;
+                    note = top->findChild<QLabel *>(QStringLiteral("compressNote"))->text();
+                    all = top->findChild<QCheckBox *>(QStringLiteral("compressAll"))->text();
+                    static_cast<QDialog *>(top)->reject();
+                    return;
+                }
+                if (tries > 0) (*answer)(tries - 1);
+            });
+        };
+        (*answer)(500);
+        w.act(QStringLiteral("picture.compress"))->trigger();
+        QVERIFY(seen);
+        QCOMPARE(note, QStringLiteral("A picture with an effect, such as Blur, is made smaller together with the original picture kept under it."));
+        QCOMPARE(all, QStringLiteral("Apply to all pictures in the document"));
     }
 
     // The Picture Format tab's Compress Pictures: the box's choices, every picture or the selected one, one step.

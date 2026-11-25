@@ -229,7 +229,13 @@ QVector<InspectItem> WriteWindow::inspectItems()
     for (const PictureKept kind : {PictureKept::FilterOriginals, PictureKept::CroppedAreas}) {
         int notChanged = 0, leftAsIs = 0;
         write::keptPictureParts(*doc, kind, &notChanged, &leftAsIs);
-        items.push_back(pictureKeptInspectRow(kind, [doc, kind] { return write::keptPictureParts(*doc, kind); }, [doc, kind] { return write::removeKeptPictureParts(*doc, kind); }, notChanged, leftAsIs));
+        InspectItem row = pictureKeptInspectRow(kind, [doc, kind] { return write::keptPictureParts(*doc, kind); }, [doc, kind] { return write::removeKeptPictureParts(*doc, kind); }, notChanged, leftAsIs);
+        // (the comments are kept as the file has them: a picture there is told, and the row is never "None found" while one is left)
+        row.unread = [this, doc, kind] {
+            const int inComments = write::keptPicturesInComments(*doc, kind);
+            return inComments > 0 ? tr("%n picture in a comment cannot be changed here.", nullptr, inComments) : QString();
+        };
+        items.push_back(row);
     }
     // (the box asks for the count and then for the sentence: one look through the document serves both, and a removal makes the next look a new one)
     auto looked = std::make_shared<std::optional<write::ExternalLinkScan>>();

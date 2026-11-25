@@ -275,6 +275,8 @@ void WriteDoc::pruneUnusedMedia(office::wml::Document *out) const
 
 
     for (QTextBlock b = story()->begin(); b.isValid(); b = b.next()) {
+        // (the endnotes' paragraphs are in this story, but their Ids are the endnotes part's own: an endnote's "rId5" names nothing of the main part's)
+        if (endnoteIdOf(b)) continue;
         const QTextBlockFormat bf = b.blockFormat();
         for (const int key : {int(prop::RawBefore), int(prop::RawBlock), int(prop::RawAfter)})
             if (bf.hasProperty(key)) collect(storedBytes(bf, key));

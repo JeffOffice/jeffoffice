@@ -919,7 +919,7 @@ void WriteWindow::compressPicturesDialog()
 {
     if (!m_doc) return;
     CompressChoices choices;
-    if (!askCompressPictures(this, tr("Apply to all pictures in the body of the document"), &choices)) return;
+    if (!askCompressPictures(this, tr("Apply to all pictures in the document"), &choices, tr("A picture with an effect, such as Blur, is made smaller together with the original picture kept under it."))) return;
     const qint64 saved = compressPictures(choices.ppi, choices.all, choices.deleteCropped);
     tellCompressSaved(this, saved);
 }
@@ -929,16 +929,14 @@ qint64 WriteWindow::compressPictures(double ppi, bool all, bool deleteCropped)
 {
     if (!m_doc || refuseIfReadOnly()) return 0;
     QVector<int> at;
-    if (all) {
-        at = write::picturePositions(*m_doc);
-    } else {
+    if (!all) {
         for (const int p : m_view->selectedObjects())
             if (write::isPictureAt(m_doc->story(), p)) at << p;
         if (at.isEmpty() && m_view->selectedPicture() >= 0) at << m_view->selectedPicture();
     }
     qint64 saved = 0;
     m_view->changeObjects([&](write::WriteDoc &d) {
-        saved = write::compressPictures(d, ppi, at, deleteCropped);
+        saved = all ? write::compressAllPictures(d, ppi, deleteCropped) : write::compressPictures(d, ppi, at, deleteCropped);
         return saved > 0;
     });
     m_view->setFocus(Qt::OtherFocusReason);

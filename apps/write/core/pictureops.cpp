@@ -5024,6 +5024,85 @@ QVector<int> picturePositions(const WriteDoc &doc)
     return out;
 }
 
+namespace {
+
+// The picture `graphic` holds (a drawing's text, or the part of one that holds a blip and the crop after it), made no more detailed than `ppi` for a frame `widthPoints` wide, as compressPictures does it; `part` is
+// the part its Ids are of. False when it is left as it is; then nothing was added. `oldId`, `filteredOld`, and the sizes are what the caller lets go of and counts.
+bool compressGraphic(WriteDoc &doc, const QString &part, QByteArray &graphic, double widthPoints, double ppi, bool deleteCropped, QString *oldId, QString *filteredOld, qint64 *oldSize, qint64 *newSize)
+{
+    BlipSpot b;
+    office::PictureFxBlip fx;
+    const bool hasFx = office::readPictureFxBlip(graphic, &fx) && fx.present;
+    // (A picture with a second picture inside it, a vector one for the programs that draw those, or one that is only linked is left as it is; our own extension's original is not a second picture.)
+    if (!findBlip(hasFx ? office::withPictureFxBlip(graphic, fx.shownRid, fx.shownRid, {}) : graphic, &b) || b.inner.contains("r:embed") || b.inner.contains("r:link") || b.startTag.contains("r:link")) return false;
+    Attributes attrs = attributesOf(b.startTag);
+    const QByteArray embed = attributeValue(attrs, "r:embed");
+    if (embed.isEmpty()) return false;
+    const QString id = QString::fromLatin1(embed);
+    // A picture with filters is made smaller from its original, and its finished picture is made again from that (the finished picture alone would leave the original as large as it was).
+    const bool filtered = hasFx && fx.shownRid == id;
+    const QByteArray bytes = doc.partMediaData(part, filtered ? fx.originalRid : id);
+    if (bytes.isEmpty()) return false;
+    double cut[4];
+    cutOf(graphic, cut);
+    // A picture with room round it (a negative cut) keeps its cut: only a cut that takes something away is taken out of the file's picture.
+    const bool drop = deleteCropped && cut[0] >= 0 && cut[1] >= 0 && cut[2] >= 0 && cut[3] >= 0 && (cut[0] + cut[1] + cut[2] + cut[3]) > 0.000005;
+    const double wholeShare = 1 - cut[0] - cut[2];
+    if (wholeShare < 0.02) return false;
+    const double shown = widthPoints / wholeShare;
+    const QRectF keep = drop ? QRectF(cut[0], cut[1], 1 - cut[0] - cut[2], 1 - cut[1] - cut[3]) : QRectF(0, 0, 1, 1);
+    QByteArray made, format;
+    if (!compressedPictureFile(bytes, shown, ppi, keep, &made, &format)) return false;
+    bool added = false;
+    const bool jpeg = format == "jpg";
+    const QString rid = doc.addPartMedia(part, made, jpeg ? QStringLiteral("jpeg") : QStringLiteral("png"), jpeg ? QStringLiteral("image/jpeg") : QStringLiteral("image/png"), &added);
+    if (filtered) {
+        const QImage smaller = QImage::fromData(made);
+        const QByteArray finished = smaller.isNull() ? QByteArray() : office::pictureFxFinishedPng(smaller, fx.filters, office::pictureFxKeyFor(made, smaller.size()));
+        if (finished.isEmpty()) {
+            if (added) doc.removePartMedia(part, rid);
+            return false;
+        }
+        bool addedFinished = false;
+        const QString shownNow = doc.addPartMedia(part, finished, QStringLiteral("png"), QStringLiteral("image/png"), &addedFinished);
+        const qint64 was = bytes.size() + doc.partMediaData(part, id).size(), now = made.size() + finished.size();
+        if (now >= was || rid == fx.originalRid) {   // (kept only when both together are smaller)
+            if (addedFinished) doc.removePartMedia(part, shownNow);
+            if (added) doc.removePartMedia(part, rid);
+            return false;
+        }
+        graphic = office::withPictureFxBlip(graphic, shownNow, rid, fx.filters);
+        *filteredOld = fx.originalRid;
+        *oldSize = was;
+        *newSize = now;
+    } else {
+    if (rid == id) return false;
+    setAttribute(&attrs, "r:embed", quote(rid.toUtf8()));
+    const qsizetype nameEnd = b.startTag.indexOf(' ') > 0 ? b.startTag.indexOf(' ') : b.startTag.size() - 1;
+    QByteArray start = b.startTag.left(nameEnd);
+    Attributes declared;
+    attributesOf(b.startTag, &declared);
+    for (const auto &d : declared) start += " " + d.first + "=" + d.second;
+    b.startTag = start + written(attrs) + (b.selfClosing ? "/>" : ">");
+    graphic = withBlip(graphic, b);
+    *oldSize = bytes.size();
+    *newSize = made.size();
+    }
+    if (drop) {
+        static const QRegularExpression existing(QStringLiteral("<a:srcRect\\b[^>]*/>|<a:srcRect\\b[^>]*></a:srcRect>"));
+        QString text = QString::fromUtf8(graphic);
+        const QRegularExpressionMatch found = existing.match(text);
+        if (found.hasMatch()) {
+            text.remove(found.capturedStart(), found.capturedLength());
+            graphic = text.toUtf8();
+        }
+    }
+    *oldId = id;
+    return true;
+}
+
+} // namespace
+
 qint64 compressPictures(WriteDoc &doc, double ppi, const QVector<int> &positions, bool deleteCropped)
 {
     qint64 saved = 0;
@@ -5032,77 +5111,7 @@ qint64 compressPictures(WriteDoc &doc, double ppi, const QVector<int> &positions
         if (!isPictureAt(doc.story(), position)) continue;
         QString oldId, filteredOld;
         qint64 oldSize = 0, newSize = 0;
-        const bool changed = changePicture(doc, position, [&](Model &m) {
-            BlipSpot b;
-            office::PictureFxBlip fx;
-            const bool hasFx = office::readPictureFxBlip(m.graphic, &fx) && fx.present;
-            // (A picture with a second picture inside it, a vector one for the programs that draw those, or one that is only linked is left as it is; our own extension's original is not a second picture.)
-            if (!findBlip(hasFx ? office::withPictureFxBlip(m.graphic, fx.shownRid, fx.shownRid, {}) : m.graphic, &b) || b.inner.contains("r:embed") || b.inner.contains("r:link") || b.startTag.contains("r:link")) return false;
-            Attributes attrs = attributesOf(b.startTag);
-            const QByteArray embed = attributeValue(attrs, "r:embed");
-            if (embed.isEmpty()) return false;
-            const QString id = QString::fromLatin1(embed);
-            // A picture with filters is made smaller from its original, and its finished picture is made again from that (the finished picture alone would leave the original as large as it was).
-            const bool filtered = hasFx && fx.shownRid == id;
-            const QByteArray bytes = doc.relatedPartData(filtered ? fx.originalRid : id);
-            if (bytes.isEmpty()) return false;
-            double cut[4];
-            cutOf(m.graphic, cut);
-            // A picture with room round it (a negative cut) keeps its cut: only a cut that takes something away is taken out of the file's picture.
-            const bool drop = deleteCropped && cut[0] >= 0 && cut[1] >= 0 && cut[2] >= 0 && cut[3] >= 0 && (cut[0] + cut[1] + cut[2] + cut[3]) > 0.000005;
-            const double wholeShare = 1 - cut[0] - cut[2];
-            if (wholeShare < 0.02) return false;
-            const double shown = double(m.cx) / kEmuPerPoint / wholeShare;
-            const QRectF keep = drop ? QRectF(cut[0], cut[1], 1 - cut[0] - cut[2], 1 - cut[1] - cut[3]) : QRectF(0, 0, 1, 1);
-            QByteArray made, format;
-            if (!compressedPictureFile(bytes, shown, ppi, keep, &made, &format)) return false;
-            bool added = false;
-            const bool jpeg = format == "jpg";
-            const QString rid = doc.addMedia(made, jpeg ? QStringLiteral("jpeg") : QStringLiteral("png"), jpeg ? QStringLiteral("image/jpeg") : QStringLiteral("image/png"), &added);
-            if (filtered) {
-                const QImage smaller = QImage::fromData(made);
-                const QByteArray finished = smaller.isNull() ? QByteArray() : office::pictureFxFinishedPng(smaller, fx.filters, office::pictureFxKeyFor(made, smaller.size()));
-                if (finished.isEmpty()) {
-                    if (added) doc.removeMedia(rid);
-                    return false;
-                }
-                bool addedFinished = false;
-                const QString shownNow = doc.addMedia(finished, QStringLiteral("png"), QStringLiteral("image/png"), &addedFinished);
-                const qint64 was = bytes.size() + doc.relatedPartData(id).size(), now = made.size() + finished.size();
-                if (now >= was || rid == fx.originalRid) {   // (kept only when both together are smaller)
-                    if (addedFinished) doc.removeMedia(shownNow);
-                    if (added) doc.removeMedia(rid);
-                    return false;
-                }
-                m.graphic = office::withPictureFxBlip(m.graphic, shownNow, rid, fx.filters);
-                filteredOld = fx.originalRid;
-                oldSize = was;
-                newSize = now;
-            } else {
-            if (rid == id) return false;
-            setAttribute(&attrs, "r:embed", quote(rid.toUtf8()));
-            const qsizetype nameEnd = b.startTag.indexOf(' ') > 0 ? b.startTag.indexOf(' ') : b.startTag.size() - 1;
-            QByteArray start = b.startTag.left(nameEnd);
-            Attributes declared;
-            attributesOf(b.startTag, &declared);
-            for (const auto &d : declared) start += " " + d.first + "=" + d.second;
-            b.startTag = start + written(attrs) + (b.selfClosing ? "/>" : ">");
-            m.graphic = withBlip(m.graphic, b);
-            oldSize = bytes.size();
-            newSize = made.size();
-            }
-            if (drop) {
-                static const QRegularExpression existing(QStringLiteral("<a:srcRect\\b[^>]*/>|<a:srcRect\\b[^>]*></a:srcRect>"));
-                QString text = QString::fromUtf8(m.graphic);
-                const QRegularExpressionMatch found = existing.match(text);
-                if (found.hasMatch()) {
-                    text.remove(found.capturedStart(), found.capturedLength());
-                    m.graphic = text.toUtf8();
-                }
-            }
-            oldId = id;
-            return true;
-        });
+        const bool changed = changePicture(doc, position, [&](Model &m) { return compressGraphic(doc, QString(), m.graphic, double(m.cx) / kEmuPerPoint, ppi, deleteCropped, &oldId, &filteredOld, &oldSize, &newSize); });
         if (!changed) continue;
         doc.letGoOfMediaIfUnused(oldId);
         if (!filteredOld.isEmpty()) doc.letGoOfMediaIfUnused(filteredOld);
@@ -5168,6 +5177,8 @@ struct KeptPicture {
     bool filtered = false;
     bool changeable = false;   // a picture of pixels in the file (a vector picture, a linked one, and one too large to look through are told, and left as they are)
     bool cropped = false;      // it shows less than the whole picture
+    bool anyCrop = false;      // the picture has a crop at all
+    bool fill = false;         // the picture is the fill of a shape: the page draws a fill whole, so what it keeps is told, and it is left as it is
     QRect shows;               // the pixels of the shown picture it shows (and a margin: the shared rule), empty when nothing shows
     QSize size;
 };
@@ -5186,7 +5197,7 @@ QVector<QTextDocument *> pictureStories(WriteDoc &doc)
 void nestedCutAndSize(const QString &text, qsizetype at, double cut[4], QSizeF *size)
 {
     cut[0] = cut[1] = cut[2] = cut[3] = 0;
-    qsizetype stop = text.indexOf(QStringLiteral("BlipFill>"), at);
+    qsizetype stop = text.indexOf(QStringLiteral("BlipFill>"), at, Qt::CaseInsensitive);
     if (stop < 0) stop = text.size();
     static const QRegularExpression rect(QStringLiteral("<a:srcRect\\b([^>]*)/?>"));
     const QRegularExpressionMatch found = rect.match(text.left(stop), at);
@@ -5260,6 +5271,7 @@ QVector<KeptPicture> keptPictures(WriteDoc &doc)
                                 return pic;
                             });
                         }
+                        k.anyCrop = anyCrop;
                         if (k.changeable || anyCrop) out.push_back(k);
                         continue;
                     }
@@ -5286,7 +5298,11 @@ QVector<KeptPicture> keptPictures(WriteDoc &doc)
                             k.filtered = blip.present;
                         }
                         k.key = part + QLatin1Char('|') + k.shown;
-                        if (read && blipRefsOf(sub.toUtf8()).svg.isEmpty() && !sub.contains("r:link")) {
+                        k.anyCrop = anyCrop;
+                        // (a picture of a text box or a group is a pic:pic with a pic:blipFill; the fill of a shape is an a:blipFill: the page draws that one whole, whatever crop and effect its file gives it, so clearing or
+                        // replacing its picture would change the page)
+                        k.fill = text.lastIndexOf(QStringLiteral("<a:blipFill"), spans[n].start) > text.lastIndexOf(QStringLiteral("<pic:blipFill"), spans[n].start);
+                        if (read && !k.fill && blipRefsOf(sub.toUtf8()).svg.isEmpty() && !sub.contains("r:link")) {
                             measure(k, [&] {
                                 PictureItem pic;
                                 const double w = size.width(), h = size.height();
@@ -5300,7 +5316,7 @@ QVector<KeptPicture> keptPictures(WriteDoc &doc)
                                 return pic;
                             });
                         }
-                        if (k.changeable || anyCrop) out.push_back(k);
+                        if (k.changeable || anyCrop || (k.fill && k.filtered)) out.push_back(k);
                     }
                 }
             }
@@ -5323,7 +5339,7 @@ KeptCuts keptCuts(WriteDoc &doc)
     QSet<QString> blocked;
     for (const KeptPicture &k : all) {
         if (!k.changeable) {
-            ++out.notChanged;
+            if (k.anyCrop) ++out.notChanged;
             continue;
         }
         if (k.shows.isEmpty()) blocked.insert(k.key);
@@ -5372,8 +5388,10 @@ int keptPictureParts(WriteDoc &doc, jp::PictureKept kind, int *notChanged, int *
         return int(cuts.pictures.size());
     }
     int n = 0;
-    for (const KeptPicture &k : keptPictures(doc))
+    for (const KeptPicture &k : keptPictures(doc)) {
         if (k.changeable && k.filtered) ++n;
+        else if (!k.changeable && k.filtered && notChanged) ++*notChanged;   // (told, never skipped in silence)
+    }
     return n;
 }
 
@@ -5417,6 +5435,63 @@ int removeKeptPictureParts(WriteDoc &doc, jp::PictureKept kind)
         if (showOnly(doc, k, k.shown)) {
             ++n;
             doc.letGoOfPartMediaIfUnused(k.part, k.original);
+        }
+    }
+    return n;
+}
+
+qint64 compressAllPictures(WriteDoc &doc, double ppi, bool deleteCropped)
+{
+    qint64 saved = 0;
+    const WriteDoc::StepGroup group(doc);
+    const QVector<KeptPicture> all = keptPictures(doc);
+    for (const KeptPicture &k : all) {
+        if (!k.changeable) continue;
+        QString oldId, filteredOld;
+        qint64 oldSize = 0, newSize = 0;
+        const bool changed = changePicture(doc, k.position, [&](Model &m) {
+            if (k.nested < 0) return compressGraphic(doc, k.part, m.graphic, double(m.cx) / kEmuPerPoint, ppi, deleteCropped, &oldId, &filteredOld, &oldSize, &newSize);
+            // A picture in a text box, a group, or a fill: its blip and the crop after it are made as a picture of their own.
+            QString text = QString::fromUtf8(m.graphic);
+            const QVector<BlipSpan> spans = blipSpans(text);
+            if (k.nested >= spans.size()) return false;
+            const qsizetype from = spans[k.nested].start;
+            qsizetype stop = text.indexOf(QStringLiteral("BlipFill>"), spans[k.nested].end, Qt::CaseInsensitive);
+            stop = stop < 0 ? text.size() : stop + 9;
+            double cut[4];
+            QSizeF size;
+            nestedCutAndSize(text, spans[k.nested].end, cut, &size);
+            QByteArray piece = text.mid(from, stop - from).toUtf8();
+            if (!compressGraphic(doc, k.part, piece, size.width(), ppi, deleteCropped, &oldId, &filteredOld, &oldSize, &newSize)) return false;
+            text.replace(from, stop - from, QString::fromUtf8(piece));
+            m.graphic = text.toUtf8();
+            return true;
+        }, k.nested >= 0, k.story, true);
+        if (!changed) continue;
+        doc.letGoOfPartMediaIfUnused(k.part, oldId);
+        if (!filteredOld.isEmpty()) doc.letGoOfPartMediaIfUnused(k.part, filteredOld);
+        saved += oldSize - newSize;
+    }
+    return saved;
+}
+
+int keptPicturesInComments(const WriteDoc &doc, jp::PictureKept kind)
+{
+    int n = 0;
+    for (const WriteDoc::KeptXmlPart &part : doc.keptXmlParts()) {
+        if (!part.contentType.contains(QLatin1String("comments+xml"))) continue;
+        const QString text = QString::fromUtf8(part.data);
+        const QVector<BlipSpan> spans = blipSpans(text);
+        for (const BlipSpan &span : spans) {
+            if (kind == jp::PictureKept::CroppedAreas) {
+                double cut[4];
+                QSizeF size;
+                nestedCutAndSize(text, span.end, cut, &size);
+                if (cut[0] != 0 || cut[1] != 0 || cut[2] != 0 || cut[3] != 0) ++n;
+            } else {
+                office::PictureFxBlip blip;
+                if (office::readPictureFxBlip(text.mid(span.start, span.end - span.start).toUtf8(), &blip) && blip.present) ++n;
+            }
         }
     }
     return n;
