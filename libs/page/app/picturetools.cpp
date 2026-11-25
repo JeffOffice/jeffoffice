@@ -412,9 +412,6 @@ bool bakeable(const Document &doc, const PictureItem &p)
     return format != QLatin1String("svg") && format != QLatin1String("wmf") && format != QLatin1String("emf") && format != QLatin1String("pdf") && doc.imageSize(p.imageId).isValid();
 }
 
-// A crop of less than this (in points) is the picture cut to whole pixels, not a crop to list.
-constexpr double kCropSlack = 1.5;
-
 // The part of the picture that shows, frame-local (as imgRect is).
 QRectF shownPart(const PictureItem &p) { return QRectF(QPointF(0, 0), p.rect.size()).intersected(p.imgRect); }
 
@@ -424,41 +421,188 @@ bool keeps(const Document &doc, const PictureItem &p, PictureKept kind)
     switch (kind) {
     case PictureKept::FilterOriginals: return blipEffectsChange(blipFilters(p.blipEffects));
     case PictureKept::RemovedBackgrounds: return p.removal.isValid() && p.removal.source == doc.imageSize(p.imageId);
-    case PictureKept::CroppedAreas: {
-        const QRectF vis = shownPart(p);
-        return !p.imgRect.isEmpty() && vis.width() >= 1 && vis.height() >= 1 && (vis.width() < p.imgRect.width() - kCropSlack || vis.height() < p.imgRect.height() - kCropSlack);
-    }
+    case PictureKept::CroppedAreas: return false;   // (cutPlans: a cut is planned for the pictures that share a picture together)
     }
     return false;
 }
 
-// The picture as a finished picture of its own: with the removal and the filters worked in (as they are drawn: removal first), and cut to what shows when `crop`. The removal is worked
-// in whenever the filters are (it can't stay beside a picture made another size by them).
-bool bakePicture(Document &doc, PictureItem &p, PictureKept kind)
+// The pixels of a picture of `px` pixels that its frame shows, whole pixels rounded outward, and a margin all round: the smooth drawing of a pixel at the edge of what shows reads the
+// pixels beside it (one for a picture drawn larger than it is, as many as it covers for one drawn smaller, and the picture is drawn at half and a quarter of its size too), and a
+// picture without them would draw that edge differently. Empty when nothing shows.
+QRect shownPixels(const PictureItem &p, const QSize &px)
 {
-    const bool filters = kind == PictureKept::FilterOriginals, removal = p.removal.isValid() && p.removal.source == doc.imageSize(p.imageId) && (filters || kind == PictureKept::RemovedBackgrounds),
-               crop = kind == PictureKept::CroppedAreas;
+    const QRectF vis = shownPart(p);
+    if (p.imgRect.width() <= 0 || p.imgRect.height() <= 0 || vis.width() < 1 || vis.height() < 1 || px.isEmpty()) return QRect();
+    const double sx = px.width() / p.imgRect.width(), sy = px.height() / p.imgRect.height();
+    const int x0 = int(std::floor((vis.left() - p.imgRect.left()) * sx)), y0 = int(std::floor((vis.top() - p.imgRect.top()) * sy));
+    const int x1 = int(std::ceil((vis.right() - p.imgRect.left()) * sx)), y1 = int(std::ceil((vis.bottom() - p.imgRect.top()) * sy));
+    const int margin = 1 + 4 * int(std::ceil(std::max({sx, sy, 1.0})));
+    return QRect(QPoint(x0 - margin, y0 - margin), QPoint(x1 + margin, y1 + margin)).intersected(QRect(QPoint(0, 0), px));
+}
+
+// Whether any pixel of `img` outside `keep` is not clear.
+bool hasContentOutside(const QImage &img, const QRect &keep)
+{
+    const QImage a = img.format() == QImage::Format_ARGB32 ? img : img.convertToFormat(QImage::Format_ARGB32);
+    for (int y = 0; y < a.height(); ++y) {
+        const QRgb *row = reinterpret_cast<const QRgb *>(a.constScanLine(y));
+        const bool inside = y >= keep.top() && y <= keep.bottom();
+        for (int x = 0; x < a.width(); ++x)
+            if (qAlpha(row[x]) != 0 && !(inside && x >= keep.left() && x <= keep.right())) return true;
+    }
+    return false;
+}
+
+// What clearing the parts that are cropped away does to each picture, so that the page looks exactly as before: the pixels outside what shows (and a margin) are made clear, so the
+// picture keeps its size and its place, and every pixel that shows is drawn the way it was (a smaller picture would be put in another place, rounded to whole pixels another way).
+// The pictures that have effects are first made into their finished pictures (their effects read the pixels beside each one, and a mosaic is aligned to the whole picture), and those
+// that share a picture are cleared outside the part that any of them shows.
+struct CutPlan {
+    PictureItem *pic = nullptr;
+    bool finish = false;   // made into its finished picture first (a removal and effects worked in)
+    QRect keep;            // the pixels kept, in the pixels of the picture it is cleared from (the finished one when `finish`)
+    QSize size;            // those pixels' size
+};
+
+struct CutPlans {
+    QVector<CutPlan> plans;
+    int left = 0;   // pictures with a crop that are left as they are (they share a picture with one that shows all of it)
+};
+
+CutPlans cutPlans(const Document &doc)
+{
+    struct Seen {
+        PictureItem *pic;
+        bool finish;
+        QRect shows;
+        QSize size;
+        bool ok, changes;   // can be cleared, and has pixels outside what shows
+    };
+    QVector<Seen> seen;
+    QHash<QString, QRect> united;
+    QSet<QString> blocked;   // a picture that holds the same picture and stays as it is
+    doc.forEachItem([&](Item *it, int, const QString &) {
+        auto *p = dynamic_cast<PictureItem *>(it);
+        if (!p || !bakeable(doc, *p)) return;
+        const bool finish = blipEffectsChange(blipFilters(p->blipEffects));
+        const QSize own = doc.imageSize(p->imageId), size = finish ? pictureFxWorkSize(own) : own;
+        const QRect shows = shownPixels(*p, size);
+        const bool ok = !shows.isEmpty();
+        // (a finished picture's pixels are those the filters make: it is cleared when it is made, so it counts for what it will have)
+        const bool changes = ok && shows != QRect(QPoint(0, 0), size);
+        seen.push_back({p, finish, shows, size, ok, changes});
+    });
+    for (const Seen &s : seen) {
+        const QString &id = s.pic->imageId;
+        if (s.finish) {
+            if (!s.changes) blocked.insert(id);   // (one that is cleared is finished into a picture of its own, and leaves)
+        } else if (!s.ok) {
+            blocked.insert(id);
+        } else {
+            united[id] = united.contains(id) ? united[id].united(s.shows) : s.shows;
+        }
+    }
+    CutPlans out;
+    int cropped = 0;
+    QHash<QString, bool> content;   // (what a picture still holds outside what shows, looked at once for each)
+    for (const Seen &s : seen) {
+        const QRect full(QPoint(0, 0), s.size);
+        if (!s.shows.isEmpty() && s.shows != full) ++cropped;
+        if (s.finish) {
+            if (s.changes) out.plans.push_back({s.pic, true, s.shows, s.size});
+            continue;
+        }
+        if (!s.ok || blocked.contains(s.pic->imageId)) continue;
+        const QRect all = united.value(s.pic->imageId);
+        if (all == full) continue;
+        if (!content.contains(s.pic->imageId)) content.insert(s.pic->imageId, hasContentOutside(doc.image(s.pic->imageId), all));
+        if (content.value(s.pic->imageId)) out.plans.push_back({s.pic, false, all, s.size});
+    }
+    out.left = cropped - int(out.plans.size());
+    // (a picture already cleared is not "left": it has nothing to take away)
+    for (const Seen &s : seen) {
+        if (s.finish || !s.ok || blocked.contains(s.pic->imageId) || s.shows == QRect(QPoint(0, 0), s.size) || united.value(s.pic->imageId) == QRect(QPoint(0, 0), s.size)) continue;
+        if (!content.value(s.pic->imageId)) --out.left;
+    }
+    return out;
+}
+
+// The finished picture of `p`: its removal and filters worked in (as they are drawn: removal first), as a picture of its own. The removal is worked in whenever the filters are (it
+// can't stay beside a picture made another size by them).
+QImage finishedPicture(const Document &doc, const PictureItem &p, bool removal, bool filters)
+{
     QImage img = doc.image(p.imageId);
-    if (img.isNull()) return false;
+    if (img.isNull()) return img;
     if (removal) img = applyBackgroundRemoval(img, p.removal);
     if (filters) img = applyBlipEffects(img, blipFilters(p.blipEffects));
-    QRectF newRect = p.imgRect;
-    if (crop) {
-        const QRectF vis = shownPart(p);
-        const double sx = img.width() / p.imgRect.width(), sy = img.height() / p.imgRect.height();
-        const QRect px = QRect(int(std::floor((vis.x() - p.imgRect.x()) * sx)), int(std::floor((vis.y() - p.imgRect.y()) * sy)), std::max(1, int(std::ceil(vis.width() * sx))), std::max(1, int(std::ceil(vis.height() * sy)))).intersected(img.rect());
-        if (px.isEmpty()) return false;
-        img = img.copy(px);
-        newRect = QRectF(p.imgRect.x() + px.x() / sx, p.imgRect.y() + px.y() / sy, px.width() / sx, px.height() / sy);
-    }
+    return img;
+}
+
+QString addPng(Document &doc, const QImage &img)
+{
     QByteArray png;
     QBuffer buffer(&png);
     buffer.open(QIODevice::WriteOnly);
-    if (!img.convertToFormat(QImage::Format_ARGB32).save(&buffer, "PNG")) return false;
-    p.imageId = doc.addImage(png, QStringLiteral("png"));
-    p.imgRect = newRect;
+    if (!img.convertToFormat(QImage::Format_ARGB32).save(&buffer, "PNG")) return QString();
+    return doc.addImage(png, QStringLiteral("png"));
+}
+
+bool bakePicture(Document &doc, PictureItem &p, PictureKept kind)
+{
+    const bool filters = kind == PictureKept::FilterOriginals, removal = p.removal.isValid() && p.removal.source == doc.imageSize(p.imageId) && (filters || kind == PictureKept::RemovedBackgrounds);
+    const QImage img = finishedPicture(doc, p, removal, filters);
+    if (img.isNull()) return false;
+    const QString id = addPng(doc, img);
+    if (id.isEmpty()) return false;
+    p.imageId = id;
     if (removal) p.removal = BackgroundRemoval();
     if (filters) p.blipEffects = blipColorEffects(p.blipEffects);
+    return true;
+}
+
+// Clears `p` (and the others of `images`, which hold the same picture) outside the plan's pixels: the picture keeps its size, its place, and its crop, so each pixel that shows is
+// drawn where it was. A removal's mask is cleared the same way (its strokes are not kept: they were shares of the whole picture).
+bool cutPicture(Document &doc, PictureItem &p, const CutPlan &plan, QHash<QString, QString> &images)
+{
+    auto cleared = [&plan](const QImage &in) {
+        QImage img = in.convertToFormat(QImage::Format_ARGB32);
+        for (int y = 0; y < img.height(); ++y) {
+            QRgb *row = reinterpret_cast<QRgb *>(img.scanLine(y));
+            const bool inside = y >= plan.keep.top() && y <= plan.keep.bottom();
+            for (int x = 0; x < img.width(); ++x)
+                if (!(inside && x >= plan.keep.left() && x <= plan.keep.right())) row[x] = 0;
+        }
+        return img;
+    };
+    if (plan.finish) {
+        const QImage img = finishedPicture(doc, p, p.removal.isValid() && p.removal.source == doc.imageSize(p.imageId), true);
+        if (img.size() != plan.size) return false;   // (a picture too big to be worked on is not finished: it is left as it is)
+        const QString id = addPng(doc, cleared(img));
+        if (id.isEmpty()) return false;
+        p.removal = BackgroundRemoval();
+        p.blipEffects = blipColorEffects(p.blipEffects);
+        p.imageId = id;
+        return true;
+    }
+    const QString key = p.imageId;
+    if (!images.contains(key)) images.insert(key, addPng(doc, cleared(doc.image(key))));
+    if (images.value(key).isEmpty()) return false;
+    p.imageId = images.value(key);
+    if (p.removal.isValid() && p.removal.source == plan.size) {
+        // The mask outside the kept pixels (and two of its own pixels more) is cleared: nothing of it shows.
+        const int mw = p.removal.size.width(), mh = p.removal.size.height();
+        const QRect mk = QRect(QPoint(plan.keep.left() * mw / plan.size.width() - 2, plan.keep.top() * mh / plan.size.height() - 2),
+                               QPoint((plan.keep.right() + 1) * mw / plan.size.width() + 2, (plan.keep.bottom() + 1) * mh / plan.size.height() + 2));
+        BackgroundRemoval r = p.removal;
+        uchar *m = reinterpret_cast<uchar *>(r.mask.data());
+        for (int y = 0; y < mh; ++y)
+            for (int x = 0; x < mw; ++x)
+                if (!mk.contains(x, y)) m[qsizetype(y) * mw + x] = 0;
+        r.marks.clear();
+        p.removal = r;
+    } else if (p.removal.isValid()) {
+        p.removal = BackgroundRemoval();   // (made for a picture of another size: it was not used)
+    }
     return true;
 }
 
@@ -466,9 +610,26 @@ bool bakePicture(Document &doc, PictureItem &p, PictureKept kind)
 
 int picturesKeeping(const Document &doc, PictureKept kind)
 {
+    if (kind == PictureKept::CroppedAreas) return int(cutPlans(doc).plans.size());
     int n = 0;
     doc.forEachItem([&](Item *it, int, const QString &) {
         if (const auto *p = dynamic_cast<const PictureItem *>(it); p && keeps(doc, *p, kind)) ++n;
+    });
+    return n;
+}
+
+int picturesCroppedAndLeft(const Document &doc) { return cutPlans(doc).left; }
+
+int picturesNotChanged(const Document &doc, PictureKept kind)
+{
+    int n = 0;
+    doc.forEachItem([&](Item *it, int, const QString &) {
+        const auto *p = dynamic_cast<const PictureItem *>(it);
+        if (!p || !p->mediaKind.isEmpty() || !p->chartXml.isEmpty() || p->imageId.isEmpty() || bakeable(doc, *p)) return;   // (drawings and linked pictures only)
+        const QRectF vis = shownPart(*p);
+        if (kind == PictureKept::FilterOriginals ? blipEffectsChange(blipFilters(p->blipEffects))
+            : kind == PictureKept::RemovedBackgrounds ? p->removal.isValid()
+                                                      : !p->imgRect.isEmpty() && (vis.width() < p->imgRect.width() - 1.5 || vis.height() < p->imgRect.height() - 1.5)) ++n;
     });
     return n;
 }
@@ -478,7 +639,7 @@ int picturesWithEffectsLeftOut(const Document &doc)
     int n = 0;
     doc.forEachItem([&](Item *it, int, const QString &) {
         const auto *p = dynamic_cast<const PictureItem *>(it);
-        if (p && bakeable(doc, *p) && blipFiltersLeftOut(qint64(doc.imageSize(p->imageId).width()) * doc.imageSize(p->imageId).height(), p->blipEffects) > 0) ++n;
+        if (p && bakeable(doc, *p) && (blipFiltersLeftOut(qint64(doc.imageSize(p->imageId).width()) * doc.imageSize(p->imageId).height(), p->blipEffects) > 0 || blipColorEffectsLeftOut(qint64(doc.imageSize(p->imageId).width()) * doc.imageSize(p->imageId).height(), p->blipEffects))) ++n;
     });
     return n;
 }
@@ -486,7 +647,9 @@ int picturesWithEffectsLeftOut(const Document &doc)
 int removeKeptPictureParts(Editor *ed, PictureKept kind)
 {
     QVector<PictureItem *> pics;
-    ed->doc()->forEachItem([&](Item *it, int, const QString &) {
+    CutPlans cuts;
+    if (kind == PictureKept::CroppedAreas) cuts = cutPlans(*ed->doc());
+    else ed->doc()->forEachItem([&](Item *it, int, const QString &) {
         if (auto *p = dynamic_cast<PictureItem *>(it); p && keeps(*ed->doc(), *p, kind)) pics << p;
     });
     int n = 0;
@@ -496,16 +659,26 @@ int removeKeptPictureParts(Editor *ed, PictureKept kind)
     ed->change(step, [&] {
         for (PictureItem *p : pics)
             if (bakePicture(*ed->doc(), *p, kind)) ++n;
+        QHash<QString, QString> images;   // (the pictures that hold one picture are cut to one picture)
+        for (const CutPlan &plan : cuts.plans) {
+            if (cutPicture(*ed->doc(), *plan.pic, plan, images)) ++n;
+        }
     });
     return n;
 }
 
 QVector<InspectItem> pictureInspectItems(Editor *ed)
 {
+    // (a drawing or a linked picture, and a crop that would look different if it were cut, are told and left as they are: never skipped silently)
     auto row = [ed](PictureKept kind, const QString &title, const QString &detail, const QString &action) {
         InspectItem item;
         item.title = title;
         item.detail = detail;
+        if (const int n = picturesNotChanged(*ed->doc(), kind); n > 0)
+            item.detail += QLatin1Char(' ') + QCoreApplication::translate("jp::PictureTools", "%n picture is a drawing or a linked picture, which cannot be changed here.", nullptr, n);
+        if (kind == PictureKept::CroppedAreas)
+            if (const int n = picturesCroppedAndLeft(*ed->doc()); n > 0)
+                item.detail += QLatin1Char(' ') + QCoreApplication::translate("jp::PictureTools", "%n picture is left as it is, because another object shows more of the same picture.", nullptr, n);
         item.count = [ed, kind] { return picturesKeeping(*ed->doc(), kind); };
         item.remove = [ed, kind] { return removeKeptPictureParts(ed, kind); };
         item.action = action;
@@ -519,7 +692,7 @@ QVector<InspectItem> pictureInspectItems(Editor *ed)
             QCoreApplication::translate("jp::PictureTools", "When you remove the background of a picture, the whole original picture stays in the file. Removing it keeps only the picture without its background: Remove Background can then no longer bring the background back."),
             QCoreApplication::translate("jp::PictureTools", "Remove Originals")),
         row(PictureKept::CroppedAreas, QCoreApplication::translate("jp::PictureTools", "Cropped-away parts of pictures"),
-            QCoreApplication::translate("jp::PictureTools", "A cropped picture still holds the parts you cropped away, and anyone who gets the file can see them. Removing them cuts each picture down to what shows: the crop can then no longer be undone by dragging its edges out."),
+            QCoreApplication::translate("jp::PictureTools", "A cropped picture still holds the parts you cropped away, and anyone who gets the file can see them. Removing them clears each picture outside what shows (a thin border around it stays), so that the page looks exactly as before: the crop can then no longer be undone by dragging its edges out. A picture with a picture effect, such as Blur, is first made into its finished picture, so Reset Picture can no longer bring its original back."),
             QCoreApplication::translate("jp::PictureTools", "Remove Cropped Parts")),
     };
     // (only a file can hold more effects than can be worked out: said, never left out silently)

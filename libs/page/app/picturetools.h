@@ -67,6 +67,10 @@ extern std::function<void(const std::atomic<bool> &)> pictureFxWorkerHook;
 enum class PictureKept { FilterOriginals, RemovedBackgrounds, CroppedAreas };
 int picturesKeeping(const Document &doc, PictureKept kind);
 int removeKeptPictureParts(Editor *ed, PictureKept kind);
+// How many pictures have a crop that the cropped-parts row leaves as it is: one drawn smaller than it is (it would be drawn another size after a cut), or one that holds a picture with another.
+int picturesCroppedAndLeft(const Document &doc);
+// How many drawings and linked pictures have what the row is about (an effect, a removed background, a crop) and cannot be changed by it.
+int picturesNotChanged(const Document &doc, PictureKept kind);
 // How many pictures have filters left out (more than can be worked out on the picture: only a file can have them).
 int picturesWithEffectsLeftOut(const Document &doc);
 QVector<InspectItem> pictureInspectItems(Editor *ed);

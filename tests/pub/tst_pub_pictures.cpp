@@ -730,6 +730,61 @@ private Q_SLOTS:
         QCOMPARE(row->count(), 1);
     }
 
+    // The cropped-parts row of Inspect in JeffPub clears what is cropped away and changes no pixel of the page (at one and at three times), with a mosaic and a removed background on the
+    // picture too, and the saved file no longer holds the picture whole.
+    void inspectClearsTheCroppedPartsAndChangesNoPixelOfThePage()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        jp::MainWindow w;
+        w.resize(1400, 900);
+        w.show();
+        jp::Editor *ed = w.editor();
+        QImage im(120, 90, QImage::Format_ARGB32);
+        im.fill(qRgb(235, 235, 235));
+        for (int y = 15; y < 75; ++y)
+            for (int x = 20; x < 100; ++x) im.setPixel(x, y, qRgb((x * 37 + y * 11) % 256, (x * y + x) % 256, (y * 53 + x * 3) % 256));
+        QByteArray png;
+        QBuffer buffer(&png);
+        buffer.open(QIODevice::WriteOnly);
+        im.save(&buffer, "PNG");
+        auto p = std::make_shared<jp::PictureItem>();
+        p->imageId = ed->doc()->addImage(png, "png");
+        p->rect = QRectF(100, 100, 100, 70);
+        p->imgRect = QRectF(-30.3, -20.7, 160, 120);
+        ed->addItem(p);
+        ed->select(p->id);
+        jp::PictureItem *pic = thePicture(ed);
+        pic->removal = jp::findBackground(im, {});
+        QVERIFY(pic->removal.isValid());
+        jp::applyArtisticEffect(ed, &w, int(jp::ArtisticStyle::Mosaic));
+        auto page = [&](double scale) {
+            jp::PaintContext ctx;
+            ctx.doc = ed->doc();
+            ctx.cache = &ed->cache();
+            return jp::Renderer::renderToImage(ctx, 0, scale);
+        };
+        const QImage one = page(1), three = page(3);
+        const jp::InspectItem *crop = nullptr;
+        const QVector<jp::InspectItem> rows = w.inspectItems();
+        for (const jp::InspectItem &r : rows)
+            if (r.title == QStringLiteral("Cropped-away parts of pictures")) crop = &r;
+        QVERIFY(crop);
+        QCOMPARE(crop->count(), 1);
+        const int steps = ed->undoStack()->index();
+        QCOMPARE(crop->remove(), 1);
+        QCOMPARE(ed->undoStack()->index(), steps + 1);
+        QCOMPARE(crop->count(), 0);
+        QVERIFY(page(1) == one);
+        QVERIFY(page(3) == three);
+        const QImage after = ed->doc()->image(thePicture(ed)->imageId);
+        QCOMPARE(after.size(), im.size());
+        QCOMPARE(qAlpha(after.pixel(2, 45)), 0);
+        ed->undoStack()->undo();
+        QCOMPARE(crop->count(), 1);
+        QVERIFY(page(1) == one);
+    }
+
     // The Background Removal tab, for the docs, when JO_SHOT_DIR names a folder.
     void theBackgroundRemovalTabPicture()
     {
