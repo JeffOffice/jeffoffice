@@ -849,6 +849,88 @@ private Q_SLOTS:
         QCOMPARE(jp::blipAdjustedMade(), madeHuge);
     }
 
+    // A picture of one repeated row of noise, 100,020,001 pixels (more than kMaxBlipPixels, less than a file may hold), one byte each.
+    static QImage hugeNoise()
+    {
+        QImage im(10001, 10001, QImage::Format_Grayscale8);
+        uchar *first = im.scanLine(0);
+        for (int x = 0; x < im.width(); ++x) first[x] = uchar((x * 37) % 251);
+        for (int y = 1; y < im.height(); ++y) memcpy(im.scanLine(y), first, size_t(im.width()));
+        return im;
+    }
+    // Whether `done` is the flat patch (one color, small) or differs from `plain` (the picture made the size it is worked at) in most of a row.
+    static bool hidden(const QImage &done, const QImage &plain)
+    {
+        if (done.isNull() || done.width() * qint64(done.height()) > jp::kPictureFxWorkPixels) return false;
+        const QImage d = done.convertToFormat(QImage::Format_ARGB32), p = plain.convertToFormat(QImage::Format_ARGB32);
+        if (d.size() != p.size()) {
+            for (int y = 0; y < d.height(); ++y)
+                for (int x = 0; x < d.width(); ++x)
+                    if (d.pixel(x, y) != d.pixel(0, 0)) return false;
+            return true;
+        }
+        int differ = 0;
+        const int y = d.height() / 2;
+        for (int x = 0; x < d.width(); ++x) differ += d.pixel(x, y) != p.pixel(x, y);
+        return differ * 5 > d.width() * 4;
+    }
+    // Blur and Mosaic hide what is in a picture, so a picture of any size has them worked (on the copy made of at most kPictureFxWorkPixels) or a flat patch, and never itself: one of
+    // more than kMaxBlipPixels was drawn as it was, and so was saved. Every way the work is drawn, and the way a save is made, is checked.
+    void hidingFiltersAreNeverSkippedForTheSizeOfAPicture()
+    {
+        const QImage huge = hugeNoise();
+        QVERIFY(qint64(huge.width()) * huge.height() > jp::kMaxBlipPixels);
+        const QImage plain = jp::pictureFxWorkCopy(huge);
+        QVERIFY(qint64(plain.width()) * plain.height() <= jp::kPictureFxWorkPixels);
+        for (const int style : {int(jp::ArtisticStyle::Blur), int(jp::ArtisticStyle::Mosaic)}) {
+            const QVector<jp::BlipEffect> fx{filterEffect(jp::BlipEffect::Artistic, 0.8, style)};
+            const QString name = QString::number(style);
+            QVERIFY2(hidden(jp::applyBlipEffects(huge, fx), plain), qPrintable(name + " applied"));
+            QVERIFY2(hidden(jp::blipAdjusted(huge, fx, nullptr, QStringLiteral("huge|") + name), plain), qPrintable(name + " adjusted"));
+            // Beside the window: waited for, never the picture.
+            bool pending = false;
+            QImage got = jp::blipAdjustedLater(huge, fx, QStringLiteral("huge-later|") + name, &pending);
+            QVERIFY2(pending, qPrintable(name + " later"));
+            QTRY_VERIFY_WITH_TIMEOUT((got = jp::blipAdjustedLater(huge, fx, QStringLiteral("huge-later|") + name, &pending), !pending), 60000);
+            QVERIFY2(hidden(got, plain), qPrintable(name + " beside"));
+            // Work that is stopped, or a list too long for the filters to all be done, draws the patch.
+            std::atomic<bool> stop{true};
+            QVERIFY2(hidden(jp::applyBlipEffects(huge, fx, &stop), plain), qPrintable(name + " stopped"));
+        }
+        const QImage mid = filterSample(1200, 1200);
+        QVector<jp::BlipEffect> long_(14, filterEffect(jp::BlipEffect::Sharpen, 0.5));
+        long_.append(filterEffect(jp::BlipEffect::Artistic, 0.8, int(jp::ArtisticStyle::Mosaic)));
+        QVERIFY(jp::blipFiltersLeftOut(qint64(mid.width()) * mid.height(), long_) >= 1);
+        const QImage left = jp::applyBlipEffects(mid, long_);
+        QVERIFY(left.width() <= 4 && left.height() <= 4);
+        QCOMPARE(left.pixel(0, 0), left.pixel(left.width() - 1, left.height() - 1));
+    }
+
+    // A save writes the finished picture of one that is over kMaxBlipPixels with the filter in it (or the patch), not the picture as it is.
+    void aSavedHugePictureIsNeverTheOneItHides()
+    {
+        const QImage huge = hugeNoise();
+        QByteArray png;
+        QBuffer buffer(&png);
+        buffer.open(QIODevice::WriteOnly);
+        QVERIFY(huge.save(&buffer, "PNG"));
+        buffer.close();
+        WriteRound r;
+        r.pictures.insert(QStringLiteral("big"), png);
+        auto p = std::make_shared<PictureItem>();
+        p->imageId = QStringLiteral("big");
+        p->rect = QRectF(0, 0, 100, 100);
+        p->imgRect = QRectF(0, 0, 100, 100);
+        p->blipEffects = {filterEffect(jp::BlipEffect::Artistic, 0.8, int(jp::ArtisticStyle::Blur))};
+        QVERIFY2(r.run({p}), qPrintable(r.error));
+        QImage saved;
+        for (const QString &name : r.env.package.partNames())
+            if (name.endsWith(QLatin1String(".png"))) saved.loadFromData(r.env.package.part(name));
+        QVERIFY(!saved.isNull());
+        QVERIFY(saved.size() != huge.size());
+        QVERIFY(hidden(saved, jp::pictureFxWorkCopy(huge)));
+    }
+
     // A picture's changes are written in the order they are drawn: the settings (a clear color, the brightness and contrast, gray or black and white
     // from its threshold), then those beside them as they were listed, whatever order a file listed them in (a duotone before the brightness is
     // before it still), none left out; and read again they are the same.

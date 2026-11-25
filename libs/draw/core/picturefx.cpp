@@ -356,16 +356,22 @@ QImage pictureFxWorkCopy(const QImage &image, const std::atomic<bool> *stop)
     // The smallest whole number of pixels to a block that brings the picture inside the work size.
     int k = 2;
     while (qint64((image.width() + k - 1) / k) * ((image.height() + k - 1) / k) > kPictureFxWorkPixels) ++k;
-    const QImage src = image.convertToFormat(QImage::Format_ARGB32);
     QImage out((image.width() + k - 1) / k, (image.height() + k - 1) / k, QImage::Format_ARGB32);
+    if (out.isNull()) return QImage();
+    // (a picture not of 32 bits is made so a band of k rows at a time: the whole of one of a hundred million pixels is not made at once)
+    const bool plain = image.format() == QImage::Format_ARGB32 || image.format() == QImage::Format_RGB32;
     for (int y = 0; y < out.height(); ++y) {
         if (stop && stop->load(std::memory_order_relaxed)) break;
+        const int top = y * k, band = std::min(k, image.height() - top);
+        const QImage src = plain ? image : image.copy(0, top, image.width(), band).convertToFormat(QImage::Format_ARGB32);
+        if (src.isNull()) return QImage();
+        const int base = plain ? 0 : top;
         QRgb *row = reinterpret_cast<QRgb *>(out.scanLine(y));
         for (int x = 0; x < out.width(); ++x) {
             std::int64_t sum[4] = {0, 0, 0, 0}, n = 0;
-            for (int yy = y * k; yy < std::min(y * k + k, src.height()); ++yy) {
+            for (int yy = y * k - base; yy < std::min(y * k + k, image.height()) - base; ++yy) {
                 const QRgb *in = reinterpret_cast<const QRgb *>(src.constScanLine(yy));
-                for (int xx = x * k; xx < std::min(x * k + k, src.width()); ++xx, ++n) {
+                for (int xx = x * k; xx < std::min(x * k + k, image.width()); ++xx, ++n) {
                     const int a = qAlpha(in[xx]);
                     sum[0] += qRed(in[xx]) * a;
                     sum[1] += qGreen(in[xx]) * a;
@@ -378,6 +384,23 @@ QImage pictureFxWorkCopy(const QImage &image, const std::atomic<bool> *stop)
         }
     }
     return out;
+}
+
+QImage pictureFxFlatPatch(const QImage &im)
+{
+    const int stepX = std::max(1, im.width() / 64), stepY = std::max(1, im.height() / 64);
+    qint64 a = 0, r = 0, g = 0, b = 0, n = 0;
+    for (int y = stepY / 2; y < im.height(); y += stepY)
+        for (int x = stepX / 2; x < im.width(); x += stepX, ++n) {
+            const QRgb c = qPremultiply(im.pixel(x, y));
+            a += qAlpha(c);
+            r += qRed(c);
+            g += qGreen(c);
+            b += qBlue(c);
+        }
+    QImage flat(4, 4, QImage::Format_ARGB32_Premultiplied);
+    flat.fill(n ? qRgba(int(r / n), int(g / n), int(b / n), int(a / n)) : qRgba(128, 128, 128, 255));
+    return flat;
 }
 
 QImage applyBlipFilter(const QImage &image, const BlipEffect &e, const std::atomic<bool> *stop, FilterCount *count)

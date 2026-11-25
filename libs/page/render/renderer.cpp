@@ -915,26 +915,6 @@ static bool pngHasProfile(const QByteArray &png)
     return false;
 }
 
-// A small picture of one color: the average of `im` (its clearness too), to stand in for a picture that is being hidden by a filter.
-static QImage flatPatch(const QImage &im)
-{
-    const QImage in = im.convertToFormat(QImage::Format_ARGB32_Premultiplied);
-    const int stepX = std::max(1, in.width() / 64), stepY = std::max(1, in.height() / 64);
-    qint64 a = 0, r = 0, g = 0, b = 0, n = 0;
-    for (int y = stepY / 2; y < in.height(); y += stepY) {
-        const QRgb *line = reinterpret_cast<const QRgb *>(in.constScanLine(y));
-        for (int x = stepX / 2; x < in.width(); x += stepX, ++n) {
-            a += qAlpha(line[x]);
-            r += qRed(line[x]);
-            g += qGreen(line[x]);
-            b += qBlue(line[x]);
-        }
-    }
-    QImage flat(4, 4, QImage::Format_ARGB32_Premultiplied);
-    flat.fill(n ? qRgba(int(r / n), int(g / n), int(b / n), int(a / n)) : qRgba(128, 128, 128, 255));
-    return flat;
-}
-
 QImage Renderer::processedImage(const Document &doc, const PictureItem &pic, const QSizeF &deviceSize, const QSizeF &exactSize, const QColor &removalTint, bool waitForFilters)
 {
     jp::threadcheck::guiOnlyCache();
@@ -981,7 +961,7 @@ QImage Renderer::processedImage(const Document &doc, const PictureItem &pic, con
         const QImage out = blipAdjustedLater(im, filters, filterSource, &pending);
         filtersPending = filtersPending || pending;
         // What hides a picture is never drawn as the picture it hides: a flat patch of its color stands in until the work is done.
-        if (pending && blipFiltersHide(filters)) return flatPatch(im);
+        if (pending && blipFiltersHide(filters)) return pictureFxFlatPatch(im);
         return out;
     };
     // The background taken off the picture is clear before anything else changes the picture.

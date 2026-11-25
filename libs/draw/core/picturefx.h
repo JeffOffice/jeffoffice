@@ -46,6 +46,8 @@ struct FilterCount {
 QSize pictureFxWorkSize(const QSize &size);
 // `image` averaged down by whole blocks to at most kPictureFxWorkPixels (as it is when it is not larger). With `stop` set to true the copy ends early and is not finished.
 QImage pictureFxWorkCopy(const QImage &image, const std::atomic<bool> *stop = nullptr);
+// A small picture of one color: the average of `image` (its clearness too), to stand in for a picture a filter that hides it (Blur, Mosaic) could not be worked on.
+QImage pictureFxFlatPatch(const QImage &image);
 // `image` (32 bits) with the filter applied. With `stop` set to true the work ends early (before the next row) and what comes back is not finished. `count` (if given) is added to.
 QImage applyBlipFilter(const QImage &image, const BlipEffect &e, const std::atomic<bool> *stop = nullptr, FilterCount *count = nullptr);
 

@@ -225,7 +225,7 @@ bool blipColorEffectsLeftOut(qint64 pixels, const QVector<BlipEffect> &effects)
 {
     const QVector<BlipEffect> changes = changing(effects);
     const QVector<BlipEffect> filters = blipFilters(changes), colors = blipColorEffects(changes);
-    return !filters.isEmpty() && !colors.isEmpty() && pixels <= kMaxBlipPixels && blipEffectsWork(std::min(pixels, kPictureFxWorkPixels), colors) > kMaxBlipWork;
+    return !filters.isEmpty() && !colors.isEmpty() && blipEffectsWork(std::min(pixels, kPictureFxWorkPixels), colors) > kMaxBlipWork;
 }
 
 int blipFiltersLeftOut(qint64 pixels, const QVector<BlipEffect> &effects)
@@ -261,8 +261,9 @@ QImage applyBlipEffects(const QImage &image, const QVector<BlipEffect> &all, con
     if (image.isNull() || all.isEmpty()) return image;
     const qint64 pixels = qint64(image.width()) * image.height();
     const QVector<BlipEffect> effects = changing(all);
-    if (effects.isEmpty() || pixels > kMaxBlipPixels) return image;
     const QVector<BlipEffect> filters = blipFilters(effects);
+    // (the filters work on a copy of at most kPictureFxWorkPixels, so a picture of any size has them; the color effects alone are held to kMaxBlipPixels)
+    if (effects.isEmpty() || (pixels > kMaxBlipPixels && filters.isEmpty())) return image;
     // The filters work on a copy of at most kPictureFxWorkPixels, which is their bound: they are always done, as many of the list as fit kMaxBlipFilterWork. The color effects, which
     // work on whatever size is left, are held to kMaxBlipWork as before.
     const qint64 colorPixels = filters.isEmpty() ? pixels : std::min(pixels, kPictureFxWorkPixels);
@@ -271,12 +272,18 @@ QImage applyBlipEffects(const QImage &image, const QVector<BlipEffect> &all, con
         if (filters.isEmpty()) return image;
         colors.clear();
     }
-    QImage img = image.convertToFormat(QImage::Format_ARGB32);
     // The filters come first, on a copy made smaller when it is large; the color effects follow.
+    QImage img = filters.isEmpty() ? image.convertToFormat(QImage::Format_ARGB32) : pictureFxWorkCopy(image, stop);
     if (!filters.isEmpty()) {
-        img = pictureFxWorkCopy(img, stop);
+        const auto stopped = [stop] { return stop && stop->load(); };
         const int fit = filtersThatFit(pixels, filters);
-        for (int i = 0; i < fit; ++i) img = applyBlipFilter(img, filters[i], stop);
+        if (!img.isNull() && !stopped()) {
+            img = img.convertToFormat(QImage::Format_ARGB32);
+            for (int i = 0; i < fit; ++i) img = applyBlipFilter(img, filters[i], stop);
+        }
+        // What hides a picture (Blur, Mosaic) is never given back undone: when any of it was not worked (no room for the copy, work stopped, a list too long for the filters), a patch of the
+        // picture's color is.
+        if (img.isNull() || stopped() || blipFiltersHide(filters.mid(fit))) return blipFiltersHide(filters) ? pictureFxFlatPatch(image) : image;
     }
     for (const BlipEffect &e : colors) {
         const QColor from = e.color, to = e.color2;
@@ -573,7 +580,7 @@ QImage blipAdjustedLater(const QImage &image, const QVector<BlipEffect> &effects
     const QString key = keptKey(image, effects, sourceKey);
     if (const QImage found = keptImage(key); !found.isNull()) return found;
     // (a picture that is left as it is has nothing kept: it is made at once, as it costs nothing)
-    if (qint64(image.width()) * image.height() > kMaxBlipPixels) return image;
+    if (qint64(image.width()) * image.height() > kMaxBlipPixels && blipFilters(changing(effects)).isEmpty()) return image;
     if (pending) *pending = true;
     ++askedLater;
     later().add({key, sourceKey, image, effects});
