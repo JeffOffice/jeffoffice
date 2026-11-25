@@ -2,6 +2,7 @@
 // where the cells that changed are written anew and the others are copied. A shared formula whose first cell was changed is written out for the cells that shared it, so no cell
 // loses its formula. See xlsxsave.h.
 
+#include "office/xml.h"
 #include "sheet/cellref.h"
 #include "sheet/xlsxbase.h"
 #include "sheet/xlsxsave.h"
@@ -369,32 +370,43 @@ QByteArray tabColorFromChange(const QByteArray &head, const ColorSpec &color, co
 QByteArray outlinePrFromChange(const QByteArray &head, bool below, bool right, const QByteArray &defaultPrefix)
 {
     Tag t;
-    qsizetype pos = 0, rootEnd = -1, sheetPrStart = -1, sheetPrEnd = -1, closeStart = -1, outStart = -1, outEnd = -1, tabEnd = -1;
-    bool sheetPrSelf = false;
+    qsizetype pos = 0, rootEnd = -1, sheetPrStart = -1, sheetPrEnd = -1, outStart = -1, outEnd = -1, tabEnd = -1;
+    bool sheetPrSelf = false, inPr = false, firstPr = false;
+    int depth = 0;
     QByteArray prefix = defaultPrefix;
+    // (the reader takes every `outlinePr` that is a child of a `sheetPr`, the last one saying: that is the one to change; the element is made only if the file has none)
     while (xmlscan::nextTag(head, pos, &t)) {
         pos = t.end;
-        if (rootEnd < 0 && !t.closing) {
+        if (t.closing) {
+            if (depth == 2 && t.local == "sheetPr") inPr = false;
+            --depth;
+            continue;
+        }
+        ++depth;
+        if (depth == 1) {
             rootEnd = t.end;
             prefix = QByteArray(xmlscan::prefixOf(t.name));
             if (t.selfClosing) break;
-            continue;
-        }
-        if (t.closing) {
-            if (sheetPrStart >= 0 && closeStart < 0 && t.local == "sheetPr") closeStart = t.start;
-            continue;
-        }
-        if (t.local == "sheetPr" && sheetPrStart < 0) {
-            sheetPrStart = t.start;
-            sheetPrEnd = t.end;
-            sheetPrSelf = t.selfClosing;
-        } else if (sheetPrStart >= 0 && closeStart < 0 && !sheetPrSelf && t.local == "outlinePr" && outStart < 0) {
+        } else if (depth == 2 && t.local == "sheetPr") {
+            inPr = true;
+            firstPr = sheetPrStart < 0;
+            if (firstPr) {
+                sheetPrStart = t.start;
+                sheetPrEnd = t.end;
+                sheetPrSelf = t.selfClosing;
+            }
+        } else if (depth == 3 && inPr && t.local == "outlinePr") {
             outStart = t.start;
             outEnd = t.end;
-        } else if (sheetPrStart >= 0 && closeStart < 0 && !sheetPrSelf && t.local == "tabColor" && tabEnd < 0) {
+        } else if (depth == 3 && inPr && firstPr && !sheetPrSelf && t.local == "tabColor" && tabEnd < 0) {
             tabEnd = t.end;
+        } else if (depth == 2 && t.local == "sheetData") {
+            break;
         }
-        if (t.local == "sheetData") break;
+        if (t.selfClosing) {
+            if (depth == 2 && t.local == "sheetPr") inPr = false;
+            --depth;
+        }
     }
     if (rootEnd < 0) return head;
     if (outStart >= 0) {
@@ -402,8 +414,8 @@ QByteArray outlinePrFromChange(const QByteArray &head, bool below, bool right, c
         qsizetype vs = 0, ve = 0;
         auto says = [&](const char *name) {
             if (!xmlscan::attributeValue(tag, name, &vs, &ve)) return true;   // (not said: the default, which is yes)
-            const QByteArray v = tag.mid(vs, ve - vs).trimmed();
-            return !(v == "0" || v == "false");
+            const QString v = QString::fromUtf8(tag.mid(vs, ve - vs)).trimmed();
+            return v.isEmpty() || jp::office::parseBool(v);   // (as the reader takes it)
         };
         if (says("summaryBelow") == below && says("summaryRight") == right) return head;
         setAttr(&tag, "summaryBelow", below ? "1" : "0");

@@ -4525,8 +4525,8 @@ bool saveXlsx(const Workbook &book, const SaveChanges &requested, QByteArray *ou
             if (!moveSheetExtras(&extras, copyCtx, n.sheet, &carryWhy, cancel)) return fail(carryWhy);
             skeleton = skeletonWithExtras(skeleton, extras, sc.isProtected);
             linkRelationships = hyperlinkRelationshipsXml(package.relationships(sc.copyFromPart));
-        } else if (sc.isProtected) {
-            skeleton = skeletonWithExtras(skeleton, SheetExtras(), true);
+        } else if (sc.isProtected || skeleton.contains("<outlinePr")) {
+            skeleton = skeletonWithExtras(skeleton, SheetExtras(), sc.isProtected);
         }
         QBuffer in(&skeleton);
         in.open(QIODevice::ReadOnly);

@@ -585,6 +585,147 @@ private Q_SLOTS:
         }
     }
 
+    // A file's places are read as the reader reads them (anything it does not take as yes is no, as "off" and "banana" are, and white space and capitals do not matter), so a change to what the
+    // reader would read already is not skipped: the saved file opens as the person set it. And where the file says the element in more than one place, the saved file reads as set.
+    void theSavedDirectionReadsBackAsSetWhateverTheFileSaid()
+    {
+        const QString rows = QStringLiteral("<row r=\"1\"><c r=\"A1\"><v>1</v></c></row><row r=\"2\"><c r=\"A2\"><v>2</v></c></row>");
+        struct Case {
+            QString sheetPr;
+            bool readBelow, readRight;   // (what the file reads as)
+            bool below, right;           // (what the person sets)
+        };
+        const QString tab = QStringLiteral("<tabColor rgb=\"FFC00000\"/>");
+        const Case cases[] = {
+            {QStringLiteral("<sheetPr><outlinePr summaryBelow=\"banana\" summaryRight=\"off\"/></sheetPr>"), false, false, true, true},
+            {QStringLiteral("<sheetPr><outlinePr summaryBelow=\" ON \" summaryRight=\"FALSE\"/></sheetPr>"), true, false, false, true},
+            {QStringLiteral("<sheetPr><outlinePr summaryBelow=\"\" summaryRight=\"true\"/></sheetPr>"), true, true, false, false},
+            // the element twice in one parent: the reader takes the last
+            {QStringLiteral("<sheetPr><outlinePr summaryBelow=\"1\"/><outlinePr summaryBelow=\"0\" summaryRight=\"0\"/></sheetPr>"), false, false, true, true},
+            {QStringLiteral("<sheetPr><outlinePr summaryBelow=\"0\" summaryRight=\"0\"/><outlinePr summaryBelow=\"1\"/></sheetPr>"), true, true, false, true},
+            // the parent twice: the reader takes the last element that any of them has
+            {QStringLiteral("<sheetPr><outlinePr summaryBelow=\"0\"/></sheetPr><sheetPr><outlinePr summaryBelow=\"1\" summaryRight=\"0\"/></sheetPr>"), true, false, false, true},
+            {QStringLiteral("<sheetPr>") + tab + QStringLiteral("</sheetPr><sheetPr><outlinePr summaryRight=\"0\"/></sheetPr>"), true, false, true, true},
+            {QStringLiteral("<sheetPr><outlinePr summaryBelow=\"0\"/></sheetPr><sheetPr>") + tab + QStringLiteral("</sheetPr>"), false, true, true, false},
+            {QStringLiteral("<sheetPr/><sheetPr><outlinePr summaryBelow=\"0\"/></sheetPr>"), false, true, true, true},
+        };
+        for (const Case &c : cases) {
+            EditWindow e;
+            QVERIFY(e.open(buildXlsx({worksheet(rows, QString(), c.sheetPr)})));
+            QVERIFY(e.settle());
+            crunch::EditSession *s = e.win.w.session();
+            QVERIFY2(s->sheetFormat(0).summaryBelow == c.readBelow && s->sheetFormat(0).summaryRight == c.readRight, qPrintable(c.sheetPr));
+            QVERIFY(s->setOutlineDirection(0, c.below, c.right, QStringLiteral("Outline Settings")).ok);
+            QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
+            QVERIFY(e.win.w.save());
+            QVERIFY(savedOk(saved));
+            EditWindow again;
+            {
+                QFile written(e.path);
+                QVERIFY(written.open(QIODevice::ReadOnly));
+                QVERIFY(again.open(written.readAll()));
+            }
+            QVERIFY(again.settle());
+            QVERIFY2(again.win.w.session()->sheetFormat(0).summaryBelow == c.below && again.win.w.session()->sheetFormat(0).summaryRight == c.right, qPrintable(c.sheetPr));
+        }
+    }
+
+    // A collapsed group stays collapsed when the places change: after the save and open its rows are hidden, the collapsed mark is on the row that is now its summary, and Undo saves what was.
+    void aCollapsedGroupSurvivesAChangeOfPlacesAndASave()
+    {
+        const QString rows = QStringLiteral("<row r=\"1\"><c r=\"A1\"><v>1</v></c></row>"
+                                            "<row r=\"2\" outlineLevel=\"1\" hidden=\"1\"><c r=\"A2\"><v>2</v></c></row>"
+                                            "<row r=\"3\" outlineLevel=\"1\" hidden=\"1\"><c r=\"A3\"><v>3</v></c></row>"
+                                            "<row r=\"4\" collapsed=\"1\"><c r=\"A4\"><v>6</v></c></row>");
+        auto rowTag = [](const QByteArray &xml, int n) {
+            const qsizetype at = xml.indexOf("<row r=\"" + QByteArray::number(n) + "\"");
+            return at < 0 ? QByteArray() : xml.mid(at, xml.indexOf('>', at) - at);
+        };
+        auto save = [](EditWindow &e) {
+            QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
+            return e.win.w.save() && savedOk(saved);
+        };
+        auto reopen = [](EditWindow &e, EditWindow &again) {
+            QFile written(e.path);
+            return written.open(QIODevice::ReadOnly) && again.open(written.readAll()) && again.settle();
+        };
+        auto collapsedAt = [](crunch::EditSession *s, qint64 summary) {
+            const crunch::Outline rows = s->outlineOf(0, false);
+            const auto groups = rows.groups(0, 100);
+            return groups.size() == 1 && groups[0].collapsed && qint64(groups[0].summary) == summary && rows.hiddenOf(1) && rows.hiddenOf(2) && !rows.hiddenOf(0) && !rows.hiddenOf(3);
+        };
+        EditWindow e;
+        QVERIFY(e.open(buildXlsx({worksheet(rows)})));
+        QVERIFY(e.settle());
+        crunch::EditSession *s = e.win.w.session();
+        QVERIFY(collapsedAt(s, 3));
+        QVERIFY(s->setOutlineDirection(0, false, true, QStringLiteral("Outline Settings")).ok);
+        QVERIFY(collapsedAt(s, 0));
+        QVERIFY(save(e));
+        {
+            const QByteArray xml = savedPart(e.path, QStringLiteral("xl/worksheets/sheet1.xml"));
+            QVERIFY2(rowTag(xml, 1).contains("collapsed=\"1\""), rowTag(xml, 1).constData());
+            QVERIFY2(!rowTag(xml, 4).contains("collapsed"), rowTag(xml, 4).constData());
+            QVERIFY2(rowTag(xml, 2).contains("hidden=\"1\"") && rowTag(xml, 3).contains("hidden=\"1\""), xml.constData());
+            EditWindow again;
+            QVERIFY(reopen(e, again));
+            QVERIFY(collapsedAt(again.win.w.session(), 0));
+            QVERIFY(!again.win.w.session()->sheetFormat(0).summaryBelow);
+        }
+        e.win.w.undoStack()->undo();
+        QVERIFY(e.settle());
+        QVERIFY(collapsedAt(s, 3));
+        QVERIFY(save(e));
+        {
+            const QByteArray xml = savedPart(e.path, QStringLiteral("xl/worksheets/sheet1.xml"));
+            QVERIFY2(rowTag(xml, 4).contains("collapsed=\"1\""), rowTag(xml, 4).constData());
+            QVERIFY2(!rowTag(xml, 1).contains("collapsed"), rowTag(xml, 1).constData());
+            EditWindow again;
+            QVERIFY(reopen(e, again));
+            QVERIFY(collapsedAt(again.win.w.session(), 3));
+        }
+    }
+
+    // A copy of a sheet whose places were changed keeps the other attributes of the file's element; and places that are the default, set and then undone, make no element in a copy or a new sheet.
+    void aCopiedSheetKeepsTheOutlineElementsOtherAttributes()
+    {
+        const QString rows = QStringLiteral("<row r=\"1\"><c r=\"A1\"><v>1</v></c></row>");
+        const QString full = QStringLiteral("<sheetPr><outlinePr summaryBelow=\"0\" applyStyles=\"1\" showOutlineSymbols=\"0\"/></sheetPr>");
+        auto head = [](const QByteArray &xml) { return xml.left(xml.indexOf("<sheetData")); };
+        auto save = [](EditWindow &e) {
+            QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
+            return e.win.w.save() && savedOk(saved);
+        };
+        {
+            EditWindow e;
+            QVERIFY(e.open(buildXlsx({worksheet(rows, QString(), full)})));
+            QVERIFY(e.settle());
+            int made = -1;
+            QVERIFY(e.win.w.session()->copySheet(0, -1, QStringLiteral("Copy"), &made).ok);
+            QVERIFY(e.win.w.session()->setOutlineDirection(made, true, true, QStringLiteral("Outline Settings")).ok);
+            QVERIFY(save(e));
+            const QByteArray copy = head(savedPart(e.path, QStringLiteral("xl/worksheets/sheet2.xml")));
+            QCOMPARE(int(copy.count("outlinePr")), 1);
+            QVERIFY2(copy.contains("summaryBelow=\"1\"") && copy.contains("applyStyles=\"1\"") && copy.contains("showOutlineSymbols=\"0\""), copy.constData());
+        }
+        for (const bool copied : {true, false}) {
+            EditWindow e;
+            QVERIFY(e.open(buildXlsx({worksheet(rows)})));
+            QVERIFY(e.settle());
+            int made = -1;
+            if (copied) QVERIFY(e.win.w.session()->copySheet(0, -1, QStringLiteral("Copy"), &made).ok);
+            else QVERIFY(e.win.w.session()->insertSheet(-1, QStringLiteral("New"), &made).ok);
+            QVERIFY(made >= 0);
+            QVERIFY(e.win.w.session()->setOutlineDirection(made, false, true, QStringLiteral("Outline Settings")).ok);
+            pressUndo(&e.win.w);
+            QVERIFY(e.settle());
+            QVERIFY(e.win.w.session()->sheetFormat(made).summaryBelow);
+            QVERIFY(save(e));
+            const QByteArray sheet = head(savedPart(e.path, QStringLiteral("xl/worksheets/sheet2.xml")));
+            QVERIFY2(!sheet.isEmpty() && !sheet.contains("outlinePr"), sheet.constData());
+        }
+    }
+
     // A scenario set to prevent changes is kept as it is while the sheet is protected; once the sheet is unprotected it can be changed again.
     void aLockedScenarioIsKeptWhileTheSheetIsProtected()
     {

@@ -225,8 +225,12 @@ QByteArray skeletonWithExtras(const QByteArray &skeleton, const SheetExtras &x, 
     }
     // sheetPr: the properties after the tab color
     QByteArray carried = x.sheetPr;
-    if (out.contains("outlinePr")) {
-        // (the skeleton says where the summary lines are, as a person set it: the file's element would say it twice)
+    {
+        // (the skeleton says where the summary lines are, if a person set them: the file's element, with the attributes of its own, is given those places, and says it once; places that are
+        // the default, with no element in the file, are not written at all)
+        const qsizetype ours = out.indexOf("<outlinePr");
+        const qsizetype oursEnd = ours < 0 ? -1 : xmlscan::tagEnd(out, ours);
+        QByteArray theirs;
         const qsizetype name = carried.indexOf("outlinePr");
         const qsizetype open = name < 0 ? -1 : carried.lastIndexOf('<', name);
         if (open >= 0) {
@@ -235,7 +239,36 @@ QByteArray skeletonWithExtras(const QByteArray &skeleton, const SheetExtras &x, 
                 const qsizetype closeAt = carried.indexOf("outlinePr>", end);
                 end = closeAt < 0 ? end : closeAt + 10;
             }
-            if (end > 0) carried.remove(open, end - open);
+            if (end > 0) {
+                theirs = carried.mid(open, end - open);
+                if (oursEnd > 0) carried.remove(open, end - open);
+            }
+        }
+        if (oursEnd > 0) {
+            const QByteArray ourTag = out.mid(ours, oursEnd - ours);
+            QByteArray merged = ourTag;
+            if (!theirs.isEmpty()) {
+                merged = theirs;
+                const qsizetype first = merged.indexOf('>');
+                QByteArray start = first < 0 ? merged : merged.left(first + 1);
+                for (const char *attribute : {"summaryBelow", "summaryRight"}) {
+                    qsizetype vs = 0, ve = 0, os = 0, oe = 0;
+                    if (!xmlscan::attributeValue(ourTag, attribute, &os, &oe)) continue;
+                    const QByteArray value = ourTag.mid(os, oe - os);
+                    if (xmlscan::attributeValue(start, attribute, &vs, &ve)) {
+                        start.replace(vs, ve - vs, value);
+                    } else {
+                        qsizetype at = start.size() - 1;
+                        if (at > 0 && start[at - 1] == '/') --at;
+                        start.insert(at, QByteArray(" ") + attribute + "=\"" + value + "\"");
+                    }
+                }
+                merged = first < 0 ? start : start + merged.mid(first + 1);
+            } else if (ourTag.count("=\"1\"") == 2 && !ourTag.contains("=\"0\"")) {
+                merged.clear();   // (both places are the default, and the file had no element)
+            }
+            out.replace(ours, oursEnd - ours, merged);
+            if (merged.isEmpty()) out.replace("<sheetPr></sheetPr>", "");
         }
     }
     if (!carried.isEmpty()) {
