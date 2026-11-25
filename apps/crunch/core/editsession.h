@@ -605,7 +605,8 @@ public:
     // table (DataConnection::text). Cells that hold something are replaced only when `replace` says so (cellsHoldData tells the window to ask). refreshDataTable puts the rows of a table read again in the
     // table, which grows or shrinks to them; the columns must be the table's. `made` is the table's place.
     Outcome placeDataTable(int sheet, quint32 row, quint32 col, const jp::office::sheet::DataRows &data, const QVector<char> &kinds, const QString &source, bool replace, int *made = nullptr);
-    Outcome refreshDataTable(int table, const jp::office::sheet::DataRows &data, const QVector<char> &kinds);
+    // `fileColumns` are the names the file's columns had when the table was made (empty for an older link); the columns the person added beside them are kept, and the formulas of added columns are filled into new rows. `onlyCheck` says whether it would be done, and changes nothing.
+    Outcome refreshDataTable(int table, const jp::office::sheet::DataRows &data, const QVector<char> &kinds, const QStringList &fileColumns = QStringList(), bool onlyCheck = false);
     Outcome removeDataLinks(int *removed = nullptr);   // the link to the file of every table that has one: the tables stay
     int dataLinkCount() const;
     bool cellsHoldData(int sheet, const jp::office::sheet::CellRange &range) const;

@@ -27,7 +27,9 @@
 #include <QDialogButtonBox>
 #include <QElapsedTimer>
 #include <QLineEdit>
+#include <QProgressDialog>
 #include <QTimer>
+#include <thread>
 #include <QFile>
 #include <QJsonArray>
 #include <QJsonDocument>
@@ -2250,7 +2252,8 @@ private Q_SLOTS:
         e.win.w.act(QStringLiteral("data.refresh"))->trigger();
         QVERIFY(e.settle());
         QCOMPARE(e.win.told.size(), 1);
-        QVERIFY(e.win.told.last().contains(QLatin1String("not the table's")));
+        QVERIFY(e.win.told.last().contains(QLatin1String("have changed")));
+        QVERIFY(e.win.told.last().contains(QLatin1String("The file no longer has: name, n, d, ok, code, f.")));
         QCOMPARE(e.win.w.undoStack()->count(), steps);
         QCOMPARE(valueOf(e, QStringLiteral("C3")), QStringLiteral("s:Zed"));
         e.win.told.clear();
@@ -2461,6 +2464,233 @@ private Q_SLOTS:
         QVERIFY(e.settle());
         QCOMPARE(item.count(), 0 + 1);
     }
+    // Cancel while the file is read changes nothing and leaves no step of Undo, for a load, a Refresh, and a Refresh All. The worker is held (a counted wait for the flag Cancel sets) until the test presses Cancel.
+    void cancelWhileTheFileIsReadChangesNothing()
+    {
+        EditWindow e;
+        QVERIFY(e.open(buildXlsx({worksheet(row(9, text(QStringLiteral("A9"), QStringLiteral("keep"))))})));
+        crunch::EditSession *s = e.win.w.session();
+        s->setLocale(kUs);
+        QVERIFY(e.settle());
+        const QString file = e.folder.write(QStringLiteral("rows.json"), "[{\"a\":1},{\"a\":2}]");
+        e.win.w.setGetDataAsker([&](jp::GetDataRequest *r) {
+            r->conn.kind = QStringLiteral("json");
+            r->conn.path = file;
+            r->place = QStringLiteral("C2");
+            return true;
+        });
+        int held = 0, released = 0;
+        bool hold = true;
+        e.win.w.setGetDataHold([&](const std::atomic<bool> &cancel) {
+            if (!hold) return;
+            ++held;
+            for (int i = 0; i < 100000000 && !cancel.load(); ++i) std::this_thread::yield();
+            if (cancel.load()) ++released;
+        });
+        auto pressCancel = [&] {
+            QTimer::singleShot(0, &e.win.w, [&] {
+                if (QProgressDialog *d = e.win.w.findChild<QProgressDialog *>(QStringLiteral("getDataProgress"))) Q_EMIT d->canceled();
+            });
+        };
+        // a load
+        pressCancel();
+        e.win.w.act(QStringLiteral("data.fromFile"))->trigger();
+        QVERIFY(e.settle());
+        QCOMPARE(held, 1);
+        QCOMPARE(released, 1);   // (the worker saw the flag)
+        QCOMPARE(s->workbook()->tables().size(), 0);
+        QCOMPARE(e.win.w.undoStack()->count(), 0);
+        QCOMPARE(e.win.told.size(), 0);
+        QCOMPARE(valueOf(e, QStringLiteral("C2")), QStringLiteral("-"));
+        // a load that is not cancelled, then a Refresh that is
+        hold = false;
+        e.win.w.act(QStringLiteral("data.fromFile"))->trigger();
+        QVERIFY(e.settle());
+        QCOMPARE(s->workbook()->tables().size(), 1);
+        const int steps = e.win.w.undoStack()->count();
+        e.folder.write(QStringLiteral("rows.json"), "[{\"a\":7},{\"a\":8},{\"a\":9}]");
+        hold = true;
+        e.select(QStringLiteral("C3"));
+        pressCancel();
+        e.win.w.act(QStringLiteral("data.refresh"))->trigger();
+        QVERIFY(e.settle());
+        QCOMPARE(held, 2);
+        QCOMPARE(released, 2);
+        QCOMPARE(e.win.w.undoStack()->count(), steps);
+        QCOMPARE(int(s->workbook()->tables().first().row2), 3);
+        QCOMPARE(valueOf(e, QStringLiteral("C3")), QStringLiteral("n:1"));
+        QCOMPARE(e.win.told.size(), 1);
+        QCOMPARE(e.win.told.last(), QStringLiteral("Refresh: The read was stopped. Nothing was changed."));
+        // and a Refresh All
+        e.win.told.clear();
+        pressCancel();
+        e.win.w.act(QStringLiteral("data.refreshAll"))->trigger();
+        QVERIFY(e.settle());
+        QCOMPARE(held, 3);
+        QCOMPARE(e.win.w.undoStack()->count(), steps);
+        QCOMPARE(valueOf(e, QStringLiteral("C3")), QStringLiteral("n:1"));
+        QCOMPARE(valueOf(e, QStringLiteral("C5")), QStringLiteral("-"));
+        // not held and not cancelled: the same Refresh All reads the file
+        hold = false;
+        e.win.told.clear();
+        e.win.w.act(QStringLiteral("data.refreshAll"))->trigger();
+        QVERIFY(e.settle());
+        QCOMPARE(valueOf(e, QStringLiteral("C5")), QStringLiteral("n:9"));
+        QCOMPARE(e.win.w.undoStack()->count(), steps + 1);
+    }
+
+    // Refresh All over three tables, one of whose files is gone: the other two are read, the missing one is said, and the two are one step of Undo.
+    void refreshAllReadsEveryTableAndSaysWhichFileIsGone()
+    {
+        EditWindow e;
+        QVERIFY(e.open(buildXlsx({worksheet(row(20, text(QStringLiteral("A20"), QStringLiteral("keep"))))})));
+        crunch::EditSession *s = e.win.w.session();
+        s->setLocale(kUs);
+        QVERIFY(e.settle());
+        const char *places[] = {"A1", "D1", "G1"};
+        QString files[3];
+        QString place;
+        QString current;
+        e.win.w.setGetDataAsker([&](jp::GetDataRequest *r) {
+            r->conn.kind = QStringLiteral("json");
+            r->conn.path = current;
+            r->place = place;
+            return true;
+        });
+        for (int i = 0; i < 3; ++i) {
+            files[i] = e.folder.write(QStringLiteral("t%1.json").arg(i), "[{\"v\":1},{\"v\":2}]");
+            current = files[i];
+            place = QString::fromLatin1(places[i]);
+            e.win.w.act(QStringLiteral("data.fromFile"))->trigger();
+            QVERIFY(e.settle());
+        }
+        QCOMPARE(s->workbook()->tables().size(), 3);
+        const QString second = s->workbook()->tables()[1].name;
+        QVERIFY(QFile::remove(files[1]));
+        e.folder.write(QStringLiteral("t0.json"), "[{\"v\":5},{\"v\":6},{\"v\":7}]");
+        e.folder.write(QStringLiteral("t2.json"), "[{\"v\":8},{\"v\":9},{\"v\":10},{\"v\":11}]");
+        const int steps = e.win.w.undoStack()->count();
+        e.win.told.clear();
+        e.win.w.act(QStringLiteral("data.refreshAll"))->trigger();
+        QVERIFY(e.settle());
+        QCOMPARE(int(s->workbook()->tables()[0].row2), 3);
+        QCOMPARE(int(s->workbook()->tables()[1].row2), 2);
+        QCOMPARE(int(s->workbook()->tables()[2].row2), 4);
+        QCOMPARE(valueOf(e, QStringLiteral("A4")), QStringLiteral("n:7"));
+        QCOMPARE(valueOf(e, QStringLiteral("G5")), QStringLiteral("n:11"));
+        QCOMPARE(valueOf(e, QStringLiteral("D3")), QStringLiteral("n:2"));   // (the missing one is as it was)
+        QCOMPARE(e.win.told.size(), 1);
+        QVERIFY(e.win.told.last().contains(second) && e.win.told.last().contains(QLatin1String("not there")));
+        QCOMPARE(e.win.w.undoStack()->count(), steps + 1);   // one step for both
+        pressUndo(&e.win.w);
+        QVERIFY(e.settle());
+        QCOMPARE(int(s->workbook()->tables()[0].row2), 2);
+        QCOMPARE(int(s->workbook()->tables()[2].row2), 2);
+        QCOMPARE(valueOf(e, QStringLiteral("A4")), QStringLiteral("-"));
+        QCOMPARE(e.win.w.undoStack()->count(), steps + 1);
+        // when none can be read nothing is put on the stack
+        QVERIFY(QFile::remove(files[0]));
+        QVERIFY(QFile::remove(files[2]));
+        e.win.told.clear();
+        e.win.w.act(QStringLiteral("data.refreshAll"))->trigger();
+        QVERIFY(e.settle());
+        QCOMPARE(e.win.told.size(), 1);
+        QCOMPARE(e.win.w.undoStack()->count(), steps + 1);
+    }
+
+    // A column the person added beside the table stays through a Refresh with more rows and with fewer; a formula in it is filled into the new rows. A change in the file's own columns refuses, and says which.
+    void aColumnAddedBesideTheTableSurvivesARefresh()
+    {
+        EditWindow e;
+        QVERIFY(e.open(buildXlsx({worksheet(row(20, text(QStringLiteral("A20"), QStringLiteral("keep"))))})));
+        crunch::EditSession *s = e.win.w.session();
+        s->setLocale(kUs);
+        QVERIFY(e.settle());
+        const QString file = e.folder.write(QStringLiteral("r.json"), "[{\"a\":1,\"b\":\"x\"},{\"a\":2,\"b\":\"y\"}]");
+        e.win.w.setGetDataAsker([&](jp::GetDataRequest *r) {
+            r->conn.kind = QStringLiteral("json");
+            r->conn.path = file;
+            r->place = QStringLiteral("A1");
+            return true;
+        });
+        e.win.w.act(QStringLiteral("data.fromFile"))->trigger();
+        QVERIFY(e.settle());
+        QVERIFY(s->type(0, 1, 2, QStringLiteral("=[@a]*10")).ok);   // (a calculated column beside the table)
+        QVERIFY(s->type(0, 0, 3, QStringLiteral("note")).ok);       // (and a column of notes)
+        QVERIFY(s->type(0, 2, 3, QStringLiteral("mine")).ok);
+        QVERIFY(e.settle());
+        QCOMPARE(s->workbook()->tables().first().columns.size(), 4);
+        QCOMPARE(valueOf(e, QStringLiteral("C3")), QStringLiteral("n:20"));
+        // more rows
+        e.folder.write(QStringLiteral("r.json"), "[{\"a\":1,\"b\":\"x\"},{\"a\":2,\"b\":\"y\"},{\"a\":3,\"b\":\"z\"}]");
+        e.select(QStringLiteral("A2"));
+        e.win.w.act(QStringLiteral("data.refresh"))->trigger();
+        QVERIFY(e.settle());
+        QCOMPARE(e.win.told.size(), 0);
+        QCOMPARE(int(s->workbook()->tables().first().row2), 3);
+        QCOMPARE(s->workbook()->tables().first().columns.size(), 4);
+        QCOMPARE(valueOf(e, QStringLiteral("B4")), QStringLiteral("s:z"));
+        QCOMPARE(valueOf(e, QStringLiteral("C3")), QStringLiteral("n:20"));
+        QCOMPARE(valueOf(e, QStringLiteral("C4")), QStringLiteral("n:30"));   // (the formula, filled into the new row)
+        QCOMPARE(valueOf(e, QStringLiteral("D3")), QStringLiteral("s:mine"));   // (what was typed stays)
+        // fewer rows
+        e.folder.write(QStringLiteral("r.json"), "[{\"a\":4,\"b\":\"w\"}]");
+        e.win.w.act(QStringLiteral("data.refresh"))->trigger();
+        QVERIFY(e.settle());
+        QCOMPARE(e.win.told.size(), 0);
+        QCOMPARE(int(s->workbook()->tables().first().row2), 1);
+        QCOMPARE(valueOf(e, QStringLiteral("A2")), QStringLiteral("n:4"));
+        QCOMPARE(valueOf(e, QStringLiteral("C2")), QStringLiteral("n:40"));
+        QCOMPARE(valueOf(e, QStringLiteral("C3")), QStringLiteral("-"));
+        QCOMPARE(valueOf(e, QStringLiteral("D3")), QStringLiteral("-"));
+        // the file's own columns changed: refused, the missing and the new ones named, nothing changes
+        const int steps = e.win.w.undoStack()->count();
+        e.folder.write(QStringLiteral("r.json"), "[{\"a\":4,\"z\":\"w\"},{\"a\":5,\"z\":\"q\"}]");
+        e.win.w.act(QStringLiteral("data.refresh"))->trigger();
+        QVERIFY(e.settle());
+        QCOMPARE(e.win.told.size(), 1);
+        QVERIFY(e.win.told.last().contains(QLatin1String("no longer has: b")));
+        QVERIFY(e.win.told.last().contains(QLatin1String("now also has: z")));
+        QCOMPARE(e.win.w.undoStack()->count(), steps);
+        QCOMPARE(int(s->workbook()->tables().first().row2), 1);
+        // the person's own column is not the file's: a column of the file with its name must come from the file
+        e.win.told.clear();
+        e.folder.write(QStringLiteral("r.json"), "[{\"a\":4,\"b\":\"w\",\"note\":\"n\"}]");
+        e.win.w.act(QStringLiteral("data.refresh"))->trigger();
+        QVERIFY(e.settle());
+        QCOMPARE(e.win.told.size(), 1);
+        QVERIFY(e.win.told.last().contains(QLatin1String("now also has: note")));
+        // the link and the remembered columns survive a save and an open
+        e.folder.write(QStringLiteral("r.json"), "[{\"a\":6,\"b\":\"s\"},{\"a\":7,\"b\":\"t\"}]");
+        QVERIFY(saveNow(e));
+        EditWindow f;
+        const QString copy = e.copyOfFile();
+        QVERIFY(f.win.open(copy));
+        QVERIFY(f.settle());
+        f.select(QStringLiteral("A2"));
+        f.win.w.act(QStringLiteral("data.refresh"))->trigger();
+        QVERIFY(f.settle());
+        QCOMPARE(f.win.told.size(), 0);
+        QCOMPARE(int(f.win.w.session()->workbook()->tables().first().row2), 2);
+        QCOMPARE(f.win.w.session()->workbook()->tables().first().columns.size(), 4);
+    }
+
+    // Refresh All stays one click on the Data tab, beside Refresh (the pivot tables are refreshed by it too).
+    void theDataTabHasRefreshAllAsOneClick()
+    {
+        QFile file(QStringLiteral(JC_SOURCE_DIR "/apps/crunch/resources/ribbon.json"));
+        QVERIFY(file.open(QIODevice::ReadOnly));
+        const QJsonObject root = QJsonDocument::fromJson(file.readAll()).object();
+        QStringList large;
+        for (const QJsonValue &tab : root.value(QStringLiteral("tabs")).toArray()) {
+            if (tab.toObject().value(QStringLiteral("name")).toString() != QLatin1String("Data")) continue;
+            for (const QJsonValue &group : tab.toObject().value(QStringLiteral("groups")).toArray())
+                if (group.toObject().value(QStringLiteral("name")).toString() == QLatin1String("Refresh"))
+                    for (const QJsonValue &item : group.toObject().value(QStringLiteral("items")).toArray()) large << item.toObject().value(QStringLiteral("large")).toString();
+        }
+        QCOMPARE(large, (QStringList{QStringLiteral("data.refreshAll"), QStringLiteral("data.refresh")}));
+    }
+
     // Pictures of the Get Data window for the person who looks at it (skipped unless the folder is named).
     void getDataWindowPictures()
     {

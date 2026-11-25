@@ -62,7 +62,10 @@ bool CrunchWindow::loadGetData(const GetDataRequest &req)
     GetDataFetch result;
     std::atomic<bool> cancel{false};
     QPointer<CrunchWindow> self(this);
-    const bool finished = runGetDataWork(this, tr("Reading the file…"), &cancel, [&] { result = fetchGetData(req.conn, 0, [&cancel] { return cancel.load(); }); });
+    const bool finished = runGetDataWork(this, tr("Reading the file…"), &cancel, [&] {
+        if (m_getDataHold) m_getDataHold(cancel);
+        result = fetchGetData(req.conn, 0, [&cancel] { return cancel.load(); });
+    });
     if (!self) return false;
     if (!finished) {
         setStatus(tr("The read was stopped. Nothing was changed."));
@@ -90,6 +93,7 @@ bool CrunchWindow::loadGetData(const GetDataRequest &req)
         replace = true;
     }
     DataConnection conn = req.conn;
+    conn.columns = m_session->dataTableNames(result.rows.header);
     const auto outcome = m_session->placeDataTable(m_sheet, row, col, result.rows, result.kinds, conn.text(), replace, nullptr);
     if (!outcome.ok) {
         notice(title, outcome.problem + QLatin1Char(' ') + tr("Nothing was changed."));
@@ -99,7 +103,7 @@ bool CrunchWindow::loadGetData(const GetDataRequest &req)
     return true;
 }
 
-// Refresh: the table at the cursor, read again from its file. Refresh All: every table that came from a file, then the pivot tables. Each table is one step of Undo.
+// Refresh: the table at the cursor, read again from its file. Refresh All: every table that came from a file, then the pivot tables. Refresh is one step of Undo; so are all the tables of one Refresh All.
 void CrunchWindow::refreshDataCommand(bool all)
 {
     if (m_edit.active && !commitEdit(CellEditor::Way::Stay)) return;
@@ -120,6 +124,8 @@ void CrunchWindow::refreshDataCommand(bool all)
     }
     QStringList problems;
     int done = 0;
+    bool grouped = false;
+    QStringList notes;
     QPointer<CrunchWindow> self(this);
     for (int t : tables) {
         if (!self || !m_session || t >= m_session->workbook()->tables().size()) break;
@@ -131,27 +137,42 @@ void CrunchWindow::refreshDataCommand(bool all)
         }
         GetDataFetch result;
         std::atomic<bool> cancel{false};
-        const bool finished = runGetDataWork(this, tr("Reading %1…").arg(QFileInfo(conn.path).fileName()), &cancel, [&] { result = fetchGetData(conn, 0, [&cancel] { return cancel.load(); }); });
+        const bool finished = runGetDataWork(this, tr("Reading %1…").arg(QFileInfo(conn.path).fileName()), &cancel, [&] {
+            if (m_getDataHold) m_getDataHold(cancel);
+            result = fetchGetData(conn, 0, [&cancel] { return cancel.load(); });
+        });
         if (!self) return;
         if (!finished) {
-            problems << tr("The read was stopped. The tables after %1 were not read.").arg(table.name);
+            problems << (tables.size() == 1 ? tr("The read was stopped. Nothing was changed.") : tr("The read was stopped. The tables after %1 were not read.").arg(table.name));
             break;
         }
         if (!result.ok) {
             problems << tr("%1: %2 Nothing was changed.").arg(table.name, result.why);
             continue;
         }
-        const auto outcome = m_session->refreshDataTable(t, result.rows, result.kinds);
+        const auto check = m_session->refreshDataTable(t, result.rows, result.kinds, conn.columns, true);
+        if (!check.ok) {
+            problems << tr("%1: %2").arg(table.name, check.problem);
+            continue;
+        }
+        // (all the tables of one Refresh All are one step of Undo: it is begun when the first one is to be put in)
+        if (all && !grouped) {
+            m_session->undoStack()->beginMacro(tr("Refresh All"));
+            grouped = true;
+        }
+        const auto outcome = m_session->refreshDataTable(t, result.rows, result.kinds, conn.columns);
         if (!outcome.ok) {
             problems << tr("%1: %2").arg(table.name, outcome.problem);
             continue;
         }
         ++done;
+        notes << result.rows.notes;
         m_session->finishFills();
     }
     if (all && self && m_session && m_session->workbook()->pivots().tableCount() > 0) act("pivot.refreshAll")->trigger();
+    if (grouped && self && m_session) m_session->undoStack()->endMacro();
     if (!problems.isEmpty()) notice(title, problems.join(QLatin1Char('\n')));
-    else if (self) setStatus(done > 0 ? tr("The data was read again from its files.") : tr("Nothing needed to be read again."));
+    else if (self) setStatus((done > 0 ? tr("The data was read again from its files.") : tr("Nothing needed to be read again.")) + (notes.isEmpty() ? QString() : QLatin1Char(' ') + notes.join(QLatin1Char(' '))));
 }
 
 }   // namespace jp

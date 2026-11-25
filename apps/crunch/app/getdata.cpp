@@ -290,7 +290,7 @@ void GetDataDialog::refreshPreview()
     for (int r = 0; r < result.rows.rows.size(); ++r)
         for (int c = 0; c < result.rows.header.size(); ++c) m_preview->setItem(r, c, new QTableWidgetItem(result.rows.rows[r].value(c).text));
     m_preview->horizontalHeader()->setSectionResizeMode(QHeaderView::ResizeToContents);
-    QString text = result.rows.rows.size() >= 20 ? tr("The first 20 rows are shown.") : tr("All the rows are shown.");
+    QString text = result.rows.rows.size() >= 20 ? tr("The first 20 rows are shown, and the type beside each name is judged from them. The whole file is checked when it is loaded, so a column may end up as text.") : tr("All the rows are shown.");
     if (!result.rows.notes.isEmpty()) text += QLatin1Char(' ') + result.rows.notes.join(QLatin1Char(' '));
     m_message->setText(text);
     m_load->setEnabled(true);

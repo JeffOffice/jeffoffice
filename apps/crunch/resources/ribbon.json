@@ -442,7 +442,8 @@
           "name": "Refresh",
           "keytip": "ZR",
           "items": [
-            {"large": "data.refresh", "keytip": "RF", "split": true, "menu": ["data.refresh", "data.refreshAll"]}
+            {"large": "data.refreshAll", "keytip": "RF"},
+            {"large": "data.refresh", "keytip": "RT"}
           ]
         }
       ]

@@ -433,6 +433,8 @@ public:
     // The data entry form is opened (tests drive the dialog in place of exec()); true when it was shown.
     void setDataFormAsker(std::function<void(DataFormDialog *)> asker) { m_dataFormAsker = std::move(asker); }
     void setGetDataAsker(std::function<bool(GetDataRequest *)> asker) { m_getDataAsker = std::move(asker); }
+    // test hook: runs on the worker thread before a file is read, with the flag Cancel sets (a test holds the worker there until it has pressed Cancel)
+    void setGetDataHold(std::function<void(const std::atomic<bool> &)> hold) { m_getDataHold = std::move(hold); }
     void setGetDataReplaceAsker(std::function<bool(int cells)> asker) { m_getDataReplaceAsker = std::move(asker); }
     void setRemoveDuplicatesAsker(std::function<bool(const QStringList &, QList<int> *)> asker) { m_removeDuplicatesAsker = std::move(asker); }
     void setPivotMoveAsker(std::function<bool(QString *)> asker) { m_pivotMoveAsker = std::move(asker); }
@@ -1200,6 +1202,7 @@ private:
     std::function<void(DataFormDialog *)> m_dataFormAsker;
     std::function<bool(GetDataRequest *)> m_getDataAsker;
     std::function<bool(int)> m_getDataReplaceAsker;
+    std::function<void(const std::atomic<bool> &)> m_getDataHold;
     std::function<bool(bool *)> m_pivotOptionsAsker;
     std::function<bool(QString *)> m_pivotFileAsker;
     std::function<bool(QString *)> m_pivotSourceAsker;         // test hook: the cells the data is in

@@ -138,7 +138,7 @@ EditSession::Outcome EditSession::placeDataTable(int sheet, quint32 row, quint32
     return out;
 }
 
-EditSession::Outcome EditSession::refreshDataTable(int table, const DataRows &data, const QVector<char> &kinds)
+EditSession::Outcome EditSession::refreshDataTable(int table, const DataRows &data, const QVector<char> &kinds, const QStringList &fileColumns, bool onlyCheck)
 {
     Outcome out;
     auto refuse = [&](const QString &why) {
@@ -156,9 +156,42 @@ EditSession::Outcome EditSession::refreshDataTable(int table, const DataRows &da
     if (was.dataSource.isEmpty()) return refuse(tr("This table was not made by Get Data, so it has no file to read again."));
     if (was.headerRows != 1 || was.totalsRows != 0) return refuse(tr("The table has a row of totals or no row of names. Take the row of totals off first, and refresh again."));
     const QStringList names = uniqueNames(data.header);
-    if (names.size() != was.columns.size()) return refuse(tr("The columns in the file are not the table's (the file has %1 and the table has %2), so nothing was changed.").arg(names.size()).arg(was.columns.size()));
-    for (int i = 0; i < names.size(); ++i)
-        if (names[i].compare(was.columns[i], Qt::CaseInsensitive) != 0) return refuse(tr("The columns in the file are not the table's, so nothing was changed. The first one that differs is \"%1\".").arg(names[i]));
+    // Which column of the table each column of the file goes to. The columns the person added beside the file's are left as they are: only a change in the file's own columns refuses.
+    QVector<int> colOf(names.size(), -1);
+    auto tableColumn = [&](const QString &name) {
+        for (int c = 0; c < was.columns.size(); ++c)
+            if (was.columns[c].compare(name, Qt::CaseInsensitive) == 0) return c;
+        return -1;
+    };
+    if (!fileColumns.isEmpty()) {
+        QStringList missing, added;
+        auto has = [](const QStringList &list, const QString &name) {
+            for (const QString &n : list)
+                if (n.compare(name, Qt::CaseInsensitive) == 0) return true;
+            return false;
+        };
+        for (const QString &n : fileColumns)
+            if (!has(names, n)) missing << n;
+        for (const QString &n : names)
+            if (!has(fileColumns, n)) added << n;
+        if (!missing.isEmpty() || !added.isEmpty()) {
+            QString say = tr("The columns in the file have changed, so nothing was changed.");
+            if (!missing.isEmpty()) say += QLatin1Char(' ') + tr("The file no longer has: %1.").arg(missing.join(QStringLiteral(", ")));
+            if (!added.isEmpty()) say += QLatin1Char(' ') + tr("The file now also has: %1.").arg(added.join(QStringLiteral(", ")));
+            return refuse(say + QLatin1Char(' ') + tr("Make the table again with Get Data, or put the columns back in the file."));
+        }
+        for (int i = 0; i < names.size(); ++i) {
+            colOf[i] = tableColumn(names[i]);
+            if (colOf[i] < 0) return refuse(tr("The table no longer has the column \"%1\" that came from the file, so nothing was changed.").arg(names[i]));
+        }
+    } else {
+        // (a link made before the file's columns were kept: the file's columns must be the table's first ones, in order)
+        if (names.size() > was.columns.size()) return refuse(tr("The columns in the file are not the table's (the file has %1 and the table has %2), so nothing was changed.").arg(names.size()).arg(was.columns.size()));
+        for (int i = 0; i < names.size(); ++i) {
+            if (names[i].compare(was.columns[i], Qt::CaseInsensitive) != 0) return refuse(tr("The columns in the file are not the table's, so nothing was changed. The first one that differs is \"%1\".").arg(names[i]));
+            colOf[i] = i;
+        }
+    }
     if (data.rows.isEmpty()) return refuse(tr("The file now has no rows, so nothing was changed."));
     const qint64 newLast = qint64(was.row1) + data.rows.size();
     if (newLast >= 1048576) return refuse(tr("The rows would go past the end of the sheet, so nothing was changed."));
@@ -176,15 +209,32 @@ EditSession::Outcome EditSession::refreshDataTable(int table, const DataRows &da
         for (const CellRange &m : m_book->calc->mergesOf(was.sheet))
             if (!(m.row2 < grown.row1 || m.row1 > grown.row2 || m.col2 < grown.col1 || m.col1 > grown.col2)) return refuse(tr("Merged cells are under the table, so nothing was changed."));
     }
+    if (onlyCheck) return out;
     Step step;
     for (int i = 0; i < data.rows.size(); ++i)
-        for (int c = 0; c < names.size(); ++c) step.cells.push_back(dataCell(was.sheet, quint32(was.row1 + 1 + i), quint32(was.col1 + c), data.rows[i].value(c), kinds.value(c, 't')));
+        for (int c = 0; c < names.size(); ++c) step.cells.push_back(dataCell(was.sheet, quint32(was.row1 + 1 + i), quint32(was.col1 + colOf[c]), data.rows[i].value(c), kinds.value(c, 't')));
     // (rows the table had and the file has no more of)
     for (quint32 rr = now.row2 + 1; rr <= was.row2; ++rr)
         for (quint32 cc = was.col1; cc <= was.col2; ++cc) {
             const Calculation::CellContent before = m_book->calc->content(was.sheet, rr, cc);
             if (before.exists) step.cells.push_back(clearedCell(was.sheet, rr, cc));
         }
+    // (the rows the table gained take the formulas of the columns the person added, as a table that grows does)
+    if (now.row2 > was.row2) {
+        QVector<bool> fromFile(was.columns.size(), false);
+        for (int c : colOf) fromFile[c] = true;
+        for (int c = 0; c < was.columns.size() && c < was.info.size(); ++c) {
+            if (fromFile[c] || was.info[c].calcFormula.isEmpty()) continue;
+            FillEdit f;
+            f.sheet = was.sheet;
+            f.col = was.col1 + quint32(c);
+            f.row1 = was.row2 + 1;
+            f.row2 = now.row2;
+            f.formula = was.info[c].calcFormula;
+            f.base = now.dataFirst();
+            step.fills.push_back(std::move(f));
+        }
+    }
     TableEdit e;
     e.kind = TableEdit::Kind::Replace;
     e.index = table;
