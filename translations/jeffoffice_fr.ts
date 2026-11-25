@@ -4,7 +4,7 @@
 <context>
     <name>Animation</name>
     <message>
-        <location filename="../apps/deck/app/animationpane.cpp" line="+82"/>
+        <location filename="../apps/deck/app/animationpane.cpp" line="+83"/>
         <location line="+530"/>
         <location line="+42"/>
         <location filename="../apps/deck/app/deckwindow_animations.cpp" line="+385"/>
@@ -139,7 +139,7 @@
     </message>
     <message>
         <location line="+20"/>
-        <location line="+209"/>
+        <location line="+213"/>
         <source>Reorder Animation</source>
         <translation type="unfinished">Réorganiser l&apos;animation</translation>
     </message>
@@ -9640,13 +9640,18 @@ Le télécharger depuis %2 maintenant ? (%3, une seule fois.)</translation>
         <translation type="unfinished">Les objets placés au milieu du texte sont omis.</translation>
     </message>
     <message>
-        <location filename="../apps/deck/io/odpexport_motion.cpp" line="+606"/>
+        <location filename="../apps/deck/io/odpexport_motion.cpp" line="+608"/>
         <source>Effects that start when an object is clicked were left out where the object is not on the slide.</source>
         <translation type="unfinished">Les effets qui démarrent au clic sur un objet ont été omis lorsque l&apos;objet ne se trouve pas sur la diapositive.</translation>
     </message>
     <message>
         <location line="+10"/>
         <source>%1: the color an object is dimmed to after its effect has no match in this kind of file, so the object keeps its own color.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>%1: the sounds that effects play are not saved in this kind of file, so the effects play without them.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -11369,7 +11374,7 @@ Le télécharger depuis %2 maintenant ? (%3, une seule fois.)</translation>
 <context>
     <name>PptxExport</name>
     <message>
-        <location filename="../apps/deck/io/pptxexport.cpp" line="+832"/>
+        <location filename="../apps/deck/io/pptxexport.cpp" line="+838"/>
         <source>%1: a table, chart, or other frame that can&apos;t be read was left out.</source>
         <translation type="unfinished">%1 : un tableau, un graphique ou un autre cadre illisible a été ignoré.</translation>
     </message>
@@ -11404,7 +11409,7 @@ Le télécharger depuis %2 maintenant ? (%3, une seule fois.)</translation>
         <translation type="unfinished">%1 : l&apos;élément %2 lit une vidéo ou un son non conservé, et a été ignoré.</translation>
     </message>
     <message>
-        <location line="+100"/>
+        <location line="+138"/>
         <source>%1: a chart&apos;s parts can&apos;t be written, so it was left out.</source>
         <translation type="unfinished">%1 : les parties d&apos;un graphique ne peuvent pas être écrites ; il a donc été ignoré.</translation>
     </message>
@@ -11546,7 +11551,7 @@ Le télécharger depuis %2 maintenant ? (%3, une seule fois.)</translation>
 <context>
     <name>PptxImport</name>
     <message>
-        <location filename="../apps/deck/io/pptximport.cpp" line="+365"/>
+        <location filename="../apps/deck/io/pptximport.cpp" line="+367"/>
         <source>Only the first %1 comments and replies of the file are read.</source>
         <translation type="unfinished">Seuls les %1 premiers commentaires et réponses du fichier sont lus.</translation>
     </message>
@@ -11563,12 +11568,12 @@ Le télécharger depuis %2 maintenant ? (%3, une seule fois.)</translation>
     </message>
     <message>
         <location line="+22"/>
-        <location line="+406"/>
+        <location line="+452"/>
         <source>the part is missing from the file</source>
         <translation type="unfinished">la partie est absente du fichier</translation>
     </message>
     <message>
-        <location line="-401"/>
+        <location line="-447"/>
         <location line="+25"/>
         <source>The comments of slide %1 can&apos;t be read: %2</source>
         <translation type="unfinished">Impossible de lire les commentaires de la diapositive %1 : %2</translation>
@@ -11585,12 +11590,12 @@ Le télécharger depuis %2 maintenant ? (%3, une seule fois.)</translation>
     </message>
     <message>
         <location line="+9"/>
-        <location line="+382"/>
+        <location line="+428"/>
         <source>the part is not what the file says it is</source>
         <translation type="unfinished">la partie ne correspond pas à ce qu&apos;indique le fichier</translation>
     </message>
     <message>
-        <location line="-372"/>
+        <location line="-418"/>
         <location line="+91"/>
         <source>Only the first %1 comments of slide %2 are read.</source>
         <translation type="unfinished">Seuls les %1 premiers commentaires de la diapositive %2 sont lus.</translation>
@@ -11602,7 +11607,7 @@ Le télécharger depuis %2 maintenant ? (%3, une seule fois.)</translation>
         <translation type="unfinished">Seules les %1 premières réponses à un commentaire de la diapositive %2 sont lues.</translation>
     </message>
     <message>
-        <location line="+209"/>
+        <location line="+253"/>
         <source>The file holds more than %1 objects in all; the rest are left out.</source>
         <translation type="unfinished">Le fichier contient plus de %1 objets au total ; les autres sont omis.</translation>
     </message>
@@ -11640,6 +11645,11 @@ Le télécharger depuis %2 maintenant ? (%3, une seule fois.)</translation>
         <location line="+2"/>
         <source>The file holds more than %1 MB of animation, transition, and other settings in all; what is past that is left out.</source>
         <translation type="unfinished">Le fichier contient plus de %1 Mo de paramètres d&apos;animation, de transition et autres au total ; ce qui dépasse est omis.</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Some sounds of animation effects are left out: each may be up to %1 MB, and all of them together up to 128 MB.</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <location line="+2"/>
@@ -11757,7 +11767,7 @@ Le télécharger depuis %2 maintenant ? (%3, une seule fois.)</translation>
         <translation type="unfinished">La diapositive %1 a été omise : %2</translation>
     </message>
     <message>
-        <location line="+76"/>
+        <location line="+77"/>
         <source>The notes of %1 were left out: the part %2 is read once.</source>
         <translation type="unfinished">Les commentaires de %1 ont été omis : la partie %2 n&apos;est lue qu&apos;une seule fois.</translation>
     </message>
@@ -13594,6 +13604,14 @@ Le télécharger depuis %2 maintenant ? (%3, une seule fois.)</translation>
         <location line="+0"/>
         <source>Repeat (F4)</source>
         <translation type="unfinished">Répéter (F4)</translation>
+    </message>
+</context>
+<context>
+    <name>Reuse</name>
+    <message>
+        <location filename="../apps/deck/core/reuse.cpp" line="+441"/>
+        <source>Sounds of animation effects that don&apos;t fit in this presentation were left out.</source>
+        <translation type="unfinished"></translation>
     </message>
 </context>
 <context>
@@ -17364,7 +17382,7 @@ Ouvrez-le dans votre logiciel de messagerie, ajoutez les destinataires et envoye
         <translation type="unfinished">Automatique</translation>
     </message>
     <message>
-        <location filename="../apps/deck/app/slideshow.cpp" line="+2672"/>
+        <location filename="../apps/deck/app/slideshow.cpp" line="+2700"/>
         <source>Screen %1</source>
         <translation type="unfinished">Écran %1</translation>
     </message>
@@ -20858,7 +20876,7 @@ Publication assistée par ordinateur</translation>
         <translation type="unfinished">(Suite de la page %1)</translation>
     </message>
     <message>
-        <location line="+6910"/>
+        <location line="+6914"/>
         <source>Notes</source>
         <translation>Notes</translation>
     </message>
@@ -21670,7 +21688,36 @@ Publication assistée par ordinateur</translation>
         <translation type="unfinished">Après l&apos;animation : ce qu&apos;il advient de la forme lorsque l&apos;effet est terminé</translation>
     </message>
     <message>
-        <location line="+2"/>
+        <location line="+4"/>
+        <location line="+4"/>
+        <location line="+6"/>
+        <location line="+12"/>
+        <location line="+1"/>
+        <source>Sound</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-22"/>
+        <source>No Sound</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Stop Previous Sound</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Other Sound…</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>A sound that plays when the effect starts</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+19"/>
         <location line="+4"/>
         <location line="+3"/>
         <source>Dim color</source>
@@ -37608,7 +37655,8 @@ Le fichier est illisible.</translation>
         <location filename="../apps/deck/app/deckwindow_design.cpp" line="+164"/>
         <location filename="../apps/deck/app/deckwindow_file.cpp" line="-183"/>
         <location filename="../apps/deck/app/deckwindow_media.cpp" line="+104"/>
-        <location line="+102"/>
+        <location line="+71"/>
+        <location line="+79"/>
         <location filename="../apps/deck/app/deckwindow_outline.cpp" line="-70"/>
         <location filename="../apps/deck/app/deckwindow_picture.cpp" line="+237"/>
         <source>All Files (*)</source>
@@ -37700,18 +37748,18 @@ Le fichier est illisible.</translation>
     </message>
     <message>
         <location line="-261"/>
-        <location line="+312"/>
+        <location line="+314"/>
         <source>Delete Slide</source>
         <translation type="unfinished">Supprimer la diapositive</translation>
     </message>
     <message>
-        <location line="-311"/>
-        <location line="+322"/>
+        <location line="-313"/>
+        <location line="+324"/>
         <source>Hide Slide</source>
         <translation type="unfinished">Masquer la diapositive</translation>
     </message>
     <message>
-        <location line="-321"/>
+        <location line="-323"/>
         <source>Reset</source>
         <translation type="unfinished">Réinitialiser</translation>
     </message>
@@ -37833,11 +37881,13 @@ Le fichier est illisible.</translation>
     </message>
     <message>
         <location line="+13"/>
+        <location line="+5"/>
+        <location filename="../apps/deck/app/deckwindow_sections.cpp" line="+71"/>
         <source>Paste Slides</source>
         <translation type="unfinished">Coller les diapositives</translation>
     </message>
     <message>
-        <location line="+22"/>
+        <location line="+19"/>
         <source>Show Slide</source>
         <translation type="unfinished">Afficher la diapositive</translation>
     </message>
@@ -37968,8 +38018,8 @@ Le fichier est illisible.</translation>
         <translation>Numérotation</translation>
     </message>
     <message>
-        <location filename="../apps/deck/app/deckwindow_animations.cpp" line="-488"/>
-        <location line="+319"/>
+        <location filename="../apps/deck/app/deckwindow_animations.cpp" line="-492"/>
+        <location line="+323"/>
         <location filename="../apps/deck/app/deckwindow_show.cpp" line="-389"/>
         <location filename="../apps/deck/app/deckwindow_table.cpp" line="+0"/>
         <source>None</source>
@@ -38604,7 +38654,7 @@ Le fichier est illisible.</translation>
         <translation type="unfinished">Diapositive %1</translation>
     </message>
     <message>
-        <location filename="../apps/deck/app/deckwindow.cpp" line="-180"/>
+        <location filename="../apps/deck/app/deckwindow.cpp" line="-182"/>
         <location filename="../apps/deck/app/deckwindow_dialogs.cpp" line="-131"/>
         <source>View</source>
         <translation type="unfinished">Affichage</translation>
@@ -38767,8 +38817,9 @@ Le fichier est illisible.</translation>
     </message>
     <message>
         <location line="+121"/>
-        <location filename="../apps/deck/app/deckwindow_media.cpp" line="-72"/>
-        <location line="+97"/>
+        <location filename="../apps/deck/app/deckwindow_media.cpp" line="-120"/>
+        <location line="+52"/>
+        <location line="+93"/>
         <location filename="../apps/deck/app/deckwindow_outline.cpp" line="+42"/>
         <source>%1 can&apos;t open &quot;%2&quot;.
 %3</source>
@@ -39313,6 +39364,7 @@ Le fichier est illisible.</translation>
     </message>
     <message>
         <location line="+20"/>
+        <location line="+5"/>
         <source>Reuse Slide</source>
         <translation type="unfinished">Réutiliser la diapositive</translation>
     </message>
@@ -40331,37 +40383,37 @@ Le fichier est illisible.</translation>
 %3</translation>
     </message>
     <message>
-        <location filename="../apps/deck/app/deckwindow_sections.cpp" line="+32"/>
+        <location filename="../apps/deck/app/deckwindow_sections.cpp" line="-39"/>
         <location line="+27"/>
-        <location line="+52"/>
+        <location line="+53"/>
         <source>Rename Section</source>
         <translation type="unfinished">Renommer la section</translation>
     </message>
     <message>
-        <location line="-77"/>
+        <location line="-78"/>
         <source>Section &amp;name</source>
         <translation>&amp;Nom de la section</translation>
     </message>
     <message>
         <location line="+24"/>
-        <location line="+39"/>
+        <location line="+40"/>
         <source>Add Section</source>
         <translation type="unfinished">Ajouter une section</translation>
     </message>
     <message>
-        <location line="-37"/>
-        <location line="+62"/>
+        <location line="-38"/>
+        <location line="+63"/>
         <source>Remove Section</source>
         <translation type="unfinished">Supprimer la section</translation>
     </message>
     <message>
-        <location line="-61"/>
-        <location line="+101"/>
+        <location line="-62"/>
+        <location line="+102"/>
         <source>Remove All Sections</source>
         <translation type="unfinished">Supprimer toutes les sections</translation>
     </message>
     <message>
-        <location line="-100"/>
+        <location line="-101"/>
         <source>Collapse All</source>
         <translation type="unfinished">Réduire tout</translation>
     </message>
@@ -40371,7 +40423,7 @@ Le fichier est illisible.</translation>
         <translation type="unfinished">Développer tout</translation>
     </message>
     <message>
-        <location line="+74"/>
+        <location line="+75"/>
         <source>Remove Section and Slides</source>
         <translation type="unfinished">Supprimer la section et les diapositives</translation>
     </message>
@@ -40712,7 +40764,7 @@ Le fichier est illisible.</translation>
         <translation type="unfinished">Diaporamas personnalisés</translation>
     </message>
     <message>
-        <location filename="../apps/deck/app/deckwindow_animations.cpp" line="-280"/>
+        <location filename="../apps/deck/app/deckwindow_animations.cpp" line="-284"/>
         <location filename="../apps/deck/app/deckwindow_show.cpp" line="-443"/>
         <source>Preview</source>
         <translation>Aperçu</translation>
@@ -40765,12 +40817,12 @@ Le fichier est illisible.</translation>
         <translation type="unfinished">Déplacer après</translation>
     </message>
     <message>
-        <location line="+17"/>
+        <location line="+18"/>
         <source>Effect Options</source>
         <translation type="unfinished">Options d&apos;effet</translation>
     </message>
     <message>
-        <location line="+22"/>
+        <location line="+25"/>
         <source>Effect Options…</source>
         <translation type="unfinished">Options d&apos;effet…</translation>
     </message>
@@ -41243,7 +41295,7 @@ Le fichier est illisible.</translation>
         <translation type="unfinished">Insérer des icônes</translation>
     </message>
     <message>
-        <location filename="../apps/deck/app/deckwindow_media.cpp" line="-366"/>
+        <location filename="../apps/deck/app/deckwindow_media.cpp" line="-414"/>
         <source>Video on This Device…</source>
         <translation type="unfinished">Vidéo sur cet appareil…</translation>
     </message>
@@ -41260,24 +41312,24 @@ Le fichier est illisible.</translation>
     </message>
     <message>
         <location line="-29"/>
-        <location line="+266"/>
+        <location line="+314"/>
         <source>Trim</source>
         <translation type="unfinished">Découper</translation>
     </message>
     <message>
-        <location line="-265"/>
+        <location line="-313"/>
         <source>Insert Captions…</source>
         <translation type="unfinished">Insérer les légendes…</translation>
     </message>
     <message>
         <location line="+1"/>
-        <location line="+210"/>
+        <location line="+258"/>
         <location line="+16"/>
         <source>Remove Captions</source>
         <translation type="unfinished">Supprimer les légendes</translation>
     </message>
     <message>
-        <location line="-207"/>
+        <location line="-255"/>
         <source>Insert Captions: this video is linked from outside the presentation, and captions can only go with a video kept in it.</source>
         <translation type="unfinished">Insérer des légendes : cette vidéo est liée depuis l&apos;extérieur de la présentation, et les légendes ne peuvent accompagner qu&apos;une vidéo incorporée à celle-ci.</translation>
     </message>
@@ -41293,28 +41345,29 @@ Le fichier est illisible.</translation>
     </message>
     <message>
         <location line="+3"/>
-        <location line="+231"/>
+        <location line="+279"/>
         <source>Trim Audio</source>
         <translation type="unfinished">Découper l&apos;audio</translation>
     </message>
     <message>
-        <location line="-231"/>
-        <location line="+231"/>
+        <location line="-279"/>
+        <location line="+279"/>
         <source>Trim Video</source>
         <translation type="unfinished">Découper la vidéo</translation>
     </message>
     <message>
-        <location line="-221"/>
+        <location line="-269"/>
         <source>Video Files (%1)</source>
         <translation type="unfinished">Fichiers vidéo (%1)</translation>
     </message>
     <message>
         <location line="+0"/>
+        <location line="+71"/>
         <source>Audio Files (%1)</source>
         <translation type="unfinished">Fichiers audio (%1)</translation>
     </message>
     <message>
-        <location line="+1"/>
+        <location line="-70"/>
         <location line="+14"/>
         <source>Insert Video</source>
         <translation type="unfinished">Insérer une vidéo</translation>
@@ -41354,16 +41407,37 @@ Le fichier est illisible.</translation>
     </message>
     <message>
         <location line="+5"/>
+        <location line="+57"/>
         <source>%1 is too large to put in this presentation: with it, the file could not be opened again. All its pictures, movies, and sounds together may come to %2 GB.</source>
         <translation type="unfinished">%1 est trop volumineux pour être placé dans cette présentation : avec lui, le fichier ne pourrait plus être ouvert. L&apos;ensemble de ses images, vidéos et sons ne peut dépasser %2 Go.</translation>
     </message>
     <message>
-        <location line="+8"/>
+        <location line="-49"/>
         <source>%1 can&apos;t read &quot;%2&quot; as a %3, so it isn&apos;t put on the slide.</source>
         <translation type="unfinished">%1 ne peut pas lire « %2 » en tant que %3 ; il n&apos;est donc pas placé sur la diapositive.</translation>
     </message>
     <message>
-        <location line="+53"/>
+        <location line="+16"/>
+        <source>Add Sound</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+12"/>
+        <source>%1 isn&apos;t a sound file that %2 can play.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+11"/>
+        <source>%1 is too large for the sound of an effect (the most is %2 MB).</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>%1 can&apos;t read &quot;%2&quot; as a sound.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+56"/>
         <location line="+4"/>
         <location line="+9"/>
         <source>Insert Captions</source>
@@ -58779,14 +58853,14 @@ Votre navigateur web ouvrira LibreTranslate, un service de traduction gratuit et
 <context>
     <name>jp::SlideShow</name>
     <message>
-        <location filename="../apps/deck/app/slideshow.cpp" line="-2005"/>
-        <location line="+104"/>
-        <location line="+150"/>
+        <location filename="../apps/deck/app/slideshow.cpp" line="-2032"/>
+        <location line="+105"/>
+        <location line="+151"/>
         <source>Slide Show</source>
         <translation type="unfinished">Diaporama</translation>
     </message>
     <message>
-        <location line="+478"/>
+        <location line="+502"/>
         <source>End of slide show, click to exit.</source>
         <translation type="unfinished">Fin du diaporama, cliquez pour quitter.</translation>
     </message>
@@ -59162,18 +59236,18 @@ Votre navigateur web ouvrira LibreTranslate, un service de traduction gratuit et
     </message>
     <message>
         <location line="+1"/>
-        <location line="+201"/>
+        <location line="+203"/>
         <source>Duplicate Slide</source>
         <translation type="unfinished">Dupliquer la diapositive</translation>
     </message>
     <message>
-        <location line="-200"/>
-        <location line="+167"/>
+        <location line="-202"/>
+        <location line="+169"/>
         <source>Delete Slide</source>
         <translation type="unfinished">Supprimer la diapositive</translation>
     </message>
     <message>
-        <location line="-165"/>
+        <location line="-167"/>
         <source>Cut</source>
         <translation type="unfinished">Couper</translation>
     </message>
@@ -59194,12 +59268,12 @@ Votre navigateur web ouvrira LibreTranslate, un service de traduction gratuit et
     </message>
     <message>
         <location line="+4"/>
-        <location line="+213"/>
+        <location line="+215"/>
         <source>Hide Slide</source>
         <translation type="unfinished">Masquer la diapositive</translation>
     </message>
     <message>
-        <location line="-210"/>
+        <location line="-212"/>
         <source>Add Section</source>
         <translation type="unfinished">Ajouter une section</translation>
     </message>
@@ -59229,7 +59303,7 @@ Votre navigateur web ouvrira LibreTranslate, un service de traduction gratuit et
         <translation type="unfinished">Coller les diapositives</translation>
     </message>
     <message>
-        <location line="+15"/>
+        <location line="+17"/>
         <source>Delete Slides</source>
         <translation type="unfinished">Supprimer les diapositives</translation>
     </message>
@@ -60647,7 +60721,7 @@ Votre navigateur web ouvrira LibreTranslate, un service de traduction gratuit et
 <context>
     <name>jp::TransitionPreview</name>
     <message>
-        <location filename="../apps/deck/app/slideshow.cpp" line="+323"/>
+        <location filename="../apps/deck/app/slideshow.cpp" line="+324"/>
         <source>Transition Preview</source>
         <translation type="unfinished">Aperçu de la transition</translation>
     </message>
