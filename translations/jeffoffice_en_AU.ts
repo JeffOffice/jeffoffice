@@ -324,6 +324,10 @@ Download it from %2 now? (%3, once.)</translation>
 <context>
     <name>OdpExport</name>
     <message>
+        <source>%1: the color an object is dimmed to after its effect has no match in this kind of file, so the object keeps its own color.</source>
+        <translation>%1: the colour an object is dimmed to after its effect has no match in this kind of file, so the object keeps its own colour.</translation>
+    </message>
+    <message>
         <source>A picture with sharpen, soften, color temperature, or an artistic effect is kept as the finished picture, and the effect can't be changed or taken off again.</source>
         <translation>A picture with sharpen, soften, colour temperature, or an artistic effect is kept as the finished picture, and the effect can't be changed or taken off again.</translation>
     </message>
@@ -604,6 +608,21 @@ Download it from %2 now? (%3, once.)</translation>
     <message>
         <source>Copyright © 2026 JeffOffice LLC.&lt;br&gt;&lt;br&gt;%1 is free software under the &lt;a href="%2"&gt;GNU General Public License v3.0&lt;/a&gt;. It comes with ABSOLUTELY NO WARRANTY; see the license for details. &lt;a href="%3"&gt;Read the license on gnu.org&lt;/a&gt;.&lt;br&gt;&lt;br&gt;%1 is an independent open-source project. It is not affiliated with, endorsed by or supported by any other software company. Product names are trademarks of their owners.</source>
         <translation>Copyright © 2026 JeffOffice LLC.&lt;br&gt;&lt;br&gt;%1 is free software under the &lt;a href="%2"&gt;GNU General Public Licence v3.0&lt;/a&gt;. It comes with ABSOLUTELY NO WARRANTY; see the licence for details. &lt;a href="%3"&gt;Read the licence on gnu.org&lt;/a&gt;.&lt;br&gt;&lt;br&gt;%1 is an independent open-source project. It is not affiliated with, endorsed by or supported by any other software company. Product names are trademarks of their owners.</translation>
+    </message>
+</context>
+<context>
+    <name>jp::AnimationOptionsDialog</name>
+    <message>
+        <source>Dim to a Color</source>
+        <translation>Dim to a Colour</translation>
+    </message>
+    <message>
+        <source>Dim color</source>
+        <translation>Dim colour</translation>
+    </message>
+    <message>
+        <source>The color the shape turns to at the next click</source>
+        <translation>The colour the shape turns to at the next click</translation>
     </message>
 </context>
 <context>

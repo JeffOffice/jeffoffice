@@ -139,7 +139,7 @@
     </message>
     <message>
         <location line="+20"/>
-        <location line="+206"/>
+        <location line="+209"/>
         <source>Reorder Animation</source>
         <translation type="unfinished">Reordenar animación</translation>
     </message>
@@ -9640,12 +9640,22 @@ Download it from %2 now? (%3, once.)</source>
         <translation type="unfinished">Los objetos situados en medio del texto se omiten.</translation>
     </message>
     <message>
-        <location filename="../apps/deck/io/odpexport_motion.cpp" line="+601"/>
+        <location filename="../apps/deck/io/odpexport_motion.cpp" line="+606"/>
         <source>Effects that start when an object is clicked were left out where the object is not on the slide.</source>
         <translation type="unfinished">Los efectos que se inician al hacer clic en un objeto se omitieron cuando el objeto no está en la diapositiva.</translation>
     </message>
     <message>
         <location line="+10"/>
+        <source>%1: the color an object is dimmed to after its effect has no match in this kind of file, so the object keeps its own color.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>%1: text that is animated by word or by letter is saved as one animation of the whole text.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
         <source>%1: animation effects that have no match in this kind of file were left out.</source>
         <translation type="unfinished">%1: se omitieron efectos de animación sin equivalente en este tipo de archivo.</translation>
     </message>
@@ -21540,7 +21550,7 @@ Autoedición</translation>
 <context>
     <name>jp::AnimationOptionsDialog</name>
     <message>
-        <location filename="../apps/deck/app/animationdialogs.cpp" line="+26"/>
+        <location filename="../apps/deck/app/animationdialogs.cpp" line="+27"/>
         <source>%1 Options</source>
         <translation type="unfinished">Opciones de %1</translation>
     </message>
@@ -21630,14 +21640,19 @@ Autoedición</translation>
     </message>
     <message>
         <location line="+3"/>
-        <location line="+8"/>
+        <location line="+9"/>
         <source>After animation</source>
         <translation>Después de la animación</translation>
     </message>
     <message>
-        <location line="-7"/>
+        <location line="-8"/>
         <source>Don&apos;t Dim</source>
         <translation type="unfinished">No atenuar</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Dim to a Color</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <location line="+1"/>
@@ -21655,7 +21670,19 @@ Autoedición</translation>
         <translation type="unfinished">Después de la animación: qué ocurre con la forma cuando termina el efecto</translation>
     </message>
     <message>
+        <location line="+2"/>
+        <location line="+4"/>
         <location line="+3"/>
+        <source>Dim color</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-1"/>
+        <source>The color the shape turns to at the next click</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+6"/>
         <source>Effect</source>
         <translation type="unfinished">Efecto</translation>
     </message>
@@ -21711,16 +21738,64 @@ Autoedición</translation>
     </message>
     <message>
         <location line="+1"/>
+        <location line="+15"/>
         <source>All at once</source>
         <translation type="unfinished">Todo a la vez</translation>
     </message>
     <message>
-        <location line="+2"/>
+        <location line="-13"/>
         <source>By paragraph</source>
         <translation type="unfinished">Por párrafo</translation>
     </message>
     <message>
-        <location line="+10"/>
+        <location line="+9"/>
+        <location line="+3"/>
+        <source>Animate text</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>By word</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>By letter</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+9"/>
+        <source> % of the effect&apos;s length</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <location line="+2"/>
+        <source>Delay between words or letters</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-1"/>
+        <source>How long after one word or letter the next one starts, as a share of how long the effect takes</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>Delay between letters</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Delay between words</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>Text with more than %1 words or letters is animated in groups of them, so that the slide show stays smooth.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+5"/>
         <source>This shape has no text.</source>
         <translation type="unfinished">Esta forma no tiene texto.</translation>
     </message>
@@ -37726,8 +37801,8 @@ No se puede leer el archivo.</translation>
         <translation>Numeración</translation>
     </message>
     <message>
-        <location filename="../apps/deck/app/deckwindow_animations.cpp" line="-485"/>
-        <location line="+316"/>
+        <location filename="../apps/deck/app/deckwindow_animations.cpp" line="-488"/>
+        <location line="+319"/>
         <location filename="../apps/deck/app/deckwindow_show.cpp" line="-389"/>
         <location filename="../apps/deck/app/deckwindow_table.cpp" line="+0"/>
         <source>None</source>
@@ -40470,7 +40545,7 @@ No se puede leer el archivo.</translation>
         <translation type="unfinished">Presentaciones personalizadas</translation>
     </message>
     <message>
-        <location filename="../apps/deck/app/deckwindow_animations.cpp" line="-277"/>
+        <location filename="../apps/deck/app/deckwindow_animations.cpp" line="-280"/>
         <location filename="../apps/deck/app/deckwindow_show.cpp" line="-443"/>
         <source>Preview</source>
         <translation>Vista previa</translation>
@@ -40528,7 +40603,7 @@ No se puede leer el archivo.</translation>
         <translation type="unfinished">Opciones de efectos</translation>
     </message>
     <message>
-        <location line="+19"/>
+        <location line="+22"/>
         <source>Effect Options…</source>
         <translation type="unfinished">Opciones de efectos…</translation>
     </message>

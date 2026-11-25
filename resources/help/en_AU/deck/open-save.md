@@ -99,7 +99,7 @@ An .odp file has no place for a few things. JeffDeck lists them after the save, 
 - **Charts, diagrams, and equations** are saved as pictures. You can see them, but you can't edit their numbers or parts in the .odp file.
 - **Sections** are not saved.
 - **Bevels and inner shadows** are left out, and so are glows and reflections on words. A shadow on words is kept. A reflection on a shape, a line with a gradient, a line of two or three strokes, and a shadow's size are kept in a way only JeffDeck reads. Another program shows the shape without the reflection, the line in its first colour, a single stroke, and the shadow at the object's size.
-- **Animation effects** that start when you click an object, and effects that change a colour, are left out. A click on a movie, to pause it or play it again, is kept.
+- **Animation effects** that start when you click an object, and effects that change a colour, are left out. The colour an object is dimmed to after its effect is left out too: the effect stays, and the object keeps its own colour. Text that is animated by word or by letter is saved as one animation of the whole text. A click on a movie, to pause it or play it again, is kept.
 - **A movie or sound that is linked** from another file, not kept in the presentation, keeps its address and its picture in the .odp file. LibreOffice plays it if it can find the file. Movies and sounds that are in the presentation are kept in the .odp file and play.
 
 Keep your .pptx file too, if you need these things back.
