@@ -3069,29 +3069,19 @@ std::shared_ptr<Fill> MSPUBParser::getNewFill(const std::map<unsigned short, uns
         const unsigned maxEntries = (gradientData.size() - offs) / 8;
         if (numEntries > maxEntries)
           numEntries = maxEntries;
-        // JeffPub patch: the stored colors are those between the two ends; the fill color is the shade's start and the back color its end,
-        // unless the list names a color at 0 or at 100 itself.
-        auto addStop = [&](const ColorReference &sColor, int posi, double opacity)
-        {
-          if (fillFocus ==  0)
-            ret->addColor(sColor, posi, opacity);
-          else if (fillFocus == 100)
-            ret->addColorReverse(sColor, 100 - posi, opacity);
-          else if (fillFocus > 0)
-            ret->addColor(sColor, posi / 2, opacity);
-          else if (fillFocus < 0)
-            ret->addColorReverse(sColor, (100 - posi) / 2, opacity);
-        };
+        // JeffPub patch: in a shade of focus 100 the stored colors are those between the two ends (development files of that form show the fill color
+        // at the start and the back color at the end, unless the list names a color at 0 or at 100 itself); other focuses read as they always did.
         int lowest = 100, highest = 0;
-        for (unsigned i = 0; i < numEntries; ++i)
-        {
-          const unsigned at = 6 + 8 * i + 4;
-          const auto posi = (int)(toFixedPoint(gradientData[at] | (unsigned(gradientData[at + 1]) << 8) | (unsigned(gradientData[at + 2]) << 16) | (unsigned(gradientData[at + 3]) << 24)) * 100);
-          lowest = std::min(lowest, posi);
-          highest = std::max(highest, posi);
-        }
-        if (numEntries > 0 && lowest > 0)
-          addStop(firstColor, 0, ptr_fillOpacity ? (double)(*ptr_fillOpacity) / 0xFFFF : 1);
+        if (fillFocus == 100)
+          for (unsigned i = 0; i < numEntries; ++i)
+          {
+            const unsigned at = 6 + 8 * i + 4;
+            const auto posi = (int)(toFixedPoint(gradientData[at] | (unsigned(gradientData[at + 1]) << 8) | (unsigned(gradientData[at + 2]) << 16) | (unsigned(gradientData[at + 3]) << 24)) * 100);
+            lowest = std::min(lowest, posi);
+            highest = std::max(highest, posi);
+          }
+        if (fillFocus == 100 && numEntries > 0 && lowest > 0)
+          ret->addColorReverse(firstColor, 100, ptr_fillOpacity ? (double)(*ptr_fillOpacity) / 0xFFFF : 1);
         for (unsigned i = 0; i < numEntries; ++i)
         {
           unsigned color = gradientData[offs] | (unsigned(gradientData[offs + 1]) << 8) | (unsigned(gradientData[offs + 2]) << 16) | (unsigned(gradientData[offs + 3]) << 24);
@@ -3108,8 +3098,8 @@ std::shared_ptr<Fill> MSPUBParser::getNewFill(const std::map<unsigned short, uns
           else if (fillFocus < 0)
             ret->addColorReverse(sColor, (100 - posi) / 2, ptr_fillOpacity ? (double)(*ptr_fillOpacity) / 0xFFFF : 1);
         }
-        if (numEntries > 0 && highest < 100)
-          addStop(secondColor, 100, ptr_fillBackOpacity ? (double)(*ptr_fillBackOpacity) / 0xFFFF : 1);
+        if (fillFocus == 100 && numEntries > 0 && highest < 100)
+          ret->addColorReverse(secondColor, 0, ptr_fillBackOpacity ? (double)(*ptr_fillBackOpacity) / 0xFFFF : 1);
         if ((fillFocus < 0) || ((fillFocus > 0) && (fillFocus < 100)))
           ret->completeComplexFill();
       }

@@ -949,9 +949,9 @@ void PubFileTests::pubGradientsRoundTrip()
 }
 
 
-// A shade's list of colors holds those between its two ends (the file's own lists start after 0 and stop before 100): the fill color is the shade's start
-// and the back color its end, as the reference pictures of such fills show. Here the list names a red at 25 and a blue at 75.
-void PubFileTests::pubShadeListsGetTheirEndColors()
+// A shade of focus 100 (from the center or along the outline) keeps its list of colors between its two ends: the fill color is the shade's start and the back color
+// its end, as the reference pictures of such fills show. Here the list names a red at 25 and a blue at 75. A shade of any other focus is read as it always was.
+static QByteArray radialShadeFile(QTemporaryDir &dir, QString *err)
 {
     auto doc = Document::blank(QSizeF(612, 792));
     auto s = std::make_shared<ShapeItem>();
@@ -959,30 +959,119 @@ void PubFileTests::pubShadeListsGetTheirEndColors()
     s->rect = QRectF(72, 72, 80, 120);
     s->stroke.color = ColorRef::none();
     s->fill.type = Fill::Gradient;
-    s->fill.gradType = Fill::Linear;
-    s->fill.angle = 90;
+    s->fill.gradType = Fill::PathGrad;
     s->fill.stops = {GradientStop{0.25, ColorRef::rgb(QColor(200, 0, 0)), 0}, GradientStop{0.75, ColorRef::rgb(QColor(0, 0, 200)), 0}};
     s->fill.color = s->fill.stops.first().color;
     s->fill.color2 = s->fill.stops.last().color;
     doc->pages[0]->items.push_back(s);
-    QTemporaryDir dir;
     const QString path = dir.filePath(QStringLiteral("shade.pub"));
+    return exportPublisher(*doc, path, err) ? path.toUtf8() : QByteArray();
+}
+
+// The shade's stops read from a file whose shade list (property 0x0197) is `list` (or as it is, when empty) and whose focus (0x018c) is `focus`.
+static QVector<GradientStop> shadeStopsOf(const QString &path, qint32 focus, const QByteArray &list = {})
+{
+    const QByteArray escher = cfb::readStream(path, QStringLiteral("Escher/EscherStm"));
+    const QByteArray rebuilt = editFirstOpt(escher, [&](QByteArray &body, quint16 &head) {
+        if (optComplexAt(body, head, 0x0197) < 0) return false;
+        const int count = head >> 4;
+        for (int i = 0; i < count; ++i) {
+            const quint16 id = qFromLittleEndian<quint16>(body.constData() + i * 6);
+            if ((id & 0x3FFF) == 0x018c) qToLittleEndian<quint32>(quint32(focus), body.data() + i * 6 + 2);
+        }
+        if (!list.isEmpty()) {
+            const int at = optComplexAt(body, head, 0x0197);
+            int old = 0;
+            for (int i = 0; i < count; ++i)
+                if ((qFromLittleEndian<quint16>(body.constData() + i * 6) & 0x3FFF) == 0x0197) old = int(qFromLittleEndian<quint32>(body.constData() + i * 6 + 2));
+            for (int i = 0; i < count; ++i)
+                if ((qFromLittleEndian<quint16>(body.constData() + i * 6) & 0x3FFF) == 0x0197) qToLittleEndian<quint32>(quint32(list.size()), body.data() + i * 6 + 2);
+            body = body.left(at) + list + body.mid(at + old);
+        }
+        return true;
+    });
+    if (rebuilt.isEmpty()) return {};
+    cfb::File file;
     QString err;
-    QVERIFY2(exportPublisher(*doc, path, &err), qPrintable(err));
     QFile f(path);
-    QVERIFY(f.open(QIODevice::ReadOnly));
-    auto back = importPublisher(f.readAll(), nullptr);
-    QVERIFY(back);
-    QVector<const ShapeItem *> got;
+    if (!f.open(QIODevice::ReadOnly) || !cfb::read(f.readAll(), &file, &err) || !file.setStream(QStringLiteral("Escher/EscherStm"), rebuilt)) return {};
+    auto back = importPublisher(cfb::write(file), nullptr);
+    if (!back) return {};
     for (const auto &it : back->pages[0]->items)
-        if (auto *g = dynamic_cast<const ShapeItem *>(it.get()); g && g->fill.type == Fill::Gradient) got << g;
-    QCOMPARE(got.size(), 1);
-    const auto st = got[0]->fill.stops;
+        if (auto *g = dynamic_cast<const ShapeItem *>(it.get()); g && g->fill.type == Fill::Gradient) return g->fill.stops;
+    return {};
+}
+
+// (a list: its count twice, 8, then each color and position as 16.16)
+static QByteArray shadeList(const QVector<QPair<quint32, double>> &entries, int claimed = -1)
+{
+    QByteArray out(6, 0);
+    qToLittleEndian<quint16>(quint16(claimed < 0 ? entries.size() : claimed), out.data());
+    qToLittleEndian<quint16>(quint16(claimed < 0 ? entries.size() : claimed), out.data() + 2);
+    qToLittleEndian<quint16>(8, out.data() + 4);
+    for (const auto &e : entries) {
+        QByteArray one(8, 0);
+        qToLittleEndian<quint32>(e.first, one.data());
+        qToLittleEndian<qint32>(qint32(std::llround(e.second * 65536)), one.data() + 4);
+        out += one;
+    }
+    return out;
+}
+
+void PubFileTests::pubShadeListsGetTheirEndColors()
+{
+    QTemporaryDir dir;
+    QString err;
+    const QString path = QString::fromUtf8(radialShadeFile(dir, &err));
+    QVERIFY2(!path.isEmpty(), qPrintable(err));
+    // The proven form: focus 100. The list's two entries and the two ends (the file's colors at the center and the edge).
+    const QVector<GradientStop> st = shadeStopsOf(path, 100);
     QCOMPARE(st.size(), 4);
     QVERIFY(std::abs(st.first().pos) < 0.005 && std::abs(st.last().pos - 1) < 0.005);
     QCOMPARE(st.first().color.rgbValue(), QColor(200, 0, 0));
     QCOMPARE(st.last().color.rgbValue(), QColor(0, 0, 200));
     QVERIFY(std::abs(st[1].pos - 0.25) < 0.01 && std::abs(st[2].pos - 0.75) < 0.01);
+    // Any other focus is what it was: the list's own entries only (no ends added), as the reader gave them before the ends were added.
+    for (const qint32 focus : {0, 50, -50}) {
+        const QVector<GradientStop> other = shadeStopsOf(path, focus);
+        QVERIFY2(!other.isEmpty(), qPrintable(QString::number(focus)));
+        int ends = 0;
+        for (const GradientStop &g : other) ends += g.color.rgbValue() == QColor(200, 0, 0) && g.pos < 0.005;
+        QVERIFY2(ends == 0 || focus == 0, qPrintable(QString::number(focus)));
+        QCOMPARE(other.size(), focus == 0 ? 2 : 4);
+    }
+}
+
+// Hostile lists in a shade of focus 100: the stops read never pass the entries the list holds (and the data holds) plus the two ends.
+void PubFileTests::pubShadeListsAreBounded()
+{
+    QTemporaryDir dir;
+    QString err;
+    const QString path = QString::fromUtf8(radialShadeFile(dir, &err));
+    QVERIFY2(!path.isEmpty(), qPrintable(err));
+    auto inRange = [](const QVector<GradientStop> &stops) {
+        for (const GradientStop &g : stops)
+            if (!std::isfinite(g.pos) || g.pos < -0.001 || g.pos > 1.001) return false;
+        return true;
+    };
+    // 65,535 entries (the most a count holds), spread over the shade.
+    QVector<QPair<quint32, double>> many;
+    for (int i = 0; i < 65535; ++i) many.push_back({0x00ff8000u, (i % 99 + 1) / 100.0});
+    const QVector<GradientStop> a = shadeStopsOf(path, 100, shadeList(many));
+    QVERIFY(!a.isEmpty());
+    QVERIFY2(a.size() > 65000 && a.size() <= 65535 + 2, qPrintable(QString::number(a.size())));
+    QVERIFY(inRange(a));
+    // No entries: the two ends alone.
+    const QVector<GradientStop> none = shadeStopsOf(path, 100, shadeList({}));
+    QVERIFY(none.size() <= 2);
+    // Entries out of order and out of range: still one stop each, and the two ends.
+    const QVector<GradientStop> odd = shadeStopsOf(path, 100, shadeList({{0xff, 0.9}, {0xff00, -3.0}, {0xff0000, 0.1}, {0x00ffff, 500.0}, {0x0000ff, 0.5}}));
+    QVERIFY(!odd.isEmpty());
+    QVERIFY2(odd.size() <= 5 + 2, qPrintable(QString::number(odd.size())));
+    for (const GradientStop &g : odd) QVERIFY(std::isfinite(g.pos));   // (a position the file puts outside the shade is the reader's own as it always was)
+    // A count that claims 65,535 where the data holds three: no more than the three entries and the two ends are read (the shape's list is as often dropped whole).
+    const QVector<GradientStop> claims = shadeStopsOf(path, 100, shadeList({{0xff, 0.2}, {0xff00, 0.4}, {0xff0000, 0.6}}, 65535));
+    QVERIFY2(claims.size() <= 3 + 2, qPrintable(QString::number(claims.size())));
 }
 
 

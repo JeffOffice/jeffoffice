@@ -150,6 +150,7 @@ private Q_SLOTS:
     void pubWriterProcessInks();
     void pubGradientsRoundTrip();
     void pubShadeListsGetTheirEndColors();
+    void pubShadeListsAreBounded();
     void pubPictureTurnsAndFill();
     void pubPictureFillKeepsItsOpacity();
     void pubFormulaChainIsFast();
