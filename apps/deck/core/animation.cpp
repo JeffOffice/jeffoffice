@@ -1,4 +1,5 @@
 #include "core/animation.h"
+#include "core/color.h"
 #include "core/effectmask.h"
 #include "core/items.h"
 
@@ -112,6 +113,7 @@ bool playsBehavior(const Behavior &b)
     switch (b.kind) {
     case Behavior::Kind::Set: case Behavior::Kind::Animate: return playsAttribute(b.attribute);
     case Behavior::Kind::Effect: case Behavior::Kind::Motion: case Behavior::Kind::Scale: case Behavior::Kind::Rotate: return true;
+    case Behavior::Kind::Color: return b.attribute == QLatin1String("dim");
     default: return false;
     }
 }
@@ -151,7 +153,39 @@ bool Step::visual() const { return std::any_of(effects.begin(), effects.end(), [
 
 bool TargetState::operator==(const TargetState &o) const
 {
-    return visible == o.visible && opacity == o.opacity && offset == o.offset && scaleX == o.scaleX && scaleY == o.scaleY && rotation == o.rotation && clip == o.clip && clip2 == o.clip2 && masked == o.masked && mask == o.mask;
+    return visible == o.visible && opacity == o.opacity && offset == o.offset && scaleX == o.scaleX && scaleY == o.scaleY && rotation == o.rotation && clip == o.clip && clip2 == o.clip2 && masked == o.masked && mask == o.mask && tint == o.tint;
+}
+
+namespace {
+// The theme slots a dim can name, as the file calls them (the slot's number is its place here).
+const char *const kDimSlots[SlotCount] = {"tx1", "accent1", "accent2", "accent3", "accent4", "accent5", "hlink", "folHlink"};
+} // namespace
+
+QString dimColorFromXml(const QDomElement &choice)
+{
+    for (const QDomElement &c : office::children(choice)) {
+        if (c.namespaceURI() != office::ns::A || !office::children(c).isEmpty()) continue;   // a color with transforms is not a plain one
+        if (c.localName() == QLatin1String("srgbClr")) {
+            const QString v = c.attribute(QStringLiteral("val"));
+            static const QRegularExpression hex(QStringLiteral("^[0-9A-Fa-f]{6}$"));
+            return hex.match(v).hasMatch() ? ColorRef::rgb(QColor(QLatin1Char('#') + v)).toString() : QString();
+        }
+        if (c.localName() == QLatin1String("schemeClr")) {
+            const QString v = c.attribute(QStringLiteral("val"));
+            for (int i = 0; i < SlotCount; ++i)
+                if (v == QLatin1String(kDimSlots[i])) return ColorRef::scheme(i).toString();
+        }
+    }
+    return QString();
+}
+
+QString dimColorToXml(const QString &colorRef)
+{
+    const ColorRef c = ColorRef::fromString(colorRef);
+    if (c.kind() == ColorRef::Scheme && c.lighten() == 0 && c.darken() == 0 && c.slot() >= 0 && c.slot() < SlotCount)
+        return QStringLiteral("<a:schemeClr val=\"%1\"/>").arg(QLatin1String(kDimSlots[c.slot()]));
+    if (c.kind() == ColorRef::Rgb && c.rgbValue().isValid()) return QStringLiteral("<a:srgbClr val=\"%1\"/>").arg(c.rgbValue().name().mid(1).toUpper());
+    return QString();
 }
 
 // ---- reading the file's timing ----
@@ -453,6 +487,25 @@ void collectEffects(const QDomElement &childTnLst, double base, QVector<Effect> 
                     b.afterwards = true;
                     e.behaviors.push_back(b);
                 }
+            }
+            // Or dims it to a color when it ends (an animClr that goes with the effect's end).
+            for (const QDomElement &clr : pChildren(pChild(cTn, "subTnLst"), "animClr")) {
+                const QDomElement bhvr = pChild(clr, "cBhvr");
+                const QDomElement hold = pChild(bhvr, "cTn");
+                if (attr(hold, QStringLiteral("masterRel")) != QLatin1String("sameClick")) continue;
+                const QString color = dimColorFromXml(pChild(clr, "to"));
+                const auto first = std::find_if(e.behaviors.cbegin(), e.behaviors.cend(), [](const Behavior &b) { return b.target.shape > 0 && playsBehavior(b); });
+                if (color.isEmpty() || first == e.behaviors.cend()) continue;
+                Behavior b;
+                b.kind = Behavior::Kind::Color;
+                b.target = first->target;
+                b.attribute = QStringLiteral("dim");
+                b.to = color;
+                b.timing.begin = e.end();
+                b.timing.duration = 1;
+                b.timing.hold = true;
+                b.afterwards = true;
+                e.behaviors.push_back(b);
             }
             out.push_back(e);
         } else {
@@ -897,6 +950,9 @@ void applyBehavior(TargetState &s, const Behavior &b, const Geometry &g, double 
     case Behavior::Kind::Rotate:
         s.rotation += b.rotateFrom + (b.rotateTo - b.rotateFrom) * p;
         break;
+    case Behavior::Kind::Color:
+        if (b.attribute == QLatin1String("dim")) s.tint = b.to;
+        break;
     default:
         break;
     }
@@ -1019,6 +1075,7 @@ void combine(TargetState &a, const TargetState &b)
         else clipToTwo(a, b.clip, b.clip2);
     }
     if (b.masked) maskTo(a, b.mask);
+    if (!b.tint.isEmpty()) a.tint = b.tint;
 }
 
 bool turns(const TargetState &s) { return !s.offset.isNull() || s.scaleX != 1 || s.scaleY != 1 || s.rotation != 0; }
@@ -1070,6 +1127,9 @@ QString storyOf(const Item &it)
     return QString();
 }
 
+// How much of the color a dimmed object takes on (the rest is what it was).
+constexpr double kDimShare = 0.7;
+
 class Overlay {
 public:
     Overlay(const Document *doc, const States &states) : m_doc(doc), m_states(states)
@@ -1100,7 +1160,7 @@ public:
             p->save();
             p->setTransform(movedAbout(s, box.center()), true);
             if (!s.clip.isNull() || s.masked) setClip(p, box, s);
-            if (s.opacity < 1) drawFaded(p, box, s.opacity, draw);
+            if (s.opacity < 1 || !s.tint.isEmpty()) drawFaded(p, box, s.opacity, s.tint, draw);
             else draw(p);
             p->restore();
         }
@@ -1185,8 +1245,11 @@ public:
             for (const auto &b : o.bands) mine.addRect(QRectF(-kFar, b.first, 2 * kFar, b.second - b.first));
             p->setClipPath(mine, Qt::IntersectClip);
             if (!s.clip.isNull() || s.masked) setClip(p, o.box, s);
-            if (s.opacity < 1) p->setOpacity(p->opacity() * s.opacity);
-            paintText(p);
+            if (!s.tint.isEmpty()) drawFaded(p, o.box, s.opacity, s.tint, paintText);
+            else {
+                if (s.opacity < 1) p->setOpacity(p->opacity() * s.opacity);
+                paintText(p);
+            }
             p->restore();
         }
     }
@@ -1194,7 +1257,7 @@ public:
 private:
     // The object painted into a layer and the layer painted half see-through, so
     // that what is in the object does not show through itself.
-    void drawFaded(QPainter *p, const QRectF &box, double opacity, const Draw &draw)
+    void drawFaded(QPainter *p, const QRectF &box, double opacity, const QString &tint, const Draw &draw)
     {
         const QPaintDevice *device = p->device();
         const qreal ratio = device->devicePixelRatioF();
@@ -1220,6 +1283,16 @@ private:
             draw(&lp);
             m_page = savedPage;
             m_device = savedDevice;
+        }
+        if (!tint.isEmpty()) {
+            // Dimmed: the color laid over what the object drew, only where it drew.
+            QColor c = ColorRef::fromString(tint).resolve(m_doc->colors);
+            if (c.isValid()) {
+                QPainter tp(&layer);
+                tp.setCompositionMode(QPainter::CompositionMode_SourceAtop);
+                c.setAlphaF(kDimShare);
+                tp.fillRect(QRect(QPoint(), layer.size()), c);
+            }
         }
         p->save();
         p->setWorldTransform(QTransform());

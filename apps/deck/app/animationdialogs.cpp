@@ -4,6 +4,7 @@
 #include "app/animationpane.h"
 #include "app/appwindow.h"
 #include "app/help.h"
+#include "app/widgets.h"
 
 #include <QCheckBox>
 #include <QComboBox>
@@ -19,7 +20,7 @@
 
 namespace jp {
 
-AnimationOptionsDialog::AnimationOptionsDialog(const deck::Anim &anim, bool hasText, Tab tab, QWidget *parent) : QDialog(parent), m_anim(anim)
+AnimationOptionsDialog::AnimationOptionsDialog(const deck::Anim &anim, bool hasText, Tab tab, QWidget *parent, const ColorScheme &scheme) : QDialog(parent), m_anim(anim)
 {
     setObjectName(QStringLiteral("animationOptionsDialog"));
     const deck::EffectKind *kind = anim.custom() ? nullptr : deck::effectKind(anim.kind);
@@ -74,6 +75,7 @@ AnimationOptionsDialog::AnimationOptionsDialog(const deck::Anim &anim, bool hasT
         m_after->setObjectName(QStringLiteral("animAfter"));
         m_after->setAccessibleName(tr("After animation"));
         m_after->addItem(tr("Don't Dim"), int(deck::AfterEffect::None));
+        m_after->addItem(tr("Dim to a Color"), int(deck::AfterEffect::Dim));
         m_after->addItem(tr("Hide After Animation"), int(deck::AfterEffect::Hide));
         m_after->addItem(tr("Hide on Next Click"), int(deck::AfterEffect::HideOnNextClick));
         m_after->setCurrentIndex(m_after->findData(int(anim.after)));
@@ -81,6 +83,17 @@ AnimationOptionsDialog::AnimationOptionsDialog(const deck::Anim &anim, bool hasT
         m_after->setEnabled(kind->cls != deck::EffectClass::Exit);
         m_after->setToolTip(tr("After animation: what happens to the shape when the effect is over"));
         form->addRow(tr("After animation"), m_after);
+        m_dimColor = new ColorButton(QString(), tr("Dim color"), false, QString());
+        m_dimColor->setObjectName(QStringLiteral("animDimColor"));
+        m_dimColor->setWell(true);
+        m_dimColor->setScheme(scheme);
+        m_dimColor->setAccessibleName(tr("Dim color"));
+        m_dimColor->setCurrent(anim.dimColor.isEmpty() ? ColorRef::rgb(QColor(0x80, 0x80, 0x80)) : ColorRef::fromString(anim.dimColor));
+        m_dimColor->setToolTip(tr("The color the shape turns to when the effect is over"));
+        form->addRow(tr("Dim color"), m_dimColor);
+        auto showDim = [this] { m_dimColor->setEnabled(m_after->isEnabled() && m_after->currentData().toInt() == int(deck::AfterEffect::Dim)); };
+        connect(m_after, &QComboBox::currentIndexChanged, this, showDim);
+        showDim();
     }
     m_tabs->addTab(effect, tr("Effect"));
 
@@ -192,6 +205,12 @@ deck::Anim AnimationOptionsDialog::result() const
     if (m_repeat->isEnabled()) a.repeat = m_repeat->currentData().toDouble();
     a.rewind = m_rewind->isChecked();
     if (m_after && m_after->isEnabled()) a.after = deck::AfterEffect(m_after->currentData().toInt());
+    if (m_dimColor && a.after == deck::AfterEffect::Dim) {
+        // A tinted theme color has no plain form in the file: it is kept as the color it shows.
+        ColorRef c = m_dimColor->current();
+        if (c.kind() == ColorRef::Scheme && (c.lighten() != 0 || c.darken() != 0)) c = ColorRef::rgb(c.resolve(m_dimColor->scheme()));
+        a.dimColor = c.toString();
+    }
     return a;
 }
 

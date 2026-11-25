@@ -19,13 +19,14 @@
 // is drawn as a fade), moving, resizing, turning, scaling, rotating, and
 // motion paths, with each behavior's delay, duration, speeding up and slowing
 // down, reversing, and repeats (a repeat "until the end" is played once);
-// builds by paragraph; hiding a shape after its effect, or at the next click. Read but not played: colors (animClr), commands
+// builds by paragraph; hiding a shape after its effect, or at the next click; dimming it to a color. Read but not played: other colors (animClr), commands
 // (media calls), triggers (interactive sequences), and what changes text
 // by letter or word (a shape's text range by characters moves the shape).
 
 #include "core/document.h"
 #include "render/renderer.h"
 
+#include <QDomElement>
 #include <QHash>
 #include <QPainterPath>
 #include <QPointF>
@@ -177,6 +178,7 @@ struct TargetState {
     QRectF clip2;                    // with clip, a second part shown (a split shows two strips); null for none
     bool masked = false;             // only the part inside `mask` is shown (checkerboard, circle, wheel, ...)
     QPainterPath mask;               // over the unit square: its width and height are 1
+    QString tint;                    // dimmed to this color (a ColorRef as text); empty for none
     bool operator==(const TargetState &o) const;
     bool operator!=(const TargetState &o) const { return !(*this == o); }
 };
@@ -245,8 +247,13 @@ struct EffectKind {
 const QVector<EffectKind> &effectKinds();
 const EffectKind *effectKind(const QString &id);
 
-// What an effect does to its shape when it is over: nothing, hide it at once, or hide it at the next click.
-enum class AfterEffect { None, Hide, HideOnNextClick };
+// The color of a dim as the file writes it: a:srgbClr or a:schemeClr (plain: no transforms) inside `choice` (the p:to element), as a ColorRef text;
+// empty for any other color. And back: the a:srgbClr or a:schemeClr element for a ColorRef text (empty when it has no plain form).
+QString dimColorFromXml(const QDomElement &choice);
+QString dimColorToXml(const QString &colorRef);
+
+// What an effect does to its shape when it is over: nothing, hide it at once, hide it at the next click, or dim it to a color (Anim::dimColor).
+enum class AfterEffect { None, Hide, HideOnNextClick, Dim };
 
 struct Anim {
     QString kind;                    // EffectKind::id; empty: kept as written
@@ -259,6 +266,7 @@ struct Anim {
     bool smoothStart = false, smoothEnd = false;
     bool rewind = false;             // goes back to how it was when it ends
     AfterEffect after = AfterEffect::None;
+    QString dimColor;                // with AfterEffect::Dim: the color, a ColorRef as text ("#RRGGBB" or a theme slot such as "@1")
     double repeat = 1;
     double amount = 0;               // growshrink: percent (150); spin: degrees (360)
     int group = -1;                  // effects of one shape with the same number are one build; -1 until written
@@ -270,7 +278,7 @@ struct Anim {
     bool operator==(const Anim &o) const
     {
         return kind == o.kind && cls == o.cls && variant == o.variant && shape == o.shape && firstParagraph == o.firstParagraph && lastParagraph == o.lastParagraph && start == o.start &&
-               duration == o.duration && delay == o.delay && smoothStart == o.smoothStart && smoothEnd == o.smoothEnd && rewind == o.rewind && after == o.after && repeat == o.repeat &&
+               duration == o.duration && delay == o.delay && smoothStart == o.smoothStart && smoothEnd == o.smoothEnd && rewind == o.rewind && after == o.after && dimColor == o.dimColor && repeat == o.repeat &&
                amount == o.amount && group == o.group && xml == o.xml;
     }
     bool operator!=(const Anim &o) const { return !(*this == o); }

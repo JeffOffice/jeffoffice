@@ -589,7 +589,7 @@ void DeckWindow::createAnimationActions()
         const QVector<int> rows = st->targets(seq, *p);
         if (rows.isEmpty()) return;
         const deck::Anim shown = seq.anim(rows.first());
-        AnimationOptionsDialog dlg(shown, st->hasText(*p, shown.shape), tab, this);
+        AnimationOptionsDialog dlg(shown, st->hasText(*p, shown.shape), tab, this, st->doc()->colors);
         if (dlg.exec() != QDialog::Accepted) return;
         const deck::Anim r = dlg.result();
         const bool byParagraph = dlg.byParagraph();
@@ -607,6 +607,7 @@ void DeckWindow::createAnimationActions()
                 e.repeat = r.repeat;
                 e.rewind = r.rewind;
                 e.after = e.cls == deck::EffectClass::Exit ? deck::AfterEffect::None : r.after;
+                e.dimColor = e.after == deck::AfterEffect::Dim ? r.dimColor : QString();
             }
             const int row = rows.first();
             if (row < s.effects.size() && !s.effects[row].custom() && s.effects[row].paragraphs() != byParagraph) deck::setByParagraph(s, row, byParagraph, *st->doc(), page);

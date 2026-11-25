@@ -1957,6 +1957,163 @@ private Q_SLOTS:
         QVERIFY(!exit.findChild<QComboBox *>(QStringLiteral("animAfter"))->isEnabled());
     }
 
+    // After Animation: dim to a color. It is written as an animClr that goes with the effect's end (a plain srgbClr or schemeClr color), reads back as
+    // the same effect (not a kept one), plays as a tint that comes when the effect ends, and shows in the picture. A color with a transform is a kept effect.
+    // Fails when off: yes (with the dim not read back, the effect is kept as written and has no dim).
+    void animationEditDimsAfterAnEffect()
+    {
+        auto d = showDeck(1);
+        Page &slide = *d->pages[0];
+        numberShowShapes(slide);
+        auto box = std::make_shared<ShapeItem>();
+        box->rect = QRectF(600, 380, 120, 80);
+        box->fill = Fill::solid(ColorRef::rgb(QColor(200, 60, 40)));
+        box->sourceId = 7;
+        slide.items.push_back(box);
+        const QString blue = ColorRef::rgb(QColor(0x33, 0x66, 0x99)).toString(), accent = ColorRef::scheme(Accent2).toString();
+        deck::AnimSequence seq;
+        deck::Anim a = deck::makeAnim(QStringLiteral("entr.fade"), 7);
+        a.duration = 1000;
+        a.after = deck::AfterEffect::Dim;
+        a.dimColor = blue;
+        deck::Anim b = deck::makeAnim(QStringLiteral("emph.spin"), 3);
+        b.after = deck::AfterEffect::Dim;
+        b.dimColor = accent;
+        seq.add(a);
+        seq.add(b);
+        deck::setAnimations(*d, slide, seq);
+        const QString xml = slide.props.value(QStringLiteral("timingXml")).toString();
+        QVERIFY(xml.contains(QStringLiteral("<p:subTnLst><p:animClr clrSpc=\"rgb\" dir=\"cw\"><p:cBhvr override=\"childStyle\"><p:cTn dur=\"1\" fill=\"hold\" display=\"0\" masterRel=\"sameClick\" afterEffect=\"1\">"
+                                            "<p:stCondLst><p:cond evt=\"end\" delay=\"0\"><p:tn val=\"5\"/></p:cond></p:stCondLst></p:cTn>")));
+        QVERIFY(xml.contains(QStringLiteral("<p:attrNameLst><p:attrName>style.color</p:attrName><p:attrName>fillcolor</p:attrName></p:attrNameLst></p:cBhvr><p:to><a:srgbClr val=\"336699\"/></p:to></p:animClr>")));
+        QVERIFY(xml.contains(QStringLiteral("<p:to><a:schemeClr val=\"accent2\"/></p:to>")));
+        // It reads back as the same two effects, each still one JeffDeck made.
+        const deck::AnimSequence back = deck::readAnimations(slide);
+        QCOMPARE(int(back.effects.size()), 2);
+        QVERIFY(!back.effects[0].custom() && !back.effects[1].custom());
+        QCOMPARE(back.effects[0].after, deck::AfterEffect::Dim);
+        QCOMPARE(back.effects[0].dimColor, blue);
+        QCOMPARE(back.effects[1].dimColor, accent);
+        // Written again from what was read, it is the same bytes.
+        deck::setAnimations(*d, slide, back);
+        QCOMPARE(slide.props.value(QStringLiteral("timingXml")).toString(), xml);
+        // A color with a transform has no place in an effect JeffDeck makes: it is kept as written, and plays all the same.
+        QString lumped = xml;
+        lumped.replace(QStringLiteral("<a:srgbClr val=\"336699\"/>"), QStringLiteral("<a:srgbClr val=\"336699\"><a:lumMod val=\"50000\"/></a:srgbClr>"));
+        slide.props[QStringLiteral("timingXml")] = lumped;
+        QVERIFY(deck::readAnimations(slide).effects[0].custom());
+        slide.props[QStringLiteral("timingXml")] = xml;
+        // Played: no tint while the effect plays, the color when it ends, and a theme color as the theme has it.
+        const deck::Timeline tl = deck::playableTimeline(slide);
+        const deck::Geometry g = deck::geometryOf(*d, slide);
+        QVERIFY(deck::statesAt(tl, g, 0, 500).value(deck::Target{7}).tint.isEmpty());
+        QCOMPARE(deck::statesAt(tl, g, 1, -1).value(deck::Target{7}).tint, blue);
+        QCOMPARE(deck::statesAt(tl, g, 2, -1).value(deck::Target{3}).tint, accent);
+        QVERIFY(deck::statesAt(tl, g, 0, -1).value(deck::Target{7}).tint.isEmpty());
+        // Painted: the box is its own color, then (7 parts in 10) the dim color.
+        LayoutCache cache;
+        auto frame = [&](int done) {
+            const deck::States states = deck::statesAt(tl, g, done, -1);
+            return paintedSlide(d.get(), &cache, 0, [&](PaintContext &ctx) { deck::animate(ctx, *d, states); });
+        };
+        auto middle = [](const QImage &img) { return img.pixelColor(660, 420); };
+        QCOMPARE(middle(frame(0)), QColor(Qt::white));   // not in yet
+        const QColor dimmed = middle(frame(1));
+        QVERIFY2(qAbs(dimmed.red() - qRound(200 * 0.3 + 0x33 * 0.7)) <= 3 && qAbs(dimmed.green() - qRound(60 * 0.3 + 0x66 * 0.7)) <= 3 && qAbs(dimmed.blue() - qRound(40 * 0.3 + 0x99 * 0.7)) <= 3, qPrintable(dimmed.name()));
+        // The pane's box gives the color back, and a tinted theme color is changed to the color it shows (the file has no form for it).
+        AnimationOptionsDialog dlg(back.effects[0], false, AnimationOptionsDialog::EffectTab, nullptr, d->colors);
+        auto *after = dlg.findChild<QComboBox *>(QStringLiteral("animAfter"));
+        auto *color = dlg.findChild<ColorButton *>(QStringLiteral("animDimColor"));
+        QVERIFY(after && color && color->isEnabled());
+        QCOMPARE(dlg.result().dimColor, blue);
+        color->setCurrent(ColorRef::scheme(Accent1, 40));
+        const ColorRef shown = ColorRef::fromString(dlg.result().dimColor);
+        QCOMPARE(shown.kind(), ColorRef::Rgb);
+        QCOMPARE(shown.rgbValue().rgb(), ColorRef::scheme(Accent1, 40).resolve(d->colors).rgb());
+        color->setCurrent(ColorRef::scheme(Accent3));
+        QCOMPARE(dlg.result().dimColor, ColorRef::scheme(Accent3).toString());
+        after->setCurrentIndex(after->findData(int(deck::AfterEffect::HideOnNextClick)));
+        QVERIFY(!color->isEnabled());
+        QCOMPARE(dlg.result().after, deck::AfterEffect::HideOnNextClick);
+    }
+
+    // The box with a dim chosen and the picture of the slide after the dim, when JO_SHOT_DIR names a folder.
+    void animationDimScreenshots()
+    {
+        const QString folder = qEnvironmentVariable("JO_SHOT_DIR");
+        if (folder.isEmpty()) QSKIP("JO_SHOT_DIR is not set");
+        jp::applyUiTheme(1);
+        auto d = showDeck(1);
+        Page &slide = *d->pages[0];
+        numberShowShapes(slide);
+        auto box = std::make_shared<ShapeItem>();
+        box->rect = QRectF(600, 380, 120, 80);
+        box->fill = Fill::solid(ColorRef::rgb(QColor(200, 60, 40)));
+        box->sourceId = 7;
+        slide.items.push_back(box);
+        deck::Anim a = deck::makeAnim(QStringLiteral("entr.fade"), 7);
+        a.after = deck::AfterEffect::Dim;
+        a.dimColor = ColorRef::rgb(QColor(0x33, 0x66, 0x99)).toString();
+        deck::AnimSequence seq;
+        seq.add(a);
+        deck::setAnimations(*d, slide, seq);
+        AnimationOptionsDialog dlg(a, false, AnimationOptionsDialog::EffectTab, nullptr, d->colors);
+        dlg.show();
+        QVERIFY(dlg.grab().save(QDir(folder).filePath(QStringLiteral("dim-options.png"))));
+        const deck::Timeline tl = deck::playableTimeline(slide);
+        const deck::States states = deck::statesAt(tl, deck::geometryOf(*d, slide), 1, -1);
+        LayoutCache cache;
+        const QImage img = paintedSlide(d.get(), &cache, 0, [&](PaintContext &ctx) { deck::animate(ctx, *d, states); });
+        QVERIFY(img.save(QDir(folder).filePath(QStringLiteral("dim-slide.png"))));
+    }
+
+    // The app's own save and open: a dim is kept in .pptx (the same dim after the open), and .odp, which has no place for it, tells the person.
+    // Fails when off: yes (with the dim not written, the open has none).
+    void windowDimSurvivesSaveAndOpen()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        const QString blue = ColorRef::rgb(QColor(0x33, 0x66, 0x99)).toString();
+        for (const char *ext : {"pptx", "odp"}) {
+            DeckWindow w;
+            w.resize(1200, 800);
+            w.show();
+            Editor *ed = w.editor();
+            triggerSlide(ed, animTiming(animSteps({animFadeIn(10, 500)})));
+            Page &page = *ed->doc()->pages[0];
+            deck::AnimSequence seq = deck::readAnimations(page, ed->doc());
+            QCOMPARE(int(seq.effects.size()), 1);
+            seq.effects[0].after = deck::AfterEffect::Dim;
+            seq.effects[0].dimColor = blue;
+            deck::setAnimations(*ed->doc(), page, seq);
+            w.setNotifier([](const QString &, const QString &) {});   // (a save that leaves something out tells the person in a box)
+            const QString path = dir.filePath(QStringLiteral("dim.") + QLatin1String(ext));
+            QVERIFY2(w.saveTo(path), ext);
+            if (QLatin1String(ext) == QLatin1String("odp")) {
+                // What the save tells the person (Check Compatibility lists it).
+                QString exportError;
+                QStringList told;
+                QVERIFY(!deck::exportOdp(*ed->doc(), false, &exportError, &told).isEmpty());
+                QVERIFY2(told.join(QString()).contains(QStringLiteral("dimmed to after its effect has no match")), qPrintable(told.join(QLatin1Char('|'))));
+                QFile file(path);
+                QVERIFY(file.open(QIODevice::ReadOnly));
+                QMap<QString, QByteArray> zip;
+                QString err;
+                QVERIFY2(readZip(file.readAll(), zip, &err), qPrintable(err));
+                // The effect itself is still written (a dim left out does not take the effect with it).
+                QVERIFY(QString::fromUtf8(zip.value(QStringLiteral("content.xml"))).contains(QStringLiteral("presentation:preset-class=\"entrance\"")));
+                continue;
+            }
+            DeckWindow second;
+            QVERIFY2(second.openFile(path), ext);
+            const deck::AnimSequence opened = deck::readAnimations(*second.editor()->doc()->pages[0], second.editor()->doc());
+            QCOMPARE(int(opened.effects.size()), 1);
+            QVERIFY(!opened.effects[0].custom());
+            QCOMPARE(opened.effects[0].after, deck::AfterEffect::Dim);
+            QCOMPARE(opened.effects[0].dimColor, blue);
+        }
+    }
+
     // A timing a file makes hostile is read within limits and never rewritten: one with more effects than a slide could have, and
     // one that nests its effects deeper than any program does, are shown as far as they can be and not changed.
     void animationEditReadsHostileTiming()

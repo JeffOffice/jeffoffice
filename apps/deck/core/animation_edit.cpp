@@ -561,7 +561,14 @@ QString effectXml(const Anim &a, int grpId, bool placeholder, Ids *ids)
     const QString body = bodyOf(*t, a, ids);
     // What it does to its shape when it is over: hide it when the effect ends, or at the next click.
     QString after;
-    if (a.after != AfterEffect::None) {
+    const QString dim = a.after == AfterEffect::Dim ? dimColorToXml(a.dimColor) : QString();
+    if (!dim.isEmpty()) {
+        // Dimmed when the effect ends: its color, for the shape's text and for its fill.
+        after = QStringLiteral("<p:subTnLst><p:animClr clrSpc=\"rgb\" dir=\"cw\"><p:cBhvr override=\"childStyle\"><p:cTn dur=\"1\" fill=\"hold\" display=\"0\" masterRel=\"sameClick\" afterEffect=\"1\">"
+                               "<p:stCondLst><p:cond evt=\"end\" delay=\"0\"><p:tn val=\"%1\"/></p:cond></p:stCondLst></p:cTn>%2"
+                               "<p:attrNameLst><p:attrName>style.color</p:attrName><p:attrName>fillcolor</p:attrName></p:attrNameLst></p:cBhvr><p:to>%3</p:to></p:animClr></p:subTnLst>")
+                    .arg(id).arg(targetXml(a), dim);
+    } else if (a.after == AfterEffect::Hide || a.after == AfterEffect::HideOnNextClick) {
         const bool next = a.after == AfterEffect::HideOnNextClick;
         const QString cTn = QStringLiteral("<p:cTn dur=\"1\" fill=\"hold\" display=\"0\" masterRel=\"%1\" afterEffect=\"1\"").arg(next ? QStringLiteral("nextClick") : QStringLiteral("sameClick"))
                             + (next ? QStringLiteral("/>") : QStringLiteral("><p:stCondLst><p:cond evt=\"end\" delay=\"0\"><p:tn val=\"%1\"/></p:cond></p:stCondLst></p:cTn>").arg(id));
@@ -753,7 +760,10 @@ Anim readEffect(const QDomElement &par, const QDomElement &cTn, int span)
     k.smoothStart = attr(cTn, QStringLiteral("accel")).toLongLong() > 0;
     k.smoothEnd = attr(cTn, QStringLiteral("decel")).toLongLong() > 0;
     k.rewind = attr(cTn, QStringLiteral("fill")) == QLatin1String("remove");
-    if (const QDomElement hide = pChild(pChild(pChild(pChild(cTn, "subTnLst"), "set"), "cBhvr"), "cTn"); !hide.isNull()) {
+    if (const QDomElement clr = pChild(pChild(cTn, "subTnLst"), "animClr"); !clr.isNull()) {
+        k.dimColor = dimColorFromXml(pChild(clr, "to"));
+        if (!k.dimColor.isEmpty()) k.after = AfterEffect::Dim;
+    } else if (const QDomElement hide = pChild(pChild(pChild(pChild(cTn, "subTnLst"), "set"), "cBhvr"), "cTn"); !hide.isNull()) {
         const QString master = attr(hide, QStringLiteral("masterRel"));
         k.after = master == QLatin1String("nextClick") ? AfterEffect::HideOnNextClick : master == QLatin1String("sameClick") ? AfterEffect::Hide : AfterEffect::None;
     }
@@ -791,7 +801,7 @@ Anim readEffect(const QDomElement &par, const QDomElement &cTn, int span)
     Ids ids;
     QString again = effectXml(k, k.group, placeholder, &ids);
     if (again.isEmpty()) return a;
-    again.replace(0, 6, QStringLiteral("<p:par xmlns:p=\"%1\"").arg(office::ns::P));
+    again.replace(0, 6, QStringLiteral("<p:par xmlns:p=\"%1\" xmlns:a=\"%2\"").arg(office::ns::P, office::ns::A));
     if (canonOf(again) != canonOf(a.xml)) {
         // A transparency as a set of the opacity: the same effect, in the other form.
         static const QRegularExpression animForm(QStringLiteral("<p:anim calcmode=\"lin\" valueType=\"num\">(<p:cBhvr>.*?</p:cBhvr>)<p:tavLst>.*?<p:tav tm=\"100000\"><p:val><p:strVal val=\"([^\"]*)\"/></p:val></p:tav></p:tavLst></p:anim>"),
@@ -1270,7 +1280,10 @@ void changeKind(Anim &anim, const EffectKind &kind)
     a.delay = anim.delay;
     a.duration = duration;
     a.group = anim.group;
-    if (kind.cls != EffectClass::Exit) a.after = anim.after;
+    if (kind.cls != EffectClass::Exit) {
+        a.after = anim.after;
+        a.dimColor = anim.dimColor;
+    }
     anim = a;
 }
 
@@ -1393,10 +1406,12 @@ void copyEffects(AnimSequence &seq, int from, const QVector<int> &to)
 namespace {
 
 // The namespaces the written timing declares: the ones the file's timing did, and the presentation namespace the effects JeffDeck makes use.
-QString declarationsFor(const QString &declared)
+QString declarationsFor(const QString &declared, bool colors)
 {
     QString out = declared;
     if (!out.contains(QStringLiteral(" xmlns:p=\"")) && !out.contains(QStringLiteral(" xmlns:p='"))) out += QStringLiteral(" xmlns:p=\"%1\"").arg(office::ns::P);
+    // A dim names its color with a DrawingML element.
+    if (colors && !out.contains(QStringLiteral(" xmlns:a=\"")) && !out.contains(QStringLiteral(" xmlns:a='"))) out += QStringLiteral(" xmlns:a=\"%1\"").arg(office::ns::A);
     return out;
 }
 
@@ -1526,7 +1541,11 @@ QString animationsXml(const Document &doc, const Page &slide, const AnimSequence
 
     // What the file keeps beside the main sequence keeps its own numbers; the rest are numbered around them, in document order: each
     // click step, each part of it, each effect.
-    const QString declared = declarationsFor(seq.declarations);
+    bool dims = false;
+    for (const Anim &a : std::as_const(effects)) dims = dims || a.after == AfterEffect::Dim;
+    for (const TriggerSeq &t : std::as_const(live.triggers))
+        for (const Anim &a : t.effects) dims = dims || a.after == AfterEffect::Dim;
+    const QString declared = declarationsFor(seq.declarations, dims);
     Ids ids;
     QSet<int> aimedAt;
     for (qsizetype k = 0; k < seq.kept.size(); ++k) {

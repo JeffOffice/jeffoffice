@@ -350,7 +350,7 @@ void Exporter::writeAnimations(X &x, const Page &page)
 {
     const Timeline tl = timelineOf(page);
     if (tl.isEmpty() && tl.triggers.isEmpty()) return;
-    int lost = 0;
+    int lost = 0, dimmed = 0;
     // An effect that plays, pauses, or stops a movie or sound: the call the other suite writes for it, in a part of its own. Empty when
     // the effect asks for anything else, or of something that isn't here.
     auto mediaEffect = [&](const Effect &e) -> QString {
@@ -549,6 +549,10 @@ void Exporter::writeAnimations(X &x, const Page &page)
                         break;
                     }
                     case Behavior::Kind::Color:
+                        // A dim to a color after the effect has no match here: the effect is kept and told of.
+                        if (b.attribute == QLatin1String("dim") && b.afterwards) ++dimmed;
+                        else usable = false;
+                        break;
                     case Behavior::Kind::Command:
                         usable = false;
                         break;
@@ -608,6 +612,7 @@ void Exporter::writeAnimations(X &x, const Page &page)
         clicked.open("anim:par").attr("smil:begin", shape.value() + QStringLiteral(".click+0s")).attr("smil:fill", "hold");
         clicked.raw(body.str()).close().close();
     }
+    if (dimmed > 0) say(QCoreApplication::translate("OdpExport", "%1: the color an object is dimmed to after its effect has no match in this kind of file, so the object keeps its own color.").arg(m_where));
     if (lost > 0) say(QCoreApplication::translate("OdpExport", "%1: animation effects that have no match in this kind of file were left out.").arg(m_where));
     if (steps.str().isEmpty() && clicked.str().isEmpty()) return;
     x.open("anim:par").attr("smil:dur", "indefinite").attr("smil:restart", "never").attr("presentation:node-type", "timing-root");
