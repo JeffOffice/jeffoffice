@@ -1159,11 +1159,12 @@
         },
         {
          "status": "partly",
-         "text": "132358b65ec6337ed031e2484b2cb3fe0286550d26705ac3ed3acfa99323917f"
+         "text": "1936cfdf05d7e92e6fb617caf8a21ae7a4acbded8765406edeed64f702f2c313"
         },
         {
-         "status": "partly",
-         "text": "87b1a61b8bee7ed6b4a33a4be98e89dac70e33b7255b4f4329764bb67acb5ff4"
+         "hide_soon": true,
+         "status": "done",
+         "text": "8353b0929ffce3a40207a8d74674f263c31fe1e408a4b8cddae4655026249cc2"
         },
         {
          "hide_soon": true,
@@ -4670,6 +4671,11 @@
          "hide_soon": true,
          "status": "done",
          "text": "2a2527d3924c903603eaf65721dcd6112928664ccc7d044a748ebe1a69508d72"
+        },
+        {
+         "hide_soon": true,
+         "status": "done",
+         "text": "3ef88bc40f57d2ea13e25522ec219aafd6763abfb43631729a008c19342e3922"
         }
        ]
       },
@@ -6926,6 +6932,11 @@
        "text": "1e3be64860c7664da0b12049f1f9b56683b1d1db3ff7cc7a4eae2d1dfcc53dfd"
       },
       {
+       "hide_soon": true,
+       "status": "done",
+       "text": "c0ec9fa0c79b97510c8807495b3f8e851456e6943a3c0a57eab586aac1afdc33"
+      },
+      {
        "status": "partly",
        "text": "22891dd828a0adad3818639eb2ae0551c31f7ca3d9e72ace7f1c5155b7c1bb8b"
       },
@@ -7231,7 +7242,7 @@
         },
         {
          "status": "partly",
-         "text": "2ca484e0b6477b48770eca7a8761d3fec59c54a5cfb0b52c7f528ec39c291581"
+         "text": "8cc3c969ae4f4f57f86ab238998fe71991f4ff5913581a93cea9522cee78a93f"
         },
         {
          "status": "partly",
@@ -9390,18 +9401,6 @@
     "fr": ""
    }
   },
-  "132358b65ec6337ed031e2484b2cb3fe0286550d26705ac3ed3acfa99323917f": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Group and ungroup rows and columns, automatic outline, and clear outline",
-    "es": "Agrupar y desagrupar filas y columnas, esquema automático y borrar esquema",
-    "fr": "Grouper et dissocier des lignes et des colonnes, plan automatique et effacement du plan"
-   }
-  },
   "1338b478649ebbdc46a7299f25de81e5f6ac6f9d45c28676f722da72be845097": {
    "drop": false,
    "en": "Start from a blank document or one of 14 built-in templates, each shown as a tile with a preview of the first page it makes and grouped under the heading of its kind. My Templates stays below.",
@@ -9796,6 +9795,18 @@
     "en": "",
     "es": "",
     "fr": ""
+   }
+  },
+  "1936cfdf05d7e92e6fb617caf8a21ae7a4acbded8765406edeed64f702f2c313": {
+   "drop": true,
+   "en": "",
+   "es": "",
+   "fr": "",
+   "soon": {
+    "drop": false,
+    "en": "Group and ungroup rows and columns, automatic outline, and clear outline",
+    "es": "Agrupar y desagrupar filas y columnas, esquema automático y borrar esquema",
+    "fr": "Grouper et dissocier des lignes et des colonnes, plan automatique et effacement du plan"
    }
   },
   "197874ebd9cb1373c72401e66235506ef7ed5fc485a10c81d56a2552499fbb76": {
@@ -11586,18 +11597,6 @@
     "fr": ""
    }
   },
-  "2ca484e0b6477b48770eca7a8761d3fec59c54a5cfb0b52c7f528ec39c291581": {
-   "drop": false,
-   "en": "Picture Format > Corrections sets brightness and contrast in steps of 20 percent up to 40 either way, and Color turns a picture gray, black and white, or washed out. Corrections and colors in a file are read and drawn.",
-   "es": "Formato de imagen > Correcciones establece el brillo y el contraste en pasos del 20 por ciento hasta 40 en cada sentido, y Color convierte la imagen en gris, blanco y negro o descolorida. Las correcciones y colores de un documento se leen y se dibujan.",
-   "fr": "Format de l’image > Corrections règle la luminosité et le contraste par pas de 20 pour cent jusqu’à 40 dans chaque sens, et Couleur rend l’image grise, en noir et blanc ou délavée. Les corrections et couleurs d’un fichier sont lues et dessinées.",
-   "soon": {
-    "drop": false,
-    "en": "Sharpen and soften, saturation and tone, transparent color, and artistic effects",
-    "es": "Nitidez y suavizado, saturación y tono, color transparente y efectos artísticos",
-    "fr": "Netteté et adoucissement, saturation et teinte, couleur transparente et effets artistiques"
-   }
-  },
   "2d0a3edc0e2a8564086d48a7432491bb98c796eec8779b23b846157eff53f19a": {
    "drop": false,
    "en": "Add sounds to animation effects, choose what happens after an animation (dim to a color, hide, or hide on the next click), and animate text all at once, by word, or by letter.",
@@ -12935,6 +12934,18 @@
    "en": "Suite-wide settings: the theme, display language, user name and initials, update choices, and statistics choice are kept once, so changing one changes it everywhere.",
    "es": "Configuración común de la suite: el tema, el idioma de la interfaz, el nombre y las iniciales del usuario, las opciones de actualización y la de estadísticas se guardan una sola vez, así que cambiar una la cambia en todas las aplicaciones.",
    "fr": "Réglages communs à la suite : le thème, la langue d’affichage, le nom et les initiales de l’utilisateur, les choix de mise à jour et de statistiques sont conservés une seule fois ; en modifier un le modifie partout.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
+  "3ef88bc40f57d2ea13e25522ec219aafd6763abfb43631729a008c19342e3922": {
+   "drop": false,
+   "en": "Mail merge remembers the recipients left out by a key column, and Save Each as a File makes one `.jpub` publication for each recipient.",
+   "es": "La combinación de correspondencia recuerda los destinatarios excluidos mediante una columna clave, y Guardar cada uno como archivo crea una publicación `.jpub` para cada destinatario.",
+   "fr": "Le publipostage mémorise les destinataires exclus à l’aide d’une colonne clé, et Enregistrer chacun comme fichier crée une publication `.jpub` pour chaque destinataire.",
    "soon": {
     "drop": true,
     "en": "",
@@ -18150,6 +18161,18 @@
     "fr": ""
    }
   },
+  "8353b0929ffce3a40207a8d74674f263c31fe1e408a4b8cddae4655026249cc2": {
+   "drop": false,
+   "en": "Insert a subtotal row at each change in a sorted column, using Sum, Count, Average, Max, Min, Product, Count Numbers, StdDev, StdDevp, Var, or Varp on the columns you check. Replace earlier subtotals, add a grand total, put a page break between groups, place the summary above or below the data, and use Remove All.",
+   "es": "Inserte una fila de subtotal en cada cambio de una columna ordenada, con Suma, Contar, Promedio, Máx, Mín, Producto, Contar números, DesvEst, DesvEstP, Var o VarP en las columnas marcadas. Reemplace subtotales anteriores, agregue un total general, inserte un salto de página entre grupos, coloque el resumen encima o debajo de los datos y use Quitar todos.",
+   "fr": "Insérez une ligne de sous-total à chaque changement dans une colonne triée, avec Somme, Nombre, Moyenne, Max, Min, Produit, Nombre de valeurs numériques, Écart type, Écart type population, Var ou Var population sur les colonnes cochées. Remplacez les sous-totaux précédents, ajoutez un total général, insérez un saut de page entre les groupes, placez le résumé au-dessus ou en dessous des données et utilisez Supprimer tout.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "835769050144ca30fff4947c972029a7429e45a039eaf5b7551b0245a4cddb9b": {
    "drop": false,
    "en": "Browse a template gallery with live previews in categories such as Brochures, Business Cards, Calendars, Flyers, Newsletters, and Postcards.",
@@ -18328,18 +18351,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "87b1a61b8bee7ed6b4a33a4be98e89dac70e33b7255b4f4329764bb67acb5ff4": {
-   "drop": false,
-   "en": "Subtotal inserts a subtotal at each change in a column, using Sum, Count, Average, Max, Min, Product, Count Numbers, StdDev, StdDevp, Var, or Varp on the checked columns. It replaces earlier subtotals, adds a grand total, groups each run in the outline, can insert page breaks between groups, and has Remove All.",
-   "es": "Subtotal inserta un subtotal en cada cambio de una columna, con Suma, Cuenta, Promedio, Máx, Mín, Producto, Contar números, Desvest, Desvestp, Var o Varp en las columnas marcadas. Reemplaza los subtotales anteriores, agrega un total general, agrupa cada tramo en el esquema, puede insertar saltos de página entre grupos y tiene Quitar todos.",
-   "fr": "Sous-total insère un sous-total à chaque changement dans une colonne, avec Somme, Nombre, Moyenne, Max, Min, Produit, Nb numériques, Écartype, Écartypep, Var ou Varp sur les colonnes cochées. Il remplace les sous-totaux précédents, ajoute un total général, regroupe chaque série dans le plan, peut insérer des sauts de page entre les groupes et propose Supprimer tout.",
-   "soon": {
-    "drop": false,
-    "en": "Subtotals: summary above the data",
-    "es": "Subtotales: resumen sobre los datos",
-    "fr": "Sous-totaux : synthèse au-dessus des données"
    }
   },
   "87bf192fae02faddb26072e3ca125c7422fb2b1a50227338c3cc036dae3db0c4": {
@@ -18688,6 +18699,18 @@
     "en": "",
     "es": "",
     "fr": ""
+   }
+  },
+  "8cc3c969ae4f4f57f86ab238998fe71991f4ff5913581a93cea9522cee78a93f": {
+   "drop": false,
+   "en": "Set brightness and contrast in steps, sharpen or soften a picture, turn it gray, black and white, or washed out, and change its color temperature. An Artistic Effects gallery is available, and Reset Picture and Compress Pictures work with the edited picture.",
+   "es": "Ajuste el brillo y el contraste por pasos, enfoque o suavice una imagen, conviértala a gris, blanco y negro o descolorida, y cambie su temperatura de color. Hay una galería de efectos artísticos, y Restablecer imagen y Comprimir imágenes funcionan con la imagen editada.",
+   "fr": "Réglez la luminosité et le contraste par paliers, accentuez ou adoucissez une image, passez-la en gris, en noir et blanc ou en délavé, et modifiez sa température de couleur. Une galerie d’effets artistiques est disponible, et Réinitialiser l’image et Compresser les images fonctionnent avec l’image modifiée.",
+   "soon": {
+    "drop": false,
+    "en": "Picture saturation, tone, and transparent color",
+    "es": "Saturación, tono y color transparente de las imágenes",
+    "fr": "Saturation, ton et couleur transparente des images"
    }
   },
   "8cd3f4e97d6e6f569e7dbc81be5fb9e7641ae25f2d9be524cc440d1710e96d14": {
@@ -22103,6 +22126,18 @@
    "en": "Data validation rules are read, kept, and followed through edits. Typed and pasted values are checked with the rule’s own style, title, and message, a list is offered from a button on the cell, and the input message shows beside the cell. Rules that read other sheets are kept through saving and through inserted rows and columns.",
    "es": "Las reglas de validación de datos se leen, se conservan y se mantienen con las ediciones. Los valores escritos y pegados se comprueban con el estilo, el título y el mensaje propios de la regla, una lista se ofrece desde un botón en la celda y el mensaje de entrada se muestra junto a la celda. Las reglas que leen otras hojas se conservan al guardar y al insertar filas y columnas.",
    "fr": "Les règles de validation des données sont lues, conservées et suivies lors des modifications. Les valeurs saisies et collées sont vérifiées avec le style, le titre et le message propres à la règle, une liste est proposée depuis un bouton sur la cellule et le message de saisie s’affiche à côté de la cellule. Les règles qui lisent d’autres feuilles sont conservées à l’enregistrement et lors de l’insertion de lignes et de colonnes.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
+  "c0ec9fa0c79b97510c8807495b3f8e851456e6943a3c0a57eab586aac1afdc33": {
+   "drop": false,
+   "en": "Recipients left out are remembered with the document, by a key column or by place, and the app tells you where the list no longer fits. Finish & Merge > Save Each as a File makes one `.docx` or PDF file for each recipient, named from the recipient's own details.",
+   "es": "Los destinatarios excluidos se recuerdan con el documento, mediante una columna clave o por posición, y la aplicación le avisa cuando la lista ya no coincide. Finalizar y combinar > Guardar cada uno como archivo crea un archivo `.docx` o PDF para cada destinatario, con un nombre tomado de los datos del propio destinatario.",
+   "fr": "Les destinataires exclus sont mémorisés avec le document, par colonne clé ou par position, et l’application vous signale où la liste ne correspond plus. Terminer et fusionner > Enregistrer chacun comme fichier crée un fichier `.docx` ou PDF pour chaque destinataire, nommé d’après les données propres au destinataire.",
    "soon": {
     "drop": true,
     "en": "",
