@@ -1195,7 +1195,7 @@ QByteArray oldLayoutPub(const QVector<QPair<quint16, quint32>> &pages, const QVe
             if (6 + i >= 0x16)
                 c[at + 6 + i] = rec[i];
     }
-    c.resize(c.size() + 0x10);
+    c.resize(c.size() + 0x10, '\0');   // (resize leaves new bytes undefined; the reader sees these as the end of the last record)
     const quint32 trailer = quint32(c.size());
     put32(c, 0x16, trailer);
     QByteArray t(2, '\0');
