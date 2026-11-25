@@ -25877,7 +25877,7 @@ Source: %3</source>
 <context>
     <name>jp::CrunchWindow</name>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow.cpp" line="+195"/>
+        <location filename="../apps/crunch/app/crunchwindow.cpp" line="+205"/>
         <location filename="../apps/crunch/app/crunchwindow_edit.cpp" line="+212"/>
         <source>The new workbook is getting ready. It can be changed in a moment.</source>
         <translation type="unfinished"></translation>
@@ -25926,7 +25926,7 @@ Source: %3</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+60"/>
+        <location line="+61"/>
         <source>Cell editor</source>
         <translation type="unfinished"></translation>
     </message>
@@ -25976,15 +25976,15 @@ Source: %3</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="-269"/>
-        <location line="+288"/>
+        <location line="-270"/>
+        <location line="+289"/>
         <location filename="../apps/crunch/app/crunchwindow_calc.cpp" line="+190"/>
         <location filename="../apps/crunch/app/crunchwindow_cells.cpp" line="+117"/>
         <location filename="../apps/crunch/app/crunchwindow_clip.cpp" line="+187"/>
         <location line="+125"/>
         <location line="+5"/>
-        <location filename="../apps/crunch/app/crunchwindow_copy.cpp" line="+156"/>
-        <location line="+70"/>
+        <location filename="../apps/crunch/app/crunchwindow_copy.cpp" line="+157"/>
+        <location line="+71"/>
         <location line="+28"/>
         <location filename="../apps/crunch/app/crunchwindow_csv.cpp" line="+99"/>
         <location filename="../apps/crunch/app/crunchwindow_drawborder.cpp" line="+40"/>
@@ -25996,7 +25996,7 @@ Source: %3</source>
         <location line="+170"/>
         <location line="+15"/>
         <location line="+48"/>
-        <location filename="../apps/crunch/app/crunchwindow_filter.cpp" line="+242"/>
+        <location filename="../apps/crunch/app/crunchwindow_filter.cpp" line="+243"/>
         <location filename="../apps/crunch/app/crunchwindow_find.cpp" line="+178"/>
         <location line="+19"/>
         <location line="+134"/>
@@ -26005,7 +26005,7 @@ Source: %3</source>
         <location filename="../apps/crunch/app/crunchwindow_notes.cpp" line="+161"/>
         <location filename="../apps/crunch/app/crunchwindow_save.cpp" line="+348"/>
         <location filename="../apps/crunch/app/crunchwindow_savecopy.cpp" line="+157"/>
-        <location filename="../apps/crunch/app/crunchwindow_sort.cpp" line="+296"/>
+        <location filename="../apps/crunch/app/crunchwindow_sort.cpp" line="+298"/>
         <location line="+22"/>
         <location filename="../apps/crunch/app/crunchwindow_versions.cpp" line="+90"/>
         <source>Ready</source>
@@ -26069,11 +26069,11 @@ Source: %3</source>
     </message>
     <message>
         <location line="+7"/>
-        <location line="+606"/>
-        <location filename="../apps/crunch/app/crunchwindow_copy.cpp" line="-216"/>
+        <location line="+631"/>
+        <location filename="../apps/crunch/app/crunchwindow_copy.cpp" line="-218"/>
         <location line="+6"/>
         <location line="+14"/>
-        <location line="+167"/>
+        <location line="+169"/>
         <location line="+14"/>
         <location filename="../apps/crunch/app/crunchwindow_csv.cpp" line="-25"/>
         <location line="+6"/>
@@ -26101,7 +26101,7 @@ Source: %3</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="-605"/>
+        <location line="-630"/>
         <source>Save As…</source>
         <translation type="unfinished"></translation>
     </message>
@@ -26152,7 +26152,7 @@ Source: %3</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+137"/>
+        <location line="+154"/>
         <source>Places</source>
         <translation type="unfinished"></translation>
     </message>
@@ -26173,23 +26173,23 @@ Source: %3</source>
     </message>
     <message>
         <location line="-122"/>
-        <location line="+468"/>
+        <location line="+476"/>
         <source>Editing</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="-970"/>
+        <location line="-996"/>
         <source>End</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+388"/>
+        <location line="+389"/>
         <location line="+2"/>
         <source>Repeat</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+32"/>
+        <location line="+33"/>
         <source>Use English function names</source>
         <translation type="unfinished"></translation>
     </message>
@@ -26214,7 +26214,47 @@ Source: %3</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+67"/>
+        <location line="+31"/>
+        <source>Error Checking marks cells that have</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>A formula that gives an error</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>A number kept as text</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>A formula that is not like the ones beside it</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>A date kept as text with a year of two digits</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>A formula in a cell that is not locked</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>A formula that leaves out a number next to the cells it uses</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>A formula that uses an empty cell</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+49"/>
         <location line="+4"/>
         <source>After pressing Enter, move the selection</source>
         <translation type="unfinished"></translation>
@@ -26287,12 +26327,12 @@ Source: %3</source>
     </message>
     <message>
         <location line="+19"/>
-        <location line="+410"/>
+        <location line="+418"/>
         <source>New Workbooks</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="-404"/>
+        <location line="-412"/>
         <location line="+2"/>
         <source>Font of a new workbook</source>
         <translation type="unfinished"></translation>
@@ -26309,12 +26349,12 @@ Source: %3</source>
     </message>
     <message>
         <location line="+14"/>
-        <location line="+378"/>
+        <location line="+386"/>
         <source>Display</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="-373"/>
+        <location line="-381"/>
         <location line="+8"/>
         <location line="+3"/>
         <source>Gridline color</source>
@@ -26333,18 +26373,18 @@ Source: %3</source>
     </message>
     <message>
         <location line="+21"/>
-        <location line="+331"/>
+        <location line="+339"/>
         <source>Privacy</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="-316"/>
-        <location line="+316"/>
+        <location line="-324"/>
+        <location line="+324"/>
         <source>Custom Lists</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="-313"/>
+        <location line="-321"/>
         <source>A custom list is a row of words that Fill goes through, like the days of the week. Type one list on each line, with commas between the words. Type the first word in a cell and drag the fill handle to get the rest.</source>
         <translation type="unfinished"></translation>
     </message>
@@ -26467,7 +26507,7 @@ Source: %3</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+162"/>
+        <location line="+170"/>
         <source>An object&apos;s name is one to 255 characters.</source>
         <translation type="unfinished"></translation>
     </message>
@@ -26632,7 +26672,7 @@ Source: %3</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow.cpp" line="-715"/>
+        <location filename="../apps/crunch/app/crunchwindow.cpp" line="-739"/>
         <location filename="../apps/crunch/app/crunchwindow_calc.cpp" line="-160"/>
         <location filename="../apps/crunch/app/crunchwindow_format.cpp" line="+128"/>
         <location filename="../apps/crunch/app/crunchwindow_page.cpp" line="+196"/>
@@ -26701,7 +26741,7 @@ Source: %3</source>
     <message>
         <location filename="../apps/crunch/app/crunchwindow.cpp" line="-28"/>
         <location line="+4"/>
-        <location line="+60"/>
+        <location line="+76"/>
         <location filename="../apps/crunch/app/crunchwindow_calc.cpp" line="-12"/>
         <location line="+118"/>
         <location filename="../apps/crunch/app/crunchwindow_file.cpp" line="+225"/>
@@ -26709,7 +26749,7 @@ Source: %3</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="-63"/>
+        <location line="-79"/>
         <location filename="../apps/crunch/app/crunchwindow_calc.cpp" line="-176"/>
         <source>Automatic Except Data Tables</source>
         <translation type="unfinished"></translation>
@@ -27169,13 +27209,13 @@ Source: %3</source>
     </message>
     <message>
         <location line="+54"/>
-        <location filename="../apps/crunch/app/crunchwindow_sort.cpp" line="-252"/>
+        <location filename="../apps/crunch/app/crunchwindow_sort.cpp" line="-254"/>
         <location line="+14"/>
         <location line="+14"/>
         <location line="+4"/>
         <location line="+10"/>
         <location line="+12"/>
-        <location line="+98"/>
+        <location line="+100"/>
         <location line="+73"/>
         <location line="+14"/>
         <location line="+10"/>
@@ -27703,7 +27743,7 @@ Source: %3</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow.cpp" line="+671"/>
+        <location filename="../apps/crunch/app/crunchwindow.cpp" line="+695"/>
         <location filename="../apps/crunch/app/crunchwindow_charts.cpp" line="+30"/>
         <location line="+17"/>
         <location line="+12"/>
@@ -27769,14 +27809,14 @@ Source: %3</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow.cpp" line="-694"/>
+        <location filename="../apps/crunch/app/crunchwindow.cpp" line="-718"/>
         <location filename="../apps/crunch/app/crunchwindow_clip.cpp" line="-344"/>
         <location line="+300"/>
         <location line="+44"/>
         <location filename="../apps/crunch/app/crunchwindow_find.cpp" line="+231"/>
         <location filename="../apps/crunch/app/crunchwindow_pasteoffer.cpp" line="-24"/>
         <location line="+25"/>
-        <location filename="../apps/crunch/app/crunchwindow_tabs2.cpp" line="+123"/>
+        <location filename="../apps/crunch/app/crunchwindow_tabs2.cpp" line="+124"/>
         <source>Formulas</source>
         <translation type="unfinished"></translation>
     </message>
@@ -28602,7 +28642,7 @@ Source: %3</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow_copy.cpp" line="-201"/>
+        <location filename="../apps/crunch/app/crunchwindow_copy.cpp" line="-203"/>
         <location filename="../apps/crunch/app/crunchwindow_csv.cpp" line="-78"/>
         <source>The workbook is still being read. Save it when the status bar says Ready.</source>
         <translation type="unfinished"></translation>
@@ -28622,12 +28662,12 @@ Source: %3</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+116"/>
+        <location line="+118"/>
         <source>The workbook is still being read. Check it when the status bar says Ready.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="-58"/>
+        <location line="-60"/>
         <source>Checking what an .xls file can hold…</source>
         <translation type="unfinished"></translation>
     </message>
@@ -28642,7 +28682,12 @@ Source: %3</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+32"/>
+        <location line="+33"/>
+        <source>The sort choice &quot;Numbers in text count by value&quot;: the cells stay in the order they were sorted into, but the file does not remember the choice, so the next Sort starts without it.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
         <location line="+83"/>
         <source>Cut or changed to fit: %1</source>
         <translation type="unfinished"></translation>
@@ -28826,7 +28871,7 @@ The file that was there is as it was.</source>
         <location line="+9"/>
         <location filename="../apps/crunch/app/crunchwindow_filter.cpp" line="+19"/>
         <location line="+130"/>
-        <location filename="../apps/crunch/app/crunchwindow_sort.cpp" line="-154"/>
+        <location filename="../apps/crunch/app/crunchwindow_sort.cpp" line="-155"/>
         <location filename="../apps/crunch/app/crunchwindow_tabs2.cpp" line="+170"/>
         <source>Column %1</source>
         <translation type="unfinished"></translation>
@@ -28963,7 +29008,7 @@ The file that was there is as it was.</source>
     </message>
     <message>
         <location line="+139"/>
-        <location filename="../apps/crunch/app/crunchwindow_filter.cpp" line="-363"/>
+        <location filename="../apps/crunch/app/crunchwindow_filter.cpp" line="-364"/>
         <location filename="../apps/crunch/app/crunchwindow_format.cpp" line="-984"/>
         <location line="+607"/>
         <location line="+1"/>
@@ -29119,7 +29164,7 @@ This file is protected with a password. Password:</source>
     </message>
     <message>
         <location filename="../apps/crunch/app/crunchwindow_filter.cpp" line="-1"/>
-        <location line="+110"/>
+        <location line="+111"/>
         <location line="+14"/>
         <location line="+4"/>
         <location line="+6"/>
@@ -29129,7 +29174,7 @@ This file is protected with a password. Password:</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="-202"/>
+        <location line="-203"/>
         <location line="+3"/>
         <source>Clearing the filter</source>
         <translation type="unfinished"></translation>
@@ -29140,7 +29185,7 @@ This file is protected with a password. Password:</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+13"/>
+        <location line="+14"/>
         <source>Applying the filter again</source>
         <translation type="unfinished"></translation>
     </message>
@@ -29380,7 +29425,7 @@ This file is protected with a password. Password:</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow.cpp" line="+482"/>
+        <location filename="../apps/crunch/app/crunchwindow.cpp" line="+506"/>
         <location filename="../apps/crunch/app/crunchwindow_find.cpp" line="-223"/>
         <location line="+8"/>
         <location line="+4"/>
@@ -30474,14 +30519,14 @@ This file is protected with a password. Password:</source>
     </message>
     <message>
         <location line="+1"/>
-        <location line="+648"/>
+        <location line="+681"/>
         <location line="+3"/>
         <location line="+24"/>
         <source>Data Validation</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="-674"/>
+        <location line="-707"/>
         <location line="+2"/>
         <source>Circle Invalid Data</source>
         <translation type="unfinished"></translation>
@@ -30508,13 +30553,13 @@ This file is protected with a password. Password:</source>
     </message>
     <message>
         <location line="+1"/>
-        <location line="+856"/>
+        <location line="+889"/>
         <location line="+108"/>
         <source>Thesaurus</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="-963"/>
+        <location line="-996"/>
         <source>Check Accessibility</source>
         <translation type="unfinished"></translation>
     </message>
@@ -30546,12 +30591,12 @@ This file is protected with a password. Password:</source>
     </message>
     <message>
         <location line="+2"/>
-        <location line="+660"/>
+        <location line="+693"/>
         <source>Consolidate</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="-658"/>
+        <location line="-691"/>
         <location line="+188"/>
         <location line="+21"/>
         <location line="+13"/>
@@ -30915,13 +30960,14 @@ This file is protected with a password. Password:</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+88"/>
+        <location line="+90"/>
         <source>Ignore Error</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
         <location line="+1"/>
-        <location line="+10"/>
+        <location line="+22"/>
+        <location line="+13"/>
         <source>Error Checking</source>
         <translation type="unfinished"></translation>
     </message>
@@ -30931,7 +30977,7 @@ This file is protected with a password. Password:</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+105"/>
+        <location line="+111"/>
         <location line="+21"/>
         <source>This part can&apos;t be worked out here.</source>
         <translation type="unfinished"></translation>
@@ -33229,7 +33275,7 @@ This file is protected with a password. Password:</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow_copy.cpp" line="-175"/>
+        <location filename="../apps/crunch/app/crunchwindow_copy.cpp" line="-177"/>
         <location filename="../apps/crunch/app/crunchwindow_save.cpp" line="+52"/>
         <location filename="../apps/crunch/app/crunchwindow_savecopy.cpp" line="+78"/>
         <location filename="../apps/crunch/app/crunchwindow_versions.cpp" line="-6"/>
@@ -33437,7 +33483,7 @@ This file is protected with a password. Password:</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow_sort.cpp" line="-119"/>
+        <location filename="../apps/crunch/app/crunchwindow_sort.cpp" line="-120"/>
         <source>Sort and Pick Rows</source>
         <translation type="unfinished"></translation>
     </message>
@@ -33483,12 +33529,12 @@ This file is protected with a password. Password:</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+41"/>
+        <location line="+42"/>
         <source>Row %1</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+64"/>
+        <location line="+65"/>
         <source>Sorting…</source>
         <translation type="unfinished"></translation>
     </message>
@@ -35669,7 +35715,7 @@ The file can&apos;t be read.</source>
     </message>
     <message>
         <location line="+14"/>
-        <location filename="../apps/crunch/app/crunchwindow_tabs2.cpp" line="-967"/>
+        <location filename="../apps/crunch/app/crunchwindow_tabs2.cpp" line="-1000"/>
         <source>Forecast Sheet</source>
         <translation type="unfinished"></translation>
     </message>
@@ -43399,7 +43445,7 @@ The file can&apos;t be read.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+13"/>
+        <location line="+16"/>
         <source>Ignore Error</source>
         <translation type="unfinished"></translation>
     </message>
@@ -43419,7 +43465,7 @@ The file can&apos;t be read.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+25"/>
+        <location line="+38"/>
         <source>Cell %1 (%2 of %3)</source>
         <translation type="unfinished"></translation>
     </message>
@@ -59045,18 +59091,18 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     </message>
     <message>
         <location line="+0"/>
-        <location line="+88"/>
+        <location line="+93"/>
         <source>Using</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="-88"/>
-        <location line="+90"/>
+        <location line="-93"/>
+        <location line="+95"/>
         <source>Order</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="-90"/>
+        <location line="-95"/>
         <source>Place color</source>
         <translation type="unfinished"></translation>
     </message>
@@ -59072,11 +59118,21 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     </message>
     <message>
         <location line="+2"/>
+        <source>Numbers in text count by value</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Puts &quot;Item 2&quot; before &quot;Item 10&quot;. The choice is for this sort, and this window remembers it for the next one.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
         <source>Sort columns, not rows</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+52"/>
+        <location line="+54"/>
         <source>First by</source>
         <translation type="unfinished"></translation>
     </message>
@@ -59792,7 +59848,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
 <context>
     <name>jp::TextToColumnsDialog</name>
     <message>
-        <location filename="../apps/crunch/app/datatoolsdialogs.cpp" line="+22"/>
+        <location filename="../apps/crunch/app/datatoolsdialogs.cpp" line="+23"/>
         <source>Text to Columns</source>
         <translation type="unfinished"></translation>
     </message>
@@ -59847,12 +59903,62 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <location line="+6"/>
+        <source>Piece number</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <location line="+4"/>
+        <source>How this piece is read</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Same as above</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>As typed</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Text</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Date: month, day, year</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Date: day, month, year</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Date: year, month, day</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Leave out</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Piece</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+11"/>
         <source>Put the pieces from</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="-29"/>
+        <location line="-56"/>
         <source>Other separator</source>
         <translation type="unfinished"></translation>
     </message>
@@ -59908,7 +60014,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+4"/>
+        <location line="+31"/>
         <source>First cell for the pieces</source>
         <translation type="unfinished"></translation>
     </message>
@@ -69039,7 +69145,7 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../apps/crunch/core/editdatatools.cpp" line="+76"/>
+        <location filename="../apps/crunch/core/editdatatools.cpp" line="+150"/>
         <source>Select cells in one column to split.</source>
         <translation type="unfinished"></translation>
     </message>
@@ -71029,7 +71135,7 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+232"/>
+        <location line="+233"/>
         <source>The sort could not be finished. Try it again.</source>
         <translation type="unfinished"></translation>
     </message>
@@ -71525,17 +71631,32 @@ The password couldn&apos;t be put on the file.</source>
 <context>
     <name>jp::crunch::ErrorCheck</name>
     <message>
-        <location filename="../apps/crunch/core/errorcheck.cpp" line="+145"/>
+        <location filename="../apps/crunch/core/errorcheck.cpp" line="+237"/>
+        <source>This formula leaves out a number that is next to the cells it uses. Include that cell, or ignore this if it is meant.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Include the Cell</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+17"/>
+        <source>This formula uses a cell that is empty, so it counts as zero or as no text. Fill the cell, or ignore this if it is meant.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+66"/>
         <source>This formula is not like the formulas next to it. The ones on both sides of it are alike, and this one is not.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+26"/>
+        <location line="+33"/>
         <source>This formula is in a cell that is not locked, so it can be changed even when the sheet is protected. Lock the cell to keep the formula safe.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+9"/>
+        <location line="+23"/>
         <source>This number is kept as text, so formulas may skip it. Retype it, or change its format, to make it a number.</source>
         <translation type="unfinished"></translation>
     </message>
