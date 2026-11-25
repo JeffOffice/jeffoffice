@@ -379,6 +379,7 @@
           "keytip": "ZG",
           "items": [
             {"large": "data.fromText", "keytip": "FT"},
+            {"large": "data.fromFile", "keytip": "FF"},
             {"large": "data.editLinks", "keytip": "EL"}
           ]
         },
@@ -441,7 +442,7 @@
           "name": "Refresh",
           "keytip": "ZR",
           "items": [
-            {"large": "pivot.refreshAll", "keytip": "RF"}
+            {"large": "data.refresh", "keytip": "RF", "split": true, "menu": ["data.refresh", "data.refreshAll"]}
           ]
         }
       ]

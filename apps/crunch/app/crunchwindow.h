@@ -5,6 +5,7 @@
 
 #include "app/appwindow.h"
 #include "app/compatdialog.h"
+#include "app/getdata.h"
 #include <atomic>
 #include <memory>
 #include "app/missingfonts.h"
@@ -431,6 +432,8 @@ public:
     // test hook: the cells or table the new pivot table is made from, whether it goes on a sheet of its own, and where on a sheet (a cell, with the sheet's name before it if it is another)
     // The data entry form is opened (tests drive the dialog in place of exec()); true when it was shown.
     void setDataFormAsker(std::function<void(DataFormDialog *)> asker) { m_dataFormAsker = std::move(asker); }
+    void setGetDataAsker(std::function<bool(GetDataRequest *)> asker) { m_getDataAsker = std::move(asker); }
+    void setGetDataReplaceAsker(std::function<bool(int cells)> asker) { m_getDataReplaceAsker = std::move(asker); }
     void setRemoveDuplicatesAsker(std::function<bool(const QStringList &, QList<int> *)> asker) { m_removeDuplicatesAsker = std::move(asker); }
     void setPivotMoveAsker(std::function<bool(QString *)> asker) { m_pivotMoveAsker = std::move(asker); }
     void setPivotCreateAsker(std::function<bool(QString *, bool *, QString *)> asker) { m_pivotCreateAsker = std::move(asker); }
@@ -688,6 +691,12 @@ public:
     void chooseBackground();
     qint64 picturesOfOtherSheets() const;
     void dataFormCommand();
+    // Get Data from a file (crunchwindow_getdata.cpp): the dialog, the load, and Refresh and Refresh All of the tables it made.
+    void createGetDataActions();
+    void getDataCommand();
+    void refreshDataCommand(bool all);
+    // Loads the source of `req` as a table (the work after the dialog); false when nothing was changed.
+    bool loadGetData(const GetDataRequest &req);
     void showBackground();   // the picture behind the cells of the sheet in view, from its page setup
     // How the sheet in view is shown: 0 the cells as they are, 1 the sheet cut into the pages it prints on (the printed cells light and the rest shaded, the pages numbered, the lines
     // where they begin and the edges of the printed cells dragged), 2 the pages themselves. What the person chose for each sheet is kept with the workbook and saved.
@@ -1189,6 +1198,8 @@ private:
     std::function<bool(QString *)> m_pivotMoveAsker;
     std::function<bool(const QStringList &, QList<int> *)> m_removeDuplicatesAsker;
     std::function<void(DataFormDialog *)> m_dataFormAsker;
+    std::function<bool(GetDataRequest *)> m_getDataAsker;
+    std::function<bool(int)> m_getDataReplaceAsker;
     std::function<bool(bool *)> m_pivotOptionsAsker;
     std::function<bool(QString *)> m_pivotFileAsker;
     std::function<bool(QString *)> m_pivotSourceAsker;         // test hook: the cells the data is in

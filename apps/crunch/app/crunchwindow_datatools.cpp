@@ -23,6 +23,7 @@ void CrunchWindow::createDataToolsActions()
     mk("data.editLinks", tr("Edit Links…"), "link", QKeySequence(), [this] { editLinksCommand(); }, false, false);
     m_opsActions << QStringLiteral("data.editLinks");
     mk("data.fromText", tr("From Text/CSV"), "file-text", QKeySequence(), [this] { act("file.openText")->trigger(); });
+    createGetDataActions();
     mk("data.removeDuplicates", tr("Remove Duplicates"), "list-x", QKeySequence(), [this] { removeDuplicatesDialog(); });
     mk("data.textToColumns", tr("Text to Columns"), "table-columns-split", QKeySequence(), [this] { textToColumnsDialog(); });
     mk("data.form", tr("Form…"), "clipboard-list", QKeySequence(), [this] { dataFormCommand(); });

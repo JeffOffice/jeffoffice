@@ -2,6 +2,10 @@
 // resizing, the table growing by a cell typed next to it, a formula typed in an empty column filling it, structured references in formulas, one step of Undo each, and what a save leaves of
 // the file. The workbook is built here.
 #include "app/crunchwindow.h"
+#include "app/crunchinfo.h"
+#include "app/getdata.h"
+#include "app/theme.h"
+#include "sheet/oldsave.h"
 #include "core/fonts.h"
 #include "crunchbooks.h"
 #include "crunchwindowhelpers.h"
@@ -2181,6 +2185,293 @@ private Q_SLOTS:
         QVERIFY(e.settle());
         QVERIFY(w.session()->calculation()->registrations() > before);
         QCOMPARE(valueOf(e, QStringLiteral("A8")), QStringLiteral("n:4"));            // (the rows 1 and 3 and the new one of 5: 1 + 3, as the second row is hidden)
+    }
+
+    // ---- Get Data from a file
+    // JSON rows become a table at the chosen cell in one step; the cells have their kinds; Refresh reads the file again (one step; the table grows); a changed shape, a missing file, and a failed read change nothing.
+    void aJsonFileBecomesATableAndRefreshReadsItAgain()
+    {
+        EditWindow e;
+        QVERIFY(e.open(buildXlsx({worksheet(row(9, text(QStringLiteral("A9"), QStringLiteral("keep"))))})));
+        crunch::EditSession *s = e.win.w.session();
+        s->setLocale(kUs);
+        QVERIFY(e.settle());
+        const QString file = e.folder.write(QStringLiteral("rows.json"), "[{\"name\":\"Ann\",\"n\":1.5,\"d\":\"2024-02-29\",\"ok\":true,\"code\":\"007\",\"f\":\"=1+1\"},{\"name\":\"Bob\",\"n\":2,\"d\":\"2023-12-01\",\"ok\":false,\"code\":\"010\",\"f\":\"x\"}]");
+        int asked = 0;
+        e.win.w.setGetDataAsker([&](jp::GetDataRequest *r) {
+            ++asked;
+            r->conn.kind = QStringLiteral("json");
+            r->conn.path = file;
+            r->place = QStringLiteral("C2");
+            return true;
+        });
+        e.win.w.act(QStringLiteral("data.fromFile"))->trigger();
+        QVERIFY(e.settle());
+        QCOMPARE(asked, 1);
+        QCOMPARE(s->workbook()->tables().size(), 1);
+        QCOMPARE(e.win.w.undoStack()->count(), 1);
+        const Table t = s->workbook()->tables().first();
+        QCOMPARE(t.columns, (QStringList{QStringLiteral("name"), QStringLiteral("n"), QStringLiteral("d"), QStringLiteral("ok"), QStringLiteral("code"), QStringLiteral("f")}));
+        QCOMPARE(t.row1, 1u);
+        QCOMPARE(t.row2, 3u);
+        QCOMPARE(t.col1, 2u);
+        QVERIFY(t.dataSource.startsWith(QLatin1String("jo-data:1?kind=json")));
+        QCOMPARE(valueOf(e, QStringLiteral("C3")), QStringLiteral("s:Ann"));
+        QCOMPARE(valueOf(e, QStringLiteral("D3")), QStringLiteral("n:1.5"));
+        QVERIFY(valueOf(e, QStringLiteral("E3")).startsWith(QLatin1String("n:")));   // a date is a date
+        QCOMPARE(valueOf(e, QStringLiteral("F3")), QStringLiteral("b:1"));
+        QCOMPARE(valueOf(e, QStringLiteral("G3")), QStringLiteral("s:007"));            // an identifier stays text
+        QCOMPARE(valueOf(e, QStringLiteral("H3")), QStringLiteral("s:=1+1"));         // and so does what looks like a formula
+        QCOMPARE(valueOf(e, QStringLiteral("A9")), QStringLiteral("s:keep"));
+        // Refresh: a new row; the table grows; one step
+        e.folder.write(QStringLiteral("rows.json"), "[{\"name\":\"Ann\",\"n\":1.5,\"d\":\"2024-02-29\",\"ok\":true,\"code\":\"007\",\"f\":\"=1+1\"},{\"name\":\"Bob\",\"n\":2,\"d\":\"2023-12-01\",\"ok\":false,\"code\":\"010\",\"f\":\"x\"},{\"name\":\"Cy\",\"n\":3,\"d\":\"2023-01-01\",\"ok\":true,\"code\":\"011\",\"f\":\"y\"}]");
+        e.select(QStringLiteral("C3"));
+        e.win.w.act(QStringLiteral("data.refresh"))->trigger();
+        QVERIFY(e.settle());
+        QCOMPARE(s->workbook()->tables().first().row2, 4u);
+        QCOMPARE(valueOf(e, QStringLiteral("C5")), QStringLiteral("s:Cy"));
+        QCOMPARE(e.win.w.undoStack()->count(), 2);
+        pressUndo(&e.win.w);
+        QVERIFY(e.settle());
+        QCOMPARE(s->workbook()->tables().first().row2, 3u);
+        QCOMPARE(valueOf(e, QStringLiteral("C5")), QStringLiteral("-"));
+        QCOMPARE(e.win.told.size(), 0);
+        // Refresh All with the file shorter: the table shrinks and the cells below it are empty
+        e.folder.write(QStringLiteral("rows.json"), "[{\"name\":\"Zed\",\"n\":9,\"d\":\"2020-01-01\",\"ok\":true,\"code\":\"1\",\"f\":\"z\"}]");
+        e.win.w.act(QStringLiteral("data.refreshAll"))->trigger();
+        QVERIFY(e.settle());
+        QCOMPARE(s->workbook()->tables().first().row2, 2u);
+        QCOMPARE(valueOf(e, QStringLiteral("C3")), QStringLiteral("s:Zed"));
+        QCOMPARE(valueOf(e, QStringLiteral("C4")), QStringLiteral("-"));
+        // a changed shape, then a missing file: said, and nothing changes
+        const int steps = e.win.w.undoStack()->count();
+        e.folder.write(QStringLiteral("rows.json"), "[{\"other\":1}]");
+        e.win.w.act(QStringLiteral("data.refresh"))->trigger();
+        QVERIFY(e.settle());
+        QCOMPARE(e.win.told.size(), 1);
+        QVERIFY(e.win.told.last().contains(QLatin1String("nothing was changed"), Qt::CaseInsensitive));
+        QVERIFY(QFile::remove(file));
+        e.win.w.act(QStringLiteral("data.refresh"))->trigger();
+        QVERIFY(e.settle());
+        QCOMPARE(e.win.told.size(), 2);
+        QVERIFY(e.win.told.last().contains(QLatin1String("not there")));
+        QCOMPARE(e.win.w.undoStack()->count(), steps);
+        QCOMPARE(valueOf(e, QStringLiteral("C3")), QStringLiteral("s:Zed"));
+    }
+
+    // The cells under the table are asked about before they are replaced; a no leaves everything; a protected sheet, another table's cells, and a web address are refused plainly.
+    void getDataAsksBeforeReplacingAndRefusesWhatCannotBe()
+    {
+        EditWindow e;
+        QVERIFY(e.open(buildXlsx({worksheet(row(2, text(QStringLiteral("B2"), QStringLiteral("mine"))))})));
+        crunch::EditSession *s = e.win.w.session();
+        s->setLocale(kUs);
+        QVERIFY(e.settle());
+        const QString file = e.folder.write(QStringLiteral("a.xml"), "<r><i id=\"1\"><v>x</v></i><i id=\"2\"><v>y</v></i></r>");
+        QString place = QStringLiteral("A1");
+        e.win.w.setGetDataAsker([&](jp::GetDataRequest *r) {
+            r->conn.kind = QStringLiteral("xml");
+            r->conn.path = file;
+            r->conn.list = QStringLiteral("/r/i");
+            r->place = place;
+            return true;
+        });
+        int asks = 0;
+        bool answer = false;
+        e.win.w.setGetDataReplaceAsker([&](int) {
+            ++asks;
+            return answer;
+        });
+        e.win.w.act(QStringLiteral("data.fromFile"))->trigger();
+        QVERIFY(e.settle());
+        QCOMPARE(asks, 1);
+        QCOMPARE(s->workbook()->tables().size(), 0);
+        QCOMPARE(e.win.w.undoStack()->count(), 0);
+        QCOMPARE(valueOf(e, QStringLiteral("B2")), QStringLiteral("s:mine"));
+        answer = true;
+        e.win.w.act(QStringLiteral("data.fromFile"))->trigger();
+        QVERIFY(e.settle());
+        QCOMPARE(asks, 2);
+        QCOMPARE(s->workbook()->tables().size(), 1);
+        QCOMPARE(e.win.w.undoStack()->count(), 1);
+        QCOMPARE(valueOf(e, QStringLiteral("A2")), QStringLiteral("n:1"));
+        QCOMPARE(valueOf(e, QStringLiteral("B2")), QStringLiteral("s:x"));
+        pressUndo(&e.win.w);
+        QVERIFY(e.settle());
+        QCOMPARE(valueOf(e, QStringLiteral("B2")), QStringLiteral("s:mine"));
+        QCOMPARE(s->workbook()->tables().size(), 0);
+        // empty cells: no question
+        place = QStringLiteral("E5");
+        e.win.w.act(QStringLiteral("data.fromFile"))->trigger();
+        QVERIFY(e.settle());
+        QCOMPARE(asks, 2);
+        QCOMPARE(s->workbook()->tables().size(), 1);
+        // on the table just made: refused, said, nothing changes
+        place = QStringLiteral("E6");
+        const int steps = e.win.w.undoStack()->count();
+        e.win.w.act(QStringLiteral("data.fromFile"))->trigger();
+        QVERIFY(e.settle());
+        QVERIFY(e.win.told.last().contains(QLatin1String("another table")));
+        QCOMPARE(e.win.w.undoStack()->count(), steps);
+        // past the last column
+        place = QStringLiteral("XFD1");
+        e.win.w.act(QStringLiteral("data.fromFile"))->trigger();
+        QVERIFY(e.win.told.last().contains(QLatin1String("no room")));
+        // a web address and a path on another computer are never read
+        e.win.w.setGetDataAsker([&](jp::GetDataRequest *r) {
+            r->conn.kind = QStringLiteral("json");
+            r->conn.path = QStringLiteral("https://example.com/a.json");
+            r->place = QStringLiteral("H1");
+            return true;
+        });
+        e.win.w.act(QStringLiteral("data.fromFile"))->trigger();
+        QVERIFY(e.win.told.last().contains(QLatin1String("on this computer")));
+        QCOMPARE(e.win.w.undoStack()->count(), steps);
+        // a protected sheet
+        SheetProtection locked;
+        locked.enabled = true;
+        QVERIFY(s->setSheetProtection(0, locked, QStringLiteral("Protect")).ok);
+        place = QStringLiteral("K1");
+        const int told = e.win.told.size();
+        e.win.w.setGetDataAsker([&](jp::GetDataRequest *r) {
+            r->conn.kind = QStringLiteral("xml");
+            r->conn.path = file;
+            r->conn.list = QStringLiteral("/r/i");
+            r->place = place;
+            return true;
+        });
+        e.win.w.act(QStringLiteral("data.fromFile"))->trigger();
+        QVERIFY(e.win.told.size() > told);
+        QCOMPARE(s->workbook()->tables().size(), 1);
+    }
+
+    // The link to the file is saved with the table and read back: after a save and an open, Refresh still works; taking the link off (Inspect) leaves the table.
+    void theLinkToTheFileSurvivesASaveAndOpen()
+    {
+        EditWindow e;
+        QVERIFY(e.open(buildXlsx({worksheet(row(9, text(QStringLiteral("A9"), QStringLiteral("keep"))))})));
+        crunch::EditSession *s = e.win.w.session();
+        s->setLocale(kUs);
+        QVERIFY(e.settle());
+        const QString file = e.folder.write(QStringLiteral("rows.json"), "[{\"a\":1,\"b\":\"x\"},{\"a\":2,\"b\":\"y\"}]");
+        e.win.w.setGetDataAsker([&](jp::GetDataRequest *r) {
+            r->conn.kind = QStringLiteral("json");
+            r->conn.path = file;
+            r->place = QStringLiteral("A1");
+            return true;
+        });
+        e.win.w.act(QStringLiteral("data.fromFile"))->trigger();
+        QVERIFY(e.settle());
+        QVERIFY(saveNow(e));
+        EditWindow f;
+        const QString copy = e.copyOfFile();
+        QVERIFY(!copy.isEmpty());
+        QVERIFY(f.win.open(copy));
+        QVERIFY(f.settle());
+        QCOMPARE(f.win.w.session()->workbook()->tables().size(), 1);
+        QCOMPARE(f.win.w.session()->workbook()->tables().first().dataSource, e.win.w.session()->workbook()->tables().first().dataSource);
+        e.folder.write(QStringLiteral("rows.json"), "[{\"a\":1,\"b\":\"x\"},{\"a\":2,\"b\":\"y\"},{\"a\":3,\"b\":\"z\"}]");
+        f.select(QStringLiteral("A2"));
+        f.win.w.act(QStringLiteral("data.refresh"))->trigger();
+        QVERIFY(f.settle());
+        QCOMPARE(f.win.w.session()->workbook()->tables().first().row2, 3u);
+        QCOMPARE(f.win.told.size(), 0);
+    }
+    // The window shows the first rows and the kind found for each column before anything is loaded; nothing on the sheet is touched; a web address is refused in words.
+    void theGetDataWindowPreviewsTheFirstRows()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        QFile f(dir.filePath(QStringLiteral("p.json")));
+        QVERIFY(f.open(QIODevice::WriteOnly));
+        f.write("{\"meta\":1,\"a\":[{\"x\":1,\"y\":\"2024-01-02\"},{\"x\":2,\"y\":\"2024-01-03\"}],\"b\":[{\"q\":\"t\"}]}");
+        f.close();
+        jp::GetDataDialog d(QStringLiteral("A1"), nullptr);
+        QVERIFY(!d.loadButton()->isEnabled());
+        d.setPath(f.fileName());
+        QCOMPARE(d.listNames(), (QStringList{QStringLiteral("$.a"), QStringLiteral("$.b")}));
+        QCOMPARE(d.previewRows(), 2);
+        QCOMPARE(d.previewColumns(), 2);
+        QCOMPARE(d.previewCell(1, 0), QStringLiteral("2"));
+        QVERIFY(d.loadButton()->isEnabled());
+        d.chooseList(QStringLiteral("$.b"));
+        QCOMPARE(d.previewColumns(), 1);
+        const jp::GetDataRequest req = d.request();
+        QCOMPARE(req.conn.kind, QStringLiteral("json"));
+        QCOMPARE(req.conn.list, QStringLiteral("$.b"));
+        QCOMPARE(req.place, QStringLiteral("A1"));
+        d.setPath(QStringLiteral("https://example.com/x.json"));
+        QVERIFY(!d.loadButton()->isEnabled());
+        QVERIFY(d.message().contains(QLatin1String("on this computer")));
+        d.setPath(dir.filePath(QStringLiteral("missing.json")));
+        QVERIFY(!d.loadButton()->isEnabled());
+        QVERIFY(d.message().contains(QLatin1String("not there")));
+    }
+
+    // Another workbook's sheet is loaded with the same window path; Inspect lists the link and removes it (the table stays); a copy in an older form says it can't hold the link.
+    void aWorkbookSourceLoadsAndInspectRemovesTheLink()
+    {
+        EditWindow e;
+        QVERIFY(e.open(buildXlsx({worksheet(row(9, text(QStringLiteral("A9"), QStringLiteral("keep"))))})));
+        crunch::EditSession *s = e.win.w.session();
+        s->setLocale(kUs);
+        QVERIFY(e.settle());
+        const QByteArray other = buildXlsx({worksheet(row(1, text(QStringLiteral("A1"), QStringLiteral("Item")) + text(QStringLiteral("B1"), QStringLiteral("Qty"))) + row(2, text(QStringLiteral("A2"), QStringLiteral("Pen")) + num(QStringLiteral("B2"), 3)))},
+                                           QByteArray(), QString(), QString(), QByteArray(), QStringList{QStringLiteral("Stock")});
+        const QString file = e.folder.write(QStringLiteral("other.xlsx"), other);
+        e.win.w.setGetDataAsker([&](jp::GetDataRequest *r) {
+            r->conn.kind = QStringLiteral("workbook");
+            r->conn.path = file;
+            r->conn.list = QStringLiteral("sheet:Stock");
+            r->place = QStringLiteral("D1");
+            return true;
+        });
+        e.win.w.act(QStringLiteral("data.fromFile"))->trigger();
+        QVERIFY(e.settle());
+        QCOMPARE(s->workbook()->tables().size(), 1);
+        QCOMPARE(valueOf(e, QStringLiteral("D1")), QStringLiteral("s:Item"));
+        QCOMPARE(valueOf(e, QStringLiteral("E2")), QStringLiteral("n:3"));
+        QVERIFY(jp::office::sheet::featuresNotInCopy(*s->workbook(), jp::office::sheet::CopyKind::Ods).join(QLatin1Char('|')).contains(QStringLiteral("links from tables to the files")));
+        InspectItem item;
+        for (const InspectItem &i : e.win.w.inspectItems())
+            if (i.title == QLatin1String("Links to data files")) item = i;
+        QCOMPARE(item.count(), 1);
+        QCOMPARE(item.remove(), 1);
+        QVERIFY(e.settle());
+        QCOMPARE(item.count(), 0);
+        QCOMPARE(s->workbook()->tables().size(), 1);
+        QVERIFY(s->workbook()->tables().first().dataSource.isEmpty());
+        QCOMPARE(valueOf(e, QStringLiteral("D1")), QStringLiteral("s:Item"));
+        // Refresh says why it can't, and does nothing
+        const int steps = e.win.w.undoStack()->count();
+        e.select(QStringLiteral("D2"));
+        e.win.w.act(QStringLiteral("data.refresh"))->trigger();
+        QVERIFY(e.win.told.last().contains(QLatin1String("made by Get Data")));
+        QCOMPARE(e.win.w.undoStack()->count(), steps);
+        pressUndo(&e.win.w);
+        QVERIFY(e.settle());
+        QCOMPARE(item.count(), 0 + 1);
+    }
+    // Pictures of the Get Data window for the person who looks at it (skipped unless the folder is named).
+    void getDataWindowPictures()
+    {
+        const QString folder = qEnvironmentVariable("JO_GETDATA_SHOT_DIR");
+        if (folder.isEmpty()) QSKIP("no folder for pictures");
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        QFile f(dir.filePath(QStringLiteral("orders.json")));
+        QVERIFY(f.open(QIODevice::WriteOnly));
+        f.write("{\"orders\":[{\"id\":1001,\"customer\":{\"name\":\"Ann Lee\",\"city\":\"Oslo\"},\"placed\":\"2026-11-02\",\"paid\":true,\"tags\":[\"rush\",\"gift\"]},"
+                "{\"id\":1002,\"customer\":{\"name\":\"Bo Park\",\"city\":\"Lima\"},\"placed\":\"2026-11-05\",\"paid\":false,\"tags\":[]}],\"other\":[{\"a\":1}]}");
+        f.close();
+        jp::applyUiTheme(1);
+        jp::GetDataDialog d(QStringLiteral("B2"), nullptr);
+        d.resize(760, 520);
+        d.show();
+        d.setPath(f.fileName());
+        QVERIFY(d.grab().save(QDir(folder).filePath(QStringLiteral("getdata-dialog.png"))));
+        d.setPath(QStringLiteral("https://example.com/orders.json"));
+        QVERIFY(d.grab().save(QDir(folder).filePath(QStringLiteral("getdata-refused.png"))));
     }
 };
 

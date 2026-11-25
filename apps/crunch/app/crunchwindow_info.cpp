@@ -379,6 +379,19 @@ QVector<InspectItem> CrunchWindow::inspectItems()
                          return parts;
                      },
                      true, QString()});
+    items.push_back({tr("Links to data files"), tr("Tables made by Get Data remember the file they were loaded from, with its path on this computer. Removing the links keeps the tables and their cells, and Refresh no longer reads the files."),
+                     [session] { return session->dataLinkCount(); },
+                     [this, session] {
+                         int removed = 0;
+                         const crunch::EditSession::Outcome o = session->removeDataLinks(&removed);
+                         if (!o.ok) {
+                             notice(tr("Remove Links to Data Files"), o.problem);
+                             return 0;
+                         }
+                         updateEditActions();
+                         return removed;
+                     },
+                     true, QString()});
     const QString customParts = QStringLiteral("^/customXml/item[0-9]*\\.xml$");
     items.push_back({tr("Custom XML data"), tr("Data that other programs added to the file, which you can't see on a sheet. It is left out when you save."),
                      [session, partsMatching, customParts] { return session->customXmlDropped() ? 0 : partsMatching(customParts); },
