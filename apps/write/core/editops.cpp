@@ -882,6 +882,7 @@ void trackedDeleteOne(WriteDoc &doc, QTextCursor &c, bool back, bool byWord)
         }
     }
     if (from >= to) return;
+    if (!contentControlsAllow(doc, d, from, to, false)) return;
     QTextCursor start(d), end(d);
     trackedDeleteRange(doc, d, from, to, &start, &end);
     if (back) {
@@ -893,6 +894,9 @@ void trackedDeleteOne(WriteDoc &doc, QTextCursor &c, bool back, bool byWord)
 }
 
 } // namespace
+
+void trackRangeDeleted(WriteDoc &doc, QTextDocument *story, int from, int to) { trackedDeleteRange(doc, story, from, to, nullptr, nullptr); }
+void trackRangeInserted(WriteDoc &doc, QTextDocument *story, int from, int *to) { trackPastedAsInserted(doc, story, from, to); }
 
 UntrackedEdit::UntrackedEdit() { ++untrackedDepth(); }
 UntrackedEdit::~UntrackedEdit() { --untrackedDepth(); }
@@ -1384,6 +1388,8 @@ void deleteBack(WriteDoc &doc, QTextCursor &c, bool byWord)
         joinAcrossDeleted(doc, c, prev, b);
         return;
     }
+    EdgeJoin edge;
+    if (!beginJoinAtEdge(doc, prev, true, &edge)) return;   // (a control round paragraphs is not left with none)
     QTextCursor t(d);
     t.setPosition(b.position());
     t.movePosition(QTextCursor::PreviousCharacter, QTextCursor::KeepAnchor);
@@ -1391,6 +1397,7 @@ void deleteBack(WriteDoc &doc, QTextCursor &c, bool byWord)
     c.setPosition(t.selectionStart());
     c.setPosition(t.selectionEnd(), QTextCursor::KeepAnchor);
     removeSelection(doc, c);
+    endJoinAtEdge(edge);
     c.endEditBlock();
 }
 
@@ -1450,6 +1457,8 @@ void deleteForward(WriteDoc &doc, QTextCursor &c, bool byWord)
         joinAcrossDeleted(doc, c, c.block(), next);
         return;
     }
+    EdgeJoin edge;
+    if (!beginJoinAtEdge(doc, c.block(), false, &edge)) return;
     c.movePosition(QTextCursor::EndOfBlock);
     c.movePosition(QTextCursor::NextCharacter, QTextCursor::KeepAnchor);
     removeSelection(doc, c);
@@ -2450,6 +2459,7 @@ void changeCharFormat(WriteDoc &doc, QTextCursor &c, const std::function<void(QT
     if (!intoBody(c)) return;
     Q_UNUSED(doc);
     QTextDocument *d = c.document();
+    if (c.hasSelection() && !contentControlsAllowFormat(d, c.selectionStart(), c.selectionEnd())) return;   // (a content control keeps the look of what is in it)
     if (!c.hasSelection()) {
         if (isLocked(c.block())) return;
         QTextCharFormat f = typingFormat(c);
@@ -2852,6 +2862,7 @@ void clearFormatting(WriteDoc &doc, QTextCursor &c)
     const NoteScopeGuard scopeGuard(doc, c);
     const AutoRedefineOff noAutoUpdate;
     if (!intoBody(c)) return;
+    if (!contentControlsAllowFormat(c.document(), c.hasSelection() ? c.selectionStart() : c.block().position(), c.hasSelection() ? c.selectionEnd() : c.block().position() + c.block().length() - 1)) return;
     c.beginEditBlock();
     applyParagraphStyle(doc, c, doc.defaultParagraphStyle());
     const QTextCharFormat base = doc.styleCharFormat(doc.defaultParagraphStyle());
@@ -3560,6 +3571,7 @@ bool moveSelectedText(WriteDoc &doc, QTextCursor &c, int to, bool copy)
     if (to >= from && to <= end) return false;
     if (to < 0 || to > editableEnd(doc.story())) return false;
     if (isLocked(doc.story()->findBlock(to)) || isLocked(doc.story()->findBlock(from)) || isLocked(doc.story()->findBlock(end))) return false;
+    if ((!copy && !contentControlsAllow(doc, doc.story(), from, end, false)) || !contentControlsAllow(doc, doc.story(), to, to, true)) return false;   // (what can't be taken out is not moved, and what can't be put there is not lost)
     const Clip clip = copySelection(doc, c);
     if (clip.isEmpty()) return false;
     NumberGuard numbers(doc, doc.story());

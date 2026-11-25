@@ -17,6 +17,7 @@
 #include <QTextCursor>
 #include <QTextDocument>
 #include <algorithm>
+#include <optional>
 
 using namespace jp::office::wml;
 
@@ -315,6 +316,25 @@ QByteArray dateElement(const ControlProps &p, const QByteArray &old)
     return out + "</w:date>";
 }
 
+// A repeating section's element: what the file had in it, and whether items may be added and removed.
+QByteArray repeatingSectionElement(const ControlProps &p, const QByteArray &old)
+{
+    QByteArray open = "<w15:repeatingSection", inner;
+    if (!old.isEmpty()) {
+        const qsizetype s = tagEnd(old, 0), e = old.lastIndexOf("</");
+        QVector<QByteArray> kids;
+        if (s <= 0 || (old[s - 1] != '/' && e > s && !childrenOf(old.mid(s + 1, e - s - 1), &kids))) return old;
+        open = old.left(s);
+        if (open.endsWith('/')) open.chop(1);
+        for (const QByteArray &k : kids)
+            if (localName(k) != QLatin1String("doNotAllowInsertDeleteSection")) inner += k;
+    }
+    if (p.fixedItems) inner += "<w15:doNotAllowInsertDeleteSection w15:val=\"1\"/>";
+    if (inner.isEmpty()) return open.trimmed() + "/>";
+    const qsizetype space = open.indexOf(' ');
+    return open + ">" + inner + "</" + open.mid(1, space < 0 ? -1 : space - 1) + ">";
+}
+
 QByteArray dropDownElement(const ControlProps &p, const QByteArray &old, const char *name = "w:dropDownList")
 {
     const QString last = p.lastValue;
@@ -368,7 +388,7 @@ QByteArray buildStart(const ControlProps &np, bool placeholder, const Pieces &ol
     case ControlKind::RichText: pr += oldType.isEmpty() ? QByteArray("<w:richText/>") : oldType; break;
     case ControlKind::Picture: pr += oldType.isEmpty() ? QByteArray("<w:picture/>") : oldType; break;
     case ControlKind::ComboBox: pr += dropDownElement(np, oldType, "w:comboBox"); break;
-    case ControlKind::RepeatingSection: pr += oldType.isEmpty() ? QByteArray("<w15:repeatingSection/>") : oldType; break;
+    case ControlKind::RepeatingSection: pr += repeatingSectionElement(np, oldType); break;
     case ControlKind::Other: break;
     }
     return old.head + (pr.isEmpty() && old.prTag.isEmpty() ? QByteArray("<w:sdtPr/>") : (old.prTag.isEmpty() ? QByteArray("<w:sdtPr>") : old.prTag) + pr + "</w:sdtPr>") + old.tail;
@@ -619,7 +639,7 @@ ContentControl innermostAt(const QTextBlock &block, int position)
 
 bool ControlProps::operator==(const ControlProps &o) const
 {
-    if (kind != o.kind || title != o.title || tag != o.tag || lockDelete != o.lockDelete || lockContents != o.lockContents || dateFormat != o.dateFormat || date != o.date || lid != o.lid || checked != o.checked || lastValue != o.lastValue || items.size() != o.items.size()) return false;
+    if (kind != o.kind || title != o.title || tag != o.tag || lockDelete != o.lockDelete || lockContents != o.lockContents || dateFormat != o.dateFormat || date != o.date || lid != o.lid || checked != o.checked || fixedItems != o.fixedItems || lastValue != o.lastValue || items.size() != o.items.size()) return false;
     for (int i = 0; i < items.size(); ++i)
         if (items[i].display != o.items[i].display || items[i].value != o.items[i].value) return false;
     return true;
@@ -730,6 +750,15 @@ Parsed parseProps(const QByteArray &startXml)
             p.kind = ControlKind::Picture;
         } else if (name == QLatin1String("repeatingSection")) {
             p.kind = ControlKind::RepeatingSection;
+            QVector<QByteArray> kids;
+            const qsizetype s = tagEnd(k, 0), e = k.lastIndexOf("</");
+            if (s > 0 && k[s - 1] != '/' && e > s && childrenOf(k.mid(s + 1, e - s - 1), &kids))
+                for (const QByteArray &d : kids)
+                    if (localName(d) == QLatin1String("doNotAllowInsertDeleteSection")) {
+                        bool has = false;
+                        const QString v = attrOf(d, "val", &has);
+                        p.fixedItems = !has || (v != QLatin1String("0") && v != QLatin1String("false"));
+                    }
         } else if (name == QLatin1String("docPartObj") || name == QLatin1String("docPartList")
                    || name == QLatin1String("group") || name == QLatin1String("citation") || name == QLatin1String("bibliography") || name == QLatin1String("equation")) {
             galleryOrOther = true;
@@ -1099,6 +1128,12 @@ ContentControl blockControlOf(QTextDocument *story, const BlockSpan &s)
 
 bool contentControlsAllow(WriteDoc &doc, QTextDocument *story, int from, int to, bool typing)
 {
+    Q_UNUSED(doc);
+    return contentControlsAllowIn(story, from, to, typing);
+}
+
+bool contentControlsAllowIn(QTextDocument *story, int from, int to, bool typing)
+{
     if (!story || from < 0) return true;
     if (to < from) std::swap(from, to);
     const int last = std::max(from, to);
@@ -1121,12 +1156,143 @@ bool contentControlsAllow(WriteDoc &doc, QTextDocument *story, int from, int to,
         const int sEnd = lastBlock.position() + lastBlock.length() - 1;
         if (s.first > last || sEnd < from || s.rowish) continue;
         const ControlProps props = controlPropsOf(s.raw);
+        // (A break taken out at either edge moves text into or out of the control, or changes which paragraphs it holds: refused where it can't be deleted or its contents can't be edited.)
+        const int breakBefore = s.first - 1;
+        const bool crossesStart = breakBefore >= 0 && from <= breakBefore && breakBefore < to, crossesEnd = from <= sEnd && sEnd < to && lastBlock.next().isValid();
+        if ((crossesStart || crossesEnd) && (props.lockDelete || props.lockContents)) return false;
         const bool covers = to > from && from <= s.first && to >= sEnd;
         if (props.lockDelete && covers) return false;
         const bool touches = (to > from && to > s.first && from < sEnd) || (typing && from >= s.first && from <= sEnd);
         if (props.lockContents && touches && !covers) return false;
     }
     return true;
+}
+
+QVector<std::pair<int, int>> lockedContentRanges(QTextDocument *story, bool withEdges)
+{
+    QVector<std::pair<int, int>> out;
+    if (!story) return out;
+    int budget = kMostControls;
+    for (QTextBlock b = story->begin(); b.isValid(); b = b.next())
+        for (const Span &s : spansOf(b, &budget)) {
+            const ControlProps props = controlPropsOf(s.raw);
+            if (props.lockContents || chosenOnly(props.kind)) out.push_back(withEdges ? std::make_pair(s.start, s.end + 1) : std::make_pair(s.start + 1, s.end));
+        }
+    for (const BlockSpan &s : blockSpans(story)) {
+        if (s.rowish || !controlPropsOf(s.raw).lockContents) continue;
+        const QTextBlock last = story->findBlock(s.last);
+        const int sEnd = last.position() + last.length() - 1;
+        out.push_back(withEdges ? std::make_pair(std::max(0, s.first - 1), sEnd + 1) : std::make_pair(s.first, sEnd));
+    }
+    std::sort(out.begin(), out.end());
+    QVector<std::pair<int, int>> merged;
+    for (const auto &r : std::as_const(out)) {
+        if (r.second <= r.first) continue;
+        if (!merged.isEmpty() && r.first <= merged.last().second) merged.last().second = std::max(merged.last().second, r.second);
+        else merged.push_back(r);
+    }
+    return merged;
+}
+
+bool overlapsRanges(const QVector<std::pair<int, int>> &ranges, int from, int to)
+{
+    if (to <= from) to = from + 1;
+    const auto it = std::lower_bound(ranges.begin(), ranges.end(), from, [](const std::pair<int, int> &r, int at) { return r.second <= at; });
+    return it != ranges.end() && it->first < to;
+}
+
+bool contentControlsAllowFormat(QTextDocument *story, int from, int to)
+{
+    if (!story || to <= from) return true;
+    return !overlapsRanges(lockedContentRanges(story, false), from, to);
+}
+
+bool beginJoinAtEdge(WriteDoc &doc, const QTextBlock &a, bool inSecond, EdgeJoin *join)
+{
+    Q_UNUSED(doc);
+    const QTextBlock b = a.next();
+    QTextDocument *story = const_cast<QTextDocument *>(a.document());
+    if (!join || !b.isValid()) return true;
+    *join = EdgeJoin();
+    const QVector<Block> between = keptOf(a, prop::RawAfter) + keptOf(b, prop::RawBefore);
+    bool controls = false;
+    for (const Block &k : between) controls |= k.tag == QLatin1String("sdt");
+    if (!controls) return true;
+    // (A control with one paragraph is left with none when that paragraph leaves it: its start or its end stays where the text of the joined paragraph is not.)
+    for (const BlockSpan &s : blockSpans(story))
+        if (!s.rowish && s.first == s.last && s.first == (inSecond ? a.position() : b.position())) return false;
+    join->story = story;
+    join->position = a.position();
+    join->blocks = story->blockCount();
+    join->moved = inSecond ? int(between.size()) : 0;
+    return true;
+}
+
+void endJoinAtEdge(const EdgeJoin &join)
+{
+    if (!join.story || join.moved <= 0 || join.story->blockCount() != join.blocks - 1) return;
+    const QTextBlock m = join.story->findBlock(join.position);
+    QVector<Block> before = keptOf(m, prop::RawBefore), after = keptOf(m, prop::RawAfter);
+    if (after.size() < join.moved) return;
+    before += after.mid(0, join.moved);
+    after.remove(0, join.moved);
+    setKept(m, prop::RawBefore, before);
+    setKept(m, prop::RawAfter, after);
+}
+
+QVector<Block> controlPiecesOf(const QTextBlock &b, bool *only)
+{
+    QVector<Block> pieces = keptOf(b, prop::RawBefore);
+    pieces += keptOf(b, prop::RawAfter);
+    if (only) {
+        *only = !pieces.isEmpty();
+        for (const Block &k : pieces) *only &= k.tag == QLatin1String("sdt");
+    }
+    return pieces;
+}
+
+void appendKeptAfter(const QTextBlock &b, const QVector<Block> &pieces)
+{
+    if (!b.isValid() || pieces.isEmpty()) return;
+    setKept(b, prop::RawAfter, keptOf(b, prop::RawAfter) + pieces);
+}
+
+int dropEmptyControls(QTextDocument *story)
+{
+    struct Piece {
+        Block k;
+        bool fromBefore;   // (kept before the paragraph after the gap, not after the one before it)
+    };
+    int dropped = 0;
+    auto tidy = [&](const QTextBlock &z, const QTextBlock &next) {
+        const QVector<Block> after = z.isValid() ? keptOf(z, prop::RawAfter) : QVector<Block>(), before = next.isValid() ? keptOf(next, prop::RawBefore) : QVector<Block>();
+        QVector<Piece> kept;
+        int gone = 0;
+        auto add = [&](const QVector<Block> &list, bool fromBefore) {
+            for (const Block &k : list) {
+                if (!kept.isEmpty() && k.tag == QLatin1String("sdt") && k.role == Inline::Close && kept.last().k.tag == QLatin1String("sdt") && kept.last().k.role == Inline::Open) {
+                    kept.removeLast();
+                    gone += 2;
+                } else {
+                    kept.push_back({k, fromBefore});
+                }
+            }
+        };
+        add(after, false);
+        add(before, true);
+        if (!gone) return;
+        QVector<Block> a, b;
+        for (const Piece &p : std::as_const(kept)) (p.fromBefore ? b : a).push_back(p.k);
+        if (z.isValid()) setKept(z, prop::RawAfter, a);
+        if (next.isValid()) setKept(next, prop::RawBefore, b);
+        dropped += gone / 2;
+    };
+    tidy(QTextBlock(), story->begin());
+    for (QTextBlock z = story->begin(); z.isValid(); z = z.next()) {
+        const QTextBlock next = z.next();
+        if (z.blockFormat().hasProperty(prop::RawAfter) || (next.isValid() && next.blockFormat().hasProperty(prop::RawBefore))) tidy(z, next);
+    }
+    return dropped;
 }
 
 // The control whose placeholder what is typed at the caret takes the place of (not valid where there is none).
@@ -1266,7 +1432,11 @@ ContentControl controlAtCaret(WriteDoc &doc, const QTextCursor &c)
     const int at = c.hasSelection() ? c.selectionStart() + 1 : c.position();
     const ContentControl inner = contentControlAt(doc, at, story);
     if (inner.valid()) return inner;
-    return blockControlAt(doc, c.hasSelection() ? c.selectionStart() : c.position(), story);
+    const int place = c.hasSelection() ? c.selectionStart() : c.position();
+    ContentControl block = blockControlAt(doc, place, story);
+    ContentControl section;
+    if (block.props.sectionItem && repeatingItemAt(doc, place, &section, story).valid()) return section;   // (Properties of an item are the section's: its title, its tag, whether items may be added)
+    return block;
 }
 
 namespace {
@@ -1507,6 +1677,7 @@ int itemsIn(QTextDocument *story, const ContentControl &section, const ContentCo
     for (const BlockSpan &s : blockSpans(story)) {
         const ContentControl c = blockControlOf(story, s);
         if (!c.props.sectionItem || c.depth != item.depth || c.start < section.start || c.end > section.end) continue;
+        if (markFormat(story->findBlock(c.start)).hasProperty(prop::TrackedDeleted)) continue;   // (an item a tracked change deleted is not one the section still has)
         ++count;
         if (last && (!last->valid() || c.start > last->start)) *last = c;
     }
@@ -1532,6 +1703,10 @@ bool addRepeatingItem(WriteDoc &doc, int position, QString *problem)
         if (problem) *problem = QCoreApplication::translate("jp::write::ContentControls", "The contents of this section can't be edited.");
         return false;
     }
+    if (section.props.fixedItems) {
+        if (problem) *problem = QCoreApplication::translate("jp::write::ContentControls", "Items can't be added to or removed from this section.");
+        return false;
+    }
     // (The last item of the section is the one copied, and the new one comes after it.)
     ContentControl last;
     const int count = itemsIn(story, section, item, &last);
@@ -1544,6 +1719,12 @@ bool addRepeatingItem(WriteDoc &doc, int position, QString *problem)
         return false;
     }
     const QTextBlock a = story->findBlock(last.start), z = story->findBlock(last.end);
+    const bool record = doc.trackChanges() && story == doc.story();
+    if (record && !z.next().isValid()) {
+        // (The paragraph that ends the story can't be taken away again by Reject All, which the new item must be able to be.)
+        if (problem) *problem = QCoreApplication::translate("jp::write::ContentControls", "While Track Changes is on, an item can't be added to a section that ends the document.");
+        return false;
+    }
     QVector<QVector<Block>> was[2];   // (the pieces each paragraph of the item keeps, before and after)
     int paragraphs = 0;
     for (QTextBlock b = a; b.isValid(); b = b.next(), ++paragraphs) {
@@ -1559,6 +1740,8 @@ bool addRepeatingItem(WriteDoc &doc, int position, QString *problem)
     const int lastPos = z.position();
     const WriteDoc::StepGroup group(doc);
     EditScope scope(doc, story);
+    std::optional<UntrackedEdit> untracked;   // (the copy is made as it is, and then recorded as one insertion)
+    if (record) untracked.emplace();
     QTextCursor edit(story);
     edit.beginEditBlock();
     QTextCursor copy(story);
@@ -1592,6 +1775,12 @@ bool addRepeatingItem(WriteDoc &doc, int position, QString *problem)
     const QTextBlock after = story->findBlock(made.last()).next();
     if (after.isValid()) setKept(after, prop::RawBefore, gap.mid(tailEnd));
     freshenItem(doc, made.first(), paragraphs);
+    if (record) {
+        // (The break after the old last paragraph and the new paragraphs' own are inserted ones; Reject takes them and the pieces of the new item away, Accept keeps them.)
+        const QTextBlock oldEnd = story->findBlock(lastPos), newEnd = story->findBlockByNumber(oldEnd.blockNumber() + paragraphs);
+        int to = newEnd.position() + newEnd.length() - 1;
+        trackRangeInserted(doc, story, oldEnd.position() + oldEnd.length() - 1, &to);
+    }
     edit.endEditBlock();
     return true;
 }
@@ -1602,6 +1791,10 @@ bool removeRepeatingItem(WriteDoc &doc, int position, QString *problem)
     ContentControl section;
     const ContentControl item = repeatingItemAt(doc, position, &section, story);
     if (!item.valid() || !section.valid() || !item.editable) return false;
+    if (section.props.fixedItems) {
+        if (problem) *problem = QCoreApplication::translate("jp::write::ContentControls", "Items can't be added to or removed from this section.");
+        return false;
+    }
     if (itemsIn(story, section, item, nullptr) <= 1) {
         if (problem) *problem = QCoreApplication::translate("jp::write::ContentControls", "A repeating section keeps at least one item.");
         return false;
@@ -1611,6 +1804,23 @@ bool removeRepeatingItem(WriteDoc &doc, int position, QString *problem)
         return false;
     }
     const QTextBlock a = story->findBlock(item.start), z = story->findBlock(item.end);
+    if (doc.trackChanges() && story == doc.story()) {
+        // With Track Changes on the item's paragraphs are marked as deleted, and Reject All and Accept All do the rest (the controls' own pieces stay where they are until then).
+        if (markFormat(a).hasProperty(prop::TrackedDeleted)) {
+            if (problem) *problem = QCoreApplication::translate("jp::write::ContentControls", "The item is already marked as deleted.");
+            return false;
+        }
+        if (!z.next().isValid() || a.position() == 0) {
+            if (problem) *problem = QCoreApplication::translate("jp::write::ContentControls", "While Track Changes is on, an item can't be removed from the end of the document.");
+            return false;
+        }
+        const WriteDoc::StepGroup group(doc);
+        EditScope scope(doc, story);
+        const int blocks = story->blockCount();
+        trackRangeDeleted(doc, story, a.position(), z.next().position());
+        if (story->blockCount() < blocks) dropEmptyControls(story);   // (what the reviewer inserted themselves goes for good)
+        return true;
+    }
     const QVector<Block> aBefore = keptOf(a, prop::RawBefore), gap = gapAfter(z);
     const int closeAt = itemCloseIndex(story, gap, z, item.depth);
     if (closeAt < 0 || item.openIndex < 0 || item.openIndex >= aBefore.size()) return false;

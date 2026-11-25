@@ -3,6 +3,7 @@
 
 #include "app/pageview.h"
 #include "app/writewindow.h"
+#include "core/contentcontrolops.h"
 #include "core/editops.h"
 #include "core/fieldops.h"
 #include "core/findops.h"
@@ -1205,6 +1206,16 @@ bool WriteFindPane::lastMatchBefore(QTextDocument *story, int before, QTextCurso
     }
 }
 
+namespace {
+// Whether a content control keeps the words of a match (in the words of `text`) from being swapped: a lock on its contents, on its being deleted, or the edge of one round paragraphs.
+bool controlKeeps(write::WriteDoc *doc, QTextDocument *story, StoryWords *text, int from, int to)
+{
+    if (!doc || story != doc->story()) return false;
+    const int a = text->toStory(from), z = to > from ? text->toStoryEnd(to) : a;
+    return !write::contentControlsAllow(*doc, story, a, z, true);
+}
+} // namespace
+
 void WriteFindPane::replaceOne()
 {
     m_keepNotice = false;
@@ -1222,6 +1233,10 @@ void WriteFindPane::replaceOne()
         const int from = text->toWords(sel.selectionStart()), to = sel.hasSelection() ? text->toWords(sel.selectionEnd()) : from;
         if (holdsMark(text->plain(), from, to)) {
             m_status->setText(tr("A section break, a field, or a note mark can be found but not replaced."));
+            return;
+        }
+        if (controlKeeps(m_win->document(), story, text, from, to)) {
+            m_status->setText(tr("Text in a content control that can't be changed can be found but not replaced."));
             return;
         }
         QTextCursor match(text->words());
@@ -1271,7 +1286,7 @@ bool WriteFindPane::planStory(QTextDocument *story, QString *problem, StoryWords
         const QTextCursor m = matchIn(text, at, problem);
         if (m.isNull()) break;
         at = nextPlace(m, at);
-        if (!(plan->w.skip && plan->w.skip(m)) && !holdsMark(plan->plain, m)) {   // (a section break, a field's start, or a note's mark is found, not swapped: it would lose what it stands for)
+        if (!(plan->w.skip && plan->w.skip(m)) && !holdsMark(plan->plain, m) && !controlKeeps(m_win->document(), story, text, m.selectionStart(), m.selectionEnd())) {   // (a section break, a field's start, or a note's mark is found, not swapped: it would lose what it stands for)
             plan->found.push_back(m);
             if (regex) plan->groups.push_back(m_lastGroups);
         }

@@ -3,6 +3,7 @@
 #include "office/theme.h"
 
 #include <QCoreApplication>
+#include <functional>
 #include <QHash>
 #include <QRegularExpression>
 #include <QSet>
@@ -81,6 +82,14 @@ TableMark cellMarkOf(const Block &b)
     m.bottom = borderIn(xml, "tcBorders", "bottom");
     m.right = borderIn(xml, "tcBorders", "right");
     return m;
+}
+
+// What a content control of a kind RTF has no control for loses, by the start tag it was kept as (its words stay).
+static void noteControlKinds(const QByteArray &raw, const std::function<void(const QString &)> &note)
+{
+    if (raw.contains("repeatingSection")) note(QCoreApplication::translate("rtf", "repeating sections (the items stay as paragraphs, without the buttons that add and remove them)"));
+    if (raw.contains("<w:picture")) note(QCoreApplication::translate("rtf", "picture controls (the picture stays, but not the control)"));
+    if (raw.contains("<w:comboBox")) note(QCoreApplication::translate("rtf", "combo boxes (the chosen words stay, but not the list to choose from)"));
 }
 
 struct Writer {
@@ -512,6 +521,7 @@ struct Writer {
                 if (in.tag == QLatin1String("bookmarkEnd") || in.tag == QLatin1String("proofErr")) continue;
                 if (in.tag == QLatin1String("sdt") || in.tag == QLatin1String("sdtContent")) {
                     note(QCoreApplication::translate("rtf", "content controls (the text in them is kept)"));
+                    noteControlKinds(in.raw, [&](const QString &what) { note(what); });
                     continue;
                 }
                 if (in.tag == QLatin1String("oMath") || in.tag == QLatin1String("oMathPara")) note(QStringLiteral("equations (their text is kept)"));
@@ -767,7 +777,10 @@ struct Writer {
                         continue;
                     }
                 }
-                if (b.role == Inline::Open && b.tag == QLatin1String("sdt") && !b.raw.contains("docPartGallery")) note(QCoreApplication::translate("rtf", "content controls (the text in them is kept)"));
+                if (b.role == Inline::Open && b.tag == QLatin1String("sdt") && !b.raw.contains("docPartGallery")) {
+                    note(QCoreApplication::translate("rtf", "content controls (the text in them is kept)"));
+                    noteControlKinds(b.raw, [&](const QString &what) { note(what); });
+                }
                 if (b.role == Inline::Single && !b.display.isEmpty()) o += "\\pard " + text(b.display) + "\\par\n";
                 continue;
             }

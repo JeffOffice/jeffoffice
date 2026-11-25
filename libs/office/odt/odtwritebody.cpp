@@ -185,6 +185,7 @@ void Writer::emitBlock(const T &t, int n, QByteArray *out, ListCtx *lc, int dept
     } else if (t.is(n, "sdt")) {
         const int content = t.child(n, "sdtContent");
         left(QCoreApplication::translate("odt", "content controls (the text in them is kept)"));
+        leftOfControl(t, n);
         if (content >= 0)
             for (int c = t.firstChild(content); c >= 0; c = t.next(c)) emitBlock(t, c, out, lc, depth, body);
     } else if (t.is(n, "ins") || t.is(n, "moveTo") || t.is(n, "customXml") || t.is(n, "smartTag")) {
@@ -2292,6 +2293,7 @@ void Writer::emitInline(const T &t, int parent, ParaCtx *pc, int depth)
                         if (codes.contains(val)) mark = "_JOPageNumbers_" + codes.value(val) + "_" + QByteArray::number(++m_galleryMarks);
                     }
             if (mark.isEmpty()) left(QCoreApplication::translate("odt", "content controls (the text in them is kept)"));
+            if (mark.isEmpty()) leftOfControl(t, c);
             const qsizetype before = pc->xml.size();
             if (!mark.isEmpty()) pc->xml += "<text:bookmark-start text:name=\"" + mark + "\"/>";
             emitInline(t, content, pc, depth + 1);

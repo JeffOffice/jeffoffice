@@ -3,6 +3,7 @@
 #include "core/reviewops.h"
 
 #include "core/commentops.h"
+#include "core/contentcontrolops.h"
 #include "core/editops.h"
 #include "core/pictureops.h"
 #include "core/tableops.h"
@@ -1008,12 +1009,15 @@ void removeMark(WriteDoc &doc, QTextDocument *d, int blockNumber)
         return;
     }
     const int pos = b.position(), len = b.length() - 1;
-    if (len == 0 && pos > 0 && !bf.hasProperty(prop::RawBefore) && !bf.hasProperty(prop::RawAfter) && !bf.boolProperty(flow::fp::SectionBreakAfter)) {
+    bool controlsOnly = false;
+    const QVector<Block> controlPieces = controlPiecesOf(b, &controlsOnly);   // (a control's start and end, kept round the paragraph, go on to the one before it)
+    if (len == 0 && pos > 0 && (controlsOnly || (!bf.hasProperty(prop::RawBefore) && !bf.hasProperty(prop::RawAfter))) && !bf.boolProperty(flow::fp::SectionBreakAfter)) {
         // Nothing of it is left: the paragraph goes, and the next keeps its own look.
         QTextCursor t(d);
         t.setPosition(pos - 1);
         t.setPosition(pos + len, QTextCursor::KeepAnchor);
         t.removeSelectedText();
+        if (controlsOnly) appendKeptAfter(d->findBlock(pos - 1), controlPieces);
         return;
     }
     if (len == 0 && pos == 0 && !n.textList() && !bf.hasProperty(prop::RawBefore) && !bf.hasProperty(prop::RawAfter) && !bf.boolProperty(flow::fp::SectionBreakAfter)) {
@@ -1275,6 +1279,20 @@ int resolveRevisions(WriteDoc &doc, QTextDocument *story, const QVector<Revision
     if (whichGiven.isEmpty()) return 0;
     QVector<int> moveMarks;
     QVector<Revision> which = withMovePairs(story, whichGiven, &moveMarks);
+    if (story == doc.story()) {
+        // A change inside a content control whose contents can't be edited is left as it is (it stays to be resolved once the lock is off).
+        const QVector<std::pair<int, int>> locked = lockedContentRanges(story, true);
+        if (!locked.isEmpty()) {
+            const auto touches = [&](const Revision &r) {
+                const bool text = r.kind == Revision::Insertion || r.kind == Revision::Deletion || r.kind == Revision::MovedFrom || r.kind == Revision::MovedTo || r.kind == Revision::MarkInserted || r.kind == Revision::MarkDeleted || r.kind == Revision::Format;
+                return text && overlapsRanges(locked, r.from, r.to);
+            };
+            const qsizetype before = which.size();
+            which.erase(std::remove_if(which.begin(), which.end(), touches), which.end());
+            if (kept) *kept += int(before - which.size());
+            if (which.isEmpty()) return 0;
+        }
+    }
     auto second = [](const Revision &r) { return r.partner; };
     QVector<Revision> inTables;   // (what the tables record is done last, found again by its place: taking text out has moved it)
     for (const Revision &r : which)
@@ -1282,6 +1300,7 @@ int resolveRevisions(WriteDoc &doc, QTextDocument *story, const QVector<Revision
     const QVector<std::pair<int, int>> tablePlaces = inTables.isEmpty() ? QVector<std::pair<int, int>>() : tablePlacesOf(story, inTables);
     EditScope scope(doc, story);
     const UntrackedEdit untracked;   // (accepting and rejecting are not themselves tracked)
+    const int blocksBefore = story->blockCount();
     int done = 0;
     {
         // The sections first, while the text is as the changes were listed: a section is found by the paragraph that ends it, and the changes that follow (a section break taken out, one put back)
@@ -1417,6 +1436,7 @@ int resolveRevisions(WriteDoc &doc, QTextDocument *story, const QVector<Revision
     edit.endEditBlock();
     if (!tablePlaces.isEmpty()) done += resolveTableRevisions(doc, story, tablePlaces, accept, kept);
     for (const QTextCursor &at : std::as_const(marksBeforeTables)) removeMark(doc, story, at.blockNumber());
+    if (story->blockCount() < blocksBefore) dropEmptyControls(story);   // (a control the paragraphs of which a change took out)
     return done;
 }
 

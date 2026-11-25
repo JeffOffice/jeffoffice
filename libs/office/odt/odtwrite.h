@@ -140,6 +140,7 @@ private:
     QByteArray settingsXml() const;
     QByteArray metaXml();
     void left(const QString &what);
+    void leftOfControl(const T &t, int sdt);
     QByteArray changeRegion(const T &t, int node, const char *kind, bool withParagraph = false);
 
     Package m_pkg;

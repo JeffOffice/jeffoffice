@@ -11,6 +11,7 @@
 #include "app/settings.h"
 #include "app/theme.h"
 #include "app/textdialogs.h"
+#include "app/writefindpane.h"
 #include "core/items.h"
 #include "flow/paginator.h"
 #include "app/writeinfo.h"
@@ -32,9 +33,13 @@
 #include "core/insertops.h"
 #include "core/layoutops.h"
 #include "core/refops.h"
+#include "core/reviewops.h"
 #include "core/spellcheck.h"
 #include "core/linkops.h"
 #include "core/watermarkops.h"
+#include "core/styleops.h"
+#include "core/autoops.h"
+#include "core/tableops.h"
 #include "core/writedoc.h"
 #include "core/writeprops.h"
 #include "office/barcodemarker.h"
@@ -72,6 +77,7 @@
 #include <QTemporaryDir>
 #include <QTest>
 #include <QTextBlock>
+#include <QTextDocumentFragment>
 #include <QTextCursor>
 #include <QTextDocument>
 #include <QTimer>
@@ -282,6 +288,55 @@ struct Win {
     }
     QString text() const { return w.document()->story()->toPlainText(); }
 };
+
+// "before", a rich text control round "aa" and "bb" (or "aa" alone), and "after"; `lock` is the value of w:lock, or empty.
+QByteArray edgeFixture(const QByteArray &lock, bool two = true)
+{
+    QByteArray inner = "<w:p><w:r><w:t>aa</w:t></w:r></w:p>";
+    if (two) inner += "<w:p><w:r><w:t>bb</w:t></w:r></w:p>";
+    return "<w:p><w:r><w:t>before</w:t></w:r></w:p><w:sdt><w:sdtPr><w:id w:val=\"9\"/>" + (lock.isEmpty() ? QByteArray() : "<w:lock w:val=\"" + lock + "\"/>") + "<w:richText/></w:sdtPr><w:sdtContent>" + inner +
+           "</w:sdtContent></w:sdt><w:p><w:r><w:t>after</w:t></w:r></w:p>";
+}
+
+// The words of each paragraph of a saved file's body, joined by "|", with the ones inside the control's content marked by the brackets: "before|[aa|bb]|after".
+QString shownByEdge(const QByteArray &xml)
+{
+    QByteArray marked = xml.mid(xml.indexOf("<w:body>"));
+    marked.replace("<w:sdtContent>", "[").replace("</w:sdtContent>", "]").replace("</w:p>", "|");
+    QString words = QString::fromUtf8(marked);
+    words.remove(QRegularExpression(QStringLiteral("<[^>]*>")));
+    words.replace(QLatin1String("|]"), QLatin1String("]|")).replace(QLatin1String("[|"), QLatin1String("["));
+    while (words.endsWith(QLatin1Char('|'))) words.chop(1);
+    return words;
+}
+
+// The four keystrokes that join a paragraph across the edge of the control: 0 Backspace at the start of "after", 1 Delete at the end of "before", 2 Delete at the end of "bb" (the last
+// paragraph the control holds), 3 Backspace at the start of "aa".
+void pressAtEdge(WriteDoc &doc, int key)
+{
+    QTextDocument *story = doc.story();
+    auto blockWith = [&](const QString &text) {
+        for (QTextBlock b = story->begin(); b.isValid(); b = b.next())
+            if (b.text() == text) return b;
+        return QTextBlock();
+    };
+    QTextCursor c(story);
+    if (key == 0) {
+        c.setPosition(blockWith(QStringLiteral("after")).position());
+        write::deleteBack(doc, c, false);
+    } else if (key == 1) {
+        const QTextBlock b = blockWith(QStringLiteral("before"));
+        c.setPosition(b.position() + b.length() - 1);
+        write::deleteForward(doc, c, false);
+    } else if (key == 2) {
+        QTextBlock b = blockWith(QStringLiteral("after")).previous();
+        c.setPosition(b.position() + b.length() - 1);
+        write::deleteForward(doc, c, false);
+    } else {
+        c.setPosition(blockWith(QStringLiteral("before")).next().position());
+        write::deleteBack(doc, c, false);
+    }
+}
 
 
 // The position of the first picture of the text, or -1.
@@ -3420,6 +3475,102 @@ private Q_SLOTS:
         QVERIFY(!contentControlsAllow(*doc, story, c2.start + 1, c2.start + 3, false));
     }
 
+    void aKeystrokeAcrossTheEdgeOfALockedControlRoundParagraphsIsRefused()
+    {
+        for (const QByteArray &lock : {QByteArray("sdtLocked"), QByteArray("contentLocked"), QByteArray("sdtContentLocked")}) {
+            for (int key = 0; key < 4; ++key) {
+                auto doc = open(makeDocx(edgeFixture(lock)));
+                QVERIFY(doc);
+                const QByteArray was = documentXml(doc->toDocx());
+                QCOMPARE(shownByEdge(was), QStringLiteral("before|[aa|bb]|after"));
+                pressAtEdge(*doc, key);
+                QVERIFY2(documentXml(doc->toDocx()) == was, qPrintable(QStringLiteral("%1, key %2: %3").arg(QString::fromLatin1(lock)).arg(key).arg(shownByEdge(documentXml(doc->toDocx())))));
+                QCOMPARE(doc->story()->blockCount(), 4);
+            }
+        }
+    }
+
+    void aSelectionOrADropAcrossTheEdgeOfALockedControlIsRefused()
+    {
+        auto doc = open(makeDocx(edgeFixture("contentLocked")));
+        QVERIFY(doc);
+        QTextDocument *story = doc->story();
+        const QByteArray was = documentXml(doc->toDocx());
+        const QTextBlock before = story->findBlockByNumber(0), aa = story->findBlockByNumber(1), bb = story->findBlockByNumber(2), after = story->findBlockByNumber(3);
+        auto select = [&](int from, int to) {
+            QTextCursor c(story);
+            c.setPosition(from);
+            c.setPosition(to, QTextCursor::KeepAnchor);
+            return c;
+        };
+        const QVector<QPair<int, int>> crossing = {{before.position() + 2, aa.position() + 1}, {bb.position() + 1, after.position() + 2}, {before.position() + 2, after.position() + 2},
+                                                 {before.position() + 6, aa.position()}, {bb.position() + 2, after.position()}};   // (the last two are only the breaks at the edges)
+        for (const auto &range : crossing) {
+            QTextCursor c = select(range.first, range.second);
+            write::removeSelection(*doc, c);   // (cut)
+            QVERIFY2(documentXml(doc->toDocx()) == was, "cut");
+            c = select(range.first, range.second);
+            write::insertText(*doc, c, QStringLiteral("X"));   // (typed over)
+            QVERIFY2(documentXml(doc->toDocx()) == was, "typed over");
+            c = select(range.first, range.second);
+            write::pasteFragment(*doc, c, QTextDocumentFragment::fromPlainText(QStringLiteral("X")));   // (pasted over)
+            QVERIFY2(documentXml(doc->toDocx()) == was, "pasted over");
+            // Dragged out: a move that can't take its text out leaves it where it is, and puts nothing anywhere.
+            c = select(range.first, range.second);
+            QVERIFY(!write::moveSelectedText(*doc, c, after.position() + 1, false));
+            QVERIFY2(documentXml(doc->toDocx()) == was, "dragged");
+        }
+        // Dragged in: the words of "before" can't be dropped into the control, and are not lost.
+        QTextCursor c = select(before.position(), before.position() + 6);
+        QVERIFY(!write::moveSelectedText(*doc, c, aa.position() + 1, false));
+        QVERIFY(!write::moveSelectedText(*doc, c, aa.position() + 1, true));
+        QVERIFY2(documentXml(doc->toDocx()) == was, "dropped in");
+        // Find and Replace: a match that crosses the edge, and one inside, are found and not swapped.
+        WriteWindow w;
+        w.resize(1100, 800);
+        w.show();
+        w.setDocument(open(makeDocx(edgeFixture("contentLocked"))), QString());
+        w.showFindPane(true);
+        WriteFindPane *pane = w.findPane();
+        for (const QString &find : {QStringLiteral("before^paa"), QStringLiteral("aa"), QStringLiteral("bb^pafter")}) {
+            pane->findBox()->setText(find);
+            pane->replaceBox()->setText(QStringLiteral("ZZ"));
+            pane->replaceAll();
+            QVERIFY2(documentXml(w.document()->toDocx()) == was, qPrintable(find));
+        }
+    }
+
+    void aJoinAcrossTheEdgeOfAnUnlockedControlKeepsItWholeOnTheCaretsSide()
+    {
+        // The paragraph made by the join is on the side of the caret: Backspace at the start of "after" and Delete at the end of "before" leave the control (and its other paragraphs) where it
+        // is, and the joined text outside; Delete at the end of "bb" and Backspace at the start of "aa" make the joined paragraph one of the control's.
+        const QStringList expected = {QStringLiteral("before|[aa]|bbafter"), QStringLiteral("beforeaa|[bb]|after"), QStringLiteral("before|[aa|bbafter]"), QStringLiteral("[beforeaa|bb]|after")};
+        for (int key = 0; key < 4; ++key) {
+            auto doc = open(makeDocx(edgeFixture(QByteArray())));
+            QVERIFY(doc);
+            const QByteArray was = documentXml(doc->toDocx());
+            pressAtEdge(*doc, key);
+            const QByteArray out = documentXml(doc->toDocx());
+            QCOMPARE(shownByEdge(out), expected[key]);
+            auto again = open(doc->toDocx());
+            QCOMPARE(blockControls(*again).size(), 1);
+            QCOMPARE(blockControls(*again).first().props.kind, ControlKind::RichText);
+            QCOMPARE(documentXml(again->toDocx()), out);
+            doc->undo();
+            QCOMPARE(documentXml(doc->toDocx()), was);
+        }
+        // A control with one paragraph can't be emptied by a join: from outside it is refused; from inside, its paragraph takes the text in.
+        const QStringList alone = {QString(), QString(), QStringLiteral("before|[aaafter]"), QStringLiteral("[beforeaa]|after")};
+        for (int key = 0; key < 4; ++key) {
+            auto doc = open(makeDocx(edgeFixture(QByteArray(), false)));
+            QVERIFY(doc);
+            const QByteArray was = documentXml(doc->toDocx());
+            pressAtEdge(*doc, key);
+            if (alone[key].isEmpty()) QVERIFY2(documentXml(doc->toDocx()) == was, qPrintable(QString::number(key)));
+            else QCOMPARE(shownByEdge(documentXml(doc->toDocx())), alone[key]);
+        }
+    }
+
     void aRepeatingSectionAddsAndRemovesItemsEachWithItsOwnControls()
     {
         const QByteArray inner = "<w:p><w:r><w:t xml:space=\"preserve\">Task: </w:t></w:r><w:sdt><w:sdtPr><w:id w:val=\"50\"/><w:text/></w:sdtPr><w:sdtContent><w:r><w:t>Done it</w:t></w:r></w:sdtContent></w:sdt></w:p><w:p><w:r><w:t>Notes</w:t></w:r></w:p>";
@@ -3466,6 +3617,307 @@ private Q_SLOTS:
         QCOMPARE(documentXml(doc->toDocx()), two);
     }
 
+    void aSectionThatDoesNotAllowAddingOrRemovingItemsKeepsItsItemsAndShowsItInProperties()
+    {
+        QByteArray section = sectionXml(2);
+        section.replace("<w15:repeatingSection/>", "<w15:repeatingSection><w15:doNotAllowInsertDeleteSection w15:val=\"1\"/></w15:repeatingSection>");
+        Win win;
+        WriteWindow &w = win.w;
+        w.setDocument(open(makeDocx("<w:p><w:r><w:t>Before</w:t></w:r></w:p>" + section)), QString());
+        WriteDoc &doc = *w.document();
+        const int inItem = doc.story()->findBlockByNumber(1).position() + 1;
+        ContentControl found;
+        QVERIFY(repeatingItemAt(doc, inItem, &found).valid());
+        QVERIFY(found.props.fixedItems);
+        const QByteArray was = documentXml(doc.toDocx());
+        QString why;
+        QVERIFY(!addRepeatingItem(doc, inItem, &why));
+        QVERIFY(!why.isEmpty());
+        why.clear();
+        QVERIFY(!removeRepeatingItem(doc, inItem, &why));
+        QVERIFY(!why.isEmpty());
+        QCOMPARE(documentXml(doc.toDocx()), was);
+        // The Properties box (of an item, the section's) shows it, and a person can turn it off, and on again.
+        QTextCursor c(doc.story());
+        c.setPosition(inItem);
+        w.view()->setCursor(c);
+        QTRY_VERIFY(w.act(QStringLiteral("insert.control.properties"))->isEnabled());
+        withDialog([&] { w.act(QStringLiteral("insert.control.properties"))->trigger(); }, QStringLiteral("contentControlDialog"), [](QDialog *d) {
+            QCheckBox *fixed = d->findChild<QCheckBox *>(QStringLiteral("fixedItems"));
+            QVERIFY(fixed);
+            QVERIFY(fixed->isChecked());
+            fixed->setChecked(false);
+        });
+        QVERIFY(!documentXml(doc.toDocx()).contains("doNotAllowInsertDeleteSection"));
+        QVERIFY2(addRepeatingItem(doc, inItem, &why), qPrintable(why));
+        doc.undo();
+        withDialog([&] { w.act(QStringLiteral("insert.control.properties"))->trigger(); }, QStringLiteral("contentControlDialog"), [](QDialog *d) {
+            QVERIFY(!d->findChild<QCheckBox *>(QStringLiteral("fixedItems"))->isChecked());
+            d->findChild<QCheckBox *>(QStringLiteral("fixedItems"))->setChecked(true);
+        });
+        QVERIFY(documentXml(doc.toDocx()).contains("<w15:doNotAllowInsertDeleteSection w15:val=\"1\"/>"));
+        auto again = open(doc.toDocx());
+        QVERIFY(blockControls(*again).first().props.fixedItems);
+        QVERIFY(!addRepeatingItem(*again, inItem, &why));
+    }
+
+    void aControlThatNamesNoKindIsReadAsRichText()
+    {
+        const QByteArray block = "<w:sdt><w:sdtPr><w:alias w:val=\"Plain\"/><w:id w:val=\"9\"/></w:sdtPr><w:sdtContent><w:p><w:r><w:t>One</w:t></w:r></w:p><w:p><w:r><w:t>Two</w:t></w:r></w:p></w:sdtContent></w:sdt>";
+        auto doc = open(makeDocx("<w:p><w:r><w:t>Out</w:t></w:r></w:p>" + block));
+        QVERIFY(doc);
+        QCOMPARE(blockControls(*doc).size(), 1);
+        QCOMPARE(blockControls(*doc).first().props.kind, ControlKind::RichText);
+        QVERIFY(blockControls(*doc).first().editable);
+        // (The same file written again is as it was read.)
+        QCOMPARE(documentXml(open(doc->toDocx())->toDocx()), documentXml(doc->toDocx()));
+        QVERIFY(!documentXml(doc->toDocx()).contains("w:richText"));
+    }
+
+    void otherWaysToChangeWhatALockedControlHoldsAreRefused_data()
+    {
+        QTest::addColumn<int>("command");
+        QTest::newRow("spelling change") << 0;
+        QTest::newRow("a look") << 1;
+        QTest::newRow("clear formatting") << 2;
+        QTest::newRow("format painter") << 3;
+        QTest::newRow("table command") << 4;
+        QTest::newRow("autocorrect") << 5;
+    }
+
+    void otherWaysToChangeWhatALockedControlHoldsAreRefused()
+    {
+        // The paragraphs "aa" and "bb" are in a rich text control whose contents can't be edited; each command is tried on them, and on the same control unlocked (when it is allowed).
+        QFETCH(int, command);
+        {
+            for (const bool locked : {true, false}) {
+                auto doc = open(makeDocx(edgeFixture(locked ? "contentLocked" : QByteArray())));
+                QVERIFY(doc);
+                QTextDocument *story = doc->story();
+                const QByteArray was = documentXml(doc->toDocx());
+                const QTextBlock aa = story->findBlockByNumber(1);
+                QTextCursor c(story);
+                c.setPosition(aa.position());
+                c.setPosition(aa.position() + 2, QTextCursor::KeepAnchor);
+                if (command == 0) {   // a spelling change
+                    write::replaceWord(story, aa.position(), aa.position() + 2, QStringLiteral("zz"));
+                } else if (command == 1) {   // a look given to the words
+                    write::changeCharFormat(*doc, c, [](QTextCharFormat &f) { f.setFontWeight(QFont::Bold); });
+                } else if (command == 2) {   // Clear All Formatting
+                    write::changeCharFormat(*doc, c, [](QTextCharFormat &f) { f.setFontWeight(QFont::Bold); });
+                    const QByteArray bold = documentXml(doc->toDocx());
+                    write::clearFormatting(*doc, c);
+                    QVERIFY2((documentXml(doc->toDocx()) == bold) == locked, "clear formatting");
+                    QVERIFY2((bold == was) == locked, "bold");
+                    continue;
+                } else if (command == 3) {   // Format Painter
+                    QTextCursor from(story);
+                    from.setPosition(story->findBlockByNumber(0).position());
+                    from.setPosition(story->findBlockByNumber(0).position() + 3, QTextCursor::KeepAnchor);
+                    write::FormatBrush brush = write::copyFormat(*doc, from);
+                    brush.chars.setFontItalic(true);
+                    write::pasteFormat(*doc, c, brush);
+                } else if (command == 4) {   // a table's commands inside it
+                    auto withTable = open(makeDocx("<w:p><w:r><w:t>Out</w:t></w:r></w:p><w:sdt><w:sdtPr><w:id w:val=\"9\"/>" + QByteArray(locked ? "<w:lock w:val=\"contentLocked\"/>" : "") + "<w:richText/></w:sdtPr><w:sdtContent><w:p><w:r><w:t>Lead</w:t></w:r></w:p>" + tableXml() + "<w:p><w:r><w:t>End</w:t></w:r></w:p></w:sdtContent></w:sdt><w:p><w:r><w:t>Out</w:t></w:r></w:p>"));
+                    QVERIFY(withTable);
+                    const QByteArray tableWas = documentXml(withTable->toDocx());
+                    QTextCursor inCell(withTable->story());
+                    inCell.setPosition(withTable->story()->findBlockByNumber(2).position() + 1);
+                    QCOMPARE(withTable->story()->findBlockByNumber(2).text(), QStringLiteral("Cell"));
+                    QCOMPARE(blockControls(*withTable).size(), 1);
+                    write::insertTableRow(*withTable, inCell, true);
+                    QVERIFY2((documentXml(withTable->toDocx()) == tableWas) == locked, qPrintable(QString::number(locked)));
+                    continue;
+                } else {   // AutoCorrect and the rest of what typing does
+                    c.setPosition(aa.position() + 2);
+                    write::typeText(*doc, c, QStringLiteral("teh "), write::AutoOptions());
+                }
+                QVERIFY2((documentXml(doc->toDocx()) == was) == locked, qPrintable(QStringLiteral("command %1, locked %2").arg(command).arg(locked)));
+            }
+        }
+    }
+
+    void changesOlderThanTheLockInsideALockedControlAreLeftToResolveLater()
+    {
+        const QByteArray tracked = "<w:ins w:id=\"1\" w:author=\"Al\" w:date=\"2026-01-01T00:00:00Z\"><w:r><w:t>aa</w:t></w:r></w:ins>";
+        for (const bool locked : {true, false}) {
+            const QByteArray body = "<w:p><w:r><w:t>before</w:t></w:r></w:p><w:sdt><w:sdtPr><w:id w:val=\"9\"/>" + QByteArray(locked ? "<w:lock w:val=\"contentLocked\"/>" : "") + "<w:richText/></w:sdtPr><w:sdtContent><w:p>" + tracked +
+                                    "</w:p></w:sdtContent></w:sdt><w:p><w:ins w:id=\"2\" w:author=\"Al\" w:date=\"2026-01-01T00:00:00Z\"><w:r><w:t>after</w:t></w:r></w:ins></w:p>";
+            for (const bool accept : {true, false}) {
+                auto doc = open(makeDocx(body));
+                QVERIFY(doc);
+                QCOMPARE(documentRevisionCount(*doc), 2);
+                int kept = 0;
+                if (accept) acceptAll(*doc, &kept);
+                else rejectAll(*doc, &kept);
+                // The one outside the control is resolved; the one inside it is only where the lock is not on.
+                QCOMPARE(documentRevisionCount(*doc), locked ? 1 : 0);
+                QCOMPARE(kept, locked ? 1 : 0);
+                QCOMPARE(documentXml(doc->toDocx()).contains(">aa<"), locked || accept);
+            }
+        }
+    }
+
+    void theFormatsThatHaveNoSuchControlNameTheKindsTheyLose()
+    {
+        const QByteArray inlineCombo = "<w:p><w:sdt><w:sdtPr><w:id w:val=\"1\"/><w:comboBox><w:listItem w:displayText=\"A\" w:value=\"a\"/></w:comboBox></w:sdtPr><w:sdtContent><w:r><w:t>A</w:t></w:r></w:sdtContent></w:sdt></w:p>";
+        const QByteArray inlinePicture = "<w:p><w:sdt><w:sdtPr><w:id w:val=\"2\"/><w:picture/></w:sdtPr><w:sdtContent><w:r><w:t>P</w:t></w:r></w:sdtContent></w:sdt></w:p>";
+        auto doc = open(makeDocx(inlineCombo + inlinePicture + sectionXml(1) + "<w:p><w:r><w:t>End</w:t></w:r></w:p>"));
+        QVERIFY(doc);
+        const QString combo = QStringLiteral("combo boxes"), picture = QStringLiteral("picture controls"), section = QStringLiteral("repeating sections");
+        QStringList odt, rtf;
+        QVERIFY(!doc->toOdt(nullptr, &odt).isEmpty());
+        QVERIFY(!doc->toRtf(nullptr, &rtf).isEmpty());
+        for (const QStringList &notes : {odt, rtf}) {
+            const QString all = notes.join(QLatin1Char('\n'));
+            QVERIFY2(all.contains(combo) && all.contains(picture) && all.contains(section), qPrintable(all));
+        }
+        // A document with only the kinds they keep names none of the three.
+        auto plain = open(makeDocx(edgeFixture(QByteArray())));
+        QStringList plainOdt, plainRtf;
+        QVERIFY(!plain->toOdt(nullptr, &plainOdt).isEmpty());
+        QVERIFY(!plain->toRtf(nullptr, &plainRtf).isEmpty());
+        for (const QStringList &notes : {plainOdt, plainRtf}) {
+            const QString all = notes.join(QLatin1Char('\n'));
+            QVERIFY2(all.contains(QLatin1String("content controls")) && !all.contains(combo) && !all.contains(picture) && !all.contains(section), qPrintable(all));
+        }
+    }
+
+    void withTrackChangesTypingInAControlIsATrackedChangeAndFillingAPlaceholderToo()
+    {
+        for (const bool placeholder : {false, true}) {
+            Win win;
+            WriteDoc &doc = *win.w.document();
+            const int start = makeControl(win, ControlKind::PlainText);
+            QTextCursor &c = win.w.view()->cursor();
+            if (!placeholder) {
+                write::insertText(doc, c, QStringLiteral("abc"));
+                c.setPosition(contentControlAt(doc, start + 1).end);
+            }
+            doc.setTrackChanges(true);
+            QCOMPARE(documentRevisionCount(doc), 0);
+            if (placeholder) {
+                const ContentControl ctl = contentControlAt(doc, start + 1);
+                c.setPosition(ctl.start + 1);
+                c.setPosition(ctl.end, QTextCursor::KeepAnchor);
+            }
+            write::insertText(doc, c, QStringLiteral("X"));
+            QVERIFY2(documentRevisionCount(doc) > 0, placeholder ? "placeholder" : "text");
+            QVERIFY(documentXml(doc.toDocx()).contains("<w:ins "));
+            QVERIFY(contentControlAt(doc, start + 1).text.contains(QLatin1Char('X')));
+        }
+    }
+
+    static QByteArray trackedSectionBody(bool after = true)
+    {
+        const QByteArray inner = "<w:p><w:r><w:t>Task</w:t></w:r></w:p><w:p><w:r><w:t>Notes</w:t></w:r></w:p>";
+        return "<w:p><w:r><w:t>Before</w:t></w:r></w:p>" + sectionXml(2, inner) + (after ? "<w:p><w:r><w:t>After</w:t></w:r></w:p>" : QByteArray());
+    }
+
+    void withTrackChangesAddingAnItemIsAnInsertionThatRejectUndoesAndAcceptKeeps()
+    {
+        auto doc = open(makeDocx(trackedSectionBody()));
+        QVERIFY(doc);
+        const QByteArray saved = documentXml(doc->toDocx());
+        doc->setTrackChanges(true);
+        QString why;
+        QVERIFY2(addRepeatingItem(*doc, doc->story()->findBlockByNumber(1).position() + 1, &why), qPrintable(why));
+        QVERIFY(documentRevisionCount(*doc) > 0);
+        const QByteArray marked = documentXml(doc->toDocx());
+        QCOMPARE(marked.count("repeatingSectionItem"), 3);
+        QVERIFY2(marked.contains("<w:ins "), marked.constData());
+        QVERIFY(documentXml(doc->toDocx()).indexOf("Notes") > 0);
+        // Saved and read back, the changes are there to review, and Reject All gives the saved file back byte for byte.
+        auto again = open(doc->toDocx());
+        QVERIFY(documentRevisionCount(*again) > 0);
+        QCOMPARE(blockControls(*again).size(), 4);
+        rejectAll(*again);
+        QVERIFY2(documentXml(again->toDocx()) == saved, qPrintable(shownByEdge(documentXml(again->toDocx()))));
+        QCOMPARE(blockControls(*again).size(), 3);
+        // Accept All keeps the item and leaves no marks.
+        acceptAll(*doc);
+        const QByteArray accepted = documentXml(doc->toDocx());
+        QVERIFY2(!accepted.contains("<w:ins ") && !accepted.contains("<w:del "), accepted.constData());
+        QCOMPARE(accepted.count("repeatingSectionItem"), 3);
+        QCOMPARE(blockControls(*doc).size(), 4);
+        QCOMPARE(documentRevisionCount(*doc), 0);
+        // One undo takes the whole add back.
+        auto undone = open(makeDocx(trackedSectionBody()));
+        undone->setTrackChanges(true);
+        QVERIFY(addRepeatingItem(*undone, undone->story()->findBlockByNumber(1).position() + 1, &why));
+        undone->undo();
+        QCOMPARE(documentXml(undone->toDocx()), saved);
+    }
+
+    void withTrackChangesRemovingAnItemIsADeletionThatRejectUndoesAndAcceptKeeps()
+    {
+        for (int which = 0; which < 2; ++which) {
+            auto doc = open(makeDocx(trackedSectionBody()));
+            QVERIFY(doc);
+            const QByteArray saved = documentXml(doc->toDocx());
+            doc->setTrackChanges(true);
+            QString why;
+            const int at = doc->story()->findBlockByNumber(1 + 2 * which).position() + 1;
+            QVERIFY2(removeRepeatingItem(*doc, at, &why), qPrintable(why));
+            QVERIFY(documentRevisionCount(*doc) > 0);
+            const QByteArray marked = documentXml(doc->toDocx());
+            QVERIFY2(marked.contains("<w:del "), marked.constData());
+            QCOMPARE(marked.count("repeatingSectionItem"), 2);
+            QCOMPARE(doc->story()->toPlainText().count(QLatin1String("Task")), 2);   // (the item is still there to review)
+            // The one item left shows can't be removed too.
+            QVERIFY(!removeRepeatingItem(*doc, doc->story()->findBlockByNumber(1 + 2 * (1 - which)).position() + 1, &why));
+            QVERIFY(!why.isEmpty());
+            auto again = open(doc->toDocx());
+            QVERIFY(documentRevisionCount(*again) > 0);
+            rejectAll(*again);
+            QVERIFY2(documentXml(again->toDocx()) == saved, qPrintable(QString::number(which)));
+            acceptAll(*doc);
+            const QByteArray accepted = documentXml(doc->toDocx());
+            QVERIFY2(!accepted.contains("<w:ins ") && !accepted.contains("<w:del "), accepted.constData());
+            QCOMPARE(accepted.count("repeatingSectionItem"), 1);
+            QCOMPARE(accepted.count(">Task<"), 1);
+            QCOMPARE(accepted.count(">Notes<"), 1);
+            QCOMPARE(blockControls(*doc).size(), 2);
+            auto reread = open(doc->toDocx());
+            QCOMPARE(blockControls(*reread).size(), 2);
+        }
+    }
+
+    void withTrackChangesAnItemAddedAndRemovedByTheSamePersonLeavesTheSectionAsItWas()
+    {
+        auto doc = open(makeDocx(trackedSectionBody()));
+        const QByteArray saved = documentXml(doc->toDocx());
+        doc->setTrackChanges(true);
+        QString why;
+        QVERIFY2(addRepeatingItem(*doc, doc->story()->findBlockByNumber(1).position() + 1, &why), qPrintable(why));
+        QVERIFY2(removeRepeatingItem(*doc, doc->story()->findBlockByNumber(5).position() + 1, &why), qPrintable(why));
+        QCOMPARE(documentXml(doc->toDocx()).count(">Task<"), 2);   // (what the reviewer typed is not kept as a deletion)
+        const QByteArray file = doc->toDocx();
+        auto rejected = open(file), accepted = open(file);
+        rejectAll(*rejected);
+        QVERIFY2(documentXml(rejected->toDocx()) == saved, documentXml(rejected->toDocx()).constData());
+        acceptAll(*accepted);
+        QVERIFY2(documentXml(accepted->toDocx()) == saved, documentXml(accepted->toDocx()).constData());
+    }
+
+    void withTrackChangesAnItemThatCanNotBeRecordedIsRefusedWithAMessage()
+    {
+        // The section is the end of the document: the paragraph that ends it can't be taken away again by Reject or Accept, so the commands do nothing.
+        auto doc = open(makeDocx(trackedSectionBody(false)));
+        QVERIFY(doc);
+        const QByteArray saved = documentXml(doc->toDocx());
+        doc->setTrackChanges(true);
+        QString why;
+        QVERIFY(!addRepeatingItem(*doc, doc->story()->findBlockByNumber(1).position() + 1, &why));
+        QVERIFY(!why.isEmpty());
+        why.clear();
+        QVERIFY(!removeRepeatingItem(*doc, doc->story()->findBlockByNumber(3).position() + 1, &why));
+        QVERIFY(!why.isEmpty());
+        QCOMPARE(documentXml(doc->toDocx()), saved);
+        // (The first item can go: what is after it is the other item.)
+        QVERIFY2(removeRepeatingItem(*doc, doc->story()->findBlockByNumber(1).position() + 1, &why), qPrintable(why));
+    }
+
     void aRepeatingSectionIsMadeRoundTheParagraphAtTheCaretAndAHugeOneIsBounded()
     {
         Win win({"Row"});
@@ -3485,13 +3937,20 @@ private Q_SLOTS:
         doc.undo();
         QCOMPARE(documentXml(doc.toDocx()), before);
         // At the most items, no more is added, and the count is the one asked for.
-        auto huge = open(makeDocx(sectionXml(kMostRepeatingItems)));
+        auto huge = open(makeDocx(sectionXml(1000)));
         QVERIFY(huge);
-        QCOMPARE(blockControls(*huge).size(), kMostRepeatingItems + 1);
+        QCOMPARE(blockControls(*huge).size(), 1001);   // (the section, and its 1000 items)
         const int blocks = huge->story()->blockCount();
         QVERIFY(!addRepeatingItem(*huge, 1, &why));
         QVERIFY(!why.isEmpty());
         QCOMPARE(huge->story()->blockCount(), blocks);
+        // One item short of the most, one more is added, and then no more.
+        auto nearly = open(makeDocx(sectionXml(999)));
+        QVERIFY(nearly);
+        why.clear();
+        QVERIFY2(addRepeatingItem(*nearly, 1, &why), qPrintable(why));
+        QCOMPARE(blockControls(*nearly).size(), 1001);
+        QVERIFY(!addRepeatingItem(*nearly, 1, &why));
     }
 
     void controlsRoundParagraphsStopAtTheDepth()

@@ -81,6 +81,11 @@ private:
     struct Impl;
     std::unique_ptr<Impl> m_impl;
 };
+// With Track Changes on, a range of the body taken as a change: its text and paragraph marks marked as deleted by the reviewer (what a selection and Delete do), or as inserted (what a paste does;
+// `*to` is where the text ends, moved on by the pieces put round it). The text must be there already.
+void trackRangeDeleted(WriteDoc &doc, QTextDocument *story, int from, int to);
+void trackRangeInserted(WriteDoc &doc, QTextDocument *story, int from, int *to);
+
 // While one is alive, the editing commands do not record their changes as tracked changes, whatever the document's setting is (for the commands that accept, reject, or undo changes
 // with them).
 class UntrackedEdit {

@@ -1,4 +1,5 @@
 #include "core/tableops.h"
+#include "core/contentcontrolops.h"
 
 #include "core/editops.h"
 #include "core/reviewops.h"
@@ -26,6 +27,12 @@
 using namespace jp::office::wml;
 
 namespace jp::write {
+
+namespace {
+// Whether the table at the caret is in a content control whose contents can't be edited.
+bool lockedByControl(const QTextCursor &c) { return !contentControlsAllowIn(c.document(), c.selectionStart(), c.selectionEnd(), true); }
+} // namespace
+
 
 namespace {
 // The records of the cells of the table the cursor is in made again from its parts, so that what its style gives each cell by its place (the header row, the banded rows and
@@ -837,6 +844,7 @@ bool removeSelectionAcrossCells(WriteDoc &doc, QTextCursor &c)
 
 void insertTableRow(WriteDoc &doc, QTextCursor &c, bool below)
 {
+    if (lockedByControl(c)) return;   // (a content control keeps what is in it)
     TableCommand command(doc);
     auto v = viewAt(doc, c.selectionStart());
     if (!v) return;
@@ -851,6 +859,7 @@ void insertTableRow(WriteDoc &doc, QTextCursor &c, bool below)
 
 void insertTableColumn(WriteDoc &doc, QTextCursor &c, bool right)
 {
+    if (lockedByControl(c)) return;   // (a content control keeps what is in it)
     TableCommand command(doc);
     auto v = viewAt(doc, c.selectionStart());
     if (!v) return;
@@ -957,6 +966,7 @@ void insertTableColumn(WriteDoc &doc, QTextCursor &c, bool right)
 
 void deleteTable(WriteDoc &doc, QTextCursor &c)
 {
+    if (lockedByControl(c)) return;   // (a content control keeps what is in it)
     TableCommand command(doc);
     auto v = viewAt(doc, c.selectionStart());
     if (!v) return;
@@ -974,6 +984,7 @@ void deleteTable(WriteDoc &doc, QTextCursor &c)
 
 void deleteTableRows(WriteDoc &doc, QTextCursor &c)
 {
+    if (lockedByControl(c)) return;   // (a content control keeps what is in it)
     TableCommand command(doc);
     auto v = viewAt(doc, c.selectionStart());
     if (!v) return;
@@ -1069,6 +1080,7 @@ void deleteTableRows(WriteDoc &doc, QTextCursor &c)
 
 void deleteTableColumns(WriteDoc &doc, QTextCursor &c)
 {
+    if (lockedByControl(c)) return;   // (a content control keeps what is in it)
     TableCommand command(doc);
     auto v = viewAt(doc, c.selectionStart());
     if (!v) return;
@@ -1159,6 +1171,7 @@ void deleteTableColumns(WriteDoc &doc, QTextCursor &c)
 
 bool deleteTableCellsShiftLeft(WriteDoc &doc, QTextCursor &c, bool apply)
 {
+    if (lockedByControl(c)) return false;   // (a content control keeps what is in it)
     TableCommand command(doc);
     auto v = viewAt(doc, c.selectionStart());
     if (!v) return false;
@@ -2444,6 +2457,7 @@ bool canMergeCells(WriteDoc &doc, const QTextCursor &c)
 
 bool mergeCells(WriteDoc &doc, QTextCursor &c)
 {
+    if (lockedByControl(c)) return false;   // (a content control keeps what is in it)
     TableCommand command(doc);
     const auto v = viewAt(doc, c.selectionStart());
     if (!v) return false;
@@ -2602,6 +2616,7 @@ bool canSplitCell(WriteDoc &doc, const QTextCursor &c)
 
 bool splitCells(WriteDoc &doc, QTextCursor &c, int columns, int rows)
 {
+    if (lockedByControl(c)) return false;   // (a content control keeps what is in it)
     TableCommand command(doc);
     if (columns < 1 || rows < 1 || columns * rows < 2) return refuse(doc, tableText(QT_TRANSLATE_NOOP("jp::write::Tables", "A cell is split into at least two cells.")));
     if (columns > 63) return refuse(doc, tableText(QT_TRANSLATE_NOOP("jp::write::Tables", "A cell can be split into at most 63 columns.")));
@@ -3186,6 +3201,7 @@ bool canPasteCells(WriteDoc &doc, const QTextCursor &c, TablePaste how)
 
 bool pasteCells(WriteDoc &doc, QTextCursor &c, const office::wml::ClipTable &cells, TablePaste how)
 {
+    if (lockedByControl(c)) return false;   // (a content control keeps what is in it)
     TableCommand command(doc);
     if (cells.rows.isEmpty() || cells.rows[0].isEmpty() || !canPasteCells(doc, c, how)) return false;
     const int rows = int(cells.rows.size()), cols = int(cells.rows[0].size());
@@ -3259,6 +3275,7 @@ bool pasteCells(WriteDoc &doc, QTextCursor &c, const office::wml::ClipTable &cel
 
 bool convertTableToText(WriteDoc &doc, QTextCursor &c, TextSeparator separator, QChar other)
 {
+    if (lockedByControl(c)) return false;   // (a content control keeps what is in it)
     TableCommand command(doc);
     const auto v = viewAt(doc, c.selectionStart());
     if (!v) return false;
@@ -3305,6 +3322,7 @@ bool canSplitTable(WriteDoc &doc, const QTextCursor &c)
 
 bool splitTable(WriteDoc &doc, QTextCursor &c)
 {
+    if (lockedByControl(c)) return false;   // (a content control keeps what is in it)
     TableCommand command(doc);
     const auto v = viewAt(doc, c.selectionStart());
     if (!v) return false;
@@ -3353,6 +3371,7 @@ bool splitTable(WriteDoc &doc, QTextCursor &c)
 
 bool sortTableRows(WriteDoc &doc, QTextCursor &c, const QVector<TableSortKey> &keys, bool header)
 {
+    if (lockedByControl(c)) return false;   // (a content control keeps what is in it)
     TableCommand command(doc);
     if (keys.isEmpty()) return false;
     const auto v = viewAt(doc, c.selectionStart());

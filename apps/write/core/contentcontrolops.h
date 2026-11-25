@@ -15,6 +15,10 @@ class QTextBlock;
 class QTextCursor;
 class QTextDocument;
 
+namespace jp::office::wml {
+struct Block;
+}
+
 namespace jp::write {
 
 enum class ControlKind { PlainText, DropDown, Date, CheckBox, RichText, Picture, ComboBox, RepeatingSection, Other };
@@ -34,6 +38,7 @@ struct ControlProps {
     QDate date;                    // the date it holds (invalid for none)
     QString lid;                   // the language its date is written in (w:lid, "en-US"); empty: the program's
     bool sectionItem = false;      // it is an item of a repeating section (w15:repeatingSectionItem)
+    bool fixedItems = false;       // a repeating section's: items may not be added or removed (w15:doNotAllowInsertDeleteSection)
     bool checked = false;          // a check box's
     QString lastValue;             // a drop-down list's: the value of the item chosen
     bool operator==(const ControlProps &o) const;
@@ -127,6 +132,29 @@ int controlParsesForTest();
 // Whether an edit may be made: removing the text from `from` to `to` (when they differ) or putting text in at `from`. A control that can't be deleted keeps both its atoms, one whose contents
 // are locked keeps what it holds, and the check box and the drop-down list hold only what is chosen for them. `typing`: text goes in (else it comes out).
 bool contentControlsAllow(WriteDoc &doc, QTextDocument *story, int from, int to, bool typing);
+// The same for a story alone (what has no document to ask).
+bool contentControlsAllowIn(QTextDocument *story, int from, int to, bool typing);
+// The places of a story that content controls keep from being changed (the contents of those that can't be edited, and what only a choice fills in), as sorted, separate ranges [first, end); with
+// `withEdges` the paragraph breaks at the edges of a control round paragraphs are in them. The places of a change (a format, an accepted or rejected change) are checked against them.
+QVector<std::pair<int, int>> lockedContentRanges(QTextDocument *story, bool withEdges);
+bool overlapsRanges(const QVector<std::pair<int, int>> &ranges, int from, int to);
+// Whether the characters from `from` to `to` may be given another look (not where the contents can't be edited).
+bool contentControlsAllowFormat(QTextDocument *story, int from, int to);
+// A paragraph `a` joined to the one after it by Backspace or Delete, where the break is the edge of a control round paragraphs: beginJoinAtEdge says whether it may be done (not where the control
+// would be left with no paragraph), and endJoinAtEdge, after the join, puts the paragraph made on the side of the caret (`inSecond`: the caret was in the second paragraph, so the joined paragraph
+// is inside the control that starts there, or outside the one that ends in the first). Locks are checked by contentControlsAllow, in the join itself.
+struct EdgeJoin {
+    QTextDocument *story = nullptr;
+    int position = 0, blocks = 0, moved = 0;
+};
+bool beginJoinAtEdge(WriteDoc &doc, const QTextBlock &a, bool inSecond, EdgeJoin *join);
+void endJoinAtEdge(const EdgeJoin &join);
+// For the paragraphs a change takes out (Accept All, Reject All): the starts and ends of controls a paragraph keeps, when it keeps nothing else (`*only`), so that they can be carried to the
+// paragraph before it; put after that paragraph's own by appendKeptAfter.
+QVector<office::wml::Block> controlPiecesOf(const QTextBlock &b, bool *only);
+void appendKeptAfter(const QTextBlock &b, const QVector<office::wml::Block> &pieces);
+// A control round paragraphs that no paragraph is left in (its start straight before its end, once the paragraphs a change took out are gone) goes. How many went.
+int dropEmptyControls(QTextDocument *story);
 // Whether what a person types at the caret takes the place of a placeholder (the caret is in a control that shows one, or the selection is it).
 bool typingReplacesPlaceholder(WriteDoc &doc, const QTextCursor &c);
 // Then the placeholder is selected, and the control no longer says it is showing one (call it inside the step that types).

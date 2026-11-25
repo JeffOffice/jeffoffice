@@ -139,6 +139,13 @@ bool contentControlDialog(QWidget *parent, WriteDoc *doc, const ContentControl &
     contentsLock->setChecked(ctl.props.lockContents);
     v->addWidget(deleteLock);
     v->addWidget(contentsLock);
+    QCheckBox *fixedItems = nullptr;
+    if (ctl.props.kind == ControlKind::RepeatingSection) {
+        fixedItems = new QCheckBox(QCoreApplication::translate("jp::write::ControlDialogs", "Items can't be added or removed"), &dlg);
+        fixedItems->setObjectName(QStringLiteral("fixedItems"));
+        fixedItems->setChecked(ctl.props.fixedItems);
+        v->addWidget(fixedItems);
+    }
     auto *bb = new jp::ButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dlg);
     v->addWidget(bb);
     QObject::connect(bb, &QDialogButtonBox::rejected, &dlg, &QDialog::reject);
@@ -150,6 +157,7 @@ bool contentControlDialog(QWidget *parent, WriteDoc *doc, const ContentControl &
         p.tag = capped(tag->text().trimmed(), tagMost);
         p.lockDelete = deleteLock->isChecked();
         p.lockContents = contentsLock->isChecked();
+        if (fixedItems) p.fixedItems = fixedItems->isChecked();
         if (format) p.dateFormat = format->currentText().trimmed();
         if (items) {
             p.items.clear();

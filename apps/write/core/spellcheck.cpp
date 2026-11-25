@@ -1,6 +1,7 @@
 #include "core/spellcheck.h"
 
 #include "app/spelling.h"
+#include "core/contentcontrolops.h"
 #include "core/dropcapops.h"
 #include "core/editops.h"
 #include "core/writeprops.h"
@@ -489,7 +490,7 @@ qint64 SpellCheck::keptBytes() const
 
 bool canReplaceWord(const QTextDocument *story, int from, int to)
 {
-    return from < editableEnd(story) && to <= editableEnd(story) && !touchesEndnotes(story, from, to);   // (a word of the endnotes the pages set is not changed)
+    return from < editableEnd(story) && to <= editableEnd(story) && !touchesEndnotes(story, from, to) && contentControlsAllowIn(const_cast<QTextDocument *>(story), from, to, true);   // (a word of the endnotes the pages set is not changed)
 }
 
 void replaceWord(QTextDocument *story, int from, int to, const QString &text)

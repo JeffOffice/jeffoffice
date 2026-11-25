@@ -60,6 +60,19 @@ void Writer::left(const QString &what)
     m_notes->push_back(what);
 }
 
+// What a content control of a kind this format has no control for loses (its words stay).
+void Writer::leftOfControl(const T &t, int sdt)
+{
+    const int pr = t.child(sdt, "sdtPr");
+    if (pr < 0) return;
+    for (int c = t.firstChild(pr); c >= 0; c = t.next(c)) {
+        const QByteArray name = t.localName(c);
+        if (name == "repeatingSection" || name == "repeatingSectionItem") left(QCoreApplication::translate("odt", "repeating sections (the items stay as paragraphs, without the buttons that add and remove them)"));
+        else if (name == "picture") left(QCoreApplication::translate("odt", "picture controls (the picture stays, but not the control)"));
+        else if (name == "comboBox") left(QCoreApplication::translate("odt", "combo boxes (the chosen words stay, but not the list to choose from)"));
+    }
+}
+
 wml::XmlTree *Writer::parse(const QString &partName)
 {
     if (!m_pkg.hasPart(partName)) return nullptr;

@@ -1,4 +1,5 @@
 #include "core/styleops.h"
+#include "core/contentcontrolops.h"
 
 #include "core/editops.h"
 #include "core/tableops.h"
@@ -949,6 +950,7 @@ bool pasteFormat(WriteDoc &doc, QTextCursor &c, const FormatBrush &brush)
     const bool paragraphs = brush.hasParagraph && (!c.hasSelection() || takesInMark(c));
     QTextCursor range(c);
     if (!range.hasSelection()) range.select(QTextCursor::WordUnderCursor);
+    if (!contentControlsAllowFormat(c.document(), range.selectionStart(), range.selectionEnd())) return false;   // (a content control keeps the look of what is in it)
     c.beginEditBlock();
     bool changed = false;
     if (range.hasSelection())
