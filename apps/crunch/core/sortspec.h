@@ -32,6 +32,7 @@ struct SortSpec {
     QVector<SortLevel> levels;
     bool hasHeader = false;         // the first row (the first column, for a sort from left to right) is not sorted
     bool caseSensitive = false;
+    bool natural = false;           // numbers inside text are compared by value ("Item 2" before "Item 10"); the file's sort state has no place for it
     bool leftToRight = false;       // sort the columns, by the values in a row
     // What a sort by icon asks about a cell: the icon its conditional formats give it as "set:place", or nothing. The edit session does not draw the sheet, so the window gives this.
     std::function<QString(quint32 row, quint32 col)> iconAt;

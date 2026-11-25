@@ -125,6 +125,39 @@ private Q_SLOTS:
         QCOMPARE(shown(e, QStringLiteral("A1:A5")), QStringLiteral("a|A|b|b|B"));
     }
 
+    void numbersInTextCountByValueOnlyWhenAskedFor()
+    {
+        EditWindow e;
+        QVERIFY(e.open(sheetOf({"A1=Item 10", "A2=Item 2", "A3=item 1", "A4=Item 21", "A5=Item 3b"})));
+        SortSpec spec = byColumn(0);
+        QVERIFY(sortWith(e, QStringLiteral("A1:A5"), spec).ok);
+        QCOMPARE(shown(e, QStringLiteral("A1:A5")), QStringLiteral("item 1|Item 10|Item 2|Item 21|Item 3b"));
+        spec.natural = true;
+        QVERIFY(sortWith(e, QStringLiteral("A1:A5"), spec).ok);
+        QCOMPARE(shown(e, QStringLiteral("A1:A5")), QStringLiteral("item 1|Item 2|Item 3b|Item 10|Item 21"));
+        spec.levels[0].descending = true;
+        QVERIFY(sortWith(e, QStringLiteral("A1:A5"), spec).ok);
+        QCOMPARE(shown(e, QStringLiteral("A1:A5")), QStringLiteral("Item 21|Item 10|Item 3b|Item 2|item 1"));
+        e.win.w.undoStack()->undo();
+        QCOMPARE(shown(e, QStringLiteral("A1:A5")), QStringLiteral("item 1|Item 2|Item 3b|Item 10|Item 21"));   // (one step)
+    }
+
+    void theSortDialogCarriesTheNaturalChoice()
+    {
+        SortDialog::Provider provider;
+        provider.names = [](bool, bool) { return QStringList{QStringLiteral("A")}; };
+        SortSpec initial = byColumn(0);
+        SortDialog plain(provider, initial, nullptr);
+        QVERIFY(!plain.spec().natural);
+        auto *box = plain.findChild<QCheckBox *>(QStringLiteral("sortNatural"));
+        QVERIFY(box);
+        box->setChecked(true);
+        QVERIFY(plain.spec().natural);
+        initial.natural = true;
+        SortDialog again(provider, initial, nullptr);
+        QVERIFY(again.findChild<QCheckBox *>(QStringLiteral("sortNatural"))->isChecked());
+    }
+
     void formulasAreWrittenForTheRowTheyGoTo()
     {
         EditWindow e;

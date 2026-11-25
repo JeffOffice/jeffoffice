@@ -338,7 +338,7 @@ bool EditSession::orderSort(SortPlan &plan, const std::atomic<bool> *cancel)
     if (plan.keys.empty() && !plan.units.empty()) return false;
     const size_t levels = size_t(plan.spec.levels.size());
     const size_t n = plan.units.size();
-    const QCollator collator = sortCollator(plan.spec.caseSensitive);
+    const QCollator collator = sortCollator(plan.spec.caseSensitive, plan.spec.natural);
     plan.order.resize(n);
     std::iota(plan.order.begin(), plan.order.end(), 0u);
     qint64 compared = 0;

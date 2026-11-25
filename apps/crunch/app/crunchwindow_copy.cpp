@@ -133,7 +133,8 @@ void CrunchWindow::findCopyLosses(bool xls, const CompatDone &done)
     auto cancel = std::make_shared<std::atomic<bool>>(false);
     m_compatCancel = cancel;
     ++m_compatStarted;
-    auto work = [self, book, snapshot, xls, done, cancel] {
+    const bool naturalSortUsed = m_naturalSortUsed;
+    auto work = [self, book, snapshot, xls, done, cancel, naturalSortUsed] {
         const std::function<bool()> stopped = [cancel] { return cancel->load(); };
         struct Alive {
             Alive() { ++compatAliveForTest(); }
@@ -151,11 +152,12 @@ void CrunchWindow::findCopyLosses(bool xls, const CompatDone &done)
             ok = package.readLazy(xlsx, &message) && made.open(package, &message);
             if (ok) ok = xls ? office::sheet::saveXls(made, &copy, &copyReport, &message, stopped) : office::sheet::saveOds(made, &copy, &copyReport, &message, stopped);
         }
-        QMetaObject::invokeMethod(qApp, [self, ok, message, copyReport, done, cancel] {
+        QMetaObject::invokeMethod(qApp, [self, ok, message, copyReport, done, cancel, naturalSortUsed] {
             if (!self || cancel->load()) return;   // (a check that was stopped has no answer to give)
             self->setStatus(tr("Ready"));
             if (!ok) return done(CompatAnswer::failed(message));
             QStringList lost = copyReport.notKept;
+            if (naturalSortUsed) lost << tr("The sort choice \"Numbers in text count by value\": the cells stay in the order they were sorted into, but the file does not remember the choice, so the next Sort starts without it.");
             for (const QString &what : std::as_const(copyReport.trimmed)) lost << tr("Cut or changed to fit: %1").arg(what);
             CompatAnswer answer(lost);
             answer.more = copyReport.notKeptMore + copyReport.trimmedMore;

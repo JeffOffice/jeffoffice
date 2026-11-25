@@ -147,6 +147,7 @@ void CrunchWindow::sortSelection(int mode)
     if (mode == 2) {
         // the sort the filter or the table keeps (from the file, or the last made inside it) is what the dialog starts with
         if (const crunch::EditSession::SavedSort saved = m_session->savedSort(m_sheet, selectedTable()); saved.valid && saved.range == range) spec = saved.spec;
+        spec.natural = m_sortNatural;   // (the file's sort state has no place for it: the window remembers the last choice)
         if (m_sortAsker) {
             if (!m_sortAsker(range, &spec)) return;
         } else {
@@ -214,6 +215,7 @@ bool CrunchWindow::sortRange(const CellRange &given, const crunch::SortSpec &ask
     }
     QString why;
     m_sortPlan = m_session->planSort(m_sheet, range, spec, &why);
+    m_sortNaturalAsked = spec.natural;
     if (!m_sortPlan) {
         notice(tr("Sort"), why);
         Q_EMIT sortFinished(false);

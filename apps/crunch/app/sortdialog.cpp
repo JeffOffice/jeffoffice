@@ -78,10 +78,14 @@ SortDialog::SortDialog(const Provider &provider, const SortSpec &initial, QWidge
     m_header->setObjectName(QStringLiteral("sortHeader"));
     m_case = new QCheckBox(tr("Capitals count"));
     m_case->setObjectName(QStringLiteral("sortCase"));
+    m_natural = new QCheckBox(tr("Numbers in text count by value"));
+    m_natural->setObjectName(QStringLiteral("sortNatural"));
+    m_natural->setToolTip(tr("Puts \"Item 2\" before \"Item 10\"."));
     m_leftToRight = new QCheckBox(tr("Sort columns, not rows"));
     m_leftToRight->setObjectName(QStringLiteral("sortLeftToRight"));
     options->addWidget(m_header);
     options->addWidget(m_case);
+    options->addWidget(m_natural);
     options->addWidget(m_leftToRight);
     options->addStretch(1);
     layout->addLayout(options);
@@ -91,6 +95,7 @@ SortDialog::SortDialog(const Provider &provider, const SortSpec &initial, QWidge
     connect(buttons, &QDialogButtonBox::rejected, this, &QDialog::reject);
     m_header->setChecked(initial.hasHeader);
     m_case->setChecked(initial.caseSensitive);
+    m_natural->setChecked(initial.natural);
     m_leftToRight->setChecked(initial.leftToRight);
     for (const SortLevel &level : initial.levels) addLevel(level);
     if (m_levels->rowCount() == 0) addLevel(SortLevel());
@@ -336,6 +341,7 @@ SortSpec SortDialog::spec() const
     for (int r = 0; r < m_levels->rowCount(); ++r) spec.levels.append(levelOf(r));
     spec.hasHeader = m_header->isChecked();
     spec.caseSensitive = m_case->isChecked();
+    spec.natural = m_natural->isChecked();
     spec.leftToRight = m_leftToRight->isChecked();
     return spec;
 }

@@ -8,10 +8,11 @@
 
 namespace jp::crunch {
 
-inline QCollator sortCollator(bool matchCase = false)
+inline QCollator sortCollator(bool matchCase = false, bool natural = false)
 {
     QCollator collator(QLocale(QLocale::English, QLocale::UnitedStates));
     collator.setCaseSensitivity(matchCase ? Qt::CaseSensitive : Qt::CaseInsensitive);
+    collator.setNumericMode(natural);   // (digits in text are read by their value: 2 before 10)
     return collator;
 }
 

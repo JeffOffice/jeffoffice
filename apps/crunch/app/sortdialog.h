@@ -48,7 +48,7 @@ private:
     void renumber();
     Provider m_provider;
     QTableWidget *m_levels = nullptr;
-    QCheckBox *m_header = nullptr, *m_case = nullptr, *m_leftToRight = nullptr;
+    QCheckBox *m_header = nullptr, *m_case = nullptr, *m_natural = nullptr, *m_leftToRight = nullptr;
     QPushButton *m_add = nullptr, *m_delete = nullptr, *m_copy = nullptr, *m_up = nullptr, *m_down = nullptr;
     QVector<QStringList> m_lists;    // the lists the order boxes offer, by their place (after "A to Z" and "Z to A")
 };
