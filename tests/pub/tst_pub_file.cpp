@@ -1531,8 +1531,8 @@ void PubFileTests::aPublicationMadeByAMergeHoldsNothingOfTheListItCameFrom()
         c.insertText(QString(QChar::ObjectReplacementCharacter), cf);
     }
     doc->pages[0]->items.push_back(box);
-    // (what must not be in any of them: the list's folder and file name, the other recipients, every address, and who is left out)
-    const QByteArrayList never{dir.path().toUtf8(), "people-list", "bohdan", "Bohdan", "annabelle@", "cyrus@", "example.com", "keyColumn", "\"place\"", "\"include\""};
+    // (what must not be in any of them: the list's folder and file name, the other recipients, every address, and who is left out; the empty include list is looked at below)
+    const QByteArrayList never{dir.path().toUtf8(), "people-list", "bohdan", "Bohdan", "annabelle@", "cyrus@", "example.com", "keyColumn", "\"place\""};
     auto holdsNone = [&](const QByteArray &zip, const QByteArray &mine, const QByteArrayList &others, const char *which) {
         QMap<QString, QByteArray> parts;
         const QByteArray all = wholePublication(zip, &parts);
