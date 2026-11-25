@@ -82,7 +82,7 @@ private Q_SLOTS:
         QCOMPARE(t.header, (QStringList{QStringLiteral("a"), QStringLiteral("b")}));
         QCOMPARE(cell(t, 0, QStringLiteral("a")), QStringLiteral("2"));
         QCOMPARE(cell(t, 0, QStringLiteral("b")), QStringLiteral("y"));   // not "x; y"
-        QVERIFY(t.notes.join(QLatin1Char(' ')).contains(QLatin1String("repeats 2 name")));
+        QVERIFY(t.notes.join(QLatin1Char(' ')).contains(QLatin1String("repeats a name")));
         // an object with many keys (found by the table of keys) keeps the last value too
         QByteArray many = "[{";
         for (int i = 0; i < 20; ++i) many += "\"k" + QByteArray::number(i) + "\":" + QByteArray::number(i) + ",";
@@ -91,7 +91,7 @@ private Q_SLOTS:
         QCOMPARE(t.header.size(), 20);
         QCOMPARE(cell(t, 0, QStringLiteral("k3")), QStringLiteral("333"));
         QCOMPARE(cell(t, 0, QStringLiteral("k19")), QStringLiteral("1919"));
-        QVERIFY(t.notes.join(QLatin1Char(' ')).contains(QLatin1String("repeats 2 name")));
+        QVERIFY(t.notes.join(QLatin1Char(' ')).contains(QLatin1String("repeats a name")));
     }
 
     void xmlPrefixesKeepColumnsApartAndTopLevelTextIsKept()
@@ -134,7 +134,7 @@ private Q_SLOTS:
         QCOMPARE(t.rows[0][2].kind, 'n');
         QCOMPARE(t.rows[0][3].kind, 'n');   // zero written with an exponent is zero
         QCOMPARE(t.rows[0][4].kind, 'n');
-        QVERIFY(t.notes.join(QLatin1Char(' ')).contains(QLatin1String("2 number")));
+        QVERIFY(t.notes.join(QLatin1Char(' ')).contains(QLatin1String("Some numbers")));
         const QVector<char> kinds = dataColumnKinds(t, false);
         QCOMPARE(kinds[0], 't');   // text that looks like a number but does not fit one stays text
         QCOMPARE(kinds[1], 't');

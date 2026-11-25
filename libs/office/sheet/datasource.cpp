@@ -108,7 +108,7 @@ public:
         if (m_deep) m_out->notes << QCoreApplication::translate("jp::office::sheet::DataSource", "Items inside items more than %1 levels deep are kept as text.").arg(m_limits.maxDepth);
         if (m_listCut) m_out->notes << QCoreApplication::translate("jp::office::sheet::DataSource", "A list of values with more than 10,000 items is cut after the first 10,000.");
         if (m_spreadCut) m_out->notes << QCoreApplication::translate("jp::office::sheet::DataSource", "A list of values with more than %1 items fills only the first %1 columns; the rest are left out.").arg(m_limits.arrayColumns);
-        if (m_renamed > 0) m_out->notes << QCoreApplication::translate("jp::office::sheet::DataSource", "%n column(s) got a new name, because another column had the same name.", nullptr, m_renamed);
+        if (m_renamed > 0) m_out->notes << QCoreApplication::translate("jp::office::sheet::DataSource", "Some columns got a new name, because another column had the same name.");
         m_out->notes << m_notes;
     }
 
@@ -628,8 +628,8 @@ bool dataReadJson(const QByteArray &bytes, const QString &path, ArrayMode mode, 
             flattenJson(b, QStringLiteral("value"), QStringLiteral("value"), item, 1, mode, limits);
         }
     }
-    if (flags.duplicates > 0) b.note(QCoreApplication::translate("jp::office::sheet::DataSource", "The file repeats %n name(s) inside items; the last value of each is kept.", nullptr, flags.duplicates));
-    if (flags.outOfRange > 0) b.note(QCoreApplication::translate("jp::office::sheet::DataSource", "%n number(s) are too large or too small for a cell, so they are kept as text, as written.", nullptr, flags.outOfRange));
+    if (flags.duplicates > 0) b.note(QCoreApplication::translate("jp::office::sheet::DataSource", "The file repeats a name inside an item; the last value is kept."));
+    if (flags.outOfRange > 0) b.note(QCoreApplication::translate("jp::office::sheet::DataSource", "Some numbers are too large or too small for a cell, so they are kept as text, as written."));
     if (flags.badChars) b.note(QCoreApplication::translate("jp::office::sheet::DataSource", "Some characters in the file could not be read and are shown as a replacement mark."));
     b.finish();
     if (maxRows <= 0 && int(list->items.size()) > cap) out->notes << QCoreApplication::translate("jp::office::sheet::DataSource", "Only the first %1 rows are loaded; the rest are left out.").arg(cap);
