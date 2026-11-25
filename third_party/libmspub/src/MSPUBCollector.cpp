@@ -1580,10 +1580,19 @@ std::function<void(void)> MSPUBCollector::paintShape(const ShapeInfo &info, cons
     else // a text object
     {
       Margins margins = info.m_margins.get_value_or(Margins());
-      props.insert("fo:padding-left", (double)margins.m_left / EMUS_IN_INCH);
-      props.insert("fo:padding-top", (double)margins.m_top / EMUS_IN_INCH);
-      props.insert("fo:padding-right", (double)margins.m_right / EMUS_IN_INCH);
-      props.insert("fo:padding-bottom", (double)margins.m_bottom / EMUS_IN_INCH);
+      // JeffPub: border art takes room from the text inside it, as a line
+      // does: the text area starts inside the art (all four sides).
+      double artInset = 0;
+      if (hasBorderArt)
+      {
+        const double w = static_cast<double>(info.m_lines[0].m_widthInEmu) / EMUS_IN_INCH;
+        if (coord.getHeightIn() > 2 * w && coord.getWidthIn() >= 2 * w)
+          artInset = w;
+      }
+      props.insert("fo:padding-left", (double)margins.m_left / EMUS_IN_INCH + artInset);
+      props.insert("fo:padding-top", (double)margins.m_top / EMUS_IN_INCH + artInset);
+      props.insert("fo:padding-right", (double)margins.m_right / EMUS_IN_INCH + artInset);
+      props.insert("fo:padding-bottom", (double)margins.m_bottom / EMUS_IN_INCH + artInset);
       if (bool(info.m_verticalAlign))
       {
         switch (info.m_verticalAlign.get())
