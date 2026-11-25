@@ -7094,7 +7094,7 @@ Berita halaman belakang	4</translation>
         <translation type="unfinished">bukan PDF yang ditulis program ini</translation>
     </message>
     <message numerus="yes">
-        <location filename="../apps/pub/io/pubexport.cpp" line="+2429"/>
+        <location filename="../apps/pub/io/pubexport.cpp" line="+2431"/>
         <source>%n object(s) couldn&apos;t be saved to .pub</source>
         <translation type="unfinished">
             <numerusform>%n objek tidak dapat disimpan ke .pub</numerusform>
@@ -8777,7 +8777,7 @@ Buka dengan program email Anda untuk mengirimnya.</translation>
         <translation type="unfinished">Konten publikasi rusak: %1</translation>
     </message>
     <message>
-        <location filename="../apps/pub/io/pubimport.cpp" line="+1305"/>
+        <location filename="../apps/pub/io/pubimport.cpp" line="+1307"/>
         <source>A %1 picture could not be displayed.</source>
         <translation type="unfinished">Gambar %1 tidak dapat ditampilkan.</translation>
     </message>

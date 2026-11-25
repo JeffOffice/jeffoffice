@@ -7098,7 +7098,7 @@ Back page story	4</source>
         <translation type="unfinished">файл PDF не был создан этой программой</translation>
     </message>
     <message numerus="yes">
-        <location filename="../apps/pub/io/pubexport.cpp" line="+2429"/>
+        <location filename="../apps/pub/io/pubexport.cpp" line="+2431"/>
         <source>%n object(s) couldn&apos;t be saved to .pub</source>
         <translation type="unfinished">
             <numerusform>Не удалось сохранить %n объект в .pub</numerusform>
@@ -8791,7 +8791,7 @@ Open them with your email program to send.</source>
         <translation type="unfinished">Содержимое публикации повреждено: %1</translation>
     </message>
     <message>
-        <location filename="../apps/pub/io/pubimport.cpp" line="+1305"/>
+        <location filename="../apps/pub/io/pubimport.cpp" line="+1307"/>
         <source>A %1 picture could not be displayed.</source>
         <translation type="unfinished">Не удалось отобразить рисунок %1.</translation>
     </message>

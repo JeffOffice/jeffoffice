@@ -7096,7 +7096,7 @@ Matéria da última página	4</translation>
         <translation type="unfinished">não é um PDF gerado por este programa</translation>
     </message>
     <message numerus="yes">
-        <location filename="../apps/pub/io/pubexport.cpp" line="+2429"/>
+        <location filename="../apps/pub/io/pubexport.cpp" line="+2431"/>
         <source>%n object(s) couldn&apos;t be saved to .pub</source>
         <translation type="unfinished">
             <numerusform>%n objeto não pôde ser salvo em .pub</numerusform>
@@ -8784,7 +8784,7 @@ Abra-os no seu programa de email para enviar.</translation>
         <translation type="unfinished">O conteúdo da publicação está danificado: %1</translation>
     </message>
     <message>
-        <location filename="../apps/pub/io/pubimport.cpp" line="+1305"/>
+        <location filename="../apps/pub/io/pubimport.cpp" line="+1307"/>
         <source>A %1 picture could not be displayed.</source>
         <translation type="unfinished">Não foi possível exibir uma imagem %1.</translation>
     </message>

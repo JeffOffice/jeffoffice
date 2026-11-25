@@ -7096,7 +7096,7 @@ Article de dernière page	4</translation>
         <translation type="unfinished">ce PDF n&apos;a pas été créé par ce programme</translation>
     </message>
     <message numerus="yes">
-        <location filename="../apps/pub/io/pubexport.cpp" line="+2429"/>
+        <location filename="../apps/pub/io/pubexport.cpp" line="+2431"/>
         <source>%n object(s) couldn&apos;t be saved to .pub</source>
         <translation type="unfinished">
             <numerusform>%n objet n&apos;a pas pu être enregistré au format .pub</numerusform>
@@ -8784,7 +8784,7 @@ Ouvrez-les avec votre programme de messagerie pour les envoyer.</translation>
         <translation type="unfinished">Le contenu de la composition est endommagé : %1</translation>
     </message>
     <message>
-        <location filename="../apps/pub/io/pubimport.cpp" line="+1305"/>
+        <location filename="../apps/pub/io/pubimport.cpp" line="+1307"/>
         <source>A %1 picture could not be displayed.</source>
         <translation type="unfinished">Une image %1 n&apos;a pas pu être affichée.</translation>
     </message>

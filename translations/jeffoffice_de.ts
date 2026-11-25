@@ -7096,7 +7096,7 @@ Artikel auf der Rückseite	4</translation>
         <translation type="unfinished">keine von diesem Programm erstellte PDF-Datei</translation>
     </message>
     <message numerus="yes">
-        <location filename="../apps/pub/io/pubexport.cpp" line="+2429"/>
+        <location filename="../apps/pub/io/pubexport.cpp" line="+2431"/>
         <source>%n object(s) couldn&apos;t be saved to .pub</source>
         <translation type="unfinished">
             <numerusform>%n Objekt konnte nicht als .pub gespeichert werden</numerusform>
@@ -8784,7 +8784,7 @@ Open them with your email program to send.</source>
         <translation type="unfinished">Der Publikationsinhalt ist beschädigt: %1</translation>
     </message>
     <message>
-        <location filename="../apps/pub/io/pubimport.cpp" line="+1305"/>
+        <location filename="../apps/pub/io/pubimport.cpp" line="+1307"/>
         <source>A %1 picture could not be displayed.</source>
         <translation type="unfinished">Ein %1-Bild konnte nicht angezeigt werden.</translation>
     </message>

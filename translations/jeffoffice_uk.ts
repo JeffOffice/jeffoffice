@@ -7098,7 +7098,7 @@ Back page story	4</source>
         <translation type="unfinished">колірний простір RGB, який JeffPub не вдалося перетворити</translation>
     </message>
     <message numerus="yes">
-        <location filename="../apps/pub/io/pubexport.cpp" line="+2429"/>
+        <location filename="../apps/pub/io/pubexport.cpp" line="+2431"/>
         <source>%n object(s) couldn&apos;t be saved to .pub</source>
         <translation type="unfinished">
             <numerusform>%n об&apos;єкт не вдалося зберегти у форматі .pub</numerusform>
@@ -8821,7 +8821,7 @@ Open them with your email program to send.</source>
         <translation type="unfinished">Вміст публікації пошкоджено: %1</translation>
     </message>
     <message>
-        <location filename="../apps/pub/io/pubimport.cpp" line="+1305"/>
+        <location filename="../apps/pub/io/pubimport.cpp" line="+1307"/>
         <source>A %1 picture could not be displayed.</source>
         <translation type="unfinished">Не вдалося показати малюнок у форматі %1.</translation>
     </message>

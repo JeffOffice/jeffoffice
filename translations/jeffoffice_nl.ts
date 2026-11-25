@@ -7096,7 +7096,7 @@ Artikel achterpagina	4</translation>
         <translation type="unfinished">geen PDF die door dit programma is gemaakt</translation>
     </message>
     <message numerus="yes">
-        <location filename="../apps/pub/io/pubexport.cpp" line="+2429"/>
+        <location filename="../apps/pub/io/pubexport.cpp" line="+2431"/>
         <source>%n object(s) couldn&apos;t be saved to .pub</source>
         <translation type="unfinished">
             <numerusform>%n object kan niet worden opgeslagen als .pub</numerusform>
@@ -8784,7 +8784,7 @@ Open deze bestanden in uw e-mailprogramma om ze te verzenden.</translation>
         <translation type="unfinished">De publicatie-inhoud is beschadigd: %1</translation>
     </message>
     <message>
-        <location filename="../apps/pub/io/pubimport.cpp" line="+1305"/>
+        <location filename="../apps/pub/io/pubimport.cpp" line="+1307"/>
         <source>A %1 picture could not be displayed.</source>
         <translation type="unfinished">Een %1-afbeelding kan niet worden weergegeven.</translation>
     </message>

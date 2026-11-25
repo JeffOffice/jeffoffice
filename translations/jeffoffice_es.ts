@@ -7096,7 +7096,7 @@ Artículo de contraportada	4</translation>
         <translation type="unfinished">no es un PDF creado por este programa</translation>
     </message>
     <message numerus="yes">
-        <location filename="../apps/pub/io/pubexport.cpp" line="+2429"/>
+        <location filename="../apps/pub/io/pubexport.cpp" line="+2431"/>
         <source>%n object(s) couldn&apos;t be saved to .pub</source>
         <translation type="unfinished">
             <numerusform>No se pudo guardar %n objeto en .pub</numerusform>
@@ -8784,7 +8784,7 @@ Open them with your email program to send.</source>
         <translation type="unfinished">El contenido de la publicación está dañado: %1</translation>
     </message>
     <message>
-        <location filename="../apps/pub/io/pubimport.cpp" line="+1305"/>
+        <location filename="../apps/pub/io/pubimport.cpp" line="+1307"/>
         <source>A %1 picture could not be displayed.</source>
         <translation type="unfinished">No se pudo mostrar una imagen %1.</translation>
     </message>

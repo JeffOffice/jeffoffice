@@ -7096,7 +7096,7 @@ Articolo dell&apos;ultima pagina	4</translation>
         <translation type="unfinished">non è un PDF creato da questo programma</translation>
     </message>
     <message numerus="yes">
-        <location filename="../apps/pub/io/pubexport.cpp" line="+2429"/>
+        <location filename="../apps/pub/io/pubexport.cpp" line="+2431"/>
         <source>%n object(s) couldn&apos;t be saved to .pub</source>
         <translation type="unfinished">
             <numerusform>Impossibile salvare %n oggetto in .pub</numerusform>
@@ -8784,7 +8784,7 @@ Aprili con il programma di posta elettronica per inviarli.</translation>
         <translation type="unfinished">Il contenuto della pubblicazione è danneggiato: %1</translation>
     </message>
     <message>
-        <location filename="../apps/pub/io/pubimport.cpp" line="+1305"/>
+        <location filename="../apps/pub/io/pubimport.cpp" line="+1307"/>
         <source>A %1 picture could not be displayed.</source>
         <translation type="unfinished">Impossibile visualizzare un&apos;immagine %1.</translation>
     </message>
