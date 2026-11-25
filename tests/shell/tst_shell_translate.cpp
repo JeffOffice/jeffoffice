@@ -36,6 +36,7 @@
 #include <QTextDocument>
 #include <QtTest>
 
+#include <cstdio>
 #include <atomic>
 #include <thread>
 
@@ -1094,10 +1095,13 @@ private Q_SLOTS:
         static auto stub = std::make_shared<StubBackend>();
         const Translator t = translatorFor(*fx, stub);
         QVERIFY(install(*fx, t.missing(QStringLiteral("en"), QStringLiteral("de"))));
-        stub->stubbornMs = 60000;
+        stub->stubbornMs = 600000;   // (far longer than the parent waits: a program that waited for the job could not end inside the parent's bound)
         auto *job = new TranslateJob(t, QStringLiteral("en"), QStringLiteral("de"), {QStringLiteral("one")}, true);
         job->start();
         QTRY_VERIFY(stub->calls.load() > 0);
+        // (the parent starts its clock when it reads this: what comes before, the start-up of a slow or checked build, is not what is measured)
+        std::fputs("JO_STUCK_IN_ENGINE\n", stdout);
+        std::fflush(stdout);
     }
 
     void theProgramEndsWhileATranslationIsStuckInTheEngine()
@@ -1111,14 +1115,24 @@ private Q_SLOTS:
         child.setProcessChannelMode(QProcess::MergedChannels);
         child.start(QCoreApplication::applicationFilePath(), {QStringLiteral("--class"), QStringLiteral("ShellTranslateTests"), QStringLiteral("stuckJobChild")});
         QVERIFY(child.waitForStarted(10000));
-        QElapsedTimer timer;
-        timer.start();
-        const bool ended = child.waitForFinished(15000);
-        if (!ended) child.kill();
-        const QByteArray output = child.readAll();
+        // Start-up of the child (a checked build on a busy machine takes long) is waited for by counted turns; the job is stuck in the engine when it says so.
+        QByteArray output;
+        bool stuck = false;
+        for (int turn = 0; turn < 600 && !stuck && child.state() != QProcess::NotRunning; ++turn) {
+            child.waitForReadyRead(1000);
+            output += child.readAll();
+            stuck = output.contains("JO_STUCK_IN_ENGINE");
+        }
+        QVERIFY2(stuck, output.right(600).constData());
+        // From here only the ending of the program is waited for. The job in the engine would take ten minutes, so a program that waits for it fails this bound.
+        const bool ended = child.waitForFinished(20000 * std::max(1, qEnvironmentVariableIntValue("JP_TEST_TIME_SCALE")));
+        if (!ended) {
+            child.kill();
+            child.waitForFinished(10000);
+        }
+        output += child.readAll();
         QVERIFY2(ended, "the program did not end while a translation was stuck: it waits for the job");
         QVERIFY2(child.exitStatus() == QProcess::NormalExit && child.exitCode() == 0, output.right(600).constData());
-        QVERIFY2(timer.elapsed() < 10000 * std::max(1, qEnvironmentVariableIntValue("JP_TEST_TIME_SCALE")), qPrintable(QString::number(timer.elapsed())));
     }
 
     // ---- the real engine, when a model is at hand
