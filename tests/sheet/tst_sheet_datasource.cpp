@@ -1,5 +1,10 @@
 // Tests of the readers of JSON and XML data for Get Data: the lists a file offers, the columns and rows read, and the limits on files made to do harm. Every file is made here.
+#include "sheethelpers.h"
 #include "sheet/datasource.h"
+#include "sheet/datasourcebook.h"
+#include "sheet/tables.h"
+
+#include <QTemporaryDir>
 
 #include "../testrunner.h"
 
@@ -10,7 +15,7 @@ using namespace jp::office::sheet;
 class SheetDataSourceTests : public QObject {
     Q_OBJECT
 
-    static QString cell(const DataTable &t, int row, const QString &column)
+    static QString cell(const DataRows &t, int row, const QString &column)
     {
         const int c = t.header.indexOf(column);
         return c < 0 ? QStringLiteral("<no column>") : t.rows.value(row).value(c).text;
@@ -29,11 +34,42 @@ private Q_SLOTS:
         QVERIFY(why.contains(QLatin1String("not valid JSON")));
     }
 
+    void jsonKeepsTheOrderOfTheKeysAndReadsEscapesAndHugeNumbersWhole()
+    {
+        DataRows t;
+        QString why;
+        QVERIFY2(dataReadJson("\xEF\xBB\xBF[{\"z\":1,\"a\":\"x\\ny\\u00e9\\\"\",\"m\":12345678901234567890,\"b\":-1.5e3}]", QStringLiteral("$"), ArrayMode::Join, 0, DataLimits(), &t, &why), qPrintable(why));
+        QCOMPARE(t.header, (QStringList{QStringLiteral("z"), QStringLiteral("a"), QStringLiteral("m"), QStringLiteral("b")}));
+        QCOMPARE(cell(t, 0, QStringLiteral("a")), QStringLiteral("x\ny\u00e9\""));
+        QCOMPARE(cell(t, 0, QStringLiteral("m")), QStringLiteral("12345678901234567890"));   // more digits than a cell keeps: text, so none are lost
+        QCOMPARE(t.rows[0][2].kind, 's');
+        QCOMPARE(t.rows[0][3].kind, 'n');
+        QVERIFY(!dataReadJson("[{\"a\":01x}]", QStringLiteral("$"), ArrayMode::Join, 0, DataLimits(), &t, &why));
+        QVERIFY(!dataReadJson("[{\"a\":1},]", QStringLiteral("$"), ArrayMode::Join, 0, DataLimits(), &t, &why));
+        QVERIFY(!dataReadJson("[{\"a\":1}] x", QStringLiteral("$"), ArrayMode::Join, 0, DataLimits(), &t, &why));
+    }
+
+    void jsonNestingAndNodeCountsAreBounded()
+    {
+        QString why;
+        QByteArray deep;
+        for (int i = 0; i < 100000; ++i) deep += "[";
+        QVERIFY(dataJsonLists(deep, DataLimits(), &why).isEmpty());
+        QVERIFY(why.contains(QLatin1String("deeply")));
+        QByteArray many = "[{\"a\":[";
+        for (int i = 0; i < 4100000; ++i) many += "1,";
+        many += "1]}]";
+        DataLimits big;
+        big.maxBytes = qint64(64) << 20;
+        QVERIFY(dataJsonLists(many, big, &why).isEmpty());
+        QVERIFY(why.contains(QLatin1String("more values")));
+    }
+
     void jsonObjectsBecomeRowsAndFlattenedColumns()
     {
         const QByteArray json = "[{\"id\":1,\"name\":\"Ann\",\"ok\":true,\"addr\":{\"city\":\"Oslo\",\"geo\":{\"lat\":59.9}},\"tags\":[\"x\",\"y\"]},"
                                 "{\"id\":2,\"name\":null,\"extra\":\"late\",\"tags\":[]}]";
-        DataTable t;
+        DataRows t;
         QString why;
         QVERIFY2(dataReadJson(json, QStringLiteral("$"), ArrayMode::Join, 0, DataLimits(), &t, &why), qPrintable(why));
         QCOMPARE(t.rows.size(), 2);
@@ -47,7 +83,7 @@ private Q_SLOTS:
         QCOMPARE(cell(t, 1, QStringLiteral("extra")), QStringLiteral("late"));
         QCOMPARE(cell(t, 0, QStringLiteral("extra")), QString());
         QVERIFY(t.rows[0].size() == t.header.size() && t.rows[1].size() == t.header.size());
-        DataTable cols;
+        DataRows cols;
         QVERIFY(dataReadJson(json, QStringLiteral("$"), ArrayMode::Columns, 0, DataLimits(), &cols, &why));
         QCOMPARE(cell(cols, 0, QStringLiteral("tags.2")), QStringLiteral("y"));
     }
@@ -56,7 +92,7 @@ private Q_SLOTS:
     {
         DataLimits limits;
         limits.maxDepth = 2;
-        DataTable t;
+        DataRows t;
         QString why;
         QVERIFY(dataReadJson("[{\"a\":{\"b\":{\"c\":{\"d\":1}}}}]", QStringLiteral("$"), ArrayMode::Join, 0, limits, &t, &why));
         QCOMPARE(t.header, QStringList{QStringLiteral("a.b")});
@@ -73,14 +109,14 @@ private Q_SLOTS:
         QByteArray json = "[";
         for (int i = 0; i < 10; ++i) json += QByteArray(i ? "," : "") + "{\"a\":\"abcdefgh\",\"b\":1,\"c\":2}";
         json += "]";
-        DataTable t;
+        DataRows t;
         QString why;
         QVERIFY(dataReadJson(json, QStringLiteral("$"), ArrayMode::Join, 0, limits, &t, &why));
         QCOMPARE(t.rows.size(), 3);
         QCOMPARE(t.header.size(), 2);
         QCOMPARE(cell(t, 0, QStringLiteral("a")), QStringLiteral("abcd"));
         QCOMPARE(t.notes.size(), 3);
-        DataTable preview;
+        DataRows preview;
         QVERIFY(dataReadJson(json, QStringLiteral("$"), ArrayMode::Join, 2, DataLimits(), &preview, &why));
         QCOMPARE(preview.rows.size(), 2);
         limits.maxBytes = 10;
@@ -94,7 +130,7 @@ private Q_SLOTS:
                                "<entry id=\"2\"><name>Bob</name><note>hi</note></entry></feed>";
         QString why;
         QCOMPARE(dataXmlLists(xml, DataLimits(), &why), QStringList{QStringLiteral("/feed/entry")});
-        DataTable t;
+        DataRows t;
         QVERIFY2(dataReadXml(xml, QStringLiteral("/feed/entry"), 0, DataLimits(), &t, &why), qPrintable(why));
         QCOMPARE(t.rows.size(), 2);
         QCOMPARE(cell(t, 0, QStringLiteral("id")), QStringLiteral("1"));
@@ -102,7 +138,7 @@ private Q_SLOTS:
         QCOMPARE(cell(t, 0, QStringLiteral("geo.lat")), QStringLiteral("5"));
         QCOMPARE(cell(t, 1, QStringLiteral("note")), QStringLiteral("hi"));
         QCOMPARE(cell(t, 0, QStringLiteral("note")), QString());
-        DataTable preview;
+        DataRows preview;
         QVERIFY(dataReadXml(xml, QStringLiteral("/feed/entry"), 1, DataLimits(), &preview, &why));
         QCOMPARE(preview.rows.size(), 1);
         QVERIFY(dataXmlLists("<a><b/></a>", DataLimits(), &why).isEmpty());
@@ -115,7 +151,7 @@ private Q_SLOTS:
         QString why;
         QVERIFY(dataXmlLists(bomb, DataLimits(), &why).isEmpty());
         QVERIFY(why.contains(QLatin1String("document type")));
-        DataTable t;
+        DataRows t;
         why.clear();
         QVERIFY(!dataReadXml(bomb, QStringLiteral("/a/b"), 0, DataLimits(), &t, &why));
         QVERIFY(why.contains(QLatin1String("document type")));
@@ -136,6 +172,154 @@ private Q_SLOTS:
         why.clear();
         QVERIFY(dataXmlLists("<a><b/><b/></a>", limits, &why).isEmpty());
         QVERIFY(why.contains(QLatin1String("larger than")));
+    }
+
+    void aConnectionIsKeptAsTextAndReadBack()
+    {
+        DataConnection c;
+        c.kind = QStringLiteral("json");
+        c.path = QStringLiteral("/tmp/a b&c=d/x%y.json");
+        c.list = QStringLiteral("$.items");
+        c.mode = ArrayMode::Columns;
+        c.asText = true;
+        DataConnection back;
+        QVERIFY(DataConnection::parse(c.text(), &back));
+        QCOMPARE(back.path, c.path);
+        QCOMPARE(back.list, c.list);
+        QVERIFY(back.mode == ArrayMode::Columns);
+        QVERIFY(back.asText);
+        QVERIFY(!DataConnection::parse(QStringLiteral("kind=json"), &back));
+        QVERIFY(!DataConnection::parse(QStringLiteral("jo-data:1?kind=exe&path=x"), &back));
+    }
+
+    void theConnectionIsSavedInTheTablePartAndTheOtherExtensionsStay()
+    {
+        Table t;
+        t.name = QStringLiteral("Table1");
+        t.row1 = 0;
+        t.col1 = 0;
+        t.row2 = 2;
+        t.col2 = 1;
+        t.columns = QStringList{QStringLiteral("a"), QStringLiteral("b")};
+        t.info.resize(2);
+        t.info[0].id = 1;
+        t.info[1].id = 2;
+        t.id = 1;
+        t.dataSource = QStringLiteral("jo-data:1?kind=xml&path=%2Ftmp%2Fx.xml&list=%2Fa%2Fb&mode=join&text=0");
+        const QByteArray part = writeTablePart(t, QByteArray());
+        QVERIFY(part.contains("dataSource"));
+        Table back;
+        back.columns = t.columns;
+        QVERIFY(readTableModel(part, &back));
+        QCOMPARE(back.dataSource, t.dataSource);
+        // written over a part that has another program's extension: both stay; and the link can be taken away
+        QByteArray other = part;
+        other.replace("</table>", "</table>");
+        other.replace("<ext ", "<ext ");
+        t.dataSource.clear();
+        const QByteArray without = writeTablePart(t, part);
+        QVERIFY(!without.contains("dataSource"));
+        QVERIFY(!without.contains("extLst"));
+        const QByteArray foreign = "<?xml version=\"1.0\"?><table xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\" id=\"1\" name=\"T\" displayName=\"T\" ref=\"A1:B3\"><tableColumns count=\"2\"><tableColumn id=\"1\" name=\"a\"/><tableColumn id=\"2\" name=\"b\"/></tableColumns><extLst><ext uri=\"{1}\"><x:keep xmlns:x=\"urn:x\"/></ext></extLst></table>";
+        t.dataSource = QStringLiteral("jo-data:1?kind=json&path=p");
+        const QByteArray both = writeTablePart(t, foreign);
+        QVERIFY(both.contains("x:keep") && both.contains("dataSource"));
+        t.dataSource.clear();
+        const QByteArray kept = writeTablePart(t, both);
+        QVERIFY(kept.contains("x:keep") && !kept.contains("dataSource"));
+    }
+
+    void columnKindsAreDetectedAndTextCanBeChosen()
+    {
+        DataRows t;
+        t.header = QStringList{QStringLiteral("n"), QStringLiteral("id"), QStringLiteral("d"), QStringLiteral("b"), QStringLiteral("mixed"), QStringLiteral("empty")};
+        auto row = [](const QStringList &v) {
+            QVector<DataCell> r;
+            for (const QString &x : v) r.push_back(DataCell{x, x.isEmpty() ? char(0) : 's'});
+            return r;
+        };
+        t.rows << row({QStringLiteral("1.5"), QStringLiteral("007"), QStringLiteral("2024-02-29"), QStringLiteral("true"), QStringLiteral("1"), QString()});
+        t.rows << row({QStringLiteral("-2e3"), QStringLiteral("010"), QStringLiteral("2023-12-01"), QStringLiteral("FALSE"), QStringLiteral("x"), QString()});
+        QCOMPARE(dataColumnKinds(t, false), (QVector<char>{'n', 't', 'd', 'b', 't', 't'}));
+        QCOMPARE(dataColumnKinds(t, true), (QVector<char>(6, 't')));
+        t.rows << row({QStringLiteral("1"), QStringLiteral("5"), QStringLiteral("2023-02-30"), QStringLiteral("true"), QStringLiteral("1"), QString()});
+        QCOMPARE(dataColumnKinds(t, false).at(2), 't');
+    }
+
+    void onlyAFileOnThisComputerIsRead()
+    {
+        for (const char *p : {"http://example.com/a.json", "https://x/y", "ftp://h/f", "\\\\server\\share\\a.json", "//server/share/a.json", "file:///etc/passwd"}) {
+            QByteArray bytes;
+            QString why;
+            QVERIFY2(dataPathIsRemote(QString::fromLatin1(p)), p);
+            QVERIFY(!dataReadFile(QString::fromLatin1(p), DataLimits(), nullptr, &bytes, &why));
+            QVERIFY(why.contains(QLatin1String("on this computer")));
+        }
+        QVERIFY(!dataPathIsRemote(QStringLiteral("C:\\data\\a.json")));
+        QVERIFY(!dataPathIsRemote(QStringLiteral("/home/u/a.json")));
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        QByteArray bytes;
+        QString why;
+        QVERIFY(!dataReadFile(dir.path(), DataLimits(), nullptr, &bytes, &why));
+        QVERIFY(why.contains(QLatin1String("not a file")));
+        QFile f(dir.filePath(QStringLiteral("a.json")));
+        QVERIFY(f.open(QIODevice::WriteOnly));
+        f.write("[{\"a\":1}]");
+        f.close();
+        QVERIFY(dataReadFile(f.fileName(), DataLimits(), nullptr, &bytes, &why));
+        QCOMPARE(bytes, QByteArray("[{\"a\":1}]"));
+        DataLimits small;
+        small.maxBytes = 3;
+        QVERIFY(!dataReadFile(f.fileName(), small, nullptr, &bytes, &why));
+        QVERIFY(why.contains(QLatin1String("larger than")));
+        int asked = 0;
+        QVERIFY(!dataReadFile(f.fileName(), DataLimits(), [&asked] { return ++asked > 0; }, &bytes, &why));
+        QVERIFY(why.contains(QLatin1String("stopped")));
+    }
+
+    void aSheetAndANamedRangeOfAnotherWorkbookAreRows()
+    {
+        auto str = [](const char *ref, const char *text) { return QStringLiteral("<c r=\"%1\" t=\"inlineStr\"><is><t>%2</t></is></c>").arg(QLatin1String(ref), QLatin1String(text)); };
+        const QString rows = QStringLiteral("<row r=\"1\">") + str("A1", "name") + str("B1", "n") + QStringLiteral("</row><row r=\"2\">") + str("A2", "Ann") + QStringLiteral("<c r=\"B2\"><v>5</v></c></row><row r=\"3\">")
+                             + str("A3", "Bob") + QStringLiteral("<c r=\"B3\" t=\"b\"><v>1</v></c></row><row r=\"4\">") + str("A4", "=1+1") + QStringLiteral("</row>");
+        const QByteArray book = sheettest::buildXlsx({sheettest::worksheet(rows), sheettest::worksheet(QString())}, QByteArray(), QString(), QString(), QByteArray(), QStringList{QStringLiteral("Data"), QStringLiteral("Empty")},
+                                                    QStringLiteral("<definedName name=\"Block\">Data!$A$1:$B$2</definedName>"));
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        QFile f(dir.filePath(QStringLiteral("b.xlsx")));
+        QVERIFY(f.open(QIODevice::WriteOnly));
+        f.write(book);
+        f.close();
+        QString why;
+        const QStringList lists = dataBookLists(f.fileName(), DataLimits(), nullptr, &why);
+        QCOMPARE(lists, (QStringList{QStringLiteral("sheet:Data"), QStringLiteral("sheet:Empty"), QStringLiteral("name:Block")}));
+        DataRows t;
+        QVERIFY2(dataReadBook(f.fileName(), QStringLiteral("sheet:Data"), 0, DataLimits(), nullptr, &t, &why), qPrintable(why));
+        QCOMPARE(t.header, (QStringList{QStringLiteral("name"), QStringLiteral("n")}));
+        QCOMPARE(t.rows.size(), 3);
+        QCOMPARE(cell(t, 0, QStringLiteral("n")), QStringLiteral("5"));
+        QCOMPARE(t.rows[0][1].kind, 'n');
+        QCOMPARE(t.rows[1][1].kind, 'b');
+        QCOMPARE(cell(t, 2, QStringLiteral("name")), QStringLiteral("=1+1"));
+        DataRows named;
+        QVERIFY2(dataReadBook(f.fileName(), QStringLiteral("name:Block"), 0, DataLimits(), nullptr, &named, &why), qPrintable(why));
+        QCOMPARE(named.rows.size(), 1);
+        DataRows preview;
+        QVERIFY(dataReadBook(f.fileName(), QStringLiteral("sheet:Data"), 1, DataLimits(), nullptr, &preview, &why));
+        QCOMPARE(preview.rows.size(), 1);
+        QVERIFY(!dataReadBook(f.fileName(), QStringLiteral("sheet:Empty"), 0, DataLimits(), nullptr, &t, &why));
+        QVERIFY(!dataReadBook(f.fileName(), QStringLiteral("sheet:Nope"), 0, DataLimits(), nullptr, &t, &why));
+        QVERIFY(!dataReadBook(f.fileName(), QStringLiteral("sheet:Data"), 0, DataLimits(), [] { return true; }, &t, &why));
+        QVERIFY(why.contains(QLatin1String("stopped")));
+        QVERIFY(dataBookLists(QStringLiteral("https://x/y.xlsx"), DataLimits(), nullptr, &why).isEmpty());
+        QVERIFY(why.contains(QLatin1String("on this computer")));
+        QFile bad(dir.filePath(QStringLiteral("bad.xlsx")));
+        QVERIFY(bad.open(QIODevice::WriteOnly));
+        bad.write("not a workbook");
+        bad.close();
+        QVERIFY(dataBookLists(bad.fileName(), DataLimits(), nullptr, &why).isEmpty());
+        QVERIFY(!why.isEmpty());
     }
 };
 

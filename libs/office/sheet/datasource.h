@@ -4,9 +4,12 @@
 // joined into one cell or spread over columns. XML: an element that repeats under the same parent is a list; its attributes and its child elements that hold only text are the columns.
 // An XML file with a document type or an entity is refused (nothing is looked up, nothing is expanded).
 
+#include <QByteArray>
 #include <QString>
 #include <QStringList>
 #include <QVector>
+
+#include <functional>
 
 namespace jp::office::sheet {
 
@@ -29,7 +32,7 @@ struct DataCell {
     char kind = 0;
 };
 
-struct DataTable {
+struct DataRows {
     QStringList header;
     QVector<QVector<DataCell>> rows;
     QStringList notes;   // what was left out or cut, in words
@@ -40,7 +43,27 @@ QStringList dataJsonLists(const QByteArray &bytes, const DataLimits &limits, QSt
 QStringList dataXmlLists(const QByteArray &bytes, const DataLimits &limits, QString *why);
 
 // Reads the list at path; maxRows <= 0 reads all (up to limits.maxRows), a preview passes the few rows it shows. False with *why set when nothing can be loaded.
-bool dataReadJson(const QByteArray &bytes, const QString &path, ArrayMode mode, int maxRows, const DataLimits &limits, DataTable *out, QString *why);
-bool dataReadXml(const QByteArray &bytes, const QString &path, int maxRows, const DataLimits &limits, DataTable *out, QString *why);
+bool dataReadJson(const QByteArray &bytes, const QString &path, ArrayMode mode, int maxRows, const DataLimits &limits, DataRows *out, QString *why);
+bool dataReadXml(const QByteArray &bytes, const QString &path, int maxRows, const DataLimits &limits, DataRows *out, QString *why);
+
+// What a table made by Get Data remembers of where its rows came from, as the text kept in the table's part and read back. kind is "json", "xml", or "workbook"; list is the JSON or XML path, or for
+// a workbook "sheet:Name", "table:Name", or "name:Name"; asText is the choice to load every column as text.
+struct DataConnection {
+    QString kind, path, list;
+    ArrayMode mode = ArrayMode::Join;
+    bool asText = false;
+    QString text() const;
+    static bool parse(const QString &text, DataConnection *out);
+};
+
+// A column's kind from what it holds: 't' text, 'n' number, 'b' true or false, 'd' date (the year-month-day form, with a time or not). Everything is 't' when asText. A column of numbers with a leading
+// zero or more than 15 digits stays text (an identifier is not a quantity).
+QVector<char> dataColumnKinds(const DataRows &table, bool asText);
+
+// The bytes of a local file, read in pieces so that `cancelled` is asked as it goes. A web address, a path on another computer, a folder, and a file larger than the limit are refused, with *why in words.
+bool dataReadFile(const QString &path, const DataLimits &limits, const std::function<bool()> &cancelled, QByteArray *bytes, QString *why);
+
+// Whether the text names a place that is not a file on this computer's own disks (a web address, a network path).
+bool dataPathIsRemote(const QString &path);
 
 }   // namespace jp::office::sheet

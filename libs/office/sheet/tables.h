@@ -39,6 +39,9 @@ struct TableColumnInfo {
     }
 };
 
+// The most characters of a table's data source kept in its part.
+constexpr int kMaxDataSourceChars = 4096;
+
 struct Table {
     QString part;                   // the table's part, as the package names it
     int sheet = -1;                 // the sheet it is on
@@ -60,6 +63,8 @@ struct Table {
     AutoFilter filter;
     // A table made as a copy of another (a sheet was copied): the part of the table it is a copy of, which its part is made from (the attributes the program has no model of are kept).
     QString copyOfPart;
+    // Where the rows came from when Data > Get Data made them (the file and the choices, as text: datasource.h), kept in the table's part in an extension of ours that other programs ignore. Empty for a table made otherwise.
+    QString dataSource;
     // What the file has, to tell whether the part must be written again: made when the table is read (empty for a table made here, which is always written).
     QByteArray fileSignature;
     // The first row of data, and the last (none when there is no data: first > last).

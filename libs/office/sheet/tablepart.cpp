@@ -298,6 +298,7 @@ bool readTableModel(const QByteArray &xml, Table *t)
     t->showFirstColumn = t->showLastColumn = t->showColumnStripes = false;
     t->showRowStripes = false;
     t->info.clear();
+    t->dataSource.clear();
     int source = 0;
     for (const XNode &k : root.kids) {
         const QStringView l = k.local();
@@ -313,6 +314,10 @@ bool readTableModel(const QByteArray &xml, Table *t)
             t->showLastColumn = flag(k.attrOr("showLastColumn"), false);
             t->showRowStripes = flag(k.attrOr("showRowStripes"), false);
             t->showColumnStripes = flag(k.attrOr("showColumnStripes"), false);
+        } else if (l == QLatin1String("extLst")) {
+            for (const XNode &e : k.kids)
+                for (const XNode &d : e.kids)
+                    if (d.local() == QLatin1String("dataSource") && t->dataSource.isEmpty()) t->dataSource = d.attrOr("text").left(kMaxDataSourceChars);
         } else if (l == QLatin1String("tableColumns")) {
             for (const XNode &c : k.kids) {
                 if (c.local() != QLatin1String("tableColumn")) continue;
@@ -382,6 +387,7 @@ QByteArray tableSignature(const Table &t)
             num(c.calcArray);
         }
     }
+    add(t.dataSource);
     // (the filter without its range, which follows the table's)
     AutoFilter f = t.filter;
     f.ref = rangeOnly();
@@ -533,6 +539,38 @@ QByteArray writeTablePart(const Table &t, const QByteArray &original, bool *ok, 
     style.set("showLastColumn", t.showLastColumn ? QStringLiteral("1") : QStringLiteral("0"));
     style.set("showRowStripes", t.showRowStripes ? QStringLiteral("1") : QStringLiteral("0"));
     style.set("showColumnStripes", t.showColumnStripes ? QStringLiteral("1") : QStringLiteral("0"));
+    // the source of the rows (ours): in an extension, beside the ones other programs keep there
+    {
+        XNode *extList = nullptr;
+        for (XNode &k : kept)
+            if (k.local() == QLatin1String("extLst")) extList = &k;
+        if (extList) {
+            extList->kids.erase(std::remove_if(extList->kids.begin(), extList->kids.end(), [](XNode &e) {
+                                    for (XNode &d : e.kids)
+                                        if (d.local() == QLatin1String("dataSource")) return true;
+                                    return false;
+                                }),
+                                extList->kids.end());
+            if (extList->kids.empty() && t.dataSource.isEmpty()) kept.erase(std::remove_if(kept.begin(), kept.end(), [](XNode &k) { return k.local() == QLatin1String("extLst") && k.kids.empty(); }), kept.end());
+        }
+        if (!t.dataSource.isEmpty()) {
+            XNode *list = nullptr;
+            for (XNode &k : kept)
+                if (k.local() == QLatin1String("extLst")) list = &k;
+            if (!list) {
+                kept.push_back(nodeNamed("extLst"));
+                list = &kept.back();
+            }
+            XNode ext = nodeNamed("ext");
+            ext.attrs.emplace_back(QStringLiteral("uri"), QStringLiteral("{6A1F0C3E-5B7D-4E29-9C41-0D3B7A52E8F1}"));
+            XNode d;
+            d.name = QStringLiteral("jo:dataSource");
+            d.attrs.emplace_back(QStringLiteral("xmlns:jo"), QStringLiteral("urn:jeffoffice:data-source"));
+            d.attrs.emplace_back(QStringLiteral("text"), t.dataSource.left(kMaxDataSourceChars));
+            ext.kids.push_back(std::move(d));
+            list->kids.push_back(std::move(ext));
+        }
+    }
     // put together in the format's order
     std::vector<XNode> all2;
     if (haveFilter) all2.push_back(std::move(filterNode));
