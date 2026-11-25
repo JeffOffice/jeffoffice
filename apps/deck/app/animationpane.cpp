@@ -740,6 +740,7 @@ void AnimationPreview::tick() { tickAt(m_clock.nsecsElapsed() / 1e6); }
 void AnimationPreview::playSoundsTo(int step, double inside)
 {
     for (; m_soundStep <= step && m_soundStep < m_timeline.steps.size(); ++m_soundStep, m_soundAt = -1) {
+        if (m_soundAt < 0) m_sounds->beginStep();
         const bool last = m_soundStep == step;
         const double upTo = last ? inside : m_timeline.steps[m_soundStep].duration();
         for (const deck::SoundCue &c : deck::soundCuesBetween(m_timeline.steps[m_soundStep], m_soundAt, upTo)) m_sounds->cue(c);

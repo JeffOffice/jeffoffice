@@ -1276,6 +1276,7 @@ void SlideShow::startStep(int step)
     m_stepMs = 0;
     m_nowValid = false;
     m_soundAt = -1;
+    m_sounds->beginStep();
     playSoundsTo(0);
     if (m_stepLength < 2) {   // an appearing shape: a set that takes a millisecond
         finishStep();

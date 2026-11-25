@@ -26,6 +26,12 @@ void EffectSounds::play(const QString &mediaId)
     const auto data = m_doc->media.constFind(mediaId);
     if (data == m_doc->media.cend() || data->bytes.isEmpty()) return;
     const QString extension = deck::mediaExtensionFor(data->extension);
+    // A step starts only so many sounds, however many its effects name: each would be a decoder started on the thread that draws.
+    if (m_startedInStep >= kMostTogether) {
+        ++m_skipped;
+        return;
+    }
+    ++m_startedInStep;
     if (m_output) {
         Request r;
         r.media = mediaId;
@@ -46,8 +52,20 @@ void EffectSounds::play(const QString &mediaId)
     auto *pb = new MediaPlayback(this);
     pb->setFile(data->bytes, extension);
     connect(pb, &MediaPlayback::ended, pb, &QObject::deleteLater);
+    // A sound that can't be played does not stay.
+    connect(pb, &MediaPlayback::changed, pb, [this, pb] {
+        if (pb->failed()) drop(pb);
+    });
     m_players.append(pb);
     pb->play();
+}
+
+void EffectSounds::drop(MediaPlayback *player)
+{
+    if (!m_players.removeAll(QPointer<MediaPlayback>(player))) return;
+    ++m_failed;
+    player->stop();
+    player->deleteLater();
 }
 
 void EffectSounds::stopAll()

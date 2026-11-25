@@ -44,9 +44,16 @@ public:
     static constexpr int kMostTogether = 8;
     // How many sounds the program is playing now (not counting a test's output).
     int playing() const { return int(m_players.size()); }
+    // A step begins: the sounds it may start are counted from nothing. A step starts at most kMostTogether; a cue past that is skipped (never kept for later).
+    void beginStep() { m_startedInStep = 0; }
+    // How many cues were skipped so far for that, and how many players were dropped because their sound could not be played.
+    int skipped() const { return m_skipped; }
+    int failedPlayers() const { return m_failed; }
 
 private:
     void play(const QString &mediaId);
+    void drop(MediaPlayback *player);
+    int m_startedInStep = 0, m_skipped = 0, m_failed = 0;
     const Document *m_doc = nullptr;
     std::function<void(const Request &)> m_output;
     QList<QPointer<MediaPlayback>> m_players;
