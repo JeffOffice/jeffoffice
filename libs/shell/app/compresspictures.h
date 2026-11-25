@@ -35,6 +35,7 @@ constexpr qint64 kMostCompressPixels = qint64(100) * 1000 * 1000;
 bool compressedPictureFile(const QByteArray &bytes, double shownWidth, double ppi, const QRectF &keep, QByteArray *out, QByteArray *format, QString *why = nullptr);
 
 // Tells how much Compress Pictures saved (as the apps with pages do when it is done).
-void tellCompressSaved(QWidget *parent, qint64 saved);
+// `note`, when given, is a sentence added under it (what was left as it was).
+void tellCompressSaved(QWidget *parent, qint64 saved, const QString &note = QString());
 
 } // namespace jp

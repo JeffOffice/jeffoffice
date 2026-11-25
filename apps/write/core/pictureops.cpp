@@ -62,6 +62,7 @@
 #include <QXmlStreamReader>
 #include <QXmlStreamWriter>
 #include <algorithm>
+#include "office/package.h"
 #include <array>
 #include <atomic>
 #include <cmath>
@@ -480,9 +481,10 @@ qsizetype closingOfDrawing(const QByteArray &raw, qsizetype from)
 }
 
 // The atom a character holds, if it is a drawing; empty otherwise.
-bool drawingAtomOf(const QTextCharFormat &cf, Inline *atom)
+// `deletedToo`: the pictures of text that a tracked change deleted (or moved away) are drawings too, for the rows that look in every place; everything else leaves them as they are.
+bool drawingAtomOf(const QTextCharFormat &cf, Inline *atom, bool deletedToo = false)
 {
-    if (!cf.hasProperty(prop::Atom) || cf.hasProperty(prop::TrackedDeleted)) return false;
+    if (!cf.hasProperty(prop::Atom) || (!deletedToo && cf.hasProperty(prop::TrackedDeleted))) return false;
     const QByteArray bytes = storedBytes(cf, prop::Atom);
     if (!bytes.contains("drawing")) return false;
     const Inline a = unpackAtom(bytes);
@@ -738,14 +740,14 @@ bool isShapeGraphic(const QByteArray &graphic)
 }
 
 // Gives the character after `position` the picture `change` makes of its model: the element written again and the form the pages show, as one change of its format.
-bool changePicture(WriteDoc &doc, int position, const std::function<bool(Model &)> &change, bool groupsToo = false, QTextDocument *where = nullptr, bool evenLocked = false)
+bool changePicture(WriteDoc &doc, int position, const std::function<bool(Model &)> &change, bool groupsToo = false, QTextDocument *where = nullptr, bool evenLocked = false, bool deletedToo = false)
 {
     QTextDocument *story = where ? where : doc.story();
     if (position < 0 || position + 1 > story->characterCount() - 1) return false;
     if (!evenLocked && isLocked(story->findBlock(position))) return false;
     QTextCharFormat cf = formatAfter(story, position);
     Inline atom;
-    if (!drawingAtomOf(cf, &atom)) return false;
+    if (!drawingAtomOf(cf, &atom, deletedToo)) return false;
     Model m;
     if (!parseDrawing(atom.raw, &m)) return false;
     // (A group is changed as a whole by the few commands that say so: its size, place, wrap, layer, and alt text.)
@@ -753,6 +755,16 @@ bool changePicture(WriteDoc &doc, int position, const std::function<bool(Model &
     const Model before = m;
     if (!change(m)) return false;
     atom.raw = drawingXml(m);
+    if (cf.hasProperty(prop::TrackedDeleted)) {
+        // (what a tracked change deleted is not shown: its drawing is only the file's text, which the same character keeps, written again)
+        setStored(cf, prop::Atom, packAtom(atom));
+        QTextCursor edit(story);
+        edit.setPosition(position);
+        edit.setPosition(position + 1, QTextCursor::KeepAnchor);
+        edit.setCharFormat(cf);
+        doc.keepObjectsForTheHistory();
+        return true;
+    }
     // A new form of a picture is made before anything changes, so that a picture that cannot be shown leaves the document as it was.
     cf.clearProperty(flow::fp::AnchorId);
     cf.clearProperty(tp::InlineObject);
@@ -5229,7 +5241,7 @@ QVector<KeptPicture> keptPictures(WriteDoc &doc)
                     const int position = f.position() + i;
                     Inline atom;
                     Model m;
-                    if (!drawingAtomOf(formatAfter(story, position), &atom) || !parseDrawing(atom.raw, &m)) continue;
+                    if (!drawingAtomOf(formatAfter(story, position), &atom, true) || !parseDrawing(atom.raw, &m)) continue;
                     const QString part = doc.partOfPictureAt(story, position);
                     // (what a picture is: the pixels of the shown picture it shows, by the one rule the other programs use)
                     auto measure = [&](KeptPicture &k, const std::function<PictureItem()> &dressed) {
@@ -5246,7 +5258,7 @@ QVector<KeptPicture> keptPictures(WriteDoc &doc)
                         k.shows = pictureShownPixels(dressed(), px);
                         k.cropped = !k.shows.isEmpty() && k.shows != QRect(QPoint(0, 0), px);
                     };
-                    if (isPictureAt(story, position)) {
+                    if (isPictureShape(readShapes(atom.raw))) {
                         const QVector<Shape> shapes = readShapes(atom.raw);
                         if (shapes.isEmpty()) continue;
                         const Shape &s = shapes.first();
@@ -5371,7 +5383,7 @@ bool showOnly(WriteDoc &doc, const KeptPicture &k, const QString &rid)
             return true;
         }
         return withNestedBlip(&m.graphic, k.nested, [&](const QByteArray &blip) { return office::withPictureFxBlip(blip, rid, rid, {}); });
-    }, k.nested >= 0, k.story, true);
+    }, k.nested >= 0, k.story, true, true);
     return changed;
 }
 
@@ -5401,6 +5413,72 @@ int keptPicturesInFills(WriteDoc &doc, jp::PictureKept kind)
     for (const KeptPicture &k : keptPictures(doc))
         if (k.fill && (kind == jp::PictureKept::CroppedAreas ? k.anyCrop : k.filtered)) ++n;
     return n;
+}
+
+namespace {
+
+// What the package holds, by reading every XML part of what the document saves as: the pictures with an effect and its original, the pictures with a crop, those of the older drawing markup
+// with a crop, and every picture reference at all.
+struct PackagePictures {
+    int filtered = 0, cropped = 0, olderCropped = 0, references = 0;
+};
+
+PackagePictures packagePictures(WriteDoc &doc)
+{
+    PackagePictures out;
+    office::Package package;
+    if (!package.read(doc.toDocx())) return out;
+    static const QRegularExpression older(QStringLiteral("<v:imagedata\\b[^>]*>"));
+    static const QRegularExpression cropAttribute(QStringLiteral("\\bcrop(?:left|top|right|bottom)=\"([^\"]*)\""));
+    for (const QString &name : package.partNames()) {
+        if (!name.endsWith(QLatin1String(".xml"), Qt::CaseInsensitive) || name.contains(QLatin1String("/media/"))) continue;
+        const QString text = QString::fromUtf8(package.part(name));
+        if (!text.contains(QLatin1String("<a:blip")) && !text.contains(QLatin1String("<v:imagedata"))) continue;
+        for (const BlipSpan &span : blipSpans(text)) {
+            ++out.references;
+            office::PictureFxBlip blip;
+            if (office::readPictureFxBlip(text.mid(span.start, span.end - span.start).toUtf8(), &blip) && blip.present) {
+                ++out.filtered;
+                ++out.references;   // (the finished picture and its original are two pictures of the file)
+            }
+            double cut[4];
+            QSizeF size;
+            nestedCutAndSize(text, span.end, cut, &size);
+            if (cut[0] != 0 || cut[1] != 0 || cut[2] != 0 || cut[3] != 0) ++out.cropped;
+        }
+        qsizetype from = 0;
+        for (int seen = 0; seen < kMostBlipsInDrawing; ++seen) {
+            const QRegularExpressionMatch m = older.match(text, from);
+            if (!m.hasMatch()) break;
+            from = m.capturedEnd();
+            ++out.references;
+            QRegularExpressionMatchIterator it = cropAttribute.globalMatch(m.captured());
+            while (it.hasNext()) {
+                // (a number with an f after it is a sixteen-bit fraction; a percent is a share)
+                static const QRegularExpression none(QStringLiteral("^\\s*0*(\\.0*)?[f%]?\\s*$"));
+                const QString v = it.next().captured(1);
+                if (!v.isEmpty() && !none.match(v).hasMatch()) {
+                    ++out.olderCropped;
+                    break;
+                }
+            }
+        }
+    }
+    return out;
+}
+
+} // namespace
+
+int keptPicturesElsewhere(WriteDoc &doc, jp::PictureKept kind, int *older)
+{
+    const PackagePictures all = packagePictures(doc);
+    int visited = 0;
+    for (const KeptPicture &k : keptPictures(doc))
+        if (kind == jp::PictureKept::CroppedAreas ? k.anyCrop : k.filtered) ++visited;
+    const int inComments = keptPicturesInComments(doc, kind);
+    const int olderOnes = kind == jp::PictureKept::CroppedAreas ? all.olderCropped : 0;
+    if (older) *older = olderOnes;
+    return std::max(0, (kind == jp::PictureKept::CroppedAreas ? all.cropped : all.filtered) - visited - inComments);
 }
 
 int removeKeptPictureParts(WriteDoc &doc, jp::PictureKept kind)
@@ -5448,9 +5526,10 @@ int removeKeptPictureParts(WriteDoc &doc, jp::PictureKept kind)
     return n;
 }
 
-qint64 compressAllPictures(WriteDoc &doc, double ppi, bool deleteCropped)
+qint64 compressAllPictures(WriteDoc &doc, double ppi, bool deleteCropped, int *left)
 {
     qint64 saved = 0;
+    int made = 0;
     const WriteDoc::StepGroup group(doc);
     const QVector<KeptPicture> all = keptPictures(doc);
     for (const KeptPicture &k : all) {
@@ -5474,12 +5553,14 @@ qint64 compressAllPictures(WriteDoc &doc, double ppi, bool deleteCropped)
             text.replace(from, stop - from, QString::fromUtf8(piece));
             m.graphic = text.toUtf8();
             return true;
-        }, k.nested >= 0, k.story, true);
+        }, k.nested >= 0, k.story, true, true);
         if (!changed) continue;
         doc.letGoOfPartMediaIfUnused(k.part, oldId);
         if (!filteredOld.isEmpty()) doc.letGoOfPartMediaIfUnused(k.part, filteredOld);
         saved += oldSize - newSize;
+        made += filteredOld.isEmpty() ? 1 : 2;
     }
+    if (left) *left = std::max(0, packagePictures(doc).references - made);
     return saved;
 }
 

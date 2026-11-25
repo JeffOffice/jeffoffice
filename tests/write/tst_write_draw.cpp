@@ -761,11 +761,14 @@ struct EverywhereFile {
     QVector<QByteArray> originals;
     int filtered = 0, cropped = 0;
     int inComments = 0;   // pictures in the comments (not counted in the two above: the rows cannot change them)
+    QVector<QByteArray> filteredOriginals, croppedOriginals;   // the files of the pictures under an effect, and the whole files of the cropped ones (every place, the told ones too)
+    QByteArray thumbnail;
+    int oldMarkup = 0;    // cropped pictures of the older drawing markup (told, not changed)
 };
 
 // `withFill`: two shapes more in the body whose fill is a picture (one with an effect, one cropped); `withComments`: a comment with a picture under an effect and a cropped one; `noisy`: pictures of
 // noise, which a smaller picture is smaller than (tiles are so small already that nothing is gained).
-EverywhereFile everywhereFile(int seed, bool withFill = false, bool withComments = false, bool noisy = false)
+EverywhereFile everywhereFile(int seed, bool withFill = false, bool withComments = false, bool noisy = false, bool tracked = false)
 {
     EverywhereFile out;
     const QString rel = QStringLiteral("http://schemas.openxmlformats.org/officeDocument/2006/relationships/");
@@ -795,6 +798,7 @@ EverywhereFile everywhereFile(int seed, bool withFill = false, bool withComments
     auto pictureIn = [&](const QString &part, bool effect, int id) {
         const auto [image, bytes] = pngOf();
         out.originals << bytes;
+        (effect ? out.filteredOriginals : out.croppedOriginals) << bytes;
         const QString file = QStringLiteral("/word/media/p%1_%2.png").arg(seed).arg(made);
         w.addPart(file, bytes, QStringLiteral("image/png"));
         const QString target = QStringLiteral("media/") + file.mid(file.lastIndexOf(QLatin1Char('/')) + 1);
@@ -837,7 +841,7 @@ EverywhereFile everywhereFile(int seed, bool withFill = false, bool withComments
         return x;
     };
     const QByteArray head = "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\r\n";
-    const QByteArray ns = QByteArray(kNs) + " xmlns:pic=\"http://schemas.openxmlformats.org/drawingml/2006/picture\"";
+    const QByteArray ns = QByteArray(kNs) + " xmlns:pic=\"http://schemas.openxmlformats.org/drawingml/2006/picture\" xmlns:v=\"urn:schemas-microsoft-com:vml\" xmlns:o=\"urn:schemas-microsoft-com:office:office\"";
     const QString main = QStringLiteral("/word/document.xml");
     int id = 10;
     // The headers, and the notes, each with the pictures of its own part.
@@ -888,15 +892,49 @@ EverywhereFile everywhereFile(int seed, bool withFill = false, bool withComments
         w.addRelationship(main, rel + QStringLiteral("comments"), QStringLiteral("comments.xml"));
         commentRef = "<w:commentRangeStart w:id=\"0\"/><w:r><w:t>commented</w:t></w:r><w:commentRangeEnd w:id=\"0\"/><w:r><w:commentReference w:id=\"0\"/></w:r>";
     }
+    // Tracked changes: an insertion, a deletion, and the source of a move, each with a picture under an effect and a cropped one; a text box inside a group; a cropped picture of the older drawing markup.
+    QByteArray changes;
+    if (tracked) {
+        const QByteArray who = " w:author=\"A\" w:date=\"2026-01-01T00:00:00Z\"";
+        const QByteArray i1 = pictureIn(main, true, ++id), i2 = pictureIn(main, false, ++id), d1 = pictureIn(main, true, ++id), d2 = pictureIn(main, false, ++id), v1 = pictureIn(main, true, ++id), v2 = pictureIn(main, false, ++id);
+        changes = "<w:p><w:ins w:id=\"901\"" + who + "><w:r>" + i1 + "</w:r><w:r>" + i2 + "</w:r></w:ins></w:p>"
+                  "<w:p><w:del w:id=\"902\"" + who + "><w:r>" + d1 + "</w:r><w:r>" + d2 + "</w:r></w:del></w:p>"
+                  "<w:p><w:moveFromRangeStart w:id=\"903\" w:name=\"mv\"" + who + "/><w:moveFrom w:id=\"904\"" + who + "><w:r>" + v1 + "</w:r><w:r>" + v2 + "</w:r></w:moveFrom><w:moveFromRangeEnd w:id=\"903\"/></w:p>";
+        const QByteArray gx = inBox(pictureIn(main, true, ++id), ++id), gy = inBox(pictureIn(main, false, ++id), ++id);
+        auto wsp = [](const QByteArray &box) { return box.mid(box.indexOf("<wps:wsp>"), box.indexOf("</wps:wsp>") + 10 - box.indexOf("<wps:wsp>")); };
+        changes += "<w:p><w:r><w:drawing><wp:inline distT=\"0\" distB=\"0\" distL=\"0\" distR=\"0\"><wp:extent cx=\"2540000\" cy=\"1500000\"/><wp:docPr id=\"" + QByteArray::number(++id) + "\" name=\"Group\"/><wp:cNvGraphicFramePr/>"
+                   "<a:graphic><a:graphicData uri=\"http://schemas.microsoft.com/office/word/2010/wordprocessingGroup\"><wpg:wgp><wpg:cNvGrpSpPr/><wpg:grpSpPr><a:xfrm><a:off x=\"0\" y=\"0\"/><a:ext cx=\"2540000\" cy=\"1500000\"/>"
+                   "<a:chOff x=\"0\" y=\"0\"/><a:chExt cx=\"2540000\" cy=\"1500000\"/></a:xfrm></wpg:grpSpPr>" + wsp(gx) + wsp(gy) + "</wpg:wgp></a:graphicData></a:graphic></wp:inline></w:drawing></w:r></w:p>";
+        // (the older markup: v:imagedata with its crop in sixteen-bit fractions)
+        const auto [oldImage, oldBytes] = pngOf();
+        Q_UNUSED(oldImage);
+        out.originals << oldBytes;
+        out.croppedOriginals << oldBytes;
+        ++out.oldMarkup;
+        w.addPart(QStringLiteral("/word/media/old%1.png").arg(seed), oldBytes, QStringLiteral("image/png"));
+        const QString oldRid = w.addRelationship(main, rel + QStringLiteral("image"), QStringLiteral("media/old%1.png").arg(seed));
+        changes += "<w:p><w:r><w:pict><v:shape id=\"_x0000_i1025\" type=\"#_x0000_t75\" style=\"width:50pt;height:50pt\"><v:imagedata r:id=\"" + oldRid.toUtf8()
+                   + "\" o:title=\"\" cropleft=\"16384f\" croptop=\"16384f\" cropright=\"16384f\" cropbottom=\"16384f\"/></v:shape></w:pict></w:r></w:p>";
+    }
     const QByteArray body = "<w:p><w:r><w:t xml:space=\"preserve\">Top </w:t></w:r>" + commentRef + "<w:r>" + b1 + "</w:r><w:r>" + b2 + "</w:r><w:r><w:footnoteReference w:id=\"1\"/></w:r><w:r><w:endnoteReference w:id=\"1\"/></w:r></w:p>"
                             "<w:tbl><w:tblPr><w:tblW w:w=\"0\" w:type=\"auto\"/></w:tblPr><w:tblGrid><w:gridCol w:w=\"4000\"/></w:tblGrid><w:tr><w:tc><w:p><w:r>" + c1 + "</w:r><w:r>" + c2 + "</w:r></w:p></w:tc></w:tr></w:tbl>"
                             + runs({inBox(t1, ++id), inBox(t2, ++id), inGroup(g1, ++id), inGroup(g2, ++id)})
-                            + fills
+                            + fills + changes
                             + "<w:p><w:r><w:br w:type=\"page\"/></w:r><w:r><w:t>Second page</w:t></w:r></w:p>";
     const QByteArray sect = "<w:sectPr><w:headerReference w:type=\"first\" r:id=\"" + h1.toUtf8() + "\"/><w:headerReference w:type=\"default\" r:id=\"" + h2.toUtf8()
                             + "\"/><w:pgSz w:w=\"12240\" w:h=\"15840\"/><w:pgMar w:top=\"1440\" w:right=\"1440\" w:bottom=\"1440\" w:left=\"1440\" w:header=\"720\" w:footer=\"720\" w:gutter=\"0\"/><w:titlePg/></w:sectPr>";
     w.addPart(main, head + "<w:document " + ns + "><w:body>" + body + sect + "</w:body></w:document>", QStringLiteral("application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"));
     w.addRelationship(QStringLiteral("/"), rel + QStringLiteral("officeDocument"), main);
+    if (tracked) {
+        // (the file's thumbnail: a small picture of page one)
+        QImage page(40, 52, QImage::Format_RGB32);
+        page.fill(QColor(201, 17, 99));
+        QBuffer buffer(&out.thumbnail);
+        buffer.open(QIODevice::WriteOnly);
+        page.save(&buffer, "JPEG");
+        w.addPart(QStringLiteral("/docProps/thumbnail.jpeg"), out.thumbnail, QStringLiteral("image/jpeg"));
+        w.addRelationship(QStringLiteral("/"), QStringLiteral("http://schemas.openxmlformats.org/package/2006/relationships/metadata/thumbnail"), QStringLiteral("docProps/thumbnail.jpeg"));
+    }
     out.docx = w.finish();
     return out;
 }
@@ -7792,6 +7830,93 @@ private Q_SLOTS:
             if (line.startsWith(QStringLiteral("Original pictures kept under picture effects")) || line.startsWith(QStringLiteral("Cropped-away parts of pictures")))
                 told += line.contains(QStringLiteral("Not fully checked")) && !line.contains(QStringLiteral("None found"));
         QCOMPARE(told, 2);
+    }
+
+    // THE RULE (every place a picture can be: the body, a table cell, both kinds of header and footer, a footnote, an endnote, a text box, a group, a text box in a group, a comment, a shape's fill,
+    // a tracked insertion, deletion, and move source, and the older drawing markup): after the two Inspect rows have removed what they can and the document is saved through the app, every original
+    // is either gone from the package or told by its row (a row that has anything left says "Not fully checked", never "None found").
+    void everyOriginalIsGoneOrToldByItsRow()
+    {
+        const EverywhereFile file = everywhereFile(8, true, true, true, true);
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        const QString docx = dir.filePath(QStringLiteral("rule.docx")), saved = dir.filePath(QStringLiteral("saved.docx"));
+        {
+            QFile f(docx);
+            QVERIFY(f.open(QIODevice::WriteOnly));
+            f.write(file.docx);
+        }
+        WriteWindow w;
+        w.setNotifier([](const QString &, const QString &) {});
+        QVERIFY(w.openFile(docx));
+        const QVector<InspectItem> items = w.inspectItems();
+        auto find = [&](const char *title) -> const InspectItem * {
+            for (const InspectItem &i : items)
+                if (i.title == QLatin1String(title)) return &i;
+            return nullptr;
+        };
+        const InspectItem *originals = find("Original pictures kept under picture effects"), *cropped = find("Cropped-away parts of pictures");
+        QVERIFY(originals && cropped);
+        originals->remove();
+        cropped->remove();
+        const int clearedWhole = filesHolding(w.document()->toDocx(), file.croppedOriginals);
+        QVERIFY(w.document()->undo());   // (one step for the cropped row: the pictures of the tracked changes come back with the rest)
+        QVERIFY(filesHolding(w.document()->toDocx(), file.croppedOriginals) > clearedWhole);
+        QVERIFY(w.document()->redo());
+        QVERIFY(w.saveTo(saved));
+        QByteArray zip;
+        {
+            QFile f(saved);
+            QVERIFY(f.open(QIODevice::ReadOnly));
+            zip = f.readAll();
+        }
+        auto told = [](const InspectItem *row) {
+            int n = 0;
+            static const QRegularExpression lead(QStringLiteral("(?:^|\\. )(\\d+) picture"));
+            QRegularExpressionMatchIterator it = lead.globalMatch(row->unread());
+            while (it.hasNext()) n += it.next().captured(1).toInt();
+            return n;
+        };
+        const int leftFiltered = filesHolding(zip, file.filteredOriginals), leftCropped = filesHolding(zip, file.croppedOriginals);
+        QVERIFY2(leftFiltered <= told(originals), qPrintable(QStringLiteral("%1 originals left, %2 told: %3").arg(leftFiltered).arg(told(originals)).arg(originals->unread())));
+        QVERIFY2(leftCropped <= told(cropped), qPrintable(QStringLiteral("%1 whole pictures left, %2 told: %3").arg(leftCropped).arg(told(cropped)).arg(cropped->unread())));
+        // (what is left is told in the row's summary: not "None found")
+        InspectDialog dialog(QStringLiteral("Inspect"), items, nullptr);
+        for (const QString &line : dialog.summaries())
+            if (line.startsWith(QStringLiteral("Original pictures kept under picture effects")) || line.startsWith(QStringLiteral("Cropped-away parts of pictures")))
+                QVERIFY(!line.contains(QStringLiteral("None found")) || (leftFiltered == 0 && leftCropped == 0));
+        // The visited places are all clear: only the ones the rows tell are left (the older markup's whole picture, the two comment pictures, the two fills).
+        QCOMPARE(leftFiltered, 1 + 1);   // (a fill, a comment)
+        QCOMPARE(leftCropped, 1 + 1 + 1);   // (a fill, a comment, the older markup)
+        QCOMPARE(filesHolding(zip, {file.thumbnail}), 1);   // (the file's thumbnail is kept as the file has it; it is not a picture of the document's own, and no row covers it)
+    }
+
+    // Compress Pictures on every picture: each picture of the saved package is smaller or told (the box says how many it left at full size).
+    void everyPictureIsMadeSmallerOrToldByCompress()
+    {
+        const EverywhereFile file = everywhereFile(9, true, true, true, true);
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        const QString docx = dir.filePath(QStringLiteral("rule.docx")), saved = dir.filePath(QStringLiteral("saved.docx"));
+        {
+            QFile f(docx);
+            QVERIFY(f.open(QIODevice::WriteOnly));
+            f.write(file.docx);
+        }
+        WriteWindow w;
+        w.setNotifier([](const QString &, const QString &) {});
+        QVERIFY(w.openFile(docx));
+        int left = -1;
+        QVERIFY(w.compressPictures(12, true, false, &left) > 0);
+        QVERIFY(w.saveTo(saved));
+        QByteArray zip;
+        {
+            QFile f(saved);
+            QVERIFY(f.open(QIODevice::ReadOnly));
+            zip = f.readAll();
+        }
+        const int fullSize = picturesOfWidth(zip, 48);
+        QVERIFY2(fullSize > 0 && fullSize <= left, qPrintable(QStringLiteral("%1 pictures left at full size, %2 told").arg(fullSize).arg(left)));
     }
 
     // A picture in a comment is kept as the file has it (the comments are not read into the document): the row says so and counts them, and never says "None found" while one is left.

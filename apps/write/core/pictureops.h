@@ -286,12 +286,17 @@ QVector<int> picturePositions(const WriteDoc &doc);
 qint64 compressPictures(WriteDoc &doc, double ppi, const QVector<int> &positions, bool deleteCropped);
 // The same for every picture of the document, wherever it is (the body, headers, footers, notes, table cells, text boxes, groups, and fills: the places Inspect looks in; one step). The pictures
 // in comments are kept as the file has them and are left as they are.
-qint64 compressAllPictures(WriteDoc &doc, double ppi, bool deleteCropped);
+// `left`, when given, is how many pictures of the whole package (every part) were not made smaller: those in places Compress Pictures does not change, and those that would not be smaller.
+qint64 compressAllPictures(WriteDoc &doc, double ppi, bool deleteCropped, int *left = nullptr);
 // How many pictures in the document's comments (kept as the file has them, not read into the document) have what the row `kind` is about (an effect with its original, a crop): Inspect cannot
 // change them, and says so.
 int keptPicturesInComments(const WriteDoc &doc, jp::PictureKept kind);
 // The pictures that fill a shape and hold an original (FilterOriginals) or cropped pixels (CroppedAreas): the page draws a fill whole, so the rows leave them as they are.
 int keptPicturesInFills(WriteDoc &doc, jp::PictureKept kind);
+// The same, walked from the package side: every picture reference of every part of the saved package (headers, notes, comments, drawings, bullets, and any other part with pictures) that holds
+// an original under an effect or a crop and that nothing above visited or told. `older` is how many of them are in the older drawing markup (a v:imagedata with a crop), which is never changed;
+// the return is the rest, whose place is not known. Both are 0 when nothing is left.
+int keptPicturesElsewhere(WriteDoc &doc, jp::PictureKept kind, int *older = nullptr);
 
 // What Inspect finds in the pictures of the whole document (the body, headers, footers, notes, table cells, text boxes, groups, and fills; the rows of libs/page/app/picturetools.h): the originals kept under picture filters, and the parts of pictures cropped out of sight. The count
 // is of pictures; `notChanged` and `leftAsIs` (when given) are what the row tells it leaves: drawings, linked pictures, and ones too large to look through, and crops that another picture shows more of.

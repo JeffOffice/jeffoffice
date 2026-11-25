@@ -920,12 +920,13 @@ void WriteWindow::compressPicturesDialog()
     if (!m_doc) return;
     CompressChoices choices;
     if (!askCompressPictures(this, tr("Apply to all pictures in the document"), &choices, tr("A picture with an effect, such as Blur, is made smaller together with the original picture kept under it."))) return;
-    const qint64 saved = compressPictures(choices.ppi, choices.all, choices.deleteCropped);
-    tellCompressSaved(this, saved);
+    int left = 0;
+    const qint64 saved = compressPictures(choices.ppi, choices.all, choices.deleteCropped, &left);
+    tellCompressSaved(this, saved, choices.all && left > 0 ? tr("%n picture was left at its full size, because it is in a place that cannot be changed here or would not be smaller.", nullptr, left) : QString());
 }
 
 // The pictures of the document (or the selected ones) made smaller for `ppi` pixels to the inch, as one step that undoes; the bytes saved.
-qint64 WriteWindow::compressPictures(double ppi, bool all, bool deleteCropped)
+qint64 WriteWindow::compressPictures(double ppi, bool all, bool deleteCropped, int *left)
 {
     if (!m_doc || refuseIfReadOnly()) return 0;
     QVector<int> at;
@@ -936,7 +937,7 @@ qint64 WriteWindow::compressPictures(double ppi, bool all, bool deleteCropped)
     }
     qint64 saved = 0;
     m_view->changeObjects([&](write::WriteDoc &d) {
-        saved = all ? write::compressAllPictures(d, ppi, deleteCropped) : write::compressPictures(d, ppi, at, deleteCropped);
+        saved = all ? write::compressAllPictures(d, ppi, deleteCropped, left) : write::compressPictures(d, ppi, at, deleteCropped);
         return saved > 0;
     });
     m_view->setFocus(Qt::OtherFocusReason);

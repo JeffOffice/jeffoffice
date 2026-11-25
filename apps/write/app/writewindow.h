@@ -228,7 +228,7 @@ public:
     void setLinkOpener(const std::function<void(const QString &)> &opener) { m_linkOpener = opener; }
     void setPictureChooser(const std::function<QString()> &chooser) { m_pictureChooser = chooser; }
     // Compress Pictures with the choices made (no box): every picture of the document or the selected ones, as one step that undoes; the bytes saved.
-    qint64 compressPictures(double ppi, bool all, bool deleteCropped);
+    qint64 compressPictures(double ppi, bool all, bool deleteCropped, int *left = nullptr);
     // Insert > Pictures > Online Pictures: the pane (null until it was first asked for).
     OnlinePicturesPane *onlinePictures() const { return m_online; }
     void showOnlinePictures();

@@ -237,6 +237,10 @@ QVector<InspectItem> WriteWindow::inspectItems()
             QStringList said;
             if (inFills > 0) said << tr("%n picture filling a shape is left as it is, because changing it would change how the shape looks.", nullptr, inFills);
             if (inComments > 0) said << tr("%n picture in a comment cannot be changed here.", nullptr, inComments);
+            int older = 0;
+            const int elsewhere = write::keptPicturesElsewhere(*doc, kind, &older);
+            if (older > 0) said << tr("%n picture in an older kind of drawing cannot be changed here.", nullptr, older);
+            if (elsewhere > 0) said << tr("%n picture in another place cannot be changed here.", nullptr, elsewhere);
             return said.join(QLatin1Char(' '));
         };
         items.push_back(row);

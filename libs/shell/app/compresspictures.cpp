@@ -99,9 +99,10 @@ bool compressedPictureFile(const QByteArray &bytes, double shownWidth, double pp
     return !made.isNull() && encodedIfSmaller(made, bytes.size(), out, format);
 }
 
-void tellCompressSaved(QWidget *parent, qint64 saved)
+void tellCompressSaved(QWidget *parent, qint64 saved, const QString &note)
 {
-    jp::plainInformation(parent, QCoreApplication::translate("jp::PictureCompress", "Compress Pictures"), QCoreApplication::translate("jp::PictureCompress", "Saved %1 KB.").arg(saved / 1024));
+    const QString said = QCoreApplication::translate("jp::PictureCompress", "Saved %1 KB.").arg(saved / 1024);
+    jp::plainInformation(parent, QCoreApplication::translate("jp::PictureCompress", "Compress Pictures"), note.isEmpty() ? said : said + QLatin1Char(' ') + note);
 }
 
 } // namespace jp
