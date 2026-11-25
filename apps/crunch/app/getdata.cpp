@@ -5,6 +5,8 @@
 #include "sheet/datasourcebook.h"
 
 #include <QCheckBox>
+#include <QCoreApplication>
+#include <QFile>
 #include <QComboBox>
 #include <QDialogButtonBox>
 #include <QEventLoop>

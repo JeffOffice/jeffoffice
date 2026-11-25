@@ -151,7 +151,7 @@ void CrunchWindow::refreshDataCommand(bool all)
     }
     if (all && self && m_session && m_session->workbook()->pivots().tableCount() > 0) act("pivot.refreshAll")->trigger();
     if (!problems.isEmpty()) notice(title, problems.join(QLatin1Char('\n')));
-    else if (self) setStatus(tr("%n table was read again from its file.", nullptr, done));
+    else if (self) setStatus(done > 0 ? tr("The data was read again from its files.") : tr("Nothing needed to be read again."));
 }
 
 }   // namespace jp
