@@ -67,7 +67,7 @@ void WriteTests::countedTextHasItsEnglishFormsAndNoneIsLeftAsPluralMarker()
     static const QRegularExpression marker(QStringLiteral("[A-Za-z]\\((s|es)\\)"));
     static const QRegularExpression opens(QStringLiteral("^namespace\\s*([\\w:]*)\\s*\\{")), closes(QStringLiteral("^\\}\\s*(//\\s*)?namespace\\b"));
     static const QRegularExpression definition(QStringLiteral("^[A-Za-z_][^\\n(;]*?\\b([A-Za-z_]\\w*(?:::[A-Za-z_]\\w*)*)::~?[A-Za-z_]\\w*\\s*\\("));
-    auto unescaped = [](QString t) { return t.replace(QStringLiteral("\\\""), QStringLiteral("\"")).replace(QStringLiteral("\\\\"), QStringLiteral("\\")); };
+    auto unescaped = [](QString t) { return t.replace(QStringLiteral("\\\""), QStringLiteral("\"")).replace(QStringLiteral("\\n"), QStringLiteral("\n")).replace(QStringLiteral("\\\\"), QStringLiteral("\\")); };   // a line break written in the source is a real line break in the forms file
     static const QRegularExpression classHead(QStringLiteral("^(?:class|struct)\\s+(\\w+)\\b[^;]*$"));
     // The class a tr() at `at` belongs to, with the namespaces open there: the one whose body at the left margin it is in, or of the function definition at the left margin before it.
     auto classOf = [&](const QString &text, qsizetype at, const QString &named) {
