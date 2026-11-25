@@ -5,6 +5,7 @@
 
 #include <QCoreApplication>
 #include <QDate>
+#include <QLocale>
 #include <QRegularExpression>
 #include <QHash>
 #include <QSet>
@@ -67,21 +68,70 @@ QVector<QStringList> EditSession::splitText(const QStringList &lines, const Spli
 
 namespace {
 
-// The text of a date written in the order `order` (3 month, day, year; 4 day, month, year; 5 year, month, day) as the year, month, and day with dashes, which a cell reads as that date; text
-// that is not a date in that order is returned as it is. A year of two digits is of this century up to 29, else of the last.
-QString dateInOrder(const QString &text, int order)
+// The month a word names (1 to 12), in English or in the language of the program: a whole name, or a short form of at least three letters (Mar, Sept); 0 for any other word.
+int monthNamed(const QString &word)
 {
-    const QStringList parts = text.trimmed().split(QRegularExpression(QStringLiteral("[-/.\\s]+")));
-    if (parts.size() != 3) return text;
-    bool ok[3] = {false, false, false};
-    const int a = parts[0].toInt(&ok[0]), b = parts[1].toInt(&ok[1]), c = parts[2].toInt(&ok[2]);
-    if (!ok[0] || !ok[1] || !ok[2]) return text;
-    int y = c, m = a, d = b;
-    if (order == 4) { d = a; m = b; y = c; }
-    else if (order == 5) { y = a; m = b; d = c; }
+    if (word.size() < 3) return 0;
+    for (const QLocale &locale : {QLocale(QLocale::English), QLocale()})
+        for (int m = 1; m <= 12; ++m)
+            if (locale.monthName(m, QLocale::LongFormat).startsWith(word, Qt::CaseInsensitive) || locale.monthName(m, QLocale::ShortFormat).startsWith(word, Qt::CaseInsensitive)) return m;
+    return 0;
+}
+
+// The text of a date written in the order `order` (3 month, day, year; 4 day, month, year; 5 year, month, day) as the year, month, and day with dashes (and the time after it, when the text
+// has one), which a cell reads as that date. The month may be a name, and the separators are / - . comma and space. Text that is not a date in that order (not three parts, a month or a day
+// that does not exist, a year that is not of two or four digits, or a time after it that does not read) says so by returning false: the caller keeps it as text, never reads it in another order.
+// A year of two digits is of this century up to 29, else of the last.
+bool dateInOrder(const QString &text, int order, QString *out)
+{
+    QString rest = text.trimmed();
+    QString time;
+    QStringList words = rest.split(QRegularExpression(QStringLiteral("\\s+")));
+    if (words.size() > 1 && (words.last().compare(QLatin1String("AM"), Qt::CaseInsensitive) == 0 || words.last().compare(QLatin1String("PM"), Qt::CaseInsensitive) == 0) && words[words.size() - 2].contains(QLatin1Char(':'))) {
+        time = words.takeLast();
+        time = words.takeLast() + QLatin1Char(' ') + time;
+    } else if (words.size() > 1 && words.last().contains(QLatin1Char(':'))) {
+        time = words.takeLast();
+    }
+    QString clock;
+    if (!time.isEmpty()) {
+        static const QRegularExpression timeShape(QStringLiteral("^(\\d{1,2}):(\\d{2})(?::(\\d{2}))?(?:\\s*([AaPp][Mm]))?$"));
+        const QRegularExpressionMatch m = timeShape.match(time);
+        if (!m.hasMatch()) return false;
+        int h = m.captured(1).toInt();
+        const int min = m.captured(2).toInt(), sec = m.captured(3).toInt();
+        if (!m.captured(4).isEmpty()) {
+            if (h < 1 || h > 12) return false;
+            h = h % 12 + (m.captured(4).startsWith(QLatin1Char('P'), Qt::CaseInsensitive) ? 12 : 0);
+        }
+        if (h > 23 || min > 59 || sec > 59) return false;
+        clock = QStringLiteral(" %1:%2:%3").arg(h, 2, 10, QLatin1Char('0')).arg(min, 2, 10, QLatin1Char('0')).arg(sec, 2, 10, QLatin1Char('0'));
+    }
+    static const QRegularExpression separators(QStringLiteral("[-/.,\\s]+"));
+    QStringList parts = words.join(QLatin1Char(' ')).split(separators, Qt::SkipEmptyParts);
+    if (parts.size() != 3) return false;
+    static const QRegularExpression digits(QStringLiteral("^\\d+$"));
+    const int monthAt = order == 3 ? 0 : 1;
+    int v[3] = {0, 0, 0};
+    for (int i = 0; i < 3; ++i) {
+        if (i == monthAt && !digits.match(parts[i]).hasMatch()) {
+            v[i] = monthNamed(parts[i]);
+            if (v[i] == 0) return false;
+        } else if (digits.match(parts[i]).hasMatch() && parts[i].size() <= 4) {
+            v[i] = parts[i].toInt();
+        } else {
+            return false;
+        }
+    }
+    const int yearAt = order == 5 ? 0 : 2;
+    if (parts[yearAt].size() != 2 && parts[yearAt].size() != 4) return false;
+    if (parts[monthAt].size() > 2 && digits.match(parts[monthAt]).hasMatch()) return false;
+    int y = v[yearAt], m = v[monthAt], d = v[3 - yearAt - monthAt];
     if (y < 100) y += y < 30 ? 2000 : 1900;
     const QDate date(y, m, d);
-    return date.isValid() ? date.toString(Qt::ISODate) : text;
+    if (!date.isValid()) return false;
+    *out = date.toString(Qt::ISODate) + clock;
+    return true;
 }
 
 } // namespace
@@ -130,7 +180,12 @@ EditSession::Outcome EditSession::textToColumns(int sheet, const CellRange &sour
             if (type == 2) continue;
             QString text = c < p.size() ? p[c] : QString();
             if (type == 1 && !text.isEmpty()) text.prepend(QLatin1Char('\''));
-            else if (type >= 3 && type <= 5 && !text.isEmpty()) text = dateInOrder(text, type);
+            else if (type >= 3 && type <= 5 && !text.isEmpty()) {
+                QString date;
+                // (not a date in the order asked for: kept as text exactly as typed, never read in another order)
+                if (dateInOrder(text, type, &date)) text = date;
+                else text.prepend(QLatin1Char('\''));
+            }
             row << text;
         }
         table.append(row);

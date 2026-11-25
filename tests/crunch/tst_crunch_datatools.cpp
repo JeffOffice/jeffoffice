@@ -17,6 +17,7 @@
 
 #include <QAction>
 #include <QComboBox>
+#include <QDateTime>
 #include <QLabel>
 #include <QSpinBox>
 #include <QToolButton>
@@ -266,6 +267,56 @@ private Q_SLOTS:
         QVERIFY(e.settle());
         QCOMPARE(e.valueAt(QStringLiteral("B1")), QStringLiteral("n:45356"));   // (5 March 2024)
         QCOMPARE(shown(e, QStringLiteral("B2")), QStringLiteral("31/12/2024"));   // (there is no month 31: left as typed)
+        QCOMPARE(e.valueAt(QStringLiteral("B2")), QStringLiteral("s:31/12/2024"));   // (as text, not read in another order)
+    }
+
+    // A piece that is not a date in the order chosen is kept as text, exactly as typed, and is never passed to the reader that takes the other order; a time after the date is read with it.
+    void aPieceThatIsNotADateInTheChosenOrderIsKeptAsText()
+    {
+        // order, text, the date it reads as (empty: kept as text)
+        struct Case {
+            int order;
+            const char *text, *date;
+        };
+        const std::vector<Case> cases = {
+            {4, "05/13/2024", ""},       {4, "31/02/2024", ""},       {4, "5.3.24", "2024-03-05"},    {4, "05 03 2024", "2024-03-05"}, {4, "5-3-2024", "2024-03-05"},
+            {4, "03/05/2024 10:30", "2024-05-03 10:30:00"},           {4, "03/05/2024 25:30", ""},    {4, "03/05/2024 10:75", ""},     {4, "03/05/2024 10:30:45", "2024-05-03 10:30:45"},
+            {4, "5 Mar 2024", "2024-03-05"},                          {4, "5 March 2024", "2024-03-05"}, {4, "5 Sept 2024", "2024-09-05"}, {4, "5 Foo 2024", ""},   {4, "5/3/202", ""},
+            {5, "3/5/2024", ""},         {5, "2024-03-05", "2024-03-05"},                            {5, "24/3/5", "2024-03-05"},    {5, "2024/13/05", ""},           {5, "2024.03.05", "2024-03-05"},
+            {5, "2024 Mar 5", "2024-03-05"},                          {5, "2024-03-05 08:15", "2024-03-05 08:15:00"},                  {5, "05/03/2024 10:30", ""},
+            {3, "03/05/2024 10:30", "2024-03-05 10:30:00"},           {3, "March 5, 2024", "2024-03-05"}, {3, "13/5/2024", ""},        {3, "2/30/2024", ""},            {3, "03/05/2024 10:30 PM", "2024-03-05 22:30:00"},
+            {3, "03/05/2024 13:30 PM", ""},                           {3, "Mar-5-24", "2024-03-05"},  {3, "3/5/24", "2024-03-05"},
+        };
+        for (int order : {3, 4, 5}) {
+            QStringList specs, texts, dates;
+            for (const Case &c : cases)
+                if (c.order == order) {
+                    specs << QStringLiteral("A%1=%2").arg(specs.size() + 1).arg(QString::fromLatin1(c.text));
+                    texts << QString::fromLatin1(c.text);
+                    dates << QString::fromLatin1(c.date);
+                }
+            EditWindow e;
+            QVERIFY(e.open(sheetOf(specs)));
+            QVERIFY(e.settle());
+            EditSession::SplitSpec spec;
+            spec.delimiters = QStringLiteral(";");
+            spec.types = {order};
+            QVERIFY(e.win.w.session()->textToColumns(0, rangeOf(QStringLiteral("A1:A%1").arg(specs.size())), spec, 0, 1).ok);
+            QVERIFY(e.settle());
+            for (int i = 0; i < texts.size(); ++i) {
+                const QString cell = QStringLiteral("B%1").arg(i + 1), got = e.valueAt(cell);
+                if (dates[i].isEmpty()) {
+                    QVERIFY2(got == QLatin1String("s:") + texts[i], qPrintable(QStringLiteral("order %1: %2 gave %3").arg(order).arg(texts[i], got)));
+                } else {
+                    const QDateTime when = QDateTime::fromString(dates[i], dates[i].size() > 10 ? QStringLiteral("yyyy-MM-dd HH:mm:ss") : QStringLiteral("yyyy-MM-dd"));
+                    const QDate day = when.date();
+                    double serial = 0;
+                    jp::calc::dateToSerial(day.year(), day.month(), day.day(), jp::calc::DateSystem::Date1900, &serial);
+                    serial += (when.time().hour() * 3600 + when.time().minute() * 60 + when.time().second()) / 86400.0;
+                    QVERIFY2(got.startsWith(QLatin1String("n:")) && qAbs(got.mid(2).toDouble() - serial) < 1e-6, qPrintable(QStringLiteral("order %1: %2 gave %3, wanted %4").arg(order).arg(texts[i], got).arg(serial)));
+                }
+            }
+        }
     }
 
     void theTextToColumnsDialogSetsTheKindOfEachPiece()
