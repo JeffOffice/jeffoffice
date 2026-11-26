@@ -230,6 +230,14 @@ struct TableCommand {
             }
         }
     }
+    // A command that records its change in general and cannot record this one: it is made as with Track Changes off, and says so. (Called before the command changes anything.)
+    void declineTracking()
+    {
+        if (depth != 1 || untracked || !doc.trackChanges() || untrackedEditActive()) return;
+        doc.trackNotice = untrackedNoticeText();
+        untracked = true;
+        stepsBefore = doc.nextStepSerial();
+    }
     ~TableCommand()
     {
         if (--depth != 0) return;
@@ -251,7 +259,7 @@ bool rowSays(WriteDoc &doc, const flow::TableLayout::Row &row, const char *name,
 // replaced), which leaves the row's marks wrong, so it is not made and `tableNotice` says so.
 bool takesTrackedRow(WriteDoc &doc, const View &v)
 {
-    if (!doc.trackChanges() || untrackedEditActive()) return false;
+    if (!doc.trackChanges() || untrackedEditActive() || !trackedMarksCanBeResolved(doc)) return false;   // (where the person cannot resolve the marks, nothing is turned down: the change is made and said not to be recorded)
     const flow::TableLayout &t = *v.layout;
     for (int r = 0; r < t.rowCount(); ++r)
         if (rowSays(doc, t.row(r), "ins", false) || rowSays(doc, t.row(r), "del", false)) {
@@ -275,6 +283,8 @@ bool pastTheLimits(WriteDoc &doc, int rows, int columns, qint64 cells)
 
 // A row that is made while Track Changes is on is an inserted row: the start of the row with the mark (the person and the time) among its properties. (Defined with the tracked changes.)
 QByteArray markRowInserted(WriteDoc &doc, const QByteArray &open);
+// Puts the mark `tag` ("ins" or "del") on the end of each of the paragraphs (by number) that does not have the reviewer's mark of that kind. (Defined with the tracked changes.)
+void markParagraphs(WriteDoc &doc, const QVector<int> &blocks, const char *tag, bool fresh = false);
 
 // The rows and columns of the cells a selection is in (grid columns, so a cell that spans columns has all of them).
 struct Area {
@@ -284,6 +294,8 @@ struct Area {
 // With Track Changes on, deletes the rows r0 to r1 of the table of `v` as a tracked change: the words in them are marked deleted and each row says it is deleted. False (nothing done) when every
 // one of the rows was inserted by the reviewer, which are taken out for good as untracked changes always are. (Defined with the tracked changes.)
 bool trackedDeleteRows(WriteDoc &doc, QTextCursor &c, const std::shared_ptr<View> &v, int r0, int r1);
+// Whether one of the rows r0 to r1 is part of a vertical merge (a cell that goes down through rows): such a row is deleted without a record, as no other program records it.
+bool rowsInVerticalMerge(const View &v, int r0, int r1);
 
 Area areaOf(const View &v, const QTextCursor &c)
 {
@@ -494,10 +506,14 @@ void removeParagraphs(QTextDocument *d, QTextBlock first, QTextBlock last)
             for (int k : {int(prop::LastSection), int(prop::MarkFormat)})
                 if (firstF.hasProperty(k)) nf.setProperty(k, firstF.property(k));
         }
+        // (A mark that records a change goes with its paragraph: it is not left on the paragraph that comes after.)
+        const bool markedFirst = first.charFormat().hasProperty(prop::RawRPr) || first.charFormat().hasProperty(prop::TrackedDeleted);
+        const int firstAt = first.position();
         QTextCursor t(d);
         t.setPosition(first.position());
         t.setPosition(next.position(), QTextCursor::KeepAnchor);
         t.removeSelectedText();
+        if (markedFirst && !atStart && d->findBlock(firstAt).charFormat() != nc) QTextCursor(d->findBlock(firstAt)).setBlockCharFormat(nc);
         if (atStart) {
             QTextCursor(d->begin()).setBlockFormat(nf);
             QTextCursor(d->begin()).setBlockCharFormat(nc);
@@ -772,6 +788,15 @@ void addRow(WriteDoc &doc, View &v, int ref, bool below)
             ++at;
         }
     }
+    // The paragraph of each new cell says its mark is inserted too.
+    if (doc.trackChanges() && !untrackedEditActive()) {
+        QSet<int> keys;
+        for (const NewParagraph &n : std::as_const(made)) keys.insert(n.bf.intProperty(flow::fp::Cell));
+        QVector<int> numbers;
+        for (QTextBlock b = d->findBlock(refRow.from); b.isValid() && numbers.size() < made.size(); b = b.next())
+            if (keys.contains(cellKeyOf(b))) numbers.push_back(b.blockNumber());
+        markParagraphs(doc, numbers, "ins", true);   // (the paragraphs are made like the ones beside them, and have the marks of those: each is given its own)
+    }
 }
 
 } // namespace
@@ -1005,7 +1030,10 @@ void deleteTable(WriteDoc &doc, QTextCursor &c)
     TableCommand command(doc, true);
     auto v = viewAt(doc, c.selectionStart());
     if (!v) return;
-    if (doc.trackChanges() && !untrackedEditActive() && trackedDeleteRows(doc, c, v, 0, v->layout->rowCount() - 1)) return;
+    if (doc.trackChanges() && !untrackedEditActive()) {
+        if (rowsInVerticalMerge(*v, 0, v->layout->rowCount() - 1)) command.declineTracking();
+        else if (trackedDeleteRows(doc, c, v, 0, v->layout->rowCount() - 1)) return;
+    }
     QTextDocument *d = tableStory(doc);
     const int stop = parentOf(*v);
     const int at = v->index.refs()[size_t(v->first)].pos;
@@ -1030,7 +1058,10 @@ void deleteTableRows(WriteDoc &doc, QTextCursor &c)
         deleteTable(doc, c);
         return;
     }
-    if (doc.trackChanges() && !untrackedEditActive() && trackedDeleteRows(doc, c, v, area.r0, area.r1)) return;
+    if (doc.trackChanges() && !untrackedEditActive()) {
+        if (rowsInVerticalMerge(*v, area.r0, area.r1)) command.declineTracking();
+        else if (trackedDeleteRows(doc, c, v, area.r0, area.r1)) return;
+    }
     QTextDocument *d = tableStory(doc);
     flow::TableStore &store = doc.flow().tables;
     retireRange(doc, v->index.refs()[size_t(v->first)].pos, v->index.refs()[size_t(v->last - 1)].end);
@@ -2480,6 +2511,11 @@ bool insertTable(WriteDoc &doc, QTextCursor &c, const NewTable &table)
             insertBefore(d, d->findBlock(at), bf, doc.styleCharFormat(style, QString(), part ? part->layer.get() : nullptr));
             ++at;
         }
+    if (doc.trackChanges() && !untrackedEditActive()) {   // (every paragraph of the new rows says its mark is inserted)
+        QVector<int> numbers;
+        for (int n = 0; n < at - first; ++n) numbers.push_back(d->findBlock(first + n).blockNumber());
+        markParagraphs(doc, numbers, "ins", true);
+    }
     if (atStart) {
         QTextBlockFormat bf = d->findBlock(at).blockFormat();
         for (int k : kHeadProps) bf.clearProperty(k);
@@ -3663,7 +3699,7 @@ QVector<Record> recordsOf(const QByteArray &open, int kind)
         if (!pr && !grid && !ex) continue;
         for (int k = t.firstChild(c); k >= 0; k = t.next(k)) {
             const QByteArray name = t.localName(k);
-            const bool wanted = kind == kRow ? (name == "ins" || name == "del" || name == "trPrChange")
+            const bool wanted = kind == kRow ? (name == "ins" || name == "del" || name == "trPrChange" || name == "tblPrExChange")
                               : kind == kCell ? (name == "cellIns" || name == "cellDel" || name == "cellMerge" || name == "tcPrChange")
                                               : (name == "tblPrChange" || name == "tblGridChange");
             if (wanted) out.push_back({name, t.raw(k)});
@@ -3719,14 +3755,19 @@ TableChange makeChange(TableChange::Kind kind, const QByteArray &xml, int from, 
 
 namespace {
 
+// Whether the start of a row says it is inserted or deleted (`name`), by the reviewer or by anyone.
+bool openSays(WriteDoc &doc, const QByteArray &open, const char *name, bool byReviewer)
+{
+    for (const Record &r : recordsOf(open, kRow))
+        if (r.name == name && (!byReviewer || revisionAuthorOf(r.xml) == doc.reviewer())) return true;
+    return false;
+}
+
 // Whether the row is one the reviewer inserted while changes were tracked, or one that says it is deleted.
 bool rowSays(WriteDoc &doc, const flow::TableLayout::Row &row, const char *name, bool byReviewer)
 {
     const RowPart *rp = static_cast<const RowPart *>(row.data->app.get());
-    if (!rp) return false;
-    for (const Record &r : recordsOf(rp->open, kRow))
-        if (r.name == name && (!byReviewer || revisionAuthorOf(r.xml) == doc.reviewer())) return true;
-    return false;
+    return rp && openSays(doc, rp->open, name, byReviewer);
 }
 
 QByteArray markRowInserted(WriteDoc &doc, const QByteArray &open)
@@ -3736,41 +3777,155 @@ QByteArray markRowInserted(WriteDoc &doc, const QByteArray &open)
     return patchPr(open, kRow, {{"ins", mark + "/>"}});
 }
 
-bool trackedDeleteRows(WriteDoc &doc, QTextCursor &c, const std::shared_ptr<View> &v, int r0, int r1)
+bool rowsInVerticalMerge(const View &v, int r0, int r1)
 {
-    const flow::TableLayout &t = *v->layout;
-    r1 = std::min(r1, t.rowCount() - 1);
-    if (r0 < 0 || r0 > r1) return false;
-    bool allOwn = true;
-    for (int r = r0; r <= r1 && allOwn; ++r) allOwn = rowSays(doc, t.row(r), "ins", true);
-    if (allOwn) return false;
+    const flow::TableLayout &t = *v.layout;
+    for (int r = std::max(r0, 0); r <= r1 && r < t.rowCount(); ++r)
+        for (int i = t.row(r).cell0; i < t.row(r).cell0 + t.row(r).cells; ++i) {
+            const flow::TableLayout::Cell &cell = t.cell(i);
+            if (cell.covered || cell.rows > 1 || cell.rec->cell.vmerge != flow::CellData::VMerge::None) return true;
+        }
+    return false;
+}
+
+// The numbers of the paragraphs of the cells of the table's rows `rows`, those of tables nested in them included (a number holds when the text is marked, a position does not).
+QVector<int> paragraphsOfRows(WriteDoc &doc, const View &v, const QVector<int> &rows)
+{
+    const flow::TableLayout &t = *v.layout;
+    const std::vector<flow::BlockRef> &refs = v.index.refs();
     QTextDocument *d = tableStory(doc);
-    // The words of every cell of the rows, last first (marking a deletion puts pieces in the text, which move the places after them).
+    QVector<int> blocks;
+    for (const int r : rows)
+        for (int i = t.row(r).cell0; i < t.row(r).cell0 + t.row(r).cells; ++i)
+            for (int k = t.cell(i).r0; k < t.cell(i).r1; ++k) blocks.push_back(d->findBlock(refs[size_t(k)].pos).blockNumber());
+    return blocks;
+}
+
+// Puts the mark `tag` ("ins" or "del") on the end of each of the paragraphs (by number) that does not have the reviewer's mark of that kind.
+void markParagraphs(WriteDoc &doc, const QVector<int> &blocks, const char *tag, bool fresh)
+{
+    QTextDocument *d = tableStory(doc);
+    const bool deleting = qstrcmp(tag, "del") == 0;
+    for (const int number : blocks) {
+        const QTextBlock b = d->findBlockByNumber(number);
+        if (!b.isValid() || (!fresh && paragraphMarkInsertedBy(b, doc.reviewer())) || (deleting && markFormat(b).hasProperty(prop::TrackedDeleted))) continue;
+        markParagraphMark(doc, b, tag, true);
+    }
+}
+
+// The tables inside the rows of a table that is marked deleted (every row of each, at any depth), found by a paragraph of each and how deep it is; the first is the table itself.
+struct MarkTarget {
+    int block, depth;
+    QVector<int> rows;   // the rows to put the mark on
+};
+constexpr int kMostTablesMarked = 200;
+
+// Finds the tables in the rows r0 to r1 of `v`; false when there are more than are marked at once.
+bool collectTargets(WriteDoc &doc, const View &v, int r0, int r1, QVector<MarkTarget> &out)
+{
+    const flow::TableLayout &t = *v.layout;
+    const std::vector<flow::BlockRef> &refs = v.index.refs();
+    QTextDocument *d = tableStory(doc);
+    for (int r = r0; r <= r1; ++r)
+        for (int ci = t.row(r).cell0; ci < t.row(r).cell0 + t.row(r).cells; ++ci)
+            for (int i = t.cell(ci).r0; i < t.cell(ci).r1; ++i) {
+                if (int(v.index.chain(refs[size_t(i)].key).size()) <= v.depth + 1) continue;
+                const auto nested = viewAt(doc, refs[size_t(i)].pos, v.depth + 1);
+                if (!nested) continue;
+                if (out.size() >= kMostTablesMarked) return false;
+                MarkTarget target{d->findBlock(nested->index.refs()[size_t(nested->first)].pos).blockNumber(), nested->depth, {}};
+                for (int n = 0; n < nested->layout->rowCount(); ++n)
+                    if (!rowSays(doc, nested->layout->row(n), "del", false) && !rowSays(doc, nested->layout->row(n), "ins", true)) target.rows.push_back(n);
+                out.push_back(target);
+                if (!collectTargets(doc, *nested, 0, nested->layout->rowCount() - 1, out)) return false;
+                i = nested->last - 1;
+            }
+    return true;
+}
+
+bool trackedDeleteRows(WriteDoc &doc, QTextCursor &c, const std::shared_ptr<View> &viewGiven, int r0, int r1)
+{
+    std::shared_ptr<View> v = viewGiven;
+    r1 = std::min(r1, v->layout->rowCount() - 1);
+    if (r0 < 0 || r0 > r1) return false;
+    QVector<int> own;   // the rows of the person's own insertion: they are taken out for good
+    for (int r = r0; r <= r1; ++r)
+        if (rowSays(doc, v->layout->row(r), "ins", true)) own.push_back(r);
+    if (own.size() == r1 - r0 + 1) return false;
+    QTextDocument *d = tableStory(doc);
+    {   // (what is found first is looked at with nothing changed: a table that holds too many tables is left as it is)
+        QVector<MarkTarget> found;
+        if (!collectTargets(doc, *v, r0, r1, found)) {
+            doc.tableNotice = tableText(QT_TRANSLATE_NOOP("jp::write::Tables", "This change was not made: the rows hold too many tables to mark as deleted."));
+            return true;
+        }
+    }
+    c.beginEditBlock();
+    if (!own.isEmpty()) {
+        const int start = v->index.refs()[size_t(v->first)].pos, depth = v->depth;
+        const flow::TableLayout &t = *v->layout;
+        for (qsizetype k = own.size(); k > 0;) {   // (the runs of them, last first: what comes before a run has not moved)
+            int hi = own[--k], lo = hi;
+            while (k > 0 && own[k - 1] == lo - 1) lo = own[--k];
+            QTextCursor run(d);
+            run.setPosition(t.cell(t.row(lo).cell0).to - 1);
+            run.setPosition(t.cell(t.row(hi).cell0 + t.row(hi).cells - 1).to - 1, QTextCursor::KeepAnchor);
+            const UntrackedEdit plain;
+            deleteTableRows(doc, run);
+        }
+        const std::shared_ptr<View> now = viewAt(doc, start, depth);
+        if (!now) {
+            c.endEditBlock();
+            return true;
+        }
+        r1 -= int(own.size());
+        v = now;
+    }
+    const flow::TableLayout &t = *v->layout;
+    const std::vector<flow::BlockRef> &refs = v->index.refs();
+    QVector<MarkTarget> targets;
+    {
+        MarkTarget top{d->findBlock(refs[size_t(v->first)].pos).blockNumber(), v->depth, {}};
+        for (int r = r0; r <= r1; ++r)
+            if (!rowSays(doc, t.row(r), "del", false)) top.rows.push_back(r);
+        targets.push_back(top);
+    }
+    collectTargets(doc, *v, r0, r1, targets);
+    // The words of every cell of the rows, and of the tables in them, last first (marking a deletion puts pieces in the text, which move the places after them).
     struct Span {
         int from, to;
     };
     QVector<Span> spans;
     for (int r = r0; r <= r1; ++r)
-        for (int i = t.row(r).cell0; i < t.row(r).cell0 + t.row(r).cells; ++i) {
-            const flow::TableLayout::Cell &cell = t.cell(i);
-            if (cell.to - 1 > cell.from) spans.push_back({cell.from, cell.to - 1});
-        }
+        for (int i = t.row(r).cell0; i < t.row(r).cell0 + t.row(r).cells; ++i)
+            for (int k = t.cell(i).r0; k < t.cell(i).r1;) {
+                int j = k;
+                while (j + 1 < t.cell(i).r1 && refs[size_t(j + 1)].key == refs[size_t(k)].key) ++j;
+                if (refs[size_t(j)].end - 1 > refs[size_t(k)].pos) spans.push_back({refs[size_t(k)].pos, refs[size_t(j)].end - 1});
+                k = j + 1;
+            }
     std::sort(spans.begin(), spans.end(), [](const Span &a, const Span &b) { return a.from > b.from; });
-    const flow::TableLayout::Row &first = t.row(r0), &last = t.row(r1);
-    QTextCursor rows(d);   // (it stays on the rows as the pieces go in)
-    rows.setPosition(t.cell(first.cell0).from);
-    rows.setPosition(t.cell(last.cell0 + last.cells - 1).to - 1, QTextCursor::KeepAnchor);
-    QVector<bool> already;
-    for (int r = r0; r <= r1; ++r) already.push_back(rowSays(doc, t.row(r), "del", false));
-    c.beginEditBlock();
+    QVector<int> all;
+    for (int r = r0; r <= r1; ++r) all.push_back(r);
+    const QVector<int> paragraphs = paragraphsOfRows(doc, *v, all);
     for (const Span &s : std::as_const(spans)) trackRangeDeleted(doc, d, s.from, s.to);
-    QByteArray mark = revisionStartTag(doc, QStringLiteral("del"));
-    mark.chop(1);
-    editTable(doc, rows, [&](XTable &x, const View &, const Area &a) {
-        for (int r = a.r0; r <= a.r1 && r < x.rows.size(); ++r)
-            if (r - r0 >= 0 && r - r0 < already.size() ? !already[r - r0] : true) x.rows[r].open = patchPr(x.rows[r].open, kRow, {{"del", mark + "/>"}});
-        return true;
-    });
+    // The paragraph marks (each paragraph of the rows says its own mark is deleted), then the rows themselves, the tables inside first.
+    markParagraphs(doc, paragraphs, "del");   // (the numbers were taken before the words were marked)
+    for (qsizetype k = targets.size() - 1; k >= 0; --k) {
+        const MarkTarget &target = targets[k];
+        if (target.rows.isEmpty()) continue;
+        QTextCursor at(d);
+        at.setPosition(d->findBlockByNumber(target.block).position());
+        editTable(doc, at, [&](XTable &x, const View &, const Area &) {
+            for (const int r : target.rows) {
+                if (r >= x.rows.size()) continue;
+                QByteArray mark = revisionStartTag(doc, QStringLiteral("del"));   // (each row has an id of its own)
+                mark.chop(1);
+                x.rows[r].open = patchPr(x.rows[r].open, kRow, {{"del", mark + "/>"}});
+            }
+            return true;
+        }, target.depth);
+    }
     c.endEditBlock();
     return true;
 }
@@ -3778,6 +3933,21 @@ bool trackedDeleteRows(WriteDoc &doc, QTextCursor &c, const std::shared_ptr<View
 } // namespace
 
 qint64 tableRecordParsesForTest() { return g_recordParses.load(); }
+
+bool coveredByRowChange(const flow::TableStore &store, const QTextBlock &b, bool inserted, const QString &author, bool ownRowCounts)
+{
+    const int key = cellKeyOf(b);
+    bool own = true;
+    int depth = 0;
+    for (const flow::CellRecord *rec = key ? store.get(key) : nullptr; rec && depth < 64; rec = rec->parent ? store.get(rec->parent) : nullptr, ++depth) {
+        const RowPart *rp = static_cast<const RowPart *>(rec->row ? rec->row->app.get() : nullptr);
+        if (rp && (ownRowCounts || !own))
+            for (const Record &r : recordsOf(rp->open, kRow))
+                if (r.name == (inserted ? "ins" : "del") && QString(revisionAuthorOf(r.xml)) == author) return true;
+        own = false;
+    }
+    return false;
+}
 
 void tableChangesAt(const flow::TableStore &store, const QTextBlock &b, QVector<TableChange> *out)
 {
@@ -3875,6 +4045,29 @@ QByteArray withOldProps(const QByteArray &open, int kind, const char *changeName
         } else {
             out += t.raw(c);
         }
+    }
+    return out;
+}
+
+// The start of a row with the record of a change of the row's table-property exceptions settled: accepted, the record is taken out; rejected, the old exceptions are given back.
+QByteArray exChangeSettled(const QByteArray &open, bool accept)
+{
+    XmlTree t;
+    int el = -1;
+    if (!parseKept(&t, open, "</w:tr>", &el)) return open;
+    QByteArray out = t.startTag(el);
+    for (int c = t.firstChild(el); c >= 0; c = t.next(c)) {
+        if (!t.is(c, "tblPrEx")) {
+            out += t.raw(c);
+            continue;
+        }
+        QByteArray oldKids, keptKids;
+        for (int k = t.firstChild(c); k >= 0; k = t.next(k)) {
+            if (t.is(k, "tblPrExChange")) oldKids += oldPropsOf(t.raw(k));
+            else keptKids += t.raw(k);
+        }
+        const QByteArray kids = accept ? keptKids : oldKids;
+        if (!kids.isEmpty()) out += t.startTag(c) + kids + t.endTag(c);
     }
     return out;
 }
@@ -3988,7 +4181,10 @@ void settleRecords(WriteDoc &doc, int at, const QVector<Settled> &records, bool 
                 if (grid) x.open = accept ? withoutGridChange(x.open) : withOldProps(x.open, kTbl, "tblGridChange");
                 break;
             }
-            case TableChange::RowProps: xr.open = !accept ? withOldProps(xr.open, kRow, "trPrChange") : patchPr(xr.open, kRow, {{"trPrChange", QByteArray()}}); break;
+            case TableChange::RowProps:
+                if (r.record.startsWith("<w:tblPrExChange")) xr.open = exChangeSettled(xr.open, accept);
+                else xr.open = !accept ? withOldProps(xr.open, kRow, "trPrChange") : patchPr(xr.open, kRow, {{"trPrChange", QByteArray()}});
+                break;
             case TableChange::CellProps: xc.open = !accept ? withOldProps(xc.open, kCell, "tcPrChange") : patchPr(xc.open, kCell, {{"tcPrChange", QByteArray()}}); break;
             }
             if (s.kept) {

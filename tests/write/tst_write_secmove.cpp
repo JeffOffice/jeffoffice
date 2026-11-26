@@ -22,6 +22,7 @@
 #include "core/writedoc.h"
 #include "core/writeprops.h"
 #include "office/package.h"
+#include "core/trackpolicy.h"
 #include "text/textengine.h"
 #include "text/textprops.h"
 
@@ -31,6 +32,7 @@
 #include <QDir>
 #include <QFrame>
 #include <QMouseEvent>
+#include <QSignalSpy>
 #include <QScrollBar>
 #include <QStatusBar>
 #include <QTreeWidget>
@@ -586,7 +588,21 @@ private Q_SLOTS:
                  "<w:del w:id=\"31\" w:author=\"Bob\" w:date=\"2026-01-02T03:04:05Z\"><w:r><w:delText>removed</w:delText></w:r></w:del></w:p>";
         moveAndCompare(p, true);
         moveAndCompare(p, false);
-        refused(p, QByteArray(), QStringLiteral("Track Changes"), true);
+        // With Track Changes on the move is made as with it off (the text goes as it is), and the document says it was not recorded.
+        QByteArray result[2];
+        for (const bool tracking : {true, false}) {
+            auto doc = open(p.docx());
+            QVERIFY(doc);
+            doc->setTrackChanges(tracking);
+            QSignalSpy said(doc.get(), &WriteDoc::untrackedChange);
+            QString why;
+            QVERIFY2(moveSection(*doc, positionOf(*doc, QStringLiteral("Beta")), positionOf(*doc, QStringLiteral("Alpha")), &why), qPrintable(why));
+            QCOMPARE(said.count(), tracking ? 1 : 0);
+            QVERIFY(doc->canUndo());
+            doc->setTrackChanges(false);   // (the setting is the one thing that differs)
+            result[tracking ? 0 : 1] = doc->toDocx();
+        }
+        QVERIFY2(differsIn(result[0], result[1]).isEmpty(), qPrintable(differsIn(result[0], result[1])));
     }
 
     void aContentControlMoves()
@@ -1118,13 +1134,10 @@ private Q_SLOTS:
             w.refreshNow();
             QVERIFY(w.act("view.moveSectionUp")->isEnabled() && w.act("view.moveSectionDown")->isEnabled());
             QVERIFY(w.act("view.moveSectionUp")->toolTip().contains(QLatin1String("Move Section Up")));
-            // Track Changes on, and off again.
+            // Track Changes on: the commands stay on (the move is made, and says so).
             w.document()->setTrackChanges(true);
-            offWith(w, QStringLiteral("Track Changes"));
-            if (QTest::currentTestFailed()) return;
-            w.document()->setTrackChanges(false);
             w.refreshNow();
-            QVERIFY(w.act("view.moveSectionUp")->isEnabled());
+            QVERIFY(w.act("view.moveSectionUp")->isEnabled() && w.act("view.moveSectionDown")->isEnabled());
         }
         {   // Read only, and protected.
             WriteWindow w;
@@ -1261,8 +1274,8 @@ private Q_SLOTS:
         QVERIFY(differsIn(moved[0], w.document()->toDocx()).size() > 0);   // (and it did move)
     }
 
-    // Outline view's own move records a tracked change while a section move from the pane or the commands is refused (Help says so).
-    void outlineViewRecordsItsMoveAsTrackedChangesWhereTheSectionMoveIsRefused()
+    // Outline view's own move records a tracked change, while a section move from the pane or the commands is made as usual and says it was not recorded (Help says so).
+    void outlineViewRecordsItsMoveAsTrackedChangesWhereTheSectionMoveIsNot()
     {
         WriteWindow w;
         openPane(w, paneDocx());
@@ -1273,13 +1286,14 @@ private Q_SLOTS:
         const QString xml = documentXml(w.document()->toDocx());
         QVERIFY2(xml.contains(QLatin1String("<w:ins ")) || xml.contains(QLatin1String("<w:moveTo ")), qPrintable(xml.left(400)));
         QVERIFY(!write::revisionsIn(w.document()->story()).isEmpty());
-        // (The commands, in the text, are refused, and say so.)
+        // (The commands, in the text, are made, and say so.)
         w.act("view.printLayout")->trigger();
         caretIn(w, QStringLiteral("Alpha words"), 1);
         const QByteArray tracked = w.document()->toDocx();
-        w.moveSectionAtCaret(true);
-        QVERIFY2(w.statusBar()->currentMessage().contains(QLatin1String("Track Changes")), qPrintable(w.statusBar()->currentMessage()));
-        QVERIFY2(differsIn(w.document()->toDocx(), tracked).isEmpty(), qPrintable(differsIn(w.document()->toDocx(), tracked)));
+        w.statusBar()->clearMessage();
+        w.act("view.moveSectionUp")->trigger();
+        QCOMPARE(w.statusBar()->currentMessage(), untrackedNoticeText());
+        QVERIFY2(!differsIn(w.document()->toDocx(), tracked).isEmpty(), "the section moved");
     }
 
     // View > Move Section Up and Move Section Down are on the ribbon, by the Navigation pane's button.

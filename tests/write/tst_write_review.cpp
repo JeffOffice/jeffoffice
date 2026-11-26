@@ -3020,7 +3020,7 @@ private Q_SLOTS:
             }
             QCOMPARE(kinds, (QVector<Revision::Kind>{Revision::RowInserted, Revision::RowDeleted}));
             QCOMPARE(authors, (QStringList{"Ann", "Bob"}));
-            QCOMPARE(revisionCount(doc->story()), 6);   // (the two rows' marks and the four runs of text)
+            QCOMPARE(revisionCount(doc->story()), 4);   // (the two rows, and the runs of text that were written by other people than the row's)
             // The pane's model says what each is.
             QStringList summaries;
             for (const auto &c : reviewChanges(*doc).changes)
@@ -3031,20 +3031,20 @@ private Q_SLOTS:
         {
             auto doc = open(file);
             QVERIFY(doc);
-            QCOMPARE(acceptAll(*doc), 6);
+            QCOMPARE(acceptAll(*doc), 4);
             QCOMPARE(revisionCount(doc->story()), 0);
             const QByteArray saved = documentXml(doc->toDocx());
             QCOMPARE(count(saved, "<w:tr>") + count(saved, "<w:tr "), 2);
             QVERIFY2(saved.contains("b1") && saved.contains("b2") && !saved.contains("c1") && !saved.contains("<w:ins ") && !saved.contains("<w:del "), saved.constData());
             QVERIFY(doc->undo());
             QVERIFY(!doc->canUndo());
-            QCOMPARE(revisionCount(doc->story()), 6);
+            QCOMPARE(revisionCount(doc->story()), 4);
         }
         // Reject All: the inserted row goes, the deleted one stays, its mark gone.
         {
             auto doc = open(file);
             QVERIFY(doc);
-            QCOMPARE(rejectAll(*doc), 6);
+            QCOMPARE(rejectAll(*doc), 4);
             QCOMPARE(revisionCount(doc->story()), 0);
             const QByteArray saved = documentXml(doc->toDocx());
             QCOMPARE(count(saved, "<w:tr>") + count(saved, "<w:tr "), 2);
@@ -3060,7 +3060,7 @@ private Q_SLOTS:
             for (const Revision &r : revisionsIn(doc->story()))
                 if (r.kind == Revision::RowDeleted) one << r;
             QCOMPARE(resolveRevisions(*doc, doc->story(), one, false), 1);
-            QCOMPARE(revisionCount(doc->story()), 5);
+            QCOMPARE(revisionCount(doc->story()), 3);
             QVERIFY(!documentXml(doc->toDocx()).contains("<w:del w:id=\"61\""));
             QVERIFY(documentXml(doc->toDocx()).contains("<w:ins w:id=\"60\""));
         }
@@ -3151,7 +3151,7 @@ private Q_SLOTS:
             auto doc = open(big);
             QVERIFY(doc);
             const qint64 before = revisionBlocksScannedForTest();
-            QCOMPARE(acceptAllOrReject(*doc, accept), 2 * rows);
+            QCOMPARE(acceptAllOrReject(*doc, accept), rows);   // (a row with its words is one change)
             QVERIFY2(revisionBlocksScannedForTest() - before < qint64(rows) * 40, qPrintable(QString::number(revisionBlocksScannedForTest() - before)));
             const QByteArray saved = documentXml(doc->toDocx());
             QCOMPARE(count(saved, "<w:tr>") + count(saved, "<w:tr "), accept ? rows + 1 : 1);
@@ -3320,8 +3320,8 @@ private Q_SLOTS:
                     if (sr.revision.inTable()) kinds << sr.container + QLatin1Char(':') + QString::number(int(sr.revision.kind));
                 const QString c = QString::fromLatin1(w.container);
                 QVERIFY2(kinds == (QStringList{c + QLatin1Char(':') + QString::number(int(Revision::RowInserted)), c + QLatin1Char(':') + QString::number(int(Revision::RowDeleted))}), qPrintable(kinds.join(QLatin1Char(' '))));
-                QCOMPARE(documentRevisionCount(*doc), 4);
-                QCOMPARE(acceptAllOrReject(*doc, accept), 4);
+                QCOMPARE(documentRevisionCount(*doc), 2);   // (a row with its words is one change)
+                QCOMPARE(acceptAllOrReject(*doc, accept), 2);
                 QCOMPARE(documentRevisionCount(*doc), 0);
                 const QByteArray saved = partXml(doc->toDocx(), w.part);
                 const QVector<SavedTable> tables = savedTables(saved);
@@ -3330,7 +3330,7 @@ private Q_SLOTS:
                 QVERIFY2(!saved.contains("<w:ins ") && !saved.contains("<w:del "), saved.constData());
                 QCOMPARE(acceptAllOrReject(*doc, accept), 0);
                 QVERIFY(doc->undo());
-                QCOMPARE(documentRevisionCount(*doc), 4);
+                QCOMPARE(documentRevisionCount(*doc), 2);
             }
         }
         // A part whose only changes are a cell's and a table's properties is listed too (nothing else in it says there is a change).
@@ -3396,17 +3396,17 @@ private Q_SLOTS:
         auto doc = open(makeDocx(body));
         QVERIFY(doc);
         const QVector<Revision> all = revisionsIn(doc->story());
-        QCOMPARE(all.size(), 4);
+        QCOMPARE(all.size(), 3);   // (the table's, the row's with its text, and the cell's)
         for (const Revision &r : all) QCOMPARE(r.from, all.first().from);
         QVector<Revision> forward, backward;
         for (std::optional<Revision> r = nextRevision(doc->story(), -1); r && forward.size() < 10; r = nextRevision(doc->story(), *r)) forward << *r;
-        QCOMPARE(forward.size(), 4);
+        QCOMPARE(forward.size(), 3);
         for (std::optional<Revision> r = previousRevision(doc->story(), doc->story()->characterCount()); r && backward.size() < 10; r = previousRevision(doc->story(), *r)) backward << *r;
-        QCOMPARE(backward.size(), 4);
-        for (int i = 0; i < 4; ++i) QVERIFY(backward[i] == forward[3 - i]);
+        QCOMPARE(backward.size(), 3);
+        for (int i = 0; i < 3; ++i) QVERIFY(backward[i] == forward[2 - i]);
         QStringList kinds;
         for (const Revision &r : forward) kinds << QString::number(int(r.kind));
-        QStringList wanted{QString::number(int(Revision::Insertion)), QString::number(int(Revision::RowInserted)), QString::number(int(Revision::CellInserted)), QString::number(int(Revision::TableFormat))};
+        QStringList wanted{QString::number(int(Revision::RowInserted)), QString::number(int(Revision::CellInserted)), QString::number(int(Revision::TableFormat))};
         kinds.sort();
         wanted.sort();
         QCOMPARE(kinds, wanted);
@@ -3417,7 +3417,7 @@ private Q_SLOTS:
             seen << QString::number(int(at->revision.kind));
             at = nextDocumentRevision(*doc, at->story, at->revision.from, true, &*at);
         }
-        QCOMPARE(seen.size(), 4);
+        QCOMPARE(seen.size(), 3);
     }
 
     void changesThatHaveTheSameIdAreToldApartByTheirPlace()
@@ -6198,8 +6198,8 @@ private Q_SLOTS:
             if (b.text().isEmpty() && cellKeyOf(b) && b.previous().text() == QLatin1String("b2")) in.setPosition(b.position());
         insertText(*doc, in, QStringLiteral("typed"));
         QVERIFY(documentXml(doc->toDocx()).contains("typed"));
-        QCOMPARE(documentRevisionCount(*doc), 2);
-        QCOMPARE(rejectAll(*doc), 2);
+        QCOMPARE(documentRevisionCount(*doc), 1);   // (the row, and what is typed in it, is one change)
+        QCOMPARE(rejectAll(*doc), 1);
         QVERIFY2(documentXml(doc->toDocx()) == saved, qPrintable(documentXml(doc->toDocx())));
     }
 
@@ -6216,15 +6216,15 @@ private Q_SLOTS:
         QCOMPARE(rowsOf(marked), 2);   // (the row stays, marked)
         QCOMPARE(count(marked, "<w:trPr><w:del "), 1);
         QVERIFY2(marked.contains("b1") && marked.contains("b2") && count(marked, "<w:delText") == 2, marked.constData());
-        QCOMPARE(documentRevisionCount(*doc), 3);   // (the row's mark and the two words)
+        QCOMPARE(documentRevisionCount(*doc), 1);   // (the row, with its words and paragraph marks, is one change)
         QVERIFY(doc->canUndo());
         // Saved and read back; Reject All gives the saved file back, Accept All takes the row out.
         auto again = open(doc->toDocx());
         QVERIFY(again);
-        QCOMPARE(documentRevisionCount(*again), 3);
-        QCOMPARE(rejectAll(*again), 3);
+        QCOMPARE(documentRevisionCount(*again), 1);
+        QCOMPARE(rejectAll(*again), 1);
         QVERIFY2(documentXml(again->toDocx()) == saved, qPrintable(documentXml(again->toDocx())));
-        QCOMPARE(acceptAll(*doc), 3);
+        QCOMPARE(acceptAll(*doc), 1);
         const QByteArray accepted = documentXml(doc->toDocx());
         QCOMPARE(rowsOf(accepted), 1);
         QVERIFY2(!accepted.contains("b1") && !accepted.contains("<w:del "), accepted.constData());
@@ -6266,7 +6266,7 @@ private Q_SLOTS:
         QCOMPARE(rowsOf(marked), 2);
         QCOMPARE(count(marked, "<w:trPr><w:del "), 2);
         QCOMPARE(count(marked, "<w:delText"), 4);
-        QCOMPARE(rejectAll(*doc), 6);
+        QCOMPARE(rejectAll(*doc), 2);
         QVERIFY2(documentXml(doc->toDocx()) == saved, qPrintable(documentXml(doc->toDocx())));
     }
 
@@ -6316,11 +6316,10 @@ private Q_SLOTS:
         }
     }
 
-    // What an untracked change must not do: take part of a row that is tracked (an inserted or a deleted row), which would leave its marks wrong. Those commands are turned down, and say why.
-    void aTableCommandThatWouldTakePartOfATrackedRowIsTurnedDownAndSaysWhy()
+    // The commands that are not recorded and would take part of a row that is tracked.
+    static QVector<std::pair<const char *, std::function<void(WriteDoc &, QTextCursor &)>>> refusedCommands()
     {
-        using Command = std::function<void(WriteDoc &, QTextCursor &)>;
-        const QVector<std::pair<const char *, Command>> commands = {
+        return QVector<std::pair<const char *, std::function<void(WriteDoc &, QTextCursor &)>>> {
             {"delete columns", [](WriteDoc &d, QTextCursor &c) { deleteTableColumns(d, c); }},
             {"delete cells left", [](WriteDoc &d, QTextCursor &c) { deleteTableCellsShiftLeft(d, c); }},
             {"delete cells up", [](WriteDoc &d, QTextCursor &c) { deleteTableCellsShiftUp(d, c); }},
@@ -6332,6 +6331,12 @@ private Q_SLOTS:
              }},
             {"split cells", [](WriteDoc &d, QTextCursor &c) { splitCells(d, c, 2, 1); }},
         };
+    }
+
+    // What an untracked change must not do: take part of a row that is tracked (an inserted or a deleted row), which would leave its marks wrong. Those commands are turned down, and say why.
+    void aTableCommandThatWouldTakePartOfATrackedRowIsTurnedDownAndSaysWhy()
+    {
+        const auto commands = refusedCommands();
         for (const auto &command : commands) {
             for (const bool deleted : {false, true}) {
                 auto doc = open(makeDocx(twoByTwoTable()));
@@ -6481,6 +6486,397 @@ private Q_SLOTS:
         for (const QString &key : {QStringLiteral("1"), QStringLiteral("."), QStringLiteral(" ")}) typeText(*doc, c, key, options);
         QVERIFY(documentXml(doc->toDocx()).contains("<w:numPr>"));
         QVERIFY(said.count() >= 1);
+    }
+
+    // ---------------------------------------------------------------- fixes after the review (nested tables, locked tracking, change ids, own rows, commands that were refused)
+    static QByteArray innerTable(const char *a, const char *b, const QByteArray &firstCell = QByteArray())
+    {
+        return tableOf({{QByteArray(), {cellOf({}, firstCell.isEmpty() ? para(run(a)) : firstCell)}}, {QByteArray(), {cellOf({}, para(run(b)))}}}, 1);
+    }
+
+    // A table of two rows whose row 0 holds a table of two rows (in its first cell, or its second); the second row is words.
+    static QByteArray nestedDoc(bool nestedFirst, bool deeper = false)
+    {
+        const QByteArray inner = cellOf({}, deeper ? innerTable("n1", "n2", tableOf({{QByteArray(), {cellOf({}, para(run("deep")))}}}, 1)) : innerTable("n1", "n2"));
+        const QByteArray words = cellOf({}, para(run("a2")));
+        return para(run("before")) + tableOf({{QByteArray(), nestedFirst ? QVector<QByteArray>{inner, words} : QVector<QByteArray>{words, inner}}, {QByteArray(), {cellOf({}, para(run("b1"))), cellOf({}, para(run("b2")))}}}, 2);
+    }
+
+    static QStringList revisionIdsIn(const QByteArray &x)
+    {
+        QStringList ids;
+        static const QRegularExpression re(QStringLiteral("<w:(?:ins|del|moveFrom|moveTo)\\s[^>]*w:id=\"(\\d+)\""));
+        for (auto it = re.globalMatch(QString::fromLatin1(x)); it.hasNext();) ids << it.next().captured(1);
+        return ids;
+    }
+
+    static void verifyIdsAreUnique(const QByteArray &x, int atLeast)
+    {
+        const QStringList ids = revisionIdsIn(x);
+        QVERIFY2(ids.size() >= atLeast, qPrintable(ids.join(QLatin1Char(' '))));
+        QVERIFY2(QSet<QString>(ids.begin(), ids.end()).size() == ids.size(), qPrintable(ids.join(QLatin1Char(' '))));
+    }
+
+    // Rows deleted with Track Changes on, where a row holds a table: the rows the person chose, and every row of the tables in them, carry the deletion; Accept All takes every one out, Reject All gives
+    // the file back, and Undo gives it back in one step.
+    void rowsThatHoldANestedTableAreMarkedAtTheirOwnLevelAndEveryNestedRowToo()
+    {
+        struct Case {
+            const char *name;
+            bool nestedFirst, deeper, table;
+            const char *caret;
+            int rows, marks;   // the rows in the file, and the rows that carry a deletion after the command
+        };
+        const Case cases[] = {{"row, table in the first cell", true, false, false, "a2", 4, 3},    {"row, table in the second cell", false, false, false, "a2", 4, 3},
+                              {"row, two levels", true, true, false, "a2", 5, 4},                  {"row in the nested table", true, false, false, "n1", 4, 1},
+                              {"whole table", true, false, true, "b1", 4, 4},                      {"whole table, table in the second cell", false, false, true, "b1", 4, 4},
+                              {"whole table, two levels", false, true, true, "b1", 5, 5}};
+        for (const Case &k : cases) {
+            auto doc = open(makeDocx(nestedDoc(k.nestedFirst, k.deeper)));
+            QVERIFY2(doc, k.name);
+            const QByteArray saved = documentXml(doc->toDocx());
+            QVERIFY2(rowsOf(saved) == k.rows, k.name);
+            doc->setTrackChanges(true);
+            QTextCursor c = inParagraph(*doc, k.caret);
+            if (k.table) deleteTable(*doc, c);
+            else deleteTableRows(*doc, c);
+            const QByteArray marked = documentXml(doc->toDocx());
+            QVERIFY2(rowsOf(marked) == k.rows, k.name);
+            QVERIFY2(count(marked, "<w:trPr><w:del ") == k.marks, qPrintable(QStringLiteral("%1: %2 marks").arg(QLatin1String(k.name)).arg(count(marked, "<w:trPr><w:del "))));
+            verifyIdsAreUnique(marked, k.marks);
+            if (QTest::currentTestFailed()) return;
+            // The outer row of a table that holds a table is marked (the row the person chose is the first one in the file that carries a mark).
+            if (!k.table && !k.deeper && QLatin1String(k.caret) == QLatin1String("a2")) QVERIFY2(marked.indexOf("<w:trPr><w:del ") < marked.indexOf("n1"), k.name);
+            // (A row whose first cell begins with a table, at any level, is not listed by the reader as a change of its own yet: those cases are looked at only as far as the marks and Undo.)
+            if (k.nestedFirst || k.deeper) {
+                QVERIFY2(doc->undo() && documentXml(doc->toDocx()) == saved && !doc->canUndo(), k.name);
+                continue;
+            }
+            // Saved and read back: Reject All gives the file back.
+            auto again = open(doc->toDocx());
+            QVERIFY2(again, k.name);
+            rejectAll(*again);
+            QVERIFY2(documentXml(again->toDocx()) == saved, k.name);
+            // Accept All takes out every row that was marked, with what was in it: no empty cells are left behind.
+            acceptAll(*doc);
+            const QByteArray accepted = documentXml(doc->toDocx());
+            QVERIFY2(!accepted.contains("<w:del ") && !accepted.contains("<w:ins "), k.name);
+            QVERIFY2(rowsOf(accepted) == k.rows - k.marks, qPrintable(QStringLiteral("%1: %2 rows left").arg(QLatin1String(k.name)).arg(rowsOf(accepted))));
+            if (k.table) QVERIFY2(!accepted.contains("<w:tbl>"), k.name);
+            if (!k.table && QLatin1String(k.caret) == QLatin1String("a2")) QVERIFY2(!accepted.contains("n1") && !accepted.contains("a2") && accepted.contains("b1"), k.name);
+            // Undo: the accepting, then the deleting, one step each.
+            QVERIFY2(doc->undo() && doc->undo(), k.name);
+            QVERIFY2(documentXml(doc->toDocx()) == saved && !doc->canUndo(), k.name);
+        }
+    }
+
+    // A document whose protection locks Track Changes on: Accept and Reject can't be used, so a command that leaves tracked rows wrong is not refused (it is made, as with Track Changes off, and the
+    // status bar says it was not recorded). The same where the document is held read only.
+    void inADocumentWhereTheMarksCannotBeResolvedNoTableCommandIsRefusedForGood()
+    {
+        for (const char *kind : {"trackedChanges", "readOnly"}) {
+            for (int which = 0; which < 6; ++which) {
+                auto doc = open(makeDocx(twoByTwoTable()));
+                QVERIFY(doc);
+                doc->setReviewer(QStringLiteral("Zed"), QString());
+                doc->setProtection(office::wml::makeDocumentProtection(QString::fromLatin1(kind), QString()));
+                doc->setTrackChanges(true);
+                QTextCursor first = inParagraph(*doc, "a1");
+                insertTableRow(*doc, first, true);   // (a row that is tracked)
+                const QByteArray marked = documentXml(doc->toDocx());
+                QCOMPARE(count(marked, "<w:trPr><w:ins "), 1);
+                const auto commands = refusedCommands();
+                QTextCursor c = inParagraph(*doc, "b1");
+                QSignalSpy said(doc.get(), &WriteDoc::untrackedChange);
+                doc->tableNotice.clear();
+                commands[which].second(*doc, c);
+                QVERIFY2(documentXml(doc->toDocx()) != marked, commands[which].first);
+                QVERIFY2(doc->tableNotice.isEmpty(), commands[which].first);
+                QVERIFY2(said.count() == 1, commands[which].first);
+                QVERIFY2(doc->undo(), commands[which].first);
+                QVERIFY2(documentXml(doc->toDocx()) == marked, commands[which].first);
+            }
+        }
+    }
+
+    // Every revision mark that a row command writes has an id of its own.
+    void everyMarkOfARowCommandHasAnIdOfItsOwn()
+    {
+        const QByteArray threeRows = para(run("before")) + tableOf({{QByteArray(), {cellOf({}, para(run("p1"))), cellOf({}, para(run("p2")))}}, {QByteArray(), {cellOf({}, para(run("q1"))), cellOf({}, para(run("q2")))}},
+                                                                     {QByteArray(), {cellOf({}, para(run("r1"))), cellOf({}, para(run("r2")))}}}, 2);
+        {   // Delete Rows on three rows
+            auto doc = open(makeDocx(threeRows));
+            QVERIFY(doc);
+            doc->setTrackChanges(true);
+            QTextCursor c = inParagraph(*doc, "p1");
+            c.setPosition(inParagraph(*doc, "r2").position(), QTextCursor::KeepAnchor);
+            deleteTableRows(*doc, c);
+            const QByteArray x = documentXml(doc->toDocx());
+            QCOMPARE(count(x, "<w:trPr><w:del "), 3);
+            verifyIdsAreUnique(x, 9);
+        }
+        {   // Delete Table
+            auto doc = open(makeDocx(threeRows));
+            doc->setTrackChanges(true);
+            QTextCursor c = inParagraph(*doc, "q2");
+            deleteTable(*doc, c);
+            verifyIdsAreUnique(documentXml(doc->toDocx()), 9);
+        }
+        {   // A table made, and a row put in it
+            auto doc = open(makeDocx(para(run("one")) + para(run("two"))));
+            doc->setTrackChanges(true);
+            QTextCursor c = inParagraph(*doc, "one", 3);
+            NewTable table;
+            table.rows = 3;
+            table.columns = 2;
+            QVERIFY(insertTable(*doc, c, table));
+            QTextCursor in = inParagraph(*doc, "two", 1);
+            in.setPosition(doc->story()->findBlockByNumber(1).position());
+            insertTableRow(*doc, in, true);
+            verifyIdsAreUnique(documentXml(doc->toDocx()), 4);
+        }
+        {   // A table that holds tables
+            auto doc = open(makeDocx(nestedDoc(true, true)));
+            doc->setTrackChanges(true);
+            QTextCursor c = inParagraph(*doc, "a2");
+            deleteTableRows(*doc, c);
+            verifyIdsAreUnique(documentXml(doc->toDocx()), 4);
+        }
+    }
+
+    // Deleting rows that include a row the same person inserted (with Track Changes on): that row just goes, as it does when all the rows chosen are theirs, and the others are marked deleted.
+    void rowsDeletedAroundARowTheSamePersonInsertedTakeThatRowOutForGood()
+    {
+        const QByteArray threeRows = para(run("before")) + tableOf({{QByteArray(), {cellOf({}, para(run("p1"))), cellOf({}, para(run("p2")))}}, {QByteArray(), {cellOf({}, para(run("q1"))), cellOf({}, para(run("q2")))}},
+                                                                     {QByteArray(), {cellOf({}, para(run("r1"))), cellOf({}, para(run("r2")))}}}, 2);
+        for (const bool wholeTable : {false, true}) {
+            auto doc = open(makeDocx(threeRows));
+            QVERIFY(doc);
+            doc->setReviewer(QStringLiteral("Zed"), QString());
+            const QByteArray saved = documentXml(doc->toDocx());
+            doc->setTrackChanges(true);
+            QTextCursor at = inParagraph(*doc, "q1");
+            insertTableRow(*doc, at, true);   // (a row of the person's own between q and r)
+            const QByteArray inserted = documentXml(doc->toDocx());
+            QCOMPARE(rowsOf(inserted), 4);
+            QCOMPARE(count(inserted, "<w:trPr><w:ins "), 1);
+            QTextCursor c = inParagraph(*doc, wholeTable ? "p1" : "q1");
+            c.setPosition(inParagraph(*doc, "r2").position(), QTextCursor::KeepAnchor);
+            deleteTableRows(*doc, c);
+            const QByteArray marked = documentXml(doc->toDocx());
+            QCOMPARE(rowsOf(marked), 3);
+            QCOMPARE(count(marked, "<w:trPr><w:ins "), 0);
+            QCOMPARE(count(marked, "<w:trPr><w:del "), wholeTable ? 3 : 2);
+            verifyIdsAreUnique(marked, 2);
+            auto again = open(doc->toDocx());
+            QVERIFY(again);
+            rejectAll(*again);
+            QVERIFY2(documentXml(again->toDocx()) == saved, qPrintable(documentXml(again->toDocx())));
+            acceptAll(*doc);
+            QCOMPARE(rowsOf(documentXml(doc->toDocx())), wholeTable ? 0 : 1);
+            // Undo: the accepting, the deleting (which also took the row out), and the insertion, one step each.
+            QVERIFY(doc->undo());
+            QVERIFY(doc->undo());
+            QVERIFY2(documentXml(doc->toDocx()) == inserted, qPrintable(documentXml(doc->toDocx())));
+            QVERIFY(doc->undo());
+            QVERIFY2(documentXml(doc->toDocx()) == saved, qPrintable(documentXml(doc->toDocx())));
+            QVERIFY(!doc->canUndo());
+        }
+    }
+
+    // Delete Cells of the window, with Track Changes on: made as with it off, and the status bar says it was not recorded; turned down only where it would take part of a tracked row.
+    void deleteCellsOfTheWindowWorkWithTrackingOnAndSaySoUnlessARowIsTracked()
+    {
+        for (const char *id : {"table.deleteCells", "table.deleteCellsUp"}) {
+            QByteArray result[2];
+            for (const bool tracking : {true, false}) {
+                WriteWindow w;
+                w.setNotifier([](const QString &, const QString &) {});
+                w.show();
+                w.setDocument(open(makeDocx(twoByTwoTable())), QString());
+                WriteDoc *doc = w.document();
+                doc->setTrackChanges(tracking);
+                const QByteArray saved = documentXml(doc->toDocx());
+                w.view()->setCursor(inParagraph(*doc, "b1"));
+                w.refreshNow();
+                QVERIFY2(w.act(QString::fromLatin1(id))->isEnabled(), id);
+                w.statusBar()->clearMessage();
+                w.act(QString::fromLatin1(id))->trigger();
+                result[tracking ? 0 : 1] = documentXml(doc->toDocx());
+                QVERIFY2(result[tracking ? 0 : 1] != saved, id);
+                QVERIFY2((w.statusBar()->currentMessage() == untrackedNoticeText()) == tracking, qPrintable(w.statusBar()->currentMessage()));
+                QVERIFY2(doc->undo() && documentXml(doc->toDocx()) == saved, id);
+            }
+            QVERIFY2(result[0] == result[1], id);
+        }
+        // (A row with a tracked mark: turned down, with the reason, and nothing changed.)
+        WriteWindow w;
+        w.setNotifier([](const QString &, const QString &) {});
+        w.show();
+        w.setDocument(open(makeDocx(twoByTwoTable())), QString());
+        WriteDoc *doc = w.document();
+        doc->setTrackChanges(true);
+        QTextCursor first = inParagraph(*doc, "a1");
+        insertTableRow(*doc, first, true);
+        const QByteArray marked = documentXml(doc->toDocx());
+        w.view()->setCursor(inParagraph(*doc, "b1"));
+        w.refreshNow();
+        w.act(QStringLiteral("table.deleteCells"))->trigger();
+        QCOMPARE(w.statusBar()->currentMessage(), trackedRowsText());
+        QVERIFY(documentXml(doc->toDocx()) == marked);
+    }
+
+    // ---------------------------------------------------------------- markup of tracked rows, as the reference program writes it (its own files rebuilt here by hand)
+    static QVector<Revision> changesOf(WriteDoc &doc) { return revisionsIn(doc.story()); }
+
+    static QByteArray markedParagraph(const char *tag, int id, const QByteArray &words = QByteArray(), const char *author = "Ann")
+    {
+        return para(words, "<w:rPr><w:" + QByteArray(tag) + rev(id, author) + "/></w:rPr>");
+    }
+
+    // A tracked row insert or delete writes the row's mark, and a mark on the paragraph of every cell, and the words are wrapped; the row is one change.
+    void aTrackedRowCarriesAMarkOnEveryCellParagraphAndIsOneChange()
+    {
+        auto doc = open(makeDocx(twoByTwoTable()));
+        QVERIFY(doc);
+        doc->setReviewer(QStringLiteral("Zed"), QString());
+        doc->setTrackChanges(true);
+        QTextCursor c = inParagraph(*doc, "a1");
+        insertTableRow(*doc, c, true);
+        QByteArray x = documentXml(doc->toDocx());
+        QCOMPARE(count(x, "<w:trPr><w:ins "), 1);
+        QCOMPARE(count(x, "<w:rPr><w:ins "), 2);   // (the paragraph of each of the two new cells)
+        QCOMPARE(changesOf(*doc).size(), 1);
+        verifyIdsAreUnique(x, 3);
+        QTextCursor d = inParagraph(*doc, "b1");
+        deleteTableRows(*doc, d);
+        x = documentXml(doc->toDocx());
+        QCOMPARE(count(x, "<w:trPr><w:del "), 1);
+        QCOMPARE(count(x, "<w:rPr><w:del "), 2);
+        QCOMPARE(count(x, "<w:delText"), 2);
+        QCOMPARE(changesOf(*doc).size(), 2);   // (the inserted row, and the deleted row)
+        verifyIdsAreUnique(x, 7);
+    }
+
+    // What the reference writes for a deleted row: the row's mark, a mark on each cell paragraph (an empty cell is a bare paragraph with only its mark), wrapped words, and records of the old properties
+    // of the table, its grid, its rows, and its cells. Accept All takes the row out; Reject All gives it back; neither leaves a record behind. The row is one change.
+    void aDeletedRowAsAnotherProgramWritesItIsOneChangeAndLeavesNoRecordBehind()
+    {
+        const char *date = "2026-01-02T03:04:05Z";
+        auto rec = [&](const char *name, int id, const QByteArray &inner) { return "<w:" + QByteArray(name) + " w:id=\"" + QByteArray::number(id) + "\" w:author=\"Ann\" w:date=\"" + date + "\">" + inner + "</w:" + name + ">"; };
+        const QByteArray shd = "<w:tcPrChange w:id=\"%1\" w:author=\"Ann\" w:date=\"2026-01-02T03:04:05Z\"><w:tcPr><w:shd w:val=\"clear\" w:color=\"auto\" w:fill=\"auto\"/></w:tcPr></w:tcPrChange>";
+        QByteArray table = tableOf({{QByteArray(), {cellOf(QByteArray(shd).replace("%1", "20"), para(run("R1C1"))), cellOf(QByteArray(shd).replace("%1", "21"), para(run("R1C2")))}},
+                                    {"<w:del" + rev(6) + "/>", {cellOf(QByteArray(shd).replace("%1", "22"), markedParagraph("del", 8, "<w:del" + rev(9) + "><w:r><w:delText>R2C1 words</w:delText></w:r></w:del>")),
+                                                                 cellOf(QByteArray(shd).replace("%1", "23"), markedParagraph("del", 11))}}},
+                                   2, "<w:tblW w:w=\"0\" w:type=\"auto\"/>" + rec("tblPrChange", 0, "<w:tblPr><w:tblW w:w=\"9360\" w:type=\"dxa\"/></w:tblPr>"));
+        table.replace("</w:tblGrid>", rec("tblGridChange", 1, "<w:tblGrid><w:gridCol w:w=\"1000\"/><w:gridCol w:w=\"1000\"/></w:tblGrid>") + "</w:tblGrid>");
+        table.replace("<w:tr>", "<w:tr><w:tblPrEx>" + rec("tblPrExChange", 2, "<w:tblPrEx/>") + "</w:tblPrEx>");
+        const QByteArray file = makeDocx(para(run("before")) + table);
+        {
+            auto doc = open(file);
+            QVERIFY(doc);
+            int rows = 0, other = 0;
+            for (const Revision &r : changesOf(*doc)) {
+                rows += r.kind == Revision::RowDeleted;
+                other += r.kind == Revision::Deletion || r.kind == Revision::MarkDeleted;
+            }
+            QCOMPARE(rows, 1);
+            QCOMPARE(other, 0);   // (the words and the paragraph marks are the row's)
+        }
+        {
+            auto doc = open(file);
+            acceptAll(*doc);
+            const QByteArray x = documentXml(doc->toDocx());
+            QCOMPARE(rowsOf(x), 1);
+            QVERIFY2(!x.contains("Change") && !x.contains("<w:del") && !x.contains("R2C1"), x.constData());
+            QVERIFY(x.contains("R1C1"));
+        }
+        {
+            auto doc = open(file);
+            rejectAll(*doc);
+            const QByteArray x = documentXml(doc->toDocx());
+            QCOMPARE(rowsOf(x), 2);
+            QVERIFY2(!x.contains("Change") && !x.contains("<w:del") && !x.contains("delText"), x.constData());
+            QVERIFY2(x.contains("<w:t xml:space=\"preserve\">R2C1 words</w:t>") || x.contains(">R2C1 words<"), x.constData());
+        }
+    }
+
+    // A row that one person inserted and another deleted carries both marks, and Accept All and Reject All both take it out.
+    void aRowOnePersonInsertedAndAnotherDeletedCarriesBothMarksAndGoesWithEither()
+    {
+        auto doc = open(makeDocx(twoByTwoTable()));
+        QVERIFY(doc);
+        const QByteArray saved = documentXml(doc->toDocx());
+        doc->setReviewer(QStringLiteral("Ann"), QString());
+        doc->setTrackChanges(true);
+        QTextCursor c = inParagraph(*doc, "a1");
+        insertTableRow(*doc, c, true);
+        doc->setReviewer(QStringLiteral("Bob"), QString());
+        QTextCursor in;
+        for (QTextBlock b = doc->story()->begin(); b.isValid(); b = b.next())
+            if (b.text().isEmpty() && cellKeyOf(b) && b.previous().text() == QLatin1String("a2")) in = QTextCursor(b);
+        deleteTableRows(*doc, in);
+        const QByteArray x = documentXml(doc->toDocx());
+        QVERIFY2(x.contains("<w:trPr><w:ins ") && x.contains("<w:del "), x.constData());
+        QCOMPARE(count(x, "<w:trPr><w:ins "), 1);
+        QVERIFY2(x.contains("w:author=\"Ann\"") && x.contains("w:author=\"Bob\""), x.constData());
+        QCOMPARE(count(x, "<w:rPr><w:ins "), 2);
+        QCOMPARE(count(x, "/><w:del w:id"), 3);   // (the row's mark and the mark of each cell paragraph, each beside the insertion)
+        verifyIdsAreUnique(x, 6);
+        for (const bool accept : {true, false}) {
+            auto again = open(doc->toDocx());
+            QVERIFY(again);
+            if (accept) acceptAll(*again);
+            else rejectAll(*again);
+            const QByteArray y = documentXml(again->toDocx());
+            QCOMPARE(rowsOf(y), 2);
+            QVERIFY2(!y.contains("<w:ins ") && !y.contains("<w:del "), y.constData());
+            if (!accept) QVERIFY2(y == saved, y.constData());
+        }
+    }
+
+    // A row in a vertical merge is deleted with no record (no other program records it): it is made, and the status bar says so.
+    void aRowInAVerticalMergeIsDeletedWithoutARecordAndSaysSo()
+    {
+        const QByteArray body = para(run("before")) + tableOf({{QByteArray(), {cellOf("<w:vMerge w:val=\"restart\"/>", para(run("m1"))), cellOf({}, para(run("x1")))}},
+                                                               {QByteArray(), {cellOf("<w:vMerge/>", para(QByteArray())), cellOf({}, para(run("x2")))}},
+                                                               {QByteArray(), {cellOf({}, para(run("y1"))), cellOf({}, para(run("y2")))}}}, 2);
+        for (const char *caret : {"x2", "y1"}) {
+            for (const bool tracking : {true, false}) {
+                auto doc = open(makeDocx(body));
+                QVERIFY(doc);
+                const QByteArray saved = documentXml(doc->toDocx());
+                doc->setTrackChanges(tracking);
+                QSignalSpy said(doc.get(), &WriteDoc::untrackedChange);
+                QTextCursor c = inParagraph(*doc, caret);
+                deleteTableRows(*doc, c);
+                const QByteArray x = documentXml(doc->toDocx());
+                const bool merged = QLatin1String(caret) == QLatin1String("x2");
+                if (merged) {
+                    QVERIFY2(x != saved && marksIn(x) == 0, caret);
+                    QCOMPARE(said.count(), tracking ? 1 : 0);
+                } else if (tracking) {
+                    QCOMPARE(count(x, "<w:trPr><w:del "), 1);   // (a row outside the merge is tracked)
+                    QCOMPARE(said.count(), 0);
+                }
+            }
+        }
+    }
+
+    // A table that holds more tables than are marked at once is left as it is, and says why.
+    void rowsHoldingTooManyTablesAreNotMarkedAndSayWhy()
+    {
+        QByteArray inner;
+        for (int i = 0; i < 201; ++i) inner += tableOf({{QByteArray(), {cellOf({}, para(run("n")))}}}, 1);
+        auto doc = open(makeDocx(para(run("before")) + tableOf({{QByteArray(), {cellOf({}, inner + para(run("last"))), cellOf({}, para(run("a2")))}}, {QByteArray(), {cellOf({}, para(run("b1"))), cellOf({}, para(run("b2")))}}}, 2)));
+        QVERIFY(doc);
+        const QByteArray saved = documentXml(doc->toDocx());
+        doc->setTrackChanges(true);
+        QTextCursor c = inParagraph(*doc, "a2");
+        deleteTableRows(*doc, c);
+        QVERIFY2(documentXml(doc->toDocx()) == saved, "nothing was changed");
+        QVERIFY(!doc->tableNotice.isEmpty());
+        QVERIFY(!doc->canUndo());
     }
 };
 

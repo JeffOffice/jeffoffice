@@ -32,7 +32,7 @@ TrackPolicy trackPolicyOf(const QString &id, bool *known)
     static const QStringList trackedPrefixes = {QStringLiteral("fmt."), QStringLiteral("ls."), QStringLiteral("insert.special."), QStringLiteral("para.border."), QStringLiteral("style.heading"),
                                                 QStringLiteral("style.apply:"), QStringLiteral("symbol.insert:"), QStringLiteral("table."), QStringLiteral("insert.ready."),
                                                 QStringLiteral("edit.pasteTable"), QStringLiteral("layout.sectionBreak")};
-    static const QSet<QString> tracked = setOf({"edit.cut", "edit.paste", "edit.pasteMerge", "edit.pasteText", "edit.pasteSpecial", "edit.pasteFormat", "edit.pasteListContinue", "edit.pasteListMerge",
+    static const QSet<QString> tracked = setOf({"review.thesaurus", "edit.cut", "edit.paste", "edit.pasteMerge", "edit.pasteText", "edit.pasteSpecial", "edit.pasteFormat", "edit.pasteListContinue", "edit.pasteListMerge",
         "edit.pasteListNew", "insert.pageBreak", "insert.blankPage", "insert.symbol", "layout.columnBreak", "para.horizontalLine", "para.bordersShading", "para.dialog", "style.normal",
         "refs.addText.1", "refs.addText.2", "refs.addText.3", "refs.addText.none", "insert.cover.band", "insert.cover.classic", "insert.cover.plain", "review.noProof", "review.language",
         "insert.table", "insert.convertTextToTable", "outline.moveUp", "outline.moveDown", "outline.promote", "outline.demote", "outline.toHeading1", "outline.toBody"});
@@ -61,6 +61,8 @@ TrackPolicy trackPolicyOf(const QString &id, bool *known)
     static const QSet<QString> untracked = setOf({"insert.header", "insert.footer", "insert.field", "insert.bookmark", "insert.hyperlink", "insert.removeHyperlink", "insert.dateTime",
         "insert.barcode", "insert.icons", "insert.onlinePicture", "insert.picture", "insert.pictureClipboard", "insert.drawingCanvas", "insert.expandShortcut", "insert.textFromFile",
         "edit.pastePicture", "edit.pasteObject", "edit.replaceFonts"});
+    // (A section moves as it is with Track Changes off, and says so.)
+    if (id == QLatin1String("view.moveSectionUp") || id == QLatin1String("view.moveSectionDown")) return TrackPolicy::Untracked;
     if (tracked.contains(id) || startsWithAny(id, trackedPrefixes)) return TrackPolicy::Tracked;
     if (inText.contains(id)) return TrackPolicy::TrackedInText;
     if (neutral.contains(id) || startsWithAny(id, neutralPrefixes)) return TrackPolicy::Neutral;
@@ -68,6 +70,13 @@ TrackPolicy trackPolicyOf(const QString &id, bool *known)
     // What is not named is Untracked too, and a command that is added later has to be put on one side.
     if (known) *known = false;
     return TrackPolicy::Untracked;
+}
+
+bool trackedMarksCanBeResolved(const WriteDoc &doc)
+{
+    const auto protection = doc.protection();
+    if (!protection || !protection->enforced) return true;
+    return !(protection->edit == QLatin1String("trackedChanges") || protection->edit == QLatin1String("readOnly") || protection->edit == QLatin1String("comments") || protection->edit == QLatin1String("forms"));
 }
 
 QString untrackedNoticeText() { return QCoreApplication::translate("jp::write::Tracking", "This change was not recorded as a tracked change."); }

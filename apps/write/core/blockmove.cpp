@@ -170,7 +170,6 @@ bool moveBlocks(WriteDoc &doc, int first, int last, int before, QString *why, in
     if (!toEnd && t.position() >= a.position() && after.isValid() && t.position() <= after.position()) return false;   // (where it is)
     if (!toEnd && !after.isValid() && t.position() >= a.position()) return false;
     if (toEnd && !after.isValid()) return false;
-    if (doc.trackChanges()) return refuse(QCoreApplication::translate("jp::write::BlockMove", "Turn off Track Changes to move a section."));
     if (doc.protection() && doc.protection()->enforced) return refuse(QCoreApplication::translate("jp::write::BlockMove", "This document is protected, so a section can't be moved."));
     if (doc.hasSectionEndEndnotes()) return refuse(QCoreApplication::translate("jp::write::BlockMove", "Sections can't be moved while endnotes are collected at the end of each section. Put the endnotes at the end of the document first."));
     // The blocks the move is about: the run `r0` to `r1`, the one before it, the one after it, and the one it goes before with the one before that.

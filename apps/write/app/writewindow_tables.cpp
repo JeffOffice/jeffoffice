@@ -126,14 +126,8 @@ void WriteWindow::createTableActions()
     cmd(QStringLiteral("table.insertBelow"), tr("Insert Below"), "between-vertical-end", [](write::WriteDoc &d, QTextCursor &c) { write::insertTableRow(d, c, true); });
     cmd(QStringLiteral("table.insertLeft"), tr("Insert Left"), "between-horizontal-start", [](write::WriteDoc &d, QTextCursor &c) { write::insertTableColumn(d, c, false); });
     cmd(QStringLiteral("table.insertRight"), tr("Insert Right"), "between-horizontal-end", [](write::WriteDoc &d, QTextCursor &c) { write::insertTableColumn(d, c, true); });
-    cmd(QStringLiteral("table.deleteCells"), tr("Delete Cells, Shift Left"), "grid-2x2-x", [](write::WriteDoc &d, QTextCursor &c) {
-        if (d.trackChanges()) d.tableNotice = tr("Turn off Track Changes to delete cells and shift the others.");   // (the words that move would move with no change marked)
-        else write::deleteTableCellsShiftLeft(d, c);
-    });
-    cmd(QStringLiteral("table.deleteCellsUp"), tr("Delete Cells, Shift Up"), "grid-2x2-x", [](write::WriteDoc &d, QTextCursor &c) {
-        if (d.trackChanges()) d.tableNotice = tr("Turn off Track Changes to delete cells and shift the others.");
-        else write::deleteTableCellsShiftUp(d, c);
-    });
+    cmd(QStringLiteral("table.deleteCells"), tr("Delete Cells, Shift Left"), "grid-2x2-x", [](write::WriteDoc &d, QTextCursor &c) { write::deleteTableCellsShiftLeft(d, c); });
+    cmd(QStringLiteral("table.deleteCellsUp"), tr("Delete Cells, Shift Up"), "grid-2x2-x", [](write::WriteDoc &d, QTextCursor &c) { write::deleteTableCellsShiftUp(d, c); });
     cmd(QStringLiteral("table.deleteRows"), tr("Delete Rows"), "grid-2x2-x", [](write::WriteDoc &d, QTextCursor &c) { write::deleteTableRows(d, c); });
     cmd(QStringLiteral("table.deleteColumns"), tr("Delete Columns"), "table-columns-split", [](write::WriteDoc &d, QTextCursor &c) { write::deleteTableColumns(d, c); });
     cmd(QStringLiteral("table.deleteTable"), tr("Delete Table"), "trash-2", [](write::WriteDoc &d, QTextCursor &c) { write::deleteTable(d, c); });

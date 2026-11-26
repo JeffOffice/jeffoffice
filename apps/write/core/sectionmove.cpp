@@ -65,7 +65,9 @@ bool moveSection(WriteDoc &doc, int position, int before, QString *why, int *mov
         if (why) *why = QCoreApplication::translate("jp::write::SectionMove", "Only a heading, with what is under it, can be moved.");
         return false;
     }
-    return moveBlocks(doc, range.first, range.last, before, why, movedTo);
+    const bool moved = moveBlocks(doc, range.first, range.last, before, why, movedTo);
+    if (moved && doc.trackChanges()) doc.noteUntrackedChange();   // (a move is not recorded as a tracked change: the text goes as it is, with the changes in it)
+    return moved;
 }
 
 bool moveSectionBy(WriteDoc &doc, int position, bool up, QString *why, int *movedTo)
@@ -106,7 +108,9 @@ bool moveSectionBy(WriteDoc &doc, int position, bool up, QString *why, int *move
         before = beyond.isValid() && beyond.position() <= end ? beyond.position() : -1;
         if (before < 0 && !beyond.isValid()) before = -1;
     }
-    return moveBlocks(doc, range.first, range.last, before, why, movedTo);
+    const bool moved = moveBlocks(doc, range.first, range.last, before, why, movedTo);
+    if (moved && doc.trackChanges()) doc.noteUntrackedChange();   // (a move is not recorded as a tracked change: the text goes as it is, with the changes in it)
+    return moved;
 }
 
 } // namespace jp::write

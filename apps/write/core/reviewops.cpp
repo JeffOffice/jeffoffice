@@ -205,7 +205,7 @@ QVector<NumberingMark> numberingMarksOf(const QByteArray &extra)
     return out;
 }
 
-void addRevisionsOf(const QTextBlock &b, QVector<Revision> *out)
+void addRevisionsOfAll(const QTextBlock &b, QVector<Revision> *out)
 {
     ++s_blocksScanned;
     const int blockNo = b.blockNumber();
@@ -343,6 +343,26 @@ void addRevisionsOf(const QTextBlock &b, QVector<Revision> *out)
                 out->push_back(r);
             }
         }
+    }
+}
+
+// The changes of a paragraph. What a row that is inserted or deleted holds (its words, its paragraph marks, and the rows of tables in it) is the row's one change (as another program lists it): it is
+// not listed apart, and goes with the row when the row is kept or put back (see resolveRevisions). With `folded` false every one is listed.
+void addRevisionsOf(const QTextBlock &b, QVector<Revision> *out, bool folded = true)
+{
+    const qsizetype first = out->size();
+    addRevisionsOfAll(b, out);
+    if (!folded || !b.blockFormat().hasProperty(flow::fp::Cell) || out->size() == first) return;
+    const QVariant store = b.document()->property(kTableStoreProperty);
+    if (!store.isValid()) return;
+    const flow::TableStore &cells = *reinterpret_cast<const flow::TableStore *>(store.value<quintptr>());
+    for (qsizetype i = out->size() - 1; i >= first; --i) {
+        const Revision &r = out->at(i);
+        if (r.moved) continue;
+        const bool inserted = r.kind == Revision::Insertion || r.kind == Revision::MarkInserted || r.kind == Revision::RowInserted;
+        const bool deleted = r.kind == Revision::Deletion || r.kind == Revision::MarkDeleted || r.kind == Revision::RowDeleted;
+        if (!inserted && !deleted) continue;
+        if (coveredByRowChange(cells, b, inserted, r.author, r.kind != Revision::RowInserted && r.kind != Revision::RowDeleted)) out->removeAt(i);
     }
 }
 
@@ -1296,6 +1316,29 @@ int resolveRevisions(WriteDoc &doc, QTextDocument *story, const QVector<Revision
     if (whichGiven.isEmpty()) return 0;
     QVector<int> moveMarks;
     QVector<Revision> which = withMovePairs(story, whichGiven, &moveMarks);
+    int foldedExtra = 0;   // (what goes along with a row is not counted: the row is one change)
+    {   // A row that stays (an inserted row that is kept, a deleted row that is put back) takes what is marked in it along: its words, its paragraph marks, and the rows of the tables in it.
+        QVector<Revision> more;
+        QSet<qint64> have;
+        for (const Revision &r : std::as_const(which)) have.insert(qint64(r.kind) << 40 | r.from);
+        for (const Revision &r : std::as_const(whichGiven)) {
+            if (!((r.kind == Revision::RowInserted && accept) || (r.kind == Revision::RowDeleted && !accept))) continue;
+            const bool inserted = r.kind == Revision::RowInserted;
+            for (QTextBlock b = story->findBlock(r.from); b.isValid() && b.position() <= r.to; b = b.next()) {
+                QVector<Revision> all;
+                addRevisionsOf(b, &all, false);
+                for (const Revision &x : std::as_const(all)) {
+                    const bool kindFits = inserted ? (x.kind == Revision::Insertion || x.kind == Revision::MarkInserted || x.kind == Revision::RowInserted)
+                                                   : (x.kind == Revision::Deletion || x.kind == Revision::MarkDeleted || x.kind == Revision::RowDeleted);
+                    if (!kindFits || x.moved || x.author != r.author || x.from < r.from || x.from > r.to || have.contains(qint64(x.kind) << 40 | x.from)) continue;
+                    have.insert(qint64(x.kind) << 40 | x.from);
+                    more.push_back(x);
+                }
+            }
+        }
+        foldedExtra = int(more.size());
+        which += more;
+    }
     if (story == doc.story()) {
         // A change inside a content control whose contents can't be edited is left as it is (it stays to be resolved once the lock is off).
         const QVector<std::pair<int, int>> locked = lockedContentRanges(story, true);
@@ -1452,7 +1495,7 @@ int resolveRevisions(WriteDoc &doc, QTextDocument *story, const QVector<Revision
     if (!tablePlaces.isEmpty()) done += resolveTableRevisions(doc, story, tablePlaces, accept, kept);
     for (const QTextCursor &at : std::as_const(marksBeforeTables)) removeMark(doc, story, at.blockNumber());
     if (story->blockCount() < blocksBefore) dropEmptyControls(story, emptyBefore);   // (a control the paragraphs of which a change took out)
-    return done;
+    return std::max(0, done - foldedExtra);
 }
 
 int resolveRevisionsIn(WriteDoc &doc, QTextDocument *story, int from, int to, bool accept, int *kept, int *partners)
@@ -2256,13 +2299,15 @@ void markDeleted(WriteDoc &doc, QTextDocument *story, int from, int to)
     t.endEditBlock();
 }
 
-void markParagraphMark(WriteDoc &doc, QTextBlock block, const char *tag)
+void markParagraphMark(WriteDoc &doc, QTextBlock block, const char *tag, bool keepOther)
 {
     QTextCharFormat m = markFormat(block);
     QVector<RawChild> extra = extraOf(m, prop::RawRPr);
+    const bool putsDeletion = qstrcmp(tag, "del") == 0 || qstrcmp(tag, "moveFrom") == 0;
     for (int i = int(extra.size()) - 1; i >= 0; --i) {
         const QByteArray name = elementName(extra[i].xml);
-        if (name == "ins" || name == "del" || name == "moveFrom" || name == "moveTo") extra.removeAt(i);
+        const bool isDeletion = name == "del" || name == "moveFrom";
+        if ((name == "ins" || name == "del" || name == "moveFrom" || name == "moveTo") && (!keepOther || isDeletion == putsDeletion)) extra.removeAt(i);
     }
     QByteArray element = revisionStartTag(doc, QString::fromLatin1(tag));
     element.chop(1);

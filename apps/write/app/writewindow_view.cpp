@@ -71,7 +71,6 @@ QString WriteWindow::sectionMoveBlocker(int *heading) const
     const bool inComment = m_review && focusWidget() && m_review->isAncestorOf(focusWidget());
     if (m_view->inHeaderFooter() || m_view->inNote() || m_view->editingShapeText() || inComment || m_view->cursor().document() != m_doc->story() || write::inEndnoteWords(m_view->cursor()))
         return tr("Sections can be moved only from the main text of the document, not from a header, footer, note, text box, or comment.");
-    if (m_doc->trackChanges()) return QCoreApplication::translate("jp::write::BlockMove", "Turn off Track Changes to move a section.");
     const int at = write::headingAtOrAbove(*m_doc, m_view->cursor().position());
     if (at < 0) return tr("Put the caret in a heading, or under one, to move its section.");
     if (heading) *heading = at;

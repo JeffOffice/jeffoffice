@@ -125,6 +125,9 @@ struct TableChange {
 };
 // The changes that the paragraph begins (it is the first of a cell, and may be of a row and a table too); `store` has the records of the document's cells.
 void tableChangesAt(const flow::TableStore &store, const QTextBlock &b, QVector<TableChange> *out);
+// Whether what is marked at the paragraph `b` is part of the change of a row that is marked as inserted (`inserted`) or deleted by `author`: the paragraph's own row, or a row that holds its table.
+// (The words and paragraph marks of such a row, and the rows of tables in it, are listed as the row's one change.) With `ownRowCounts` false only a row that holds the paragraph's table counts.
+bool coveredByRowChange(const flow::TableStore &store, const QTextBlock &b, bool inserted, const QString &author, bool ownRowCounts);
 // For tests of cost: how many starts of tables, rows, and cells were parsed to look for records of changes, since the program began.
 qint64 tableRecordParsesForTest();
 // Accepts or rejects the changes of tables, which `which` has as tableChangesAt found them in the story as it is now: a record that is accepted (an inserted row, a deleted row that is gone)

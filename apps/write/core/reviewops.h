@@ -142,7 +142,8 @@ QVector<std::pair<int, int>> ownInsertionRanges(const QTextBlock &block, const Q
 // Takes text the reviewer typed out for good, and the pairs of pieces of insertions that nothing is left in.
 void removeOwnInsertion(QTextDocument *story, int from, int to);
 // A paragraph's mark said to be inserted ("ins") or deleted ("del") by the reviewer; the mark of a paragraph the reviewer inserted is taken away for good by removeParagraphMark.
-void markParagraphMark(WriteDoc &doc, QTextBlock block, const char *tag);
+// With `keepOther`, a mark of the other kind (an insertion by someone else, when a deletion is put on) stays beside it, as a paragraph that two people changed has both.
+void markParagraphMark(WriteDoc &doc, QTextBlock block, const char *tag, bool keepOther = false);
 bool paragraphMarkInsertedBy(const QTextBlock &block, const QString &author);
 // Takes a paragraph's mark away: the paragraph is joined to the one after it (as when a deleted mark is accepted). False where it can't be (the mark stays, without its record).
 void removeParagraphMark(WriteDoc &doc, QTextDocument *story, int blockNumber);

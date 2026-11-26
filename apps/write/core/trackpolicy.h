@@ -19,6 +19,9 @@ enum class TrackPolicy {
 // The policy of a command by its id. `known` (if given) says whether the id is named: a command that is not named is Untracked.
 TrackPolicy trackPolicyOf(const QString &commandId, bool *known = nullptr);
 
+// Whether the person can accept or reject a tracked change themselves: not where the document's protection locks tracking on or holds it for reading only (Accept and Reject are off there).
+bool trackedMarksCanBeResolved(const WriteDoc &doc);
+
 // The notice for a change that is made and not recorded as a tracked change.
 QString untrackedNoticeText();
 
