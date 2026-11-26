@@ -1788,6 +1788,8 @@ private Q_SLOTS:
     void theFormatPainterPaintsOnceOrStaysOnUntilEscapeAndEachPaintIsOneStep();
     void aDragOfTheMouseInTextEndsWhenNoButtonIsHeld();
     void goToOpensWithCtrlGAndPutsTheCaretAtThePlaceNamed();
+    void selectObjectsModeRefusesADropOfTextOrAPictureFile();
+    void pasteEndsSelectObjectsModeAndThenPastesOnceInOneStep();
     void dragAndDropMovesSelectedTextOrCopiesItWithCtrlInOneStep();
     void rtfDroppedFromAnotherProgramKeepsItsLooks();
     void aClickInsideTheSelectionPutsTheCaretThereAndWithTheDragOffAPressStartsANewSelection();

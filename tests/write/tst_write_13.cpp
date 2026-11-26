@@ -1634,6 +1634,95 @@ void WriteTests::rtfDroppedFromAnotherProgramKeepsItsLooks()
     QVERIFY(view->pasteOptionsAvailable());   // (the same path as a paste: the Paste Options button is offered)
 }
 
+// Select Objects never changes the words: a drop of text, or of a picture file (which would put a picture in the words), is refused at drag-enter, at drag-move, and at the drop; with the mode off the same
+// drops go in.
+void WriteTests::selectObjectsModeRefusesADropOfTextOrAPictureFile()
+{
+    auto w = styWindow("<w:p><w:r><w:t>One two</w:t></w:r></w:p>");
+    PageView *view = w->view();
+    WriteDoc &doc = *w->document();
+    QTemporaryDir dir;
+    QVERIFY(dir.isValid());
+    const QString file = dir.filePath(QStringLiteral("dot.png"));
+    QImage image(8, 8, QImage::Format_ARGB32);
+    image.fill(Qt::red);
+    QVERIFY(image.save(file));
+    struct Answer { bool entered, moved, dropped; };
+    auto drop = [&](QMimeData &mime) {
+        const QPoint at = styPointOf(view, 3);
+        Answer a{false, false, false};
+        QDragEnterEvent enter(at, Qt::CopyAction, &mime, Qt::LeftButton, Qt::NoModifier);
+        enter.setAccepted(false);
+        QApplication::sendEvent(view->viewport(), &enter);
+        a.entered = enter.isAccepted();
+        QDragMoveEvent move(at, Qt::CopyAction, &mime, Qt::LeftButton, Qt::NoModifier);
+        move.setAccepted(false);
+        QApplication::sendEvent(view->viewport(), &move);
+        a.moved = move.isAccepted();
+        QDropEvent e(QPointF(at), Qt::CopyAction, &mime, Qt::LeftButton, Qt::NoModifier);
+        e.setAccepted(false);
+        QApplication::sendEvent(view->viewport(), &e);
+        a.dropped = e.isAccepted();
+        return a;
+    };
+    auto text = [] {
+        auto *mime = new QMimeData;
+        mime->setText(QStringLiteral("WORDS"));
+        return std::unique_ptr<QMimeData>(mime);
+    };
+    auto picture = [&] {
+        auto *mime = new QMimeData;
+        mime->setUrls({QUrl::fromLocalFile(file)});
+        return std::unique_ptr<QMimeData>(mime);
+    };
+    view->setSelectObjectsMode(true);
+    const QString before = plain(doc);
+    const quint64 serial = doc.nextStepSerial();
+    for (const auto &mime : {text(), picture()}) {
+        const Answer a = drop(*mime);
+        QVERIFY(!a.entered && !a.moved && !a.dropped);
+        QCOMPARE(plain(doc), before);
+        QCOMPARE(doc.nextStepSerial(), serial);
+        QVERIFY(view->selectObjectsMode());
+    }
+    view->setSelectObjectsMode(false);
+    {
+        const auto mime = text();
+        const Answer a = drop(*mime);
+        QVERIFY(a.entered && a.moved && a.dropped);
+        QVERIFY(plain(doc).contains(QStringLiteral("WORDS")));
+        QVERIFY(doc.undo());
+        QCOMPARE(plain(doc), before);
+    }
+    {
+        const auto mime = picture();
+        const Answer a = drop(*mime);
+        QVERIFY(a.entered && a.moved && a.dropped);
+        QVERIFY(doc.nextStepSerial() > serial);
+        QVERIFY(doc.undo());
+        QCOMPARE(plain(doc), before);
+    }
+}
+
+// Paste is a command like the others: it ends Select Objects first and then pastes, once, in one step.
+void WriteTests::pasteEndsSelectObjectsModeAndThenPastesOnceInOneStep()
+{
+    auto w = styWindow("<w:p><w:r><w:t>One two</w:t></w:r></w:p>");
+    PageView *view = w->view();
+    WriteDoc &doc = *w->document();
+    QApplication::clipboard()->setText(QStringLiteral("PASTED"));
+    const QString before = plain(doc);
+    view->setSelectObjectsMode(true);
+    const quint64 serial = doc.nextStepSerial();
+    w->act(QStringLiteral("edit.paste"))->trigger();
+    QVERIFY(!view->selectObjectsMode());
+    QCOMPARE(plain(doc).count(QStringLiteral("PASTED")), 1);
+    QCOMPARE(doc.nextStepSerial(), serial + 1);
+    QVERIFY(doc.undo());
+    QCOMPARE(plain(doc), before);
+    QApplication::clipboard()->clear();
+}
+
 void WriteTests::dragAndDropMovesSelectedTextOrCopiesItWithCtrlInOneStep()
 {
     auto w = styWindow("<w:p><w:r><w:t>One two three four five</w:t></w:r></w:p>");

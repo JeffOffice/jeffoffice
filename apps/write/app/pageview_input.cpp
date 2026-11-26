@@ -2000,7 +2000,8 @@ void PageView::startTextDrag()
 
 bool PageView::wantsTextDrop(const QMimeData *mime) const
 {
-    return m_doc && !editsBlocked() && !m_hf.active && !m_note.active && mime && (mime->hasFormat(QString::fromLatin1(kTextDragMime)) || ((mime->hasText() || mime->hasHtml() || hasRtfFormat(mime)) && !mime->hasUrls()));
+    // (Select Objects never changes the words: a drop of text is not taken while it is on.)
+    return m_doc && !m_selectObjectsMode && !editsBlocked() && !m_hf.active && !m_note.active && mime && (mime->hasFormat(QString::fromLatin1(kTextDragMime)) || ((mime->hasText() || mime->hasHtml() || hasRtfFormat(mime)) && !mime->hasUrls()));
 }
 
 bool PageView::dropText(QDropEvent *e)

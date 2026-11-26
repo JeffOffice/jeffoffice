@@ -1287,7 +1287,7 @@ bool wantsDrop(const QMimeData *mime)
 void PageView::dragEnterEvent(QDragEnterEvent *e)
 {
     m_documentDrag = false;
-    if (m_doc && (wantsDrop(e->mimeData()) || wantsTextDrop(e->mimeData()))) {
+    if (m_doc && ((!m_selectObjectsMode && wantsDrop(e->mimeData())) || wantsTextDrop(e->mimeData()))) {
         e->acceptProposedAction();
         return;
     }
@@ -1313,7 +1313,7 @@ void PageView::dragMoveEvent(QDragMoveEvent *e)
         e->acceptProposedAction();
         return;
     }
-    if (!m_doc || !(wantsDrop(e->mimeData()) || wantsTextDrop(e->mimeData()))) {
+    if (!m_doc || !((!m_selectObjectsMode && wantsDrop(e->mimeData())) || wantsTextDrop(e->mimeData()))) {
         e->ignore();
         return;
     }
@@ -1335,7 +1335,7 @@ void PageView::dropEvent(QDropEvent *e)
         return;
     }
     if (dropText(e)) return;
-    if (!m_doc || editsBlocked() || !wantsDrop(e->mimeData())) {
+    if (!m_doc || editsBlocked() || m_selectObjectsMode || !wantsDrop(e->mimeData())) {
         e->ignore();
         return;
     }
