@@ -1697,6 +1697,40 @@ private Q_SLOTS:
         QVERIFY(tablePropsAt(*doc, c).wrapAround);
     }
 
+    // Delete Cells, Shift Left and Shift Up change no words quietly with Track Changes on: both are refused, with a word in the status bar; with it off they work.
+    void deletingCellsAndShiftingIsRefusedWhileTrackChangesIsOn()
+    {
+        auto cell = [](const char *t) { return QByteArray("<w:tc><w:tcPr><w:tcW w:w=\"1000\" w:type=\"dxa\"/></w:tcPr><w:p><w:r><w:t>") + t + "</w:t></w:r></w:p></w:tc>"; };
+        const QByteArray table = "<w:tbl><w:tblPr><w:tblW w:w=\"3000\" w:type=\"dxa\"/></w:tblPr><w:tblGrid><w:gridCol w:w=\"1000\"/><w:gridCol w:w=\"1000\"/><w:gridCol w:w=\"1000\"/></w:tblGrid>"
+                                 "<w:tr>" + cell("a1") + cell("b1") + cell("c1") + "</w:tr><w:tr>" + cell("a2") + cell("b2") + cell("c2") + "</w:tr><w:tr>" + cell("a3") + cell("b3") + cell("c3") + "</w:tr></w:tbl>";
+        for (const char *command : {"table.deleteCells", "table.deleteCellsUp"})
+            for (const bool tracking : {true, false}) {
+                WriteWindow w;
+                w.setNotifier([](const QString &, const QString &) {});
+                w.resize(1100, 800);
+                w.show();
+                QString err;
+                auto doc = WriteDoc::fromDocx(makeDocx(table + "<w:p><w:r><w:t>After</w:t></w:r></w:p>", QByteArray()), &err);
+                QVERIFY(doc);
+                w.setDocument(std::move(doc), QString());
+                QTextCursor c(w.document()->story());
+                c.setPosition(w.document()->story()->toPlainText().indexOf(QLatin1String("a2")) + 1);
+                w.view()->setCursor(c);
+                w.document()->setTrackChanges(tracking);
+                w.refreshNow();
+                QTRY_VERIFY(w.act(QString::fromLatin1(command))->isEnabled());
+                const QString before = w.document()->story()->toPlainText();
+                w.act(QString::fromLatin1(command))->trigger();
+                if (tracking) {
+                    QCOMPARE(w.document()->story()->toPlainText(), before);
+                    QVERIFY(!w.isModified());
+                    QVERIFY2(w.statusBar()->currentMessage().contains(QLatin1String("Track Changes")), qPrintable(w.statusBar()->currentMessage()));
+                } else {
+                    QVERIFY(w.document()->story()->toPlainText() != before);
+                }
+            }
+    }
+
     void deletingACellCanShiftTheCellsAfterItLeft()
     {
         auto cell = [](const char *t) { return QByteArray("<w:tc><w:tcPr><w:tcW w:w=\"1000\" w:type=\"dxa\"/></w:tcPr><w:p><w:r><w:t>") + t + "</w:t></w:r></w:p></w:tc>"; };
