@@ -2459,6 +2459,117 @@ private Q_SLOTS:
         QCOMPARE(lines(*doc).last(), openLine + QLatin1Char('Z'));
     }
 
+    // ---- Repeat (F4) in a document protected for forms goes through the same checks, where it acts now
+    // The first command is one that formsAllows lets act in text left open (a test-only command of the table kind that makes the selection bold).
+    void repeatOfACommandAndOfTypingWorksInAnOpenSectionAndChangesNothingInClosedText()
+    {
+        auto w = windowOn(kClosedThenOpen, kFormsProtection);
+        QVERIFY(w);
+        PageView *view = w->view();
+        WriteDoc *doc = w->document();
+        QAction *format = w->addRepeatableCommandForTest(QStringLiteral("table.repeatTestBold"), [view, doc] {
+            QTextCursor c = view->cursor();
+            write::toggleBold(*doc, c);
+        });
+        auto boldAt = [&](int position) {
+            QTextCursor c(doc->story());
+            c.setPosition(position + 1);
+            return c.charFormat().fontWeight() >= QFont::DemiBold;
+        };
+        const int openAt = int(doc->story()->toPlainText().indexOf(QLatin1String("Open")));
+        const int closedAt = int(doc->story()->toPlainText().indexOf(QLatin1String("Closed")));
+        // The command in the open text, then Repeat on another word of it.
+        caretAt(view, openAt + 4, openAt);
+        format->trigger();
+        QVERIFY(boldAt(openAt));
+        caretAt(view, openAt + 9, openAt + 5);
+        w->refreshForTest();
+        QAction *repeat = w->act(QStringLiteral("edit.repeat"));
+        QVERIFY(repeat->isEnabled());
+        repeat->trigger();
+        QVERIFY(boldAt(openAt + 5));
+        // The same in closed text: nothing changes, and the reason is told.
+        const QByteArray open = documentXml(doc->toDocx());
+        caretAt(view, closedAt + 6, closedAt);
+        w->refreshForTest();
+        w->statusBar()->clearMessage();
+        repeat->trigger();
+        QCOMPARE(documentXml(doc->toDocx()), open);
+        QVERIFY(!w->statusBar()->currentMessage().isEmpty());
+        // A typed run in the open text, again at another place in it.
+        caretAt(view, openAt + 4);
+        QTest::keyClicks(view, "ab");
+        w->refreshForTest();
+        QVERIFY(repeat->isEnabled());
+        caretAt(view, openAt);
+        repeat->trigger();
+        QCOMPARE(doc->story()->toPlainText().mid(openAt, 2), QStringLiteral("ab"));
+        const QByteArray typed = documentXml(doc->toDocx());
+        // The same typed run again at the place it would act now, which is closed text: nothing goes in.
+        caretAt(view, closedAt + 3);
+        w->refreshForTest();
+        repeat->trigger();
+        QCOMPARE(documentXml(doc->toDocx()), typed);
+        // A run that begins in the closed text, a selection from there into the open text: nothing goes in.
+        caretAt(view, openAt + 2, closedAt + 2);
+        repeat->trigger();
+        QCOMPARE(documentXml(doc->toDocx()), typed);
+    }
+
+    void repeatInAReadOnlyDocumentOrUnderASearchIsRefusedEvenInAnOpenSection()
+    {
+        for (int kind = 0; kind < 3; ++kind) {   // an open section of a forms document under a search, a read-only document, a forms document from a read-only file
+            auto w = std::make_unique<WriteWindow>();
+            w->setNotifier([](const QString &, const QString &) {});
+            w->resize(900, 700);
+            w->show();
+            if (kind == 2) w->setReadOnly(true);
+            auto made = open(makeDocx(kClosedThenOpen, kind == 1 ? QByteArray() : kFormsProtection));
+            QVERIFY(made);
+            w->setDocument(std::move(made), QString());
+            PageView *view = w->view();
+            WriteDoc *doc = w->document();
+            QAction *format = w->addRepeatableCommandForTest(QStringLiteral("table.repeatTestBold"), [view, doc] {
+                QTextCursor c = view->cursor();
+                write::toggleBold(*doc, c);
+            });
+            const int openAt = int(doc->story()->toPlainText().indexOf(QLatin1String("Open")));
+            // Something to repeat, done while the document still allows it.
+            if (kind == 2) w->setReadOnly(false);
+            caretAt(view, openAt + 4, openAt);
+            format->trigger();
+            caretAt(view, openAt + 4);
+            QTest::keyClicks(view, "ab");
+            w->refreshForTest();
+            if (kind == 0) { w->beginSearchBlock(); view->beginSearchBlock(); }
+            else if (kind == 1) w->setReadOnly(true);
+            else w->setReadOnly(true);
+            const QByteArray before = documentXml(doc->toDocx());
+            QAction *repeat = w->act(QStringLiteral("edit.repeat"));
+            caretAt(view, openAt + 9, openAt + 5);
+            w->statusBar()->clearMessage();
+            repeat->setEnabled(true);   // (the action follows the state a moment later; the command itself must refuse as well)
+            repeat->trigger();   // (the typed run is the last command)
+            QCOMPARE(documentXml(doc->toDocx()), before);
+            QVERIFY2(!w->statusBar()->currentMessage().isEmpty(), qPrintable(QString::number(kind)));
+            // The formatting command, made the last one again.
+            if (kind == 0) { view->endSearchBlock(); w->endSearchBlock(); }
+            else w->setReadOnly(false);
+            caretAt(view, openAt + 4, openAt);
+            format->trigger();
+            if (kind == 0) { w->beginSearchBlock(); view->beginSearchBlock(); }
+            else w->setReadOnly(true);
+            const QByteArray formatted = documentXml(doc->toDocx());
+            caretAt(view, openAt + 9, openAt + 5);
+            w->statusBar()->clearMessage();
+            repeat->setEnabled(true);   // (the action follows the state a moment later; the command itself must refuse as well)
+            repeat->trigger();
+            QCOMPARE(documentXml(doc->toDocx()), formatted);
+            QVERIFY2(!w->statusBar()->currentMessage().isEmpty(), qPrintable(QString::number(kind)));
+            if (kind == 0) { view->endSearchBlock(); w->endSearchBlock(); }
+        }
+    }
+
     void aResultWithALineBreakKeepsItWhenTextIsTypedAroundIt()
     {
         const QByteArray tx = "<w:textInput><w:maxLength w:val=\"20\"/></w:textInput>";
