@@ -869,6 +869,7 @@ private Q_SLOTS:
     void aSaveWhileACopyIsBeingMadeLeavesNoCopy();
     void aSaveAfterACopyIsWrittenRemovesItBeforeItIsReported();
     void theParagraphDialogChangesWhatWasChanged();
+    void increaseAndDecreaseIndentMoveTheSelectedParagraphsByAStep();
     void homeTabHasFindAndReplace();
     void commandsUseTheSuitesWords();
     void findNextSelectsTheMatchAndScrollsToIt();
@@ -1105,6 +1106,7 @@ private Q_SLOTS:
     void changeAllChangesTheSamePlacesThePaneGoesToInOneStepAndSaysHowManyAndWhere();
     void changeAllGoesOnFromTheRightPlaceWhenTheWordsBeforeItChangeLength();
     void theSpellingPaneStartsInTheFooterWhereTheCaretIsAndGoesRoundInOrder();
+    void theSpellingPaneStartsInAHeaderOrANoteWhereTheCaretIs();
     void ignoreAllAndAddToDictionaryWorkInTheStoriesBesidesTheText();
     void aHeaderTakesNoSectionBreakPageBreakOrNote();
     void theBreakCommandsAreGrayedWhileAHeaderIsEdited();

@@ -1429,6 +1429,39 @@ void WriteTests::theParagraphDialogChangesWhatWasChanged()
 }
 
 
+// Increase and Decrease Indent (Ctrl+M and Ctrl+Shift+M) move every selected paragraph by a step, never past the margin, as one step of Undo each.
+void WriteTests::increaseAndDecreaseIndentMoveTheSelectedParagraphsByAStep()
+{
+    WriteWindow w;
+    w.show();
+    typeText(*w.document(), w.view()->cursor(), QStringLiteral("one\ntwo"));
+    QCOMPARE(w.act("para.indentInc")->shortcut().toString(QKeySequence::NativeText), QKeySequence(Qt::CTRL | Qt::Key_M).toString(QKeySequence::NativeText));
+    QCOMPARE(w.act("para.indentDec")->shortcut().toString(QKeySequence::NativeText), QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_M).toString(QKeySequence::NativeText));
+    auto left = [&w](int i) { return w.document()->story()->findBlockByNumber(i).blockFormat().leftMargin(); };
+    w.view()->selectAll();
+    w.act("para.indentInc")->trigger();
+    w.act("para.indentInc")->trigger();
+    QCOMPARE(left(0), 72.0);
+    QCOMPARE(left(1), 72.0);
+    w.act("para.indentDec")->trigger();
+    QCOMPARE(left(0), 36.0);
+    QCOMPARE(left(1), 36.0);
+    w.act("para.indentDec")->trigger();
+    w.act("para.indentDec")->trigger();
+    QCOMPARE(left(0), 0.0);   // (not past the margin)
+    w.act("para.indentInc")->trigger();
+    QVERIFY(w.document()->undo());
+    QCOMPARE(left(1), 0.0);
+    // Only the paragraph the caret is in, when nothing is selected.
+    QTextCursor second(w.document()->story());
+    second.setPosition(w.document()->story()->findBlockByNumber(1).position());
+    w.view()->setCursor(second);
+    w.act("para.indentInc")->trigger();
+    QCOMPARE(left(0), 0.0);
+    QCOMPARE(left(1), 36.0);
+}
+
+
 // ---------------------------------------------------------------- Find and Replace
 // Home > Editing has Find (Ctrl+F) and Replace (Ctrl+H); each opens the pane on the right.
 void WriteTests::homeTabHasFindAndReplace()

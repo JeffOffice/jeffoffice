@@ -1004,6 +1004,39 @@ void WriteTests::theSpellingPaneStartsInTheFooterWhereTheCaretIsAndGoesRoundInOr
 }
 
 
+// The pane begins where the caret is in a header or in a note, and goes round in order from there.
+void WriteTests::theSpellingPaneStartsInAHeaderOrANoteWhereTheCaretIs()
+{
+    const SettingGuard asType(QStringLiteral("proof/checkAsYouType"), true, true);
+    for (const bool inNote : {false, true}) {
+        WriteWindow w;
+        w.resize(1100, 800);
+        w.setDocument(open(spellingDocx("zzbody here")), QString());
+        w.show();
+        w.view()->paginateAll();
+        if (inNote) QVERIFY(w.view()->enterFootnote(2));
+        else QVERIFY(w.view()->enterHeaderFooter(0, false));
+        QTextCursor top(w.view()->cursor());
+        top.setPosition(0);
+        w.view()->setCursor(top);
+        QCOMPARE(w.view()->inNote(), inNote);
+        w.act("review.spelling")->trigger();
+        auto *pane = w.findChild<SpellPane *>();
+        QVERIFY(pane);
+        QStringList seen;
+        for (int i = 0; i < 8; ++i) {
+            QTRY_VERIFY(!pane->searching());
+            if (pane->complete()) break;
+            seen << pane->word();
+            QCOMPARE(w.view()->cursor().selectedText(), pane->word());
+            pane->findChild<QPushButton *>(QStringLiteral("spellIgnore"))->click();
+        }
+        QCOMPARE(seen, inNote ? (QStringList{QStringLiteral("zznote"), QStringLiteral("zzhead"), QStringLiteral("zzfoot"), QStringLiteral("zzbody"), QStringLiteral("zzcell")})
+                              : (QStringList{QStringLiteral("zzhead"), QStringLiteral("zzfoot"), QStringLiteral("zzbody"), QStringLiteral("zzcell"), QStringLiteral("zznote")}));
+    }
+}
+
+
 // Ignore All and Add to Dictionary take the word out in every story, and Add keeps it in the person's dictionary.
 void WriteTests::ignoreAllAndAddToDictionaryWorkInTheStoriesBesidesTheText()
 {
