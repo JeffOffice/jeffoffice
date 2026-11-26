@@ -3637,12 +3637,12 @@ private Q_SLOTS:
         QCOMPARE(v->notesBox()->geometry(), notes.toRect());
         // The notes are typed on the page: one undo step.
         v->notesBox()->setFocus();
-        v->notesBox()->setPlainText(QStringLiteral("Typed on the page"));
+        QTest::keyClicks(v->notesBox(), QStringLiteral("Typed on the page"));
         v->commit();
         QCOMPARE(deck::notesText(*d, *d->pages[0]), QStringLiteral("Typed on the page"));
         w.editor()->undo();
         QVERIFY(deck::notesText(*d, *d->pages[0]).isEmpty());
-        v->notesBox()->setPlainText(QStringLiteral("Typed on the page"));
+        QTest::keyClicks(v->notesBox(), QStringLiteral("Typed on the page"));
         v->commit();
         // PageDown goes to the next slide, which shows its own (no) notes.
         QTest::keyClick(v, Qt::Key_PageDown);
