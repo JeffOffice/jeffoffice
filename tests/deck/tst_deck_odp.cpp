@@ -2,6 +2,7 @@
 #include <QScopeGuard>
 #include "core/fonts.h"
 #include "deckhelpers.h"
+#include "text/storyio.h"
 #include "../office/odfvalidate.h"
 #include "office/packageprops.h"
 #include "app/lossywarning.h"
@@ -3628,6 +3629,65 @@ private Q_SLOTS:
             QCOMPARE(deck::handoutMasterOf(*again, page).perPage, n);
             QVERIFY2(deck::nearly(deck::handoutMasterOf(*again, page).area, hm.area, 0.004), qPrintable(QString::number(n)));
         }
+    }
+
+    // Speaker notes with bold, italic, a bulleted list, and a link are written to an open-document file and read back as the same story, and a second save of what was
+    // read is the same bytes.
+    void formattedNotesSurviveAnOpenDocumentFile()
+    {
+        auto d = deck::newPresentation();
+        QTextDocument *story = d->storyDoc(d->pages[0]->notesStoryId);
+        story->clear();
+        QTextCursor c(story);
+        QTextCharFormat bold, italic, link, plain;
+        bold.setFontWeight(QFont::Bold);
+        italic.setFontItalic(true);
+        link.setAnchor(true);
+        link.setAnchorHref(QStringLiteral("https://example.com/talk"));
+        c.insertText(QStringLiteral("Bold"), bold);
+        c.insertText(QStringLiteral(" "), plain);
+        c.insertText(QStringLiteral("italic"), italic);
+        c.insertText(QStringLiteral(" "), plain);
+        c.insertText(QStringLiteral("link"), link);
+        c.insertBlock();
+        c.insertText(QStringLiteral("First point"), plain);
+        c.createList(QTextListFormat::ListDisc);
+        c.insertBlock();
+        c.insertText(QStringLiteral("Second point"), plain);
+        const QString words = QStringLiteral("Bold italic link\nFirst point\nSecond point");
+        QCOMPARE(deck::notesText(*d, *d->pages[0]), words);
+        auto kinds = [](const Document &doc) {
+            const QTextDocument *sd = doc.storyDoc(doc.pages[0]->notesStoryId);
+            QStringList out;
+            for (QTextBlock b = sd->begin(); b.isValid(); b = b.next()) {
+                out << QStringLiteral("block|%1").arg(b.textList() ? int(b.textList()->format().style()) : 0);
+                for (QTextBlock::iterator it = b.begin(); !it.atEnd(); ++it) {
+                    const QTextCharFormat cf = it.fragment().charFormat();
+                    out << QStringLiteral("%1|%2|%3|%4").arg(it.fragment().text()).arg(cf.fontWeight() > QFont::Normal).arg(cf.fontItalic()).arg(cf.isAnchor() ? cf.anchorHref() : QString());
+                }
+            }
+            return out;
+        };
+        QString err;
+        const QByteArray first = deck::exportOdp(*d, false, &err);
+        QVERIFY2(!first.isEmpty(), qPrintable(err));
+        auto back = deck::importOdp(first, &err);
+        QVERIFY2(back, qPrintable(err));
+        QCOMPARE(deck::notesText(*back, *back->pages[0]), words);
+        const QStringList read = kinds(*back);
+        QVERIFY(read.contains(QStringLiteral("Bold|1|0|")));
+        QVERIFY(read.contains(QStringLiteral("italic|0|1|")));
+        QVERIFY(read.contains(QStringLiteral("link|0|0|https://example.com/talk")));
+        QCOMPARE(read.filter(QStringLiteral("block|%1").arg(int(QTextListFormat::ListDisc))).size(), 2);
+        const QByteArray second = deck::exportOdp(*back, false, &err);
+        auto again = deck::importOdp(second, &err);
+        QVERIFY2(again, qPrintable(err));
+        QCOMPARE(kinds(*again), read);
+        QCOMPARE(jp::storyToJson(again->storyDoc(again->pages[0]->notesStoryId)), jp::storyToJson(back->storyDoc(back->pages[0]->notesStoryId)));
+        QMap<QString, QByteArray> a, b;
+        QVERIFY2(readZip(second, a, &err), qPrintable(err));
+        QVERIFY2(readZip(deck::exportOdp(*again, false, &err), b, &err), qPrintable(err));
+        QCOMPARE(b.value(QStringLiteral("content.xml")), a.value(QStringLiteral("content.xml")));
     }
 
     // A handout master with more thumbnails than any page holds, and places that are not numbers, is read within limits.

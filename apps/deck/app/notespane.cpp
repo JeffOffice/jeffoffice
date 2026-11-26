@@ -67,7 +67,7 @@ void NotesPane::commit()
     if (deck::notesText(*d, slide) == toPlainText()) return;
     m_ed->beginChange(tr("Notes"));
     if (slide.notesStoryId.isEmpty() || !d->storyDoc(slide.notesStoryId)) slide.notesStoryId = d->createStory();
-    setStoryText(d->storyDoc(slide.notesStoryId), toPlainText());
+    replaceStoryText(d->storyDoc(slide.notesStoryId), toPlainText());   // (formatting the text had from a file stays outside what was typed)
     m_ed->endChange();
 }
 

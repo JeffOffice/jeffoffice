@@ -626,7 +626,7 @@ void DeckWindow::watchShow(SlideShow *show, bool recording)
         m_ed->endTextEdit();
         m_ed->beginChange(tr("Notes"));
         if (slide.notesStoryId.isEmpty() || !d->storyDoc(slide.notesStoryId)) slide.notesStoryId = d->createStory();
-        setStoryText(d->storyDoc(slide.notesStoryId), text);
+        replaceStoryText(d->storyDoc(slide.notesStoryId), text);
         m_ed->endChange();
     });
     show->setNotesReadOnly([this] { return m_ed->readOnly(); });

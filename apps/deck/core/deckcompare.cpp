@@ -2,6 +2,7 @@
 
 #include "core/items.h"
 #include "core/comments.h"
+#include "core/deck.h"
 #include "core/reuse.h"
 #include "core/sections.h"
 #include "text/storyio.h"
@@ -909,10 +910,7 @@ DeckComparison compareDecks(const Document &mine, const Document &theirs)
         slideData[QStringLiteral("ts")] = t;
         slideData[QStringLiteral("ms")] = m;
 
-        auto notes = [](const Document &d, const Page &p) {
-            const QTextDocument *sd = p.notesStoryId.isEmpty() ? nullptr : d.storyDoc(p.notesStoryId);
-            return sd ? sd->toPlainText() : QString();
-        };
+        auto notes = [](const Document &d, const Page &p) { return notesText(d, p); };
         const QString notesM = notes(mine, pm), notesT = notes(theirs, pt);
         if (notesM != notesT) {
             QJsonObject nd = slideData;

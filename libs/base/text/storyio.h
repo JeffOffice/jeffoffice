@@ -17,5 +17,8 @@ void storyFromJson(QTextDocument *doc, const QJsonObject &o);
 
 // Plain text with paragraphs separated by '\n'.
 void setStoryText(QTextDocument *doc, const QString &text);
+// The same words as setStoryText leaves, changing only what differs (the text both share at the start and at the end is not touched), so the formatting, lists, and
+// links of the unchanged text stay.
+void replaceStoryText(QTextDocument *doc, const QString &text);
 
 } // namespace jp

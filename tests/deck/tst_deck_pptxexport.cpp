@@ -1,5 +1,6 @@
 // JeffDeck's tests of writing a presentation file.
 #include "deckhelpers.h"
+#include "text/storyio.h"
 #include "office/connectionsites.h"
 #include "core/gridview.h"
 #include "app/guidesdialog.h"
@@ -1980,6 +1981,97 @@ private Q_SLOTS:
         }
         QVERIFY(deck::isHandoutCount(deck::handoutMasterOf(*read, page).perPage));
         QVERIFY(!deck::hasHandoutPerPage(*read));
+    }
+
+    // Speaker notes with bold, italic, bullets, numbers, and a link are kept as the story they are: read from a file, saved, and read again they are the same story, a
+    // second save is the same bytes, and everything that wants plain text gets the words alone.
+    void formattedNotesSurviveReadingAndSavingAgain()
+    {
+        auto richNotes = []() {
+            Parts p = samplePptx();
+            const QString bullet = QStringLiteral("<a:pPr marL=\"342900\" indent=\"-342900\"><a:buFont typeface=\"Arial\"/><a:buChar char=\"&#8226;\"/></a:pPr>");
+            const QString number = QStringLiteral("<a:pPr marL=\"342900\" indent=\"-342900\"><a:buFont typeface=\"+mj-lt\"/><a:buAutoNum type=\"arabicPeriod\"/></a:pPr>");
+            auto run = [](const QString &props, const QString &text) { return QStringLiteral("<a:r><a:rPr lang=\"en-US\"%1</a:rPr><a:t>%2</a:t></a:r>").arg(props, text); };
+            const QString body = QStringLiteral("<a:p>") + run(QStringLiteral(" b=\"1\">"), QStringLiteral("Bold")) + run(QStringLiteral(" i=\"1\">"), QStringLiteral(" italic "))
+                                 + run(QStringLiteral("><a:hlinkClick r:id=\"rId3\"/>"), QStringLiteral("link")) + QStringLiteral("</a:p>")
+                                 + QStringLiteral("<a:p>") + bullet + run(QStringLiteral(">"), QStringLiteral("First point")) + QStringLiteral("</a:p>")
+                                 + QStringLiteral("<a:p>") + number + run(QStringLiteral(">"), QStringLiteral("One")) + QStringLiteral("</a:p>")
+                                 + QStringLiteral("<a:p>") + number + run(QStringLiteral(">"), QStringLiteral("Two")) + QStringLiteral("</a:p>");
+            QString xml = QString::fromUtf8(p.data["/ppt/notesSlides/notesSlide1.xml"].xml);
+            const qsizetype from = xml.indexOf(QStringLiteral("<a:p>")), to = xml.lastIndexOf(QStringLiteral("</a:p>")) + 6;
+            xml.replace(from, to - from, body);
+            p.data["/ppt/notesSlides/notesSlide1.xml"].xml = xml.toUtf8();
+            p.rels << Rel{"/ppt/notesSlides/notesSlide1.xml", "hyperlink", "https://example.com/talk", true};
+            return p;
+        };
+        QString err;
+        auto d = deck::importPresentation(pack(richNotes()), &err);
+        QVERIFY2(d, qPrintable(err));
+        const QString words = QStringLiteral("Bold italic link\nFirst point\nOne\nTwo");
+        QCOMPARE(deck::notesText(*d, *d->pages[0]), words);
+        auto kinds = [&](const Document &doc) {
+            const QTextDocument *sd = doc.storyDoc(doc.pages[0]->notesStoryId);
+            QStringList out;
+            for (QTextBlock b = sd->begin(); b.isValid(); b = b.next())
+                for (QTextBlock::iterator it = b.begin(); !it.atEnd(); ++it) {
+                    const QTextCharFormat cf = it.fragment().charFormat();
+                    out << QStringLiteral("%1|%2|%3|%4").arg(it.fragment().text()).arg(cf.fontWeight() > QFont::Normal).arg(cf.fontItalic()).arg(cf.isAnchor() ? cf.anchorHref() : QString());
+                }
+            return out;
+        };
+        const QStringList read = kinds(*d);
+        QVERIFY(read.contains(QStringLiteral("Bold|1|0|")));
+        QVERIFY(read.contains(QStringLiteral(" italic |0|1|")));
+        QVERIFY(read.contains(QStringLiteral("link|0|0|https://example.com/talk")));
+        // It is a story with formatting, not the words made plain.
+        QTextDocument plain;
+        jp::setStoryText(&plain, words);
+        QVERIFY(jp::storyToJson(d->storyDoc(d->pages[0]->notesStoryId)) != jp::storyToJson(&plain));
+
+        const QByteArray first = deck::exportPresentation(*d, &err);
+        QVERIFY2(!first.isEmpty(), qPrintable(err));
+        Exported e;
+        QString why;
+        QVERIFY2(unpack(first, &e, &why), qPrintable(why));
+        const QString notesPart = part(e, QStringLiteral("/ppt/notesSlides/notesSlide1.xml"));
+        for (const char *kept : {"b=\"1\"", "i=\"1\"", "<a:buChar", "<a:buAutoNum", "<a:hlinkClick"}) QVERIFY2(notesPart.contains(QLatin1String(kept)), kept);
+        auto back = deck::importPresentation(first, &err);
+        QVERIFY2(back, qPrintable(err));
+        QCOMPARE(kinds(*back), read);
+        QCOMPARE(deck::notesText(*back, *back->pages[0]), words);
+        // Saved again, the notes part is the same bytes, and reading it gives the same story.
+        const QByteArray second = deck::exportPresentation(*back, &err);
+        Exported e2;
+        QVERIFY2(unpack(second, &e2, &why), qPrintable(why));
+        auto again = deck::importPresentation(second, &err);
+        QVERIFY2(again, qPrintable(err));
+        QCOMPARE(jp::storyToJson(again->storyDoc(again->pages[0]->notesStoryId)), jp::storyToJson(back->storyDoc(back->pages[0]->notesStoryId)));
+        QCOMPARE(e2.zip.value(QStringLiteral("ppt/notesSlides/notesSlide1.xml")), e.zip.value(QStringLiteral("ppt/notesSlides/notesSlide1.xml")));
+    }
+
+    // A note that lies about its size is read within the limits of any text: no more than 20,000 runs, 10,000 paragraphs, and 2,000,000 characters, and the words
+    // that are kept are what notesText gives.
+    void hostileFormattedNotesAreReadWithinLimits()
+    {
+        auto notesOf = [](const QString &body) {
+            Parts p = samplePptx();
+            QString xml = QString::fromUtf8(p.data["/ppt/notesSlides/notesSlide1.xml"].xml);
+            const qsizetype from = xml.indexOf(QStringLiteral("<a:p>")), to = xml.lastIndexOf(QStringLiteral("</a:p>")) + 6;
+            xml.replace(from, to - from, body);
+            p.data["/ppt/notesSlides/notesSlide1.xml"].xml = xml.toUtf8();
+            QString err;
+            auto d = deck::importPresentation(pack(p), &err);
+            return d ? deck::notesText(*d, *d->pages[0]) : QStringLiteral("NO PRESENTATION: ") + err;
+        };
+        QString runs = QStringLiteral("<a:p>");
+        for (int i = 0; i < 30000; ++i) runs += QStringLiteral("<a:r><a:rPr lang=\"en-US\"%1/><a:t>a</a:t></a:r>").arg(i % 2 ? QStringLiteral(" b=\"1\"") : QString());
+        runs += QStringLiteral("</a:p>");
+        QCOMPARE(notesOf(runs).size(), 20000);
+        QString paragraphs;
+        for (int i = 0; i < 15000; ++i) paragraphs += QStringLiteral("<a:p><a:r><a:rPr lang=\"en-US\" b=\"1\"/><a:t>x</a:t></a:r></a:p>");
+        QCOMPARE(notesOf(paragraphs).count(QLatin1Char('\n')), 9999);
+        const QString big = QStringLiteral("<a:p><a:r><a:rPr lang=\"en-US\" i=\"1\"/><a:t>") + QString(3000000, QLatin1Char('m')) + QStringLiteral("</a:t></a:r></a:p>");
+        QCOMPARE(notesOf(big).size(), 2000000);
     }
 
     // Reset Layout on a handout master a file had puts the standard's places back for good: what the file had is let go, so saving and opening again reads the standard's places.

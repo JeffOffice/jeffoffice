@@ -9,6 +9,7 @@
 #include <QTextDocument>
 #include <QTextLength>
 #include <QTextList>
+#include <algorithm>
 #include <QTextOption>
 
 namespace jp {
@@ -193,6 +194,25 @@ void setStoryText(QTextDocument *doc, const QString &text)
     for (int i = 0; i < paras.size(); ++i) {
         if (i) c.insertBlock();
         c.insertText(paras[i]);
+    }
+}
+
+void replaceStoryText(QTextDocument *doc, const QString &text)
+{
+    const QString was = doc->toPlainText();
+    const qsizetype most = std::min(was.size(), text.size());
+    qsizetype head = 0;
+    while (head < most && was.at(head) == text.at(head)) ++head;
+    qsizetype tail = 0;
+    while (tail < most - head && was.at(was.size() - 1 - tail) == text.at(text.size() - 1 - tail)) ++tail;
+    QTextCursor c(doc);
+    c.setPosition(int(head));
+    c.setPosition(int(was.size() - tail), QTextCursor::KeepAnchor);
+    c.removeSelectedText();
+    const QStringList paras = text.mid(head, text.size() - head - tail).split('\n');
+    for (int i = 0; i < paras.size(); ++i) {
+        if (i) c.insertBlock();
+        if (!paras[i].isEmpty()) c.insertText(paras[i]);
     }
 }
 

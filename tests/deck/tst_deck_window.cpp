@@ -23,6 +23,7 @@
 #include <QDoubleSpinBox>
 #include "app/theme.h"
 #include "app/settings.h"
+#include "text/storyio.h"
 #include "text/textengine.h"
 
 // What the program's settings hold for the grid, put back when the test ends (the dialog writes them).
@@ -1338,6 +1339,111 @@ private Q_SLOTS:
         QCOMPARE(deck::notesText(*d, *d->pages[1]), QStringLiteral("Say hello"));
         QVERIFY(d->pages[1]->notesStoryId != d->pages[0]->notesStoryId);
         QVERIFY(d->pages[1]->items[0]->id != d->pages[0]->items[0]->id);
+    }
+
+    // Typing in the notes under the slide changes the words and leaves the formatting of the rest: a note that came from a file with bold, a link, and a bulleted
+    // list keeps them all through an edit at the end, in the middle, and in the list, and Undo gives the note back exactly.
+    void typingInFormattedNotesKeepsTheirFormatting()
+    {
+        DeckWindow w;
+        Editor *ed = w.editor();
+        w.newSlide();
+        ed->setCurrentPage(0);
+        QTextDocument *story = ed->doc()->storyDoc(ed->doc()->pages[0]->notesStoryId);
+        story->clear();
+        QTextCursor c(story);
+        QTextCharFormat bold, link, plain;
+        bold.setFontWeight(QFont::Bold);
+        link.setAnchor(true);
+        link.setAnchorHref(QStringLiteral("https://example.com/talk"));
+        c.insertText(QStringLiteral("Bold"), bold);
+        c.insertText(QStringLiteral(" middle "), plain);
+        c.insertText(QStringLiteral("link"), link);
+        c.insertBlock();
+        c.insertText(QStringLiteral("point"), plain);
+        c.createList(QTextListFormat::ListDisc);
+        auto signature = [&] {
+            QStringList out;
+            const QTextDocument *sd = ed->doc()->storyDoc(ed->doc()->pages[0]->notesStoryId);
+            for (QTextBlock b = sd->begin(); b.isValid(); b = b.next()) {
+                out << QStringLiteral("block|%1").arg(b.textList() ? b.textList()->format().style() : 0);
+                for (QTextBlock::iterator it = b.begin(); !it.atEnd(); ++it) {
+                    const QTextCharFormat cf = it.fragment().charFormat();
+                    out << QStringLiteral("%1|%2|%3").arg(it.fragment().text()).arg(cf.fontWeight() > QFont::Normal).arg(cf.isAnchor() ? cf.anchorHref() : QString());
+                }
+            }
+            return out;
+        };
+        const QStringList before = signature();
+        QVERIFY(before.contains(QStringLiteral("Bold|1|")));
+        QVERIFY(before.contains(QStringLiteral("link|0|https://example.com/talk")));
+        QVERIFY(before.contains(QStringLiteral("block|%1").arg(int(QTextListFormat::ListDisc))));
+        NotesPane *pane = w.notesPane();
+        pane->reload();
+        QCOMPARE(pane->toPlainText(), QStringLiteral("Bold middle link\npoint"));
+        // At the end (in the list item), in the middle, and at the start.
+        pane->moveCursor(QTextCursor::End);
+        QTest::keyClicks(pane, QStringLiteral("er"));
+        pane->commit();
+        QCOMPARE(deck::notesText(*ed->doc(), *ed->doc()->pages[0]), QStringLiteral("Bold middle link\npointer"));
+        QStringList after = signature();
+        QVERIFY(after.contains(QStringLiteral("Bold|1|")));
+        QVERIFY(after.contains(QStringLiteral("link|0|https://example.com/talk")));
+        QVERIFY(after.contains(QStringLiteral("block|%1").arg(int(QTextListFormat::ListDisc))));
+        QTextCursor mid = pane->textCursor();
+        mid.setPosition(8);
+        pane->setTextCursor(mid);
+        QTest::keyClicks(pane, QStringLiteral("XY"));
+        pane->commit();
+        QCOMPARE(deck::notesText(*ed->doc(), *ed->doc()->pages[0]), QStringLiteral("Bold midXYdle link\npointer"));
+        after = signature();
+        QVERIFY(after.contains(QStringLiteral("Bold|1|")));
+        QVERIFY(after.contains(QStringLiteral("link|0|https://example.com/talk")));
+        // Each commit is one step, and Undo gives the note back as it was.
+        ed->undo();
+        ed->undo();
+        QCOMPARE(signature(), before);
+    }
+
+    // The words of a story are replaced where they differ and nowhere else: a note of 4,000 alternating bold and plain runs keeps every one of them when a letter is
+    // added at its end, in the middle, and when one is taken away; a note that is replaced by the same words is not touched.
+    void replacingStoryTextTouchesOnlyWhatDiffers()
+    {
+        QTextDocument story;
+        QTextCursor c(&story);
+        QTextCharFormat bold, plain;
+        bold.setFontWeight(QFont::Bold);
+        QString words;
+        for (int i = 0; i < 4000; ++i) {
+            c.insertText(QStringLiteral("ab"), i % 2 ? bold : plain);
+            words += QStringLiteral("ab");
+        }
+        auto fragments = [&] {
+            int n = 0;
+            for (QTextBlock::iterator it = story.begin().begin(); !it.atEnd(); ++it) ++n;
+            return n;
+        };
+        QCOMPARE(fragments(), 4000);
+        jp::replaceStoryText(&story, words);
+        QCOMPARE(fragments(), 4000);
+        jp::replaceStoryText(&story, words + QLatin1Char('c'));
+        QCOMPARE(story.toPlainText(), words + QLatin1Char('c'));
+        QCOMPARE(fragments(), 4000);
+        QString middle = words + QLatin1Char('c');
+        middle.insert(4000, QStringLiteral("X"));
+        jp::replaceStoryText(&story, middle);
+        QCOMPARE(story.toPlainText(), middle);
+        QVERIFY(fragments() >= 4000 && fragments() <= 4003);
+        jp::replaceStoryText(&story, middle.left(middle.size() - 3));
+        QCOMPARE(story.toPlainText(), middle.left(middle.size() - 3));
+        QVERIFY(fragments() >= 3998);
+        // New paragraphs, and everything taken away.
+        jp::replaceStoryText(&story, QStringLiteral("one\ntwo\n\nfour"));
+        QCOMPARE(story.toPlainText(), QStringLiteral("one\ntwo\n\nfour"));
+        QCOMPARE(story.blockCount(), 4);
+        jp::replaceStoryText(&story, QString());
+        QVERIFY(story.toPlainText().isEmpty());
+        QCOMPARE(story.blockCount(), 1);
     }
 
 private:
