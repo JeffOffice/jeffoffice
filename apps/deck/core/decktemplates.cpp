@@ -35,6 +35,8 @@ const Spec kSpecs[] = {
     {"lesson", {"#1E2D24", "#FFFDF7", "#2E5339", "#F5EFDD", "#3F8F4F", "#E0603A", "#F2B134", "#2F8FBF", "#7A5C99", "#C9477A", "#1E6FB8", "#7A4F9C"}, "Quicksand", "Nunito", 3, 6},
     {"album", {"#2B2622", "#FFFFFF", "#3A322B", "#F4EEE6", "#B5651D", "#4F7A5A", "#6F8FAF", "#C9A227", "#8C3B2E", "#5E6B73", "#1F5C99", "#6B4E7A"}, "Playfair Display", "Lato", 3, 6},
     {"minimallight", {"#111111", "#FFFFFF", "#2B2B2B", "#F2F2F2", "#2563EB", "#6B7280", "#0F766E", "#B45309", "#7C3AED", "#BE123C", "#1D4ED8", "#6D28D9"}, "Jost", "Work Sans", 0, 0},
+    {"report", {"#1B2430", "#FFFFFF", "#2F3B4C", "#EFF1F4", "#1F4E79", "#7A8B99", "#B08D57", "#3C7A6E", "#8C4A4A", "#5B5F97", "#1F5C99", "#6B4E7A"}, "Merriweather", "IBM Plex Sans", 0, 0},
+    {"training", {"#1F2A37", "#FFFFFF", "#1E3A5F", "#EEF4F8", "#0E7490", "#F59E0B", "#16A34A", "#DC2626", "#7C3AED", "#2563EB", "#0B6AA2", "#6D3FA6"}, "Poppins", "PT Sans", 0, 9},
     {"minimaldark", {"#101114", "#FFFFFF", "#1C1E24", "#E5E7EB", "#7DD3FC", "#A7F3D0", "#FDE68A", "#FBCFE8", "#C4B5FD", "#FDBA74", "#93C5FD", "#D8B4FE"}, "Jost", "Work Sans", 9, 9},
 };
 
@@ -111,12 +113,16 @@ void dress(Document &d, const Spec &s, const QString &id)
         if (id == QLatin1String("pitch")) return {decoration("rect", QRectF(0, 0, 14, 540), accent)};
         if (id == QLatin1String("status")) return {decoration("rect", QRectF(0, 0, 960, 10), accent)};
         if (id == QLatin1String("lesson")) return {decoration("rect", QRectF(0, 0, 960, 14), accent), decoration("rect", QRectF(0, 14, 960, 5), third)};
+        if (id == QLatin1String("report")) return {decoration("rect", QRectF(0, 0, 960, 6), accent)};
+        if (id == QLatin1String("training")) return {decoration("rect", QRectF(0, 526, 960, 14), accent)};
         return {};
     };
     auto underTitle = [&](double y) -> ItemList {
         if (id == QLatin1String("pitch")) return {decoration("rect", QRectF(66, y, 96, 5), accent)};
         if (id == QLatin1String("status")) return {decoration("rect", QRectF(66, y, 96, 4), second)};
         if (id == QLatin1String("album")) return {decoration("rect", QRectF(66, y, 828, 1.5), accent)};
+        if (id == QLatin1String("report")) return {decoration("rect", QRectF(66, y, 828, 1.5), second)};
+        if (id == QLatin1String("training")) return {decoration("rect", QRectF(66, y, 64, 4), third)};
         if (id == QLatin1String("minimallight") || id == QLatin1String("minimaldark")) return {decoration("rect", QRectF(66, y, 40, 3), accent)};
         return {};
     };
@@ -161,6 +167,8 @@ void dress(Document &d, const Spec &s, const QString &id)
             if (id == QLatin1String("pitch")) shapes = {decoration("ellipse", QRectF(620, -60, 420, 420), accent), decoration("ellipse", QRectF(760, 280, 260, 260), second), decoration("rect", QRectF(66, 436, 96, 5), third)};
             else if (id == QLatin1String("lesson")) shapes = {decoration("rect", QRectF(0, 0, 960, 20), accent), decoration("ellipse", QRectF(780, 300, 300, 300), third, 0.1), decoration("ellipse", QRectF(700, 380, 160, 160), second)};
             else if (id == QLatin1String("album")) shapes = {decoration("rect", QRectF(380, 440, 200, 2), accent)};
+            else if (id == QLatin1String("report")) shapes = {decoration("rect", QRectF(0, 0, 960, 6), accent), decoration("rect", QRectF(66, 436, 828, 1.5), second)};
+            else if (id == QLatin1String("training")) shapes = {decoration("rect", QRectF(0, 0, 20, 540), accent), decoration("rect", QRectF(20, 0, 8, 540), third), decoration("rect", QRectF(66, 436, 64, 4), second)};
             else if (id == QLatin1String("minimallight")) shapes = {decoration("rect", QRectF(66, 436, 40, 3), accent)};
             else if (id == QLatin1String("minimaldark")) shapes = {decoration("rect", QRectF(66, 436, 40, 3), accent)};
             else if (id == QLatin1String("status")) shapes = {decoration("rect", QRectF(0, 0, 960, 10), accent), decoration("rect", QRectF(66, 436, 96, 4), second)};
@@ -285,6 +293,30 @@ void sampleSlides(Document &d, const QString &id)
         say(d, newPhotoSlide(d, 1), "title", 0, {t(QT_TRANSLATE_NOOP("DeckTemplates", "[Caption for this photo]"))});
         say(d, newPhotoSlide(d, 2), "title", 0, {t(QT_TRANSLATE_NOOP("DeckTemplates", "[Caption for these photos]"))});
         say(d, newPhotoSlide(d, 3), "title", 0, {t(QT_TRANSLATE_NOOP("DeckTemplates", "[Caption for this moment]"))});
+    } else if (id == QLatin1String("report")) {
+        say(d, title, "ctrTitle", 0, {t(QT_TRANSLATE_NOOP("DeckTemplates", "[Report title]"))});
+        say(d, title, "subTitle", 0, {t(QT_TRANSLATE_NOOP("DeckTemplates", "[Author]  |  [Date]"))});
+        say(d, newSlide(d, "obj"), "title", 0, {t(QT_TRANSLATE_NOOP("DeckTemplates", "Summary"))});
+        say(d, *d.pages.back(), "obj", 0, {t(QT_TRANSLATE_NOOP("DeckTemplates", "[The question this report answers]")), t(QT_TRANSLATE_NOOP("DeckTemplates", "[The answer, in one sentence]")), t(QT_TRANSLATE_NOOP("DeckTemplates", "[What you recommend]"))});
+        say(d, newSlide(d, "twoObj"), "title", 0, {t(QT_TRANSLATE_NOOP("DeckTemplates", "Findings"))});
+        say(d, *d.pages.back(), "obj", 0, {t(QT_TRANSLATE_NOOP("DeckTemplates", "[First finding]")), t(QT_TRANSLATE_NOOP("DeckTemplates", "[The number or fact behind it]"))});
+        say(d, *d.pages.back(), "obj", 1, {t(QT_TRANSLATE_NOOP("DeckTemplates", "[Second finding]")), t(QT_TRANSLATE_NOOP("DeckTemplates", "[The number or fact behind it]"))});
+        say(d, newSlide(d, "obj"), "title", 0, {t(QT_TRANSLATE_NOOP("DeckTemplates", "Recommendations"))});
+        say(d, *d.pages.back(), "obj", 0, {t(QT_TRANSLATE_NOOP("DeckTemplates", "[What to do first, and who does it]")), t(QT_TRANSLATE_NOOP("DeckTemplates", "[What to do next]")), t(QT_TRANSLATE_NOOP("DeckTemplates", "[How you will know it worked]"))});
+        say(d, newSlide(d, "secHead"), "title", 0, {t(QT_TRANSLATE_NOOP("DeckTemplates", "Questions"))});
+        say(d, *d.pages.back(), "body", 0, {t(QT_TRANSLATE_NOOP("DeckTemplates", "[Where readers can find the details]"))});
+    } else if (id == QLatin1String("training")) {
+        say(d, title, "ctrTitle", 0, {t(QT_TRANSLATE_NOOP("DeckTemplates", "[Training title]"))});
+        say(d, title, "subTitle", 0, {t(QT_TRANSLATE_NOOP("DeckTemplates", "[Team or audience]  |  [Trainer]"))});
+        say(d, newSlide(d, "obj"), "title", 0, {t(QT_TRANSLATE_NOOP("DeckTemplates", "What you will learn"))});
+        say(d, *d.pages.back(), "obj", 0, {t(QT_TRANSLATE_NOOP("DeckTemplates", "[A skill people will have by the end]")), t(QT_TRANSLATE_NOOP("DeckTemplates", "[A second skill]")), t(QT_TRANSLATE_NOOP("DeckTemplates", "[How long this takes]"))});
+        say(d, newSlide(d, "twoObj"), "title", 0, {t(QT_TRANSLATE_NOOP("DeckTemplates", "How it works"))});
+        say(d, *d.pages.back(), "obj", 0, {t(QT_TRANSLATE_NOOP("DeckTemplates", "Step 1: [what to do]")), t(QT_TRANSLATE_NOOP("DeckTemplates", "Step 2: [what to do]"))});
+        say(d, *d.pages.back(), "obj", 1, {t(QT_TRANSLATE_NOOP("DeckTemplates", "[A tip that saves time]")), t(QT_TRANSLATE_NOOP("DeckTemplates", "[A mistake to avoid]"))});
+        say(d, newSlide(d, "secHead"), "title", 0, {t(QT_TRANSLATE_NOOP("DeckTemplates", "Practice"))});
+        say(d, *d.pages.back(), "body", 0, {t(QT_TRANSLATE_NOOP("DeckTemplates", "[A short exercise, and how long people have]"))});
+        say(d, newSlide(d, "obj"), "title", 0, {t(QT_TRANSLATE_NOOP("DeckTemplates", "Check what you learned"))});
+        say(d, *d.pages.back(), "obj", 0, {t(QT_TRANSLATE_NOOP("DeckTemplates", "[A question with one right answer]")), t(QT_TRANSLATE_NOOP("DeckTemplates", "[A question that asks them to show it]")), t(QT_TRANSLATE_NOOP("DeckTemplates", "[Where to get help afterward]"))});
     } else {   // the two minimal looks
         say(d, title, "ctrTitle", 0, {t(QT_TRANSLATE_NOOP("DeckTemplates", "[Presentation title]"))});
         say(d, title, "subTitle", 0, {t(QT_TRANSLATE_NOOP("DeckTemplates", "[Your name]  |  [Date]"))});
@@ -307,6 +339,8 @@ QVector<BuiltInTemplate> builtInTemplates()
         {QStringLiteral("status"), t(QT_TRANSLATE_NOOP("DeckTemplates", "Status Update")), t(QT_TRANSLATE_NOOP("DeckTemplates", "A short report on where a project stands, what is next, and what could go wrong."))},
         {QStringLiteral("lesson"), t(QT_TRANSLATE_NOOP("DeckTemplates", "Lesson")), t(QT_TRANSLATE_NOOP("DeckTemplates", "Goals, key ideas, an activity, and questions for a class."))},
         {QStringLiteral("album"), t(QT_TRANSLATE_NOOP("DeckTemplates", "Photo Album")), t(QT_TRANSLATE_NOOP("DeckTemplates", "Pages with room for one, two, or three pictures, and a caption for each."))},
+        {QStringLiteral("report"), t(QT_TRANSLATE_NOOP("DeckTemplates", "Report")), t(QT_TRANSLATE_NOOP("DeckTemplates", "A summary, the findings, and what you recommend, in a calm, serious design."))},
+        {QStringLiteral("training"), t(QT_TRANSLATE_NOOP("DeckTemplates", "Training")), t(QT_TRANSLATE_NOOP("DeckTemplates", "What people will learn, how to do it, a practice exercise, and a short check."))},
         {QStringLiteral("minimallight"), t(QT_TRANSLATE_NOOP("DeckTemplates", "Minimal Light")), t(QT_TRANSLATE_NOOP("DeckTemplates", "A plain white design with lots of room for your words."))},
         {QStringLiteral("minimaldark"), t(QT_TRANSLATE_NOOP("DeckTemplates", "Minimal Dark")), t(QT_TRANSLATE_NOOP("DeckTemplates", "A plain dark design that is easy on the eyes in a dim room."))},
     };

@@ -360,7 +360,7 @@ private Q_SLOTS:
             const QString problem = templateProblem(*doc);
             QVERIFY2(problem.isEmpty(), qPrintable(t.id + QLatin1String(": ") + problem));
         }
-        for (const char *id : {"pitch", "status", "lesson", "album", "minimallight", "minimaldark"}) QVERIFY2(seen.contains(QLatin1String(id)), id);
+        for (const char *id : {"pitch", "status", "lesson", "album", "report", "training", "minimallight", "minimaldark"}) QVERIFY2(seen.contains(QLatin1String(id)), id);
         QVERIFY(!builtInTemplateDocument(QStringLiteral("no such template")));
     }
 

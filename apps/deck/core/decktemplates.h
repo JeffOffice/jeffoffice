@@ -1,5 +1,5 @@
 #pragma once
-// The presentations JeffDeck has ready for the New page: a pitch, a status update, a lesson, a photo album, and two minimal looks. Each is made here, in code (a theme of its own: colors,
+// The presentations JeffDeck has ready for the New page: a pitch, a status update, a lesson, a photo album, a report, a training deck, and two minimal looks. Each is made here, in code (a theme of its own: colors,
 // fonts, a slide master and layouts, then three to five sample slides with prompts to write over); nothing is read from outside the program.
 
 #include "core/deck.h"
