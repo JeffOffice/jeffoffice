@@ -404,6 +404,60 @@ private Q_SLOTS:
         QCOMPARE(s->valueAt(0, 0, 2).number(), 69.0);
     }
 
+    // The two forms of a name for a block of sheets, the plain and the quoted, go through a save and a reopen as they were typed, show in the list, and are taken by the Name Box and Go To.
+    void aNameForABlockOfSeveralSheetsIsSavedListedAndGoneTo()
+    {
+        const QString plain = QStringLiteral("One:Three!$A$1"), quoted = QStringLiteral("'A B:C D'!$A$1:$A$2");
+        const QByteArray one = worksheet(row(1, cell(QStringLiteral("A1"), QStringLiteral("1"))) + row(2, cell(QStringLiteral("A2"), QStringLiteral("10"))));
+        EditWindow e;
+        QVERIFY(e.open(buildXlsx({one, one, one, one, one}, QByteArray(), QString(), QString(), QByteArray(), QStringList({QStringLiteral("One"), QStringLiteral("Two"), QStringLiteral("Three"), QStringLiteral("A B"), QStringLiteral("C D")}),
+                                 QStringLiteral("<definedName name=\"Plain\">%1</definedName><definedName name=\"Quoted\">%2</definedName>").arg(plain.toHtmlEscaped(), quoted.toHtmlEscaped()))));
+        crunch::EditSession *s = e.win.w.session();
+        s->setLocale(QLocale(QLocale::English, QLocale::UnitedStates));
+        QVERIFY(e.settle());
+        // (a change to the list makes the save write it again)
+        QVERIFY(s->defineName(draft(QStringLiteral("Extra"), QStringLiteral("'A B'!$A$1"), -1)).ok);
+        QVERIFY(saveNow(e));
+        Saved f;
+        QVERIFY(f.open(e.path));
+        const QString kept = f.names().join(QLatin1Char(' '));
+        QVERIFY2(kept.contains(QStringLiteral("Plain|-1|%1|").arg(plain)), qPrintable(kept));
+        QVERIFY2(kept.contains(QStringLiteral("Quoted|-1|%1|").arg(quoted)), qPrintable(kept));
+        // reopened through the app's own open, the names are in the list with the text they were saved with
+        QFile saved(e.path);
+        QVERIFY(saved.open(QIODevice::ReadOnly));
+        EditWindow again;
+        QVERIFY(again.open(saved.readAll()));
+        saved.close();
+        QVERIFY(again.settle());
+        crunch::EditSession *s2 = again.win.w.session();
+        s2->setLocale(QLocale(QLocale::English, QLocale::UnitedStates));
+        NamesDialog d(s2, 0, QString());
+        d.show();
+        QStringList listed, refers;
+        for (int r = 0; r < d.model()->rowCount(); ++r) {
+            listed << d.model()->data(d.model()->index(r, NamesModel::NameColumn), Qt::DisplayRole).toString();
+            refers << d.model()->data(d.model()->index(r, NamesModel::RefersColumn), Qt::DisplayRole).toString();
+        }
+        QVERIFY(listed.contains(QStringLiteral("Plain")));
+        QVERIFY(listed.contains(QStringLiteral("Quoted")));
+        QVERIFY2(refers.contains(QLatin1Char('=') + plain), qPrintable(refers.join(QLatin1Char(' '))));
+        QVERIFY2(refers.contains(QLatin1Char('=') + quoted), qPrintable(refers.join(QLatin1Char(' '))));
+        d.close();
+        // the Name Box and Go To take either name: the first sheet of the block, the cells it names
+        CrunchWindow &w = again.win.w;
+        for (const QString &name : {QStringLiteral("Plain"), QStringLiteral("Quoted")}) {
+            w.setActiveSheet(1);
+            w.nameBox()->setText(name);
+            QTest::keyClick(w.nameBox(), Qt::Key_Return);
+            QCOMPARE(w.activeSheet(), name == QLatin1String("Plain") ? 0 : 3);
+            QCOMPARE(again.view()->rangeName(), name == QLatin1String("Plain") ? QStringLiteral("A1") : QStringLiteral("A1:A2"));
+        }
+        w.setActiveSheet(1);
+        QVERIFY(w.goToReference(QStringLiteral("Quoted")));
+        QCOMPARE(w.activeSheet(), 3);
+    }
+
     void aRenamedNameIsWrittenInTheRulesAndOtherNamesOfTheFileToo()
     {
         const QString rows = row(1, cell(QStringLiteral("A1"), QStringLiteral("5")) + cell(QStringLiteral("C1"), QStringLiteral("9")) + formula(QStringLiteral("D1"), QStringLiteral("Rate+1")));

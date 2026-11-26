@@ -30,7 +30,7 @@ Nothing is changed, and you are told why, if a cell that would be changed is loc
 
 ## Go to
 
-Press **F5** (or **Ctrl+G**), or type in the Name box. You can give a cell such as B7, a range such as B3:D9, whole columns or rows (C:E, 4:9), a cell of another sheet (Sheet2!A1, or 'My sheet'!A1), or the name of a range.
+Press **F5** (or **Ctrl+G**), or type in the Name box. You can give a cell such as B7, a range such as B3:D9, whole columns or rows (C:E, 4:9), a cell of another sheet (Sheet2!A1, or 'My sheet'!A1), or the name of a range. A name that stands for the same cells on a block of sheets, such as Jan:Dec!B2, takes you to the first sheet of the block.
 
 ## Select by kind
 

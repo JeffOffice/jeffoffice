@@ -60,6 +60,17 @@ int sheetNamed(const EditSession &session, const QString &name)
     return -1;
 }
 
+// The sheet a sheet part stands for: a sheet's name, or for a block of sheets ("Sheet1:Sheet3", "'A B:C D'") the first sheet of the block.
+int sheetOrBlockStart(const EditSession &session, const QString &name)
+{
+    const int found = sheetNamed(session, name);
+    if (found >= 0) return found;
+    const qsizetype colon = name.indexOf(QLatin1Char(':'));
+    if (colon <= 0) return -1;
+    const int first = sheetNamed(session, name.left(colon)), last = sheetNamed(session, name.mid(colon + 1));
+    return last >= 0 ? first : -1;
+}
+
 bool parseArea(const QString &text, GoToTarget *out)
 {
     static const QRegularExpression columns(QStringLiteral("^\\$?([A-Za-z]{1,3}):\\$?([A-Za-z]{1,3})$")), rows(QStringLiteral("^\\$?(\\d{1,7}):\\$?(\\d{1,7})$"));
@@ -106,7 +117,7 @@ GoToTarget resolveGoTo(const EditSession &session, const QString &input, int she
     }
     QString name, rest;
     if (splitSheet(text, &name, &rest)) {
-        const int found = sheetNamed(session, name);
+        const int found = sheetOrBlockStart(session, name);
         if (found < 0) {
             t.problem = QCoreApplication::translate("jp::crunch::GoTo", "There is no sheet called \"%1\" in this workbook.").arg(name);
             return t;
@@ -138,7 +149,7 @@ GoToTarget resolveGoTo(const EditSession &session, const QString &input, int she
             if (ref.startsWith(QLatin1Char('='))) ref.remove(0, 1);
             inner.sheet = sheet;
             if (splitSheet(ref, &nameSheet, &nameRest)) {
-                inner.sheet = sheetNamed(session, nameSheet);
+                inner.sheet = sheetOrBlockStart(session, nameSheet);
                 ref = nameRest;
             }
             if (inner.sheet >= 0 && parseArea(ref, &inner)) {
