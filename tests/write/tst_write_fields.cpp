@@ -2409,6 +2409,56 @@ private Q_SLOTS:
         QCOMPARE(documentXml(doc->toDocx()), before);
     }
 
+    void formsRedoWorksWhenTheDocumentHadHistoryBeforeProtectionStarted()
+    {
+        const QByteArray tx = "<w:textInput><w:maxLength w:val=\"8\"/></w:textInput>";
+        const QByteArray body = para(run("Closed ") + formField("A", tx, "FORMTEXT", run("a0")) + run(" ") + formField("B", tx, "FORMTEXT", run("b0")), "<w:sectPr/>") +
+                                "<w:p><w:r><w:t>Open</w:t></w:r></w:p><w:sectPr><w:formProt w:val=\"false\"/></w:sectPr>";
+        auto w = windowOn(body);
+        QVERIFY(w);
+        PageView *view = w->view();
+        WriteDoc *doc = w->document();
+        const QString openLine = lines(*doc).last();
+        auto resultOf = [&](int which) { return formFields(doc->story())[which].result; };
+        caretAt(view, 1);
+        QTest::keyClicks(view, "pre");   // (typing made before the protection: the history does not start at zero)
+        const QByteArray before = documentXml(doc->toDocx());
+        office::wml::DocumentProtection protection;
+        protection.edit = QStringLiteral("forms");
+        protection.enforced = true;
+        doc->setProtection(protection);
+        QVERIFY(view->formsOnly());
+        QVERIFY(doc->canUndo());
+        // A fill, an edit in the open section, a fill.
+        caretAt(view, formFields(doc->story())[0].separate + 1, formFields(doc->story())[0].end);
+        QTest::keyClicks(view, "x");
+        const QByteArray s1 = documentXml(doc->toDocx());
+        caretAt(view, doc->story()->characterCount() - 1);
+        QTest::keyClicks(view, "Z");
+        const QByteArray s2 = documentXml(doc->toDocx());
+        caretAt(view, formFields(doc->story())[1].separate + 1, formFields(doc->story())[1].end);
+        QTest::keyClicks(view, "w");
+        const QByteArray s3 = documentXml(doc->toDocx());
+        QVERIFY(s1 != before && s2 != s1 && s3 != s2);
+        view->undo();
+        QCOMPARE(documentXml(doc->toDocx()), s2);
+        view->undo();
+        QCOMPARE(documentXml(doc->toDocx()), s1);
+        view->undo();
+        QCOMPARE(documentXml(doc->toDocx()), before);
+        // The step from before the protection is out of reach.
+        view->undo();
+        QCOMPARE(documentXml(doc->toDocx()), before);
+        view->redo();
+        QCOMPARE(documentXml(doc->toDocx()), s1);
+        view->redo();
+        QCOMPARE(documentXml(doc->toDocx()), s2);
+        view->redo();
+        QCOMPARE(documentXml(doc->toDocx()), s3);
+        QCOMPARE(resultOf(1), QStringLiteral("w"));
+        QCOMPARE(lines(*doc).last(), openLine + QLatin1Char('Z'));
+    }
+
     void aResultWithALineBreakKeepsItWhenTextIsTypedAroundIt()
     {
         const QByteArray tx = "<w:textInput><w:maxLength w:val=\"20\"/></w:textInput>";

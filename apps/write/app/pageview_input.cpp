@@ -2066,7 +2066,7 @@ void PageView::setFormsOnly(bool on)
 bool PageView::formHistoryOpen(bool redo) const
 {
     if (!m_doc || m_searchBlocks > 0) return false;
-    return (redo ? m_doc->canRedo() && m_doc->lastRedoSerial() : m_doc->canUndo() ? m_doc->lastStepSerial() : 0) > m_formFloor;
+    return (redo ? (m_doc->canRedo() ? m_doc->lastRedoSerial() : 0) : (m_doc->canUndo() ? m_doc->lastStepSerial() : 0)) > m_formFloor;
 }
 
 // Whether the key would change text it must not: the place it lands is the selection, and, for Backspace and Delete with nothing selected, the character (or with Ctrl the words, held to the
