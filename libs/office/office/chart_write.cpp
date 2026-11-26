@@ -118,6 +118,7 @@ private:
     QByteArray out;
     QXmlStreamWriter w;
     int m_serial = 0;
+    bool m_formulaRefs = false;   // the series being written is one a filter leaves out of a radar
 
     void val(const char *name, const QString &v)
     {
@@ -344,7 +345,7 @@ private:
         w.writeStartElement(QString::fromLatin1(element));
         if (!s.categoryRef.isEmpty()) {
             w.writeStartElement(QString::fromLatin1(numeric ? "c:numRef" : "c:strRef"));
-            text("c:f", s.categoryRef);
+            reference(s.categoryRef);
             if (numeric) numCache("c:numCache", s.categoryNumbers, s.categoryFormat);
             else strCache(s.categories);
             w.writeEndElement();
@@ -369,7 +370,7 @@ private:
         w.writeStartElement(QString::fromLatin1(element));
         if (!ref.isEmpty()) {
             w.writeStartElement(QStringLiteral("c:numRef"));
-            text("c:f", ref);
+            reference(ref);
             numCache("c:numCache", items, format);
             w.writeEndElement();
         } else {
@@ -447,8 +448,26 @@ private:
         }
     }
 
+    // The cells a name, categories, or values read: c:f, or for the series a radar's filter leaves out the extension that holds them in its place
+    void reference(const QString &ref)
+    {
+        if (!m_formulaRefs) {
+            text("c:f", ref);
+            return;
+        }
+        w.writeStartElement(QStringLiteral("c:extLst"));
+        w.writeStartElement(QStringLiteral("c:ext"));
+        w.writeAttribute(QStringLiteral("uri"), QStringLiteral("{02D57815-91ED-43cb-92C2-25804820EDAC}"));
+        w.writeStartElement(QStringLiteral("c15:formulaRef"));
+        text("c15:sqref", ref);
+        w.writeEndElement();
+        w.writeEndElement();
+        w.writeEndElement();
+    }
+
     void series(const ChartPlot &plot, const ChartSeries &s, const char *element = "c:ser")
     {
+        m_formulaRefs = plot.type == ChartType::Radar && QLatin1String(element) == QLatin1String("c15:ser");
         const bool stroked = plot.type == ChartType::Line || plot.type == ChartType::Scatter || (plot.type == ChartType::Radar && !plot.filled);
         const bool scatter = plot.type == ChartType::Scatter;
         const int index = m_serial++;
@@ -459,7 +478,7 @@ private:
         w.writeStartElement(QStringLiteral("c:tx"));
         if (!s.nameRef.isEmpty()) {
             w.writeStartElement(QStringLiteral("c:strRef"));
-            text("c:f", s.nameRef);
+            reference(s.nameRef);
             strCache(QStringList{s.name});
             w.writeEndElement();
         } else {
@@ -616,7 +635,7 @@ private:
             flag("c:varyColors", p.varyColors);
             break;
         case ChartType::Radar:
-            val("c:radarStyle", QString::fromLatin1(p.filled ? "filled" : p.markers ? "marker" : "standard"));
+            val("c:radarStyle", QString::fromLatin1(p.filled ? "filled" : "marker"));   // (the plain radar is the style "marker" too: its series each say the symbol is none)
             flag("c:varyColors", p.varyColors);
             break;
         case ChartType::Pie:
@@ -893,7 +912,8 @@ void collect(const QDomElement &e, Shape *out, int depth, QStringList &path)
         // extensions: only those that hold nothing but an identifier of the chart or of a series, or the series a filter leaves out (which are looked through like the others)
         for (QDomElement ext = e.firstChildElement(); !ext.isNull(); ext = ext.nextSiblingElement())
             for (QDomElement c = ext.firstChildElement(); !c.isNull(); c = c.nextSiblingElement()) {
-                if (c.namespaceURI() == QLatin1String(kC15Ns) && c.localName() == QLatin1String("datalabelsRange")) continue;   // (what "value from cells" reads: the model holds it)
+                if (c.namespaceURI() == QLatin1String(kC15Ns) && c.localName() == QLatin1String("datalabelsRange")) continue;
+                if (c.namespaceURI() == QLatin1String(kC15Ns) && c.localName() == QLatin1String("formulaRef")) continue;   // (where a hidden series reads its cells: the model holds it)   // (what "value from cells" reads: the model holds it)
                 if (c.namespaceURI() == QLatin1String(kC15Ns) && c.localName().startsWith(QLatin1String("filtered")) && c.localName().endsWith(QLatin1String("Series")) && depth < 60) {
                     path.append(QStringLiteral("extLst"));
                     for (QDomElement ser = c.firstChildElement(); !ser.isNull(); ser = ser.nextSiblingElement())
@@ -980,6 +1000,12 @@ QStringList chartLosses(const QByteArray &chartPartXml, bool firstOnly)
     if (!readChart(chartPartXml, theme, ColorMap(), &a, &problem)) {
         no(problem);
         return lost;
+    }
+    // (a radar beside another radar, on a second pair of axes, is drawn on the first scale: the part is kept)
+    {
+        int radars = 0;
+        for (const ChartPlot &p : a.plots) radars += p.type == ChartType::Radar;
+        if (radars > 1 && no(QStringLiteral("a radar on a second pair of axes"))) return lost;
     }
     // what is written of what was read, read again
     const QByteArray written = writeChartPart(a);

@@ -552,7 +552,7 @@ private Q_SLOTS:
     // A radar chart is written as c:radarChart with the style of its look, its series as a line's less the smoothing, and read back the same, in each of its three looks.
     void aRadarChartIsWrittenInItsThreeStylesAndReadBack()
     {
-        const struct { bool filled, markers; const char *style; } looks[] = {{false, false, "standard"}, {false, true, "marker"}, {true, false, "filled"}};
+        const struct { bool filled, markers; const char *style; } looks[] = {{false, false, "marker"}, {false, true, "marker"}, {true, false, "filled"}};
         for (const auto &look : looks) {
             Chart c = blankChart(defaultTheme());
             ChartPlot p;
@@ -573,9 +573,13 @@ private Q_SLOTS:
             b.majorGridlines = true;
             c.axes << a << b;
             p.series << seriesOf(QStringLiteral("S"), QString(), QStringLiteral("Sheet1!$A$2:$A$4"), QStringLiteral("Sheet1!$B$2:$B$4"), {"a", "b", "c"}, {1, 2, 3}, QColor("#112233"));
+            if (!look.filled && !look.markers) p.series[0].marker.symbol = ChartMarker::None;
             c.plots << p;
             const QByteArray part = writeChartPart(c);
             QVERIFY2(part.contains(QByteArray("<c:radarChart><c:radarStyle val=\"") + look.style + "\"/>"), look.style);
+            // the plain radar and the one with markers are both the style "marker": the plain one's series say the symbol is none, the other's say nothing
+            QCOMPARE(part.contains("<c:marker><c:symbol val=\"none\"/></c:marker>"), !look.filled && !look.markers);
+            QCOMPARE(part.count("<c:marker>"), !look.filled && !look.markers ? 1 : 0);
             QVERIFY(!part.contains("c:smooth") && !part.contains("c:bubble3D") && !part.contains("c:barChart"));
             if (look.filled) QVERIFY(part.contains("<c:spPr><a:solidFill><a:srgbClr val=\"112233\"/>"));
             else QVERIFY(part.contains("<a:ln") && part.contains("<a:srgbClr val=\"112233\"/>"));
@@ -592,6 +596,55 @@ private Q_SLOTS:
             // a part written from what was read is the part
             QCOMPARE(writeChartPart(r), part);
         }
+    }
+
+    // A series a filter leaves out of a radar is written the way the program that made the kind writes it: in the plot's extension after the axes, with the cells it reads in the extension's
+    // formula form in place of c:f; and it is read back, hidden, with those cells.
+    void aHiddenRadarSeriesIsWrittenInTheFilteredFormAndReadBack()
+    {
+        Chart c = blankChart(defaultTheme());
+        ChartPlot p;
+        p.type = ChartType::Radar;
+        p.grouping = ChartGrouping::Standard;
+        p.axisIds[0] = 1;
+        p.axisIds[1] = 2;
+        ChartAxis a, b;
+        a.id = 1;
+        a.crossId = 2;
+        a.majorGridlines = true;
+        b.kind = ChartAxis::Value;
+        b.id = 2;
+        b.crossId = 1;
+        b.position = QStringLiteral("l");
+        b.majorGridlines = true;
+        c.axes << a << b;
+        p.series << seriesOf(QStringLiteral("A"), QStringLiteral("Sheet1!$B$1"), QStringLiteral("Sheet1!$A$2:$A$4"), QStringLiteral("Sheet1!$B$2:$B$4"), {"a", "b", "c"}, {1, 2, 3}, QColor("#112233"));
+        p.series << seriesOf(QStringLiteral("B"), QStringLiteral("Sheet1!$C$1"), QStringLiteral("Sheet1!$A$2:$A$4"), QStringLiteral("Sheet1!$C$2:$C$4"), {"a", "b", "c"}, {3, 2, 1}, QColor("#445566"));
+        p.series[0].marker.symbol = p.series[1].marker.symbol = ChartMarker::None;
+        p.series[0].filtered = true;
+        c.plots << p;
+        const QByteArray part = writeChartPart(c);
+        const QByteArray hidden = part.mid(part.indexOf("<c15:filteredRadarSeries>"), part.indexOf("</c15:filteredRadarSeries>") - part.indexOf("<c15:filteredRadarSeries>"));
+        QVERIFY(!hidden.isEmpty());
+        QVERIFY2(!hidden.contains("<c:f>"), "a hidden series' cells are not in c:f");
+        QVERIFY(hidden.contains("<c15:formulaRef><c15:sqref>Sheet1!$B$1</c15:sqref></c15:formulaRef>"));
+        QVERIFY(hidden.contains("<c15:formulaRef><c15:sqref>Sheet1!$A$2:$A$4</c15:sqref></c15:formulaRef>"));
+        QVERIFY(hidden.contains("<c15:formulaRef><c15:sqref>Sheet1!$B$2:$B$4</c15:sqref></c15:formulaRef>"));
+        // after the two axes ids, directly in the plot
+        QVERIFY(part.indexOf("<c:axId val=\"2\"/><c:extLst>") > 0 && part.indexOf("<c:extLst>", part.indexOf("<c:axId val=\"2\"/>")) < part.indexOf("<c15:filteredRadarSeries>"));
+        // the shown series keeps c:f
+        QVERIFY(part.contains("<c:f>Sheet1!$C$2:$C$4</c:f>"));
+        Chart r;
+        QString err;
+        QVERIFY2(readChart(part, defaultTheme(), ColorMap(), &r, &err), qPrintable(err));
+        QCOMPARE(int(r.plots[0].series.size()), 2);
+        QVERIFY(r.plots[0].series[0].filtered);
+        QCOMPARE(r.plots[0].series[0].valueRef, QStringLiteral("Sheet1!$B$2:$B$4"));
+        QCOMPARE(r.plots[0].series[0].nameRef, QStringLiteral("Sheet1!$B$1"));
+        QCOMPARE(r.plots[0].series[0].categoryRef, QStringLiteral("Sheet1!$A$2:$A$4"));
+        QString why;
+        QVERIFY2(chartIsFullyModeled(part, &why), qPrintable(why));
+        QCOMPARE(writeChartPart(r), part);
     }
 
     void aPartWithMoreInItThanTheModelHoldsIsNotWrittenOver()
