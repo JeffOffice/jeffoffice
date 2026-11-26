@@ -135,6 +135,7 @@ bool insertCoverPageBlock(WriteDoc &doc, const QByteArray &block, QString *probl
         if (problem) *problem = QCoreApplication::translate("jp::write::CoverPage", "A cover page can't go before a table at the very start of the document. Put a paragraph before the table first.");
         return false;
     }
+    if (!blockCanBeInserted(block, problem)) return false;   // (before the cover there is goes: a block that can't be read leaves the document as it was)
     const WriteDoc::StepGroup group(doc);
     removeCoverPage(doc);
     QTextCursor c(story);

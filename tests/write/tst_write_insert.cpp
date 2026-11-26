@@ -6,6 +6,7 @@
 #include "app/barcodedialog.h"
 #include "app/linktargetpicker.h"
 #include "app/navpane.h"
+#include "core/blockops.h"
 #include "app/pagepaint.h"
 #include "app/pageview.h"
 #include "app/settings.h"
@@ -1765,6 +1766,28 @@ private Q_SLOTS:
         QCOMPARE(shown(), QStringLiteral("Body text"));
         QVERIFY(win.w.document()->undo());
         QVERIFY(write::hasCoverPage(*win.w.document()));
+    }
+
+    // A cover page that can't be read leaves the document as it was, old cover and all.
+    void aCoverThatCannotBeReadLeavesTheDocumentAsItWas()
+    {
+        Win win({"Body text"});
+        win.w.act("insert.cover.classic")->trigger();
+        QVERIFY(write::hasCoverPage(*win.w.document()));
+        jp::BlockInfo info;
+        info.gallery = jp::kCoverPagesGallery;
+        info.format = QStringLiteral("docx");
+        info.insertAs = jp::BlockInsert::Page;
+        const QByteArray before = win.w.document()->toDocx();
+        const QString text = win.text();
+        QVERIFY(!win.w.insertOwnBlock(info, QByteArray("not a document")));
+        QVERIFY(write::hasCoverPage(*win.w.document()));
+        QCOMPARE(win.text(), text);
+        QCOMPARE(documentXml(win.w.document()->toDocx()), documentXml(before));
+        std::unique_ptr<WriteDoc> empty = WriteDoc::blank();
+        QVERIFY(!win.w.insertOwnBlock(info, empty->toDocx()));   // (a block with nothing in it)
+        QVERIFY(write::hasCoverPage(*win.w.document()));
+        QCOMPARE(win.text(), text);
     }
 
     void aTableOfTheirOwnIsSavedAndPutInAgain()

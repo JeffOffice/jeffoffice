@@ -27,6 +27,8 @@ bool selectionHoldsTextBox(const QTextCursor &selection);
 // Puts the block where the caret is (in place of a selection), as one step that undoes: `how` says whether it goes in as it is, in a paragraph of its own, or on a page of its own. The styles
 // it uses that the document lacks are added (a style the document has under the same name is never changed; the block's paragraphs take the document's), and the fields in it are updated.
 // False, with `problem`, for bytes that are no document or hold nothing, or where nothing can be put in (a header, a note, a paragraph kept as XML).
+// Whether a block can be read and has something in it, so that a caller that clears a place for it first finds out before it does.
+bool blockCanBeInserted(const QByteArray &block, QString *problem = nullptr);
 bool insertBlock(WriteDoc &doc, QTextCursor &c, const QByteArray &block, BlockInsert how, QString *problem = nullptr);
 
 // The Text Shortcut that ends just before the caret (the longest, without regard to case, that starts at the start of a word), or none.

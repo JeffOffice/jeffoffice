@@ -196,6 +196,22 @@ bool selectionHoldsTextBox(const QTextCursor &selection)
     return false;
 }
 
+bool blockCanBeInserted(const QByteArray &block, QString *problem)
+{
+    auto fail = [&](const QString &why) {
+        if (problem) *problem = why;
+        return false;
+    };
+    if (block.isEmpty() || block.size() > BlockLibrary::kMostEntryBytes) return fail(QCoreApplication::translate("jp::write::Blocks", "This block cannot be read."));
+    QString err;
+    std::unique_ptr<WriteDoc> entry = WriteDoc::fromDocx(block, &err);
+    if (!entry) return fail(QCoreApplication::translate("jp::write::Blocks", "This block cannot be read."));
+    QTextCursor all(entry->story());
+    all.select(QTextCursor::Document);
+    if (copySelection(*entry, all).isEmpty()) return fail(QCoreApplication::translate("jp::write::Blocks", "This block is empty."));
+    return true;
+}
+
 bool insertBlock(WriteDoc &doc, QTextCursor &c, const QByteArray &block, BlockInsert how, QString *problem)
 {
     auto fail = [&](const QString &why) {
