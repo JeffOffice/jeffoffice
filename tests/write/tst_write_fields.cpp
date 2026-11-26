@@ -2231,6 +2231,57 @@ private Q_SLOTS:
             }
         }
     }
+
+    void aNumberIsPutInItsPictureWheneverItsFieldIsLeft()
+    {
+        const QByteArray num = "<w:textInput><w:type w:val=\"number\"/><w:format w:val=\"0.00\"/></w:textInput>";
+        const QByteArray body = para(run("pre ") + formField("N", num, "FORMTEXT", run("0")) + run(" post"));
+        for (int protectedForForms = 0; protectedForForms < 2; ++protectedForForms) {
+            auto w = windowOn(body, protectedForForms ? kFormsProtection : QByteArray());
+            QVERIFY(w);
+            PageView *view = w->view();
+            WriteDoc *doc = w->document();
+            auto result = [&] { return formFields(doc->story())[0].result; };
+            auto typeIn = [&](const QByteArray &keys) {
+                const FormField f = formFields(doc->story())[0];
+                caretAt(view, f.end, f.separate + 1);
+                QTest::keyClicks(view, QString::fromLatin1(keys));
+                QCOMPARE(result(), QString::fromLatin1(keys));   // (still as typed while the caret is in the field)
+            };
+            // The caret moves out by a key.
+            typeIn("12.5");
+            QTest::keyClick(view, Qt::Key_Right);
+            QCOMPARE(result(), QStringLiteral("12.50"));
+            // A click (the caret put) elsewhere.
+            typeIn("7");
+            caretAt(view, 1);
+            QCOMPARE(result(), QStringLiteral("7.00"));
+            // Tab (protected) goes on and finishes it.
+            if (protectedForForms) {
+                typeIn("3");
+                QTest::keyClick(view, Qt::Key_Tab);
+                QCOMPARE(result(), QStringLiteral("3.00"));
+            }
+            // Before a save, and before a print, the field being typed in is finished.
+            QTemporaryDir dir;
+            QVERIFY(dir.isValid());
+            typeIn("4");
+            const QString path = dir.filePath(QStringLiteral("filled.docx"));
+            QVERIFY(w->saveTo(path, true));
+            QCOMPARE(result(), QStringLiteral("4.00"));
+            QFile saved(path);
+            QVERIFY(saved.open(QIODevice::ReadOnly));
+            const QByteArray savedXml = documentXml(saved.readAll());
+            saved.close();
+            QVERIFY(savedXml.contains("4.00"));
+            typeIn("5");
+            w->setSavePathChooser([&](const QString &, const QString &) { return dir.filePath(QStringLiteral("out.pdf")); });
+            WriteOutputOptions o;
+            o.toFile = true;
+            QVERIFY(w->printOutput(o));
+            QCOMPARE(result(), QStringLiteral("5.00"));
+        }
+    }
 };
 
 QTEST_MAIN(FieldTests)

@@ -299,7 +299,11 @@ void WriteWindow::reflectShapeEditor()
 }
 
 // The words being typed in a shape are put in the document (the edit ends); false when the box refuses them.
-bool WriteWindow::commitShapeText() { return !m_view || m_view->commitShapeText(true); }
+bool WriteWindow::commitShapeText()
+{
+    if (m_view) m_view->finishFormEntry(true);   // (the field being typed in is finished before a save, an export, or a print)
+    return !m_view || m_view->commitShapeText(true);
+}
 
 void WriteWindow::setDocument(std::unique_ptr<write::WriteDoc> doc, const QString &path)
 {

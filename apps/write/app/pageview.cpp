@@ -1573,6 +1573,7 @@ void PageView::ensureCaretVisible()
 
 void PageView::caretMoved(bool keepWanted)
 {
+    if (!m_formEntry.isNull()) finishFormEntry();
     // (The endnotes the pages set are not the person's: no caret or selection reaches them. A caret that has gone on past those at the end of a section is at the start of the next
     // section's text, one that has gone back at the end of the last section's, and a click in them is at the nearer place.)
     if (m_doc && m_doc->collapseActive() && !m_hf.active && !m_note.active && m_cursor.document() == m_doc->story()) expandAround(*m_doc, m_cursor.position());   // (a caret that goes into what a collapsed heading hides opens it)

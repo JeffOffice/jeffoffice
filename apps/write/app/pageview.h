@@ -86,6 +86,8 @@ public:
     // Shift+Tab from field to field), and so can a section the protection leaves out. Undo and Redo take back and do again the fills made since (and only those).
     void setFormsOnly(bool on);
     bool formsOnly() const { return m_formsOnly; }
+    // The text field typed in last is finished (a number or a date put in its picture): done when the caret leaves it, and by the window before a save or a print.
+    void finishFormEntry(bool wherever = false);
     // The window made a fill (a choice from a drop-down's menu) in a document protected for forms: Undo can take it back.
     void noteFormFill()
     {
@@ -587,6 +589,7 @@ protected:
     bool m_readOnly = false;
     int m_searchBlocks = 0;
     bool m_formsOnly = false;
+    QTextCursor m_formEntry;   // inside the begin mark of the text field typed in last, until it is finished
     int m_formUndo = 0, m_formRedo = 0;   // the fills made in a document protected for forms that Undo can take back, and Redo do again
     void contextMenuEvent(QContextMenuEvent *e) override;
     void focusInEvent(QFocusEvent *e) override;

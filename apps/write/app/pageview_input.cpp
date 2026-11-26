@@ -56,6 +56,7 @@ bool s_copiedWhole = true;   // the words last copied from here were whole words
 
 void PageView::undo()
 {
+    m_formEntry = QTextCursor();
     if (editsBlocked() && !(m_formsOnly && m_formUndo > 0 && m_searchBlocks == 0)) return;   // (a search that is under way holds the text as it is)
     endTypedRun();
     if (m_formsOnly && m_formUndo > 0) {
@@ -81,6 +82,7 @@ void PageView::undo()
 
 void PageView::redo()
 {
+    m_formEntry = QTextCursor();
     if (editsBlocked() && !(m_formsOnly && m_formRedo > 0 && m_searchBlocks == 0)) return;
     endTypedRun();
     if (m_formsOnly && m_formRedo > 0) {
@@ -2129,10 +2131,33 @@ bool PageView::clickInFormField(int at, const QPoint &globalPos, int clicks)
     return true;
 }
 
+// What a text field that was typed in holds is finished (a number or a date put in the picture the field has) once the caret is no longer in it, or with `wherever`, now.
+void PageView::finishFormEntry(bool wherever)
+{
+    QTextDocument *story = m_formEntry.isNull() ? nullptr : m_formEntry.document();
+    if (!story || !m_doc) return;
+    const int begin = m_formEntry.position() - 1;
+    if (!wherever && m_cursor.document() == story) {
+        const write::FormField here = write::formFieldAtSelection(story, m_cursor.selectionStart(), m_cursor.selectionEnd());
+        if (here.valid() && here.begin == begin) return;
+    }
+    m_formEntry = QTextCursor();
+    const write::FormField f = write::formFieldBeginningAt(story, begin);
+    if (!f.valid() || f.kind != write::FormKind::Text || !f.fillable() || f.separate < 0) return;
+    bool fits = true;
+    const QString finished = write::finishedFormText(f, f.result, &fits);
+    if (!fits) Q_EMIT notice(tr("What you typed doesn't fit this field's format."));
+    else if (write::fillFormText(*m_doc, story, f.begin, finished, true) && m_formsOnly) {
+        ++m_formUndo;
+        m_formRedo = 0;
+    }
+}
+
 // Leaves the field the caret is in (a number or a date is finished in its picture) for the next one, or the one before it.
 void PageView::goToFormField(const write::FormField &here, bool backward)
 {
     QTextDocument *story = m_cursor.document();
+    m_formEntry = QTextCursor();   // (the field is finished here, whether or not it was typed in)
     if (here.valid() && here.kind == write::FormKind::Text && here.fillable() && here.separate >= 0) {
         bool fits = true;
         const QString finished = write::finishedFormText(here, here.result, &fits);
@@ -2251,9 +2276,15 @@ void PageView::enterInFormField(const write::FormField &f, int key, const QStrin
     else if (put.isEmpty() && a == b && key == Qt::Key_Delete && b < text.size()) ++b;
     text.replace(a, b - a, put);
     QString shown;
-    if (write::fillFormText(*m_doc, story, f.begin, text, false, &shown) && m_formsOnly) {
+    const bool done = write::fillFormText(*m_doc, story, f.begin, text, false, &shown);
+    if (done && m_formsOnly) {
         ++m_formUndo;
         m_formRedo = 0;
+    }
+    if (done) {   // (the field is finished when the caret leaves it)
+        m_formEntry = QTextCursor(story);
+        m_formEntry.setPosition(f.begin + 1);
+        m_formEntry.setKeepPositionOnInsert(true);
     }
     const int caret = std::min<int>(a + int(put.size()), int(shown.size()));
     m_cursor.setPosition(start + caret);
