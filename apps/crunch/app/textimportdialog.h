@@ -31,6 +31,8 @@ struct TextImportRequest {
     jp::office::sheet::CsvImport choices;         // in: what the file is found to be; out: what the person chose
     // Whether the kind of each column is proposed from the first rows (text, number, or date) for the person to change. Set only where the person sees the preview first.
     bool guessKinds = false;
+    // Whether the decimal mark, thousands mark, and trailing minus are offered. Pasted text is entered as if typed, in the person's own marks, so it has none (the guess then reads what the paste makes).
+    bool marks = true;
 };
 
 class TextImportDialog : public QDialog {

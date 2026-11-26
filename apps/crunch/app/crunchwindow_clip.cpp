@@ -451,6 +451,7 @@ bool CrunchWindow::importPastedText(const QString &text, bool any)
     TextImportRequest req;
     req.locale = QLocale();
     req.guessKinds = true;   // (the person sees the preview before the text goes in)
+    req.marks = false;   // (the text is entered as if typed, in the person's own marks: the boxes would promise what the paste does not do)
     const QByteArray utf8 = text.toUtf8();   // (once)
     req.head = utf8.left(jp::office::sheet::kCsvPreviewBytes);
     req.size = utf8.size();

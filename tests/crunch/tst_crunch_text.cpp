@@ -566,6 +566,45 @@ private Q_SLOTS:
         QCOMPARE(pasted, pastedPlain);
     }
 
+    // Pasted text is entered as typed in the person's own marks, so the dialog for it offers no marks and the proposal is what the paste makes; the dialog for a file still offers them.
+    void pastedTextHasNoMarksSoTheProposalIsWhatThePasteMakes()
+    {
+        TextImportRequest given = guessing("007;\"1.234.567.890.123.456\"\n");
+        given.marks = false;
+        given.choices.decimalMark = QLatin1Char(',');   // (what a caller left in the request is not offered either, and does not decide)
+        given.choices.thousandsMark = QLatin1Char('.');
+        TextImportDialog pasted(given);
+        QVERIFY(!pasted.findChild<QComboBox *>(QStringLiteral("textImportDecimal"))->isVisibleTo(&pasted));
+        QVERIFY(!pasted.findChild<QComboBox *>(QStringLiteral("textImportThousands"))->isVisibleTo(&pasted));
+        QVERIFY(!pasted.findChild<QCheckBox *>(QStringLiteral("textImportTrailingMinus"))->isVisibleTo(&pasted));
+        QVERIFY(pasted.choices().decimalMark.isNull() && pasted.choices().thousandsMark.isNull() && !pasted.choices().trailingMinus);
+        TextImportDialog file(guessing("a\n1\n"));
+        QVERIFY(file.findChild<QComboBox *>(QStringLiteral("textImportDecimal"))->isVisibleTo(&file));
+        // the paste: the request says there are no marks, the proposal for the column is as typed, and the cell is what as typed makes of the text
+        EditWindow e;
+        QVERIFY(e.open(editBook()));
+        auto *md = new QMimeData;
+        md->setText(QStringLiteral("x;\"1.234.567.890.123.456\"\ny;\"1.234,50\"\n"));
+        QApplication::clipboard()->setMimeData(md);
+        bool offered = true;
+        int proposed = -1;
+        e.win.w.anchorHooks().textImportAsker = [&offered, &proposed](TextImportRequest *r) {
+            offered = r->marks;
+            r->choices.separators = QStringLiteral(";");
+            TextImportDialog d(*r);
+            proposed = kindIndex(d, 1);
+            r->choices = d.choices();
+            return true;
+        };
+        e.select(QStringLiteral("D5"));
+        e.win.w.act(QStringLiteral("paste.textImport"))->trigger();
+        QVERIFY(e.settle());
+        QVERIFY(!offered);
+        QCOMPARE(proposed, 0);
+        QCOMPARE(e.shownAt(QStringLiteral("E5")), QStringLiteral("1.234.567.890.123.456"));
+        QCOMPARE(e.shownAt(QStringLiteral("E6")), QStringLiteral("1.234,50"));   // (as typed in the person's marks: text, as the proposal said)
+    }
+
     // A kind the person set stays through every later change (separator, marks, names), and a column they did not set is guessed again from the new split.
     void aKindThePersonSetIsNeverReplacedByALaterGuess()
     {

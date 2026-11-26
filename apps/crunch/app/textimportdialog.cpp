@@ -178,6 +178,7 @@ TextImportDialog::TextImportDialog(const TextImportRequest &request, QWidget *pa
     marks->addWidget(m_minus);
     marks->addStretch(1);
     form->addRow(tr("Decimal mark"), marks);
+    if (!request.marks) form->setRowVisible(marks, false);
     m_formulas = new QCheckBox(tr("Read formulas"), this);
     m_formulas->setObjectName(QStringLiteral("textImportReadFormulas"));
     m_formulas->setToolTip(tr("A field that begins with an equals sign becomes a formula. Leave this off for a file you did not make, because a formula can be written to do harm."));
@@ -258,9 +259,14 @@ CsvImport TextImportDialog::choices() const
         }
     c.columns = m_columns;
     if (m_request.guessKinds) c.rest = textColumn();   // (the columns past the ones shown are not looked at: text, so that nothing in them is damaged)
-    c.decimalMark = QChar(ushort(m_decimal->currentData().toInt()));
-    c.thousandsMark = QChar(ushort(m_thousands->currentData().toInt()));
-    c.trailingMinus = m_minus->isChecked();
+    if (m_request.marks) {
+        c.decimalMark = QChar(ushort(m_decimal->currentData().toInt()));
+        c.thousandsMark = QChar(ushort(m_thousands->currentData().toInt()));
+        c.trailingMinus = m_minus->isChecked();
+    } else {
+        c.decimalMark = c.thousandsMark = QChar();
+        c.trailingMinus = false;
+    }
     c.readFormulas = m_formulas->isChecked();
     c.fixedWidth = m_fixed->isChecked();
     c.breaks.clear();
