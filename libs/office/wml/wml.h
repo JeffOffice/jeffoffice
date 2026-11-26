@@ -471,6 +471,7 @@ struct Document {
     bool hasTheme = false;
     int defaultTabStop = 720;         // settings.xml's, twentieths of a point
     bool evenAndOddHeaders = false;
+    bool compatStated = false;        // the settings say a compatibilityMode (a file that says nothing gets no tag and no Convert, whatever it is read as)
     int compatMode = 12;              // compatibilityMode of settings.xml (11 for the 2003 programs' files, 12 for 2007's, 15 for 2013's and after); 12 when it says nothing
 
     // The package.

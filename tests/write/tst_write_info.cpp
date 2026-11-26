@@ -844,6 +844,49 @@ private Q_SLOTS:
         QCOMPARE(kept->compatMode(), 11);
     }
 
+    // The tag and the Convert card show only when the file itself states a mode below the newest: a new document, a file with no setting, and a text-like format show nothing.
+    void theTagShowsOnlyForAFileThatStatesAnOlderMode()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        auto shows = [](WriteWindow &w) {
+            std::unique_ptr<QWidget> page(w.buildInfoPage(nullptr));
+            const bool card = page->findChild<QWidget *>(QStringLiteral("infoConvert")) != nullptr;
+            const bool tag = w.windowTitle().contains(QLatin1String("Compatibility Mode"));
+            return tag || card;
+        };
+        {
+            WriteWindow w;
+            QVERIFY(!shows(w));
+        }
+        auto write = [&](const QString &name, const QByteArray &bytes) {
+            QFile f(dir.filePath(name));
+            return f.open(QIODevice::WriteOnly) && f.write(bytes) == bytes.size() ? dir.filePath(name) : QString();
+        };
+        {
+            WriteWindow w;
+            w.setNotifier([](const QString &, const QString &) {});
+            QVERIFY(w.openFile(write(QStringLiteral("none.docx"), makeDocx("<w:p><w:r><w:t>Words</w:t></w:r></w:p>"))));
+            QVERIFY2(!shows(w), qPrintable(w.windowTitle()));
+        }
+        {
+            WriteWindow w;
+            w.setNotifier([](const QString &, const QString &) {});
+            QVERIFY(w.openFile(write(QStringLiteral("plain.rtf"), "{\\rtf1\\ansi Hello}")));
+            QVERIFY2(!shows(w), qPrintable(w.windowTitle()));
+        }
+        {
+            const QByteArray settings = QByteArray("<?xml version=\"1.0\"?><w:settings ") + kNs + "><w:compat><w:compatSetting w:name=\"compatibilityMode\" w:uri=\"http://schemas.microsoft.com/office/word\" w:val=\"12\"/></w:compat></w:settings>";
+            WriteWindow w;
+            w.setNotifier([](const QString &, const QString &) {});
+            QVERIFY(w.openFile(write(QStringLiteral("older.docx"), makeDocx("<w:p><w:r><w:t>Words</w:t></w:r></w:p>", {Extra{QStringLiteral("/word/settings.xml"), kWord + QStringLiteral("settings+xml"), settings, kRel + QStringLiteral("settings")}}))));
+            QVERIFY(w.windowTitle().contains(QLatin1String("[Compatibility Mode]")));
+            w.convertCompatibility(false);
+            QVERIFY(saveInto(w, dir, QStringLiteral("after.docx")));
+            QVERIFY2(!w.windowTitle().contains(QLatin1String("Compatibility Mode")), qPrintable(w.windowTitle()));
+        }
+    }
+
     // The settings with the mode put in: changed where it is, added to a group, a group made, a whole part made.
     void theCompatibilityModeOfTheSettingsIsPutIn()
     {

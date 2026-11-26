@@ -562,6 +562,7 @@ bool WriteDoc::convertToCurrentMode()
 {
     if (!inCompatibilityMode()) return false;
     m_wml.compatMode = 15;
+    m_wml.compatStated = true;
     m_flow->markFollowsBreak = true;
     m_flow->env.wordWholePointLines = false;
     setModified(true);

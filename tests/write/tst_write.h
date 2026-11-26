@@ -850,6 +850,7 @@ private Q_SLOTS:
     void savingAnOldBinaryFileAsksForADocxName();
     void whatAnOldFileHoldsThatCannotBeShownIsSaid();
     void theCommentsOfAnOldFileAreComments();
+    void anOldBinaryFileHasNoCompatibilityModeTag();
     void thePropertiesOfAnOldFileAreWhereRemovingPersonalInformationLooks();
     void theFormFieldsOfAnOldFileShowTheirChoices();
     void anEmbeddedObjectOfAnOldFileIsShownAsAPictureAndSaid();

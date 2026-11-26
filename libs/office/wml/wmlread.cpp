@@ -1686,7 +1686,7 @@ bool readDocx(const QByteArray &zip, Document *doc, QString *error, ReadNotes *n
                 else if (settings.is(c, "compat"))
                     for (int k = settings.firstChild(c); k >= 0; k = settings.next(k))
                         if (settings.is(k, "compatSetting") && settings.attr(k, "name") == QLatin1String("compatibilityMode"))
-                            doc->compatMode = std::clamp(settings.attr(k, "val").toInt(), 8, 99);
+                            doc->compatMode = std::clamp(settings.attr(k, "val").toInt(), 8, 99), doc->compatStated = true;
             }
         }
     }

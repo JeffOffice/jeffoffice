@@ -571,7 +571,7 @@ public:
     int compatMode() const { return m_wml.compatMode; }
     // Whether the file is in the layout rules of an older program (a compatibility mode before the newest, 15); Convert takes the newest rules on: the settings that are set by the mode are
     // changed and the pages made again, and the file says the new mode when it is saved. The options a file sets one by one (hyphenation, mirrored margins) stay as they are. False when it is in the newest already.
-    bool inCompatibilityMode() const { return m_wml.compatMode < 15; }
+    bool inCompatibilityMode() const { return m_wml.compatStated && m_wml.compatMode < 15; }
     bool convertToCurrentMode();
     QString defaultParagraphStyle() const;
     QVector<StyleEntry> styleEntries() const;

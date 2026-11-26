@@ -856,6 +856,18 @@ void WriteTests::theCommentsOfAnOldFileAreComments()
     for (const QString &n : notices) QVERIFY2(!n.contains(QLatin1String("omment")), qPrintable(n));
 }
 
+// An old binary file is not in a compatibility mode that it says: no tag in the title.
+void WriteTests::anOldBinaryFileHasNoCompatibilityModeTag()
+{
+    QTemporaryDir dir;
+    QVERIFY(dir.isValid());
+    dochelp::DocWriter doc;
+    doc.text = QStringLiteral("Hello world.\r");
+    auto w = openOldFile(dir, doc, nullptr);
+    QVERIFY(w);
+    QVERIFY(!w->windowTitle().contains(QLatin1String("Compatibility Mode")));
+}
+
 void WriteTests::thePropertiesOfAnOldFileAreWhereRemovingPersonalInformationLooks()
 {
     QTemporaryDir dir;

@@ -348,13 +348,12 @@ void WriteWindow::updateTitle()
     setWindowTitle(QStringLiteral("%1%5%2%4 - %3").arg(shown, isModified() ? QStringLiteral("*") : QString(), appInfo().name, isReadOnly() ? (m_readOnlyByProtection ? tr(" (Protected)") : tr(" (Read-Only)")) : QString(), inCompatibilityMode() ? tr(" [Compatibility Mode]") : QString()));
 }
 
-// Whether the file is in an older program's layout rules, as its kind of file says: an .odt or a text file has none.
+// Whether the file is in an older program's layout rules, as the file itself says: a file with no setting, an .odt, an old binary file, and a text file say none.
 bool WriteWindow::inCompatibilityMode() const
 {
     if (!m_doc || !m_doc->inCompatibilityMode()) return false;
     const QString ending = QFileInfo(m_path).suffix().toLower();
-    return ending.isEmpty() || ending == QLatin1String("docx") || ending == QLatin1String("docm") || ending == QLatin1String("dotx") || ending == QLatin1String("dotm") || ending == QLatin1String("doc") ||
-           ending == QLatin1String("dot") || ending == QLatin1String("rtf");
+    return ending == QLatin1String("docx") || ending == QLatin1String("docm") || ending == QLatin1String("dotx") || ending == QLatin1String("dotm");
 }
 
 // Convert: takes the newest layout rules on. The pages may change, and it can't be undone, so the person is asked first (`ask` false is for a test).
