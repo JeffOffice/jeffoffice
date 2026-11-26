@@ -6052,7 +6052,7 @@ Articolo dell&apos;ultima pagina	4</translation>
     <message>
         <location filename="../libs/page/app/saveoptions.cpp" line="-15"/>
         <location filename="../apps/pub/app/mainwindow.cpp" line="+462"/>
-        <location filename="../apps/write/app/writewindow.cpp" line="+873"/>
+        <location filename="../apps/write/app/writewindow.cpp" line="+889"/>
         <source>Save</source>
         <translation type="unfinished">Salvataggio</translation>
     </message>
@@ -14078,7 +14078,7 @@ Scaricarlo ora da %2? (%3, una sola volta.)</translation>
 <context>
     <name>Repeat</name>
     <message>
-        <location filename="../libs/shell/app/repeat.cpp" line="+52"/>
+        <location filename="../libs/shell/app/repeat.cpp" line="+54"/>
         <source>Repeat %1 (F4)</source>
         <translation type="unfinished">Ripeti %1 (F4)</translation>
     </message>
@@ -63927,7 +63927,7 @@ Il browser web aprirà LibreTranslate, un servizio di traduzione gratuito e open
 <context>
     <name>jp::WriteWindow</name>
     <message>
-        <location filename="../apps/write/app/writewindow.cpp" line="-781"/>
+        <location filename="../apps/write/app/writewindow.cpp" line="-797"/>
         <source>Document%1</source>
         <translation type="unfinished">Documento%1</translation>
     </message>
@@ -63958,7 +63958,7 @@ Il browser web aprirà LibreTranslate, un servizio di traduzione gratuito e open
         <translation type="unfinished">%1 (%2)</translation>
     </message>
     <message>
-        <location line="+126"/>
+        <location line="+138"/>
         <source> (Protected)</source>
         <translation type="unfinished"> (Protetto)</translation>
     </message>
@@ -63990,11 +63990,12 @@ Il browser web aprirà LibreTranslate, un servizio di traduzione gratuito e open
     </message>
     <message>
         <location line="+47"/>
+        <location filename="../apps/write/app/writewindow_repeat.cpp" line="+110"/>
         <source>Formatting is limited in this document. Only styles that are not locked can be used.</source>
         <translation type="unfinished">La formattazione è limitata in questo documento. Possono essere usati solo gli stili non bloccati.</translation>
     </message>
     <message>
-        <location line="+12"/>
+        <location line="+13"/>
         <source>Undo</source>
         <translation type="unfinished">Annulla</translation>
     </message>
@@ -65728,7 +65729,8 @@ Il browser web aprirà LibreTranslate, un servizio di traduzione gratuito e open
         <translation type="unfinished">Tabelle predefinite</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/writewindow_ribbon.cpp" line="+160"/>
+        <location filename="../apps/write/app/writewindow_ribbon.cpp" line="+164"/>
+        <location line="+4"/>
         <location filename="../apps/write/app/writewindow_tables.cpp" line="+34"/>
         <source>Shading</source>
         <translation type="unfinished">Sfondo</translation>
@@ -65775,7 +65777,7 @@ Il browser web aprirà LibreTranslate, un servizio di traduzione gratuito e open
         <translation type="unfinished">Allineamento cella</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/writewindow.cpp" line="+126"/>
+        <location filename="../apps/write/app/writewindow.cpp" line="+129"/>
         <source>This document has the most notes JeffWrite can hold (%1), so no more can be added.</source>
         <translation type="unfinished">Il documento contiene il numero massimo di note supportato da JeffWrite (%1), quindi non è possibile aggiungerne altre.</translation>
     </message>
@@ -66696,7 +66698,8 @@ Impossibile applicare la password al file.</translation>
         <translation type="unfinished">%1 inviato alla stampante</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/writewindow_ribbon.cpp" line="-15"/>
+        <location filename="../apps/write/app/writewindow_ribbon.cpp" line="-21"/>
+        <location line="+4"/>
         <source>Font Color</source>
         <translation type="unfinished">Colore carattere</translation>
     </message>
@@ -66748,7 +66751,7 @@ Impossibile applicare la password al file.</translation>
     </message>
     <message>
         <location filename="../apps/write/app/writewindow_layout.cpp" line="-22"/>
-        <location filename="../apps/write/app/writewindow_ribbon.cpp" line="+0"/>
+        <location filename="../apps/write/app/writewindow_ribbon.cpp" line="-4"/>
         <source>Automatic</source>
         <translation type="unfinished">Automatico</translation>
     </message>
@@ -66780,8 +66783,8 @@ Impossibile applicare la password al file.</translation>
     <message>
         <location line="+6"/>
         <location line="+47"/>
-        <location filename="../apps/write/app/writewindow_ribbon.cpp" line="+15"/>
-        <location line="+23"/>
+        <location filename="../apps/write/app/writewindow_ribbon.cpp" line="+17"/>
+        <location line="+25"/>
         <location filename="../apps/write/app/writewindow_tables.cpp" line="-192"/>
         <source>No Color</source>
         <translation type="unfinished">Nessun colore</translation>
@@ -66807,13 +66810,13 @@ Impossibile applicare la password al file.</translation>
         <translation>Colore pagina</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/writewindow_ribbon.cpp" line="+16"/>
+        <location filename="../apps/write/app/writewindow_ribbon.cpp" line="+14"/>
         <source>No Shading</source>
         <translation type="unfinished">Nessuna ombreggiatura</translation>
     </message>
     <message>
         <location filename="../apps/write/app/writewindow_keys.cpp" line="+92"/>
-        <location filename="../apps/write/app/writewindow_ribbon.cpp" line="+19"/>
+        <location filename="../apps/write/app/writewindow_ribbon.cpp" line="+20"/>
         <location filename="../apps/write/app/writewindow_styles.cpp" line="+88"/>
         <source>Styles</source>
         <translation type="unfinished">Stili</translation>
@@ -66885,7 +66888,34 @@ Impossibile applicare la password al file.</translation>
         <translation type="unfinished">Questo non è un carattere che può avere una scorciatoia da tastiera.</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/writewindow_ribbon.cpp" line="+27"/>
+        <location filename="../apps/write/app/writewindow_ribbon.cpp" line="-98"/>
+        <source>Font</source>
+        <translation>Carattere</translation>
+    </message>
+    <message>
+        <location line="+12"/>
+        <source>Font Size</source>
+        <translation type="unfinished">Dimensione carattere</translation>
+    </message>
+    <message>
+        <location line="+47"/>
+        <location line="+6"/>
+        <source>Highlight</source>
+        <translation type="unfinished">Evidenziazione</translation>
+    </message>
+    <message>
+        <location line="+9"/>
+        <location line="+5"/>
+        <source>Text Shading</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+32"/>
+        <source>Style</source>
+        <translation>Stile</translation>
+    </message>
+    <message>
+        <location line="+15"/>
         <source>Indent left</source>
         <translation type="unfinished">Rientro a sinistra</translation>
     </message>
@@ -66905,7 +66935,17 @@ Impossibile applicare la password al file.</translation>
         <translation type="unfinished">Spaziatura dopo</translation>
     </message>
     <message>
-        <location line="+45"/>
+        <location line="+5"/>
+        <source>Indent</source>
+        <translation type="unfinished">Rientro</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Spacing</source>
+        <translation type="unfinished">Spaziatura</translation>
+    </message>
+    <message>
+        <location line="+42"/>
         <source>The caret&apos;s line on the page and its place in the line</source>
         <translation type="unfinished">La linea del cursore nella pagina e la sua posizione nella riga</translation>
     </message>
@@ -69943,6 +69983,29 @@ Impossibile applicare la password al file.</translation>
         <location line="+1"/>
         <source>Grid and Guides…</source>
         <translation type="unfinished">Griglia e guide…</translation>
+    </message>
+    <message>
+        <location filename="../apps/write/app/writewindow_repeat.cpp" line="+17"/>
+        <source>This cannot be repeated while the text of a box or shape is being edited.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+67"/>
+        <location line="+2"/>
+        <location line="+51"/>
+        <source>Repeat</source>
+        <translation type="unfinished">Ripeti</translation>
+    </message>
+    <message>
+        <location line="-36"/>
+        <location line="+3"/>
+        <source>Typing</source>
+        <translation type="unfinished">Digitazione</translation>
+    </message>
+    <message>
+        <location line="+33"/>
+        <source>Repeat %1</source>
+        <translation type="unfinished"></translation>
     </message>
 </context>
 <context>
@@ -85948,7 +86011,7 @@ Impossibile applicare la password al file.</translation>
         <translation type="unfinished">+%1 altri</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/pageview_input.cpp" line="+139"/>
+        <location filename="../apps/write/app/pageview_input.cpp" line="+141"/>
         <location line="+576"/>
         <source>Keep Source Formatting</source>
         <translation type="unfinished">Mantieni formattazione originale</translation>
@@ -86059,7 +86122,12 @@ Impossibile applicare la password al file.</translation>
         <translation type="unfinished">Come viene mantenuto il contenuto incollato. Dopo aver incollato, premi il tasto %1 per aprirlo.</translation>
     </message>
     <message>
-        <location line="+186"/>
+        <location line="+44"/>
+        <source>Typing</source>
+        <translation type="unfinished">Digitazione</translation>
+    </message>
+    <message>
+        <location line="+210"/>
         <source>Control</source>
         <translation type="unfinished">Control</translation>
     </message>
@@ -87188,7 +87256,7 @@ Impossibile applicare la password al file.</translation>
         <translation type="unfinished">Non ci sono stili da aggiornare qui.</translation>
     </message>
     <message>
-        <location filename="../apps/write/core/editops.cpp" line="+1061"/>
+        <location filename="../apps/write/core/editops.cpp" line="+1090"/>
         <source>The document has too many list styles.</source>
         <translation type="unfinished">Il documento contiene troppi stili elenco.</translation>
     </message>
@@ -87423,7 +87491,7 @@ Impossibile applicare la password al file.</translation>
         <translation type="unfinished">Le righe le cui celle non si trovano nelle stesse colonne non possono essere ordinate.</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/pageview_input.cpp" line="-952"/>
+        <location filename="../apps/write/app/pageview_input.cpp" line="-1020"/>
         <location filename="../apps/write/core/homeops.cpp" line="-62"/>
         <location line="+35"/>
         <source>To paste cells as new columns, click in a table that has room for them.</source>
@@ -87435,6 +87503,15 @@ Impossibile applicare la password al file.</translation>
         <location line="+9"/>
         <source>There are no cells to paste.</source>
         <translation type="unfinished">Non ci sono celle da incollare.</translation>
+    </message>
+</context>
+<context>
+    <name>jp::write::WriteDoc</name>
+    <message>
+        <location filename="../apps/write/core/writedoc_headers.cpp" line="+1026"/>
+        <location line="+18"/>
+        <source>Edit</source>
+        <translation type="unfinished">Modifica</translation>
     </message>
 </context>
 <context>

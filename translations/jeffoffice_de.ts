@@ -6052,7 +6052,7 @@ Artikel auf der Rückseite	4</translation>
     <message>
         <location filename="../libs/page/app/saveoptions.cpp" line="-15"/>
         <location filename="../apps/pub/app/mainwindow.cpp" line="+462"/>
-        <location filename="../apps/write/app/writewindow.cpp" line="+873"/>
+        <location filename="../apps/write/app/writewindow.cpp" line="+889"/>
         <source>Save</source>
         <translation type="unfinished">Speichern</translation>
     </message>
@@ -14078,7 +14078,7 @@ Jetzt von %2 herunterladen? (%3, einmalig.)</translation>
 <context>
     <name>Repeat</name>
     <message>
-        <location filename="../libs/shell/app/repeat.cpp" line="+52"/>
+        <location filename="../libs/shell/app/repeat.cpp" line="+54"/>
         <source>Repeat %1 (F4)</source>
         <translation type="unfinished">%1 wiederholen (F4)</translation>
     </message>
@@ -63927,7 +63927,7 @@ Ihr Webbrowser öffnet LibreTranslate, einen kostenlosen Open-Source-Übersetzun
 <context>
     <name>jp::WriteWindow</name>
     <message>
-        <location filename="../apps/write/app/writewindow.cpp" line="-781"/>
+        <location filename="../apps/write/app/writewindow.cpp" line="-797"/>
         <source>Document%1</source>
         <translation type="unfinished">Dokument%1</translation>
     </message>
@@ -63958,7 +63958,7 @@ Ihr Webbrowser öffnet LibreTranslate, einen kostenlosen Open-Source-Übersetzun
         <translation type="unfinished">%1 (%2)</translation>
     </message>
     <message>
-        <location line="+126"/>
+        <location line="+138"/>
         <source> (Protected)</source>
         <translation type="unfinished"> (Geschützt)</translation>
     </message>
@@ -63990,11 +63990,12 @@ Ihr Webbrowser öffnet LibreTranslate, einen kostenlosen Open-Source-Übersetzun
     </message>
     <message>
         <location line="+47"/>
+        <location filename="../apps/write/app/writewindow_repeat.cpp" line="+110"/>
         <source>Formatting is limited in this document. Only styles that are not locked can be used.</source>
         <translation type="unfinished">Die Formatierung ist in diesem Dokument eingeschränkt. Nur Formatvorlagen, die nicht gesperrt sind, können verwendet werden.</translation>
     </message>
     <message>
-        <location line="+12"/>
+        <location line="+13"/>
         <source>Undo</source>
         <translation type="unfinished">Rückgängig</translation>
     </message>
@@ -65728,7 +65729,8 @@ Ihr Webbrowser öffnet LibreTranslate, einen kostenlosen Open-Source-Übersetzun
         <translation type="unfinished">Fertige Tabellen</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/writewindow_ribbon.cpp" line="+160"/>
+        <location filename="../apps/write/app/writewindow_ribbon.cpp" line="+164"/>
+        <location line="+4"/>
         <location filename="../apps/write/app/writewindow_tables.cpp" line="+34"/>
         <source>Shading</source>
         <translation type="unfinished">Schattierung</translation>
@@ -65775,7 +65777,7 @@ Ihr Webbrowser öffnet LibreTranslate, einen kostenlosen Open-Source-Übersetzun
         <translation type="unfinished">Zellenausrichtung</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/writewindow.cpp" line="+126"/>
+        <location filename="../apps/write/app/writewindow.cpp" line="+129"/>
         <source>This document has the most notes JeffWrite can hold (%1), so no more can be added.</source>
         <translation type="unfinished">Dieses Dokument enthält bereits die maximale Anzahl an Notizen, die JeffWrite verwalten kann (%1). Es können keine weiteren hinzugefügt werden.</translation>
     </message>
@@ -66696,7 +66698,8 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
         <translation type="unfinished">%1 an den Drucker gesendet</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/writewindow_ribbon.cpp" line="-15"/>
+        <location filename="../apps/write/app/writewindow_ribbon.cpp" line="-21"/>
+        <location line="+4"/>
         <source>Font Color</source>
         <translation type="unfinished">Schriftfarbe</translation>
     </message>
@@ -66748,7 +66751,7 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
     </message>
     <message>
         <location filename="../apps/write/app/writewindow_layout.cpp" line="-22"/>
-        <location filename="../apps/write/app/writewindow_ribbon.cpp" line="+0"/>
+        <location filename="../apps/write/app/writewindow_ribbon.cpp" line="-4"/>
         <source>Automatic</source>
         <translation type="unfinished">Automatisch</translation>
     </message>
@@ -66780,8 +66783,8 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
     <message>
         <location line="+6"/>
         <location line="+47"/>
-        <location filename="../apps/write/app/writewindow_ribbon.cpp" line="+15"/>
-        <location line="+23"/>
+        <location filename="../apps/write/app/writewindow_ribbon.cpp" line="+17"/>
+        <location line="+25"/>
         <location filename="../apps/write/app/writewindow_tables.cpp" line="-192"/>
         <source>No Color</source>
         <translation type="unfinished">Keine Farbe</translation>
@@ -66807,13 +66810,13 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
         <translation>Seitenfarbe</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/writewindow_ribbon.cpp" line="+16"/>
+        <location filename="../apps/write/app/writewindow_ribbon.cpp" line="+14"/>
         <source>No Shading</source>
         <translation type="unfinished">Keine Schattierung</translation>
     </message>
     <message>
         <location filename="../apps/write/app/writewindow_keys.cpp" line="+92"/>
-        <location filename="../apps/write/app/writewindow_ribbon.cpp" line="+19"/>
+        <location filename="../apps/write/app/writewindow_ribbon.cpp" line="+20"/>
         <location filename="../apps/write/app/writewindow_styles.cpp" line="+88"/>
         <source>Styles</source>
         <translation type="unfinished">Formatvorlagen</translation>
@@ -66885,7 +66888,34 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
         <translation type="unfinished">Das ist kein Zeichen, dem eine Taste zugewiesen werden kann.</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/writewindow_ribbon.cpp" line="+27"/>
+        <location filename="../apps/write/app/writewindow_ribbon.cpp" line="-98"/>
+        <source>Font</source>
+        <translation>Schriftart</translation>
+    </message>
+    <message>
+        <location line="+12"/>
+        <source>Font Size</source>
+        <translation type="unfinished">Schriftgrad</translation>
+    </message>
+    <message>
+        <location line="+47"/>
+        <location line="+6"/>
+        <source>Highlight</source>
+        <translation type="unfinished">Hervorheben</translation>
+    </message>
+    <message>
+        <location line="+9"/>
+        <location line="+5"/>
+        <source>Text Shading</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+32"/>
+        <source>Style</source>
+        <translation>Formatvorlage</translation>
+    </message>
+    <message>
+        <location line="+15"/>
         <source>Indent left</source>
         <translation type="unfinished">Einzug links</translation>
     </message>
@@ -66905,7 +66935,17 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
         <translation type="unfinished">Abstand nach</translation>
     </message>
     <message>
-        <location line="+45"/>
+        <location line="+5"/>
+        <source>Indent</source>
+        <translation type="unfinished">Einzug</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Spacing</source>
+        <translation type="unfinished">Abstand</translation>
+    </message>
+    <message>
+        <location line="+42"/>
         <source>The caret&apos;s line on the page and its place in the line</source>
         <translation type="unfinished">Die Position des Cursors auf der Seite und seine Stelle in der Zeile</translation>
     </message>
@@ -69943,6 +69983,29 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
         <location line="+1"/>
         <source>Grid and Guides…</source>
         <translation type="unfinished">Raster und Führungslinien…</translation>
+    </message>
+    <message>
+        <location filename="../apps/write/app/writewindow_repeat.cpp" line="+17"/>
+        <source>This cannot be repeated while the text of a box or shape is being edited.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+67"/>
+        <location line="+2"/>
+        <location line="+51"/>
+        <source>Repeat</source>
+        <translation type="unfinished">Wiederholen</translation>
+    </message>
+    <message>
+        <location line="-36"/>
+        <location line="+3"/>
+        <source>Typing</source>
+        <translation type="unfinished">Eingabe</translation>
+    </message>
+    <message>
+        <location line="+33"/>
+        <source>Repeat %1</source>
+        <translation type="unfinished"></translation>
     </message>
 </context>
 <context>
@@ -85948,7 +86011,7 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
         <translation type="unfinished">+%1 weitere</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/pageview_input.cpp" line="+139"/>
+        <location filename="../apps/write/app/pageview_input.cpp" line="+141"/>
         <location line="+576"/>
         <source>Keep Source Formatting</source>
         <translation type="unfinished">Quellformatierung beibehalten</translation>
@@ -86059,7 +86122,12 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
         <translation type="unfinished">Wie der eingefügte Inhalt beibehalten wird. Drücken Sie nach dem Einfügen die Taste %1, um es zu öffnen.</translation>
     </message>
     <message>
-        <location line="+186"/>
+        <location line="+44"/>
+        <source>Typing</source>
+        <translation type="unfinished">Eingabe</translation>
+    </message>
+    <message>
+        <location line="+210"/>
         <source>Control</source>
         <translation type="unfinished">Strg</translation>
     </message>
@@ -87188,7 +87256,7 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
         <translation type="unfinished">Hier gibt es keine Formatvorlage zum Aktualisieren.</translation>
     </message>
     <message>
-        <location filename="../apps/write/core/editops.cpp" line="+1061"/>
+        <location filename="../apps/write/core/editops.cpp" line="+1090"/>
         <source>The document has too many list styles.</source>
         <translation type="unfinished">Das Dokument enthält zu viele Listenformatvorlagen.</translation>
     </message>
@@ -87423,7 +87491,7 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
         <translation type="unfinished">Zeilen, deren Zellen nicht in denselben Spalten liegen, können nicht sortiert werden.</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/pageview_input.cpp" line="-952"/>
+        <location filename="../apps/write/app/pageview_input.cpp" line="-1020"/>
         <location filename="../apps/write/core/homeops.cpp" line="-62"/>
         <location line="+35"/>
         <source>To paste cells as new columns, click in a table that has room for them.</source>
@@ -87435,6 +87503,15 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
         <location line="+9"/>
         <source>There are no cells to paste.</source>
         <translation type="unfinished">Es gibt keine Zellen zum Einfügen.</translation>
+    </message>
+</context>
+<context>
+    <name>jp::write::WriteDoc</name>
+    <message>
+        <location filename="../apps/write/core/writedoc_headers.cpp" line="+1026"/>
+        <location line="+18"/>
+        <source>Edit</source>
+        <translation type="unfinished">Bearbeiten</translation>
     </message>
 </context>
 <context>

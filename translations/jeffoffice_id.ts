@@ -6051,7 +6051,7 @@ Berita halaman belakang	4</translation>
     <message>
         <location filename="../libs/page/app/saveoptions.cpp" line="-15"/>
         <location filename="../apps/pub/app/mainwindow.cpp" line="+462"/>
-        <location filename="../apps/write/app/writewindow.cpp" line="+873"/>
+        <location filename="../apps/write/app/writewindow.cpp" line="+889"/>
         <source>Save</source>
         <translation type="unfinished">Simpan</translation>
     </message>
@@ -14050,7 +14050,7 @@ Unduh dari %2 sekarang? (%3, sekali saja.)</translation>
 <context>
     <name>Repeat</name>
     <message>
-        <location filename="../libs/shell/app/repeat.cpp" line="+52"/>
+        <location filename="../libs/shell/app/repeat.cpp" line="+54"/>
         <source>Repeat %1 (F4)</source>
         <translation type="unfinished">Ulangi %1 (F4)</translation>
     </message>
@@ -63840,7 +63840,7 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
 <context>
     <name>jp::WriteWindow</name>
     <message>
-        <location filename="../apps/write/app/writewindow.cpp" line="-781"/>
+        <location filename="../apps/write/app/writewindow.cpp" line="-797"/>
         <source>Document%1</source>
         <translation type="unfinished">Dokumen%1</translation>
     </message>
@@ -63871,7 +63871,7 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
         <translation type="unfinished">%1 (%2)</translation>
     </message>
     <message>
-        <location line="+126"/>
+        <location line="+138"/>
         <source> (Protected)</source>
         <translation type="unfinished"> (Dilindungi)</translation>
     </message>
@@ -63903,11 +63903,12 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
     </message>
     <message>
         <location line="+47"/>
+        <location filename="../apps/write/app/writewindow_repeat.cpp" line="+110"/>
         <source>Formatting is limited in this document. Only styles that are not locked can be used.</source>
         <translation type="unfinished">Pemformatan terbatas dalam dokumen ini. Hanya gaya yang tidak dikunci yang dapat digunakan.</translation>
     </message>
     <message>
-        <location line="+12"/>
+        <location line="+13"/>
         <source>Undo</source>
         <translation type="unfinished">Urungkan</translation>
     </message>
@@ -64235,7 +64236,7 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
         <translation type="unfinished">Poin dan Penomoran</translation>
     </message>
     <message>
-        <location line="+126"/>
+        <location line="+129"/>
         <source>This document has the most notes JeffWrite can hold (%1), so no more can be added.</source>
         <translation type="unfinished">Dokumen ini memiliki catatan terbanyak yang dapat ditampung JeffWrite (%1), sehingga tidak ada catatan lagi yang dapat ditambahkan.</translation>
     </message>
@@ -65964,7 +65965,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
     </message>
     <message>
         <location filename="../apps/write/app/writewindow_layout.cpp" line="-22"/>
-        <location filename="../apps/write/app/writewindow_ribbon.cpp" line="+145"/>
+        <location filename="../apps/write/app/writewindow_ribbon.cpp" line="+147"/>
         <source>Automatic</source>
         <translation type="unfinished">Otomatis</translation>
     </message>
@@ -65996,8 +65997,8 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
     <message>
         <location line="+6"/>
         <location line="+47"/>
-        <location filename="../apps/write/app/writewindow_ribbon.cpp" line="+15"/>
-        <location line="+23"/>
+        <location filename="../apps/write/app/writewindow_ribbon.cpp" line="+17"/>
+        <location line="+25"/>
         <location filename="../apps/write/app/writewindow_tables.cpp" line="+89"/>
         <source>No Color</source>
         <translation type="unfinished">Tanpa Warna</translation>
@@ -67213,7 +67214,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
     </message>
     <message>
         <location line="+13"/>
-        <location filename="../apps/write/app/writewindow_ribbon.cpp" line="+138"/>
+        <location filename="../apps/write/app/writewindow_ribbon.cpp" line="+140"/>
         <source>Track Changes</source>
         <translation type="unfinished">Lacak Perubahan</translation>
     </message>
@@ -67489,18 +67490,19 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
         <translation type="unfinished">Tidak ada komentar lagi.</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/writewindow_ribbon.cpp" line="-174"/>
+        <location filename="../apps/write/app/writewindow_ribbon.cpp" line="-180"/>
+        <location line="+4"/>
         <source>Font Color</source>
         <translation type="unfinished">Warna Font</translation>
     </message>
     <message>
-        <location line="+54"/>
+        <location line="+52"/>
         <source>No Shading</source>
         <translation type="unfinished">Tanpa Pewarnaan</translation>
     </message>
     <message>
         <location filename="../apps/write/app/writewindow_keys.cpp" line="+92"/>
-        <location filename="../apps/write/app/writewindow_ribbon.cpp" line="+19"/>
+        <location filename="../apps/write/app/writewindow_ribbon.cpp" line="+20"/>
         <location filename="../apps/write/app/writewindow_styles.cpp" line="+88"/>
         <source>Styles</source>
         <translation type="unfinished">Gaya</translation>
@@ -67572,7 +67574,34 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
         <translation type="unfinished">Itu bukan karakter yang dapat diberi tombol pintasan.</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/writewindow_ribbon.cpp" line="+27"/>
+        <location filename="../apps/write/app/writewindow_ribbon.cpp" line="-98"/>
+        <source>Font</source>
+        <translation>Font</translation>
+    </message>
+    <message>
+        <location line="+12"/>
+        <source>Font Size</source>
+        <translation type="unfinished">Ukuran Font</translation>
+    </message>
+    <message>
+        <location line="+47"/>
+        <location line="+6"/>
+        <source>Highlight</source>
+        <translation type="unfinished">Sorot</translation>
+    </message>
+    <message>
+        <location line="+9"/>
+        <location line="+5"/>
+        <source>Text Shading</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+32"/>
+        <source>Style</source>
+        <translation>Gaya</translation>
+    </message>
+    <message>
+        <location line="+15"/>
         <source>Indent left</source>
         <translation type="unfinished">Indentasi kiri</translation>
     </message>
@@ -67592,7 +67621,17 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
         <translation type="unfinished">Spasi sesudah</translation>
     </message>
     <message>
-        <location line="+45"/>
+        <location line="+5"/>
+        <source>Indent</source>
+        <translation type="unfinished">Indentasi</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Spacing</source>
+        <translation type="unfinished">Spasi</translation>
+    </message>
+    <message>
+        <location line="+42"/>
         <source>The caret&apos;s line on the page and its place in the line</source>
         <translation type="unfinished">Baris kursor pada halaman dan posisinya dalam baris</translation>
     </message>
@@ -69174,7 +69213,8 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
         <translation type="unfinished">Tabel Siap Pakai</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/writewindow_ribbon.cpp" line="-190"/>
+        <location filename="../apps/write/app/writewindow_ribbon.cpp" line="-194"/>
+        <location line="+4"/>
         <location filename="../apps/write/app/writewindow_tables.cpp" line="+34"/>
         <source>Shading</source>
         <translation type="unfinished">Pewarnaan</translation>
@@ -69838,6 +69878,29 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
         <location line="+1"/>
         <source>Grid and Guides…</source>
         <translation type="unfinished">Kisi dan Panduan…</translation>
+    </message>
+    <message>
+        <location filename="../apps/write/app/writewindow_repeat.cpp" line="+17"/>
+        <source>This cannot be repeated while the text of a box or shape is being edited.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+67"/>
+        <location line="+2"/>
+        <location line="+51"/>
+        <source>Repeat</source>
+        <translation type="unfinished">Ulangi</translation>
+    </message>
+    <message>
+        <location line="-36"/>
+        <location line="+3"/>
+        <source>Typing</source>
+        <translation type="unfinished">Pengetikan</translation>
+    </message>
+    <message>
+        <location line="+33"/>
+        <source>Repeat %1</source>
+        <translation type="unfinished"></translation>
     </message>
 </context>
 <context>
@@ -85819,7 +85882,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
         <translation type="unfinished">+%1 lagi</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/pageview_input.cpp" line="+139"/>
+        <location filename="../apps/write/app/pageview_input.cpp" line="+141"/>
         <location line="+576"/>
         <source>Keep Source Formatting</source>
         <translation type="unfinished">Pertahankan Format Sumber</translation>
@@ -85930,7 +85993,12 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
         <translation type="unfinished">Cara konten yang ditempel disimpan. Tekan tombol %1 setelah menempel untuk membukanya.</translation>
     </message>
     <message>
-        <location line="+186"/>
+        <location line="+44"/>
+        <source>Typing</source>
+        <translation type="unfinished">Pengetikan</translation>
+    </message>
+    <message>
+        <location line="+210"/>
         <source>Control</source>
         <translation type="unfinished">Ctrl</translation>
     </message>
@@ -87057,7 +87125,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
         <translation type="unfinished">Tidak ada gaya yang dapat diperbarui di sini.</translation>
     </message>
     <message>
-        <location filename="../apps/write/core/editops.cpp" line="+1061"/>
+        <location filename="../apps/write/core/editops.cpp" line="+1090"/>
         <source>The document has too many list styles.</source>
         <translation type="unfinished">Dokumen memiliki terlalu banyak gaya daftar.</translation>
     </message>
@@ -87292,7 +87360,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
         <translation type="unfinished">Baris yang selnya tidak berada di kolom yang sama tidak dapat diurutkan.</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/pageview_input.cpp" line="-952"/>
+        <location filename="../apps/write/app/pageview_input.cpp" line="-1020"/>
         <location filename="../apps/write/core/homeops.cpp" line="-62"/>
         <location line="+35"/>
         <source>To paste cells as new columns, click in a table that has room for them.</source>
@@ -87304,6 +87372,15 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
         <location line="+9"/>
         <source>There are no cells to paste.</source>
         <translation type="unfinished">Tidak ada sel untuk ditempel.</translation>
+    </message>
+</context>
+<context>
+    <name>jp::write::WriteDoc</name>
+    <message>
+        <location filename="../apps/write/core/writedoc_headers.cpp" line="+1026"/>
+        <location line="+18"/>
+        <source>Edit</source>
+        <translation type="unfinished">Edit</translation>
     </message>
 </context>
 <context>

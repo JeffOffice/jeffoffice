@@ -6052,7 +6052,7 @@ Artikel achterpagina	4</translation>
     <message>
         <location filename="../libs/page/app/saveoptions.cpp" line="-15"/>
         <location filename="../apps/pub/app/mainwindow.cpp" line="+462"/>
-        <location filename="../apps/write/app/writewindow.cpp" line="+873"/>
+        <location filename="../apps/write/app/writewindow.cpp" line="+889"/>
         <source>Save</source>
         <translation type="unfinished">Opslaan</translation>
     </message>
@@ -14078,7 +14078,7 @@ Nu downloaden van %2? (%3, eenmalig.)</translation>
 <context>
     <name>Repeat</name>
     <message>
-        <location filename="../libs/shell/app/repeat.cpp" line="+52"/>
+        <location filename="../libs/shell/app/repeat.cpp" line="+54"/>
         <source>Repeat %1 (F4)</source>
         <translation type="unfinished">%1 herhalen (F4)</translation>
     </message>
@@ -63927,7 +63927,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
 <context>
     <name>jp::WriteWindow</name>
     <message>
-        <location filename="../apps/write/app/writewindow.cpp" line="-781"/>
+        <location filename="../apps/write/app/writewindow.cpp" line="-797"/>
         <source>Document%1</source>
         <translation type="unfinished">Document%1</translation>
     </message>
@@ -63958,7 +63958,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
         <translation type="unfinished">%1 (%2)</translation>
     </message>
     <message>
-        <location line="+126"/>
+        <location line="+138"/>
         <source> (Protected)</source>
         <translation type="unfinished"> (Beveiligd)</translation>
     </message>
@@ -63990,11 +63990,12 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
     </message>
     <message>
         <location line="+47"/>
+        <location filename="../apps/write/app/writewindow_repeat.cpp" line="+110"/>
         <source>Formatting is limited in this document. Only styles that are not locked can be used.</source>
         <translation type="unfinished">De opmaak is beperkt in dit document. Alleen stijlen die niet zijn vergrendeld, kunnen worden gebruikt.</translation>
     </message>
     <message>
-        <location line="+12"/>
+        <location line="+13"/>
         <source>Undo</source>
         <translation type="unfinished">Ongedaan maken</translation>
     </message>
@@ -65728,7 +65729,8 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
         <translation type="unfinished">Kant-en-klare tabellen</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/writewindow_ribbon.cpp" line="+160"/>
+        <location filename="../apps/write/app/writewindow_ribbon.cpp" line="+164"/>
+        <location line="+4"/>
         <location filename="../apps/write/app/writewindow_tables.cpp" line="+34"/>
         <source>Shading</source>
         <translation type="unfinished">Arcering</translation>
@@ -65775,7 +65777,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
         <translation type="unfinished">Celuitlijning</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/writewindow.cpp" line="+126"/>
+        <location filename="../apps/write/app/writewindow.cpp" line="+129"/>
         <source>This document has the most notes JeffWrite can hold (%1), so no more can be added.</source>
         <translation type="unfinished">Dit document bevat het maximale aantal notities dat JeffWrite aankan (%1), dus er kunnen geen notities meer worden toegevoegd.</translation>
     </message>
@@ -66696,7 +66698,8 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
         <translation type="unfinished">%1 naar de printer verzonden</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/writewindow_ribbon.cpp" line="-15"/>
+        <location filename="../apps/write/app/writewindow_ribbon.cpp" line="-21"/>
+        <location line="+4"/>
         <source>Font Color</source>
         <translation type="unfinished">Tekstkleur</translation>
     </message>
@@ -66748,7 +66751,7 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
     </message>
     <message>
         <location filename="../apps/write/app/writewindow_layout.cpp" line="-22"/>
-        <location filename="../apps/write/app/writewindow_ribbon.cpp" line="+0"/>
+        <location filename="../apps/write/app/writewindow_ribbon.cpp" line="-4"/>
         <source>Automatic</source>
         <translation type="unfinished">Automatisch</translation>
     </message>
@@ -66780,8 +66783,8 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
     <message>
         <location line="+6"/>
         <location line="+47"/>
-        <location filename="../apps/write/app/writewindow_ribbon.cpp" line="+15"/>
-        <location line="+23"/>
+        <location filename="../apps/write/app/writewindow_ribbon.cpp" line="+17"/>
+        <location line="+25"/>
         <location filename="../apps/write/app/writewindow_tables.cpp" line="-192"/>
         <source>No Color</source>
         <translation type="unfinished">Geen kleur</translation>
@@ -66807,13 +66810,13 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
         <translation>Paginakleur</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/writewindow_ribbon.cpp" line="+16"/>
+        <location filename="../apps/write/app/writewindow_ribbon.cpp" line="+14"/>
         <source>No Shading</source>
         <translation type="unfinished">Geen arcering</translation>
     </message>
     <message>
         <location filename="../apps/write/app/writewindow_keys.cpp" line="+92"/>
-        <location filename="../apps/write/app/writewindow_ribbon.cpp" line="+19"/>
+        <location filename="../apps/write/app/writewindow_ribbon.cpp" line="+20"/>
         <location filename="../apps/write/app/writewindow_styles.cpp" line="+88"/>
         <source>Styles</source>
         <translation type="unfinished">Stijlen</translation>
@@ -66885,7 +66888,34 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
         <translation type="unfinished">Dat is geen teken waaraan een toets kan worden toegewezen.</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/writewindow_ribbon.cpp" line="+27"/>
+        <location filename="../apps/write/app/writewindow_ribbon.cpp" line="-98"/>
+        <source>Font</source>
+        <translation>Lettertype</translation>
+    </message>
+    <message>
+        <location line="+12"/>
+        <source>Font Size</source>
+        <translation type="unfinished">Tekengrootte</translation>
+    </message>
+    <message>
+        <location line="+47"/>
+        <location line="+6"/>
+        <source>Highlight</source>
+        <translation type="unfinished">Markeren</translation>
+    </message>
+    <message>
+        <location line="+9"/>
+        <location line="+5"/>
+        <source>Text Shading</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+32"/>
+        <source>Style</source>
+        <translation>Stijl</translation>
+    </message>
+    <message>
+        <location line="+15"/>
         <source>Indent left</source>
         <translation type="unfinished">Links inspringen</translation>
     </message>
@@ -66905,7 +66935,17 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
         <translation type="unfinished">Afstand na</translation>
     </message>
     <message>
-        <location line="+45"/>
+        <location line="+5"/>
+        <source>Indent</source>
+        <translation type="unfinished">Inspringing</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Spacing</source>
+        <translation type="unfinished">Afstand</translation>
+    </message>
+    <message>
+        <location line="+42"/>
         <source>The caret&apos;s line on the page and its place in the line</source>
         <translation type="unfinished">De regel van de invoegpositie op de pagina en de plaats ervan in de regel</translation>
     </message>
@@ -69943,6 +69983,29 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
         <location line="+1"/>
         <source>Grid and Guides…</source>
         <translation type="unfinished">Raster en hulplijnen…</translation>
+    </message>
+    <message>
+        <location filename="../apps/write/app/writewindow_repeat.cpp" line="+17"/>
+        <source>This cannot be repeated while the text of a box or shape is being edited.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+67"/>
+        <location line="+2"/>
+        <location line="+51"/>
+        <source>Repeat</source>
+        <translation type="unfinished">Herhalen</translation>
+    </message>
+    <message>
+        <location line="-36"/>
+        <location line="+3"/>
+        <source>Typing</source>
+        <translation type="unfinished">Typen</translation>
+    </message>
+    <message>
+        <location line="+33"/>
+        <source>Repeat %1</source>
+        <translation type="unfinished"></translation>
     </message>
 </context>
 <context>
@@ -85948,7 +86011,7 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
         <translation type="unfinished">+%1 meer</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/pageview_input.cpp" line="+139"/>
+        <location filename="../apps/write/app/pageview_input.cpp" line="+141"/>
         <location line="+576"/>
         <source>Keep Source Formatting</source>
         <translation type="unfinished">Bronopmaak behouden</translation>
@@ -86059,7 +86122,12 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
         <translation type="unfinished">Hoe de geplakte inhoud wordt bewaard. Druk na het plakken op de toets %1 om het te openen.</translation>
     </message>
     <message>
-        <location line="+186"/>
+        <location line="+44"/>
+        <source>Typing</source>
+        <translation type="unfinished">Typen</translation>
+    </message>
+    <message>
+        <location line="+210"/>
         <source>Control</source>
         <translation type="unfinished">Ctrl</translation>
     </message>
@@ -87188,7 +87256,7 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
         <translation type="unfinished">Er is hier geen stijl om bij te werken.</translation>
     </message>
     <message>
-        <location filename="../apps/write/core/editops.cpp" line="+1061"/>
+        <location filename="../apps/write/core/editops.cpp" line="+1090"/>
         <source>The document has too many list styles.</source>
         <translation type="unfinished">Het document heeft te veel lijststijlen.</translation>
     </message>
@@ -87423,7 +87491,7 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
         <translation type="unfinished">Rijen waarvan de cellen niet in dezelfde kolommen staan, kunnen niet worden gesorteerd.</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/pageview_input.cpp" line="-952"/>
+        <location filename="../apps/write/app/pageview_input.cpp" line="-1020"/>
         <location filename="../apps/write/core/homeops.cpp" line="-62"/>
         <location line="+35"/>
         <source>To paste cells as new columns, click in a table that has room for them.</source>
@@ -87435,6 +87503,15 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
         <location line="+9"/>
         <source>There are no cells to paste.</source>
         <translation type="unfinished">Er zijn geen cellen om te plakken.</translation>
+    </message>
+</context>
+<context>
+    <name>jp::write::WriteDoc</name>
+    <message>
+        <location filename="../apps/write/core/writedoc_headers.cpp" line="+1026"/>
+        <location line="+18"/>
+        <source>Edit</source>
+        <translation type="unfinished">Bewerken</translation>
     </message>
 </context>
 <context>
