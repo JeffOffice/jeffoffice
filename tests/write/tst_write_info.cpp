@@ -2601,9 +2601,9 @@ private Q_SLOTS:
         scenario(false, [](WriteWindow &w) { QTest::keyClicks(w.view(), QStringLiteral("X")); }, {QStringLiteral("X"), QStringLiteral("delta epsilon")}, QStringLiteral("normal"), QStringLiteral("Heading1"));
     }
 
-    // Smart paragraph selection is off at first (the one constant PageView::kSmartParagraphDefault says so, and the window, the view, and the Options box all follow it), and whole-word selection is on: a
-    // drag over a whole paragraph leaves its mark out, and Options > Advanced shows the box unchecked; turning the box on in Options makes the next window's drag take the mark.
-    void smartParagraphSelectionIsOffAtFirstAndFollowsOneConstant()
+    // Smart paragraph selection and whole-word selection are on at first (the one constant PageView::kSmartParagraphDefault says so, and the window, the view, and the Options box all follow it): a drag over
+    // a whole paragraph takes its mark, and Options > Advanced shows the box checked; turning the box off in Options makes the next window's drag leave the mark out.
+    void smartParagraphSelectionIsOnAtFirstAndFollowsOneConstant()
     {
         struct Clean {
             ~Clean()
@@ -2614,7 +2614,7 @@ private Q_SLOTS:
         } clean;
         Settings::get().remove(QStringLiteral("edit/selectWholeWord"));
         Settings::get().remove(QStringLiteral("edit/smartParagraph"));
-        QVERIFY(!PageView::kSmartParagraphDefault && PageView::kSelectWholeWordDefault);
+        QVERIFY(PageView::kSmartParagraphDefault && PageView::kSelectWholeWordDefault);
         // The selection a real drag from the start of the first paragraph to the end of its words leaves.
         auto dragged = [] {
             WriteWindow w;
@@ -2641,9 +2641,9 @@ private Q_SLOTS:
             QTest::mouseRelease(w.view()->viewport(), Qt::LeftButton, Qt::NoModifier, end);
             return QPair<int, int>(w.view()->cursor().selectionStart(), w.view()->cursor().selectionEnd());
         };
-        QCOMPARE(dragged(), (QPair<int, int>(0, 16)));
+        QCOMPARE(dragged(), (QPair<int, int>(0, 17)));
         {
-            // The box in Options > Advanced: unchecked at first; checked and applied, the next window takes the mark.
+            // The box in Options > Advanced: checked at first; unchecked and applied, the next window leaves the mark out.
             WriteWindow w;
             QVector<OptionsPage> pages = w.optionsPages();
             QList<QWidget *> built;
@@ -2651,8 +2651,8 @@ private Q_SLOTS:
             int found = 0;
             for (QWidget *page : built) {
                 if (auto *b = page->findChild<QCheckBox *>(QStringLiteral("smartParagraphSelection"))) {
-                    QVERIFY(!b->isChecked());
-                    b->setChecked(true);
+                    QVERIFY(b->isChecked());
+                    b->setChecked(false);
                     ++found;
                 }
                 if (auto *b = page->findChild<QCheckBox *>(QStringLiteral("selectWholeWord"))) {
@@ -2665,7 +2665,7 @@ private Q_SLOTS:
             qDeleteAll(built);
             QCOMPARE(found, 2);
         }
-        QCOMPARE(dragged(), (QPair<int, int>(0, 17)));
+        QCOMPARE(dragged(), (QPair<int, int>(0, 16)));
     }
 
     // Shift+click takes the whole words at both ends, as a drag does, when the option is on (a click inside one word does not); a double click and a drag goes by whole words, forward and back, with the word

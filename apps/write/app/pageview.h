@@ -476,8 +476,8 @@ public:
     void setLinkNeedsCtrl(bool on) { m_linkNeedsCtrl = on; }
     bool linkNeedsCtrl() const { return m_linkNeedsCtrl; }
     void setDragTextOption(bool on) { m_dragTextOption = on; }
-    // What Options > Advanced starts with (the one place to change it): whole words on, smart paragraph selection off (a drag over a whole paragraph then leaves its mark out).
-    static constexpr bool kSelectWholeWordDefault = true, kSmartParagraphDefault = false;
+    // What Options > Advanced starts with (the one place to change it): whole words on, smart paragraph selection on (turned off, a drag over a whole paragraph leaves its mark out).
+    static constexpr bool kSelectWholeWordDefault = true, kSmartParagraphDefault = true;
     // Options > Advanced: a drag that takes in more than one word goes to the whole of the words at both ends, and a drag from the start of a paragraph to the end of its words takes the paragraph mark too.
     void setSelectWholeWordOption(bool on) { m_selectWholeWord = on; }
     void setSmartParagraphOption(bool on) { m_smartParagraph = on; }
