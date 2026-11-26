@@ -1503,6 +1503,90 @@ private Q_SLOTS:
         QVERIFY2(lines > 100 && lines <= 400 && svg.count(QLatin1Char('<')) < 6000, qPrintable(QStringLiteral("%1 lines, %2 tags").arg(lines).arg(svg.count(QLatin1Char('<')))));
     }
 
+    // Thinning a long stock chart keeps every extreme: each drawn point is the first open, the highest high, the lowest low, and the last close of its bucket,
+    // and the axis covers them. (10,000 days: one day with a high of 200, another with a low of -100.)
+    static QPair<double, double> axisNumbersRange(const QString &svg)
+    {
+        double lo = 1e300, hi = -1e300;
+        for (const QRegularExpressionMatch &m : QRegularExpression(QStringLiteral(">(-?[0-9]+(?:\\.[0-9]+)?)</text>")).globalMatch(svg)) {
+            const double v = m.captured(1).toDouble();
+            lo = std::min(lo, v);
+            hi = std::max(hi, v);
+        }
+        return {lo, hi};
+    }
+    void aThinnedStockChartKeepsEveryHighAndLow()
+    {
+        QStringList cats;
+        QVector<double> op, h, l, cl;
+        for (int i = 0; i < 10000; ++i) {
+            cats << QStringLiteral("d%1").arg(i);
+            op << 30 + i % 3;
+            h << (i == 3001 ? 200 : 40);
+            l << (i == 7003 ? -100 : 20);
+            cl << 31 + i % 2;
+        }
+        for (const bool bars : {false, true}) {
+            Chart c;
+            QString err;
+            const QVector<QVector<double>> prices = bars ? QVector<QVector<double>>{op, h, l, cl} : QVector<QVector<double>>{h, l, cl};
+            QString axes = stockAxes(10);
+            axes.replace(QStringLiteral("<c:max val=\"10\"/><c:min val=\"0\"/>"), QString());   // (an automatic axis)
+            QVERIFY2(readChart(chartPart(stockPlot(prices, bars, QStringLiteral("<c:axId val=\"111\"/><c:axId val=\"222\"/>"), 0, cats) + axes), defaultTheme(), ColorMap(), &c, &err), qPrintable(err));
+            bool coarser = false;
+            const QString svg = QString::fromUtf8(chartSvg(c, QSizeF(400, 300), &coarser));
+            QVERIFY(coarser);
+            const QPair<double, double> range = axisNumbersRange(svg);
+            QVERIFY2(range.second >= 200 && range.first <= -100, qPrintable(QStringLiteral("axis %1 to %2").arg(range.first).arg(range.second)));
+        }
+    }
+
+    // The same for a line plot with high-low lines, and the volume's columns of a thinned stock chart add up (10,000 days of 100 reach a few thousand, not 100).
+    void aThinnedLinePlotWithHighLowLinesKeepsEveryExtreme()
+    {
+        QStringList cats;
+        QVector<double> a, b;
+        for (int i = 0; i < 10000; ++i) {
+            cats << QStringLiteral("d%1").arg(i);
+            a << (i == 3001 ? 200 : 40);
+            b << (i == 7003 ? -100 : 20);
+        }
+        QString axes = stockAxes(10);
+        axes.replace(QStringLiteral("<c:max val=\"10\"/><c:min val=\"0\"/>"), QString());
+        QString plot = stockPlot({a, b}, false, QStringLiteral("<c:axId val=\"111\"/><c:axId val=\"222\"/>"), 0, cats);
+        plot.replace(QStringLiteral("stockChart"), QStringLiteral("lineChart"));
+        Chart c;
+        QString err;
+        QVERIFY2(readChart(chartPart(plot + axes), defaultTheme(), ColorMap(), &c, &err), qPrintable(err));
+        QVERIFY(c.plots[0].hiLowLines && !c.plots[0].stock);
+        bool coarser = false;
+        const QPair<double, double> range = axisNumbersRange(QString::fromUtf8(chartSvg(c, QSizeF(400, 300), &coarser)));
+        QVERIFY(coarser);
+        QVERIFY2(range.second >= 200 && range.first <= -100, qPrintable(QStringLiteral("axis %1 to %2").arg(range.first).arg(range.second)));
+    }
+    void aThinnedStockChartAddsUpItsVolume()
+    {
+        QStringList cats;
+        QVector<double> volume, h, l, cl;
+        for (int i = 0; i < 10000; ++i) {
+            cats << QStringLiteral("d%1").arg(i);
+            volume << 100;
+            h << 8;
+            l << 1;
+            cl << 4;
+        }
+        QString axes = stockAxes(200);
+        axes.replace(QStringLiteral("<c:max val=\"200\"/><c:min val=\"0\"/>"), QString());
+        Chart c;
+        QString err;
+        QVERIFY2(readChart(chartPart(volumePlot(volume, cats) + stockPlot({h, l, cl}, false, QStringLiteral("<c:axId val=\"333\"/><c:axId val=\"444\"/>"), 1, cats) + axes + stockAxes(10, true)), defaultTheme(), ColorMap(), &c, &err), qPrintable(err));
+        QCOMPARE(int(chartStockForm(c)), int(ChartStockForm::VolumeHighLowClose));
+        bool coarser = false;
+        const QPair<double, double> range = axisNumbersRange(QString::fromUtf8(chartSvg(c, QSizeF(400, 300), &coarser)));
+        QVERIFY(coarser);
+        QVERIFY2(range.second >= 1000, qPrintable(QStringLiteral("axis %1 to %2").arg(range.first).arg(range.second)));
+    }
+
     // A stock plot whose series a filter leaves fitting no form is drawn as columns and never as stock.
     void aStockChartWithASeriesFilteredOutIsDrawnAsColumns()
     {

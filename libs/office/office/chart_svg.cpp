@@ -2293,6 +2293,80 @@ T everyNth(const T &list, int stride)
     return out;
 }
 
+// What a bucket of `stride` points becomes in a thinned chart: the first, the largest, the smallest, the last, or the sum of its numbers (blank when it has none).
+enum class Pick { First, Largest, Smallest, Last, Sum };
+QVector<double> bucketed(const QVector<double> &list, int stride, Pick pick)
+{
+    QVector<double> out;
+    for (qsizetype i = 0; i < list.size(); i += stride) {
+        double v = kNaN, sum = 0;
+        bool any = false;
+        for (qsizetype k = i; k < std::min<qsizetype>(i + stride, list.size()); ++k) {
+            const double x = list[k];
+            if (!std::isfinite(x)) continue;
+            sum += x;
+            if (!any) v = x;
+            else if (pick == Pick::Largest) v = std::max(v, x);
+            else if (pick == Pick::Smallest) v = std::min(v, x);
+            else if (pick == Pick::Last) v = x;
+            any = true;
+        }
+        out << (pick == Pick::Sum && any ? sum : v);
+    }
+    return out;
+}
+
+// How each series of a plot is thinned when the chart has too many points. A stock plot keeps the extremes that its high-low lines and bars show: the first
+// of an open, the largest of a high, the smallest of a low, the last of a close (by their place among the series that are not filtered out), and the
+// column of a volume is the sum of its bucket; the series of any other plot with high-low lines keep the extremes of the plot between them (the series
+// that has the largest value of a bucket keeps the largest, another the smallest). Empty for a plot thinned by every nth point.
+QVector<Pick> thinPicks(const Chart &chart, const ChartPlot &plot)
+{
+    QVector<Pick> out;
+    QVector<int> shown;
+    for (int k = 0; k < plot.series.size(); ++k)
+        if (!plot.series[k].filtered) shown << k;
+    auto role = [&](const QVector<Pick> &picks) {
+        out = QVector<Pick>(plot.series.size(), Pick::Last);
+        for (int i = 0; i < shown.size() && i < picks.size(); ++i) out[shown[i]] = picks[i];
+    };
+    if (plot.stock && !plot.series.isEmpty()) {
+        if (shown.size() == 4) role({Pick::First, Pick::Largest, Pick::Smallest, Pick::Last});
+        else if (shown.size() == 3) role({Pick::Largest, Pick::Smallest, Pick::Last});
+        return out;
+    }
+    bool beside = false;
+    for (const ChartPlot &p : chart.plots) beside = beside || p.stock;
+    if (beside && plot.type == ChartType::Bar && shown.size() == 1) role({Pick::Sum});
+    return out;
+}
+
+// The points of the series of a line plot with high-low lines, thinned by buckets: see thinPicks. `values` are the series' values, usable only.
+QVector<QVector<double>> bucketedBetween(const QVector<QVector<double>> &values, int stride)
+{
+    QVector<QVector<double>> out(values.size());
+    qsizetype most = 0;
+    for (const QVector<double> &v : values) most = std::max(most, v.size());
+    for (qsizetype i = 0; i < most; i += stride) {
+        int top = -1, bottom = -1;
+        double high = -std::numeric_limits<double>::infinity(), low = std::numeric_limits<double>::infinity();
+        for (int k = 0; k < values.size(); ++k)
+            for (qsizetype j = i; j < std::min<qsizetype>(i + stride, values[k].size()); ++j) {
+                const double x = values[k][j];
+                if (!std::isfinite(x)) continue;
+                if (x > high) high = x, top = k;
+                if (x < low) low = x, bottom = k;
+            }
+        if (top >= 0 && top == bottom && values.size() > 1) bottom = (top + 1) % int(values.size());   // (one series holds both: another keeps the smallest it has)
+        for (int k = 0; k < values.size(); ++k) {
+            const QVector<double> own = values[k].mid(i, stride);
+            const QVector<double> one = bucketed(own, std::max<int>(1, int(own.size())), k == top ? Pick::Largest : k == bottom ? Pick::Smallest : Pick::Last);
+            out[k] << (one.isEmpty() ? kNaN : one[0]);
+        }
+    }
+    return out;
+}
+
 // The shapes a series is drawn in, each of its own (a column for each of a bar's values, a shape for each run of values of an area), and
 // the markers on its points (of a line or a scatter that has them).
 struct Pieces {
@@ -2373,9 +2447,19 @@ Chart drawnChart(const Chart &chart, const Limits &limits, bool *thinned)
         return out;
     };
     Chart out = chart;
-    for (ChartPlot &plot : out.plots)
-        for (ChartSeries &s : plot.series) {
-            s.values = usable(everyNth(s.values, stride));
+    for (ChartPlot &plot : out.plots) {
+        // (a stock plot, and a line plot with high-low lines, are thinned by buckets, so that no high or low is lost)
+        const QVector<Pick> picks = stride > 1 ? thinPicks(chart, plot) : QVector<Pick>();
+        const bool between = stride > 1 && picks.isEmpty() && plot.type == ChartType::Line && plot.hiLowLines && plot.series.size() > 1;
+        QVector<QVector<double>> bucketsOf;
+        if (between) {
+            QVector<QVector<double>> all;
+            for (const ChartSeries &s : plot.series) all << usable(s.values);
+            bucketsOf = bucketedBetween(all, stride);
+        }
+        for (int k = 0; k < plot.series.size(); ++k) {
+            ChartSeries &s = plot.series[k];
+            s.values = !picks.isEmpty() ? bucketed(usable(s.values), stride, picks[k]) : between ? bucketsOf[k] : usable(everyNth(s.values, stride));
             s.xValues = usable(everyNth(s.xValues, stride));
             s.categories = everyNth(s.categories, stride);
             if (stride > 1) {
@@ -2385,6 +2469,7 @@ Chart drawnChart(const Chart &chart, const Limits &limits, bool *thinned)
                 s.pointColors = colors;
             }
         }
+    }
     return out;
 }
 
