@@ -1650,6 +1650,11 @@ private Q_SLOTS:
         QVERIFY(w.insertSavedBlock(info, blank->toDocx()));
         QVERIFY2(story->toPlainText().contains(QStringLiteral("Block words")), qPrintable(story->toPlainText()));
         QVERIFY(!story->toPlainText().contains(QChar(0x000C)));
+        // (what keeps the break out is the page break command itself: a header has no pages to break)
+        QTextCursor at(story);
+        at.setPosition(1);
+        insertPageBreak(*w.document(), at);
+        QVERIFY(!story->toPlainText().contains(QChar(0x000C)));
     }
 
     // ---------------------------------------------------------------- Tables

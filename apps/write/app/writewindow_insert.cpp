@@ -69,9 +69,8 @@ bool WriteWindow::insertSavedBlock(const jp::BlockInfo &info, const QByteArray &
     }
     QTextCursor c = m_view->cursor();
     QString why;
-    // (A header or a footer takes no page break: a block set on a page of its own goes in as a paragraph of its own.)
-    const jp::BlockInsert how = m_view->inHeaderFooter() && info.insertAs == jp::BlockInsert::Page ? jp::BlockInsert::Paragraph : info.insertAs;
-    if (!write::insertBlock(*m_doc, c, data, how, &why)) {
+    // (A header or a footer takes no page break: insertPageBreak leaves one out there, so a block set on a page of its own goes in as a paragraph of its own.)
+    if (!write::insertBlock(*m_doc, c, data, info.insertAs, &why)) {
         statusBar()->showMessage(why, 6000);
         return false;
     }

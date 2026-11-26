@@ -60,6 +60,7 @@
 
 #include <QCheckBox>
 #include <QScopeGuard>
+#include <QPainter>
 #include <QScrollArea>
 #include <QScrollBar>
 #include <QDirIterator>
@@ -1031,6 +1032,41 @@ private Q_SLOTS:
         QVERIFY(w.exportPdf());
         QVERIFY(pages > 0);
         QVERIFY(!outputShaded);
+    }
+
+    // The page painter itself: a page painted for output (a printer or a PDF) has no shading of fields, however it is asked for (Highlight Merge Fields, and the Options > Display shading
+    // of every field); painted for the screen it has both.
+    void aPageDrawnForOutputHasNoFieldShadingWhateverIsAsked()
+    {
+        const QByteArray body = "<w:p><w:r><w:t xml:space=\"preserve\">Dear </w:t></w:r><w:fldSimple w:instr=\" MERGEFIELD First_Name \"><w:r><w:t>\xC2\xAB" "First_Name\xC2\xBB</w:t></w:r></w:fldSimple>"
+                                "<w:r><w:t xml:space=\"preserve\"> then </w:t></w:r><w:fldSimple w:instr=\" QUOTE &quot;a long result&quot; \"><w:r><w:t>a long result</w:t></w:r></w:fldSimple></w:p>";
+        auto doc = WriteDoc::fromDocx(makeDocx(body), nullptr);
+        QVERIFY(doc);
+        const StoryScan scan = scanStory(doc->story(), false);
+        QCOMPARE(scan.fields.size(), 2);
+        QVector<write::ControlMark> marks;
+        for (const FieldPlace &f : scan.fields)
+            if (f.parent < 0) marks.push_back({f.begin, f.end, false, false, QString()});
+        QCOMPARE(marks.size(), 2);
+        auto draw = [&](bool output, bool merge, bool every) {
+            const auto page = doc->pager().materialize(0);
+            LayoutCache cache;
+            QImage image(620, 800, QImage::Format_RGB32);
+            image.fill(Qt::white);
+            QPainter p(&image);
+            write::PageDrawing d;
+            d.output = output;
+            d.shadeFields = merge;
+            if (every) d.fields = &marks;
+            write::paintPage(&p, *page, &cache, d);
+            p.end();
+            return image;
+        };
+        for (const bool output : {false, true}) {
+            const QImage none = draw(output, false, false);
+            QCOMPARE(draw(output, true, false) != none, !output);   // (the merge fields' highlight)
+            QCOMPARE(draw(output, false, true) != none, !output);   // (every field's shading)
+        }
     }
 
     void propertiesSurviveASaveAndReopen()
