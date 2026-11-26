@@ -17,6 +17,7 @@
 #include "io/pdftags.h"
 #include "io/pdftransparency.h"
 #include "core/editops.h"
+#include "core/fieldops.h"
 #include "core/epubexport.h"
 #include "app/pageview.h"
 #include "core/appinfo.h"
@@ -462,6 +463,7 @@ bool WriteWindow::exportPdfAsk()
 bool WriteWindow::exportPdfPages(const WriteOutputOptions &options)
 {
     if (!m_doc || !commitShapeText()) return false;
+    updateFieldsBeforePrinting();
     HiddenTextOff noHidden(m_doc.get(), m_view, &options);
     EditedStoryHeld held(m_doc->pager(), m_view->inHeaderFooter() ? m_view->headerFooterEdit().story : nullptr);
     const QVector<int> pages = outputPages(options);
@@ -940,10 +942,18 @@ QPrinter &WriteWindow::printer()
     return *m_printer;
 }
 
+// Options > Display > Update fields before printing: the fields of the text are worked out again, as one step of the history, before pages go to a printer or a PDF file.
+void WriteWindow::updateFieldsBeforePrinting()
+{
+    if (!m_doc || isReadOnly() || !Settings::get().value(QStringLiteral("print/updateFields"), false).toBool()) return;
+    write::updateFields(*m_doc);
+}
+
 bool WriteWindow::printOutput(const WriteOutputOptions &options)
 {
     if (!commitShapeText()) return false;
     if (!m_doc) return false;
+    updateFieldsBeforePrinting();
     // Both sides by hand (a file has no sides): the odd pages, the stack turned over, then the even pages.
     if (options.byHand && !options.toFile) {
         const QVector<WriteOutputOptions> runs = handDuplexRuns(options);

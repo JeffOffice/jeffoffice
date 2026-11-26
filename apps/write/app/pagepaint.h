@@ -64,6 +64,7 @@ struct PageDrawing {
     bool hideBody = false;     // the header or footer is edited with "Show Document Text" off: the page's own text is covered, not dimmed
     QColor pageColor;          // (what covers it: the page's color, white where it has none)
     const QVector<ControlMark> *controls = nullptr;   // the content controls of the text that are drawn with a box (screen only)
+    const QVector<ControlMark> *fields = nullptr;     // the fields of the text that are shaded gray: all of them, or the one the caret is in (screen only)
     bool editIsNote = false;   // the edited story is a footnote's (its box is among the page's notes; the text of the page is not dimmed)
 };
 

@@ -209,6 +209,10 @@ public:
     bool putInPictureControl(int at, const QByteArray &bytes, const QString &name);
     // The controls drawn with a box (the caret's has an outline and its title), worked out again when the text changes.
     const QVector<ControlMark> &controlMarks();
+    // Field shading on the screen (never in print or a PDF): 0 never, 1 always, 2 only the field the caret is in. Kept in Options > Display. The places of the fields it shades.
+    void setFieldShading(int mode);
+    int fieldShading() const { return m_fieldShading; }
+    const QVector<ControlMark> &fieldMarks();
     // Edits the footnote whose mark is at the position (a double click on a mark), at the foot of its page; false where there is no mark.
     bool openNoteAt(int position);
     // The place a menu is for: where the last right click was (a click inside a selection leaves the selection and the caret as they were), else the caret.
@@ -851,6 +855,10 @@ private:
     int m_alwaysMarks = 0;
     QVector<QPair<int, int>> m_findHighlights;
     QVector<ControlMark> m_controlMarks;
+    int m_fieldShading = 0;
+    QVector<ControlMark> m_fieldMarks;
+    QPointer<QTextDocument> m_fieldStory;
+    int m_fieldRevision = -1, m_fieldCaret = -1;
     bool m_controlsDirty = true;
     QPointer<QTextDocument> m_controlStory;
     QMetaObject::Connection m_controlConnection;

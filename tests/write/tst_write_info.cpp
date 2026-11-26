@@ -19,6 +19,7 @@
 #include "app/writeinfo.h"
 #include "app/writewindow.h"
 #include "app/pageview.h"
+#include "app/pagepaint.h"
 #include "core/appinfo.h"
 #include "core/commentops.h"
 #include "core/editops.h"
@@ -855,6 +856,100 @@ private Q_SLOTS:
         QCOMPARE(office::wml::settingsWithCompatibilityMode(open + "/>", 15), open + "><w:compat>" + set + "</w:compat></w:settings>");
         const QByteArray made = office::wml::settingsWithCompatibilityMode(QByteArray(), 15);
         QVERIFY(made.contains("w:val=\"15\"") && made.contains("<w:settings"));
+    }
+
+    // Options > Display > Update fields before printing: off, a PDF keeps the stale result of a field; on, it is worked out again first (and the document has the new one, as one step of Undo).
+    void updateFieldsBeforePrintingWorksTheFieldsOutBeforeAPdf()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        const QVariant prior = Settings::get().value(QStringLiteral("print/updateFields"), false);
+        const auto restore = qScopeGuard([prior] { Settings::get().setValue(QStringLiteral("print/updateFields"), prior); });
+        WriteWindow w;
+        Quiet quiet(w);
+        typeText(*w.document(), w.view()->cursor(), QStringLiteral("one two"));
+        QTextCursor end(w.document()->story());
+        end.movePosition(QTextCursor::End);
+        QVERIFY(insertField(*w.document(), end, QStringLiteral("NUMWORDS")));
+        QTextCursor start(w.document()->story());
+        start.setPosition(0);
+        insertText(*w.document(), start, QStringLiteral("alpha beta gamma delta "));   // (the count the field shows is stale now)
+        auto shown = [&] {
+            const StoryScan scan = scanStory(w.document()->story(), false);
+            for (const FieldPlace &f : scan.fields)
+                if (f.name == QLatin1String("NUMWORDS")) return f.display;
+            return QString();
+        };
+        const QString stale = shown();
+        QVERIFY(!stale.isEmpty());
+        w.setSavePathChooser([&](const QString &, const QString &) { return dir.filePath(QStringLiteral("a.pdf")); });
+        Settings::get().setValue(QStringLiteral("print/updateFields"), false);
+        QVERIFY(w.exportPdf());
+        QCOMPARE(shown(), stale);
+        Settings::get().setValue(QStringLiteral("print/updateFields"), true);
+        w.setSavePathChooser([&](const QString &, const QString &) { return dir.filePath(QStringLiteral("b.pdf")); });
+        QVERIFY(w.exportPdf());
+        QVERIFY2(shown() != stale, qPrintable(shown()));
+        QVERIFY(w.document()->undo());
+        QCOMPARE(shown(), stale);
+    }
+
+    // Field shading (Options > Display): never, always, or only the field the caret is in; on the screen only: a PDF is drawn with none.
+    void fieldShadingShowsOnTheScreenAsTheOptionSaysAndNeverInAPdf()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        WriteWindow w;
+        Quiet quiet(w);
+        w.resize(1100, 800);
+        w.show();
+        typeText(*w.document(), w.view()->cursor(), QStringLiteral("Before the field "));
+        QTextCursor end(w.document()->story());
+        end.movePosition(QTextCursor::End);
+        const int at = end.position();
+        QVERIFY(insertField(*w.document(), end, QStringLiteral("QUOTE \"a long result of the field\"")));
+        w.view()->paginateAll();
+        auto shaded = [&] {
+            const QImage image = w.view()->viewport()->grab().toImage();
+            int count = 0;
+            for (int y = 0; y < image.height(); ++y)
+                for (int x = 0; x + 5 < image.width(); ++x) {
+                    const QColor c = image.pixelColor(x, y);
+                    if (std::abs(c.red() - 225) < 4 && std::abs(c.green() - 225) < 4 && std::abs(c.blue() - 225) < 4 && image.pixelColor(x + 5, y) == c) ++count;
+                }
+            return count;
+        };
+        auto caretAt = [&](int position) {
+            QTextCursor c(w.document()->story());
+            c.setPosition(position);
+            w.view()->setCursor(c);
+        };
+        caretAt(3);
+        w.view()->setFieldShading(0);
+        QTRY_VERIFY(shaded() >= 0);
+        const int plain = shaded();   // (the window's own gray, which is about the same shade)
+        w.view()->setFieldShading(1);
+        QTRY_VERIFY(shaded() > plain + 100);
+        w.view()->setFieldShading(2);   // (the caret is not in the field)
+        QTRY_VERIFY(shaded() < plain + 20);
+        caretAt(at);
+        QTRY_VERIFY(shaded() > plain + 100);
+        caretAt(3);
+        QTRY_VERIFY(shaded() < plain + 20);
+        // a PDF has none, whatever is chosen
+        w.view()->setFieldShading(1);
+        bool outputShaded = false;
+        int pages = 0;
+        write::setPaintObserver([&](const flow::MaterializedPage &, const write::PageDrawing &d) {
+            if (!d.output) return;
+            ++pages;
+            outputShaded |= d.fields != nullptr;
+        });
+        const auto guard = qScopeGuard([] { write::setPaintObserver(nullptr); });
+        w.setSavePathChooser([&](const QString &, const QString &) { return dir.filePath(QStringLiteral("a.pdf")); });
+        QVERIFY(w.exportPdf());
+        QVERIFY(pages > 0);
+        QVERIFY(!outputShaded);
     }
 
     void propertiesSurviveASaveAndReopen()

@@ -113,6 +113,33 @@ void paintCellFound(QPainter *p, const flow::MaterializedPage &page, const PageD
     }
 }
 
+// The fields of the text of the page shaded light gray (Options > Display > Field shading), as the content controls' boxes are.
+void paintFieldShading(QPainter *p, flow::MaterializedPage &page, LayoutCache *layouts, const RenderOptions &opt, const PageDrawing &d)
+{
+    const QString bodyId = bodyStoryId(page);
+    const Story *body = bodyId.isEmpty() ? nullptr : page.doc->story(bodyId);
+    if (!body || !body->doc || !layouts) return;
+    const int length = body->doc->characterCount();
+    for (const QString &id : page.boxes) {
+        const Item *item = page.doc->item(id);
+        if (!item || item->type() != ItemType::Text) continue;
+        const auto *box = static_cast<const TextItem *>(item);
+        const LayoutCache::FrameLayout fl = layouts->textFrame(*page.doc, *box, page.number, opt);
+        if (!fl.layout || fl.frame < 0) continue;
+        p->save();
+        for (const ControlMark &mark : *d.fields) {
+            if (mark.from >= page.storyFrom + length) break;
+            const int from = std::max(0, mark.from - page.storyFrom), to = std::min(length, mark.to + 1 - page.storyFrom);
+            if (to <= from) continue;
+            for (const QRectF &r : fl.layout->rangeRects(fl.frame, from, to)) {
+                const QRectF at = box->textTransform().mapRect(r);
+                if (at.width() >= 1.5) p->fillRect(at, QColor(0, 0, 0, 30));
+            }
+        }
+        p->restore();
+    }
+}
+
 // A small anchor in the margin beside the line of each object that is set at a place on the page and is anchored in the text of the page (the page's body story, as the
 // positions of its text have it). Where the margin is too narrow the anchor stands just inside the page's edge.
 void paintAnchorMarks(QPainter *p, flow::MaterializedPage &page, LayoutCache *layouts, const RenderOptions &opt)
@@ -379,6 +406,7 @@ void paintPage(QPainter *p, flow::MaterializedPage &page, LayoutCache *layouts, 
     }
     Renderer::paintPage(p, ctx, 0);
     if (d.controls && !d.output && !d.controls->isEmpty()) paintControlMarks(p, page, layouts, ctx.opt, d);
+    if (d.fields && !d.output && !d.fields->isEmpty()) paintFieldShading(p, page, layouts, ctx.opt, d);
     if (!d.output && (d.markKinds & tp::special::Anchor) && d.marks && !d.editedStory) paintAnchorMarks(p, page, layouts, ctx.opt);
     flow::TablePaint tables;
     tables.output = d.textOutput;

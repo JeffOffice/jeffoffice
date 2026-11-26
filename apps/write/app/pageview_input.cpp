@@ -6,6 +6,7 @@
 #include "flow/borderpaint.h"
 #include "app/shapetextedit.h"
 
+#include "core/fieldops.h"
 #include "core/autoops.h"
 #include "core/contentcontrolops.h"
 #include "core/editops.h"
@@ -1783,6 +1784,35 @@ const QVector<ControlMark> &PageView::controlMarks()
                 }
     }
     return m_controlMarks;
+}
+
+const QVector<ControlMark> &PageView::fieldMarks()
+{
+    QTextDocument *story = m_doc ? m_doc->story() : nullptr;
+    const int caret = m_cursor.document() == story ? m_cursor.position() : -1;
+    if (!story || m_fieldShading == 0) {
+        m_fieldMarks.clear();
+        m_fieldStory = nullptr;
+        return m_fieldMarks;
+    }
+    // (Made again when the text changes or, for the field the caret is in, when the caret moves; a caret with no field near it has no scan made.)
+    if (m_fieldStory == story && m_fieldRevision == story->revision() && (m_fieldShading == 1 || m_fieldCaret == caret)) return m_fieldMarks;
+    m_fieldStory = story;
+    m_fieldRevision = story->revision();
+    m_fieldCaret = caret;
+    m_fieldMarks.clear();
+    if (m_fieldShading == 2 && !write::fieldsNearSelection(story, m_cursor).any) return m_fieldMarks;
+    const write::StoryScan scan = write::scanStory(story, false);
+    if (m_fieldShading == 2) {
+        int at = write::fieldContaining(scan, caret);
+        while (at >= 0 && scan.fields[at].parent >= 0) at = scan.fields[at].parent;
+        if (at >= 0) m_fieldMarks.push_back({scan.fields[at].begin, scan.fields[at].end, true, false, QString()});
+        return m_fieldMarks;
+    }
+    for (const write::FieldPlace &f : scan.fields)
+        if (f.parent < 0 && m_fieldMarks.size() < 20000) m_fieldMarks.push_back({f.begin, f.end, false, false, QString()});
+    std::stable_sort(m_fieldMarks.begin(), m_fieldMarks.end(), [](const ControlMark &a, const ControlMark &b) { return a.from < b.from; });
+    return m_fieldMarks;
 }
 
 write::ContentControl PageView::controlUnder(int at, const QPoint &viewportPos)

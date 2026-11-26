@@ -365,6 +365,7 @@ public:
     bool printOutput(const WriteOutputOptions &options);
     bool exportPdf();
     // The margins of the document as the Print page has them: the id of the preset every section has ("normal", "narrow", "moderate", "wide", or "mirrored"; empty for the same other
+    void updateFieldsBeforePrinting();
     // margins in every section; "different" when the sections differ), the margins of the cursor's section in points (the gutter on the left), and the Print page's choice: a preset gives all
     // four margins of every section its numbers, keeps each section's gutter, and sets the document's mirror margins (on for Mirrored, off for the others), as one step; "custom" opens Page
     // Setup; "different" is not a choice and does nothing. False when nothing was changed.

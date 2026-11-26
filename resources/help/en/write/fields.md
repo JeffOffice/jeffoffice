@@ -28,6 +28,14 @@ A field in a header or footer that shows the page number, the page count, or a h
 
 Press **Shift+F9** to show the code of the field the caret is in, in braces such as `{ PAGE }`, in place of its result. Press **Alt+F9** to show the codes of every field, and press it again to show the results. This only changes what you see: the file is saved as it was, and the document is not marked as changed.
 
+## Shade fields
+
+To see where the fields are, open **File > Options > Display** and choose **Field shading**. **Never** shows no shading. **Always** shades every field in light gray. **When selected** shades only the field the cursor is in. The shading shows on the screen and is never printed or saved in a PDF file.
+
+## Update fields before printing
+
+Check **Update fields before printing** in **File > Options > Display** to work out every field again each time you print or save as a PDF file, so that page references, dates, and counts are right on paper. It is one step you can undo. It is not done for a document that is open for reading only.
+
 ## Unlink or lock a field
 
 - **Ctrl+Shift+F9** turns the field into plain text. The result stays, and it is no longer a field.

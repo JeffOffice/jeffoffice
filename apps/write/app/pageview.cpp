@@ -639,6 +639,14 @@ void PageView::setShowGridlines(bool on)
     viewport()->update();
 }
 
+void PageView::setFieldShading(int mode)
+{
+    m_fieldShading = std::clamp(mode, 0, 2);
+    m_fieldStory = nullptr;
+    m_fieldMarks.clear();
+    viewport()->update();
+}
+
 void PageView::setShadeFields(bool on)
 {
     m_shadeFields = on;
@@ -762,6 +770,7 @@ void PageView::paintEvent(QPaintEvent *e)
             d.filtersLater = true;   // (the view draws again when a picture's filters are done)
             d.found = m_findHighlights.isEmpty() ? nullptr : &m_findHighlights;
             if (m_doc && !m_hf.active && !m_note.active) d.controls = &controlMarks();
+            if (m_doc && m_fieldShading && !m_hf.active && !m_note.active) d.fields = &fieldMarks();
             d.foundIn = m_findSide;
             d.pageCount = std::max(1, m_knownPages);
             if (m_hf.active) {

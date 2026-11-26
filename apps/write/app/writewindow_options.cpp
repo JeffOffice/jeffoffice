@@ -61,6 +61,7 @@ void WriteWindow::applyDisplayDefaults()
     m_view->setShowMarks(marks);
     act(QStringLiteral("table.gridlines"))->setChecked(grid);
     m_view->setShowGridlines(grid);
+    m_view->setFieldShading(Settings::get().value(QStringLiteral("view/fieldShading"), 2).toInt());
     const int styleArea = Settings::get().value(QStringLiteral("view/styleAreaWidth"), 0).toInt();
     m_view->setStyleAreaWidth(styleArea);
     m_outline->setStyleAreaWidth(styleArea);
@@ -79,7 +80,8 @@ void WriteWindow::applyEditingDefaults()
 QVector<OptionsPage> WriteWindow::optionsPages()
 {
     struct Fields {
-        QCheckBox *marks = nullptr, *grid = nullptr;
+        QCheckBox *marks = nullptr, *grid = nullptr, *updateBeforePrint = nullptr;
+        QComboBox *fieldShading = nullptr;
         MeasureSpin *styleArea = nullptr;
         QVector<QCheckBox *> always;   // one for each of the marks of displayMarkKinds()
         QComboBox *units = nullptr;
@@ -132,6 +134,18 @@ QVector<OptionsPage> WriteWindow::optionsPages()
         f->grid->setObjectName(QStringLiteral("startWithGridlines"));
         f->grid->setChecked(st.value(QStringLiteral("view/gridlines"), false).toBool());
         form->addRow(f->grid);
+        f->fieldShading = new QComboBox(page);
+        f->fieldShading->setObjectName(QStringLiteral("fieldShading"));
+        f->fieldShading->setAccessibleName(QCoreApplication::translate("Dialogs", "Field shading"));
+        f->fieldShading->addItem(QCoreApplication::translate("Dialogs", "Never"), 0);
+        f->fieldShading->addItem(QCoreApplication::translate("Dialogs", "Always"), 1);
+        f->fieldShading->addItem(QCoreApplication::translate("Dialogs", "When selected"), 2);
+        f->fieldShading->setCurrentIndex(std::clamp(st.value(QStringLiteral("view/fieldShading"), 2).toInt(), 0, 2));
+        form->addRow(QCoreApplication::translate("Dialogs", "Field shading"), f->fieldShading);
+        f->updateBeforePrint = new QCheckBox(QCoreApplication::translate("Dialogs", "Update fields before printing"), page);
+        f->updateBeforePrint->setObjectName(QStringLiteral("updateFieldsBeforePrinting"));
+        f->updateBeforePrint->setChecked(st.value(QStringLiteral("print/updateFields"), false).toBool());
+        form->addRow(f->updateBeforePrint);
         // (The width is kept in pixels, the strip's own measure; the box shows it in the person's units, a pixel being 3/4 of a point.)
         constexpr double kPointsPerPixel = 0.75;
         f->styleArea = new MeasureSpin(page);
@@ -156,6 +170,8 @@ QVector<OptionsPage> WriteWindow::optionsPages()
     }, [this, f] {
         Settings::get().setValue(QStringLiteral("view/marks"), f->marks->isChecked());
         Settings::get().setValue(QStringLiteral("view/gridlines"), f->grid->isChecked());
+        Settings::get().setValue(QStringLiteral("view/fieldShading"), f->fieldShading->currentData().toInt());
+        Settings::get().setValue(QStringLiteral("print/updateFields"), f->updateBeforePrint->isChecked());
         const int styleWidth = int(std::lround(f->styleArea->value() / 0.75));
         Settings::get().setValue(QStringLiteral("view/styleAreaWidth"), styleWidth <= 0 ? 0 : std::clamp(styleWidth, int(write::StyleArea::kLeastWidth), int(write::StyleArea::kMostWidth)));
         int n = 0, bits = 0;
