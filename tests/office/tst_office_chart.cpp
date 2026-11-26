@@ -1136,7 +1136,7 @@ private Q_SLOTS:
         }
         const QString plot = QStringLiteral("<c:radarChart><c:radarStyle val=\"standard\"/>") + chartSeries(0, QStringLiteral("R"), cats, values) + QStringLiteral("<c:axId val=\"111\"/><c:axId val=\"222\"/></c:radarChart>") + chartAxes();
         const QString title = QStringLiteral("<c:title><c:tx><c:rich><a:bodyPr/><a:p><a:r><a:t>Models</a:t></a:r></a:p></c:rich></c:tx><c:overlay val=\"0\"/></c:title>");
-        for (const QSizeF &size : {QSizeF(400, 300), QSizeF(300, 240), QSizeF(500, 280)}) {
+        for (const QSizeF &size : {QSizeF(400, 300), QSizeF(300, 240), QSizeF(500, 280), QSizeF(260, 220)}) {
             Chart c;
             QString err;
             QVERIFY2(readChart(chartPart(plot, title), defaultTheme(), ColorMap(), &c, &err), qPrintable(err));
