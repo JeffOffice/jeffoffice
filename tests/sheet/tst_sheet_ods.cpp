@@ -108,6 +108,18 @@ private Q_SLOTS:
         QCOMPARE(formulaOf(s, QStringLiteral("D2")), QStringLiteral("1/0"));
     }
 
+    // An error cell whose text is #UNKNOWN! is that error (it used to be read as #VALUE!), and one with a text that is no error stays #VALUE!.
+    void anErrorCellNamedUnknownIsThatError()
+    {
+        const QString r = row(cell(QStringLiteral("office:value-type=\"string\" table:formula=\"of:=1/0\" calcext:value-type=\"error\""), QStringLiteral("<text:p>#UNKNOWN!</text:p>"))
+                              + cell(QStringLiteral("office:value-type=\"string\" table:formula=\"of:=1/0\" calcext:value-type=\"error\""), QStringLiteral("<text:p>#NOT AN ERROR!</text:p>")));
+        Workbook wb = open(simple(table(QStringLiteral("S"), columns(2) + r)));
+        const Sheet s = readSheet(wb);
+        QVERIFY(s.error.isEmpty());
+        QCOMPARE(shown(wb, s, QStringLiteral("A1")), QStringLiteral("e:#UNKNOWN!"));
+        QCOMPARE(shown(wb, s, QStringLiteral("B1")), QStringLiteral("e:#VALUE!"));
+    }
+
     // A date in a document counted from 1904 is a day number of that system.
     void theDateSystemIsTheDocuments()
     {

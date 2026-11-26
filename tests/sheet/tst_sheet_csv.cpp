@@ -221,6 +221,19 @@ private Q_SLOTS:
         QCOMPARE(readSheet(trailing).extentCols, 2u);   // (empty fields are no cells)
     }
 
+    // A cell of text that is #UNKNOWN! is that error (it used to be kept as text); text that only starts like an error stays text.
+    void aCellTypedUnknownIsThatError()
+    {
+        LocaleScope locale(QLocale(QLocale::English, QLocale::UnitedStates));
+        Workbook wb;
+        QString why;
+        QVERIFY2(openCsv("#UNKNOWN!,#unknown!,#UNKNOWN,x\n", &wb, &why), qPrintable(why));
+        const Sheet s = readSheet(wb);
+        QCOMPARE(at1(wb, s, "A1"), QStringLiteral("e:#UNKNOWN!"));
+        QCOMPARE(at1(wb, s, "B1"), QStringLiteral("e:#UNKNOWN!"));
+        QCOMPARE(at1(wb, s, "C1"), QStringLiteral("i:#UNKNOWN"));
+    }
+
     // Numbers, percents, money, dates, times, true and false, and errors are read as they are typed in the person's locale: the same file in English and in German.
     void valuesAreReadInThePersonsLocale()
     {
