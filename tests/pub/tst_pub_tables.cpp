@@ -393,7 +393,7 @@ private Q_SLOTS:
         ed->paste();
         QCOMPARE(count(&b1), 0);
         QCOMPARE(b1, b0 + 1);
-        QVERIFY(said.contains(QStringLiteral("too big")));
+        QVERIFY2(said.contains(QStringLiteral("plain text was pasted")), qPrintable(said));   // (the page guard says it first: a grid that size is more work than a page may ask for)
         QVERIFY(!boldWord(QStringLiteral("hello")));
     }
 
