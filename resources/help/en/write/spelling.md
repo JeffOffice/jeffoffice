@@ -51,6 +51,8 @@ When AutoCorrect changes a word as you type, a small **AutoCorrect Options** but
 - A choice that stops the change. It depends on what changed the word: **Stop Replacing** takes the entry off your replacement list, **Keep As Typed** adds a word with two capitals ("THursday") to the words that keep them, and **Stop Capitalizing** turns off the capital for names of days, the first letter of sentences, or the first letter of table cells everywhere, not only for this word, and says so (it is the same switch as in the AutoCorrect dialog). It also puts the word back as you typed it.
 - **AutoCorrect Options...** opens the AutoCorrect dialog.
 
+The **Math Symbols** tab of the AutoCorrect dialog has a switch, **Replace the names of math symbols as you type**, that is off until you turn it on. With it on, a backslash and a name, such as \alpha, becomes the symbol (α) when you type a space or a mark after it. The name must start a word, so a folder path such as C:\temp\pi stays as you typed it. The tab lists every name. When a name was replaced, the button's choice is **Stop Replacing Math Names**, which turns the switch off. JeffDeck and JeffPub change them too; JeffCrunch does not change anything in a cell.
+
 The button goes away when you type, edit, or move the caret.
 
 ## Turn the red lines off or on

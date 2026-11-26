@@ -7,7 +7,7 @@ On the left is a list. Some entries open a page, and some do their job at once.
 
 ## Start
 
-- **New** shows a **Blank Presentation** to click, then **Templates**: a pitch, a status update, a lesson, a photo album, and a minimal light and a minimal dark design. Each has its own colors and fonts and three to five sample slides with sentences in brackets to write over (the photo album has little drawings where your pictures go). Then **Themes**: each of the nine themes in its four variants, drawn as the first slide of a presentation made in it. Click one to start a presentation in that theme and variant (in this window when it is still untouched, otherwise in a new window). Your own templates are below, under **My Templates**. See [Open and save presentations](open-save).
+- **New** shows a **Blank Presentation** to click, then **Templates**: a pitch, a status update, a lesson, a report, a training course, a photo album, and a minimal light and a minimal dark design. Each has its own colors and fonts and three to five sample slides with sentences in brackets to write over (the photo album has little drawings where your pictures go). Then **Themes**: each of the nine themes in its four variants, drawn as the first slide of a presentation made in it. Click one to start a presentation in that theme and variant (in this window when it is still untouched, otherwise in a new window). Your own templates are below, under **My Templates**. See [Open and save presentations](open-save).
 - **Open** has **Browse** to pick a file, **Recover Unsaved Work** to bring back copies that automatic recovery kept, and lists of **Pinned** and **Recent Presentations**. See [Open and save presentations](open-save) and [Get back unsaved work](recover).
 
 ## This presentation
@@ -74,7 +74,7 @@ Click **Remove All** next to a kind to take it out. You can undo it with **Ctrl+
 
 ### Version History
 
-Click **Version History** to keep named copies of the presentation on your computer. Nothing is sent anywhere. Save the presentation first, because a version belongs to a file. Click **Keep a Version…**, and give it a name. Later, choose a version and click **Open a Copy** to look at it, **Go Back to It** to put it in the window (the presentation as it is now is kept as a version first), or **Delete**. JeffDeck keeps the last 50.
+Click **Version History** to keep named copies of the presentation on your computer. Nothing is sent anywhere. Save the presentation first, because a version belongs to a file. Click **Keep a Version…**, and give it a name. Later, choose a version and click **Open a Copy** to look at it, **Compare** to see what that version changed (it opens the same Reviewing Pane as **Review > Compare**; see [Compare presentations](compare)), **Go Back to It** to put it in the window (the presentation as it is now is kept as a version first), or **Delete**. JeffDeck keeps the last 50.
 
 ### Check Accessibility
 

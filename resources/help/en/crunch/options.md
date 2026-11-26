@@ -29,7 +29,7 @@ The **Formulas** page sets how the open workbook works out its formulas: **Calcu
 
 ## Proofing options
 
-The **Proofing** page is shared by the JeffOffice apps. It decides whether spelling is checked as you type in a cell (turn off **Check spelling as you type** to get rid of the red wavy lines in every open window and the other apps; **Spelling** on the Review tab still works), whether words in capital letters and words with numbers are ignored when spelling is checked, whether AutoCorrect fixes words as you type, whether straight quote marks become curly ones, whether dashes, fractions, and ordinals are changed, and whether a web address becomes a link. See [Spelling](notes-links) and [Type in cells](edit-cells).
+The **Proofing** page is shared by the JeffOffice apps. It decides whether spelling is checked as you type in a cell (turn off **Check spelling as you type** to get rid of the red wavy lines in every open window and the other apps; **Spelling** on the Review tab still works), whether words in capital letters and words with numbers are ignored when spelling is checked, whether AutoCorrect fixes words as you type, whether straight quote marks become curly ones, whether dashes, fractions, and ordinals are changed, and whether a web address becomes a link. The **Math Symbols** tab of AutoCorrect Options is for JeffWrite, JeffDeck, and JeffPub: JeffCrunch does not turn a backslash and a name into a symbol in a cell. See [Spelling](notes-links) and [Type in cells](edit-cells).
 
 ## Display options
 
