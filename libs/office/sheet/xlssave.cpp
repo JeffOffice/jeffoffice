@@ -26,6 +26,7 @@
 #include <QSet>
 
 #include <algorithm>
+#include <climits>
 #include <cmath>
 #include <cstring>
 #include <map>
@@ -231,6 +232,7 @@ public:
         if (m_report) {
             m_report->notKept = m_features.result();
             if (m_formulasAsValues > 0) m_report->notKept << QCoreApplication::translate("Sheet", "%1 formulas the format cannot hold (they keep the value they came to)").arg(m_formulasAsValues);
+            if (m_unknownErrors > 0) m_report->notKept << QCoreApplication::translate("Sheet", "%n cell(s) with the error #UNKNOWN!, which the old format has no code for (they show #N/A)", nullptr, int(std::min<qint64>(m_unknownErrors, INT_MAX)));
             m_report->formulas = m_formulas;
             m_report->formulasAsValues = m_formulasAsValues;
             m_report->cells = m_cellsWritten;
@@ -278,7 +280,7 @@ private:
     quint32 m_spidMax = 1024;
     NoteReadContext m_noteContext;
     QMap<QString, qint64> m_reasons;
-    qint64 m_cellsWritten = 0, m_formulas = 0, m_formulasAsValues = 0, m_textTotal = 0;
+    qint64 m_cellsWritten = 0, m_formulas = 0, m_formulasAsValues = 0, m_textTotal = 0, m_unknownErrors = 0;
     // the strings
     QVector<QString> m_sst;
     QHash<QString, int> m_sstIndex;
@@ -1406,6 +1408,7 @@ private:
             putRecord(out, 0x0205, W().u16(row).u16(col).u16(xf).u8(c.number != 0 ? 1 : 0).u8(0).bytes());
             break;
         case CellType::Error:
+            if (CellError(int(c.number)) == CellError::Unknown) ++m_unknownErrors;
             putRecord(out, 0x0205, W().u16(row).u16(col).u16(xf).u8(errorCode(int(c.number))).u8(1).bytes());
             break;
         }
@@ -1434,7 +1437,10 @@ private:
         case CellType::Number:
         case CellType::Date: f.f64(std::isfinite(c.number) ? c.number : 0); break;
         case CellType::Bool: f.u8(1).u8(0).u8(c.number != 0 ? 1 : 0).u8(0).u8(0).u8(0).u16(0xFFFF); break;
-        case CellType::Error: f.u8(2).u8(0).u8(errorCode(int(c.number))).u8(0).u8(0).u8(0).u16(0xFFFF); break;
+        case CellType::Error:
+            if (CellError(int(c.number)) == CellError::Unknown) ++m_unknownErrors;
+            f.u8(2).u8(0).u8(errorCode(int(c.number))).u8(0).u8(0).u8(0).u16(0xFFFF);
+            break;
         case CellType::SharedString:
         case CellType::InlineString:
         case CellType::FormulaString:

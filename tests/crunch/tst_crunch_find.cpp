@@ -618,6 +618,28 @@ private Q_SLOTS:
         QCOMPARE(crunch::goToNames(s, 1).size(), 2);
     }
 
+    // #UNKNOWN! is an error like the others for what looks for errors: the formulas a rule of "cells with errors" is made of (ISERROR), IFERROR, ISNA, and Go To Special.
+    void anUnknownErrorIsFoundAsAnError()
+    {
+        using K = crunch::SpecialKind;
+        EditWindow e;
+        QVERIFY(e.open(goBook()));
+        crunch::EditSession *s = e.win.w.session();
+        QVERIFY(s->type(0, 5, 5, QStringLiteral("#UNKNOWN!")).ok);   // F6
+        QVERIFY(s->type(0, 5, 6, QStringLiteral("=ISERROR(F6)")).ok);
+        QVERIFY(s->type(0, 5, 7, QStringLiteral("=IFERROR(F6,7)")).ok);
+        QVERIFY(s->type(0, 5, 8, QStringLiteral("=ISNA(F6)")).ok);
+        QVERIFY(s->type(0, 5, 9, QStringLiteral("=ISERROR(A1)")).ok);
+        QVERIFY(e.settle());
+        QCOMPARE(e.valueAt(QStringLiteral("F6")), QStringLiteral("e:#UNKNOWN!"));
+        QCOMPARE(e.valueAt(QStringLiteral("G6")), QStringLiteral("b:1"));
+        QCOMPARE(e.valueAt(QStringLiteral("H6")), QStringLiteral("n:7"));
+        QCOMPARE(e.valueAt(QStringLiteral("I6")), QStringLiteral("b:0"));
+        QCOMPARE(e.valueAt(QStringLiteral("J6")), QStringLiteral("b:0"));
+        QCOMPARE(rangesOf(special(e, K::Constants, QString(), QStringLiteral("A1"), false, false, false, true)), QStringLiteral("F6"));
+        QCOMPARE(rangesOf(special(e, K::Constants, QString(), QStringLiteral("A1"), true, true, true, false)).contains(QLatin1String("F6")), false);
+    }
+
     void goToSpecialFindsCellsByWhatTheyHold()
     {
         using K = crunch::SpecialKind;

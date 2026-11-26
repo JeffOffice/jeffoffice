@@ -439,6 +439,27 @@ private Q_SLOTS:
         QVERIFY(c.xlsReport.notKept.join(QLatin1Char(' ')).contains(QLatin1String("formula")));
     }
 
+    // The old format has no code for #UNKNOWN!, so it is written as #N/A and Check Compatibility says how many cells that is, one line; the errors it has a code for are not listed.
+    void anUnknownErrorIsListedAsOneLineAndWrittenAsNA()
+    {
+        Copies c;
+        const QByteArray x = simple(row(1, err(QStringLiteral("A1"), QStringLiteral("#UNKNOWN!")) + err(QStringLiteral("B1"), QStringLiteral("#UNKNOWN!")) + err(QStringLiteral("C1"), QStringLiteral("#DIV/0!"))
+                                              + num(QStringLiteral("D1"), 1)));
+        QVERIFY2(c.make(x, false), qPrintable(c.why));
+        const Sheet b = c.sheet(c.xls, 0);
+        QCOMPARE(val(c.xls, b, QStringLiteral("A1")), QStringLiteral("e:#N/A"));
+        QCOMPARE(val(c.xls, b, QStringLiteral("C1")), QStringLiteral("e:#DIV/0!"));
+        QStringList lines;
+        for (const QString &line : c.xlsReport.notKept)
+            if (line.contains(QLatin1String("#UNKNOWN!"))) lines << line;
+        QCOMPARE(lines.size(), 1);
+        QVERIFY2(lines[0].startsWith(QLatin1String("2 cell")), qPrintable(lines[0]));
+        // (none of them: nothing is listed)
+        Copies fine;
+        QVERIFY2(fine.make(simple(row(1, err(QStringLiteral("A1"), QStringLiteral("#DIV/0!")))), false), qPrintable(fine.why));
+        for (const QString &line : fine.xlsReport.notKept) QVERIFY2(!line.contains(QLatin1String("#UNKNOWN!")), qPrintable(line));
+    }
+
     // A function the format has no number for (a newer one, an add-in's, a person's own) is called through its name, as the real files do, and comes back as it was written.
     void aFunctionWithNoNumberIsSavedByItsNameAndReadBack()
     {
