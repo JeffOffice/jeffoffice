@@ -15,6 +15,7 @@
 #include "app/missingfonts.h"
 #include "app/packandgo.h"
 #include "app/readaloud.h"
+#include "app/repeat.h"
 #include <QStatusBar>
 #include "core/snapguides.h"
 #include "core/textexport.h"
@@ -489,7 +490,25 @@ protected:
     void resizeEvent(QResizeEvent *e) override;
     bool eventFilter(QObject *o, QEvent *e) override;
 
+public:
+    // Whether Repeat does the command again: formatting, paragraph, style, list, table, and insert commands that take nothing from a box; not file, view, find, review, or clipboard ones.
+    static bool repeatableCommand(const QString &id);
+
 private:
+    // Repeat (F4): the last command done again on the selection of now. A command that can be repeated is recorded by mk (by its id) or by recordRepeat (one whose value is chosen elsewhere);
+    // the typing of a run of words is recorded when the run begins. Nothing is kept for a document that is gone, and a command is refused as it was when it was given.
+    bool refuseCommand(const QString &id);
+    void recordRepeat(const QString &name, std::function<void()> again, quint64 document = 0);
+    // A change whose value was chosen in a box of the ribbon: done now, and recorded so that Repeat does it again on the selection of then. False when it was refused.
+    bool changeAndRepeat(const QString &name, const std::function<void()> &change);
+    void runRepeat();
+    void createRepeatActions();
+    void updateRepeatActions();
+    QMenu *buildHistoryMenu(QWidget *owner, bool redo);
+    jp::RepeatCommand *m_repeat = nullptr;
+    QAction *m_repeatCtrlY = nullptr;
+    quint64 m_documentCounter = 0;
+    bool m_repeatIsTyping = false;
     QAction *mk(const QString &id, const QString &text, const QString &iconName, const QKeySequence &key, const std::function<void()> &fn, bool checkable = false);
     void createActions();
     void createFormatActions();

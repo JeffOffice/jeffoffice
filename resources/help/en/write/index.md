@@ -28,6 +28,7 @@ Type in the search box above to find a topic, or a command to run. Press **F1** 
 - [Change case, sort, and paste in other ways](home-tools)
 - [Use styles](styles)
 - [Copy a look with Copy Formatting](format-painter)
+- [Undo, Redo, and Repeat](undo-repeat)
 - [Add headers, footers, and page numbers](headers-footers)
 - [Make and change tables](tables)
 - [Add footnotes and endnotes](footnotes-endnotes)

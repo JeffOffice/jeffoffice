@@ -220,6 +220,13 @@ public:
     void setSpellingEnabled(bool on);
 
     // ---- editing (each is a step that undoes)
+    // The words typed in the last run of typing: letters typed one after the other with the caret where the last one left it, and nothing done in between. Empty when there is no run, or
+    // the run is longer than kMaxTypedRun (it is not kept). typedRunChanged() is said when a run begins and when one is let go, not for each letter.
+    static constexpr int kMaxTypedRun = 1000;
+    QString typedRun() const { return m_typedRun; }
+    void endTypedRun();
+    // Types `run` again at the caret (over the selection), letter by letter as typing does, with the same corrections, as one step. The run it is given is not a new run.
+    void repeatTyping(const QString &run);
     void undo();
     void redo();
     static bool smartCutPaste();
@@ -505,6 +512,7 @@ public:
     TableTool tableTool() const { return m_tableTool; }
 
 Q_SIGNALS:
+    void typedRunChanged();
     void tableToolChanged();
     // Document files dropped on the pages (the window opens them).
     void documentsDropped(const QStringList &paths);
@@ -923,6 +931,10 @@ private:
     void notePaste(int from, int selectionEnd, const PasteSource &from_, bool startedInTable, bool asCells = false);
     void updatePasteButton();
     write::AutoFix m_autoFix;
+    QString m_typedRun;
+    QTextDocument *m_typedStory = nullptr;
+    int m_typedEnd = -1;
+    bool m_typedOpen = false, m_repeatingTyping = false;
     int m_autoFixCaret = -1;
     QPointer<QTextDocument> m_autoFixStory;
     QToolButton *m_autoFixButton = nullptr;

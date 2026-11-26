@@ -122,10 +122,11 @@ void WriteWindow::ribbonParts(RibbonParts &parts)
     parts.widgets[QStringLiteral("fontCombo")] = [this]() -> QWidget * {
         auto *font = new FontCombo();
         connect(font, &FontCombo::familyChosen, this, [this](const QString &f) {
-            if (refuseIfReadOnly()) return;
-            if (auto *typing = m_view->shapeEditor()) typing->setFontFamilyName(f);
-            else if (m_doc) write::setFontFamily(*m_doc, m_view->cursor(), f);
-            m_view->focusText();
+            changeAndRepeat(tr("Font"), [this, f] {
+                if (auto *typing = m_view->shapeEditor()) typing->setFontFamilyName(f);
+                else if (m_doc) write::setFontFamily(*m_doc, m_view->cursor(), f);
+                m_view->focusText();
+            });
         });
         m_fontCombos << font;
         return font;
@@ -133,10 +134,11 @@ void WriteWindow::ribbonParts(RibbonParts &parts)
     parts.widgets[QStringLiteral("sizeCombo")] = [this]() -> QWidget * {
         auto *size = new SizeCombo();
         connect(size, &SizeCombo::sizeChosen, this, [this](double s) {
-            if (refuseIfReadOnly()) return;
-            if (auto *typing = m_view->shapeEditor()) typing->setFontSizePt(s);
-            else if (m_doc) write::setFontSize(*m_doc, m_view->cursor(), s);
-            m_view->focusText();
+            changeAndRepeat(tr("Font Size"), [this, s] {
+                if (auto *typing = m_view->shapeEditor()) typing->setFontSizePt(s);
+                else if (m_doc) write::setFontSize(*m_doc, m_view->cursor(), s);
+                m_view->focusText();
+            });
         });
         m_sizeCombos << size;
         return size;
@@ -145,11 +147,13 @@ void WriteWindow::ribbonParts(RibbonParts &parts)
         auto *b = new ColorButton(QStringLiteral("baseline"), tr("Font Color"), true, tr("Automatic"));
         b->setCurrent(ColorRef::rgb(QColor(0xC0, 0, 0)));
         connect(b, &ColorButton::colorPicked, this, [this](const ColorRef &c) {
-            if (!m_doc || refuseIfReadOnly()) return;
-            const QColor color = c.isNone() ? QColor() : c.resolve(fontColorScheme());
-            if (auto *typing = m_view->shapeEditor()) typing->setColor(color.isValid() ? color : QColor(Qt::black));
-            else write::setTextColorRef(*m_doc, m_view->cursor(), c);
-            m_view->focusText();
+            if (!m_doc) return;
+            changeAndRepeat(tr("Font Color"), [this, c] {
+                const QColor color = c.isNone() ? QColor() : c.resolve(fontColorScheme());
+                if (auto *typing = m_view->shapeEditor()) typing->setColor(color.isValid() ? color : QColor(Qt::black));
+                else write::setTextColorRef(*m_doc, m_view->cursor(), c);
+                m_view->focusText();
+            });
         });
         m_colorButtons << b;
         m_fontColorButtons << b;
@@ -160,11 +164,13 @@ void WriteWindow::ribbonParts(RibbonParts &parts)
         auto *b = new ColorButton(QStringLiteral("paint-bucket"), tr("Shading"), true, tr("No Color"));
         b->setCurrent(ColorRef::rgb(QColor(0xFF, 0xF2, 0x99)));
         connect(b, &ColorButton::colorPicked, this, [this](const ColorRef &c) {
-            if (!m_doc || refuseIfReadOnly()) return;
-            tp::ParaBox box;
-            box.fill = c.isNone() ? QColor() : c.resolve(m_doc->flow().env.colors);
-            write::setParagraphBox(*m_doc, m_view->cursor(), box, write::boxpart::Fill);
-            m_view->focusText();
+            if (!m_doc) return;
+            changeAndRepeat(tr("Shading"), [this, c] {
+                tp::ParaBox box;
+                box.fill = c.isNone() ? QColor() : c.resolve(m_doc->flow().env.colors);
+                write::setParagraphBox(*m_doc, m_view->cursor(), box, write::boxpart::Fill);
+                m_view->focusText();
+            });
         });
         m_colorButtons << b;
         return b;
@@ -175,14 +181,13 @@ void WriteWindow::ribbonParts(RibbonParts &parts)
             if (refuseIfReadOnly()) return;
             if (!m_doc) return;
             // With text selected the color goes on at once; with none, the pointer highlights what is selected next.
-            if (m_view->cursor().hasSelection()) write::setHighlight(*m_doc, m_view->cursor(), name);
+            if (m_view->cursor().hasSelection()) changeAndRepeat(tr("Highlight"), [this, name] { write::setHighlight(*m_doc, m_view->cursor(), name); });
             else startHighlighting(name);
             m_view->setFocus();
         });
         m->addSeparator();
         connect(m->addAction(icon(QStringLiteral("circle-slash")), tr("No Color")), &QAction::triggered, this, [this] {
-            if (refuseIfReadOnly()) return;
-            if (m_doc) write::setHighlight(*m_doc, m_view->cursor(), QString());
+            changeAndRepeat(tr("Highlight"), [this] { write::setHighlight(*m_doc, m_view->cursor(), QString()); });
             m_view->setFocus();
         });
         m->addAction(act(QStringLiteral("fmt.stopHighlighting")));
@@ -191,18 +196,18 @@ void WriteWindow::ribbonParts(RibbonParts &parts)
     parts.menus[QStringLiteral("shadingColors")] = [this](QWidget *owner) {
         auto *m = new QMenu(owner);
         addHighlightColors(m, this, [this](const QString &, const QColor &color) {
-            if (refuseIfReadOnly()) return;
-            if (m_doc) write::setCharShading(*m_doc, m_view->cursor(), color);
+            changeAndRepeat(tr("Text Shading"), [this, color] { write::setCharShading(*m_doc, m_view->cursor(), color); });
             m_view->setFocus();
         });
         m->addSeparator();
         connect(m->addAction(icon(QStringLiteral("circle-slash")), tr("No Shading")), &QAction::triggered, this, [this] {
-            if (refuseIfReadOnly()) return;
-            if (m_doc) write::setCharShading(*m_doc, m_view->cursor(), QColor());
+            changeAndRepeat(tr("Text Shading"), [this] { write::setCharShading(*m_doc, m_view->cursor(), QColor()); });
             m_view->setFocus();
         });
         return m;
     };
+    parts.menus[QStringLiteral("undoHistory")] = [this](QWidget *owner) { return buildHistoryMenu(owner, false); };
+    parts.menus[QStringLiteral("redoHistory")] = [this](QWidget *owner) { return buildHistoryMenu(owner, true); };
     parts.menus[QStringLiteral("switchWindowsMenu")] = [](QWidget *owner) { return AppWindow::switchWindowsMenu(owner, WriteWindow::staticMetaObject); };
     parts.menus[QStringLiteral("paperSizes")] = [this](QWidget *owner) {
         auto *m = new QMenu(owner);
@@ -228,10 +233,11 @@ void WriteWindow::ribbonParts(RibbonParts &parts)
         });
         g->reload();
         connect(g, &Gallery::activated, this, [this](const QString &id) {
-            if (!m_doc || refuseIfReadOnly()) return;
-            if (id.startsWith(QLatin1String("c:"))) write::applyCharacterStyle(*m_doc, m_view->cursor(), id.mid(2));
-            else write::applyParagraphStyle(*m_doc, m_view->cursor(), id.mid(2));
-            m_view->setFocus();
+            changeAndRepeat(tr("Style"), [this, id] {
+                if (id.startsWith(QLatin1String("c:"))) write::applyCharacterStyle(*m_doc, m_view->cursor(), id.mid(2));
+                else write::applyParagraphStyle(*m_doc, m_view->cursor(), id.mid(2));
+                m_view->setFocus();
+            });
         });
         m_styleGallery = g;
         return g;
@@ -245,15 +251,17 @@ void WriteWindow::ribbonParts(RibbonParts &parts)
             spin->setAccessibleName(which == 0 ? tr("Indent left") : which == 1 ? tr("Indent right") : which == 2 ? tr("Spacing before") : tr("Spacing after"));
             m_indentFields << spin;
             connect(spin, &QDoubleSpinBox::editingFinished, this, [this, spin, which] {
-                if (m_updatingFields || !m_doc || refuseIfReadOnly()) return;
+                if (m_updatingFields || !m_doc) return;
                 const double v = spin->value();
-                write::changeBlockFormat(*m_doc, m_view->cursor(), [which, v](QTextBlockFormat &bf) {
-                    if (which == 0) bf.setLeftMargin(v);
-                    else if (which == 1) bf.setRightMargin(v);
-                    else if (which == 2) write::setSpaceBefore(bf, v);
-                    else write::setSpaceAfter(bf, v);
+                changeAndRepeat(which < 2 ? tr("Indent") : tr("Spacing"), [this, which, v] {
+                    write::changeBlockFormat(*m_doc, m_view->cursor(), [which, v](QTextBlockFormat &bf) {
+                        if (which == 0) bf.setLeftMargin(v);
+                        else if (which == 1) bf.setRightMargin(v);
+                        else if (which == 2) write::setSpaceBefore(bf, v);
+                        else write::setSpaceAfter(bf, v);
+                    });
+                    m_view->setFocus();
                 });
-                m_view->setFocus();
             });
             return spin;
         };

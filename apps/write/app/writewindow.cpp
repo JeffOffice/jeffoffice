@@ -224,19 +224,25 @@ QAction *WriteWindow::mk(const QString &id, const QString &text, const QString &
     }
     a->setCheckable(checkable);
     // Each command counts by its id for the usage statistics (when they're on).
-    connect(a, &QAction::triggered, this, [this, fn, id] {
-        if (isReadOnly() && !commandAllowedReadOnly(id) && !protectionAllows(id)) {
-            refuseReadOnlyChange();
-            return;
-        }
-        if (searchBlocked() && !commandAllowedReadOnly(id)) {
-            refuseSearchBlockedChange();
-            return;
-        }
+    const QString label = QString(text).remove(QLatin1Char('&')).remove(QChar(0x2026));
+    connect(a, &QAction::triggered, this, [this, fn, id, label] {
+        if (refuseCommand(id)) return;
         telemetry::count(id);
         // (Select Objects ends when another command runs; Select All chooses the objects while it is on.)
         if (m_view && id != QLatin1String("edit.selectObjects") && id != QLatin1String("edit.selectAll")) m_view->setSelectObjectsMode(false);
+        const quint64 document = m_repeat->document();
+        if (m_doc) m_doc->setStepName(label);
         fn();
+        if (m_doc) m_doc->setStepName(QString());
+        if (m_doc && repeatableCommand(id)) {
+            recordRepeat(label, [this, id, fn, label] {
+                if (refuseCommand(id)) return;
+                const write::WriteDoc::StepGroup group(*m_doc);
+                m_doc->setStepName(label);
+                fn();
+                m_doc->setStepName(QString());
+            }, document);
+        }
     });
     m_actions.insert(id, a);
     KeyMap::applyLater(this, a);
@@ -305,6 +311,7 @@ void WriteWindow::setDocument(std::unique_ptr<write::WriteDoc> doc, const QStrin
     m_view->setDocument(nullptr);
     m_doc = std::move(doc);
     m_path = path;
+    if (m_repeat) m_repeat->setDocument(++m_documentCounter);   // (what was repeatable in the document that goes is not for this one)
     if (!m_mini) createMiniToolbar();
     if (m_doc) {
         m_doc->filePath = path;
@@ -422,6 +429,7 @@ void WriteWindow::createFormatActions()
 {
     const Edit edit{this};
     write::PageView *v = m_view;
+    createRepeatActions();
     mk("edit.undo", tr("Undo"), "undo-2", QKeySequence::Undo, [v] { v->undo(); });
     mk("edit.redo", tr("Redo"), "redo-2", QKeySequence::Redo, [v] { v->redo(); });
     mk("edit.cut", tr("Cut"), "scissors", QKeySequence::Cut, [v] { v->cut(); });
@@ -636,6 +644,7 @@ void WriteWindow::refreshUi()
             a->setEnabled(has);
     }
     if (!has) {
+        updateRepeatActions();
         for (const char *id : {"refs.updateTable", "refs.removeTable", "refs.nextFootnote", "refs.previousFootnote", "refs.showNotes", "refs.nextEndnote", "refs.previousEndnote", "fields.update", "fields.unlink", "fields.lock", "fields.unlock", "fields.toggleCode", "fields.toggleAllCodes"}) act(QString::fromLatin1(id))->setEnabled(false);
         refreshTableUi();
         refreshPictureUi();
@@ -650,6 +659,8 @@ void WriteWindow::refreshUi()
     act("edit.undo")->setEnabled(m_doc->canUndo());
     act(QStringLiteral("fmt.stopHighlighting"))->setEnabled(m_highlighting);
     act("edit.redo")->setEnabled(m_doc->canRedo());
+    m_repeat->setRedoAvailable(m_doc->canRedo());
+    updateRepeatActions();
     for (const char *id : {"edit.cut", "edit.copy"}) act(QString::fromLatin1(id))->setEnabled(c.hasSelection());
     // The look of the selection (of its start, when it is long): checked when all of it has it.
     const bool shortSelection = c.selectionEnd() - c.selectionStart() < 20000;

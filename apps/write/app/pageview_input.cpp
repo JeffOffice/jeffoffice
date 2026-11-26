@@ -53,7 +53,8 @@ bool s_copiedWhole = true;   // the words last copied from here were whole words
 
 void PageView::undo()
 {
-    if (editsBlocked()) return;   // (a search that is under way holds the text as it is)
+    if (editsBlocked()) return;
+    endTypedRun();   // (a search that is under way holds the text as it is)
     if (m_shapeEditor) {
         m_shapeEditor->undo();
         return;
@@ -74,6 +75,7 @@ void PageView::undo()
 void PageView::redo()
 {
     if (editsBlocked()) return;
+    endTypedRun();
     if (m_shapeEditor) {
         m_shapeEditor->redo();
         return;
@@ -786,15 +788,48 @@ void PageView::insertText(const QString &text)
     auto_.links = st.value(QStringLiteral("proof/autolink"), true).toBool();
     if (m_overtype) auto_ = write::AutoOptions{false, false, false, false};
     auto_.record = &m_autoFix;
+    const bool continues = m_typedOpen && !m_repeatingTyping && !m_cursor.hasSelection() && m_cursor.position() == m_typedEnd && m_cursor.document() == m_typedStory;
+    m_doc->setStepName(tr("Typing"));
     write::typeText(*m_doc, m_cursor, text, auto_);
+    m_doc->setStepName(QString());
     noteAutoFix();
+    if (!m_repeatingTyping) {
+        m_typedEnd = m_cursor.position();
+        m_typedStory = m_cursor.document();
+        m_typedOpen = true;
+        if (!continues) {
+            m_typedRun = text;
+            Q_EMIT typedRunChanged();
+        } else if (!m_typedRun.isEmpty() && m_typedRun.size() + text.size() <= kMaxTypedRun) {
+            m_typedRun += text;
+        } else if (!m_typedRun.isEmpty()) {
+            m_typedRun.clear();   // (too long to be kept)
+            Q_EMIT typedRunChanged();
+        }
+    }
     caretMoved();
+}
+
+void PageView::endTypedRun()
+{
+    m_typedOpen = false;
+    m_typedStory = nullptr;
+}
+
+void PageView::repeatTyping(const QString &run)
+{
+    if (editsBlocked() || !m_doc || run.isEmpty() || run.size() > kMaxTypedRun) return;
+    const WriteDoc::StepGroup group(*m_doc);
+    m_repeatingTyping = true;
+    for (const QChar ch : run) insertText(QString(ch));
+    m_repeatingTyping = false;
 }
 
 // ---- the keyboard
 
 void PageView::typeKey(int key, Qt::KeyboardModifiers m)
 {
+    endTypedRun();
     if (editsBlocked()) {   // (only the keys that move the caret)
         switch (key) {
         case Qt::Key_Left: case Qt::Key_Right: case Qt::Key_Up: case Qt::Key_Down: case Qt::Key_Home: case Qt::Key_End: case Qt::Key_PageUp: case Qt::Key_PageDown: break;
