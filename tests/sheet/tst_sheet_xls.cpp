@@ -1505,7 +1505,7 @@ private Q_SLOTS:
             return wb.openFile(path, &why) ? QStringLiteral("opened") : why;
         };
         QByteArray deep = "<html><body>";
-        for (int i = 0; i < jp::office::wml::kMostHtmlTableDepth + 1; ++i) deep += "<table><tr><td>";
+        for (int i = 0; i < jp::office::wml::kMostHtmlTableDepth + 1; ++i) deep += "<table><tr><td>word" + QByteArray::number(i) + "end ";
         deep += "x";
         for (int i = 0; i < jp::office::wml::kMostHtmlTableDepth + 1; ++i) deep += "</td></tr></table>";
         deep += "</body></html>";
@@ -1513,6 +1513,16 @@ private Q_SLOTS:
         for (const QString &name : {QStringLiteral("d.xls"), QStringLiteral("d.html")}) {
             const QString why = open(deep, name);
             QVERIFY2(why == QLatin1String("opened"), qPrintable(name + ": " + why));
+            // (and every word of every level, the deepest too, is in the sheet: nothing is lost with the nesting)
+            Workbook wb;
+            QString problem;
+            Sheet sheet;
+            QVERIFY2(wb.openFile(dir.filePath(name), &problem) && wb.readSheet(0, &sheet), qPrintable(problem));
+            QString all;
+            for (int r = 1; r <= 40; ++r)
+                for (const char col : {'A', 'B', 'C', 'D'}) all += shown(wb, sheet, QStringLiteral("%1%2").arg(QLatin1Char(col)).arg(r)) + QLatin1Char(' ');
+            for (int i = 0; i <= jp::office::wml::kMostHtmlTableDepth; ++i) QVERIFY2(all.contains(QStringLiteral("word%1end").arg(i)), qPrintable(name + QStringLiteral(" lost word%1: ").arg(i) + all.left(300)));
+            QVERIFY2(all.contains(QLatin1Char('x')), qPrintable(all.left(300)));   // (the deepest cell's own word)
         }
         QByteArray wide = "<html><body><table>";
         for (int r = 0; r <= jp::office::wml::kMostHtmlRows; ++r) wide += "<tr>";
