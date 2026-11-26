@@ -300,7 +300,7 @@ What a right-click offers depends on what is under the pointer: text being edite
 - [x] **1.0** Move, resize (aspect lock with Shift, from center with Ctrl), rotate (15° steps with Shift), flip, nudge with arrows and Alt+arrows, and Ctrl-drag to copy
 - [x] **1.0** Snap to margin and grid guides, ruler guides, and other objects, with visual alignment guides
 - [x] **1.0** Layering, grouping, and locking (lock position and size)
-- [x] **1.0** Text wrapping: None, Square, Tight, Through, Top and Bottom, Edit Wrap Points, and wrap distances A box whose every line the objects in front push out is set as if nothing were in front, at its top, with no overflow mark; a box that keeps a line above the object keeps its wrap and its mark (deliberate: the reference draws the text of the first and wraps the second).
+- [x] **1.0** Text wrapping: None, Square, Tight, Through, Top and Bottom, Edit Wrap Points, and wrap distances A box whose every line the objects in front push out is set as if nothing were in front, at its top when it is bottom-aligned (a centered box stays centered), with no overflow mark; a box that keeps a line above the object keeps its wrap and its mark (deliberate: the reference draws the text of the first and wraps the second).
 - [x] **1.0** Format Object dialog: Colors and Lines, Size (with rotation and scale), Layout (position, wrap, distances), Picture, Text Box (margins, autofit, columns, vertical alignment), and Alt Text
 - [x] **1.0** Measurement toolbar: x, y, width, height, rotation, tracking (percent), text scaling, kerning (points), and line spacing
 - [x] **1.0** Measurements to three decimal places in every unit (8.125", 1.234 cm, 10.125 pt), shown without trailing zeros and kept without rounding

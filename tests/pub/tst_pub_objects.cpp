@@ -2378,7 +2378,7 @@ private Q_SLOTS:
             return doc;
         };
         RenderOptions opt;
-        {   // the frame starts 10 points down: no line of 30-point text fits above it
+        {   // the frame starts 10 points down: no line of 30-point text fits above it (top-aligned, so this block cannot see the bottom-alignment rule; the bottom block below carries that)
             auto doc = make(false, 10);
             auto *t = static_cast<TextItem *>(doc->pages[0]->items[0].get());
             QCOMPARE(jp::Renderer::wrapObstacles(*doc, *t).size(), 1);
@@ -2400,11 +2400,25 @@ private Q_SLOTS:
             LayoutCache cache;
             QCOMPARE(cache.textFrame(*doc, *t, 1, opt).layout->lineInfo(0).size(), 0);
         }
-        {   // a box between two others, vertically centered: its text is set at the top, not down on the box below
-            auto doc = make(false, 50);
+        {   // a vertically centered box keeps its centering: its text is where it is with nothing in front (not moved to the top)
+            auto line = [&](double frameTop) {
+                auto doc = make(false, frameTop);
+                auto *t = static_cast<TextItem *>(doc->pages[0]->items[0].get());
+                t->valign = VAlign::Middle;
+                t->rect.setHeight(70);
+                LayoutCache cache;
+                const auto lines = cache.textFrame(*doc, *t, 1, opt).layout->lineInfo(0);
+                return lines.isEmpty() ? -1.0 : lines.first().rect.top();
+            };
+            const double covered = line(50), free = line(5000);
+            QVERIFY(free > 10);
+            QVERIFY(covered >= 0);
+            QCOMPARE(covered, free);
+        }
+        {   // a bottom-aligned box likewise: its text is at the top, not at the foot
+            auto doc = make(false, 10);
             auto *t = static_cast<TextItem *>(doc->pages[0]->items[0].get());
-            t->valign = VAlign::Middle;
-            t->rect.setHeight(70);
+            t->valign = VAlign::Bottom;
             LayoutCache cache;
             const auto lines = cache.textFrame(*doc, *t, 1, opt).layout->lineInfo(0);
             QCOMPARE(lines.size(), 1);
