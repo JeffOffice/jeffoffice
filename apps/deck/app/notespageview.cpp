@@ -1,6 +1,7 @@
 #include "app/notespageview.h"
 
 #include "app/editor.h"
+#include "app/minitoolbar.h"
 #include "app/notespane.h"
 #include "core/deck.h"
 #include "core/items.h"
@@ -9,7 +10,10 @@
 #include "core/printheaderfooter.h"
 #include "io/deckoutput.h"
 
+#include <QApplication>
 #include <QFontMetricsF>
+#include <QPainterPath>
+#include <QTextCursor>
 #include <QKeyEvent>
 #include <QMouseEvent>
 #include <QPainter>
@@ -24,6 +28,7 @@ namespace jp {
 
 namespace {
 constexpr double kAround = 24;   // pixels between the page and the view's edge
+constexpr int kPageDrawsUpTo = 4000;   // letters: a longer note is drawn by the box while edited (the page's own layout of it would be made again for every key)
 constexpr double kCorner = 9;    // the corner handle, in pixels each way
 const QColor kInk(0x20, 0x20, 0x20);
 // The box until it is edited: nothing of its own over the page (the program's style sheet gives a text view a background and a frame).
@@ -76,11 +81,20 @@ NotesPageView::NotesPageView(Editor *ed, QWidget *parent) : QAbstractScrollArea(
     m_box->viewport()->installEventFilter(this);
     m_box->setGhost(true);
     m_box->setStyleSheet(QString::fromLatin1(kBoxClear));
-    connect(ed, &Editor::textCursorChanged, this, [this] { syncBox(); });
+    connect(ed, &Editor::textCursorChanged, this, [this] {
+        m_caretOn = true;
+        syncBox();
+        if (pageDrawsNotes() && boxIsEditing()) viewport()->update();
+    });
+    connect(&m_caretTimer, &QTimer::timeout, this, [this] {
+        m_caretOn = !m_caretOn;
+        viewport()->update();
+    });
     m_fitTimer.setSingleShot(true);
     m_fitTimer.setInterval(300);
     connect(&m_fitTimer, &QTimer::timeout, this, [this] {
         refit();
+        syncBox();
         layoutBox();
         viewport()->update();
     });
@@ -98,6 +112,7 @@ NotesPageView::NotesPageView(Editor *ed, QWidget *parent) : QAbstractScrollArea(
             m_fitTimer.start();   // (the fit is asked for when typing pauses: the work of a key does not grow with the notes)
         }
         updateRanges();
+        syncBox();
         layoutBox();
         viewport()->update();
     });
@@ -275,14 +290,46 @@ void NotesPageView::refit()
 
 bool NotesPageView::boxIsEditing() const { return m_mode == Mode::NotesPage && (m_box->hasFocus() || m_box->isTarget()); }
 
+bool NotesPageView::pageDrawsNotes() const
+{
+    if (m_mode != Mode::NotesPage) return false;
+    return !boxIsEditing() || (!m_cut && m_box->document()->characterCount() <= kPageDrawsUpTo);
+}
+
+// The box's own look is never drawn: it has no background of its own (a dark theme's style sheet would make it a dark rounded box on the white page) and draws its words only for a
+// note the page cannot show whole.
 void NotesPageView::syncBox()
 {
-    const bool edit = boxIsEditing();
-    if (edit == !m_box->isGhost()) return;
-    m_box->setGhost(!edit);
-    m_box->setStyleSheet(edit ? QString() : QString::fromLatin1(kBoxClear));
-    m_box->setVerticalScrollBarPolicy(edit ? Qt::ScrollBarAsNeeded : Qt::ScrollBarAlwaysOff);
+    const bool ghost = pageDrawsNotes();
+    const bool timer = boxIsEditing() && ghost && QApplication::cursorFlashTime() > 0;
+    if (timer != m_caretTimer.isActive()) {
+        if (timer) m_caretTimer.start(QApplication::cursorFlashTime() / 2);
+        else m_caretTimer.stop();
+    }
+    const bool scrolls = boxIsEditing() && !ghost;
+    if (ghost == m_box->isGhost() && (m_box->verticalScrollBarPolicy() != Qt::ScrollBarAlwaysOff) == scrolls) return;
+    m_box->setGhost(ghost);
+    m_box->setVerticalScrollBarPolicy(scrolls ? Qt::ScrollBarAsNeeded : Qt::ScrollBarAlwaysOff);
     viewport()->update();
+}
+
+int NotesPageView::printedPosition(const QPointF &boxPoint)
+{
+    const LayoutCache::FrameLayout fl = printedNotes();
+    if (!fl.layout) return -1;
+    const QPointF at = m_box->viewport()->mapTo(viewport(), boxPoint.toPoint());
+    const int pos = fl.layout->hitTest(std::max(0, fl.frame), (at - notesRect().topLeft()) / scale());
+    return pos >= 0 && pos < m_box->document()->characterCount() ? pos : -1;
+}
+
+QRectF NotesPageView::caretRectInView() const
+{
+    if (!boxIsEditing() || !pageDrawsNotes()) return QRectF();
+    const LayoutCache::FrameLayout fl = const_cast<NotesPageView *>(this)->printedNotes();
+    QRectF r;
+    int frame = 0;
+    if (!fl.layout || !fl.layout->caretRect(m_box->textCursor().position(), &frame, &r)) return QRectF();
+    return QRectF(notesRect().left() + r.left() * scale() - 1, notesRect().top() + r.top() * scale(), 2, r.height() * scale());
 }
 
 // The notes are drawn by the page (as the printed page draws them) until the person edits: a press in the box then puts the caret where the printed words are under it, and the box
@@ -291,25 +338,33 @@ bool NotesPageView::eventFilter(QObject *watched, QEvent *e)
 {
     if (watched == m_box || watched == m_box->viewport()) {
         if (e->type() == QEvent::FocusIn || e->type() == QEvent::FocusOut) QTimer::singleShot(0, this, [this] { syncBox(); });
-        if (watched == m_box->viewport() && m_box->isGhost() && e->type() == QEvent::MouseButtonPress) {
+        // While the page draws the words, the mouse is read against the printed layout (where the printed words are, not where the box would have laid them): a press puts the caret
+        // there (with Shift, it ends a selection), a double click takes the word, and a drag selects.
+        if (watched == m_box->viewport() && m_box->isGhost() && (e->type() == QEvent::MouseButtonPress || e->type() == QEvent::MouseButtonDblClick || e->type() == QEvent::MouseMove)) {
             auto *me = static_cast<QMouseEvent *>(e);
-            if (me->button() != Qt::LeftButton) return false;
-            const QPointF at = m_box->viewport()->mapTo(viewport(), me->position().toPoint());
-            m_box->setFocus(Qt::MouseFocusReason);
-            const LayoutCache::FrameLayout fl = printedNotes();
-            if (fl.layout) {
-                const QPointF local = (at - notesRect().topLeft()) / scale();
-                const int pos = fl.layout->hitTest(std::max(0, fl.frame), local);
-                if (pos >= 0 && pos < m_box->document()->characterCount()) {
-                    QTextCursor c(m_box->document());
-                    c.setPosition(pos);
-                    m_box->setTextCursor(c);
-                }
+            if (e->type() == QEvent::MouseMove && !(m_dragging && (me->buttons() & Qt::LeftButton))) return false;
+            if (e->type() != QEvent::MouseMove && me->button() != Qt::LeftButton) return false;
+            if (e->type() != QEvent::MouseMove) {
+                m_box->setFocus(Qt::MouseFocusReason);
+                if (m_box->miniBar()) m_box->miniBar()->hide();
+                m_box->flushTyping();
             }
-            m_box->takeTarget();
-            syncBox();
+            const int pos = printedPosition(me->position());
+            if (pos >= 0) {
+                QTextCursor c = m_box->textCursor();
+                if (e->type() == QEvent::MouseMove || (me->modifiers() & Qt::ShiftModifier)) c.setPosition(pos, QTextCursor::KeepAnchor);
+                else c.setPosition(pos);
+                if (e->type() == QEvent::MouseButtonDblClick) c.select(QTextCursor::WordUnderCursor);
+                m_box->setTextCursor(c);
+            }
+            if (e->type() != QEvent::MouseMove) {
+                m_dragging = true;
+                m_box->takeTarget();
+                syncBox();
+            }
             return true;
         }
+        if (watched == m_box->viewport() && e->type() == QEvent::MouseButtonRelease) m_dragging = false;
     }
     return QAbstractScrollArea::eventFilter(watched, e);
 }
@@ -354,13 +409,14 @@ void NotesPageView::paintEvent(QPaintEvent *)
     deck::OutputOptions o;
     o.layout = deck::PrintLayout::NotesPages;
     o.hiddenSlides = true;
-    o.skipNotesText = boxIsEditing();
+    o.skipNotesText = boxIsEditing() && !pageDrawsNotes();
     o.slides = {slide};
     p.save();
     p.translate(page.topLeft());
     p.scale(scale(), scale());
     deck::paintOutputPage(&p, *d, &m_ed->cache(), o, 0, paper());
     p.restore();
+    if (boxIsEditing() && pageDrawsNotes()) paintEditing(p);
     if (m_cut && !boxIsEditing()) {
         // The printed page cuts the notes off here: a bar under the box says so (the rest is read, and edited, by clicking in the box).
         const QRectF r = notesRect();
@@ -378,6 +434,47 @@ void NotesPageView::paintEvent(QPaintEvent *)
         p.setPen(palette().color(QPalette::HighlightedText));
         p.drawText(label, Qt::AlignCenter, words);
     }
+}
+
+// What the box would draw over the words, drawn over the printed layout's words instead: the selection, the marks under words (spelling and grammar), and the caret, each where the
+// printed layout has the words.
+void NotesPageView::paintEditing(QPainter &p)
+{
+    const LayoutCache::FrameLayout fl = printedNotes();
+    if (!fl.layout) return;
+    const int frame = std::max(0, fl.frame);
+    const double k = scale();
+    const QPointF origin = notesRect().topLeft();
+    const QTextCursor cur = m_box->textCursor();
+    p.save();
+    p.setClipRect(notesRect().adjusted(-2, -2, 2, 2));
+    if (cur.hasSelection()) {
+        QColor shade = palette().color(QPalette::Highlight);
+        shade.setAlpha(90);
+        for (const QRectF &r : fl.layout->rangeRects(frame, cur.selectionStart(), cur.selectionEnd()))
+            p.fillRect(QRectF(origin.x() + r.left() * k, origin.y() + r.top() * k, r.width() * k, r.height() * k), shade);
+    }
+    for (const QTextEdit::ExtraSelection &x : m_box->extraSelections()) {
+        const QTextCharFormat::UnderlineStyle style = x.format.underlineStyle();
+        if (style == QTextCharFormat::NoUnderline || style == QTextCharFormat::SingleUnderline) continue;   // (a link is drawn by the printed layout)
+        p.setPen(QPen(x.format.underlineColor(), std::max(1.0, k), style == QTextCharFormat::DotLine ? Qt::DotLine : Qt::SolidLine));
+        for (const QRectF &r : fl.layout->rangeRects(frame, x.cursor.selectionStart(), x.cursor.selectionEnd())) {
+            const double y = origin.y() + r.bottom() * k - 1, x1 = origin.x() + r.left() * k, x2 = x1 + r.width() * k, step = std::max(2.0, 2 * k);
+            if (style == QTextCharFormat::DotLine) {
+                p.drawLine(QPointF(x1, y), QPointF(x2, y));
+                continue;
+            }
+            QPainterPath wave(QPointF(x1, y));
+            bool up = true;
+            for (double wx = x1 + step; wx < x2 + step; wx += step, up = !up) wave.lineTo(QPointF(std::min(wx, x2), y - (up ? step : 0)));
+            p.drawPath(wave);
+        }
+    }
+    if (m_caretOn && !cur.hasSelection()) {
+        const QRectF c = caretRectInView();
+        if (!c.isEmpty()) p.fillRect(c, kInk);
+    }
+    p.restore();
 }
 
 void NotesPageView::paintMaster(QPainter &p)

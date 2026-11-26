@@ -4328,9 +4328,16 @@ private Q_SLOTS:
         Editor *ed = w.editor();
         QCOMPARE(v->notesFit(), 1.0);
         QTRY_VERIFY(box->document()->size().height() > 1);
-        QVERIFY(box->takeTarget());   // (the box shows the words once it is the person's to edit)
-        QTRY_VERIFY(!box->isGhost());
-        const QVector<InkLine> shown = inkLines(box->grab().toImage(), 4), printed = inkLines(printedNotes(v, ed), 4);
+        box->moveCursor(QTextCursor::Start);   // (the caret is not in the middle of the words the lines are read from)
+        QVERIFY(box->takeTarget());   // (the page draws the words with the printed layout once it is the person's to edit, and the caret on them)
+        QTRY_VERIFY(v->boxIsEditing() && v->pageDrawsNotes());
+        QImage page = v->viewport()->grab().toImage();
+        {
+            QPainter wipe(&page);
+            wipe.fillRect(v->caretRectInView().adjusted(-2, -2, 2, 2), Qt::white);
+        }
+        const QRect seen = v->notesRect().toRect().intersected(v->viewport()->rect());   // (the part of the place the window shows)
+        const QVector<InkLine> shown = inkLines(page.copy(seen), 4), printed = inkLines(printedNotes(v, ed).copy(0, 0, seen.width(), seen.height()), 4);
         QVERIFY(shown.size() >= 5);
         QCOMPARE(shown.size(), printed.size());   // (one line for each paragraph and line break, in both)
         const int span = std::max(1, printed.last().bottom - printed.first().top);
@@ -4549,6 +4556,71 @@ private Q_SLOTS:
         }
     }
 
+    // The first click into the Notes Page box moves no line: the page goes on drawing the words with the printed layout while they are edited (the caret and the selection are drawn on
+    // it), so every line is where it was within a pixel, at three zooms, with a wrapped paragraph in the note; typing then draws the new words where the printed page would, and the
+    // box has no look of its own over the page.
+    void theFirstClickIntoTheNotesPageBoxMovesNoLine()
+    {
+        const int flash = QApplication::cursorFlashTime();
+        QApplication::setCursorFlashTime(0);   // (a caret that blinks is not in every picture)
+        for (double zoom : {1.0, 0.6, 0.8}) {
+            DeckWindow w;
+            NotesPane *box = nullptr;
+            notesPageWith(w, &box, [&](QTextCursor &c) {
+                c.insertText(QStringLiteral("An opening paragraph that is long enough to wrap onto a second line of the notes, and then a third one, as a talk's reminders do."), QTextCharFormat());
+                for (int i = 0; i < 5; ++i) {
+                    c.insertBlock();
+                    c.insertText(QStringLiteral("Reminder %1").arg(i), QTextCharFormat());
+                }
+            });
+            w.resize(1500, 1250);
+            NotesPageView *v = w.notesPageView();
+            v->setZoom(zoom);
+            QTRY_VERIFY(v->viewport()->height() > 1000);
+            QTRY_COMPARE(box->displayScale(), v->zoom() * v->notesFit());
+            const QString tag = QStringLiteral("zoom %1").arg(zoom);
+            const QRect place = v->notesRect().toRect();
+            const QVector<InkLine> before = inkLines(v->viewport()->grab().toImage().copy(place), 0);
+            QVERIFY2(before.size() >= 7, qPrintable(tag + QStringLiteral(": %1 lines").arg(before.size())));
+            const QPoint at(before[3].left + (before[3].right - before[3].left) / 3, (before[3].top + before[3].bottom) / 2);
+            QTest::mouseClick(box->viewport(), Qt::LeftButton, Qt::NoModifier, at);
+            QTRY_VERIFY(v->boxIsEditing());
+            QVERIFY2(box->isGhost() && v->pageDrawsNotes(), qPrintable(tag + QStringLiteral(": the page draws the words while they are edited")));
+            QImage shot = v->viewport()->grab().toImage();
+            const QRectF caret = v->caretRectInView();
+            QVERIFY2(!caret.isEmpty(), qPrintable(tag + QStringLiteral(": no caret")));
+            QCOMPARE(box->textCursor().blockNumber(), 2);   // (the first paragraph wraps onto two lines: the fourth line is the third paragraph)
+            QVERIFY(place.contains(caret.toRect()));
+            {
+                QPainter wipe(&shot);   // (the caret is not a line of words)
+                wipe.fillRect(caret.adjusted(-2, -2, 2, 2), Qt::white);
+            }
+            const QVector<InkLine> after = inkLines(shot.copy(place), 0);
+            QCOMPARE(after.size(), before.size());
+            for (int i = 0; i < before.size(); ++i)
+                QVERIFY2(qAbs(after[i].top - before[i].top) <= 1 && qAbs(after[i].bottom - before[i].bottom) <= 1 && qAbs(after[i].left - before[i].left) <= 1,
+                         qPrintable(tag + QStringLiteral(": line %1 was at %2 and is at %3").arg(i).arg(before[i].top).arg(after[i].top)));
+            // the box draws no background of its own over the page's white
+            QCOMPARE(shot.pixelColor(place.right() - 3, place.bottom() - 3).name(), QStringLiteral("#ffffff"));
+            // typing: the page draws the new words where the printed page has them
+            QTest::keyClicks(box, QStringLiteral("ZZ"));
+            QTRY_COMPARE(box->document()->toPlainText().count(QLatin1Char('Z')), 2);
+            const QVector<InkLine> typed = inkLines(v->viewport()->grab().toImage().copy(place), 0), printed = inkLines(printedNotes(v, w.editor()), 0);
+            QVERIFY2(typed.size() >= printed.size() - 1, qPrintable(tag));
+            for (int i = 0; i < printed.size() && i < typed.size(); ++i) {
+                if (i == 3) continue;   // (the caret's line: its caret is one more mark)
+                QVERIFY2(qAbs(typed[i].top - printed[i].top) <= 1, qPrintable(tag + QStringLiteral(": after typing, line %1 is at %2 and prints at %3").arg(i).arg(typed[i].top).arg(printed[i].top)));
+            }
+            // a drag selects by the printed words: from the third line's start to the fourth's middle, the page shades them
+            QTest::mousePress(box->viewport(), Qt::LeftButton, Qt::NoModifier, QPoint(before[2].left + 2, (before[2].top + before[2].bottom) / 2));
+            QTest::mouseMove(box->viewport(), QPoint(before[4].left + 40, (before[4].top + before[4].bottom) / 2));
+            QTest::mouseRelease(box->viewport(), Qt::LeftButton, Qt::NoModifier, QPoint(before[4].left + 40, (before[4].top + before[4].bottom) / 2));
+            QVERIFY2(box->textCursor().hasSelection() && box->textCursor().selectionStart() <= box->document()->findBlockByNumber(1).position() + 1, qPrintable(tag + QStringLiteral(": no selection")));
+            QCOMPARE(box->textCursor().blockNumber(), 3);
+        }
+        QApplication::setCursorFlashTime(flash);
+    }
+
     // Pictures of the notes views in both window themes (JP_SHOT_DIR names the folder): the pane, the Notes Page as the page shows it and as the box shows it while edited, with a short note,
     // a long note, and a note with a link and a list.
     void picturesOfTheNotesViewsInBothThemes()
@@ -4591,10 +4663,15 @@ private Q_SLOTS:
                 for (int i = 0; i < 6; ++i) QCoreApplication::processEvents();
                 v->viewport()->grab().save(dir + QStringLiteral("/page-idle-") + tag + QStringLiteral(".png"));
                 printedNotes(v, w.editor()).save(dir + QStringLiteral("/page-printed-") + tag + QStringLiteral(".png"));
-                w.notesPane()->grab().save(dir + QStringLiteral("/pane-") + tag + QStringLiteral(".png"));
                 box->takeTarget();
                 for (int i = 0; i < 6; ++i) QCoreApplication::processEvents();
                 v->viewport()->grab().save(dir + QStringLiteral("/page-editing-") + tag + QStringLiteral(".png"));
+                // the notes pane under the slide, in the normal view (the same window, the same note)
+                w.act(QStringLiteral("view.normal"))->trigger();
+                QTRY_VERIFY(w.notesPane()->isVisible());
+                w.notesPane()->reload();
+                for (int i = 0; i < 6; ++i) QCoreApplication::processEvents();
+                QVERIFY2(w.notesPane()->grab().save(dir + QStringLiteral("/pane-") + tag + QStringLiteral(".png")), "the pane's picture");
             }
         jp::applyUiTheme(1);
     }

@@ -58,6 +58,12 @@ public:
     // The box is the person's to edit (it has the keyboard, or the Editor's caret is in its story): it draws the notes itself and scrolls. Until then the page draws them with the
     // layout the printed page uses, so what is seen is what prints (the box's own text view lays words out a little differently: the printed page's line heights are its own).
     bool boxIsEditing() const;
+    // The page itself draws the words, and the caret, the selection, and the marks under words, while they are edited (the box is then only what the keys and the mouse reach): every line
+    // stays where the printed page has it when the first click lands. A note the page cannot show whole (cut at the page's foot) or that is long (more than a few thousand letters, so
+    // that a key's work does not grow with it) is drawn by the box, which scrolls.
+    bool pageDrawsNotes() const;
+    // The caret as the page draws it while it draws the words (in the viewport; an empty rectangle when it does not).
+    QRectF caretRectInView() const;
     // How many times that fit was asked for (for the tests of cost).
     static int fitRuns() { return s_fitRuns; }
     void commit();   // saves the notes typed
@@ -85,6 +91,8 @@ protected:
     bool eventFilter(QObject *watched, QEvent *e) override;
 
 private:
+    void paintEditing(QPainter &p);
+    int printedPosition(const QPointF &boxPoint);   // the document position of the printed words under a point of the box's viewport (-1: none)
     void syncBox();   // the box draws its words, and scrolls, only while it is the person's to edit
     LayoutCache::FrameLayout printedNotes(int *slide = nullptr);   // the layout of the notes the printed page makes (null where there are none)
     struct Hit {
@@ -119,7 +127,8 @@ private:
     double m_fit = 1;
     bool m_cut = false;
     double m_printHeight = 0;
-    QTimer m_fitTimer;
+    QTimer m_fitTimer, m_caretTimer;
+    bool m_caretOn = true, m_dragging = false;
     static inline int s_fitRuns = 0;
 };
 

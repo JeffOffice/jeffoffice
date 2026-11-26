@@ -1664,6 +1664,107 @@ private Q_SLOTS:
         QTRY_VERIFY(!w.slideShow());
     }
 
+    // The words of a link are drawn in the link color (blue, as the printed page has them) and underlined, and the bullets and numbers of a list are drawn, in Presenter View's notes and
+    // in the show's Speaker Notes box: counted as pixels of the link's color along the link's words, none beside them. With JP_SHOT_DIR set, pictures of both in both window themes.
+    static int linkInk(QTextEdit *e, int from, int to, const QColor &want)
+    {
+        QTextCursor a(e->document()), b(e->document());
+        a.setPosition(from);
+        b.setPosition(to);
+        const QRect ra = e->cursorRect(a), rb = e->cursorRect(b);
+        const QImage img = e->viewport()->grab().toImage();
+        int n = 0;
+        for (int y = ra.top(); y <= ra.bottom() + 3; ++y)
+            for (int x = ra.left(); x < rb.left() && x < img.width(); ++x) {
+                const QColor c = img.pixelColor(x, y);
+                n += qAbs(c.red() - want.red()) + qAbs(c.green() - want.green()) + qAbs(c.blue() - want.blue()) < 90;
+            }
+        return n;
+    }
+    void linksAndMarkersShowInPresenterViewAndTheShowBox()
+    {
+        const QString dir = qEnvironmentVariable("JP_SHOT_DIR");
+        for (int theme : {1, 2}) {
+            if (!dir.isEmpty()) jp::applyUiTheme(theme);
+            else if (theme == 2) break;
+            const QString tag = theme == 1 ? QStringLiteral("light") : QStringLiteral("dark");
+            DeckWindow w;
+            Editor *ed = w.editor();
+            w.resize(1280, 800);
+            w.show();
+            w.newSlide();
+            ed->setCurrentPage(0);
+            QTextDocument *story = ed->doc()->storyDoc(ed->doc()->pages[0]->notesStoryId);
+            fillMixedListNote(story);
+            QTextCursor c(story);
+            c.movePosition(QTextCursor::End);
+            c.insertBlock();
+            c.insertText(QStringLiteral("See "), QTextCharFormat());
+            QTextCharFormat link;
+            link.setAnchor(true);
+            link.setAnchorHref(QStringLiteral("https://example.com/"));
+            const int linkFrom = c.position();
+            c.insertText(QStringLiteral("the linked words"), link);
+            const int linkTo = c.position();
+            c.insertText(QStringLiteral(" and more"), QTextCharFormat());
+            w.notesPane()->reload();
+            ed->undoStack()->clear();
+            const QColor want = ed->doc()->colors.slot(Hyperlink);
+            w.act("show.presenterView")->trigger();
+            SlideShow *show = w.slideShow();
+            QVERIFY(show && show->presenterView());
+            QTextEdit *pv = show->presenterView()->findChild<QTextEdit *>(QStringLiteral("notesText"));
+            QVERIFY(pv);
+            show->presenterView()->resize(1400, 900);
+            QTRY_VERIFY(pv->document()->size().height() > 100);
+            pv->verticalScrollBar()->setValue(pv->verticalScrollBar()->maximum());   // (the link is in the last paragraph)
+            QTRY_VERIFY2(linkInk(pv, linkFrom, linkTo, want) > 60, qPrintable(tag + QStringLiteral(": Presenter View draws the link in the link color")));
+            QCOMPARE(linkInk(pv, linkFrom - 4, linkFrom, want), 0);   // (the words beside it are not)
+            auto *marks = pv->findChild<ListMarkers *>();
+            QVERIFY(marks);
+            pv->verticalScrollBar()->setValue(0);
+            QTRY_VERIFY2(marks->visibleMarkers().size() >= 8, qPrintable(tag + QStringLiteral(": Presenter View draws the markers")));
+            for (const ListMarkers::Marker &m : marks->visibleMarkers()) QVERIFY2(m.rect.left() >= 0 && m.rect.right() < pv->viewport()->x() + pv->width(), qPrintable(m.text));
+            if (!dir.isEmpty()) show->presenterView()->grab().save(dir + QStringLiteral("/presenter-") + tag + QStringLiteral(".png"));
+            show->close();
+            QTRY_VERIFY(!w.slideShow());
+        }
+        // the Speaker Notes box
+        for (int theme : {1, 2}) {
+            if (!dir.isEmpty()) jp::applyUiTheme(theme);
+            else if (theme == 2) break;
+            const QString tag = theme == 1 ? QStringLiteral("light") : QStringLiteral("dark");
+            auto d = showDeck(1);
+            QTextDocument *story = d->storyDoc(d->pages[0]->notesStoryId);
+            fillMixedListNote(story);
+            QTextCursor c(story);
+            c.movePosition(QTextCursor::End);
+            c.insertBlock();
+            c.insertText(QStringLiteral("See "), QTextCharFormat());
+            QTextCharFormat link;
+            link.setAnchor(true);
+            link.setAnchorHref(QStringLiteral("https://example.com/"));
+            const int linkFrom = c.position();
+            c.insertText(QStringLiteral("the linked words"), link);
+            const int linkTo = c.position();
+            LayoutCache cache;
+            SlideShow show(d.get(), &cache, 0);
+            show.resize(960, 540);
+            show.show();
+            show.showSpeakerNotes();
+            QTextEdit *box = show.speakerNotesBox();
+            QVERIFY(box && box->isVisible());
+            box->resize(box->width(), 700);
+            auto *marks = box->findChild<ListMarkers *>();
+            QVERIFY(marks);
+            QTRY_VERIFY2(marks->visibleMarkers().size() >= 8, qPrintable(tag + QStringLiteral(": the box draws the markers")));
+            QTRY_VERIFY2(linkInk(box, linkFrom, linkTo, d->colors.slot(Hyperlink)) > 60, qPrintable(tag + QStringLiteral(": the show's box draws the link in the link color")));
+            QCOMPARE(linkInk(box, linkFrom - 4, linkFrom, d->colors.slot(Hyperlink)), 0);
+            if (!dir.isEmpty()) box->grab().save(dir + QStringLiteral("/showbox-") + tag + QStringLiteral(".png"));
+        }
+        if (!dir.isEmpty()) jp::applyUiTheme(1);
+    }
+
     // A picture of Presenter View with the mixed note, for looking at, when JP_SHOT_DIR names a folder.
     void pictureOfTheMarkersInPresenterView()
     {
