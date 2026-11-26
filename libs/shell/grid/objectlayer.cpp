@@ -1163,7 +1163,7 @@ bool ObjectLayer::worksAt(const QPoint &point, const GridLayout &layout) const
     return !e.object.worksAt || e.object.worksAt(fraction, units);
 }
 
-bool ObjectLayer::wheel(const QPoint &point, const GridLayout &layout, int steps)
+bool ObjectLayer::wheel(const QPoint &point, const GridLayout &layout, double steps)
 {
     const int hit = objectAt(point);
     if (hit < 0 || !m_entries[entryOf(hit)].object.wheel) return false;
@@ -1211,6 +1211,7 @@ bool ObjectLayer::press(const QPoint &point, const GridLayout &layout, Qt::Keybo
         if (fractionAt(e, layout, point, &fraction, &units)) {
             if (m_mirrored) fraction.setX(1 - fraction.x());
             if (e.object.operateKeys(fraction, units, modifiers)) {
+                if (m_selected >= 0) select(-1);   // (what it works is not picked: a Delete after it is not for what was picked before)
                 if (e.object.dragWork) {
                     m_work = hit;
                     for (const Pane pane : kPanes)
@@ -1388,10 +1389,7 @@ bool ObjectLayer::doubleClick(const QPoint &point, const GridLayout &layout)
         QSizeF units;
         if (!fractionAt(e, layout, point, &fraction, &units)) return false;
         if (e.object.operateKeys && m_mirrored) fraction.setX(1 - fraction.x());
-        if (e.object.operateKeys) {
-            if (!e.object.operateKeys(fraction, units, Qt::NoModifier)) select(hit);   // (a double click on what is not its work picks it)
-            return true;
-        }
+        if (e.object.operateKeys) return true;   // (the first click of a double click did the work or picked the object: the second is not another click)
         return e.object.operate(fraction, units);
     }
     select(hit);

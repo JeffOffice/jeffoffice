@@ -504,6 +504,9 @@ public:
     bool slicerFace(int slicer, qint64 first, int most, SlicerFace *out, const QString &viewName = QString(), int sheet = -1) const;
     // The place of the slicer the file's drawing calls `name` (the slicer parts of the sheet, then the others), among slicers() (-1 if there is none).
     int slicerNamed(const QString &name, int sheet) const;
+    // For tests: how many times the whole field of a slicer was worked through (its places, order, and chosen items: done once for a state of the table, not for each look), and how many buttons were made.
+    qint64 slicerFieldsBuilt() const { return m_slicerFieldsBuilt; }
+    qint64 slicerButtonsMade() const { return m_slicerButtonsMade; }
     // A click on the button of the item at `place`: it alone is chosen, or with `extend` (Ctrl) it is added to the chosen or taken from them; a click on the only one chosen clears the filter. One step of
     // Undo, as chooseSlicerItems; the same for the pane's buttons and the slicer on the sheet.
     Outcome clickSlicerItem(int slicer, qint32 place, bool extend);
@@ -1692,6 +1695,21 @@ private:
     qint64 m_longestSlice = 0;
     int m_slicesPushed = 0;
     mutable qint64 m_formatsMade = 0;
+    // The whole field of the slicer last looked at, kept while its table, its data, and the workbook stay the same objects (a look asks only for the buttons that show).
+    struct SlicerField {
+        const void *book = nullptr, *table = nullptr, *cache = nullptr;
+        int slicer = -1;
+        struct Place {
+            qint32 x;
+            bool noData;
+        };
+        std::vector<Place> places;
+        QSet<qint32> shown;
+        bool filtered = false;
+        qint64 chosenCount = 0;
+    };
+    mutable SlicerField m_slicerField;
+    mutable qint64 m_slicerFieldsBuilt = 0, m_slicerButtonsMade = 0;
     mutable std::unordered_map<quint32, std::shared_ptr<jp::calc::NumberFormat>> m_formats;   // the number formats of the cell formats, made when first wanted
     mutable jp::calc::NumberSymbols m_symbols;   // the marks of the locale, made when first wanted
     mutable bool m_symbolsReady = false;

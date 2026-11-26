@@ -246,11 +246,22 @@ bool SheetSlicers::faceOf(int sheet, Item &item, SlicerFace *face, const QSizeF 
         face->unusable = SlicerWhy::Missing;
         return false;
     }
-    if (!scrolls) return m_faces(slicer, item.name, sheet, 0, kMaxSlicerButtons, face);
+    // (only the buttons that show are asked for: the counts come first, then the window the frame has room for)
+    auto window = [&](qint64 first) {
+        SlicerFace counts;
+        if (!m_faces(slicer, item.name, sheet, first, 0, &counts)) {
+            *face = counts;
+            return false;
+        }
+        const int room = size.width() >= 1 && size.height() >= 1 ? slicerGeometry(size, counts).capacity() : kMaxSlicerButtons;
+        *face = counts;
+        return m_faces(slicer, item.name, sheet, first, std::clamp(room, 1, kMaxSlicerButtons), face);
+    };
+    if (!scrolls) return window(0);
     // (the buttons from the row it is scrolled to; a row past the last that can be shown, or a different number of columns than was last known, asks again)
     int row = std::max(0, item.scrollRow);
     for (int pass = 0; pass < 2; ++pass) {
-        if (!m_faces(slicer, item.name, sheet, qint64(row) * item.columns, kMaxSlicerButtons, face)) return false;
+        if (!window(qint64(row) * item.columns)) return false;
         const bool columnsChanged = face->columns != item.columns;
         item.columns = face->columns;
         if (columnsChanged && pass == 0) continue;
@@ -341,7 +352,7 @@ void SheetSlicers::dragged(int sheet, int id, const QPointF &at, const QSizeF &s
     scrollTo(sheet, item, slicerRowAtThumb(g, at.y() - item.thumbGrab, 0));
 }
 
-bool SheetSlicers::wheeled(int sheet, int id, int steps, const QSizeF &size)
+bool SheetSlicers::wheeled(int sheet, int id, double steps, const QSizeF &size)
 {
     Item *found = find(sheet, id);
     if (!found || steps == 0) return false;
@@ -350,7 +361,13 @@ bool SheetSlicers::wheeled(int sheet, int id, int steps, const QSizeF &size)
     if (!faceOf(sheet, item, &face, size, true)) return false;
     const SlicerGeometry g = slicerGeometry(size, face);
     if (g.bar.isNull()) return false;   // (every button is there: the sheet scrolls)
-    scrollTo(sheet, item, std::clamp(item.scrollRow - steps * 3, 0, g.maxRow));
+    // (a notch is three rows; a smaller turn adds up until it is a row)
+    item.wheelRest += steps * 3;
+    const int whole = int(item.wheelRest);
+    item.wheelRest -= whole;
+    const int row = std::clamp(item.scrollRow - whole, 0, g.maxRow);
+    if (row != item.scrollRow - whole) item.wheelRest = 0;   // (at an end: what is left of the turn is not kept)
+    scrollTo(sheet, item, row);
     return true;
 }
 
@@ -423,8 +440,10 @@ bool SheetSlicers::key(int sheet, int id, QKeyEvent *event)
     case Qt::Key_PageDown: return goTo(at + std::max(1, g.rows) * columns);
     case Qt::Key_C:
         if (!(mods & Qt::AltModifier) || !(mods & Qt::ControlModifier)) return false;   // (Alt and a letter alone belong to the ribbon's key letters)
+        if (!event->text().isEmpty() && event->text().front().isPrint() && event->text().front().toUpper() != QChar('C')) return false;   // (a keyboard where Ctrl and Alt together, AltGr, type a letter: that is typing, not the shortcut)
         if (face.filtered) Q_EMIT clearClicked(item.slicer);
         return true;
+    case Qt::Key_Delete: return true;   // (the buttons have the keys: Delete is for a slicer picked as an object, after Esc)
     case Qt::Key_Space:
     case Qt::Key_Return:
     case Qt::Key_Enter: {
@@ -488,7 +507,7 @@ jp::grid::LayerObject SheetSlicers::layerObject(int sheet, const std::shared_ptr
         const SlicerPart part = slicerHit(slicerGeometry(units, face), face, at(fraction, units)).part;
         return part != SlicerPart::None && part != SlicerPart::Header && (part != SlicerPart::Clear || face.filtered);
     };
-    o.wheel = [this, sheet, weak](const QPointF &, const QSizeF &units, int steps) {
+    o.wheel = [this, sheet, weak](const QPointF &, const QSizeF &units, double steps) {
         const std::shared_ptr<Item> i = weak.lock();
         return i && wheeled(sheet, i->id, steps, units);
     };

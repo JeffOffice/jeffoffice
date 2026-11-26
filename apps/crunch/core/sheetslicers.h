@@ -88,7 +88,7 @@ public:
     bool press(int sheet, int id, const QPointF &at, const QSizeF &size, Qt::KeyboardModifiers keys);
     // The thumb of the scroll bar dragged to `at` (a press on it took it), or let go; and the wheel, `steps` notches (positive: up). True if the slicer scrolled (or could).
     void dragged(int sheet, int id, const QPointF &at, const QSizeF &size, bool done);
-    bool wheeled(int sheet, int id, int steps, const QSizeF &size);
+    bool wheeled(int sheet, int id, double steps, const QSizeF &size);
     // The keyboard is in the slicer (its buttons have the arrow keys), and which button; `enter` puts it on the first.
     bool isInside(int sheet, int id) const;
     void enter(int sheet, int id);
@@ -131,7 +131,7 @@ private:
         int scrollRow = 0, columns = 1;
         qint64 focus = -1, anchorAt = -1;
         bool inside = false, thumbHeld = false;
-        double thumbGrab = 0;
+        double thumbGrab = 0, wheelRest = 0;   // (`wheelRest`: the part of a row a small turn of the wheel has not yet moved)
         QSizeF size;
     };
     struct Sheet {

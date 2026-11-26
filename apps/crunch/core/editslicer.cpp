@@ -162,31 +162,41 @@ bool EditSession::slicerFace(int slicer, qint64 first, int most, SlicerFace *out
     const QVector<PivotValue> &values = cache.fields[field].items;
     const qint64 n = values.size();
     // (the places of the buttons, in the order the part lists its items; the part may name a place twice or one the field does not have: each is shown once, and only the field's)
-    struct Place {
-        qint32 x;
-        bool noData;
-    };
-    std::vector<Place> places;
-    if (sc.items.isEmpty()) {
-        places.reserve(size_t(std::min<qint64>(n, kMaxSlicerItems)));
-        for (qint32 i = 0; i < n && i < kMaxSlicerItems; ++i) places.push_back({i, false});
-    } else {
-        QVector<bool> seen(int(std::min<qint64>(n, kMaxSlicerItems)), false);
-        for (const SlicerItem &it : sc.items) {
-            if (it.x < 0 || it.x >= seen.size() || seen[it.x]) continue;
-            seen[it.x] = true;
-            if (sc.hideNoData && it.noData) continue;
-            places.push_back({it.x, it.noData});
+    // (worked through once for a state of the table: a look at the buttons that show does not cost the size of the field)
+    SlicerField &kept_ = m_slicerField;
+    if (kept_.book != &book || kept_.table != entry.table.get() || kept_.cache != &cache || kept_.slicer != slicer) {
+        kept_ = SlicerField();
+        kept_.book = &book;
+        kept_.table = entry.table.get();
+        kept_.cache = &cache;
+        kept_.slicer = slicer;
+        ++m_slicerFieldsBuilt;
+        std::vector<SlicerField::Place> &places = kept_.places;
+        if (sc.items.isEmpty()) {
+            places.reserve(size_t(std::min<qint64>(n, kMaxSlicerItems)));
+            for (qint32 i = 0; i < n && i < kMaxSlicerItems; ++i) places.push_back({i, false});
+        } else {
+            QVector<bool> seen(int(std::min<qint64>(n, kMaxSlicerItems)), false);
+            for (const SlicerItem &it : sc.items) {
+                if (it.x < 0 || it.x >= seen.size() || seen[it.x]) continue;
+                seen[it.x] = true;
+                if (sc.hideNoData && it.noData) continue;
+                places.push_back({it.x, it.noData});
+            }
         }
+        if (!sc.sortOrder.isEmpty() && sc.sortOrder != QLatin1String("none") && int(places.size()) <= kMaxSlicerSorted) {
+            const bool down = sc.sortOrder == QLatin1String("descending");
+            std::stable_sort(places.begin(), places.end(), [&](const SlicerField::Place &a, const SlicerField::Place &b) { return down ? itemLess(values[b.x], values[a.x]) : itemLess(values[a.x], values[b.x]); });
+        }
+        kept_.shown = pivotShownItems(*entry.table, cache, field);
+        kept_.filtered = !(kept_.shown.isEmpty() || qint64(kept_.shown.size()) >= n);
+        for (const SlicerField::Place &pl : places) kept_.chosenCount += !kept_.filtered || kept_.shown.contains(pl.x) ? 1 : 0;
     }
-    if (!sc.sortOrder.isEmpty() && sc.sortOrder != QLatin1String("none") && int(places.size()) <= kMaxSlicerSorted) {
-        const bool down = sc.sortOrder == QLatin1String("descending");
-        std::stable_sort(places.begin(), places.end(), [&](const Place &a, const Place &b) { return down ? itemLess(values[b.x], values[a.x]) : itemLess(values[a.x], values[b.x]); });
-    }
+    const std::vector<SlicerField::Place> &places = kept_.places;
+    const QSet<qint32> &shown = kept_.shown;
     out->itemCount = qint64(places.size());
-    const QSet<qint32> shown = pivotShownItems(*entry.table, cache, field);
-    out->filtered = !(shown.isEmpty() || qint64(shown.size()) >= n);
-    for (const Place &pl : places) out->chosenCount += !out->filtered || shown.contains(pl.x) ? 1 : 0;
+    out->filtered = kept_.filtered;
+    out->chosenCount = kept_.chosenCount;
     for (qint64 i = std::max<qint64>(0, first); i < out->itemCount && i < first + most; ++i) {
         SlicerButton b;
         b.place = places[size_t(i)].x;
@@ -194,6 +204,7 @@ bool EditSession::slicerFace(int slicer, qint64 first, int most, SlicerFace *out
         b.selected = shown.contains(b.place);
         b.noData = places[size_t(i)].noData;
         out->buttons.push_back(std::move(b));
+        ++m_slicerButtonsMade;
     }
     return true;
 }

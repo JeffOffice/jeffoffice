@@ -340,7 +340,7 @@ void CrunchWindow::onSaved(bool ok, const QString &message, const QString &path,
         Settings::get().addRecentFile(path);
         telemetry::count(QStringLiteral("file.save.") + crunch::fileKind(path));
         // (a save is the point after which what it saved of rows, columns, or cells deleted is not given back by Undo: that is said)
-        if (forgotten > 0) setStatus(tr("Saved %1. Rows, columns, and cells deleted before this save can't be undone now, nor can what you did before that.").arg(QFileInfo(path).fileName()));
+        if (forgotten > 0) setStatus(tr("Saved %1. Rows, columns, cells, and objects deleted before this save can't be undone now, nor can what you did before that.").arg(QFileInfo(path).fileName()));
         else setStatus(tr("Saved %1").arg(QFileInfo(path).fileName()));
     } else {
         m_closeAfterSave = false;

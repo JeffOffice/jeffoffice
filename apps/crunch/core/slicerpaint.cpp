@@ -171,7 +171,6 @@ QString slicerMoreText(const SlicerFace &face, const SlicerGeometry &g)
         chosen = std::max<qint64>(0, face.chosenCount - inView);
     }
     if (chosen > 0) return QCoreApplication::translate("jp::crunch::Slicer", "More items: %1 (%2 chosen)").arg(left).arg(chosen);
-    if (!face.scrolls && face.printed) return QCoreApplication::translate("jp::crunch::Slicer", "More items: %1 (not printed)").arg(left);
     return QCoreApplication::translate("jp::crunch::Slicer", "More items: %1").arg(left);
 }
 

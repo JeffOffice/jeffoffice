@@ -85,8 +85,8 @@ struct LayerObject {
     // With `operateKeys`: whether a press at the point is the object's own work (it is told of it, and nothing is picked) or not (the press picks the object, which is then moved, sized, or deleted like the
     // others, and Shift or Ctrl add it to the pick). `operateKeys` returns false for a press that is not its own work, too.
     std::function<bool(const QPointF &fraction, const QSizeF &units)> worksAt;
-    // The wheel turned over the object (`steps`: a notch is one, positive away from the person): true if it used it (the cells do not scroll).
-    std::function<bool(const QPointF &fraction, const QSizeF &units, int steps)> wheel;
+    // The wheel turned over the object (`steps`: a notch is one, a small turn or a touchpad's slide a part of one, positive away from the person): true if it used it (the cells do not scroll).
+    std::function<bool(const QPointF &fraction, const QSizeF &units, double steps)> wheel;
     // A press that `operateKeys` took went on: the mouse moved with the button down (`done` false), or was let go (`done` true), at a place given the same way, not held to the object's box.
     std::function<void(const QPointF &fraction, const QSizeF &units, bool done)> dragWork;
     // A key pressed while the object is picked, before the layer's own keys (Delete, Escape, and the arrows that move it); true if the object took it.
@@ -181,7 +181,7 @@ public:
     // Whether a press at the point is the work of the object under it (LayerObject::worksAt): a Ctrl or Shift press on it is that work, and on the rest of the object picks it.
     bool worksAt(const QPoint &point, const GridLayout &layout) const;
     // The wheel turned at a point of the viewport: true if the object under it used it.
-    bool wheel(const QPoint &point, const GridLayout &layout, int steps);
+    bool wheel(const QPoint &point, const GridLayout &layout, double steps) override;
     // The object at a point of the viewport (the topmost whose ink, or whose box for a picture or chart, is under it), or -1.
     int objectAt(const QPoint &point) const;
     // The same for a mouse move (which only chooses a pointer): at most one picture is made, and the rest are answered by their boxes.

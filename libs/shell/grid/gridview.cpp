@@ -1851,11 +1851,10 @@ void GridView::wheelEvent(QWheelEvent *e)
         e->accept();
         return;
     }
-    if (m_overlay && e->angleDelta().y() != 0) {
-        // (an object that scrolls inside itself, a slicer, takes the wheel over it)
-        const int delta = e->angleDelta().y();
-        const int notches = std::abs(delta) < 120 ? (delta > 0 ? 1 : -1) : delta / 120;
-        if (m_overlay->wheel(mirror(e->position().toPoint()), m_sheet.layout(), notches)) {
+    if (m_overlay) {
+        // (an object that scrolls inside itself, a slicer, takes the wheel over it, by the amount of the turn: a notch is 120 of the angle or 40 pixels)
+        const double notches = !e->pixelDelta().isNull() ? e->pixelDelta().y() / 40.0 : e->angleDelta().y() / 120.0;
+        if (notches != 0 && m_overlay->wheel(mirror(e->position().toPoint()), m_sheet.layout(), notches)) {
             e->accept();
             return;
         }

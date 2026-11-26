@@ -90,7 +90,11 @@ bool ObjectPicker::press(const QPoint &point, const grid::GridLayout &layout, Qt
         requestRepaint();
         return true;
     }
-    return m_layer->press(point, layout, modifiers);
+    const int hit = m_layer->objectAt(point);
+    const bool works = hit >= 0 && m_layer->takesKeys(hit) && m_layer->worksAt(point, layout);
+    const bool took = m_layer->press(point, layout, modifiers);
+    if (took && works && !m_picked.empty()) setPicked({});   // (a press on what a slicer works lets go of the whole pick, as one on a control does)
+    return took;
 }
 
 bool ObjectPicker::mouseMove(const QPoint &point, const grid::GridLayout &layout, Qt::MouseButtons buttons, Qt::KeyboardModifiers modifiers)
@@ -132,7 +136,7 @@ std::optional<Qt::CursorShape> ObjectPicker::cursorAt(const QPoint &point, const
 
 bool ObjectPicker::contextMenu(const QPoint &point, const QPoint &global, const grid::GridLayout &layout) { return m_layer->contextMenu(point, global, layout); }
 bool ObjectPicker::doubleClick(const QPoint &point, const grid::GridLayout &layout) { return m_layer->doubleClick(point, layout); }
-bool ObjectPicker::wheel(const QPoint &point, const grid::GridLayout &layout, int steps) { return m_layer->wheel(point, layout, steps); }
+bool ObjectPicker::wheel(const QPoint &point, const grid::GridLayout &layout, double steps) { return m_layer->wheel(point, layout, steps); }
 
 bool ObjectPicker::key(QKeyEvent *event)
 {
