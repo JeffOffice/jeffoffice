@@ -926,6 +926,35 @@ private Q_SLOTS:
         }
     }
 
+    // After Convert the document stays modified until it is saved, whatever Undo does: Convert, type, and undo back to the clean state still asks to save on close, and the save has the new mode.
+    void aConvertedDocumentStaysModifiedWhateverUndoDoes()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        const QByteArray settings = QByteArray("<?xml version=\"1.0\"?><w:settings ") + kNs + "><w:compat><w:compatSetting w:name=\"compatibilityMode\" w:uri=\"http://schemas.microsoft.com/office/word\" w:val=\"11\"/></w:compat></w:settings>";
+        const QByteArray bytes = makeDocx("<w:p><w:r><w:t>Words</w:t></w:r></w:p>", {Extra{QStringLiteral("/word/settings.xml"), kWord + QStringLiteral("settings+xml"), settings, kRel + QStringLiteral("settings")}});
+        QFile f(dir.filePath(QStringLiteral("old.docx")));
+        QVERIFY(f.open(QIODevice::WriteOnly) && f.write(bytes) == bytes.size());
+        f.close();
+        WriteWindow w;
+        w.setNotifier([](const QString &, const QString &) {});
+        QVERIFY(w.openFile(dir.filePath(QStringLiteral("old.docx"))));
+        QVERIFY(!w.isModified());
+        w.convertCompatibility(false);
+        QVERIFY(w.isModified());
+        typeText(*w.document(), w.view()->cursor(), QStringLiteral("x"));
+        while (w.document()->canUndo()) w.document()->undo();
+        QVERIFY2(w.isModified(), "converted, and the undo is back to where the file was read");
+        QVERIFY(w.document()->isModified());
+        QVERIFY(saveInto(w, dir, QStringLiteral("new.docx")));
+        QVERIFY(!w.isModified());
+        QFile g(dir.filePath(QStringLiteral("new.docx")));
+        QVERIFY(g.open(QIODevice::ReadOnly));
+        const auto saved = WriteDoc::fromDocx(g.readAll(), nullptr, nullptr);
+        QVERIFY(saved);
+        QCOMPARE(saved->compatMode(), 15);
+    }
+
     // The settings are read as XML: a comment that has a group or a setting in it is no group or setting, a setting written with an end tag is one setting, and the order of its attributes is its own.
     void theCompatibilityModeOfTheSettingsIsFoundByReadingTheXml()
     {
