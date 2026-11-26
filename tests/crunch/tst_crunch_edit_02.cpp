@@ -1041,9 +1041,6 @@ void CrunchEditTests::anOldFileSpillOfTextOrBooleansOpensWhole()
 // A formula whose block grew and was saved is written whole once: the next save leaves it as the file has it, and an undo after a save puts the old size back and the next save writes that. Fails when the
 // list of resized formulas is never let go of (it is still there after the save), or when it is let go of before the undo's resize is noted (the third save keeps the block of the second).
 void CrunchEditTests::aResizedSpillIsRewrittenOnlyUntilASaveHasWrittenIt()
-// A file's spill of 5 cells in a column shrinks to 3 beside a sum over the column: the two cells it no longer fills are empty to what reads them, as they are once let go of (with the index on they stay in the store
-// until the worker is held back, and were read as a place past the array: #N/A in the sum, shown for good). Fails when such a cell is read from the array (the sum is #N/A), with the index on.
-void CrunchEditTests::aFormulaReadingACellAShrunkLoadedSpillNoLongerFillsGetsNoError()
 {
     for (const bool index : {false, true}) {
         SpillIndexSwitch sw(index);
@@ -1096,6 +1093,17 @@ void CrunchEditTests::aSpillAnchoredAwayFromColumnBIsOpenedAtItsOwnCell()
         }
 }
 
+// A file's spill of 5 cells in a column shrinks to 3 beside a sum over the column: the two cells it no longer fills are empty to what reads them, as they are once let go of (with the index on they stay in the store
+// until the worker is held back, and were read as a place past the array: #N/A in the sum, shown for good). Fails when such a cell is read from the array (the sum is #N/A), with the index on.
+void CrunchEditTests::aFormulaReadingACellAShrunkLoadedSpillNoLongerFillsGetsNoError()
+{
+    for (const bool index : {false, true}) {
+        SpillIndexSwitch sw(index);
+        const QByteArray bytes = spillingBook(5);
+        QVERIFY(!bytes.isEmpty());
+        EditWindow e;
+        QVERIFY(e.open(bytes, QStringLiteral("spilling.xlsx")));
+        QVERIFY(e.settle());
         e.select(QStringLiteral("D1"));
         e.enter(QStringLiteral("=SUM(B1:B7)"));
         QVERIFY(e.settle());
