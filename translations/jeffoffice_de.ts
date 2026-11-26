@@ -26790,7 +26790,7 @@ Quelle: %3</translation>
     </message>
     <message>
         <location line="+9"/>
-        <location filename="../apps/crunch/app/crunchwindow_charts.cpp" line="+991"/>
+        <location filename="../apps/crunch/app/crunchwindow_charts.cpp" line="+1000"/>
         <location filename="../apps/crunch/app/crunchwindow_file.cpp" line="-494"/>
         <location line="+112"/>
         <location line="+77"/>
@@ -27017,7 +27017,7 @@ Quelle: %3</translation>
     </message>
     <message>
         <location line="+4"/>
-        <location filename="../apps/crunch/app/crunchwindow_charts.cpp" line="-851"/>
+        <location filename="../apps/crunch/app/crunchwindow_charts.cpp" line="-860"/>
         <source>Save as Template…</source>
         <translation type="unfinished">Als Vorlage speichern…</translation>
     </message>
@@ -27268,30 +27268,30 @@ Quelle: %3</translation>
     </message>
     <message>
         <location line="+1"/>
-        <location line="+1037"/>
+        <location line="+1046"/>
         <source>Bring to Front</source>
         <translation type="unfinished">In den Vordergrund</translation>
     </message>
     <message>
-        <location line="-1036"/>
-        <location line="+1036"/>
+        <location line="-1045"/>
+        <location line="+1045"/>
         <source>Bring Forward</source>
         <translation type="unfinished">Eine Ebene nach vorne</translation>
     </message>
     <message>
-        <location line="-1035"/>
-        <location line="+1035"/>
+        <location line="-1044"/>
+        <location line="+1044"/>
         <source>Send Backward</source>
         <translation type="unfinished">Eine Ebene nach hinten</translation>
     </message>
     <message>
-        <location line="-1034"/>
-        <location line="+1034"/>
+        <location line="-1043"/>
+        <location line="+1043"/>
         <source>Send to Back</source>
         <translation type="unfinished">In den Hintergrund</translation>
     </message>
     <message>
-        <location line="-944"/>
+        <location line="-953"/>
         <location line="+4"/>
         <location line="+7"/>
         <location line="+9"/>
@@ -27577,7 +27577,7 @@ Quelle: %3</translation>
         <translation>Unten</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow_charts.cpp" line="+379"/>
+        <location filename="../apps/crunch/app/crunchwindow_charts.cpp" line="+388"/>
         <source>Format Control…</source>
         <translation type="unfinished">Steuerelement formatieren…</translation>
     </message>
@@ -28033,7 +28033,7 @@ Quelle: %3</translation>
         <location filename="../apps/crunch/app/crunchwindow_format.cpp" line="-843"/>
         <location line="+607"/>
         <location line="+1"/>
-        <location filename="../apps/crunch/app/crunchwindow_pivot.cpp" line="+495"/>
+        <location filename="../apps/crunch/app/crunchwindow_pivot.cpp" line="+496"/>
         <location line="+6"/>
         <location filename="../apps/crunch/app/crunchwindow_tables.cpp" line="-285"/>
         <source>Clear</source>
@@ -29407,9 +29407,9 @@ Quelle: %3</translation>
         <location line="+121"/>
         <location line="+29"/>
         <location line="+11"/>
-        <location filename="../apps/crunch/app/crunchwindow_charts.cpp" line="-1005"/>
-        <location line="+858"/>
-        <location filename="../apps/crunch/app/crunchwindow_drawings.cpp" line="+190"/>
+        <location filename="../apps/crunch/app/crunchwindow_charts.cpp" line="-1014"/>
+        <location line="+867"/>
+        <location filename="../apps/crunch/app/crunchwindow_drawings.cpp" line="+191"/>
         <location line="+11"/>
         <location line="+6"/>
         <location line="+13"/>
@@ -29684,7 +29684,7 @@ Quelle: %3</translation>
     </message>
     <message>
         <location line="+1"/>
-        <location filename="../apps/crunch/app/crunchwindow_charts.cpp" line="-943"/>
+        <location filename="../apps/crunch/app/crunchwindow_charts.cpp" line="-952"/>
         <location filename="../apps/crunch/app/crunchwindow_ops.cpp" line="-120"/>
         <source>Columns</source>
         <translation>Spalten</translation>
@@ -30213,7 +30213,7 @@ Quelle: %3</translation>
         <translation type="unfinished">Tabellenname</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow_charts.cpp" line="+1030"/>
+        <location filename="../apps/crunch/app/crunchwindow_charts.cpp" line="+1039"/>
         <location filename="../apps/crunch/app/crunchwindow_embeds.cpp" line="+89"/>
         <location filename="../apps/crunch/app/crunchwindow_pagelayout.cpp" line="+531"/>
         <location line="+9"/>
@@ -31357,7 +31357,7 @@ The file that was there is as it was.</source>
 Die vorhandene Datei bleibt unverändert.</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow_drawings.cpp" line="-240"/>
+        <location filename="../apps/crunch/app/crunchwindow_drawings.cpp" line="-241"/>
         <source>Delete Objects</source>
         <translation type="unfinished">Objekte löschen</translation>
     </message>
@@ -31367,7 +31367,7 @@ Die vorhandene Datei bleibt unverändert.</translation>
         <translation type="unfinished">Das Diagramm dieses Diagrammblatts kann hier nicht angezeigt werden.</translation>
     </message>
     <message>
-        <location line="+74"/>
+        <location line="+75"/>
         <source>Link to Cell</source>
         <translation type="unfinished">Mit Zelle verknüpfen</translation>
     </message>
@@ -33102,12 +33102,12 @@ Die Datei kann nicht gelesen werden.</translation>
     </message>
     <message>
         <location line="+1"/>
-        <location line="+783"/>
+        <location line="+834"/>
         <source>Slicers</source>
         <translation type="unfinished">Datenschnitte</translation>
     </message>
     <message>
-        <location line="-782"/>
+        <location line="-833"/>
         <source>Value Field Settings…</source>
         <translation type="unfinished">Wertfeldeinstellungen…</translation>
     </message>
@@ -33542,12 +33542,13 @@ Die Datei kann nicht gelesen werden.</translation>
         <translation type="unfinished">%1 bis %2</translation>
     </message>
     <message>
-        <location line="+38"/>
+        <location line="+12"/>
+        <location line="+14"/>
         <source>Slicer</source>
         <translation type="unfinished">Datenschnitt</translation>
     </message>
     <message>
-        <location line="+10"/>
+        <location line="+48"/>
         <source>Report Connections</source>
         <translation type="unfinished">Berichtsverbindungen</translation>
     </message>
@@ -34492,7 +34493,7 @@ Die Datei kann nicht gelesen werden.</translation>
         <translation type="unfinished">Sparklines löschen</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow_charts.cpp" line="-1024"/>
+        <location filename="../apps/crunch/app/crunchwindow_charts.cpp" line="-1033"/>
         <location line="+24"/>
         <location filename="../apps/crunch/app/crunchwindow_insertobjects.cpp" line="-753"/>
         <location filename="../apps/crunch/app/crunchwindow_quick.cpp" line="+3"/>
@@ -38633,7 +38634,7 @@ Die Datei kann nicht gelesen werden.</translation>
     <message>
         <location line="+13"/>
         <location line="+5"/>
-        <location filename="../apps/deck/app/deckwindow_sections.cpp" line="+71"/>
+        <location filename="../apps/deck/app/deckwindow_sections.cpp" line="+72"/>
         <source>Paste Slides</source>
         <translation type="unfinished">Folien einfügen</translation>
     </message>
@@ -57329,7 +57330,7 @@ Ihr Webbrowser öffnet LibreTranslate, einen kostenlosen Open-Source-Übersetzun
 <context>
     <name>jp::PivotCreateDialog</name>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow_pivot.cpp" line="-1191"/>
+        <location filename="../apps/crunch/app/crunchwindow_pivot.cpp" line="-1217"/>
         <source>Create Pivot Table</source>
         <translation type="unfinished">Pivot-Tabelle erstellen</translation>
     </message>
@@ -70627,7 +70628,7 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
         <translation type="unfinished">JeffCrunch kann dies noch nicht berechnen (es wird eine andere Arbeitsmappe, die Spalten einer Tabelle oder eine Funktion verwendet, die JeffCrunch nicht kennt). Daher wird kein Wert angezeigt.</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/core/editslicer.cpp" line="+18"/>
+        <location filename="../apps/crunch/core/editslicer.cpp" line="+20"/>
         <source>(blank)</source>
         <translation type="unfinished">(leer)</translation>
     </message>
@@ -73386,13 +73387,13 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
         <translation type="unfinished">Die Teile würden über die letzte Spalte der Tabelle hinausreichen.</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/core/editslicer.cpp" line="+80"/>
-        <location line="+21"/>
+        <location filename="../apps/crunch/core/editslicer.cpp" line="+236"/>
+        <location line="+24"/>
         <source>This slicer can&apos;t be used.</source>
         <translation type="unfinished">Dieser Datenschnitt kann nicht verwendet werden.</translation>
     </message>
     <message>
-        <location line="-19"/>
+        <location line="-22"/>
         <source>This slicer filters no pivot table that JeffCrunch can read.</source>
         <translation type="unfinished">Dieser Datenschnitt filtert keine Pivot-Tabelle, die JeffCrunch lesen kann.</translation>
     </message>
@@ -73402,7 +73403,7 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
         <translation type="unfinished">Eine Pivot-Tabelle, die dieser Datenschnitt filtert, kann nicht geändert werden.</translation>
     </message>
     <message>
-        <location line="+15"/>
+        <location line="+18"/>
         <location line="+3"/>
         <source>Filter by Slicer</source>
         <translation type="unfinished">Nach Datenschnitt filtern</translation>
@@ -78139,12 +78140,12 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
 <context>
     <name>jp::crunch::SheetObjects</name>
     <message>
-        <location filename="../apps/crunch/core/sheetobjects.cpp" line="+450"/>
+        <location filename="../apps/crunch/core/sheetobjects.cpp" line="+469"/>
         <source>a drawing that could not be read (%1)</source>
         <translation type="unfinished">eine Zeichnung, die nicht gelesen werden konnte (%1)</translation>
     </message>
     <message>
-        <location line="+7"/>
+        <location line="+8"/>
         <source>more than %1 objects in a drawing; the rest are left out</source>
         <translation type="unfinished">mehr als %1 Objekte in einer Zeichnung; die übrigen werden ausgelassen</translation>
     </message>
@@ -78174,7 +78175,7 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
         <translation type="unfinished">eine Form oder ein Bild, das nicht gelesen werden konnte</translation>
     </message>
     <message numerus="yes">
-        <location line="+521"/>
+        <location line="+539"/>
         <source>The file stores this object together with %n other(s), so they can&apos;t be deleted one at a time.</source>
         <translation type="unfinished">
             <numerusform>Die Datei speichert dieses Objekt zusammen mit %n anderen, daher können sie nicht einzeln gelöscht werden.</numerusform>
@@ -78182,7 +78183,7 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
         </translation>
     </message>
     <message>
-        <location line="+790"/>
+        <location line="+792"/>
         <source>The charts made or changed here since the last save already hold as many numbers as JeffCrunch keeps (%1). Save the workbook first.</source>
         <translation type="unfinished">Die seit dem letzten Speichern erstellten oder geänderten Diagramme enthalten bereits so viele Zahlen, wie JeffCrunch verwaltet (%1). Speichern Sie zuerst die Arbeitsmappe.</translation>
     </message>
@@ -78241,17 +78242,17 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
         <translation type="unfinished">%1 neue Objekte sind die Höchstzahl, die JeffCrunch auf einmal speichert. Speichern Sie die Arbeitsmappe, und fügen Sie dann weitere hinzu.</translation>
     </message>
     <message>
-        <location line="-2295"/>
+        <location line="-2315"/>
         <source>a diagram that could not be shown</source>
         <translation type="unfinished">ein Diagramm, das nicht angezeigt werden konnte</translation>
     </message>
     <message>
-        <location line="+1016"/>
+        <location line="+1035"/>
         <source>The pictures that stand for equations come to more than %1, so the equations past that are saved as math alone.</source>
         <translation type="unfinished">Die Bilder, die Gleichungen darstellen, übersteigen %1, daher werden die darüber hinausgehenden Gleichungen nur als reine Mathematik gespeichert.</translation>
     </message>
     <message>
-        <location line="+577"/>
+        <location line="+578"/>
         <source>a shape whose link to a cell can&apos;t be used (it must be one cell)</source>
         <translation type="unfinished">Eine Form, deren Verknüpfung mit einer Zelle nicht verwendet werden kann (sie muss genau eine Zelle umfassen)</translation>
     </message>
@@ -78403,6 +78404,29 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
         <location line="+224"/>
         <source>Sheet name</source>
         <translation type="unfinished">Blattname</translation>
+    </message>
+</context>
+<context>
+    <name>jp::crunch::Slicer</name>
+    <message>
+        <location filename="../apps/crunch/core/slicerpaint.cpp" line="+139"/>
+        <source>More items: %1 (%2 chosen)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>More items: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>This slicer filters a table; JeffCrunch shows it but cannot use it yet.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>What this slicer filters is not in the file, so JeffCrunch shows it but cannot use it.</source>
+        <translation type="unfinished"></translation>
     </message>
 </context>
 <context>

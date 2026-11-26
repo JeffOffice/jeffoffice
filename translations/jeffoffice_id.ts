@@ -26765,7 +26765,7 @@ Sumber: %3</translation>
     </message>
     <message>
         <location line="+9"/>
-        <location filename="../apps/crunch/app/crunchwindow_charts.cpp" line="+991"/>
+        <location filename="../apps/crunch/app/crunchwindow_charts.cpp" line="+1000"/>
         <location filename="../apps/crunch/app/crunchwindow_file.cpp" line="-494"/>
         <location line="+112"/>
         <location line="+77"/>
@@ -26856,7 +26856,7 @@ Sumber: %3</translation>
     </message>
     <message>
         <location line="+1"/>
-        <location filename="../apps/crunch/app/crunchwindow_charts.cpp" line="-851"/>
+        <location filename="../apps/crunch/app/crunchwindow_charts.cpp" line="-860"/>
         <source>Save as Template…</source>
         <translation type="unfinished">Simpan sebagai Templat…</translation>
     </message>
@@ -27676,8 +27676,8 @@ Sumber: %3</translation>
         <location line="+29"/>
         <location line="+11"/>
         <location filename="../apps/crunch/app/crunchwindow_charts.cpp" line="-335"/>
-        <location line="+858"/>
-        <location filename="../apps/crunch/app/crunchwindow_drawings.cpp" line="+190"/>
+        <location line="+867"/>
+        <location filename="../apps/crunch/app/crunchwindow_drawings.cpp" line="+191"/>
         <location line="+11"/>
         <location line="+6"/>
         <location line="+13"/>
@@ -27963,7 +27963,7 @@ Sumber: %3</translation>
     </message>
     <message>
         <location line="+1"/>
-        <location filename="../apps/crunch/app/crunchwindow_charts.cpp" line="-943"/>
+        <location filename="../apps/crunch/app/crunchwindow_charts.cpp" line="-952"/>
         <location filename="../apps/crunch/app/crunchwindow_ops.cpp" line="+405"/>
         <source>Columns</source>
         <translation>Kolom</translation>
@@ -28156,30 +28156,30 @@ Sumber: %3</translation>
     </message>
     <message>
         <location line="+1"/>
-        <location line="+1037"/>
+        <location line="+1046"/>
         <source>Bring to Front</source>
         <translation type="unfinished">Bawa ke Depan</translation>
     </message>
     <message>
-        <location line="-1036"/>
-        <location line="+1036"/>
+        <location line="-1045"/>
+        <location line="+1045"/>
         <source>Bring Forward</source>
         <translation type="unfinished">Maju Satu Tingkat</translation>
     </message>
     <message>
-        <location line="-1035"/>
-        <location line="+1035"/>
+        <location line="-1044"/>
+        <location line="+1044"/>
         <source>Send Backward</source>
         <translation type="unfinished">Mundur Satu Tingkat</translation>
     </message>
     <message>
-        <location line="-1034"/>
-        <location line="+1034"/>
+        <location line="-1043"/>
+        <location line="+1043"/>
         <source>Send to Back</source>
         <translation type="unfinished">Kirim ke Belakang</translation>
     </message>
     <message>
-        <location line="-944"/>
+        <location line="-953"/>
         <location line="+4"/>
         <location line="+7"/>
         <location line="+9"/>
@@ -28469,7 +28469,7 @@ Sumber: %3</translation>
         <translation type="unfinished">Linear</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow_charts.cpp" line="+379"/>
+        <location filename="../apps/crunch/app/crunchwindow_charts.cpp" line="+388"/>
         <source>Format Control…</source>
         <translation type="unfinished">Format Kontrol…</translation>
     </message>
@@ -28592,7 +28592,7 @@ Sumber: %3</translation>
         <location line="+44"/>
         <location filename="../apps/crunch/app/crunchwindow_pasteoffer.cpp" line="+110"/>
         <location line="+23"/>
-        <location filename="../apps/crunch/app/crunchwindow_pivot.cpp" line="+598"/>
+        <location filename="../apps/crunch/app/crunchwindow_pivot.cpp" line="+599"/>
         <source>Values</source>
         <translation type="unfinished">Nilai</translation>
     </message>
@@ -29703,7 +29703,7 @@ File yang ada sebelumnya tidak berubah.</translation>
         <translation type="unfinished">Itu bukan sel. Tulis sel pertama untuk potongannya, misalnya B2.</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow_drawings.cpp" line="-240"/>
+        <location filename="../apps/crunch/app/crunchwindow_drawings.cpp" line="-241"/>
         <source>Delete Objects</source>
         <translation type="unfinished">Hapus Objek</translation>
     </message>
@@ -29713,7 +29713,7 @@ File yang ada sebelumnya tidak berubah.</translation>
         <translation type="unfinished">Bagan dari lembar bagan ini tidak dapat ditampilkan di sini.</translation>
     </message>
     <message>
-        <location line="+74"/>
+        <location line="+75"/>
         <source>Link to Cell</source>
         <translation type="unfinished">Tautkan ke Sel</translation>
     </message>
@@ -33454,12 +33454,12 @@ Berkas ini dilindungi kata sandi. Kata sandi:</translation>
     </message>
     <message>
         <location line="+1"/>
-        <location line="+783"/>
+        <location line="+834"/>
         <source>Slicers</source>
         <translation type="unfinished">Slicer</translation>
     </message>
     <message>
-        <location line="-782"/>
+        <location line="-833"/>
         <source>Value Field Settings…</source>
         <translation type="unfinished">Pengaturan Bidang Nilai…</translation>
     </message>
@@ -33894,12 +33894,13 @@ Berkas ini dilindungi kata sandi. Kata sandi:</translation>
         <translation type="unfinished">%1 hingga %2</translation>
     </message>
     <message>
-        <location line="+38"/>
+        <location line="+12"/>
+        <location line="+14"/>
         <source>Slicer</source>
         <translation type="unfinished">Pengiris</translation>
     </message>
     <message>
-        <location line="+10"/>
+        <location line="+48"/>
         <source>Report Connections</source>
         <translation type="unfinished">Koneksi Laporan</translation>
     </message>
@@ -34611,7 +34612,7 @@ Berkas ini dilindungi kata sandi. Kata sandi:</translation>
         <translation type="unfinished">Hapus Sparkline</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow_charts.cpp" line="-1089"/>
+        <location filename="../apps/crunch/app/crunchwindow_charts.cpp" line="-1098"/>
         <location line="+24"/>
         <location filename="../apps/crunch/app/crunchwindow_insertobjects.cpp" line="-753"/>
         <location filename="../apps/crunch/app/crunchwindow_quick.cpp" line="+3"/>
@@ -38567,7 +38568,7 @@ Berkas tidak dapat dibaca.</translation>
     <message>
         <location line="+13"/>
         <location line="+5"/>
-        <location filename="../apps/deck/app/deckwindow_sections.cpp" line="+71"/>
+        <location filename="../apps/deck/app/deckwindow_sections.cpp" line="+72"/>
         <source>Paste Slides</source>
         <translation type="unfinished">Tempel Slaid</translation>
     </message>
@@ -57246,7 +57247,7 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
 <context>
     <name>jp::PivotCreateDialog</name>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow_pivot.cpp" line="-1191"/>
+        <location filename="../apps/crunch/app/crunchwindow_pivot.cpp" line="-1217"/>
         <source>Create Pivot Table</source>
         <translation type="unfinished">Buat Tabel Pivot</translation>
     </message>
@@ -70729,18 +70730,18 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
         <translation type="unfinished">Buku kerja ini tidak dibuka dari berkas yang dapat ditimpa oleh JeffCrunch.</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/core/editslicer.cpp" line="+18"/>
+        <location filename="../apps/crunch/core/editslicer.cpp" line="+20"/>
         <source>(blank)</source>
         <translation type="unfinished">(kosong)</translation>
     </message>
     <message>
-        <location line="+80"/>
-        <location line="+21"/>
+        <location line="+236"/>
+        <location line="+24"/>
         <source>This slicer can&apos;t be used.</source>
         <translation type="unfinished">Slicer ini tidak dapat digunakan.</translation>
     </message>
     <message>
-        <location line="-19"/>
+        <location line="-22"/>
         <source>This slicer filters no pivot table that JeffCrunch can read.</source>
         <translation type="unfinished">Slicer ini tidak memfilter tabel pivot yang dapat dibaca JeffCrunch.</translation>
     </message>
@@ -70750,7 +70751,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
         <translation type="unfinished">Tabel pivot yang difilter slicer ini tidak dapat diubah.</translation>
     </message>
     <message>
-        <location line="+15"/>
+        <location line="+18"/>
         <location line="+3"/>
         <source>Filter by Slicer</source>
         <translation type="unfinished">Filter menurut Slicer</translation>
@@ -78031,12 +78032,12 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
 <context>
     <name>jp::crunch::SheetObjects</name>
     <message>
-        <location filename="../apps/crunch/core/sheetobjects.cpp" line="+450"/>
+        <location filename="../apps/crunch/core/sheetobjects.cpp" line="+469"/>
         <source>a drawing that could not be read (%1)</source>
         <translation type="unfinished">gambar yang tidak dapat dibaca (%1)</translation>
     </message>
     <message>
-        <location line="+7"/>
+        <location line="+8"/>
         <source>more than %1 objects in a drawing; the rest are left out</source>
         <translation type="unfinished">lebih dari %1 objek dalam gambar; sisanya tidak disertakan</translation>
     </message>
@@ -78066,14 +78067,14 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
         <translation type="unfinished">bentuk atau gambar yang tidak dapat dibaca</translation>
     </message>
     <message numerus="yes">
-        <location line="+521"/>
+        <location line="+539"/>
         <source>The file stores this object together with %n other(s), so they can&apos;t be deleted one at a time.</source>
         <translation type="unfinished">
             <numerusform>Berkas menyimpan objek ini bersama %n objek lain, sehingga tidak dapat dihapus satu per satu.</numerusform>
         </translation>
     </message>
     <message>
-        <location line="+790"/>
+        <location line="+792"/>
         <source>The charts made or changed here since the last save already hold as many numbers as JeffCrunch keeps (%1). Save the workbook first.</source>
         <translation type="unfinished">Bagan yang dibuat atau diubah di sini sejak penyimpanan terakhir sudah memuat sebanyak angka yang disimpan JeffCrunch (%1). Simpan buku kerja terlebih dahulu.</translation>
     </message>
@@ -78132,17 +78133,17 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
         <translation type="unfinished">%1 objek baru adalah jumlah yang disimpan JeffCrunch sekaligus. Simpan buku kerja, lalu tambahkan lagi.</translation>
     </message>
     <message>
-        <location line="-2295"/>
+        <location line="-2315"/>
         <source>a diagram that could not be shown</source>
         <translation type="unfinished">diagram yang tidak dapat ditampilkan</translation>
     </message>
     <message>
-        <location line="+1016"/>
+        <location line="+1035"/>
         <source>The pictures that stand for equations come to more than %1, so the equations past that are saved as math alone.</source>
         <translation type="unfinished">Gambar yang mewakili persamaan berjumlah lebih dari %1, sehingga persamaan setelah batas itu disimpan hanya sebagai matematika.</translation>
     </message>
     <message>
-        <location line="+577"/>
+        <location line="+578"/>
         <source>a shape whose link to a cell can&apos;t be used (it must be one cell)</source>
         <translation type="unfinished">bentuk yang tautannya ke sel tidak dapat digunakan (harus satu sel)</translation>
     </message>
@@ -78292,6 +78293,29 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
         <location line="+224"/>
         <source>Sheet name</source>
         <translation type="unfinished">Nama lembar</translation>
+    </message>
+</context>
+<context>
+    <name>jp::crunch::Slicer</name>
+    <message>
+        <location filename="../apps/crunch/core/slicerpaint.cpp" line="+139"/>
+        <source>More items: %1 (%2 chosen)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>More items: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>This slicer filters a table; JeffCrunch shows it but cannot use it yet.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>What this slicer filters is not in the file, so JeffCrunch shows it but cannot use it.</source>
+        <translation type="unfinished"></translation>
     </message>
 </context>
 <context>
