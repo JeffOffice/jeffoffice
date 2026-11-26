@@ -2421,6 +2421,9 @@ private Q_SLOTS:
         // the worksheet names the same drawing (in place of its own)
         const QString relsName = QStringLiteral("xl/worksheets/_rels/sheet1.xml.rels");
         QByteArray sheetRels = parts.value(relsName);
+        // (a drawing with nothing in it is not saved, so the worksheet may have none of its own: give it a link)
+        if (sheetRels.isEmpty()) sheetRels = "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\n<Relationships xmlns=\"http://schemas.openxmlformats.org/package/2006/relationships\"></Relationships>";
+        if (!sheetRels.contains("../drawings/")) sheetRels.replace("</Relationships>", "<Relationship Id=\"rIdOwnDrawing\" Type=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships/drawing\" Target=\"../drawings/x.xml\"/></Relationships>");
         QVERIFY(sheetRels.contains("../drawings/"));
         const qsizetype own = sheetRels.indexOf("../drawings/");
         const qsizetype ownEnd = sheetRels.indexOf('"', own);
