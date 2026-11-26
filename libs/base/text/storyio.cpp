@@ -197,18 +197,48 @@ void setStoryText(QTextDocument *doc, const QString &text)
     }
 }
 
+QString storyTextKeepingBreaks(const QTextDocument *doc)
+{
+    QString out;
+    for (QTextBlock b = doc->begin(); b.isValid(); b = b.next()) {
+        if (b != doc->begin()) out += QLatin1Char('\n');
+        out += b.text();
+    }
+    return out;
+}
+
+// What is kept is the text both share at the start and at the end (so the formatting of the runs, links, and lists there stays). When nothing is kept, the
+// new text takes the look of the FIRST paragraph and its first run (its paragraph format, its character format, and a list only if that paragraph was in one),
+// not of whatever paragraph the removal happens to leave standing: select all, type, and a note that ended in a bullet is not made a bullet.
 void replaceStoryText(QTextDocument *doc, const QString &text)
 {
-    const QString was = doc->toPlainText();
+    const QString was = storyTextKeepingBreaks(doc);
     const qsizetype most = std::min(was.size(), text.size());
     qsizetype head = 0;
     while (head < most && was.at(head) == text.at(head)) ++head;
     qsizetype tail = 0;
     while (tail < most - head && was.at(was.size() - 1 - tail) == text.at(text.size() - 1 - tail)) ++tail;
+    const bool keepsNothing = head == 0 && tail == 0;
+    const QTextBlock first = doc->begin();
+    const QTextBlockFormat firstBlock = first.blockFormat();
+    QTextCharFormat firstChars = first.charFormat();
+    if (!first.begin().atEnd()) firstChars = first.begin().fragment().charFormat();
+    QTextListFormat firstList;
+    const bool firstInList = first.textList();
+    if (firstInList) firstList = first.textList()->format();
     QTextCursor c(doc);
     c.setPosition(int(head));
     c.setPosition(int(was.size() - tail), QTextCursor::KeepAnchor);
     c.removeSelectedText();
+    if (keepsNothing) {
+        if (c.currentList()) c.currentList()->remove(c.block());
+        QTextBlockFormat plain = firstBlock;
+        plain.setObjectIndex(-1);
+        c.setBlockFormat(plain);
+        c.setBlockCharFormat(firstChars);
+        c.setCharFormat(firstChars);
+        if (firstInList) c.createList(firstList);
+    }
     const QStringList paras = text.mid(head, text.size() - head - tail).split('\n');
     for (int i = 0; i < paras.size(); ++i) {
         if (i) c.insertBlock();

@@ -1,4 +1,5 @@
 #include "app/presenterview.h"
+#include "text/storyio.h"
 
 #include "app/settings.h"
 #include "app/slideshow.h"
@@ -335,9 +336,10 @@ void PresenterView::refresh()
     // What was typed is kept before another slide's notes come; on the same slide, the deck changing under it does not take typing away.
     if (!(m_typed && pageId == m_notesPage)) {
         commitNotes();
-        const QString notes = onSlide ? deck::notesText(*doc, *doc->pages[slide]) : QString();
+        const QTextDocument *story = onSlide ? doc->storyDoc(doc->pages[slide]->notesStoryId) : nullptr;
+        const QString notes = story ? storyTextKeepingBreaks(story) : QString();   // (a line break stays one)
         m_loadingNotes = true;
-        if (notes != m_notes->toPlainText()) {
+        if (notes != storyTextKeepingBreaks(m_notes->document())) {
             const bool atEnd = m_notes->textCursor().position() >= m_notes->document()->characterCount() - 1;   // (a cursor at the end stays there)
             m_notes->setPlainText(notes);
             if (atEnd) m_notes->moveCursor(QTextCursor::End);
@@ -368,8 +370,10 @@ void PresenterView::commitNotes()
     if (!m_show || m_notesPage.isEmpty()) return;
     const Document *doc = m_show->document();
     const int at = doc->pageIndexOf(m_notesPage);
-    const QString text = m_notes->toPlainText();
-    if (at < 0 || deck::notesText(*doc, *doc->pages[at]) == text) return;
+    const QString text = storyTextKeepingBreaks(m_notes->document());
+    if (at < 0) return;
+    const QTextDocument *was = doc->storyDoc(doc->pages[at]->notesStoryId);
+    if ((was ? storyTextKeepingBreaks(was) : QString()) == text) return;
     m_show->editNotes(m_notesPage, text);
 }
 

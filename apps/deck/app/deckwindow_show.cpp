@@ -622,7 +622,7 @@ void DeckWindow::watchShow(SlideShow *show, bool recording)
         const int i = d->pageIndexOf(pageId);
         if (i < 0 || m_ed->readOnly()) return;
         Page &slide = *d->pages[i];
-        if (deck::notesText(*d, slide) == text) return;
+        if (const QTextDocument *was = d->storyDoc(slide.notesStoryId); (was ? storyTextKeepingBreaks(was) : QString()) == text) return;
         m_ed->endTextEdit();
         m_ed->beginChange(tr("Notes"));
         if (slide.notesStoryId.isEmpty() || !d->storyDoc(slide.notesStoryId)) slide.notesStoryId = d->createStory();

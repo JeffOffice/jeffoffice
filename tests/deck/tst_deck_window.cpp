@@ -1446,6 +1446,188 @@ private Q_SLOTS:
         QCOMPARE(story.blockCount(), 1);
     }
 
+    // Which words are bold, which are linked, and which paragraphs are bulleted, as one text: what an edit must not move onto other words.
+    static QString lookOf(const QTextDocument *story)
+    {
+        QStringList bold, linked, bullets, plainBlocks;
+        for (QTextBlock b = story->begin(); b.isValid(); b = b.next()) {
+            (b.textList() ? bullets : plainBlocks) << b.text();
+            for (QTextBlock::iterator it = b.begin(); !it.atEnd(); ++it) {
+                const QTextCharFormat cf = it.fragment().charFormat();
+                if (cf.fontWeight() > QFont::Normal) bold << it.fragment().text();
+                if (cf.isAnchor()) linked << it.fragment().text() + QLatin1Char('>') + cf.anchorHref();
+            }
+        }
+        return QStringLiteral("bold=%1 linked=%2 bullets=%3 plain=%4").arg(bold.join(QLatin1Char(',')), linked.join(QLatin1Char(',')), bullets.join(QLatin1Char(',')), plainBlocks.join(QLatin1Char(',')));
+    }
+
+    // "start " then bold BOLD, " mid ", a link, " end"; a second paragraph; a bulleted last paragraph.
+    static void formattedNote(QTextDocument *story, bool boldFirst = false)
+    {
+        story->clear();
+        QTextCursor c(story);
+        QTextCharFormat bold, link, plain;
+        bold.setFontWeight(QFont::Bold);
+        link.setAnchor(true);
+        link.setAnchorHref(QStringLiteral("https://example.com/l"));
+        c.insertText(QStringLiteral("start "), boldFirst ? bold : plain);
+        c.insertText(QStringLiteral("BOLD"), bold);
+        c.insertText(QStringLiteral(" mid "), plain);
+        c.insertText(QStringLiteral("LINK"), link);
+        c.insertText(QStringLiteral(" end"), plain);
+        c.insertBlock();
+        c.insertText(QStringLiteral("two"), plain);
+        c.insertBlock();
+        c.insertText(QStringLiteral("item"), plain);
+        c.createList(QTextListFormat::ListDisc);
+    }
+
+    // Typing after select all: nothing of the old note is kept, so the new words take the first paragraph's look (plain, not the bullet the last paragraph was), as
+    // they did before notes kept their formatting.
+    void replacingAllTheNotesTakesTheFirstParagraphsLook()
+    {
+        DeckWindow w;
+        Editor *ed = w.editor();
+        w.newSlide();
+        ed->setCurrentPage(0);
+        QTextDocument *story = ed->doc()->storyDoc(ed->doc()->pages[0]->notesStoryId);
+        formattedNote(story);
+        QVERIFY(story->lastBlock().textList());
+        NotesPane *pane = w.notesPane();
+        pane->reload();
+        pane->setFocus();
+        QTest::keyClick(pane, Qt::Key_A, Qt::ControlModifier);
+        QTest::keyClick(pane, Qt::Key_Delete);
+        QTest::keyClicks(pane, QStringLiteral("fresh"));
+        pane->commit();
+        story = ed->doc()->storyDoc(ed->doc()->pages[0]->notesStoryId);
+        QCOMPARE(deck::notesText(*ed->doc(), *ed->doc()->pages[0]), QStringLiteral("fresh"));
+        QCOMPARE(story->blockCount(), 1);
+        QVERIFY(!story->firstBlock().textList());
+        QCOMPARE(lookOf(story), QStringLiteral("bold= linked= bullets= plain=fresh"));
+        // A note whose first paragraph is bold and in a list gives both to what replaces it.
+        QTextDocument *again = ed->doc()->storyDoc(ed->doc()->pages[0]->notesStoryId);
+        again->clear();
+        QTextCursor c(again);
+        QTextCharFormat bold;
+        bold.setFontWeight(QFont::Bold);
+        c.insertText(QStringLiteral("head"), bold);
+        c.createList(QTextListFormat::ListDisc);
+        c.insertBlock();
+        c.insertText(QStringLiteral("tail"));
+        jp::replaceStoryText(again, QStringLiteral("new\nnext"));
+        QCOMPARE(lookOf(again), QStringLiteral("bold=new,next linked= bullets=new,next plain="));
+    }
+
+    void replacingAllOfAStoryTakesTheFirstParagraphsLook()
+    {
+        QTextDocument story;
+        formattedNote(&story, true);
+        jp::replaceStoryText(&story, QStringLiteral("fresh"));
+        QCOMPARE(lookOf(&story), QStringLiteral("bold=fresh linked= bullets= plain=fresh"));
+        QCOMPARE(story.blockCount(), 1);
+        jp::replaceStoryText(&story, QString());
+        QVERIFY(story.toPlainText().isEmpty());
+        QCOMPARE(story.blockCount(), 1);
+        QVERIFY(!story.firstBlock().textList());
+    }
+
+    // An edit at the start and one at the end, with no pause between them, are two changes: the bold run, the link, and the bullet between them stay, whether the caret
+    // went to the end by a key or by a click.
+    void twoEditsWithoutAPauseKeepTheFormattingBetweenThem()
+    {
+        DeckWindow w;
+        Editor *ed = w.editor();
+        w.newSlide();
+        ed->setCurrentPage(0);
+        w.resize(900, 700);
+        w.show();
+        QTextDocument *story = ed->doc()->storyDoc(ed->doc()->pages[0]->notesStoryId);
+        formattedNote(story);
+        const QString want = QStringLiteral("bold=BOLD linked=LINK>https://example.com/l bullets=item");
+        NotesPane *pane = w.notesPane();
+        pane->reload();
+        pane->setFocus();
+        for (const bool byClick : {false, true}) {
+            QTest::keyClick(pane, Qt::Key_Home, Qt::ControlModifier);
+            QTest::keyClicks(pane, QStringLiteral("X"));
+            QVERIFY(pane->hasTyping());
+            if (byClick) {
+                const QRect last = pane->cursorRect(QTextCursor(pane->document()->lastBlock()));
+                QTest::mouseClick(pane->viewport(), Qt::LeftButton, Qt::NoModifier, QPoint(pane->viewport()->width() - 2, last.center().y()));
+                QVERIFY2(!pane->hasTyping(), "the click saved what was typed");
+            } else {
+                QTest::keyClick(pane, Qt::Key_End, Qt::ControlModifier);
+                QVERIFY2(!pane->hasTyping(), "moving the caret away saved what was typed");
+            }
+            QTest::keyClicks(pane, byClick ? QStringLiteral("Z") : QStringLiteral("Y"));
+            pane->commit();
+            story = ed->doc()->storyDoc(ed->doc()->pages[0]->notesStoryId);
+            QVERIFY2(lookOf(story).startsWith(want), qPrintable(lookOf(story)));
+        }
+        QVERIFY(deck::notesText(*ed->doc(), *ed->doc()->pages[0]).startsWith(QStringLiteral("XXstart ")));
+        QVERIFY(deck::notesText(*ed->doc(), *ed->doc()->pages[0]).endsWith(QStringLiteral("itemYZ")));
+    }
+
+    // A line break inside a paragraph stays a line break through an edit of the words around it, in the notes pane and in a replacement of the story's text.
+    void aLineBreakInNotesStaysALineBreak()
+    {
+        DeckWindow w;
+        Editor *ed = w.editor();
+        w.newSlide();
+        ed->setCurrentPage(0);
+        QTextDocument *story = ed->doc()->storyDoc(ed->doc()->pages[0]->notesStoryId);
+        story->clear();
+        QTextCursor c(story);
+        c.insertText(QStringLiteral("one"));
+        c.insertText(QString(QChar(0x2028)));
+        c.insertText(QStringLiteral("two"));
+        c.insertBlock();
+        c.insertText(QStringLiteral("three"));
+        QCOMPARE(story->blockCount(), 2);
+        NotesPane *pane = w.notesPane();
+        pane->reload();
+        QCOMPARE(pane->document()->blockCount(), 2);
+        pane->moveCursor(QTextCursor::End);
+        QTest::keyClicks(pane, QStringLiteral("!"));
+        pane->commit();
+        story = ed->doc()->storyDoc(ed->doc()->pages[0]->notesStoryId);
+        QCOMPARE(story->blockCount(), 2);
+        QCOMPARE(story->firstBlock().text(), QStringLiteral("one\u2028two"));
+        QCOMPARE(story->lastBlock().text(), QStringLiteral("three!"));
+        // A line break typed in the changed part is a line break too.
+        pane->moveCursor(QTextCursor::End);
+        QTest::keyClick(pane, Qt::Key_Return, Qt::ShiftModifier);
+        QTest::keyClicks(pane, QStringLiteral("more"));
+        pane->commit();
+        story = ed->doc()->storyDoc(ed->doc()->pages[0]->notesStoryId);
+        QCOMPARE(story->blockCount(), 2);
+        QCOMPARE(story->lastBlock().text(), QStringLiteral("three!\u2028more"));
+        QCOMPARE(jp::storyTextKeepingBreaks(story), QStringLiteral("one\u2028two\nthree!\u2028more"));
+    }
+
+    // After an edit, the same words are bold, linked, and bulleted as before (counting fragments would not see formatting land on other words).
+    void anEditKeepsFormattingOnTheSameWords()
+    {
+        const QString base = QStringLiteral("bold=BOLD linked=LINK>https://example.com/l bullets=item plain=start  mid  end,two");
+        QTextDocument story;
+        formattedNote(&story);
+        QCOMPARE(lookOf(&story), QStringLiteral("bold=BOLD linked=LINK>https://example.com/l bullets=item plain=start BOLD mid LINK end,two"));
+        const QString text = jp::storyTextKeepingBreaks(&story);
+        jp::replaceStoryText(&story, QStringLiteral(">> ") + text);
+        QVERIFY2(lookOf(&story).startsWith(QStringLiteral("bold=BOLD linked=LINK>https://example.com/l bullets=item plain=>> start")), qPrintable(lookOf(&story)));
+        const QString now = jp::storyTextKeepingBreaks(&story);
+        jp::replaceStoryText(&story, QString(now).insert(now.indexOf(QStringLiteral(" mid")), QStringLiteral("er")));
+        QVERIFY2(lookOf(&story).contains(QStringLiteral("bold=BOLDer linked=LINK>")), qPrintable(lookOf(&story)));
+        QCOMPARE(story.lastBlock().text(), QStringLiteral("item"));
+        QVERIFY(story.lastBlock().textList() && !story.firstBlock().textList());
+        QTextDocument two;
+        formattedNote(&two);
+        jp::replaceStoryText(&two, QString(text).replace(QStringLiteral("item"), QStringLiteral("itemized")));
+        QCOMPARE(lookOf(&two), QStringLiteral("bold=BOLD linked=LINK>https://example.com/l bullets=itemized plain=start BOLD mid LINK end,two"));
+        Q_UNUSED(base);
+    }
+
 private:
     // What a menu offers, by id: each command by its action's id (a spelling suggestion by its words), each submenu as [its title],
     // and what is in it with the title and a colon before.
