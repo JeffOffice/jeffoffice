@@ -1041,7 +1041,7 @@
        "items": [
         {
          "status": "partly",
-         "text": "bea7657e37bcebfaf5305cd8db6cd49e2f176b9a1df203e4665dbe8d3c568fc3"
+         "text": "49d7a6f58c6341aade779a2e66f593093fb7bb76b2b0729b3f181407e913487a"
         },
         {
          "status": "partly",
@@ -3930,7 +3930,7 @@
         },
         {
          "status": "partly",
-         "text": "54fd472769db9f446b5d7c3481be0c680597ad678275509eb1840de9d638c817"
+         "text": "1da52561daa4f66a3251fd610ec3c36dd956ed11ed428cace6cc466c0e064483"
         }
        ]
       }
@@ -10100,6 +10100,18 @@
     "fr": ""
    }
   },
+  "1da52561daa4f66a3251fd610ec3c36dd956ed11ed428cace6cc466c0e064483": {
+   "drop": false,
+   "en": "Speaker notes keep formatting: bold, italic, bulleted and numbered lists, and links. Notes are read from and saved to `.pptx` and `.odp` files, and read from older `.ppt` files.",
+   "es": "Las notas del orador conservan el formato: negrita, cursiva, listas con viñetas y numeradas, y vínculos. Las notas se leen y se guardan en archivos `.pptx` y `.odp`, y se leen de archivos `.ppt` antiguos.",
+   "fr": "Les notes du présentateur conservent la mise en forme : gras, italique, listes à puces et numérotées, et liens. Les notes sont lues et enregistrées dans les fichiers `.pptx` et `.odp`, et lues dans les anciens fichiers `.ppt`.",
+   "soon": {
+    "drop": false,
+    "en": "Formatted note editing in the notes pane, Notes Page view, Presenter View, and the Speaker Notes box",
+    "es": "Edición de notas con formato en el panel de notas, la vista Página de notas, la vista del presentador y el cuadro de notas del orador",
+    "fr": "Modification des notes avec mise en forme dans le volet des notes, la vue Page de notes, le mode Présentateur et la zone de notes du présentateur"
+   }
+  },
   "1db56d1b1eb814a1a09d3d5482f651440495744fcc565b924dc338b3ed06f150": {
    "drop": false,
    "en": "Add Animation gives a shape a second effect, started on a click.",
@@ -13916,6 +13928,18 @@
     "fr": ""
    }
   },
+  "49d7a6f58c6341aade779a2e66f593093fb7bb76b2b0729b3f181407e913487a": {
+   "drop": false,
+   "en": "Open a text file or `.csv` file through an import preview where you set the file origin and encoding, delimiter, and column types. The app guesses each column's type from the first 200 rows, and you can change it before opening. The data then loads into a sheet.",
+   "es": "Abra un archivo de texto o `.csv` mediante una vista previa de importación donde define el origen y la codificación del archivo, el delimitador y los tipos de columna. La aplicación deduce el tipo de cada columna a partir de las primeras 200 filas, y usted puede cambiarlo antes de abrir. Después los datos se cargan en una hoja.",
+   "fr": "Ouvrez un fichier texte ou `.csv` grâce à un aperçu d’importation où vous réglez l’origine et l’encodage du fichier, le délimiteur et les types de colonnes. L’application devine le type de chaque colonne à partir des 200 premières lignes, et vous pouvez le modifier avant l’ouverture. Les données sont ensuite chargées dans une feuille.",
+   "soon": {
+    "drop": false,
+    "en": "Import preview: choose how many rows to check for types",
+    "es": "Vista previa de importación: elegir cuántas filas revisar para deducir los tipos",
+    "fr": "Aperçu d’importation : choix du nombre de lignes analysées pour déterminer les types"
+   }
+  },
   "49dda2ec2ffee02f1fcbdcfd769c27f7fd08920de0152f17470f2539e85f189c": {
    "drop": true,
    "en": "",
@@ -14730,18 +14754,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "54fd472769db9f446b5d7c3481be0c680597ad678275509eb1840de9d638c817": {
-   "drop": false,
-   "en": "Speaker notes hold plain text.",
-   "es": "Las notas del orador contienen texto sin formato.",
-   "fr": "Les notes du présentateur contiennent du texte brut.",
-   "soon": {
-    "drop": false,
-    "en": "Formatted speaker notes: bold, italic, lists, links, and pictures",
-    "es": "Notas del orador con formato: negrita, cursiva, listas, vínculos e imágenes",
-    "fr": "Notes du présentateur mises en forme : gras, italique, listes, liens et images"
    }
   },
   "553acb1ef0f072c9ad28fa881d9938f292def3e339a1656c4387bed6d732f606": {
@@ -21978,18 +21990,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "bea7657e37bcebfaf5305cd8db6cd49e2f176b9a1df203e4665dbe8d3c568fc3": {
-   "drop": false,
-   "en": "Open a text file from the Data tab with From Text/CSV, or through Open a Text File, and load it into a sheet.",
-   "es": "Abra un archivo de texto desde la pestaña Datos con Desde texto/CSV, o mediante Abrir un archivo de texto, y cárguelo en una hoja.",
-   "fr": "Ouvrez un fichier texte depuis l’onglet Données avec À partir d’un fichier texte/CSV, ou via Ouvrir un fichier texte, et chargez-le dans une feuille.",
-   "soon": {
-    "drop": false,
-    "en": "Number of rows to check when guessing column types",
-    "es": "Número de filas que se revisan para determinar los tipos de columna",
-    "fr": "Nombre de lignes analysées pour deviner les types de colonnes"
    }
   },
   "bec6b31b2841516c6bb00a8315da999645395b93471d02f528675243c7072d5f": {
