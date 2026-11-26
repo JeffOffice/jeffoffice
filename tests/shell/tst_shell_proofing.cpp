@@ -13,7 +13,9 @@
 #include <QFile>
 #include <QFileInfo>
 #include <QLabel>
+#include <QFileSystemWatcher>
 #include <QLineEdit>
+#include <QLockFile>
 #include <QListWidget>
 #include <QProcess>
 #include <QPushButton>
@@ -274,6 +276,59 @@ private Q_SLOTS:
         QVERIFY(s.excludedWords().isEmpty());
         QVERIFY(!s.check(kEn, QStringLiteral("zznew")));
         QVERIFY(s.check(kEn, QStringLiteral("zzkeep")));
+    }
+
+    void aDictionaryPathThatIsAFolderMakesNoLockAttemptAndIsNotWatched()
+    {
+        QTemporaryDir dir;
+        Speller s(dir.path());
+        QString error;
+        QVERIFY(!s.add(QStringLiteral("zzfolder"), &error));
+        QVERIFY(!error.isEmpty());
+        QCOMPARE(s.lockTries(), 0);
+        QVERIFY(!QFileInfo::exists(dir.path() + QStringLiteral(".lock")));
+        SpellingWatch *watch = s.watch();
+        watch->watchFiles({dir.path()});
+        QFileSystemWatcher *files = watch->findChild<QFileSystemWatcher *>();
+        QVERIFY(files);
+        QVERIFY(files->files().isEmpty());
+        QVERIFY(files->directories().isEmpty());   // (neither the folder nor the busy folder around it)
+    }
+
+    void aLockFileLeftByAProgramThatEndedIsSteppedOver()
+    {
+        QTemporaryDir dir;
+        const QString path = dir.filePath(QStringLiteral("words.txt"));
+        {
+            QFile f(path + QStringLiteral(".lock"));
+            QVERIFY(f.open(QIODevice::WriteOnly));
+            f.write("4000000\nstalelock\n" + QSysInfo::machineHostName().toUtf8() + "\n");   // (a process number nothing has)
+        }
+        Speller s(path);
+        s.setLockWait(0);   // (a stale lock is not waited for at all)
+        QString error;
+        QVERIFY2(s.add(QStringLiteral("zzstale"), &error), qPrintable(error));
+        QCOMPARE(s.lockTries(), 1);
+        QCOMPARE(s.customWords(), QStringList{QStringLiteral("zzstale")});
+    }
+
+    void aLockHeldByAnotherProgramFailsTheAddWithItsMessageAfterTheNamedLimit()
+    {
+        QTemporaryDir dir;
+        const QString path = dir.filePath(QStringLiteral("words.txt"));
+        QLockFile held(path + QStringLiteral(".lock"));
+        QVERIFY(held.tryLock());
+        Speller s(path);
+        QVERIFY(s.lockWait() > 0 && s.lockWait() <= 1000);   // (the window is never held for long)
+        s.setLockWait(0);   // (so that the test itself does not wait)
+        QString error;
+        QVERIFY(!s.add(QStringLiteral("zzheld"), &error));
+        QCOMPARE(error, QCoreApplication::translate("Proofing", "Another program is saving words just now. Try again in a moment."));
+        QCOMPARE(s.lockTries(), 1);   // (one bounded attempt, not a loop of them)
+        QVERIFY(s.customWords().isEmpty());
+        held.unlock();
+        QVERIFY(s.add(QStringLiteral("zzheld")));
+        QCOMPARE(s.customWords(), QStringList{QStringLiteral("zzheld")});
     }
 
     void aReadOnlyFileIsRefusedTheSameWayByAddAndByTheDialogAndIsNotReplaced()

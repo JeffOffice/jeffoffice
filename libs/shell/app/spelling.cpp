@@ -292,6 +292,7 @@ void SpellingWatch::watchFiles(const QStringList &files)
     if (!m_files->directories().isEmpty()) m_files->removePaths(m_files->directories());
     for (const QString &f : files) {
         const QFileInfo info(f);
+        if (info.isDir()) continue;   // (a folder is not a list: it and the folder around it are not watched)
         if (info.exists()) m_files->addPath(f);
         if (info.dir().exists()) m_files->addPath(info.absolutePath());
     }
@@ -329,10 +330,14 @@ bool Speller::change(const WordChanges &c, QString *error)
             if (!fitWord(w.trimmed()))
                 return fail(QCoreApplication::translate("Proofing", "A word can't be empty, have a space or a control character in it, or be longer than %n letters.", nullptr, kMaxWordLength));
     const QString customFile = customPath(), excludedFile = excludedPath();
-    // One lock for both files, beside the first, waited for a short time: another app may be saving its words at this moment.
+    // (A folder can't be a list: no lock is asked for beside it.)
+    for (const QString &file : {customFile, excludedFile})
+        if (QFileInfo(file).isDir()) return fail(QCoreApplication::translate("Proofing", "The dictionary is a folder, not a file."));
+    // One lock for both files, beside the first, waited for a short time (kLockWaitMs): another app may be saving its words at this moment.
     QLockFile lock(customFile + QStringLiteral(".lock"));
     lock.setStaleLockTime(30000);
-    if (!lock.tryLock(5000))
+    ++m_lockTries;
+    if (!lock.tryLock(m_lockWaitMs))
         return fail(lock.error() == QLockFile::LockFailedError ? QCoreApplication::translate("Proofing", "Another program is saving words just now. Try again in a moment.")
                                                                : QCoreApplication::translate("Proofing", "The folder of the dictionary can't be written to."));
     for (const QString &file : {customFile, excludedFile}) {

@@ -72,6 +72,12 @@ public:
     bool reload();
     // Counts the changes to the words that are accepted (Ignore All, Add to Dictionary): an answer kept from before a change is stale.
     int revision() const { return m_revision; }
+    // The most a change waits for the lock of the files, in milliseconds: another app saving its words takes a moment, and a window is never held for long.
+    static constexpr int kLockWaitMs = 1000;
+    // For the tests: how long this speller waits for the lock, and how many times it has asked for one.
+    int lockWait() const { return m_lockWaitMs; }
+    void setLockWait(int ms) { m_lockWaitMs = ms; }
+    int lockTries() const { return m_lockTries; }
 
 private:
     Speller();
@@ -83,6 +89,8 @@ private:
     QString m_fixedPath;                // a speller made for a file of its own
     int m_revision = 0;
     bool m_saveFailed = false;          // the last save failed
+    int m_lockWaitMs = kLockWaitMs;
+    int m_lockTries = 0;
     SpellingWatch *m_watch = nullptr;
     friend class SpellingWatch;
 };
