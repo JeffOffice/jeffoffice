@@ -942,16 +942,44 @@ private Q_SLOTS:
 
     void chartSvgNamesRadarCategoriesAroundTheRim()
     {
-        const QString plot = QStringLiteral("<c:radarChart><c:radarStyle val=\"standard\"/>") + chartSeries(0, QStringLiteral("R"), {"North", "East", "South", "West"}, {1, 2, 3, 4})
+        const QString plot = QStringLiteral("<c:radarChart><c:radarStyle val=\"standard\"/>") + chartSeries(0, QStringLiteral("R"), {"North", "East", "South", "Far far West"}, {1, 2, 3, 4})
                              + QStringLiteral("<c:axId val=\"111\"/><c:axId val=\"222\"/></c:radarChart>") + chartAxes();
         Chart c;
         QString err;
         QVERIFY2(readChart(chartPart(plot), defaultTheme(), ColorMap(), &c, &err), qPrintable(err));
         const QString svg = QString::fromUtf8(chartSvg(c, QSizeF(400, 300)));
-        for (const char *name : {"North", "East", "South", "West"}) QVERIFY2(svg.contains(QStringLiteral(">%1<").arg(QLatin1String(name))), name);
+        for (const char *name : {"North", "East", "South", "Far far West"}) QVERIFY2(svg.contains(QStringLiteral(">%1<").arg(QLatin1String(name))), name);
         // the value axis is marked along the top spoke, to the scale's end
         QVERIFY(svg.contains(QStringLiteral(">4<")) && svg.contains(QStringLiteral(">0<")));
         QVERIFY(!svg.contains(QStringLiteral(">6<")));
+        // Where each name is, from the picture's own text: North above the middle with East, South, and West following clockwise; each name flush against the spoke it is beside
+        {
+            const QVector<TextAt> t = textsOf(chartSvg(c, QSizeF(400, 300)));
+            QVERIFY2(t.size() >= 4, qPrintable(QString::number(t.size())));
+            const TextAt n = textNamed(t, "North"), e = textNamed(t, "East"), so = textNamed(t, "South"), w = textNamed(t, "Far far West");
+            const double mid = n.x + n.width / 2;
+            QVERIFY2(qAbs(so.x + so.width / 2 - mid) < 3, "North and South are on one vertical line, each centered on it");
+            QVERIFY2(e.x > mid + 2, "East is to the right of the top spoke");
+            // flush against the rim: East starts as far right of the middle as West ends left of it, whatever their lengths
+            QVERIFY2(qAbs((e.x - mid) - (mid - (w.x + w.width))) < 2, qPrintable(QStringLiteral("%1 and %2").arg(e.x - mid).arg(mid - (w.x + w.width))));
+            QVERIFY2(w.x + w.width < mid - 2, "West is to the left of the top spoke");
+            QVERIFY2(n.y < e.y && e.y < so.y, "from the top: North, East, South");
+            QVERIFY2(qAbs(e.y - w.y) < 1 && qAbs(e.y - (n.y + so.y) / 2) < 1, "East and West are level, halfway between North and South");
+            // the first name is above the middle of the figure, not beside it
+            QVERIFY2(n.y < e.y - 20 && so.y > e.y + 20, "North is well above the middle and South well below it");
+        }
+        {
+            // three names: the first at the top, the second to the lower right, the third to the lower left
+            const QString three = QStringLiteral("<c:radarChart><c:radarStyle val=\"standard\"/>") + chartSeries(0, QStringLiteral("R"), {"Alpha", "Bravo", "Charlie"}, {3, 2, 1})
+                                  + QStringLiteral("<c:axId val=\"111\"/><c:axId val=\"222\"/></c:radarChart>") + chartAxes();
+            Chart c3;
+            QVERIFY2(readChart(chartPart(three), defaultTheme(), ColorMap(), &c3, &err), qPrintable(err));
+            const QVector<TextAt> t = textsOf(chartSvg(c3, QSizeF(400, 300)));
+            const TextAt a = textNamed(t, "Alpha"), b = textNamed(t, "Bravo"), ch = textNamed(t, "Charlie");
+            const double mid = a.x + a.width / 2;
+            QVERIFY2(b.x > mid && ch.x + ch.width < mid, "the second name is right of the first one's spoke and the third left of it");
+            QVERIFY2(a.y < b.y && qAbs(b.y - ch.y) < 1, "the first is highest; the second and third are level");
+        }
         // North is named at the top of the figure, South at the bottom, West at the left, and East at the right: dark text there, in the middle of the edges
         const QImage img = renderChart(c, QSizeF(400, 300), 2);
         auto dark = [&](const QRect &r) {
@@ -1580,6 +1608,33 @@ private Q_SLOTS:
     }
 
 private:
+    // The text of a chart picture: each piece's left end, its baseline, and its width (measured in the font the picture names).
+    struct TextAt {
+        QString text;
+        double x = 0, y = 0, width = 0;
+    };
+    static QVector<TextAt> textsOf(const QByteArray &svg)
+    {
+        QVector<TextAt> out;
+        const QRegularExpression re(QStringLiteral("transform=\"matrix\\(1,0,0,1,([-0-9.e]+),([-0-9.e]+)\\)\"[^>]*>\\s*<text [^>]* x=\"([-0-9.e]+)\" y=\"([-0-9.e]+)\" font-family=\"([^\"]*)\" font-size=\"([0-9.]+)\"[^>]*>([^<]+)</text>"));
+        for (const QRegularExpressionMatch &m : re.globalMatch(QString::fromUtf8(svg))) {
+            TextAt t;
+            t.text = m.captured(7);
+            t.x = m.captured(1).toDouble() + m.captured(3).toDouble();
+            t.y = m.captured(2).toDouble() + m.captured(4).toDouble();
+            QFont f(m.captured(5));
+            f.setPixelSize(int(m.captured(6).toDouble()));
+            t.width = QFontMetricsF(f).horizontalAdvance(t.text);
+            out << t;
+        }
+        return out;
+    }
+    static TextAt textNamed(const QVector<TextAt> &texts, const char *name)
+    {
+        for (const TextAt &t : texts)
+            if (t.text == QLatin1String(name)) return t;
+        return TextAt();
+    }
     // A chart part: `body` (the plot area's kinds and axes) in a c:chart, after an optional title, with an optional legend.
     static QByteArray chartPart(const QString &body, const QString &title = QString(), const QString &legend = QString(), const QString &chartSpaceExtra = QString())
     {
