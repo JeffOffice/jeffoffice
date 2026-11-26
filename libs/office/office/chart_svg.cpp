@@ -1290,8 +1290,14 @@ void ChartPainter::drawBetweenSeries(const View &v, const Scale &scale)
     for (int i = 0; i < m_n; ++i) {
         double high = -std::numeric_limits<double>::infinity(), low = std::numeric_limits<double>::infinity();
         int finite = 0;
-        for (int k = 0; k < plot.series.size(); ++k) {
+        // (a stock chart draws an empty cell as the chart says: left out, or at zero)
+        const bool blankIsZero = plot.stock && m_chart.blanksAs == QLatin1String("zero");
+        auto valueOf = [&](int k) {
             const double value = v.segs[k][i].to;
+            return blankIsZero && !std::isfinite(value) ? 0.0 : value;
+        };
+        for (int k = 0; k < plot.series.size(); ++k) {
+            const double value = valueOf(k);
             if (!std::isfinite(value)) continue;
             high = std::max(high, value);
             low = std::min(low, value);
@@ -1307,7 +1313,7 @@ void ChartPainter::drawBetweenSeries(const View &v, const Scale &scale)
             m_p->drawLine(at(catUnit(i), high, scale), at(catUnit(i), low, scale));
         }
         if (plot.upDownBars && plot.series.size() > 1) {
-            const double first = v.segs[0][i].to, last = v.segs[plot.series.size() - 1][i].to;
+            const double first = valueOf(0), last = valueOf(int(plot.series.size()) - 1);
             if (!std::isfinite(first) || !std::isfinite(last)) continue;
             const double bar = 1.0 / (1.0 + plot.upDownGap / 100.0);
             const QRectF r = rectOf(catUnit(i) - bar / 2, catUnit(i) + bar / 2, first, last, scale);
@@ -2303,6 +2309,7 @@ Pieces piecesOf(const ChartPlot &plot, const ChartSeries &s, const QString &blan
     Pieces out;
     switch (plot.type) {
     case ChartType::Line: {
+        if (plot.stock) out.shapes = finite(s.values);   // (a high-low line and a bar for each category)
         const ChartMarker::Symbol symbol = s.marker.symbol;
         if (symbol != ChartMarker::None && (symbol != ChartMarker::Auto || plot.markers)) out.markers = finite(s.values);
         break;
@@ -2425,7 +2432,14 @@ Chart unfiltered(const Chart &chart)
         for (const ChartSeries &s : plot.series) any = any || s.filtered;
     bool unitLabels = false;
     for (const ChartAxis &a : chart.axes) unitLabels = unitLabels || (a.dispUnitShowLabel && a.dispUnitFactor() != 1);
-    if (!any && !unitLabels) return chart;
+    bool badStock = false;   // a stock plot whose series a filter (or an edit) left fitting no form
+    for (const ChartPlot &plot : chart.plots) badStock = badStock || plot.stock;
+    if (badStock) {
+        Chart probe = chart;
+        for (ChartPlot &plot : probe.plots) plot.series.erase(std::remove_if(plot.series.begin(), plot.series.end(), [](const ChartSeries &s) { return s.filtered; }), plot.series.end());
+        badStock = chartStockForm(probe) == ChartStockForm::None;
+    }
+    if (!any && !unitLabels && !badStock) return chart;
     Chart out = chart;
     // the unit's name is the axis title, or goes after it in brackets
     for (ChartAxis &a : out.axes) {
@@ -2436,9 +2450,16 @@ Chart unfiltered(const Chart &chart)
         a.title.ref.clear();
         a.title.text = titled ? a.title.text + QStringLiteral(" (") + name + QLatin1Char(')') : name;
     }
-    if (!any) return out;
+    if (!any && !badStock) return out;
     for (ChartPlot &plot : out.plots)
         plot.series.erase(std::remove_if(plot.series.begin(), plot.series.end(), [](const ChartSeries &s) { return s.filtered; }), plot.series.end());
+    if (badStock)
+        for (ChartPlot &plot : out.plots)
+            if (plot.stock) {
+                plot.stock = false;   // (drawn as a kind not drawn yet is: columns of its values)
+                plot.type = ChartType::Other;
+                plot.hiLowLines = plot.upDownBars = false;
+            }
     return out;
 }
 

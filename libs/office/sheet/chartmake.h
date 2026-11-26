@@ -14,7 +14,8 @@
 namespace jp::office::sheet {
 
 enum class ChartKind : quint8 {
-    Column, ColumnStacked, ColumnPercent, Bar, BarStacked, BarPercent, Line, LineMarkers, LineStacked, Pie, Doughnut, Area, AreaStacked, Scatter, ScatterLines, ScatterSmooth, Combo, Radar, RadarMarkers, RadarFilled
+    Column, ColumnStacked, ColumnPercent, Bar, BarStacked, BarPercent, Line, LineMarkers, LineStacked, Pie, Doughnut, Area, AreaStacked, Scatter, ScatterLines, ScatterSmooth, Combo, Radar, RadarMarkers, RadarFilled,
+    StockHLC, StockOHLC, StockVHLC, StockVOHLC   // stock: high-low-close, open-high-low-close, and the same with the volume first (a series of columns, the prices against a second axis)
 };
 
 // Where a series reads (empty: none).
@@ -68,6 +69,12 @@ struct SeriesKind {
 // axes they need. A pie or doughnut is its series alone, and bars across with other kinds are columns. `like`, if given, is a chart whose look is kept: its title, legend, page, and the
 // titles, gridlines, and scale of its first axes.
 jp::office::Chart chartFromSeries(const QVector<jp::office::ChartSeries> &series, const QVector<SeriesKind> &kinds, const jp::office::Theme &theme, const jp::office::Chart *like = nullptr);
+
+// Why a stock kind cannot be made of `seriesCount` series, in a sentence that names the order they must be in; empty for a kind that is not stock, or whose series are as many as it needs. The forms are told apart by
+// the number of series and their order, so a selection that does not fit one is refused with this, never drawn as something else.
+QString stockProblem(ChartKind kind, int seriesCount);
+// Whether the kind is one of the four stock kinds.
+bool isStockKind(ChartKind kind);
 
 // The kind of one plot, as this makes it.
 ChartKind kindOfPlot(const jp::office::ChartPlot &plot);

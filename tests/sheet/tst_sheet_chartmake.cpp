@@ -6,10 +6,12 @@
 #include "office/chart_write.h"
 #include "office/theme.h"
 #include "sheet/chartmake.h"
+#include "sheet/chartops.h"
 
 #include <QMap>
 
 using namespace jp::office;
+using namespace jp::office::sheet;
 
 namespace {
 
@@ -321,6 +323,165 @@ private Q_SLOTS:
         // a radar that is not first is columns
         const Chart columnsFirst = chartFromSeries(series, {SeriesKind{ChartKind::Column, false}, SeriesKind{ChartKind::Radar, false}}, defaultTheme());
         for (const ChartPlot &p : columnsFirst.plots) QVERIFY(p.type != ChartType::Radar);
+    }
+
+    // ---- stock charts: made, changed to and from, and refused when the series do not fit
+
+private:
+    static QVector<ChartSeries> stockSeries(int count)
+    {
+        QVector<ChartSeries> out;
+        for (int i = 0; i < count; ++i) {
+            ChartSeries s;
+            s.name = QStringLiteral("S%1").arg(i);
+            s.nameRef = QStringLiteral("Sheet1!$%1$1").arg(QChar('B' + i));
+            s.categoryRef = QStringLiteral("Sheet1!$A$2:$A$5");
+            s.valueRef = QStringLiteral("Sheet1!$%1$2:$%1$5").arg(QChar('B' + i));
+            s.categories = {"a", "b", "c", "d"};
+            s.values = {1.0 + i, 2.0 + i, 3.0 + i, 4.0 + i};
+            out << s;
+        }
+        return out;
+    }
+
+private Q_SLOTS:
+    // Each form is made with its series in their order, the volume as columns on the first axis and the prices against the second, written as a stock chart that this writes over, and read back as the same form.
+    void aStockChartIsMadeInEachFormWrittenAndReadBack()
+    {
+        struct Form {
+            ChartKind kind;
+            int series;
+            int plots;
+            bool bars;
+        };
+        const Form forms[] = {{ChartKind::StockHLC, 3, 1, false}, {ChartKind::StockOHLC, 4, 1, true}, {ChartKind::StockVHLC, 4, 2, false}, {ChartKind::StockVOHLC, 5, 2, true}};
+        for (const Form &f : forms) {
+            const QVector<ChartSeries> series = stockSeries(f.series);
+            const Chart made = chartFromSeries(series, QVector<SeriesKind>(f.series, SeriesKind{f.kind, false}), defaultTheme());
+            QCOMPARE(int(kindOfChart(made)), int(f.kind));
+            QCOMPARE(int(made.plots.size()), f.plots);
+            const ChartPlot &stock = made.plots.last();
+            QVERIFY(stock.stock && stock.hiLowLines);
+            QCOMPARE(stock.upDownBars, f.bars);
+            QCOMPARE(int(stock.series.size()), f.series - (f.plots == 2 ? 1 : 0));
+            // no line through a series, and the close alone is marked where there are no bars
+            for (int i = 0; i < stock.series.size(); ++i) {
+                QVERIFY(stock.series[i].outline.none);
+                QCOMPARE(int(stock.series[i].marker.symbol), int(!f.bars && i == stock.series.size() - 1 ? ChartMarker::Dash : ChartMarker::None));
+            }
+            if (f.plots == 2) {
+                // the volume is columns on the first axes; the prices are against a second pair, whose value axis is on the right
+                QCOMPARE(int(made.plots[0].type), int(ChartType::Bar));
+                QCOMPARE(int(made.plots[0].series.size()), 1);
+                QCOMPARE(made.axes.size(), 4);
+                QCOMPARE(made.axis(stock.axisIds[1])->position, QStringLiteral("r"));
+                QVERIFY(made.plots[0].axisIds[1] != stock.axisIds[1]);
+            } else {
+                QCOMPARE(made.axes.size(), 2);
+            }
+            const QByteArray part = writeChartPart(made);
+            QVERIFY(part.contains("<c:stockChart>"));
+            QString why;
+            QVERIFY2(chartIsFullyModeled(part, &why), qPrintable(why));
+            Chart back;
+            QVERIFY2(readChart(part, defaultTheme(), ColorMap(), &back, &why), qPrintable(why));
+            QCOMPARE(int(kindOfChart(back)), int(f.kind));
+            QCOMPARE(chartSvg(back, QSizeF(400, 300)), chartSvg(made, QSizeF(400, 300)));
+            QCOMPARE(writeChartPart(back), part);
+        }
+    }
+
+    // The forms are told apart by the number and the order of the series: other series are refused with a sentence that names the order, and never made into something else.
+    void aStockChartOfSeriesThatDoNotFitIsRefusedAndNeverDrawnAsAnother()
+    {
+        const struct { ChartKind kind; int right; const char *order; } forms[] = {{ChartKind::StockHLC, 3, "high, low, and close"}, {ChartKind::StockOHLC, 4, "open, high, low, and close"},
+                                                                                  {ChartKind::StockVHLC, 4, "volume, high, low, and close"}, {ChartKind::StockVOHLC, 5, "volume, open, high, low, and close"}};
+        for (const auto &f : forms) {
+            for (int n = 1; n <= 7; ++n) {
+                const QString problem = stockProblem(f.kind, n);
+                QCOMPARE(problem.isEmpty(), n == f.right);
+                if (n == f.right) {
+                    QVERIFY(isStockKind(f.kind));
+                    continue;
+                }
+                QVERIFY2(problem.contains(QLatin1String(f.order)), qPrintable(problem));
+                // and the chart made of them anyway is no stock chart (lines): nothing is drawn as stock that is not
+                const Chart c = chartFromSeries(stockSeries(n), QVector<SeriesKind>(n, SeriesKind{f.kind, false}), defaultTheme());
+                for (const ChartPlot &p : c.plots) QVERIFY(!p.stock && !p.hiLowLines && !p.upDownBars);
+                QCOMPARE(int(chartStockForm(c)), int(ChartStockForm::None));
+            }
+        }
+        QVERIFY(stockProblem(ChartKind::Column, 2).isEmpty());
+    }
+
+    // A chart changed to a stock form keeps its numbers, and changed from it keeps them and the look of the new kind only: the lines and marks stock gave its series, and the scale of its prices or volume, are not carried.
+    void aChartChangedToAndFromStockKeepsItsDataAndTheNewKindsLook()
+    {
+        const QVector<ChartSeries> series = stockSeries(4);
+        const Chart line = chartFromSeries(series, QVector<SeriesKind>(4, SeriesKind{ChartKind::LineMarkers, false}), defaultTheme());
+        QCOMPARE(chartAllSeries(line).size(), 4);
+        for (const ChartForm form : {ChartForm::StockOpenHighLowClose, ChartForm::StockVolumeHighLowClose}) {
+            Chart c = line;
+            ChartAxis *val = chartAxisOf(c, ChartAxisKind::Value);
+            val->autoMax = false;   // (a scale fixed for the old kind's numbers)
+            val->max = 7;
+            QVERIFY(chartFormProblem(c, form).isEmpty());
+            QVERIFY(chartSetForm(c, form, defaultTheme()));
+            QCOMPARE(int(chartInfoOf(c, QByteArray()).form), int(form));
+            const QVector<ChartSeries> now = chartAllSeries(c);
+            QCOMPARE(now.size(), 4);
+            for (int i = 0; i < 4; ++i) QCOMPARE(now[i].values, series[i].values);
+            const bool volumeForm = form == ChartForm::StockVolumeHighLowClose;
+            // (a scale fixed for numbers of the same kind goes along; one fixed for the other kind's numbers, the volume's or the prices', does not)
+            QCOMPARE(chartAxisOf(c, ChartAxisKind::Value)->autoMax, volumeForm);
+            // and back to a line with markers: the series are drawn again, the lines and marks are the line's own
+            QVERIFY(chartSetForm(c, ChartForm::LineMarkers, defaultTheme()));
+            QCOMPARE(c.plots.size(), 1);
+            QVERIFY(!c.plots[0].stock && !c.plots[0].hiLowLines && !c.plots[0].upDownBars);
+            QCOMPARE(int(c.plots[0].series.size()), 4);
+            for (int i = 0; i < 4; ++i) {
+                QVERIFY(!c.plots[0].series[i].outline.none);
+                QCOMPARE(int(c.plots[0].series[i].marker.symbol), int(ChartMarker::Auto));
+                QCOMPARE(c.plots[0].series[i].values, series[i].values);
+            }
+            QCOMPARE(chartAxisOf(c, ChartAxisKind::Value)->autoMax, volumeForm);
+        }
+        // fixed scales of a volume form do not go to the columns it is changed to either
+        Chart volume = chartFromSeries(stockSeries(4), QVector<SeriesKind>(4, SeriesKind{ChartKind::StockVHLC, false}), defaultTheme());
+        chartAxisOf(volume, ChartAxisKind::Value)->autoMax = false;
+        chartAxisOf(volume, ChartAxisKind::Value)->max = 99;
+        QVERIFY(chartSetForm(volume, ChartForm::Column, defaultTheme()));
+        QVERIFY(chartAxisOf(volume, ChartAxisKind::Value)->autoMax);
+        // from a column chart of the other kinds' gridlines nothing else is lost: the value axis has its gridlines as every kind's has
+        QVERIFY(chartAxisOf(volume, ChartAxisKind::Value)->majorGridlines);
+    }
+
+    // A chart of the wrong series for a stock form is not changed, and the reason is the sentence of the order; the sample data of each form fits it.
+    void aChartIsNotChangedToAStockFormItsSeriesDoNotFit()
+    {
+        const Chart two = chartOfData(ChartForm::Line, sampleChartData(), defaultTheme());
+        for (const ChartForm form : {ChartForm::StockHighLowClose, ChartForm::StockOpenHighLowClose, ChartForm::StockVolumeHighLowClose, ChartForm::StockVolumeOpenHighLowClose}) {
+            Chart c = two;
+            const QString problem = chartFormProblem(c, form);
+            QVERIFY(problem.contains(QStringLiteral("in this order")));
+            const QByteArray before = writeChartPart(c);
+            QVERIFY(!chartSetForm(c, form, defaultTheme()));
+            QCOMPARE(writeChartPart(c), before);
+            // the sample numbers of the form are made into the form
+            const ChartData data = sampleChartData(form);
+            QVERIFY(chartDataIsUsable(data));
+            const Chart made = chartOfData(form, data, defaultTheme());
+            QCOMPARE(int(chartInfoOf(made, QByteArray()).form), int(form));
+            QVERIFY(chartFormProblem(made, form).isEmpty());
+            // and a stock chart's series are not added to or taken away by editing its numbers
+            Chart edited = made;
+            ChartData more = data;
+            more.seriesNames << QStringLiteral("Extra");
+            more.values << data.values.first();
+            QVERIFY(!chartSetData(edited, more, defaultTheme()));
+            QVERIFY(chartSetData(edited, data, defaultTheme()));
+            QCOMPARE(int(chartInfoOf(edited, QByteArray()).form), int(form));
+        }
     }
 
     // A chart changed between radar and another kind takes the new kind's own gridlines: the spokes are not left behind as upright lines, and a column is not left without them.

@@ -499,7 +499,9 @@ private:
         if (stroked) {
             // (a plain radar's series each say the symbol is none: that is what tells it from the one with markers, which both are the style "marker")
             ChartMarker m = s.marker;
-            if (plot.type == ChartType::Radar && !plot.markers && m.symbol == ChartMarker::Auto) m.symbol = ChartMarker::None;
+            if ((plot.type == ChartType::Radar && !plot.markers) || plot.stock) {
+                if (m.symbol == ChartMarker::Auto) m.symbol = ChartMarker::None;   // (a stock chart's series have no mark unless one is said)
+            }
             marker(m, s.color, true);
         }
         if (plot.type == ChartType::Pie || plot.type == ChartType::Doughnut) {
@@ -614,7 +616,7 @@ private:
         const char *element = "c:barChart";
         switch (p.type) {
         case ChartType::Bar: element = "c:barChart"; break;
-        case ChartType::Line: element = "c:lineChart"; break;
+        case ChartType::Line: element = p.stock ? "c:stockChart" : "c:lineChart"; break;
         case ChartType::Pie: element = "c:pieChart"; break;
         case ChartType::Doughnut: element = "c:doughnutChart"; break;
         case ChartType::Area: element = "c:areaChart"; break;
@@ -632,6 +634,7 @@ private:
             break;
         case ChartType::Line:
         case ChartType::Area:
+            if (p.stock) break;   // (a stock chart has neither)
             val("c:grouping", QString::fromLatin1(p.grouping == ChartGrouping::Clustered ? "standard" : groupingName(p)));
             flag("c:varyColors", p.varyColors);
             break;
@@ -650,6 +653,7 @@ private:
         const char *filteredName = filteredElement(p.type);
         QVector<int> hidden;
         for (int i = 0; i < p.series.size(); ++i) {
+            if (p.stock && p.series[i].filtered) continue;   // (a stock chart's hidden series is not written: no extension for it is known to be read back, and the part is kept as it is unless it was edited)
             if (filteredName && p.series[i].filtered) {
                 hidden << m_serial++;   // (the index it is written with, below)
                 continue;
@@ -684,7 +688,9 @@ private:
             val("c:gapWidth", QString::number(p.gapWidth));
             if (p.overlap != 0) val("c:overlap", QString::number(p.overlap));
             break;
-        case ChartType::Line: flag("c:marker", p.markers); break;
+        case ChartType::Line:
+            if (!p.stock) flag("c:marker", p.markers);
+            break;
         case ChartType::Pie: val("c:firstSliceAng", QString::number(p.firstSliceAngle)); break;
         case ChartType::Doughnut:
             val("c:firstSliceAng", QString::number(p.firstSliceAngle));
@@ -1006,6 +1012,11 @@ QStringList chartLosses(const QByteArray &chartPartXml, bool firstOnly)
         no(problem);
         return lost;
     }
+    // (a stock chart's hidden series have no extension that is known to be read back: the part is kept)
+    for (const ChartPlot &p : a.plots)
+        if (p.stock)
+            for (const ChartSeries &s : p.series)
+                if (s.filtered && no(QStringLiteral("a hidden series of a stock chart"))) return lost;
     // (a radar beside another radar, on a second pair of axes, is drawn on the first scale: the part is kept)
     {
         int radars = 0;
