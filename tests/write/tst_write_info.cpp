@@ -45,6 +45,8 @@
 #include "io/zip.h"
 #include "core/textexport.h"
 #include "core/writedoc.h"
+#include "flow/paginator.h"
+#include "flow/tableflow.h"
 #include "office/officecrypt.h"
 #include "wml/wml.h"
 #include "office/package.h"
@@ -842,6 +844,42 @@ private Q_SLOTS:
         const auto kept = WriteDoc::fromDocx(k.readAll(), &err, nullptr);
         QVERIFY(kept);
         QCOMPARE(kept->compatMode(), 11);
+    }
+
+    // Convert leaves the document as it looks after a save and a reopen: the page count and the table's left edge are the same right after Convert as in the file read back.
+    void convertLeavesTheLayoutAsItIsAfterSaveAndReopen()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        const QByteArray settings = QByteArray("<?xml version=\"1.0\"?><w:settings ") + kNs + "><w:compat><w:compatSetting w:name=\"compatibilityMode\" w:uri=\"http://schemas.microsoft.com/office/word\" w:val=\"11\"/></w:compat></w:settings>";
+        auto cell = [](const char *t) { return QByteArray("<w:tc><w:tcPr><w:tcW w:w=\"1500\" w:type=\"dxa\"/></w:tcPr><w:p><w:r><w:t>") + t + "</w:t></w:r></w:p></w:tc>"; };
+        const QByteArray table = "<w:tbl><w:tblPr><w:tblW w:w=\"3000\" w:type=\"dxa\"/><w:tblInd w:w=\"720\" w:type=\"dxa\"/></w:tblPr><w:tblGrid><w:gridCol w:w=\"1500\"/><w:gridCol w:w=\"1500\"/></w:tblGrid><w:tr>" +
+                                 cell("one") + cell("two") + "</w:tr></w:tbl><w:p><w:r><w:t>After</w:t></w:r></w:p>";
+        const QByteArray bytes = makeDocx("<w:p><w:r><w:t>Before</w:t></w:r></w:p>" + table, {Extra{QStringLiteral("/word/settings.xml"), kWord + QStringLiteral("settings+xml"), settings, kRel + QStringLiteral("settings")}});
+        QFile f(dir.filePath(QStringLiteral("old.docx")));
+        QVERIFY(f.open(QIODevice::WriteOnly) && f.write(bytes) == bytes.size());
+        f.close();
+        auto edgeOf = [](WriteWindow &w) {
+            w.view()->paginateAll();
+            flow::Paginator &pg = w.document()->pager();
+            const auto page = pg.materialize(0);
+            return page && page->tables.size() == 1 ? page->tables[0]->rect().left() - pg.page(0).content.left() : -1000.0;
+        };
+        WriteWindow w;
+        w.setNotifier([](const QString &, const QString &) {});
+        QVERIFY(w.openFile(dir.filePath(QStringLiteral("old.docx"))));
+        const double before = edgeOf(w);
+        w.convertCompatibility(false);
+        const double now = edgeOf(w);
+        const int pagesNow = w.view()->pageCount();
+        QVERIFY(saveInto(w, dir, QStringLiteral("new.docx")));
+        WriteWindow r;
+        r.setNotifier([](const QString &, const QString &) {});
+        QVERIFY(r.openFile(dir.filePath(QStringLiteral("new.docx"))));
+        const double after = edgeOf(r);
+        QVERIFY2(before < now - 1, qPrintable(QStringLiteral("the edge is %1 before Convert and %2 after").arg(before).arg(now)));   // (the mode does move it)
+        QVERIFY2(std::abs(now - after) < 0.01, qPrintable(QStringLiteral("right after Convert %1, after save and reopen %2").arg(now).arg(after)));
+        QCOMPARE(pagesNow, r.view()->pageCount());
     }
 
     // The tag and the Convert card show only when the file itself states a mode below the newest: a new document, a file with no setting, and a text-like format show nothing.

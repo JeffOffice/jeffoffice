@@ -564,9 +564,10 @@ bool WriteDoc::convertToCurrentMode()
     m_wml.compatMode = 15;
     m_wml.compatStated = true;
     m_flow->markFollowsBreak = true;
+    m_flow->tables.changeTables([](flow::TableData &t) { t.indentToText = false; });   // (a table's indent is to its edge, as it is read in a file of the newest mode)
     m_flow->env.wordWholePointLines = false;
     setModified(true);
-    if (m_pager) m_pager->invalidateFrom(0);
+    if (m_pager) m_pager->invalidate();   // (the tables' measures too: they were made with the old indent)
     Q_EMIT sectionsChanged();
     return true;
 }

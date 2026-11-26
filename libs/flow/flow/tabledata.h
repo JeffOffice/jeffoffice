@@ -10,6 +10,8 @@
 #include <QColor>
 #include <QMarginsF>
 #include <QVector>
+#include <functional>
+#include <map>
 #include <memory>
 #include <optional>
 #include <vector>
@@ -107,6 +109,25 @@ public:
     int count() const { return int(m_cells.size()); }
     // How many records are held (those let go are not): a key is never used again, so a cache that is keyed by one never meets another cell.
     int liveCount() const { return m_live; }
+    // Changes what every table shares (each table once, however many cells it has, and in every record there is: those of a step of the history as well); the keys stay, and the records
+    // that were replaced are kept, for what still points at them.
+    void changeTables(const std::function<void(TableData &)> &change)
+    {
+        std::map<const TableData *, std::shared_ptr<const TableData>> made;
+        for (std::shared_ptr<const CellRecord> &cell : m_cells) {
+            if (!cell || !cell->table) continue;
+            std::shared_ptr<const TableData> &changed = made[cell->table.get()];
+            if (!changed) {
+                auto copy = std::make_shared<TableData>(*cell->table);
+                change(*copy);
+                changed = copy;
+            }
+            auto record = std::make_shared<CellRecord>(*cell);
+            record->table = changed;
+            m_retired.push_back(cell);   // (laid-out pages and caches may still point at it, and at its table)
+            cell = record;
+        }
+    }
     // Lets a record go (its key is left unused): for one that no paragraph, and no step of the history, has.
     void release(int key)
     {
@@ -117,6 +138,7 @@ public:
 
 private:
     std::vector<std::shared_ptr<const CellRecord>> m_cells;   // (shared: a copy of the store, for the private copy of a story that a header's tables are laid out in, holds the same records)
+    std::vector<std::shared_ptr<const CellRecord>> m_retired;   // the records that changeTables replaced
     int m_live = 0;
 };
 

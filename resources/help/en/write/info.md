@@ -60,7 +60,13 @@ Click **Remove All** next to a kind to take it out. You can undo what changes th
 
 ## Convert
 
-A file made in an older program's way (a .docx, .doc, or .rtf file) shows **[Compatibility Mode]** after its name in the title bar. That means the document is laid out by the older program's rules. Open **File > Info** and click **Convert** to use the newest rules instead. Lines and pages may break in other places afterward, so it asks first, and it can't be undone with Ctrl+Z. The next time you save a .docx file, it says it is in the newest mode. Choices the file sets one by one, such as hyphenation and facing pages, stay as they are. A document that is already in the newest mode has no **Convert** button.
+A .docx file that says it was made in an older program's way shows **[Compatibility Mode]** after its name in the title bar. That means the document is laid out by the older program's rules. A new document, a file that doesn't say, and an .odt, .rtf, .doc, or text file show nothing. Open **File > Info** and click **Convert** to use the newest rules instead. It asks first, and it can't be undone with Ctrl+Z. The pages look right away as they will when you save the file and open it again. Convert changes these things:
+
+- **Tables.** In the older way, a table's indent is measured to the text in its first cell, so the table's left edge sits a little to the left of it. In the newest way, the indent is measured to the edge of the table, so tables that have an indent move to the right by the width of the cell margin.
+- **Page breaks.** In the older way, a paragraph that ends with a page break lets the next paragraph start the new page. In the newest way, the end of that paragraph moves to the new page and leaves an empty line at its top.
+- **Line heights.** A file made in the oldest way can ask for lines of whole points. After Convert, lines have their natural height, so lines and pages may break in other places.
+
+The next time you save the file, it says it is in the newest mode, and the title bar loses the tag. Choices the file sets one by one, such as hyphenation and facing pages, stay as they are. A document that is already in the newest mode has no **Convert** button.
 
 ## Check Compatibility
 
