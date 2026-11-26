@@ -391,6 +391,8 @@ Q_SIGNALS:
     void copyBorderCleared();
     // A button put on a cell (setHeaderButtons) was clicked.
     void headerButtonClicked(qint64 row, qint64 col);
+    // The small green triangle in the corner of a cell (setCellFlags) was clicked; the cell is not selected by the click.
+    void errorCornerClicked(qint64 row, qint64 col);
     // The border of a column (row) was dragged and let go: which, and the size it was given, in the grid's units at 100% (0 hides it).
     void resizeRequested(bool column, qint64 index, int size);
     // A double click on the border at the end of a column (row): fit it to what it holds.
@@ -468,6 +470,7 @@ private:
     void leaveEvent(QEvent *e) override;
     void paintChecks(QPainter *painter, const QRect &clip);
     bool headerButtonPress(const QPoint &layoutPoint);
+    bool errorCornerPress(const QPoint &layoutPoint);
     bool borderAtInLayout(const QPoint &p, bool *column, qint64 *index) const;
     // The bar of a split at a point of the layout: 1 the vertical one, 2 the horizontal one, 3 both at their crossing, 0 none.
     int splitBarAt(const QPoint &p) const;
@@ -593,10 +596,10 @@ private:
     void moveSplitBar(const QPoint &lp);
     void addingPress(bool add, const std::function<void()> &select);
     bool m_dragEditing = true;
+    bool m_noteMarks = true;
     std::function<bool(const GridRange &, bool, const QPoint &)> m_altDrop;
     std::vector<PageBreakLine> m_breakRows, m_breakCols;
     bool m_breakView = false, m_breakEditRows = true, m_breakEditCols = true;
-    bool m_noteMarks = true;
     std::vector<GridRange> m_breakAreas;
     std::vector<BreakPage> m_breakPageList;
     BreakGrab m_breakGrab;

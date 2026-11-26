@@ -1,6 +1,7 @@
 // Tools of the Review, Data, and Formulas tabs that are not part of an older group: Workbook Statistics, Goal Seek, Subtotal, and Advanced Filter.
 #include "app/crunchwindow.h"
 #include "app/settings.h"
+#include <QMenu>
 #include "core/invalidcells.h"
 #include "app/sortdialog.h"
 #include "grid/pagelayoutview.h"
@@ -596,6 +597,39 @@ void CrunchWindow::fixFormulaProblem(quint32 row, quint32 col)
         refreshCellFlags();
         return;
     }
+}
+
+void CrunchWindow::showErrorMenu(quint32 row, quint32 col)
+{
+    if (!m_session) return;
+    std::vector<crunch::FormulaProblem> here;
+    for (const crunch::FormulaProblem &p : formulaProblems())
+        if (p.row == row && p.col == col) here.push_back(p);
+    if (here.empty()) return;
+    m_view->selectCell(row, col);
+    auto *menu = new QMenu(this);
+    menu->setAttribute(Qt::WA_DeleteOnClose);
+    menu->setObjectName(QStringLiteral("errorMenu"));
+    for (const crunch::FormulaProblem &p : here) {
+        QAction *what = menu->addAction(p.explanation);
+        what->setEnabled(false);
+    }
+    menu->addSeparator();
+    for (const crunch::FormulaProblem &p : here) {
+        if (p.fixedFormula.isEmpty()) continue;
+        QAction *fix = menu->addAction(p.fixLabel);
+        fix->setObjectName(QStringLiteral("errorMenuFix"));
+        connect(fix, &QAction::triggered, this, [this, row, col] { fixFormulaProblem(row, col); });
+        break;   // (one fix at a time: the one Error Checking would offer)
+    }
+    QAction *ignore = menu->addAction(tr("Ignore Error"));
+    ignore->setObjectName(QStringLiteral("errorMenuIgnore"));
+    connect(ignore, &QAction::triggered, this, [this, row, col] { ignoreFormulaProblem(row, col); });
+    QAction *check = menu->addAction(tr("Error Checking…"));
+    check->setObjectName(QStringLiteral("errorMenuCheck"));
+    connect(check, &QAction::triggered, this, [this] { errorCheckingDialog(); });
+    const QRect cell = m_view->cellRectAt(row, col);
+    menu->popup(m_view->viewport()->mapToGlobal(QPoint(cell.left(), cell.bottom() + 1)));
 }
 
 void CrunchWindow::errorCheckingDialog()

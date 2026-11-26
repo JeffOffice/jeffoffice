@@ -1966,6 +1966,68 @@ private Q_SLOTS:
         QCOMPARE(w.formulaProblems().size(), size_t(1));
     }
 
+    // A click on the green triangle itself opens a menu beside the cell: what is the matter, the fix (when there is one), Ignore Error, and Error Checking. A click on the cell elsewhere does
+    // not; the triangle's click selects the cell and changes nothing else.
+    void aClickOnTheGreenTriangleOpensAMenuWithTheFixAndIgnoreError()
+    {
+        const QString rows = QStringLiteral("<row r=\"1\"><c r=\"A1\" t=\"inlineStr\"><is><t>5</t></is></c><c r=\"B1\"><f>SUM(A1:A2)</f><v>20</v></c><c r=\"C1\"><f>1/0</f><v>0</v></c></row>"
+                                       "<row r=\"2\"><c r=\"A2\"><v>20</v></c></row><row r=\"3\"><c r=\"A3\"><v>30</v></c></row>");
+        EditWindow e;
+        QVERIFY(e.open(buildXlsx({worksheet(rows)})));
+        QVERIFY(e.settle());
+        CrunchWindow &w = e.win.w;
+        QTRY_COMPARE(w.view()->errorCorners().size(), size_t(3));
+        auto menu = [&]() { return w.findChild<QMenu *>(QStringLiteral("errorMenu")); };
+        auto corner = [&](const char *ref) {
+            quint32 r = 0, c = 0;
+            parseCellRef(QString::fromLatin1(ref), &r, &c);
+            return w.view()->cellRectAt(r, c).topLeft() + QPoint(2, 2);
+        };
+        // (the middle of the cell is a plain click: it selects, no menu)
+        e.select(QStringLiteral("C3"));
+        QTest::mouseClick(w.view()->viewport(), Qt::LeftButton, Qt::NoModifier, w.view()->cellRectAt(0, 2).center());
+        QVERIFY(!menu());
+        // (the triangle of A1: a number kept as text, which has no fix of its own here)
+        const int steps = w.undoStack()->count();
+        QTest::mouseClick(w.view()->viewport(), Qt::LeftButton, Qt::NoModifier, corner("A1"));
+        QVERIFY(menu());
+        QCOMPARE(w.view()->selection().activeRow, qint64(0));
+        QCOMPARE(w.view()->selection().activeCol, qint64(0));
+        QCOMPARE(w.undoStack()->count(), steps);
+        QStringList items;
+        for (QAction *a : menu()->actions()) items << a->text();
+        QVERIFY2(items.contains(QStringLiteral("Ignore Error")) && items.contains(QStringLiteral("Error Checking…")), qPrintable(items.join('|')));
+        QVERIFY(!menu()->findChild<QAction *>(QStringLiteral("errorMenuFix")));
+        menu()->close();
+        QTRY_VERIFY(!menu());
+        // (the triangle of B1: the formula leaves out A3, and the fix includes it, as one step of Undo)
+        QTest::mouseClick(w.view()->viewport(), Qt::LeftButton, Qt::NoModifier, corner("B1"));
+        QVERIFY(menu());
+        QAction *fix = menu()->findChild<QAction *>(QStringLiteral("errorMenuFix"));
+        QVERIFY(fix);
+        QCOMPARE(fix->text(), QStringLiteral("Include the Cell"));
+        fix->trigger();
+        QCOMPARE(w.undoStack()->count(), steps + 1);
+        QVERIFY(w.session()->calculation()->content(0, 0, 1).formula.contains(QLatin1String("A1:A3")));
+        QVERIFY(e.settle());
+        QTRY_COMPARE(w.session()->valueAt(0, 0, 1).number(), 50.0);
+        menu()->close();
+        QTRY_VERIFY(!menu());
+        // (the triangle of C1: an error has no fix, and Ignore Error is one step of Undo)
+        QTest::mouseClick(w.view()->viewport(), Qt::LeftButton, Qt::NoModifier, corner("C1"));
+        QVERIFY(menu());
+        QVERIFY(!menu()->findChild<QAction *>(QStringLiteral("errorMenuFix")));
+        QAction *ignore = menu()->findChild<QAction *>(QStringLiteral("errorMenuIgnore"));
+        QVERIFY(ignore);
+        ignore->trigger();
+        QCOMPARE(w.undoStack()->count(), steps + 2);
+        menu()->close();
+        QTRY_VERIFY(!menu());
+        // (no triangle left there: a click is a plain click)
+        QTest::mouseClick(w.view()->viewport(), Qt::LeftButton, Qt::NoModifier, corner("C1"));
+        QVERIFY(!menu());
+    }
+
     void checkAccessibilityListsWhatIsHardToUseAndGoesToIt()
     {
         const QString rows = QStringLiteral("<row r=\"1\"><c r=\"A1\"><v>1</v></c><c r=\"B1\"><v>2</v></c></row><row r=\"2\"><c r=\"A2\"><v>3</v></c><c r=\"B2\"><v>4</v></c></row>");

@@ -270,6 +270,7 @@ CrunchWindow::CrunchWindow(QWidget *parent) : AppWindow(parent)
         m_zoomSlider->setValue(int(std::lround(std::log(z) / std::log(1.05))));
     });
     connect(m_view, &grid::GridView::contextMenuRequested, this, [this](const QPoint &globalPos) { showContextMenu(globalPos); });
+    connect(m_view, &grid::GridView::errorCornerClicked, this, [this](qint64 row, qint64 col) { showErrorMenu(quint32(row), quint32(col)); });
     createMiniToolbar();
     connect(&m_loader, &crunch::WorkbookLoader::firstScreen, this, &CrunchWindow::onFirstScreen);
     connect(&m_loader, &crunch::WorkbookLoader::progress, this, &CrunchWindow::onProgress);
@@ -829,7 +830,6 @@ void CrunchWindow::createActions()
             width->setValue(grid::GridSheet::shownWidth(m_view->sheet().layout().cols.defaultSize() / double(std::max(1, mdw)), mdw));
             width->setEnabled(m_session && m_sheet >= 0 && !m_chartSheetShown);
             layout->addRow(tr("Standard column width (this sheet)"), width);
-            (*display)[0] = color;
             auto *tabs = new QCheckBox(tr("Show the sheet tabs"), page);
             tabs->setObjectName(QStringLiteral("optionSheetTabs"));
             tabs->setChecked(sheetTabsShown());
@@ -846,19 +846,20 @@ void CrunchWindow::createActions()
             notes->addItem(tr("Nothing"), 2);
             notes->setCurrentIndex(notes->findData(noteDisplay()));
             layout->addRow(tr("Show a cell's note as"), notes);
+            (*display)[0] = color;
             (*display)[1] = zoom;
             (*display)[2] = width;
-            return static_cast<QWidget *>(page);
             (*display)[3] = tabs;
             (*display)[4] = bars;
             (*display)[5] = notes;
+            return static_cast<QWidget *>(page);
         }, [this, display] {
             if (auto *color = qobject_cast<QPushButton *>((*display)[0].data())) setGridlineColor(color->property("color").value<QColor>());
             if (auto *zoom = qobject_cast<QSpinBox *>((*display)[1].data())) setDefaultZoom(zoom->value());
-            if (auto *width = qobject_cast<QDoubleSpinBox *>((*display)[2].data())) {
             if (auto *tabs = qobject_cast<QCheckBox *>((*display)[3].data())) setSheetTabsShown(tabs->isChecked());
             if (auto *bars = qobject_cast<QCheckBox *>((*display)[4].data())) setScrollBarsShown(bars->isChecked());
             if (auto *notes = qobject_cast<QComboBox *>((*display)[5].data())) setNoteDisplay(notes->currentData().toInt());
+            if (auto *width = qobject_cast<QDoubleSpinBox *>((*display)[2].data())) {
                 const int mdw = m_view->sheet().looks().maxDigitWidth();
                 const double now = grid::GridSheet::shownWidth(m_view->sheet().layout().cols.defaultSize() / double(std::max(1, mdw)), mdw);
                 if (width->isEnabled() && std::abs(width->value() - now) > 0.005) setStandardColumnWidth(width->value());
@@ -908,9 +909,9 @@ void CrunchWindow::createActions()
     m_autoComplete = Settings::get().value(QStringLiteral("crunch/autoComplete"), true).toBool();
     m_editInCell = Settings::get().value(QStringLiteral("crunch/editInCell"), true).toBool();
     if (const QColor c(Settings::get().value(QStringLiteral("crunch/gridColor")).toString()); c.isValid()) m_view->setGridlineColor(c);
-    m_fixedDecimals = std::clamp(Settings::get().value(QStringLiteral("crunch/fixedDecimals"), 0).toInt(), -crunch::kMaxFixedDecimals, crunch::kMaxFixedDecimals);
     setScrollBarsShown(scrollBarsShown());
     setNoteDisplay(noteDisplay());
+    m_fixedDecimals = std::clamp(Settings::get().value(QStringLiteral("crunch/fixedDecimals"), 0).toInt(), -crunch::kMaxFixedDecimals, crunch::kMaxFixedDecimals);
     // ---- view
     mk("view.gridlines", tr("Gridlines"), "grid-3x3", QKeySequence(), [this] { m_view->setShowGridlines(act("view.gridlines")->isChecked()); }, true)->setChecked(true);
     mk("view.headings", tr("Headings"), "table-properties", QKeySequence(), [this] { m_view->setShowHeadings(act("view.headings")->isChecked()); }, true)->setChecked(true);

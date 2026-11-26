@@ -1443,6 +1443,7 @@ void GridView::mousePressEvent(QMouseEvent *e)
     }
     if (e->button() != Qt::LeftButton) return;
     if (headerButtonPress(lp)) return;
+    if (errorCornerPress(lp)) return;
     if (noteBoxPress(lp, e->modifiers())) return;
     if (dropDownRectInLayout().contains(lp)) {
         Q_EMIT dropDownRequested();

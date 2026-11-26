@@ -60,6 +60,20 @@ QRect GridView::headerButtonRectInLayout(qint64 row, qint64 col) const
 
 QRect GridView::headerButtonRect(qint64 row, qint64 col) const { return mirror(headerButtonRectInLayout(row, col)); }
 
+// A press on the green triangle itself (the one drawn in paintMarks: seven pixels along each side, one pixel in from the corner).
+bool GridView::errorCornerPress(const QPoint &layoutPoint)
+{
+    for (const GridRange &r : m_errorCorners) {
+        const QRect rect = cellRectInLayout(r.row1, r.col1);
+        if (rect.isEmpty()) continue;
+        const QPoint d = layoutPoint - (rect.topLeft() + QPoint(1, 1));
+        if (d.x() < 0 || d.y() < 0 || d.x() + d.y() > 8) continue;
+        Q_EMIT errorCornerClicked(r.row1, r.col1);
+        return true;
+    }
+    return false;
+}
+
 bool GridView::headerButtonPress(const QPoint &layoutPoint)
 {
     for (const HeaderButton &b : m_headerButtons) {
