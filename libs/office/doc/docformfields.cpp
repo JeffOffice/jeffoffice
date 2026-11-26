@@ -83,7 +83,7 @@ QByteArray Converter::formFieldXml(qint32 position)
         const Span b = data.sub(at + header, std::min<qint64>(qint64(lcb) - header, kMaxFormFieldBytes));
         // The data (section 2.9.78, 2.9.79): a version, the bits (the kind, the state, whether it is protected, the kind of text), the longest text, the size of a check box.
         const int bits = b.u16(4), type = bits & 3, state = (bits >> 2) & 0x1F, textType = (bits >> 11) & 7;
-        const bool ownHelp = bits & 0x80, ownStatus = bits & 0x100, locked = bits & 0x200, autoSize = bits & 0x400;
+        const bool ownHelp = bits & 0x80, ownStatus = bits & 0x100, locked = bits & 0x200, autoSize = bits & 0x400, recalc = bits & 0x4000;
         if (b.u32(0) == 0xFFFFFFFFu && type <= 2) {
             const int longest = b.u16(6), size = b.u16(8);
             Reader r(b, 10);
@@ -102,6 +102,7 @@ QByteArray Converter::formFieldXml(qint32 position)
                 xml = "<w:ffData>";
                 if (!name.isEmpty()) xml += val("name", name);
                 xml += locked ? "<w:enabled w:val=\"0\"/>" : "<w:enabled/>";
+                if (recalc) xml += "<w:calcOnExit/>";
                 if (ownHelp && !help.isEmpty()) xml += "<w:helpText w:type=\"text\" w:val=\"" + xmlEscape(help) + "\"/>";
                 if (ownStatus && !status.isEmpty()) xml += "<w:statusText w:type=\"text\" w:val=\"" + xmlEscape(status) + "\"/>";
                 if (type == 1) {

@@ -1559,6 +1559,18 @@ private Q_SLOTS:
         QVERIFY2(x.contains(">Hello<"), x.constData());
     }
 
+    void aFieldThatAsksForItsCalculationOnExitSaysSo()
+    {
+        FormFieldSpec f;
+        f.name = QStringLiteral("Calc1");
+        f.text = QStringLiteral("0");
+        f.recalc = true;
+        const QByteArray x = bodyXml(withFormField(QStringLiteral("FORMTEXT"), formFieldData(f), QStringLiteral("5")));
+        QVERIFY2(x.contains("<w:name w:val=\"Calc1\"/><w:enabled/><w:calcOnExit/><w:textInput>"), x.constData());
+        f.recalc = false;
+        QVERIFY(!bodyXml(withFormField(QStringLiteral("FORMTEXT"), formFieldData(f), QStringLiteral("5"))).contains("calcOnExit"));
+    }
+
     void aCheckBoxKeepsItsStateAndItsDefault()
     {
         FormFieldSpec f;

@@ -127,7 +127,7 @@ struct FormFieldSpec {
     int type = 0, state = 0;
     QString name, text, format, help, status;   // (`text` is a text field's default)
     int longest = 0, wDef = 0, textType = 0, boxSize = 20;
-    bool locked = false, autoSize = true, ownHelp = false, ownStatus = false;
+    bool locked = false, autoSize = true, ownHelp = false, ownStatus = false, recalc = false;
     QStringList entries;
 };
 QByteArray formFieldData(const FormFieldSpec &f);

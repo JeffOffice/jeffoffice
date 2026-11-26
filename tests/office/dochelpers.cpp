@@ -277,7 +277,7 @@ QByteArray formFieldData(const FormFieldSpec &f)
 {
     QByteArray b;
     add32(b, 0xFFFFFFFFu);
-    const int bits = (f.type & 3) | ((f.state & 0x1F) << 2) | (f.ownHelp ? 0x80 : 0) | (f.ownStatus ? 0x100 : 0) | (f.locked ? 0x200 : 0) | (f.autoSize ? 0x400 : 0) |
+    const int bits = (f.type & 3) | ((f.state & 0x1F) << 2) | (f.ownHelp ? 0x80 : 0) | (f.ownStatus ? 0x100 : 0) | (f.locked ? 0x200 : 0) | (f.autoSize ? 0x400 : 0) | (f.recalc ? 0x4000 : 0) |
                      ((f.textType & 7) << 11) | (f.type == 2 ? 0x8000 : 0);
     add16(b, bits);
     add16(b, f.longest);
