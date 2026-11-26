@@ -185,6 +185,7 @@ bool DeckWindow::applyShapeStyle(const QString &styleId)
 // Whether what is selected has letters these commands change: words in a shape or a text box (being edited, or not), or Text Art.
 bool DeckWindow::lettersSelected() const
 {
+    if (m_ed->editingStoryOnly()) return false;   // (the notes under the slide take no text art)
     if (m_ed->isEditingText()) return true;
     for (const Item *it : m_formatPane->session()->leaves()) {
         switch (it->type()) {

@@ -5,9 +5,11 @@
 
 ## Write notes
 
-The notes box is under the slide. Click it and type. It says **Click to add notes** while it is empty. The notes are plain text. They belong to the slide you are on, so click another slide to see or write its notes.
+The notes box is under the slide. Click it and type. It says **Click to add notes** while it is empty. They belong to the slide you are on, so click another slide to see or write its notes.
 
-What you type becomes one step that Ctrl+Z can take back once you pause, or when you click somewhere else.
+You can format the notes as you do the text on a slide. Select words in the notes box, then click **Bold**, **Italic**, or **Underline**, make a bulleted or numbered list, press Tab at the start of an item to move it in a level, or add a link with **Insert > Link**. A bar with the common choices also appears by words you select with the mouse. Spelling and AutoCorrect work there too. Commands that put objects on the slide, such as pictures, shapes, and tables, are turned off while you are typing in the notes, and a picture pasted into the notes is left out.
+
+What you type becomes one step that Ctrl+Z can take back once you pause, or when you click somewhere else. Each formatting change is a step of its own.
 
 To type on a page that looks like the printed notes page, click **View > Presentation Views > Notes Page**.
 

@@ -1445,7 +1445,7 @@ private Q_SLOTS:
         QTRY_COMPARE(edit->toPlainText(), QStringLiteral("one two"));
         w.notesPane()->moveCursor(QTextCursor::End);
         QTest::keyClicks(w.notesPane(), QStringLiteral(" three"));
-        QCOMPARE(notes(), QStringLiteral("one two"));   // and Presenter View's before the first key in the pane
+        QCOMPARE(notes(), QStringLiteral("one two three"));   // Presenter View's words were saved before the first key in the pane, which is typing in the notes at once
         w.notesPane()->commit();
         QCOMPARE(notes(), QStringLiteral("one two three"));
         QTRY_COMPARE(edit->toPlainText(), QStringLiteral("one two three"));

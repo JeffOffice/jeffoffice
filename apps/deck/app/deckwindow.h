@@ -657,6 +657,7 @@ private:
     Ribbon *m_ribbon = nullptr;
     SlidesPane *m_slides = nullptr;
     NotesPane *m_notes = nullptr;
+    QSet<QString> m_notesOff;   // the commands turned off while the caret is in the notes (turned on again when it leaves)
     CommentsPane *m_comments = nullptr;
     DeckFileScreen *m_fileScreen = nullptr;
     SplitMover *m_splitMover = nullptr;

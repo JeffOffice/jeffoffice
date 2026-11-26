@@ -1572,6 +1572,9 @@ private Q_SLOTS:
     // A line break inside a paragraph stays a line break through an edit of the words around it, in the notes pane and in a replacement of the story's text.
     void aLineBreakInNotesStaysALineBreak()
     {
+        const QVariant autoCorrectWas = jp::Settings::get().value(QStringLiteral("proof/autocorrect"), true);   // (the words are typed as they are: AutoCorrect is tried elsewhere)
+        jp::Settings::get().setValue(QStringLiteral("proof/autocorrect"), false);
+        const auto putBack = qScopeGuard([autoCorrectWas] { jp::Settings::get().setValue(QStringLiteral("proof/autocorrect"), autoCorrectWas); });
         DeckWindow w;
         Editor *ed = w.editor();
         w.newSlide();
@@ -1683,6 +1686,470 @@ private:
         ed->notifyLive();
         ed->undoStack()->clear();
     }
+private Q_SLOTS:
+    // ---------------- The notes pane as a formatted editor ----------------
+    // A window with a slide whose notes hold `words`, shown, with the notes pane showing them (so keys and the mouse reach the pane as a person's do).
+    static NotesPane *notesWith(DeckWindow &w, const QString &words)
+    {
+        Editor *ed = w.editor();
+        w.newSlide();
+        ed->setCurrentPage(0);
+        w.resize(900, 700);
+        w.show();
+        ed->doc()->storyDoc(ed->doc()->pages[0]->notesStoryId)->setPlainText(words);
+        NotesPane *pane = w.notesPane();
+        pane->reload();
+        ed->undoStack()->clear();
+        return pane;
+    }
+    // A command of the ribbon, once the window has shown it can run (it follows the caret on a short timer), run.
+    static void run(DeckWindow &w, const QString &id)
+    {
+        QTRY_VERIFY2(w.act(id)->isEnabled(), qPrintable(id));
+        w.act(id)->trigger();
+    }
+    static QTextDocument *notesStory(Editor *ed) { return ed->doc()->storyDoc(ed->doc()->pages[0]->notesStoryId); }
+    // A point a third of the way into the character after `pos` (not on a boundary), in the pane's viewport.
+    static QPoint inNotes(NotesPane *pane, int pos)
+    {
+        QTextCursor c(pane->document());
+        c.setPosition(pos);
+        const QRect a = pane->cursorRect(c);
+        c.setPosition(pos + 1);
+        const QRect b = pane->cursorRect(c);
+        return QPoint(a.x() + std::max(1, (b.x() - a.x()) / 3), a.center().y());
+    }
+    // The words with a mark around each run that is bold (B), italic (I), or underlined (U): "alpha [B]beta[/B] gamma".
+    static QString marked(const QTextDocument *story)
+    {
+        QString out;
+        QString open;
+        for (QTextBlock b = story->begin(); b.isValid(); b = b.next()) {
+            if (b != story->begin()) out += QLatin1Char('|');
+            for (QTextBlock::iterator it = b.begin(); !it.atEnd(); ++it) {
+                const QTextCharFormat cf = it.fragment().charFormat();
+                QString m;
+                if (cf.fontWeight() > QFont::Normal) m += QLatin1Char('B');
+                if (cf.fontItalic()) m += QLatin1Char('I');
+                if (cf.fontUnderline() && !cf.isAnchor()) m += QLatin1Char('U');
+                if (cf.isAnchor()) m += QLatin1Char('L');
+                if (m != open) {
+                    if (!open.isEmpty()) out += QStringLiteral("[/%1]").arg(open);
+                    if (!m.isEmpty()) out += QStringLiteral("[%1]").arg(m);
+                    open = m;
+                }
+                out += it.fragment().text();
+            }
+            if (!open.isEmpty()) out += QStringLiteral("[/%1]").arg(open);
+            open.clear();
+        }
+        return out;
+    }
+
+    // The ribbon's Bold, Italic, and Underline act on words selected in the notes with the mouse, each is one step of the presentation's undo history, and the story the pane
+    // shows is the slide's own (it is still the one shown after an undo replaced it).
+    void ribbonCommandsFormatWordsSelectedInTheNotes()
+    {
+        DeckWindow w;
+        NotesPane *pane = notesWith(w, QStringLiteral("alpha beta gamma"));
+        Editor *ed = w.editor();
+        QTest::mouseDClick(pane->viewport(), Qt::LeftButton, Qt::NoModifier, inNotes(pane, 6));
+        QCOMPARE(pane->textCursor().selectedText(), QStringLiteral("beta"));
+        QVERIFY2(ed->editingStoryOnly(), qPrintable(QStringLiteral("vis=%1 size=%2x%3 story=%4 ro=%5 sel=%6 edro=%7").arg(pane->isVisible()).arg(pane->width()).arg(pane->height()).arg(pane->storyId()).arg(pane->isReadOnly()).arg(pane->textCursor().selectedText()).arg(ed->readOnly())));
+        QCOMPARE(ed->cursor().selectedText(), QStringLiteral("beta"));   // (the editor's selection is the pane's)
+        run(w, QStringLiteral("fmt.bold"));
+        QCOMPARE(marked(notesStory(ed)), QStringLiteral("alpha [B]beta[/B] gamma"));
+        run(w, QStringLiteral("fmt.italic"));
+        run(w, QStringLiteral("fmt.underline"));
+        QCOMPARE(marked(notesStory(ed)), QStringLiteral("alpha [BIU]beta[/BIU] gamma"));
+        QCOMPARE(ed->undoStack()->count(), 3);
+        QCOMPARE(pane->document(), notesStory(ed));
+        ed->undo();
+        QCOMPARE(marked(notesStory(ed)), QStringLiteral("alpha [BI]beta[/BI] gamma"));
+        QCOMPARE(pane->document(), notesStory(ed));   // (the undo put another document in the slide: the pane shows it)
+        ed->undo();
+        QCOMPARE(marked(notesStory(ed)), QStringLiteral("alpha [B]beta[/B] gamma"));
+        ed->undo();
+        QCOMPARE(marked(notesStory(ed)), QStringLiteral("alpha beta gamma"));
+        ed->redo();
+        QCOMPARE(marked(notesStory(ed)), QStringLiteral("alpha [B]beta[/B] gamma"));
+        QCOMPARE(pane->document(), notesStory(ed));
+        QCOMPARE(deck::notesText(*ed->doc(), *ed->doc()->pages[0]), QStringLiteral("alpha beta gamma"));
+    }
+
+    // The ribbon's state follows the caret in the notes: bold is on inside bold words, off outside, and the list buttons show the paragraph's list.
+    void theRibbonStateFollowsTheCaretInTheNotes()
+    {
+        DeckWindow w;
+        NotesPane *pane = notesWith(w, QStringLiteral("alpha beta gamma"));
+        Editor *ed = w.editor();
+        QTest::mouseDClick(pane->viewport(), Qt::LeftButton, Qt::NoModifier, inNotes(pane, 6));
+        run(w, QStringLiteral("fmt.bold"));
+        run(w, QStringLiteral("para.bullets"));
+        QTest::mouseClick(pane->viewport(), Qt::LeftButton, Qt::NoModifier, inNotes(pane, 7));
+        QTRY_VERIFY(w.act(QStringLiteral("fmt.bold"))->isChecked());
+        QVERIFY(w.act(QStringLiteral("para.bullets"))->isChecked());
+        QVERIFY(!w.act(QStringLiteral("para.numbers"))->isChecked());
+        run(w, QStringLiteral("para.numbers"));
+        QTRY_VERIFY(w.act(QStringLiteral("para.numbers"))->isChecked());
+        QTRY_VERIFY(!w.act(QStringLiteral("para.bullets"))->isChecked());
+        QTest::keyClick(pane, Qt::Key_Left, Qt::NoModifier);   // (a real key moves the caret: out of the bold word, the ribbon follows)
+        QTest::keyClick(pane, Qt::Key_Home, Qt::NoModifier);
+        QTest::keyClick(pane, Qt::Key_Left, Qt::NoModifier);
+        QCOMPARE(ed->cursor().position(), pane->textCursor().position());
+        QTRY_VERIFY(!w.act(QStringLiteral("fmt.bold"))->isChecked());
+        run(w, QStringLiteral("para.numbers"));   // (off again: the paragraph is in no list)
+        QVERIFY(!notesStory(ed)->begin().textList());
+    }
+
+    // Bulleted and numbered lists, Enter, Backspace, and Tab in the notes are the text box's: Enter goes on with the list and ends it on an empty item, Tab at the start of
+    // an item makes it a level deeper and Shift+Tab brings it back, Backspace at the start of an item takes the bullet away.
+    void listKeysInTheNotesAreTheTextBoxKeys()
+    {
+        DeckWindow w;
+        NotesPane *pane = notesWith(w, QStringLiteral("one"));
+        Editor *ed = w.editor();
+        QTest::mouseClick(pane->viewport(), Qt::LeftButton, Qt::NoModifier, inNotes(pane, 1));
+        QTest::keyClick(pane, Qt::Key_End, Qt::ControlModifier);
+        run(w, QStringLiteral("para.bullets"));
+        QVERIFY(notesStory(ed)->begin().textList());
+        QTest::keyClick(pane, Qt::Key_Return);
+        QTest::keyClicks(pane, QStringLiteral("two"));
+        QTest::keyClick(pane, Qt::Key_Return);
+        QCOMPARE(notesStory(ed)->blockCount(), 3);
+        QVERIFY(notesStory(ed)->lastBlock().textList());   // (the new item is in the list)
+        QTest::keyClick(pane, Qt::Key_Return);              // (an empty item ends the list)
+        QVERIFY(!notesStory(ed)->lastBlock().textList());
+        QCOMPARE(notesStory(ed)->blockCount(), 3);
+        QTest::keyClicks(pane, QStringLiteral("three"));
+        run(w, QStringLiteral("para.numbers"));
+        QVERIFY(notesStory(ed)->lastBlock().textList());
+        const double flat = notesStory(ed)->lastBlock().blockFormat().leftMargin() + notesStory(ed)->lastBlock().blockFormat().indent();
+        QTest::keyClick(pane, Qt::Key_Home);
+        QTest::keyClick(pane, Qt::Key_Tab);
+        const double deeper = notesStory(ed)->lastBlock().blockFormat().leftMargin() + notesStory(ed)->lastBlock().blockFormat().indent();
+        QVERIFY2(deeper > flat, "Tab at the start of an item makes it a level deeper");
+        QTest::keyClick(pane, Qt::Key_Backtab, Qt::ShiftModifier);
+        QCOMPARE(notesStory(ed)->lastBlock().blockFormat().leftMargin() + notesStory(ed)->lastBlock().blockFormat().indent(), flat);
+        QTest::keyClick(pane, Qt::Key_Backspace);
+        QVERIFY2(!notesStory(ed)->lastBlock().textList(), "Backspace at the start of an item takes the bullet away");
+        QCOMPARE(deck::notesText(*ed->doc(), *ed->doc()->pages[0]), QStringLiteral("One\nTwo\nthree"));   // (AutoCorrect capitalized the words that ended)
+        // Increase List Level, from the ribbon, is the same command on the paragraph with the caret.
+        run(w, QStringLiteral("para.bullets"));
+        const double before = notesStory(ed)->lastBlock().blockFormat().leftMargin() + notesStory(ed)->lastBlock().blockFormat().indent();
+        run(w, QStringLiteral("para.indentInc"));
+        QVERIFY(notesStory(ed)->lastBlock().blockFormat().leftMargin() + notesStory(ed)->lastBlock().blockFormat().indent() > before);
+    }
+
+    // A link from the ribbon's Link command goes on the words selected in the notes, in the link color and underlined, and the words keep it through typing around them.
+    void aLinkCanBeAddedToWordsInTheNotes()
+    {
+        DeckWindow w;
+        NotesPane *pane = notesWith(w, QStringLiteral("alpha beta gamma"));
+        Editor *ed = w.editor();
+        QTest::mouseDClick(pane->viewport(), Qt::LeftButton, Qt::NoModifier, inNotes(pane, 6));
+        withDialog([&] { w.act(QStringLiteral("insert.link"))->trigger(); }, QStringLiteral("linkDialog"), [&](QDialog *dlg) {
+            dlg->findChild<QLineEdit *>(QStringLiteral("linkAddress"))->setText(QStringLiteral("https://example.com/talk"));
+        });
+        QCOMPARE(marked(notesStory(ed)), QStringLiteral("alpha [L]beta[/L] gamma"));
+        QTextCursor at(notesStory(ed));
+        at.setPosition(7);
+        QCOMPARE(at.charFormat().anchorHref(), QStringLiteral("https://example.com/talk"));
+        QVERIFY(at.charFormat().fontUnderline());
+        QTest::keyClick(pane, Qt::Key_End, Qt::ControlModifier);
+        QTest::keyClicks(pane, QStringLiteral("!"));
+        QCOMPARE(marked(notesStory(ed)), QStringLiteral("alpha [L]beta[/L] gamma!"));
+        ed->undo();   // (the typing)
+        ed->undo();   // (the link)
+        QCOMPARE(marked(notesStory(ed)), QStringLiteral("alpha beta gamma"));
+    }
+
+    // Typing in the notes is one step for a run of keys, as in a text box, and the work for it is the same however large the presentation is: two whole-presentation
+    // snapshots (the start and the end of the step), not one for each key.
+    void typingInTheNotesIsOneStepAndCostsTheSameInAnyPresentation()
+    {
+        for (const int slides : {1, 30}) {
+            DeckWindow w;
+            NotesPane *pane = notesWith(w, QStringLiteral("Start"));
+            Editor *ed = w.editor();
+            for (int i = 1; i < slides; ++i) {
+                w.newSlide();
+                ed->setCurrentPage(i);
+                ed->change(QStringLiteral("Text"), [&] { ed->surfaceItems().push_back(ed->newTextBox(QRectF(10, 10, 400, 100))); });
+            }
+            ed->setCurrentPage(0);
+            pane->reload();
+            ed->undoStack()->clear();
+            pane->setFocus();
+            QTest::keyClick(pane, Qt::Key_End, Qt::ControlModifier);
+            const int snapshots = Editor::snapshotCount();
+            const int steps = ed->undoStack()->count();
+            const QString typed = QStringLiteral("a run of forty keys typed one after the other");
+            QTest::keyClicks(pane, typed);
+            QVERIFY(pane->hasTyping());
+            pane->commit();
+            QVERIFY(!pane->hasTyping());
+            QCOMPARE(ed->undoStack()->count() - steps, 1);
+            QCOMPARE(Editor::snapshotCount() - snapshots, 2);
+            QCOMPARE(notesStory(ed)->toPlainText(), QStringLiteral("Start") + typed);
+            ed->undo();
+            QCOMPARE(notesStory(ed)->toPlainText(), QStringLiteral("Start"));
+        }
+    }
+
+    // AutoCorrect works in the notes as in a text box: a slip fixed as the word ends, in the same step as the typing.
+    void autoCorrectWorksInTheNotes()
+    {
+        DeckWindow w;
+        NotesPane *pane = notesWith(w, QString());
+        Editor *ed = w.editor();
+        pane->setFocus();
+        QTest::keyClicks(pane, QStringLiteral("Say teh words "));
+        pane->commit();
+        QCOMPARE(notesStory(ed)->toPlainText(), QStringLiteral("Say the words "));
+        QCOMPARE(ed->undoStack()->count(), 1);
+        ed->undo();
+        QCOMPARE(notesStory(ed)->toPlainText(), QString());
+    }
+
+    // Misspelled words are marked in the notes as they are in a text box (the word being typed is not).
+    void misspelledWordsAreMarkedInTheNotes()
+    {
+        DeckWindow w;
+        NotesPane *pane = notesWith(w, QStringLiteral("a recieve wrongg words"));
+        Editor *ed = w.editor();
+        QVERIFY(!ed->misspelledIn(ed->doc()->pages[0]->notesStoryId).isEmpty());
+        auto marked = [&] {
+            QStringList words;
+            for (const QTextEdit::ExtraSelection &x : pane->extraSelections())
+                if (x.format.underlineStyle() == QTextCharFormat::SpellCheckUnderline) words << x.cursor.selectedText();
+            return words;
+        };
+        QVERIFY(marked().contains(QStringLiteral("wrongg")));
+        QVERIFY(!marked().contains(QStringLiteral("words")));
+        // The caret in a misspelled word: it is the word being typed, so it is left unmarked.
+        QTest::mouseClick(pane->viewport(), Qt::LeftButton, Qt::NoModifier, inNotes(pane, 12));
+        QVERIFY(!marked().contains(QStringLiteral("wrongg")));
+    }
+
+    // Copy and Paste inside JeffDeck keep the formatting; text and a web page from another program come in as words (a table as its words, a picture left out), each
+    // paste one step.
+    void copyAndPasteInTheNotesKeepFormattingWithinTheProgram()
+    {
+        DeckWindow w;
+        NotesPane *pane = notesWith(w, QStringLiteral("alpha beta gamma"));
+        Editor *ed = w.editor();
+        QTest::mouseDClick(pane->viewport(), Qt::LeftButton, Qt::NoModifier, inNotes(pane, 6));
+        run(w, QStringLiteral("fmt.bold"));
+        run(w, QStringLiteral("edit.copy"));
+        QTest::keyClick(pane, Qt::Key_End, Qt::ControlModifier);
+        run(w, QStringLiteral("edit.paste"));
+        QCOMPARE(marked(notesStory(ed)), QStringLiteral("alpha [B]beta[/B] gamma[B]beta[/B]"));
+        QCOMPARE(ed->undoStack()->count(), 2);
+        // Cut takes the words and leaves them on the clipboard.
+        QTest::mouseDClick(pane->viewport(), Qt::LeftButton, Qt::NoModifier, inNotes(pane, 0));
+        run(w, QStringLiteral("edit.cut"));
+        QCOMPARE(notesStory(ed)->toPlainText(), QStringLiteral(" beta gammabeta"));
+        QCOMPARE(QApplication::clipboard()->text(), QStringLiteral("alpha"));
+        ed->undo();
+        QCOMPARE(notesStory(ed)->toPlainText(), QStringLiteral("alpha beta gammabeta"));
+        // From another program: plain text, and a page with a table and a picture.
+        QTest::keyClick(pane, Qt::Key_End, Qt::ControlModifier);
+        auto *plain = new QMimeData;
+        plain->setText(QStringLiteral(" and plain"));
+        QApplication::clipboard()->setMimeData(plain);
+        run(w, QStringLiteral("edit.paste"));
+        QCOMPARE(notesStory(ed)->toPlainText(), QStringLiteral("alpha beta gammabeta and plain"));
+        const int items = int(ed->doc()->pages[0]->items.size());
+        auto *page = new QMimeData;
+        page->setText(QStringLiteral(" x\ty"));
+        page->setHtml(QStringLiteral("<p><b>web</b> <img src=\"data:image/png;base64,iVBORw0KGgo=\" width=\"20\" height=\"20\"></p><table><tr><td>x</td><td>y</td></tr></table>"));
+        QApplication::clipboard()->setMimeData(page);
+        run(w, QStringLiteral("edit.paste"));
+        QCOMPARE(int(ed->doc()->pages[0]->items.size()), items);   // (no table, no picture on the slide)
+        const QString words = notesStory(ed)->toPlainText();
+        QVERIFY2(words.endsWith(QStringLiteral(" x\ty")), qPrintable(words));   // (a table comes in as its words)
+        for (QTextBlock b = notesStory(ed)->begin(); b.isValid(); b = b.next()) QVERIFY(!QTextCursor(b).currentTable());
+        auto *picture = new QMimeData;
+        picture->setText(QStringLiteral("web"));
+        picture->setHtml(QStringLiteral("<p><b>web</b> <img src=\"data:image/png;base64,iVBORw0KGgo=\" width=\"20\" height=\"20\"></p>"));
+        QApplication::clipboard()->setMimeData(picture);
+        QTest::keyClick(pane, Qt::Key_End, Qt::ControlModifier);
+        w.act(QStringLiteral("edit.paste"))->trigger();
+        QVERIFY2(notesStory(ed)->toPlainText().contains(QStringLiteral("yweb")), qPrintable(notesStory(ed)->toPlainText()));
+        QVERIFY2(!notesStory(ed)->toPlainText().contains(QChar::ObjectReplacementCharacter), "no picture in the notes");
+        QVERIFY2(marked(notesStory(ed)).contains(QStringLiteral("web[/B]")), qPrintable(marked(notesStory(ed))));   // (typed next to bold words, it is bold as in a text box)
+        QApplication::clipboard()->clear();
+    }
+
+    // Presentations open for reading only, and ones the person protected from changes, refuse every change made in the notes: keys, ribbon commands, and paste.
+    void aReadOnlyPresentationRefusesEditsInTheNotes()
+    {
+        DeckWindow w;
+        NotesPane *pane = notesWith(w, QStringLiteral("alpha beta gamma"));
+        Editor *ed = w.editor();
+        w.setReadOnly(true);
+        QTest::mouseDClick(pane->viewport(), Qt::LeftButton, Qt::NoModifier, inNotes(pane, 6));
+        QCOMPARE(pane->textCursor().selectedText(), QStringLiteral("beta"));   // (the words can be selected and copied)
+        QVERIFY(!ed->editingStoryOnly());
+        QTest::keyClicks(pane, QStringLiteral("zz"));
+        QTest::keyClick(pane, Qt::Key_Backspace);
+        QTest::keyClick(pane, Qt::Key_Return);
+        w.act(QStringLiteral("fmt.bold"))->trigger();   // (turned off, and the editor refuses it as well)
+        ed->toggleBold();
+        ed->beginStoryEdit(ed->doc()->pages[0]->notesStoryId);
+        QVERIFY(!ed->editingStoryOnly());
+        QCOMPARE(notesStory(ed)->toPlainText(), QStringLiteral("alpha beta gamma"));
+        QCOMPARE(marked(notesStory(ed)), QStringLiteral("alpha beta gamma"));
+        QCOMPARE(ed->undoStack()->count(), 0);
+        w.setReadOnly(false);
+        QTest::keyClicks(pane, QStringLiteral("zz"));   // (writable again: the same keys are typed)
+        QCOMPARE(notesStory(ed)->toPlainText(), QStringLiteral("alpha zz gamma"));   // (the selected word is replaced)
+    }
+
+    // While the caret is in the notes, the commands that make no sense there (the pictures, shapes, and tables of Insert, text art, shadow, and the frame's text direction
+    // and columns) are off, and come back when the caret goes back to the slide.
+    void commandsThatMakeNoSenseInTheNotesAreOff()
+    {
+        DeckWindow w;
+        NotesPane *pane = notesWith(w, QStringLiteral("alpha beta gamma"));
+        Editor *ed = w.editor();
+        const QStringList off = {QStringLiteral("insert.picture"), QStringLiteral("insert.table"), QStringLiteral("insert.icons"), QStringLiteral("insert.textBox"), QStringLiteral("fmt.shadow"),
+                                 QStringLiteral("tb.dirVertical"), QStringLiteral("cols.2")};
+        const QStringList on = {QStringLiteral("fmt.bold"), QStringLiteral("para.bullets"), QStringLiteral("insert.link"), QStringLiteral("insert.symbol"), QStringLiteral("fmt.fontDialog"), QStringLiteral("edit.paste")};
+        QVERIFY(w.act(QStringLiteral("insert.picture"))->isEnabled());   // (on the slide)
+        QTest::mouseDClick(pane->viewport(), Qt::LeftButton, Qt::NoModifier, inNotes(pane, 6));
+        for (const QString &id : off) QTRY_VERIFY2(!w.act(id)->isEnabled(), qPrintable(id));
+        for (const QString &id : on) QTRY_VERIFY2(w.act(id)->isEnabled(), qPrintable(id));
+        // Back on the slide (a click on it): the Insert commands are on again.
+        QTest::mouseClick(w.canvas()->viewport(), Qt::LeftButton, Qt::NoModifier, QPoint(5, 5));
+        w.canvas()->setFocus();
+        QVERIFY(!ed->editingStoryOnly());
+        for (const QString &id : {QStringLiteral("insert.picture"), QStringLiteral("insert.table"), QStringLiteral("insert.icons"), QStringLiteral("insert.textBox")})
+            QTRY_VERIFY2(w.act(id)->isEnabled(), qPrintable(id));
+    }
+
+    // A note on a slide that had none gets its story as the first words go in; the story is no step of its own, so Undo gives back the empty note, and Redo the words.
+    void aSlideWithNoNotesGetsThemWhenTyped()
+    {
+        DeckWindow w;
+        w.newSlide();
+        Editor *ed = w.editor();
+        ed->setCurrentPage(0);
+        w.resize(900, 700);
+        w.show();
+        Page &slide = *ed->doc()->pages[0];
+        ed->doc()->removeStory(slide.notesStoryId);
+        slide.notesStoryId.clear();
+        NotesPane *pane = w.notesPane();
+        pane->reload();
+        ed->undoStack()->clear();
+        QVERIFY(pane->toPlainText().isEmpty());
+        QTest::keyClicks(pane, QStringLiteral("first words"));
+        pane->commit();
+        QVERIFY(!ed->doc()->pages[0]->notesStoryId.isEmpty());
+        QCOMPARE(deck::notesText(*ed->doc(), *ed->doc()->pages[0]), QStringLiteral("First words"));
+        QCOMPARE(ed->undoStack()->count(), 1);
+        ed->undo();
+        QCOMPARE(deck::notesText(*ed->doc(), *ed->doc()->pages[0]), QString());
+        QVERIFY(pane->toPlainText().isEmpty());
+        ed->redo();
+        QCOMPARE(deck::notesText(*ed->doc(), *ed->doc()->pages[0]), QStringLiteral("First words"));
+        QCOMPARE(pane->toPlainText(), QStringLiteral("First words"));
+    }
+
+    // The caret goes on being the notes' after an undo, and typing after it is typing in the notes (the undo replaced the story's document).
+    void typingGoesOnAfterAnUndoInTheNotes()
+    {
+        DeckWindow w;
+        NotesPane *pane = notesWith(w, QStringLiteral("alpha beta gamma"));
+        Editor *ed = w.editor();
+        w.activateWindow();
+        pane->setFocus();
+        QTRY_VERIFY(pane->hasFocus());
+        QTest::mouseDClick(pane->viewport(), Qt::LeftButton, Qt::NoModifier, inNotes(pane, 6));
+        run(w, QStringLiteral("fmt.bold"));
+        ed->undo();
+        QVERIFY(ed->editingStoryOnly());
+        QVERIFY(pane->isTarget());
+        QCOMPARE(pane->document(), notesStory(ed));
+        QTest::keyClick(pane, Qt::Key_End, Qt::ControlModifier);
+        QTest::keyClicks(pane, QStringLiteral("!"));
+        QCOMPARE(notesStory(ed)->toPlainText(), QStringLiteral("alpha beta gamma!"));
+        QCOMPARE(pane->toPlainText(), QStringLiteral("alpha beta gamma!"));
+    }
+
+    // Selecting the slide's own text hands the caret back: the ribbon acts on the slide's object again, and the notes are not changed by it.
+    void clickingTheSlideLeavesTheNotes()
+    {
+        DeckWindow w;
+        NotesPane *pane = notesWith(w, QStringLiteral("alpha beta gamma"));
+        Editor *ed = w.editor();
+        w.activateWindow();
+        pane->setFocus();
+        QTRY_VERIFY(pane->hasFocus());
+        QTest::mouseDClick(pane->viewport(), Qt::LeftButton, Qt::NoModifier, inNotes(pane, 6));
+        QVERIFY(ed->editingStoryOnly());
+        const QString box = ed->doc()->pages[0]->items.at(0)->id;
+        w.canvas()->setFocus();   // (the page takes the keyboard: the notes give up the caret)
+        QTRY_VERIFY(w.canvas()->hasFocus() && !pane->hasFocus());
+        QVERIFY(!ed->editingStoryOnly());
+        ed->select(box);
+        QVERIFY(!ed->editingStoryOnly());
+        run(w, QStringLiteral("fmt.bold"));
+        QCOMPARE(marked(notesStory(ed)), QStringLiteral("alpha beta gamma"));
+        QVERIFY(!pane->isTarget());
+    }
+
+    // Words selected in the notes with the mouse show the mini toolbar by them, and its Bold is the notes' bold.
+    void wordsSelectedInTheNotesShowTheMiniToolbar()
+    {
+        DeckWindow w;
+        NotesPane *pane = notesWith(w, QStringLiteral("alpha beta gamma"));
+        Editor *ed = w.editor();
+        QVERIFY(pane->miniBar());
+        QVERIFY(!pane->miniBar()->isVisible());
+        QTest::mouseDClick(pane->viewport(), Qt::LeftButton, Qt::NoModifier, inNotes(pane, 6));
+        QTest::mouseRelease(pane->viewport(), Qt::LeftButton, Qt::NoModifier, inNotes(pane, 6));   // (a double click ends with the release)
+        QTRY_VERIFY(pane->miniBar()->isVisible());
+        auto buttons = pane->miniBar()->findChildren<QToolButton *>();
+        QToolButton *bold = nullptr;
+        for (QToolButton *b : buttons)
+            if (b->defaultAction() == w.act(QStringLiteral("fmt.bold"))) bold = b;
+        QVERIFY(bold);
+        QTRY_VERIFY(bold->isEnabled());
+        bold->click();
+        QCOMPARE(marked(notesStory(ed)), QStringLiteral("alpha [B]beta[/B] gamma"));
+        // A key that types takes the bar away.
+        QTest::keyClicks(pane, QStringLiteral("x"));
+        QTRY_VERIFY(!pane->miniBar()->isVisible());
+    }
+
+    // Select All and typing replaces every word and keeps the first paragraph's look (here its centering), and a line break stays a line break, with the notes pane as the editor.
+    void selectAllThenTypeInTheNotesFollowsTheFirstParagraph()
+    {
+        DeckWindow w;
+        NotesPane *pane = notesWith(w, QStringLiteral("alpha\nbeta"));
+        Editor *ed = w.editor();
+        QTest::mouseClick(pane->viewport(), Qt::LeftButton, Qt::NoModifier, inNotes(pane, 1));
+        run(w, QStringLiteral("fmt.alignCenter"));
+        QCOMPARE(notesStory(ed)->begin().blockFormat().alignment() & Qt::AlignHorizontal_Mask, Qt::AlignHCenter);
+        QVERIFY(notesStory(ed)->begin().next().blockFormat().alignment() != Qt::AlignHCenter);
+        QTest::keyClick(pane, Qt::Key_A, Qt::ControlModifier);
+        QCOMPARE(ed->cursor().selectedText().size(), 10);
+        QTest::keyClicks(pane, QStringLiteral("new"));
+        pane->commit();
+        QCOMPARE(notesStory(ed)->toPlainText(), QStringLiteral("new"));
+        QCOMPARE(notesStory(ed)->blockCount(), 1);
+        QCOMPARE(notesStory(ed)->begin().blockFormat().alignment() & Qt::AlignHorizontal_Mask, Qt::AlignHCenter);
+        QTest::keyClick(pane, Qt::Key_Return, Qt::ShiftModifier);
+        QTest::keyClicks(pane, QStringLiteral("line"));
+        pane->commit();
+        QCOMPARE(notesStory(ed)->blockCount(), 1);
+        QVERIFY(notesStory(ed)->toPlainText().contains(QLatin1Char('\n')));   // (a line break, in one paragraph)
+    }
+
+private:
     // Where Find Next has put the match: "slide:text@start" in a box, or the same "in the notes".
     static QString matchShown(DeckWindow &w)
     {

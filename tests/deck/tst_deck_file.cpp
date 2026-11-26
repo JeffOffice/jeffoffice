@@ -1087,7 +1087,6 @@ private Q_SLOTS:
         const int steps = w.editor()->undoStack()->count();
         // The notes and the outline, typed and committed.
         QTest::keyClicks(w.notesPane(), QStringLiteral("spoken words"));
-        w.notesPane()->setPlainText(QStringLiteral("spoken words"));
         w.notesPane()->commit();
         w.act(QStringLiteral("view.outline"))->trigger();
         QTest::keyClicks(w.outlineView(), QStringLiteral("typed in the outline"));

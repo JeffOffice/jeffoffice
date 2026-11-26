@@ -1,42 +1,32 @@
 #include "app/notespane.h"
 
 #include "app/editor.h"
+#include "app/proofingdialogs.h"
 #include "core/deck.h"
-#include "text/storyio.h"
 
 #include "app/settings.h"
 
-#include <QContextMenuEvent>
-#include <QDropEvent>
-#include <QKeyEvent>
-#include <QMimeData>
-#include <QMouseEvent>
 #include <QMenu>
 #include <QPointer>
-#include <QTextBlock>
 #include <QTextDocument>
 
 namespace jp {
 
-NotesPane::NotesPane(Editor *ed, QWidget *parent) : QPlainTextEdit(parent), m_ed(ed)
+NotesPane::NotesPane(Editor *ed, QWidget *parent) : StoryEdit(ed, parent), m_ed(ed)
 {
     setObjectName(QStringLiteral("notesPane"));
     setAccessibleName(tr("Notes"));
     setPlaceholderText(tr("Click to add notes"));
-    m_idle.setSingleShot(true);
-    m_idle.setInterval(700);
-    connect(&m_idle, &QTimer::timeout, this, &NotesPane::commit);
-    // Grammar as you type, as in the slides' text: the check is of this pane's own text, which is not in the slide until it is saved.
+    // Grammar as you type, as in the slides' text: the check is of the story shown, which it is told of as the story changes.
     m_grammar = std::make_unique<GrammarCheck>(document());
     m_grammar->setEnabled(grammarAsYouType());
     connect(m_grammar.get(), &GrammarCheck::changed, this, &NotesPane::markGrammar);
     connect(&GrammarSettingNotifier::get(), &GrammarSettingNotifier::changed, this, [this](bool on) { m_grammar->setEnabled(on); });
-    connect(this, &QPlainTextEdit::textChanged, this, &NotesPane::markGrammar);
-    connect(this, &QPlainTextEdit::textChanged, this, [this] {
-        if (m_loading) return;
-        m_typed = true;
-        m_idle.start();
+    connect(this, &StoryEdit::storyShown, this, [this] {
+        m_grammar->setStory(document());
+        markGrammar();
     });
+    connect(this, &QTextEdit::textChanged, this, &NotesPane::markGrammar);
     reload();
 }
 
@@ -46,52 +36,32 @@ void NotesPane::reload()
     const int i = m_ed->currentPage();
     if (!d || i < 0 || i >= d->pages.size()) return;
     const Page &slide = *d->pages[i];
-    const QTextDocument *story = d->storyDoc(slide.notesStoryId);
-    const QString text = story ? storyTextKeepingBreaks(story) : QString();   // (a line break stays one, not a new paragraph)
-    if (slide.id == m_pageId && (m_typed || text == storyTextKeepingBreaks(document()))) return;
-    m_idle.stop();
-    m_typed = false;
-    m_loading = true;
     m_pageId = slide.id;
-    const bool atEnd = textCursor().position() >= document()->characterCount() - 1;   // (a cursor at the end stays there)
-    setPlainText(text);
-    if (atEnd) moveCursor(QTextCursor::End);
-    m_loading = false;
+    setStory(slide.notesStoryId);
+    if (hasFocus()) takeTarget();   // (the caret is in the notes of this slide: the commands act on them)
 }
 
-void NotesPane::commit()
+// A slide with no notes yet gets its story as the first words are put in (no step of its own: the typing is the step, and undone, the notes are as empty as they were).
+QString NotesPane::makeStory()
 {
-    m_idle.stop();
     Document *d = m_ed->doc();
-    if (m_ed->closed() || !d || !m_typed || m_ed->readOnly()) return;   // (a presentation open for reading only is not changed by what is typed)
-    m_typed = false;
-    const int i = d->pageIndexOf(m_pageId);
-    if (i < 0) return;
+    const int i = d ? d->pageIndexOf(m_pageId) : -1;
+    if (i < 0) return QString();
     Page &slide = *d->pages[i];
-    const QString typed = storyTextKeepingBreaks(document());
-    if (const QTextDocument *was = d->storyDoc(slide.notesStoryId); was && storyTextKeepingBreaks(was) == typed) return;
-    if (!d->storyDoc(slide.notesStoryId) && typed.isEmpty()) return;
-    m_ed->beginChange(tr("Notes"));
     if (slide.notesStoryId.isEmpty() || !d->storyDoc(slide.notesStoryId)) slide.notesStoryId = d->createStory();
-    replaceStoryText(d->storyDoc(slide.notesStoryId), typed);   // (formatting the text had from a file stays outside what was typed)
-    m_ed->endChange();
+    return slide.notesStoryId;
 }
+
+void NotesPane::commit() { flushTyping(); }
 
 QVector<GrammarCheck::Issue> NotesPane::grammarIssues() const { return m_grammar->issuesIn(0, document()->characterCount()); }
 
 void NotesPane::markGrammar()
 {
-    QList<QTextEdit::ExtraSelection> marks;
-    for (const GrammarCheck::Issue &g : grammarIssues()) {
-        QTextEdit::ExtraSelection x;
-        x.cursor = QTextCursor(document());
-        x.cursor.setPosition(g.start);
-        x.cursor.setPosition(g.end, QTextCursor::KeepAnchor);
-        x.format.setUnderlineStyle(QTextCharFormat::DotLine);
-        x.format.setUnderlineColor(QColor(30, 90, 220));   // (the blue of the slides' text)
-        marks << x;
-    }
-    setExtraSelections(marks);
+    QVector<Mark> marks;
+    for (const GrammarCheck::Issue &g : grammarIssues())
+        marks.push_back(Mark{g.start, g.end, QColor(30, 90, 220), QTextCharFormat::DotLine});   // (the blue of the slides' text)
+    setExtraMarks(marks);
 }
 
 // The message, the suggestions (the first in bold; each replaces the issue's words), Ignore This Issue, and Ignore All, for the issue at a position.
@@ -105,11 +75,12 @@ bool NotesPane::addGrammarSuggestions(QMenu &menu, int position)
     bool first = true;
     for (const QString &sgg : issue.suggestions) {
         QAction *a = menu.addAction(sgg.isEmpty() ? tr("(Delete)") : sgg, &menu, [where, issue, sgg] {
-            if (!where) return;
-            QTextCursor c(where->document());
-            c.setPosition(issue.start);
-            c.setPosition(issue.end, QTextCursor::KeepAnchor);
-            c.insertText(sgg);
+            if (!where || !where->takeTarget()) return;
+            where->m_ed->editText([&](QTextCursor &c) {
+                c.setPosition(issue.start);
+                c.setPosition(issue.end, QTextCursor::KeepAnchor);
+                c.insertText(sgg);
+            });
         });
         if (first) {
             QFont f = a->font();
@@ -128,57 +99,11 @@ bool NotesPane::addGrammarSuggestions(QMenu &menu, int position)
     return true;
 }
 
-void NotesPane::contextMenuEvent(QContextMenuEvent *e)
+void NotesPane::fillMenu(QMenu &menu, int position)
 {
-    if (m_typed) commit();
-    QMenu menu(this);
-    addGrammarSuggestions(menu, cursorForPosition(e->pos()).position());
-    QMenu *standard = createStandardContextMenu(e->pos());
-    standard->setParent(&menu);
-    menu.addActions(standard->actions());
-    menu.exec(e->globalPos());
-}
-
-// One commit covers one contiguous change: typing and deleting go on in the place being edited, and anything else (the caret moved elsewhere by a key or a click, a
-// paste, a cut, a drop, a menu, or a selection about to be replaced) saves what was typed first, so the next edit is a change of its own and the formatting between
-// the two is never part of a replacement.
-void NotesPane::keyPressEvent(QKeyEvent *e)
-{
-    if (!isReadOnly() && !e->text().isEmpty()) Q_EMIT typingStarted();
-    const int key = e->key();
-    const bool typing = (!e->text().isEmpty() && !(e->modifiers() & (Qt::ControlModifier | Qt::MetaModifier))) || key == Qt::Key_Backspace || key == Qt::Key_Delete;
-    if (m_typed && (!typing || textCursor().hasSelection())) commit();
-    QPlainTextEdit::keyPressEvent(e);
-}
-
-void NotesPane::mousePressEvent(QMouseEvent *e)
-{
-    if (m_typed) commit();
-    QPlainTextEdit::mousePressEvent(e);
-}
-
-void NotesPane::insertFromMimeData(const QMimeData *source)
-{
-    if (m_typed) commit();
-    QPlainTextEdit::insertFromMimeData(source);
-}
-
-void NotesPane::dropEvent(QDropEvent *e)
-{
-    if (m_typed) commit();
-    QPlainTextEdit::dropEvent(e);
-}
-
-void NotesPane::focusInEvent(QFocusEvent *e)
-{
-    Q_EMIT typingStarted();
-    QPlainTextEdit::focusInEvent(e);
-}
-
-void NotesPane::focusOutEvent(QFocusEvent *e)
-{
-    commit();
-    QPlainTextEdit::focusOutEvent(e);
+    if (!isReadOnly() && !m_ed->readOnly() && isTarget()) addSpellingSuggestions(menu, m_ed);
+    addGrammarSuggestions(menu, position);
+    if (m_fill) m_fill(menu);
 }
 
 } // namespace jp

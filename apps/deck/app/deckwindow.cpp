@@ -194,8 +194,7 @@ DeckWindow::DeckWindow(QWidget *parent) : AppWindow(parent)
     connect(m_canvas, &Canvas::contextMenuWanted, this, &DeckWindow::showSlideContextMenu);
     // The mini toolbar by words selected with the mouse: the ribbon's own commands, on the text being typed in.
     {
-        auto target = std::make_unique<FunctionMiniTarget>();
-        target->actionFor = [this](MiniTarget::Command c) {
+        const auto miniAction = [this](MiniTarget::Command c) {
             using C = MiniTarget::Command;
             switch (c) {
             case C::Bold: return act("fmt.bold");
@@ -211,6 +210,8 @@ DeckWindow::DeckWindow(QWidget *parent) : AppWindow(parent)
             }
             return static_cast<QAction *>(nullptr);
         };
+        auto target = std::make_unique<FunctionMiniTarget>();
+        target->actionFor = miniAction;
         target->setFont = [this](const QString &f) {
             m_ed->setFontFamily(f);
             m_canvas->setFocus();
@@ -222,6 +223,28 @@ DeckWindow::DeckWindow(QWidget *parent) : AppWindow(parent)
         auto *mini = new EditorMiniToolbar(m_canvas, std::move(target), [this] { return isReadOnly(); }, [this] { refreshUi(); });
         m_fontCombos << mini->bar()->fontBox();
         m_colorButtons << mini->bar()->colorButton();
+        // The same bar by words selected in the notes under the slide.
+        auto notesTarget = std::make_unique<FunctionMiniTarget>();
+        notesTarget->actionFor = miniAction;
+        notesTarget->setFont = [this](const QString &f) {
+            m_ed->setFontFamily(f);
+            m_notes->setFocus();
+        };
+        notesTarget->setColor = [this](const ColorRef &c) {
+            m_ed->setTextColor(c);
+            m_notes->setFocus();
+        };
+        MiniToolbar *notesBar = m_notes->setMiniTarget(std::move(notesTarget));
+        m_fontCombos << notesBar->fontBox();
+        m_colorButtons << notesBar->colorButton();
+        m_notes->setMenuFiller([this](QMenu &menu) {
+            for (const char *id : {"edit.cut", "edit.copy", "edit.paste"}) menu.addAction(act(QString::fromLatin1(id)));
+            QMenu *options = menu.addMenu(act("edit.paste")->icon(), tr("Paste Options"));
+            options->addAction(act("edit.pasteKeep"));
+            options->addAction(act("edit.pasteText"));
+            menu.addSeparator();
+            for (const char *id : {"fmt.fontDialog", "para.dialog", "para.bullets", "para.numbers", "insert.link"}) menu.addAction(act(QString::fromLatin1(id)));
+        });
     }
     m_canvas->zoomToFit(Canvas::Fit::WholePage);
     resize(1280, 800);
@@ -464,6 +487,26 @@ void DeckWindow::refreshUi()
     for (ColorButton *c : m_colorButtons) c->setScheme(d->colors);
     for (ColorButton *c : m_colorButtons) c->setEnabled(c->objectName() == QLatin1String("textColor") ? textish : sel);
 
+    // While the caret is in the notes under the slide only words are edited there: no pictures, shapes, tables, media, or other objects go in (the Insert commands
+    // that put things on the slide), and no text art or shadow. The commands of a text box's frame (direction, columns, alignment in the box) are off with no box.
+    {
+        static const QSet<QString> wordsOnly = {QStringLiteral("insert.link"), QStringLiteral("insert.symbol"), QStringLiteral("insert.dateTime"), QStringLiteral("insert.slideNumberField"),
+                                                QStringLiteral("insert.fieldTitle"), QStringLiteral("insert.fieldAuthor"), QStringLiteral("insert.fieldFileName"), QStringLiteral("insert.fieldSlideCount")};
+        const bool inNotes = ed->editingStoryOnly();
+        for (QAction *a : m_actions) {
+            const QString n = a->objectName();
+            const bool off = inNotes && ((n.startsWith(QLatin1String("insert.")) && !wordsOnly.contains(n)) || n == QLatin1String("fmt.shadow") || n.startsWith(QLatin1String("tbl.")) ||
+                                         n.startsWith(QLatin1String("pic.")) || n.startsWith(QLatin1String("shape.")));
+            if (off) {
+                if (a->isEnabled()) {
+                    a->setEnabled(false);
+                    m_notesOff.insert(n);
+                }
+            } else if (m_notesOff.remove(n)) {
+                a->setEnabled(true);
+            }
+        }
+    }
     // The view, and the slide size, which the canvas fits again when it changed.
     act("view.notes")->setChecked(!m_notes->isHidden());
     act("view.rulers")->setChecked(ed->view.rulers);

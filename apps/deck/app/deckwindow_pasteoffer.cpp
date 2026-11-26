@@ -106,6 +106,7 @@ bool DeckWindow::pasteOnce(int form)
     const QMimeData *md = QApplication::clipboard()->mimeData();
     if (!md) return false;
     const quint64 before = m_changes;
+    if (m_ed->editingStoryOnly() && (form == Picture || form == CellsAsTable)) return false;   // (the notes under the slide hold words only: no picture, no table)
     switch (form) {
     case TextOnly:
         m_ed->paste(true);
