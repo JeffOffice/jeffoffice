@@ -225,6 +225,7 @@ private Q_SLOTS:
         QCOMPARE(read(QStringLiteral("FALSE"), o), QStringLiteral("b:0"));
         QCOMPARE(read(QStringLiteral("#N/A"), o), QStringLiteral("e:#N/A"));
         QCOMPARE(read(QStringLiteral("#div/0!"), o), QStringLiteral("e:#DIV/0!"));
+        QCOMPARE(read(QStringLiteral("#unknown!"), o), QStringLiteral("e:#UNKNOWN!"));
         QCOMPARE(read(QStringLiteral("#hello"), o), QStringLiteral("t:#hello"));
         QCOMPARE(read(QString(), o), QStringLiteral("-"));
         QCOMPARE(read(QStringLiteral("hello world"), o), QStringLiteral("t:hello world"));

@@ -1,5 +1,6 @@
 // Tests of the cells a worksheet is read into: the store, every type of cell, the shared strings, and the shape the part declares.
 #include "sheethelpers.h"
+#include "calc/value.h"
 
 #include <random>
 
@@ -1004,11 +1005,14 @@ private Q_SLOTS:
         QCOMPARE(sheet.storedResults, qint64(1));
         // The error texts are those of the file, and both ways.
         bool known = false;
-        for (const char *text : {"#NULL!", "#DIV/0!", "#VALUE!", "#REF!", "#NAME?", "#NUM!", "#N/A", "#GETTING_DATA", "#SPILL!", "#CALC!"}) {
+        for (const char *text : {"#NULL!", "#DIV/0!", "#VALUE!", "#REF!", "#NAME?", "#NUM!", "#N/A", "#GETTING_DATA", "#SPILL!", "#CALC!", "#UNKNOWN!"}) {
             const CellError e = errorFromText(QString::fromLatin1(text), &known);
             QVERIFY2(known, text);
             QCOMPARE(errorText(e), QString::fromLatin1(text));
         }
+        jp::calc::errorKindFromText(QStringLiteral("#UNKNOWN!"), &known);
+        QVERIFY(known);
+        QCOMPARE(jp::calc::errorKindText(jp::calc::ErrorKind::Unknown), QStringLiteral("#UNKNOWN!"));
         errorFromText(QStringLiteral("#NOPE!"), &known);
         QVERIFY(!known);
     }
