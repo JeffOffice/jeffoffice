@@ -372,6 +372,12 @@ public:
     bool canRedo() const { return !m_redoLog.isEmpty(); }
     QTextDocument *undo(QTextCursor *cursor = nullptr);
     QTextDocument *redo(QTextCursor *cursor = nullptr);
+    // The name the steps logged from now on are given (a command's name; none is "Edit"): what the history lists on Undo and Redo show.
+    void setStepName(const QString &name) { m_stepName = name; }
+    // The names of what each Undo takes back, newest first (at most `limit`), and of what each Redo does again, nearest first. A step that joined others (a group, or an edit that joined the
+    // block before it) is one name, so n names are n Undos or n Redos.
+    QStringList undoNames(int limit) const;
+    QStringList redoNames(int limit) const;
 
     // The body as the writer takes it from the story (what a save writes, as blocks): for a tool that reads the text a document comes to.
     QVector<office::wml::Block> bodyBlocks()
@@ -1035,7 +1041,9 @@ private:
         quint64 serial = 0;
         int raw = 0;
         quint64 group = 0;   // the steps made while a StepGroup lived have the same: they are undone and done again together
+        QString name;        // what the history list shows
     };
+    QString m_stepName;
     QVector<Step> m_undoLog, m_redoLog;
     quint64 m_headerEpoch = 0;
     quint64 m_openGroup = 0, m_nextGroup = 1;

@@ -2,6 +2,7 @@
 // and the stories of its headers and footers.
 
 #include "core/writedoc.h"
+#include <QCoreApplication>
 #include "core/watermarkops.h"
 
 #include "core/tablemodel.h"
@@ -912,7 +913,7 @@ bool WriteDoc::partEdited(const HeaderPart &part) const
 void WriteDoc::stepAdded(QTextDocument *story)
 {
     const quint64 serial = m_nextSerial++;
-    m_undoLog.push_back(Step{story, serial, story->availableUndoSteps(), m_openGroup});
+    m_undoLog.push_back(Step{story, serial, story->availableUndoSteps(), m_openGroup, m_stepName});
     // (The steps that can no longer be redone take what they held of the styles with them.)
     for (const Step &gone : std::as_const(m_redoLog)) m_styleSteps.remove(gone.serial);
     m_redoLog.clear();
@@ -1005,6 +1006,44 @@ QTextDocument *WriteDoc::undo(QTextCursor *cursor)
     checkModified();
     Q_EMIT historyChanged();
     return where;
+}
+
+// What the history list shows is worked out on copies of the log, by the rules undo() and redo() follow.
+QStringList WriteDoc::undoNames(int limit) const
+{
+    QStringList names;
+    QVector<Step> log = m_undoLog;
+    auto popOne = [&log]() {
+        const Step step = log.takeLast();
+        const int left = step.raw - 1;
+        while (!log.isEmpty() && log.last().story == step.story && log.last().raw > left) log.removeLast();
+        return step;
+    };
+    while (!log.isEmpty() && int(names.size()) < limit) {
+        const quint64 group = log.last().group;
+        QString name = popOne().name;
+        while (group != 0 && !log.isEmpty() && log.last().group == group) name = popOne().name;
+        names << (name.isEmpty() ? QCoreApplication::translate("jp::write::WriteDoc", "Edit") : name);
+    }
+    return names;
+}
+
+QStringList WriteDoc::redoNames(int limit) const
+{
+    QStringList names;
+    QVector<Step> log = m_redoLog;
+    auto popOne = [&log]() {
+        const Step step = log.takeLast();
+        while (!log.isEmpty() && log.last().story == step.story && log.last().raw <= step.raw) log.removeLast();
+        return step;
+    };
+    while (!log.isEmpty() && int(names.size()) < limit) {
+        const quint64 group = log.last().group;
+        const QString name = popOne().name;
+        while (group != 0 && !log.isEmpty() && log.last().group == group) popOne();
+        names << (name.isEmpty() ? QCoreApplication::translate("jp::write::WriteDoc", "Edit") : name);
+    }
+    return names;
 }
 
 QTextDocument *WriteDoc::undoOne(QTextCursor *cursor)
