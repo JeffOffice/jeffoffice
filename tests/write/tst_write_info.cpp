@@ -1,5 +1,6 @@
 // Tests of JeffWrite's Info page: the properties a .docx keeps, Mark as Final, a password, Inspect Document, and Check Compatibility. Every file is made here in code.
 
+#include <QClipboard>
 #include "../isolatesettings.h"
 #include "../aboutchecks.h"
 #include "../recoverygate.h"
@@ -2536,6 +2537,128 @@ private Q_SLOTS:
         QCOMPARE(drag(true, true, 0, 16), (QPair<int, int>(0, 17)));  // (the whole paragraph: its mark too)
         QCOMPARE(drag(true, false, 0, 16), (QPair<int, int>(0, 16)));
         QCOMPARE(drag(true, true, 17, 30), (QPair<int, int>(17, 30)));   // (the last paragraph has no mark after it)
+    }
+
+    // A whole paragraph chosen by a drag with smart paragraph selection on takes its mark: Delete and Cut remove the paragraph and leave the next one as it was (its words and its style); typing over it
+    // puts the new letters in front of the next paragraph's words, in that paragraph (as typing over any selection that ends at the start of a paragraph does); each is one step of Undo. With the option off, the mark
+    // is not taken: the paragraph is emptied and keeps its own place and style.
+    void deleteCutAndTypingOverASmartParagraphSelection()
+    {
+        struct Clean {
+            ~Clean() { QApplication::clipboard()->clear(); }
+        } clean;
+        // "alpha beta gamma" (in a heading style) is 0 to 16, its mark 16, "delta epsilon" (in the normal style) 17 to 30.
+        auto scenario = [&](bool smart, const std::function<void(WriteWindow &)> &act, const QStringList &after, const QString &nextStyle, const QString &firstStyleAfter) {
+            WriteWindow w;
+            w.resize(1100, 800);
+            w.show();
+            WriteDoc *doc = w.document();
+            typeText(*doc, w.view()->cursor(), QStringLiteral("alpha beta gamma\ndelta epsilon"));
+            QTextCursor c(doc->story());
+            c.setPosition(0);
+            applyParagraphStyle(*doc, c, QStringLiteral("Heading1"));
+            w.view()->setSmartParagraphOption(smart);
+            w.view()->setSelectWholeWordOption(true);
+            const QString normal = paragraphStyleAt(*doc, [&] { QTextCursor n(doc->story()); n.setPosition(20); return n; }());
+            QVERIFY(normal != QStringLiteral("Heading1"));
+            auto point = [&](int pos) {
+                QTextCursor p(doc->story());
+                p.setPosition(pos);
+                w.view()->setCursor(p);
+                QRect a, b;
+                if (!w.view()->caretRect(&a)) return QPoint();
+                p.setPosition(pos + 1);
+                w.view()->setCursor(p);
+                if (!w.view()->caretRect(&b) || b.center().y() != a.center().y()) return a.center() + QPoint(30, 0);
+                return QPoint(a.center().x() + (b.center().x() - a.center().x()) / 3, a.center().y());
+            };
+            const QPoint start = point(0), end = point(16);
+            QTextCursor none(doc->story());
+            none.setPosition(30);
+            w.view()->setCursor(none);
+            QTest::mousePress(w.view()->viewport(), Qt::LeftButton, Qt::NoModifier, start);
+            QTest::mouseMove(w.view()->viewport(), end);
+            QTest::mouseRelease(w.view()->viewport(), Qt::LeftButton, Qt::NoModifier, end);
+            QCOMPARE(w.view()->cursor().selectionEnd(), smart ? 17 : 16);
+            const QString before = doc->story()->toPlainText();
+            act(w);
+            QCOMPARE(doc->story()->toPlainText().split(QLatin1Char('\n')), after);
+            QTextCursor n(doc->story());
+            n.setPosition(doc->story()->characterCount() - 2);
+            QCOMPARE(paragraphStyleAt(*doc, n), nextStyle == QLatin1String("normal") ? normal : nextStyle);
+            n.setPosition(0);
+            QCOMPARE(paragraphStyleAt(*doc, n), firstStyleAfter == QLatin1String("normal") ? normal : firstStyleAfter);
+            QVERIFY(doc->undo());
+            QCOMPARE(doc->story()->toPlainText(), before);
+        };
+        const QStringList second{QStringLiteral("delta epsilon")};
+        scenario(true, [](WriteWindow &w) { QTest::keyClick(w.view(), Qt::Key_Delete); }, second, QStringLiteral("normal"), QStringLiteral("normal"));
+        scenario(true, [](WriteWindow &w) { w.view()->cut(); QCOMPARE(QApplication::clipboard()->text().trimmed(), QStringLiteral("alpha beta gamma")); }, second, QStringLiteral("normal"), QStringLiteral("normal"));
+        scenario(true, [](WriteWindow &w) { QTest::keyClicks(w.view(), QStringLiteral("X")); }, {QStringLiteral("Xdelta epsilon")}, QStringLiteral("normal"), QStringLiteral("normal"));
+        const QStringList emptied{QString(), QStringLiteral("delta epsilon")};
+        scenario(false, [](WriteWindow &w) { QTest::keyClick(w.view(), Qt::Key_Delete); }, emptied, QStringLiteral("normal"), QStringLiteral("Heading1"));
+        scenario(false, [](WriteWindow &w) { w.view()->cut(); }, emptied, QStringLiteral("normal"), QStringLiteral("Heading1"));
+        scenario(false, [](WriteWindow &w) { QTest::keyClicks(w.view(), QStringLiteral("X")); }, {QStringLiteral("X"), QStringLiteral("delta epsilon")}, QStringLiteral("normal"), QStringLiteral("Heading1"));
+    }
+
+    // Shift+click takes the whole words at both ends, as a drag does, when the option is on (a click inside one word does not); a double click and a drag goes by whole words, forward and back, with the word
+    // that was double-clicked in the selection either way, and whatever the option says.
+    void shiftClickAndDoubleClickDragSelectWholeWords()
+    {
+        // "alpha beta gamma" is 0 to 16 (alpha 0-5, beta 6-10, gamma 11-16), the paragraph mark is 16, "delta epsilon" is 17 to 30.
+        auto point = [](WriteWindow &w, int pos) {
+            QTextCursor c(w.document()->story());
+            c.setPosition(pos);
+            w.view()->setCursor(c);
+            QRect a, b;
+            if (!w.view()->caretRect(&a)) return QPoint();
+            c.setPosition(pos + 1);
+            w.view()->setCursor(c);
+            if (!w.view()->caretRect(&b) || b.center().y() != a.center().y()) return a.center() + QPoint(30, 0);
+            return QPoint(a.center().x() + (b.center().x() - a.center().x()) / 3, a.center().y());
+        };
+        auto run = [&](bool words, const std::function<void(WriteWindow &, QWidget *, const std::function<QPoint(int)> &)> &body) {
+            WriteWindow w;
+            w.resize(1100, 800);
+            w.show();
+            typeText(*w.document(), w.view()->cursor(), QStringLiteral("alpha beta gamma\ndelta epsilon"));
+            w.view()->setSelectWholeWordOption(words);
+            w.view()->setSmartParagraphOption(false);
+            body(w, w.view()->viewport(), [&](int pos) { return point(w, pos); });
+        };
+        auto selection = [](WriteWindow &w) { return QPair<int, int>(w.view()->cursor().anchor(), w.view()->cursor().position()); };
+        for (const bool words : {true, false}) {
+            // Shift+click: the caret was put at 2 by a click, and the Shift+click at 8 takes "alpha beta" when the option is on.
+            run(words, [&](WriteWindow &w, QWidget *vp, const auto &at) {
+                const QPoint from = at(2), to = at(8), p13 = at(13);
+                QTest::mouseClick(vp, Qt::LeftButton, Qt::NoModifier, from);
+                QTest::mouseClick(vp, Qt::LeftButton, Qt::ShiftModifier, to);
+                QCOMPARE(selection(w), (words ? QPair<int, int>(0, 10) : QPair<int, int>(2, 8)));
+                // (Shift+click again, past the paragraph's words: to the end of "gamma".)
+                QTest::mouseClick(vp, Qt::LeftButton, Qt::ShiftModifier, p13);
+                QCOMPARE(selection(w), (words ? QPair<int, int>(0, 16) : QPair<int, int>(2, 13)));
+            });
+            // Shift+click inside the one word the caret is in: just the letters.
+            run(words, [&](WriteWindow &w, QWidget *vp, const auto &at) {
+                const QPoint from = at(7), to = at(9);
+                QTest::mouseClick(vp, Qt::LeftButton, Qt::NoModifier, from);
+                QTest::mouseClick(vp, Qt::LeftButton, Qt::ShiftModifier, to);
+                QCOMPARE(selection(w), (QPair<int, int>(7, 9)));
+            });
+            // A double click on "beta", the second press held and dragged to "gamma" and to "alpha": whole words, the double-clicked one included.
+            run(words, [&](WriteWindow &w, QWidget *vp, const auto &at) {
+                const QPoint beta = at(7), gamma = at(12), alpha = at(2);
+                QTest::mouseClick(vp, Qt::LeftButton, Qt::NoModifier, beta);
+                QTest::mousePress(vp, Qt::LeftButton, Qt::NoModifier, beta);
+                QTest::mouseMove(vp, gamma);
+                QCOMPARE(selection(w), (QPair<int, int>(6, 16)));
+                QTest::mouseMove(vp, alpha);
+                QCOMPARE(selection(w), (QPair<int, int>(10, 0)));
+                QTest::mouseMove(vp, beta);
+                QCOMPARE(selection(w), (QPair<int, int>(6, 10)));
+                QTest::mouseRelease(vp, Qt::LeftButton, Qt::NoModifier, beta);
+            });
+        }
     }
 
     // The Spike: Ctrl+F3 cuts onto it (adding), Ctrl+Shift+F3 pastes all of it as one step and empties it; bold stays.

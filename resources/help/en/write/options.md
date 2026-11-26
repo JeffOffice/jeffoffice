@@ -31,7 +31,7 @@ A change on this page applies to the window you are in at once, and to each wind
 
 **Allow text to be dragged and dropped** lets you select words and drag them to a new place. Hold **Ctrl** while you drop to copy them instead of moving them. Turn it off if you drag by accident.
 
-**When selecting, automatically select the whole word** is on at first: when you drag across more than one word, the selection grows to take in the whole word at each end. A drag inside one word selects just the letters you cover.
+**When selecting, automatically select the whole word** is on at first: when you drag across more than one word, the selection grows to take in the whole word at each end. A drag inside one word selects just the letters you cover. The same goes for Shift+click. A double-click and drag selects whole words, forward or back, and keeps the word you double-clicked.
 
 **Use smart paragraph selection** is on at first: when you drag from the start of a paragraph to the end of its words, the selection takes the paragraph mark too, so cutting it removes the whole paragraph.
 

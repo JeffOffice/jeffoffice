@@ -701,6 +701,8 @@ private:
         QPoint from, to;   // in the window
     } m_marquee;
     void finishMarquee();
+    QPair<int, int> grownSelection(int a, int b) const;
+    int m_pressEnd = -1;   // the other end of the word a double click chose
     int m_pressAnchor = -1;   // where the press that began the drag was, for the selection the drag makes (the drag's own ends are moved to whole words)
     bool m_typingReplaces = true, m_insertKeyOvertype = false, m_overtype = false;
     PictureDrag m_pictureDrag;

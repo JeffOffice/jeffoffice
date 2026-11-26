@@ -1284,14 +1284,43 @@ void PageView::mousePressEvent(QMouseEvent *e)
         m_cursor.setPosition(at);
         m_cursor.select(QTextCursor::WordUnderCursor);
     } else if (e->modifiers() & Qt::ShiftModifier) {
-        m_cursor.setPosition(at, QTextCursor::KeepAnchor);
+        // (Shift+click goes to whole words as a drag does, from where the selection began.)
+        const int from = m_cursor.anchor();
+        if ((m_selectWholeWord || m_smartParagraph) && m_cursor.document() == m_doc->story()) {
+            const QPair<int, int> grown = grownSelection(from, at);
+            m_cursor.setPosition(at < from ? grown.second : grown.first);
+            m_cursor.setPosition(at < from ? grown.first : grown.second, QTextCursor::KeepAnchor);
+        } else {
+            m_cursor.setPosition(at, QTextCursor::KeepAnchor);
+        }
     } else {
         m_cursor.setPosition(at);
     }
     m_pressAnchor = m_cursor.anchor();
+    m_pressEnd = m_cursor.position();
     m_dragging = true;
     m_autoscroll.start();
     caretMoved();
+}
+
+// The selection between two places as the Options > Advanced choices make it: a stretch of more than one word goes to the whole words at both ends, and a stretch from the start of a paragraph to the end of its
+// words takes the paragraph mark. (The start and the end, in order.)
+QPair<int, int> PageView::grownSelection(int a, int b) const
+{
+    QTextDocument *doc = m_cursor.document();
+    int lo = std::min(a, b), hi = std::max(a, b);
+    const auto wordChar = [doc](int p) { const QChar c = doc->characterAt(p); return c.isLetterOrNumber() || c == QLatin1Char('_'); };
+    bool several = false;
+    for (int p = lo; p < hi && !several; ++p) several = !wordChar(p);
+    if (m_selectWholeWord && several) {
+        while (lo > 0 && wordChar(lo - 1) && wordChar(lo)) --lo;
+        while (hi < doc->characterCount() - 1 && wordChar(hi - 1) && wordChar(hi)) ++hi;
+    }
+    if (m_smartParagraph && lo < hi) {
+        const QTextBlock first = doc->findBlock(lo), last = doc->findBlock(hi);
+        if (lo == first.position() && hi == last.position() + last.length() - 1 && last.next().isValid() && !inTable(first) && !inTable(last)) ++hi;
+    }
+    return {lo, hi};
 }
 
 void PageView::mouseMoveEvent(QMouseEvent *e)
@@ -1385,25 +1414,18 @@ void PageView::mouseMoveEvent(QMouseEvent *e)
         QTextCursor w(m_cursor.document());
         w.setPosition(at);
         w.select(QTextCursor::WordUnderCursor);
-        const int anchor = m_cursor.anchor() < m_cursor.position() ? m_cursor.selectionStart() : m_cursor.selectionEnd();
-        Q_UNUSED(anchor);
-        m_cursor.setPosition(at > m_cursor.anchor() ? w.selectionEnd() : w.selectionStart(), QTextCursor::KeepAnchor);
+        // (the word that was double-clicked stays in the selection, forward or back)
+        if (at >= m_pressAnchor) {
+            m_cursor.setPosition(m_pressAnchor);
+            m_cursor.setPosition(std::max(w.selectionEnd(), m_pressEnd), QTextCursor::KeepAnchor);
+        } else {
+            m_cursor.setPosition(m_pressEnd);
+            m_cursor.setPosition(w.selectionStart(), QTextCursor::KeepAnchor);
+        }
     } else if (m_clicks == 1 && m_pressAnchor >= 0 && (m_selectWholeWord || m_smartParagraph)) {
-        QTextDocument *doc = m_cursor.document();
-        int lo = std::min(m_pressAnchor, at), hi = std::max(m_pressAnchor, at);
-        const auto wordChar = [doc](int p) { const QChar c = doc->characterAt(p); return c.isLetterOrNumber() || c == QLatin1Char('_'); };
-        bool several = false;
-        for (int p = lo; p < hi && !several; ++p) several = !wordChar(p);
-        if (m_selectWholeWord && several) {
-            while (lo > 0 && wordChar(lo - 1) && wordChar(lo)) --lo;
-            while (hi < doc->characterCount() - 1 && wordChar(hi - 1) && wordChar(hi)) ++hi;
-        }
-        if (m_smartParagraph && lo < hi) {
-            const QTextBlock first = doc->findBlock(lo), last = doc->findBlock(hi);
-            if (lo == first.position() && hi == last.position() + last.length() - 1 && last.next().isValid() && !inTable(first) && !inTable(last)) ++hi;
-        }
-        m_cursor.setPosition(at < m_pressAnchor ? hi : lo);
-        m_cursor.setPosition(at < m_pressAnchor ? lo : hi, QTextCursor::KeepAnchor);
+        const QPair<int, int> grown = grownSelection(m_pressAnchor, at);
+        m_cursor.setPosition(at < m_pressAnchor ? grown.second : grown.first);
+        m_cursor.setPosition(at < m_pressAnchor ? grown.first : grown.second, QTextCursor::KeepAnchor);
     } else {
         m_cursor.setPosition(at, QTextCursor::KeepAnchor);
     }
