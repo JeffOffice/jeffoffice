@@ -472,6 +472,29 @@ private Q_SLOTS:
         QVERIFY2(QRegularExpression("/MediaBox \\[0 0 59[45]").match(QString::fromLatin1(pdf)).hasMatch(), "the sheets are not A4");
     }
 
+    // A workbook that holds a volatile function is a changed workbook once it is open (closing asks about saving), and a save makes it clean; one with none is not.
+    void aWorkbookWithAVolatileFunctionIsMarkedChangedOnOpen()
+    {
+        for (const QString &formula : {QStringLiteral("NOW()"), QStringLiteral("TODAY()"), QStringLiteral("RAND()"), QStringLiteral("RANDBETWEEN(1,6)"), QStringLiteral("OFFSET(B1,0,0)"),
+                                       QStringLiteral("INDIRECT(\"B1\")"), QStringLiteral("INFO(\"recalc\")")}) {
+            const QString rows = QStringLiteral("<row r=\"1\"><c r=\"A1\"><f>%1</f><v>1</v></c><c r=\"B1\"><v>2</v></c></row>").arg(formula);
+            EditWindow e;
+            QVERIFY(e.open(buildXlsx({worksheet(rows)})));
+            QVERIFY(e.settle());
+            QTRY_VERIFY2(e.win.w.isWindowModified(), qPrintable(formula));
+            QVERIFY2(!e.win.w.isUntouchedBlank(), qPrintable(formula));
+            QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
+            QVERIFY(e.win.w.save());
+            QVERIFY2(savedOk(saved), qPrintable(formula));
+            QVERIFY2(!e.win.w.isWindowModified(), qPrintable(formula));
+        }
+        EditWindow plain;
+        const QString rows = QStringLiteral("<row r=\"1\"><c r=\"A1\"><f>B1+1</f><v>3</v></c><c r=\"B1\"><v>2</v></c></row>");
+        QVERIFY(plain.open(buildXlsx({worksheet(rows)})));
+        QVERIFY(plain.settle());
+        QVERIFY(!plain.win.w.isWindowModified());
+    }
+
     // A web page opens as a workbook: each table is a sheet; a cell a neighbor spans over is blank, not shifted; a cell that reads as a formula stays text; the text outside the tables is not read.
     void aWebPageOpensAsAWorkbookOfItsTables()
     {

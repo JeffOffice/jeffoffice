@@ -616,6 +616,7 @@ void Calculation::classify(quint32 id, const Cell &cell, const Formula &f)
             const bool idTold = slot.usesNames && !slot.dynamic && !slot.reaches && !slot.positionalNames;
             n.traits = quint8((slot.insensitive ? Insensitive : 0) | (slot.observesPosition ? Observes : 0) | (idTold ? IdTold : 0));
             always = slot.dynamic || slot.changesByItself;
+            if (always) ++m_volatileSeen;
             external = p.external;
             if (m_options.keepApart) {
                 if (!p.unknownFunctions.isEmpty()) kept = 'U';
