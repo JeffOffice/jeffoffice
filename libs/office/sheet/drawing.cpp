@@ -120,18 +120,25 @@ bool slicerFrame(const QDomElement &frame, QString *name)
     return true;
 }
 
-// The slicer an anchor holds, if it holds one.
+// The slicer an anchor holds, if it holds one: its frame as a child, or in the newer branch of a wrapper the anchor holds (the form the reference program writes, the stand-in beside it
+// is in the other branch and is not read). The first frame is the slicer: a wrapper's or an anchor's other frames are not read.
 bool readSlicerAnchor(const QDomElement &anchor, DrawingSlicer *out)
 {
-    for (QDomElement c = anchor.firstChildElement(); !c.isNull(); c = c.nextSiblingElement()) {
+    auto take = [&](const QDomElement &frame) {
         QString name;
-        if (!slicerFrame(c, &name)) continue;
+        if (!slicerFrame(frame, &name)) return false;
         out->name = name;
-        const QDomElement cNvPr = childByLocal(childByLocal(c, "nvGraphicFramePr"), "cNvPr");
+        const QDomElement cNvPr = childByLocal(childByLocal(frame, "nvGraphicFramePr"), "cNvPr");
         out->hidden = parseBool(attr(cNvPr, QStringLiteral("hidden")));
         const QString prints = attr(childByLocal(anchor, "clientData"), QStringLiteral("fPrintsWithSheet"));
         out->prints = prints.isEmpty() || parseBool(prints);
         return true;
+    };
+    for (QDomElement c = anchor.firstChildElement(); !c.isNull(); c = c.nextSiblingElement()) {
+        if (take(c)) return true;
+        if (c.localName() != QLatin1String("AlternateContent")) continue;
+        for (QDomElement f = childByLocal(c, "Choice").firstChildElement(); !f.isNull(); f = f.nextSiblingElement())
+            if (take(f)) return true;
     }
     return false;
 }

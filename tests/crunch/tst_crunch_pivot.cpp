@@ -2610,6 +2610,16 @@ private Q_SLOTS:
     }
 
     // ---- slicers drawn on the sheet
+    // Every test that reads a slicer from a drawing runs on both forms of it: the wrapper around whole anchors (a row that starts with "wrapped"), and the anchor holding the wrapper (a row that starts with "nested", as the reference program writes it).
+    static bool &nestedForm() { static bool nested = false; return nested; }
+    static void forms()
+    {
+        QTest::addColumn<bool>("nested");
+        QTest::newRow("wrapped") << false;
+        QTest::newRow("nested") << true;
+    }
+    void init() { nestedForm() = QByteArray(QTest::currentDataTag()).startsWith("nested"); }
+    void cleanup() { nestedForm() = false; }
     // The slicer book with the slicer on the sheet: the newer form (a frame) and the older stand-in text box the file keeps beside it. `count` slicers of the same name, one every 20 rows from row 9;
     // `where` is added to each anchor's clientData (a slicer that does not print).
     static QByteArray boxAnchor(int fromCol, int fromRow, int toCol, int toRow, const QByteArray &name, bool filled = true)
@@ -2642,12 +2652,21 @@ private Q_SLOTS:
                 const QByteArray name = w.names.value(i, QStringLiteral("Region")).toUtf8();
                 const QByteArray from = "<xdr:from><xdr:col>9</xdr:col><xdr:colOff>0</xdr:colOff><xdr:row>" + QByteArray::number(8 + i * rowStep) + "</xdr:row><xdr:rowOff>0</xdr:rowOff></xdr:from>";
                 const QByteArray to = "<xdr:to><xdr:col>12</xdr:col><xdr:colOff>0</xdr:colOff><xdr:row>" + QByteArray::number(8 + w.heightRows + i * rowStep) + "</xdr:row><xdr:rowOff>0</xdr:rowOff></xdr:to>";
+                const QByteArray id = QByteArray::number(2 + i);
+                const QByteArray frame = "<xdr:graphicFrame macro=\"\"><xdr:nvGraphicFramePr><xdr:cNvPr id=\"" + id + "\" name=\"" + name + "\"" + frameAttrs
+                                         + "/><xdr:cNvGraphicFramePr/></xdr:nvGraphicFramePr><xdr:xfrm><a:off x=\"0\" y=\"0\"/><a:ext cx=\"0\" cy=\"0\"/></xdr:xfrm><a:graphic><a:graphicData uri=\"http://schemas.microsoft.com/office/drawing/2010/slicer\">"
+                                           "<sle:slicer xmlns:sle=\"http://schemas.microsoft.com/office/drawing/2010/slicer\" name=\"" + name + "\"/></a:graphicData></a:graphic></xdr:graphicFrame>";
+                const QByteArray stand = "<xdr:sp macro=\"\" textlink=\"\"><xdr:nvSpPr><xdr:cNvPr id=\"" + id + "\" name=\"" + name + "\"/><xdr:cNvSpPr/></xdr:nvSpPr><xdr:spPr><a:xfrm><a:off x=\"0\" y=\"0\"/><a:ext cx=\"1\" cy=\"1\"/></a:xfrm><a:prstGeom prst=\"rect\"><a:avLst/></a:prstGeom></xdr:spPr>"
+                                         "<xdr:txBody><a:bodyPr/><a:p><a:r><a:t>This shape represents a slicer.</a:t></a:r></a:p></xdr:txBody></xdr:sp>";
+                if (nestedForm()) {
+                    // (the form the reference program writes: the anchor first, the frame and its stand-in inside it)
+                    d += "<xdr:twoCellAnchor editAs=\"oneCell\">" + from + to + "<mc:AlternateContent xmlns:mc=\"http://schemas.openxmlformats.org/markup-compatibility/2006\"><mc:Choice xmlns:sle15=\"http://schemas.microsoft.com/office/drawing/2012/slicer\" Requires=\"sle15\">"
+                         + frame + "</mc:Choice><mc:Fallback>" + stand + "</mc:Fallback></mc:AlternateContent>" + clientData + "</xdr:twoCellAnchor>";
+                    continue;
+                }
                 d += "<mc:AlternateContent xmlns:mc=\"http://schemas.openxmlformats.org/markup-compatibility/2006\"><mc:Choice xmlns:sle15=\"http://schemas.microsoft.com/office/drawing/2012/slicer\" Requires=\"sle15\">"
-                     "<xdr:twoCellAnchor editAs=\"oneCell\">" + from + to + "<xdr:graphicFrame macro=\"\"><xdr:nvGraphicFramePr><xdr:cNvPr id=\"" + QByteArray::number(2 + i) + "\" name=\"" + name + "\"" + frameAttrs
-                     + "/><xdr:cNvGraphicFramePr/></xdr:nvGraphicFramePr><xdr:xfrm><a:off x=\"0\" y=\"0\"/><a:ext cx=\"0\" cy=\"0\"/></xdr:xfrm><a:graphic><a:graphicData uri=\"http://schemas.microsoft.com/office/drawing/2010/slicer\">"
-                       "<sle:slicer xmlns:sle=\"http://schemas.microsoft.com/office/drawing/2010/slicer\" name=\"" + name + "\"/></a:graphicData></a:graphic></xdr:graphicFrame>" + clientData + "</xdr:twoCellAnchor></mc:Choice>"
-                     "<mc:Fallback><xdr:twoCellAnchor editAs=\"oneCell\">" + from + to + "<xdr:sp macro=\"\" textlink=\"\"><xdr:nvSpPr><xdr:cNvPr id=\"" + QByteArray::number(2 + i) + "\" name=\"" + name + "\"/><xdr:cNvSpPr/></xdr:nvSpPr><xdr:spPr><a:xfrm><a:off x=\"0\" y=\"0\"/><a:ext cx=\"1\" cy=\"1\"/></a:xfrm><a:prstGeom prst=\"rect\"><a:avLst/></a:prstGeom></xdr:spPr>"
-                       "<xdr:txBody><a:bodyPr/><a:p><a:r><a:t>This shape represents a slicer.</a:t></a:r></a:p></xdr:txBody></xdr:sp><xdr:clientData/></xdr:twoCellAnchor></mc:Fallback></mc:AlternateContent>";
+                     "<xdr:twoCellAnchor editAs=\"oneCell\">" + from + to + frame + clientData + "</xdr:twoCellAnchor></mc:Choice>"
+                     "<mc:Fallback><xdr:twoCellAnchor editAs=\"oneCell\">" + from + to + stand + "<xdr:clientData/></xdr:twoCellAnchor></mc:Fallback></mc:AlternateContent>";
             }
             d += w.after + "</xdr:wsDr>";
             p[QStringLiteral("xl/drawings/drawing1.xml")] = d;
@@ -2747,6 +2766,7 @@ private Q_SLOTS:
         QVERIFY(hidden.open(pivotWorkbook(slicerSheetBook(1, "<xdr:clientData/>", 20, " hidden=\"1\""))));
         QVERIFY(hidden.win.w.objects()->layer()->count() == 0);
     }
+    void aSlicerFromTheFileIsDrawnOnTheSheet_data() { forms(); }
 
     // A click on a button of the slicer on the sheet filters the table as one step of Undo (the same step the pane's button makes), the button goes pale, Undo brings the table and the button back, and the
     // slicer part is written with the choice; a click on the caption or an empty place does nothing.
@@ -2793,6 +2813,7 @@ private Q_SLOTS:
         finish(e);
         QVERIFY(isBlue(viewColor(e, east - QPoint(20, 0))));
     }
+    void aClickOnASlicerOnTheSheetFiltersTheTable_data() { forms(); }
 
     // Ctrl-click on the sheet adds an item or takes it away; the clear button clears the filter (and does nothing when none is on).
     void aCtrlClickAndTheClearButtonWorkOnTheSheet()
@@ -2825,6 +2846,7 @@ private Q_SLOTS:
         QCOMPARE(s->undoStack()->count(), steps + 4);   // (Ctrl-click, Ctrl-click, click, clear: one step each)
         QCOMPARE(pivotShown(e), QStringLiteral("Sum of Amount|Month||\nRegion|Jan|Feb|Grand Total\nEast|15|20|35\nWest|7|7|14\nGrand Total|22|27|49"));
     }
+    void aCtrlClickAndTheClearButtonWorkOnTheSheet_data() { forms(); }
 
     // Rows inserted above the slicer move it.
     void aSlicerFollowsRowsInserted()
@@ -2839,6 +2861,7 @@ private Q_SLOTS:
         const int shift = L.rangeRect(9, 0, 9, 0).top() - L.rangeRect(8, 0, 8, 0).top();
         QTRY_COMPARE(slicerRect(e).top(), before.top() + shift);
     }
+    void aSlicerFollowsRowsInserted_data() { forms(); }
 
     // Thousands of slicers: each is an anchor of the drawing (read up to the limit of anchors), only those on the screen are drawn, and a click still reaches the one under it.
     void thousandsOfSlicersAreDrawnOnlyWhereTheyAreSeen()
@@ -2854,6 +2877,7 @@ private Q_SLOTS:
         finish(e);
         QCOMPARE(e.win.w.session()->undoStack()->count(), steps + 1);
     }
+    void thousandsOfSlicersAreDrawnOnlyWhereTheyAreSeen_data() { forms(); }
 
     // ---- slicers on the sheet: picking, moving, sizing, deleting, scrolling, runs, and keys (slice 2)
     static void dragView(EditWindow &e, const QPoint &from, const QPoint &to, Qt::KeyboardModifiers keys = Qt::NoModifier)
@@ -2958,6 +2982,7 @@ private Q_SLOTS:
         QVERIFY2(items.contains(QStringLiteral("Delete")) && items.contains(QStringLiteral("Slicers")), qPrintable(items.join(QLatin1Char('|'))));
         for (QMenu *m : e.win.w.findChildren<QMenu *>(QStringLiteral("objectMenu"))) m->close();
     }
+    void aCaptionPicksASlicerAndAButtonFiltersIt_data() { forms(); }
 
     // Dragging the caption moves the slicer (one step; Undo and Redo), and the anchor is written to the frame and to the stand-in beside it, and nothing else of the drawing, or of the slicer's
     // parts, changes; the file reopens with the slicer where it was put. An unedited file saves identical.
@@ -2985,9 +3010,15 @@ private Q_SLOTS:
         const QByteArray bytes = saved.readAll();
         const QByteArray drawing = drawingOf(bytes), original = drawingOf(book);
         const QStringList places = anchorPlaces(drawing), first = anchorPlaces(original);
-        QCOMPARE(places.size(), 4);   // (the frame's from and to, and the stand-in's)
-        QCOMPARE(places[0], places[2]);
-        QCOMPARE(places[1], places[3]);
+        if (nestedForm()) {
+            QCOMPARE(places.size(), 2);   // (the one anchor holds the frame and the stand-in: its from and to)
+            QVERIFY(drawing.indexOf("<xdr:twoCellAnchor") < drawing.indexOf("<mc:AlternateContent"));   // (and it is saved in the form it came in)
+        } else {
+            QCOMPARE(places.size(), 4);   // (the frame's from and to, and the stand-in's)
+            QCOMPARE(places[0], places[2]);
+            QCOMPARE(places[1], places[3]);
+            QVERIFY(drawing.indexOf("<mc:AlternateContent") < drawing.indexOf("<xdr:twoCellAnchor"));
+        }
         QVERIFY(places != first);
         QCOMPARE(drawingWithoutPlaces(drawing), drawingWithoutPlaces(original));
         Parts now, old;
@@ -3018,6 +3049,7 @@ private Q_SLOTS:
         readZip(book, bookParts);
         for (auto it = bookParts.begin(); it != bookParts.end(); ++it) QVERIFY2(quietParts.value(it.key()) == it.value(), qPrintable(it.key()));
     }
+    void aSlicerIsMovedWithTheMouseAndTheFileHasItThere_data() { forms(); }
 
     // A handle sizes the slicer, the arrow keys move it (as they do another object), each one step; the anchor kind says how it follows cells.
     void aSlicerIsSizedWithAHandleAndMovedWithTheArrowKeys()
@@ -3044,6 +3076,7 @@ private Q_SLOTS:
         s->undoStack()->undo();
         QCOMPARE(slicerRect(e), before);
     }
+    void aSlicerIsSizedWithAHandleAndMovedWithTheArrowKeys_data() { forms(); }
 
     // Delete takes the slicer, its frame, its stand-in, its part and the link to it, the cache with its link, entry, and name, out of the saved file; the filter it put on the table stays; Undo (before a save)
     // brings it all back byte for byte; with two slicers on one cache the cache stays until the last one is gone.
@@ -3081,8 +3114,11 @@ private Q_SLOTS:
         QVERIFY(!after.value(QStringLiteral("xl/workbook.xml")).contains("Slicer_Region"));
         QVERIFY(!after.value(QStringLiteral("xl/worksheets/sheet1.xml")).contains("slicerList"));
         QVERIFY(!after.value(QStringLiteral("xl/worksheets/sheet1.xml")).contains("extLst"));
-        QVERIFY(!after.value(QStringLiteral("xl/drawings/drawing1.xml")).contains("slicer"));
-        QVERIFY(!after.value(QStringLiteral("xl/drawings/drawing1.xml")).contains("AlternateContent"));
+        // the drawing had nothing else in it: its part, its type, the sheet's link, and the sheet's drawing element go
+        QVERIFY(!after.contains(QStringLiteral("xl/drawings/drawing1.xml")));
+        QVERIFY(!after.value(QStringLiteral("[Content_Types].xml")).contains("drawing1.xml"));
+        QVERIFY(!after.value(QStringLiteral("xl/worksheets/_rels/sheet1.xml.rels")).contains("drawings/"));
+        QVERIFY(!after.value(QStringLiteral("xl/worksheets/sheet1.xml")).contains("<drawing"));
         // the filter stays on the table, as when the Slicers pane is closed
         QCOMPARE(pivotShown(e, QStringLiteral("E3:H6")), QStringLiteral("Sum of Amount|Month||\nRegion|Jan|Feb|Grand Total\nWest|7|7|14\nGrand Total|7|7|14"));
         // the file reopens with no slicer
@@ -3091,6 +3127,48 @@ private Q_SLOTS:
         EditWindow again;
         QVERIFY(again.open(f.readAll(), QStringLiteral("again.xlsx")));
         QCOMPARE(again.win.w.objects()->layer()->count(), 0);
+    }
+    void aDeletedSlicerLeavesNoPartsInTheFile_data() { forms(); }
+
+    // A drawing that has something besides the slicer left in it stays, with its type and link: a shape, or an element the program does not know (it is kept as it is), is something. The sheet still
+    // opens, and the shape is where it was.
+    void aDrawingWithSomethingElseLeftStays()
+    {
+        QFETCH(QByteArray, before);
+        QFETCH(QByteArray, after);
+        SlicerSheet w = listedSlicers();
+        w.before = before;
+        w.after = after;
+        EditWindow e;
+        QVERIFY(e.open(pivotWorkbook(slicerSheetBook(w))));
+        QTRY_VERIFY(slicerId(e) >= 0);
+        clickView(e, captionSpot(e));
+        QTest::keyClick(e.view()->viewport(), Qt::Key_Delete);
+        QVERIFY(saveNow(e));
+        Parts saved;
+        {
+            QFile f(e.path);
+            QVERIFY(f.open(QIODevice::ReadOnly));
+            readZip(f.readAll(), saved);
+        }
+        const QByteArray drawing = saved.value(QStringLiteral("xl/drawings/drawing1.xml"));
+        QVERIFY(!drawing.isEmpty());
+        QVERIFY(!drawing.contains("AlternateContent"));
+        QVERIFY(before.isEmpty() || drawing.contains(before));
+        QVERIFY(after.isEmpty() || drawing.contains(after));
+        QVERIFY(saved.value(QStringLiteral("[Content_Types].xml")).contains("drawing1.xml"));
+        QVERIFY(saved.value(QStringLiteral("xl/worksheets/_rels/sheet1.xml.rels")).contains("drawings/drawing1.xml"));
+        QVERIFY(saved.value(QStringLiteral("xl/worksheets/sheet1.xml")).contains("<drawing"));
+    }
+    void aDrawingWithSomethingElseLeftStays_data()
+    {
+        QTest::addColumn<QByteArray>("before");
+        QTest::addColumn<QByteArray>("after");
+        const QByteArray unknown = "<xdr:unknownThing xmlns:xdr=\"http://schemas.openxmlformats.org/drawingml/2006/spreadsheetDrawing\" kept=\"yes\"/>";
+        for (const char *form : {"wrapped", "nested"}) {
+            QTest::newRow(qPrintable(QStringLiteral("%1, a shape").arg(QLatin1String(form)))) << QByteArray() << boxAnchor(1, 1, 3, 3, "Box");
+            QTest::newRow(qPrintable(QStringLiteral("%1, an unknown element").arg(QLatin1String(form)))) << unknown << QByteArray();
+        }
     }
 
     // Undo of a delete that was not saved: the file saved after it is the file as it was, byte for byte; Redo takes it out again.
@@ -3118,6 +3196,7 @@ private Q_SLOTS:
         s->undoStack()->redo();
         QVERIFY(e.win.w.objects()->layer()->isDeleted(slicerId(e)));
     }
+    void undoingADeletedSlicerLeavesTheFileAsItWas_data() { forms(); }
 
     // Two slicers on one cache: deleting one leaves the other, the cache, and its parts; the slicer part loses only the deleted one's element; deleting the second takes the rest.
     void deletingOneOfTwoSlicersOnACacheKeepsTheCache()
@@ -3142,7 +3221,7 @@ private Q_SLOTS:
         QVERIFY(one.value(QStringLiteral("xl/workbook.xml")).contains("slicerCache"));
         QVERIFY(one.value(QStringLiteral("xl/workbook.xml")).contains("Slicer_Region"));
         QVERIFY(one.value(QStringLiteral("xl/worksheets/sheet1.xml")).contains("slicerList"));
-        QCOMPARE(anchorPlaces(one.value(QStringLiteral("xl/drawings/drawing1.xml"))).size(), 4);   // (one frame and one stand-in are left)
+        QCOMPARE(anchorPlaces(one.value(QStringLiteral("xl/drawings/drawing1.xml"))).size(), nestedForm() ? 2 : 4);   // (one anchor is left; the wrapped form has one for the frame and one for the stand-in)
         int left = -1;
         for (int i = 0; i < layer->count(); ++i)
             if (crunch::isSlicerId(layer->object(i).id) && !layer->isDeleted(layer->object(i).id)) left = layer->object(i).id;
@@ -3158,6 +3237,7 @@ private Q_SLOTS:
         QVERIFY(!none.contains(QStringLiteral("xl/slicers/slicer1.xml")));
         QVERIFY(!none.value(QStringLiteral("xl/drawings/drawing1.xml")).contains("AlternateContent"));   // (the second frame is found by its place after the first was taken out)
     }
+    void deletingOneOfTwoSlicersOnACacheKeepsTheCache_data() { forms(); }
 
     // A workbook open for reading only, and a protected sheet that does not let objects be changed, refuse a move and a delete: no step, the slicer stays where it is, the notice says why.
     void aSlicerIsNotMovedOrDeletedInAReadOnlyOrProtectedWorkbook()
@@ -3195,6 +3275,7 @@ private Q_SLOTS:
             QCOMPARE(slicerRect(e).topLeft(), before.topLeft());
         }
     }
+    void aSlicerIsNotMovedOrDeletedInAReadOnlyOrProtectedWorkbook_data() { forms(); }
 
     // Buttons that do not fit are reached by scrolling: the wheel over the slicer, a press above or below the thumb, and dragging the thumb. The sheet does not scroll under the wheel over a slicer that
     // scrolls; the line that counted the buttons left out is gone from the window's picture (a printed one keeps it, and says they are not printed).
@@ -3255,6 +3336,7 @@ private Q_SLOTS:
         const QPoint inside = roomy.view()->viewport()->mapFromGlobal(roomy.view()->viewport()->mapToGlobal(onScreen(roomy, slicerRect(roomy).center())));
         QVERIFY(!roomy.win.w.objects()->layer()->wheel(inside, roomy.view()->sheet().layout(), -1));
     }
+    void aSlicerThatDoesNotFitScrollsByTheWheelTheBarAndTheThumb_data() { forms(); }
 
     // What the printed picture says: the buttons that do not fit are left out of a page, and the line says so.
     void aPrintedSlicerSaysItsLeftOutItemsAreNotPrinted()
@@ -3398,6 +3480,7 @@ private Q_SLOTS:
         QTest::keyClick(ro.view()->viewport(), Qt::Key_Space);
         QCOMPARE(ro.win.w.session()->undoStack()->count(), roSteps);
     }
+    void aSlicerIsWorkedWithTheKeyboard_data() { forms(); }
 
     // A press on a slicer's button is the slicer's own work and lets go of what was picked (the pick is not kept for a later Delete): a shape picked, a button clicked, Delete: the shape is still there.
     void aClickOnAButtonLetsGoOfThePickedShape()
@@ -3418,6 +3501,7 @@ private Q_SLOTS:
         QVERIFY(!layer->isDeleted(box));
         QVERIFY(!layer->isDeleted(slicerId(e)));
     }
+    void aClickOnAButtonLetsGoOfThePickedShape_data() { forms(); }
 
     // Ctrl+Alt+C clears the filter only when the key makes no character: on a keyboard where Ctrl and Alt together type a letter, it is typing.
     void controlAltCClearsTheFilterOnlyWhenItTypesNothing()
@@ -3440,6 +3524,7 @@ private Q_SLOTS:
             QCOMPARE(s->undoStack()->count(), typesALetter ? steps : steps + 1);   // (a letter typed starts an entry in the cell instead)
         }
     }
+    void controlAltCClearsTheFilterOnlyWhenItTypesNothing_data() { forms(); }
 
     // Delete with the keyboard among the buttons does nothing (only a slicer picked as an object is deleted, after Escape); a double click on a button is one click; a small turn of a touchpad scrolls by its amount.
     void deleteAndDoubleClickAndSmallWheelTurnsAreForTheButtons()
@@ -3475,6 +3560,7 @@ private Q_SLOTS:
         QCOMPARE(d.win.w.session()->undoStack()->index(), 1);
         QCOMPARE(clearedShown(d), filteredToWest());
     }
+    void deleteAndDoubleClickAndSmallWheelTurnsAreForTheButtons_data() { forms(); }
 
     void aSmallTouchpadTurnScrollsByItsAmount()
     {
@@ -3495,6 +3581,7 @@ private Q_SLOTS:
         QCOMPARE(slicers->scrollRowOf(0, id), 3);
         QCOMPARE(int(e.view()->sheet().layout().scrollY()), scrollY);
     }
+    void aSmallTouchpadTurnScrollsByItsAmount_data() { forms(); }
 
     static QByteArray manyItemsBook(int n, int heightRows)
     {
@@ -3559,6 +3646,7 @@ private Q_SLOTS:
         QVERIFY(s->slicerFieldsBuilt() - built <= 2);
         QVERIFY(s->slicerFieldsBuilt() > built);
     }
+    void aWheelStepAndAPaintOfAHugeSlicerWorkOnlyForTheVisibleButtons_data() { forms(); }
 
     // The slicer fixtures are in the order the schema has for the workbook's elements.
     void theSlicerFixtureIsInTheSchemasOrder()
@@ -3567,6 +3655,7 @@ private Q_SLOTS:
         readZip(pivotWorkbook(slicerSheetBook(listedSlicers(2))), parts);
         checkPackage(parts);
     }
+    void theSlicerFixtureIsInTheSchemasOrder_data() { forms(); }
 
     // After a save that wrote a slicer's delete, Undo does not offer it (the saved file has no frame to put back), and the status says that objects too are past Undo.
     void aSavedDeleteOfASlicerIsNotOfferedToUndo()
@@ -3582,6 +3671,7 @@ private Q_SLOTS:
         QVERIFY(!e.win.w.session()->canUndo());
         QVERIFY2(e.win.w.statusText().contains(QLatin1String("objects")), qPrintable(e.win.w.statusText()));
     }
+    void aSavedDeleteOfASlicerIsNotOfferedToUndo_data() { forms(); }
 
     // A slicer that comes back after Undo of the rows deleted under it is where the file draws it among the objects, not on top of those drawn after it.
     void aSlicerReturningAfterUndoKeepsItsPlaceInTheOrder()
@@ -3607,6 +3697,7 @@ private Q_SLOTS:
         QCOMPARE(order(), (QStringList{QStringLiteral("Region"), QStringLiteral("Box")}));
         QVERIFY(!layer->isDeleted(slicerId(e)));
     }
+    void aSlicerReturningAfterUndoKeepsItsPlaceInTheOrder_data() { forms(); }
 
     // Pictures of a picked slicer with its handles, a slicer scrolled by the wheel, and one with many buttons (JC_SHOT_DIR names a folder).
     void aPictureOfAPickedAndAScrolledSlicer()
@@ -3650,6 +3741,7 @@ private Q_SLOTS:
         painter.end();
         QVERIFY(image.save(dir + QStringLiteral("/slicer-many.png")));
     }
+    void aPictureOfAPickedAndAScrolledSlicer_data() { forms(); }
 
     // A slicer with two columns of buttons, for the views below.
     static SlicerSheet twoColumnSlicer(const QByteArray &sheetView = QByteArray(), const QByteArray &pane = QByteArray())
@@ -3679,6 +3771,7 @@ private Q_SLOTS:
         finish(e);
         QCOMPARE(clearedShown(e), everyoneShown());
     }
+    void aSlicerOnASheetThatReadsRightToLeftIsClickedWhereItIsDrawn_data() { forms(); }
 
     // A slicer that is over the frozen rows and the rows that scroll under them: its buttons in the frozen rows are clicked there.
     void aSlicerAcrossFrozenRowsIsClickedWhereItIsDrawn()
@@ -3696,6 +3789,7 @@ private Q_SLOTS:
         finish(e);
         QCOMPARE(clearedShown(e), filteredToWest());
     }
+    void aSlicerAcrossFrozenRowsIsClickedWhereItIsDrawn_data() { forms(); }
 
     // Pictures of the slicer in the views nobody had looked at: frozen rows with the sheet scrolled, a sheet that reads right to left, 200 percent, the exported PDF, and the printed page. Only when
     // JC_SHOT_DIR names a folder.
@@ -3761,6 +3855,7 @@ private Q_SLOTS:
             }
         }
     }
+    void aPictureOfASlicerInOtherViews_data() { forms(); }
 
     // A picture of the sheet with the slicer drawn, for people to look at: only when JC_SHOT_DIR names a folder.
     void aPictureOfASlicerOnTheSheet()
@@ -3776,6 +3871,7 @@ private Q_SLOTS:
         e.win.w.objects()->layer()->prepareAll();
         QVERIFY(e.view()->viewport()->grab().save(dir + QStringLiteral("/slicer-on-sheet.png")));
     }
+    void aPictureOfASlicerOnTheSheet_data() { forms(); }
 
     // A slicer's buttons are asked for only as far as they can be shown: the engine makes the buttons it is asked for, and the painter shows and answers for no more than kMaxSlicerButtons.
     void aSlicersButtonsAreBounded()
@@ -3870,6 +3966,7 @@ private Q_SLOTS:
         QCOMPARE(clearedShown(ro), filteredToWest());
         QVERIFY(!ro.win.w.isModified());
     }
+    void aSlicerOnTheSheetDoesNotFilterAReadOnlyWorkbook_data() { forms(); }
 
     // A protected sheet that does not allow pivot tables to be changed refuses a click on a slicer, in the sheet and in the pane, says why, and leaves no empty step of Undo.
     void aSlicerClickOnAProtectedSheetLeavesNoStep()
@@ -3896,6 +3993,7 @@ private Q_SLOTS:
         QCOMPARE(s->undoStack()->count(), steps);
         QCOMPARE(clearedShown(e), everyoneShown());
     }
+    void aSlicerClickOnAProtectedSheetLeavesNoStep_data() { forms(); }
 
     // Buttons that do not fit are not hidden without a word: the last row says how many more there are (and how many of those are chosen), and a click on it opens the Slicers pane.
     void aSlicerTooSmallForItsButtonsSaysSoAndOpensThePane()
@@ -3927,6 +4025,7 @@ private Q_SLOTS:
         QTRY_VERIFY(e.win.w.slicerPane()->isVisible());
         QCOMPARE(s->undoStack()->count(), steps);   // (the line only shows the pane)
     }
+    void aSlicerTooSmallForItsButtonsSaysSoAndOpensThePane_data() { forms(); }
 
     // With many items in a frame that holds few, the line takes the last row of buttons and counts the rest; a chosen item among those left out is told of.
     void theLineOfLeftOutItemsCountsThemAndTheChosen()
@@ -4058,6 +4157,7 @@ private Q_SLOTS:
             QVERIFY(crunch::isSlicerId(e.win.w.objects()->printObjects(0)[1].id));
         }
     }
+    void aSlicerIsAmongTheObjectsInTheFilesOwnOrder_data() { forms(); }
 
     // Which slicer a drawing's name is can be asked before the workbook can tell: "none yet" is not kept, so the click that comes later acts on what is there then.
     void aSlicerThatHadNoNameYetTakesAClickOnceItHasOne()
@@ -4185,6 +4285,7 @@ private Q_SLOTS:
         finish(e);
         QCOMPARE(clearedShown(e), filteredToWest());
     }
+    void twoSlicersOnOneCacheEachShowTheirOwnLook_data() { forms(); }
 
     // Rows inserted above the second slicer only move the second: each saved anchor is where the rows put it, in the frame and in the stand-in beside it.
     void rowsInsertedAboveTheSecondSlicerMoveOnlyThatAnchor()
@@ -4209,9 +4310,10 @@ private Q_SLOTS:
         QList<int> rows;
         QRegularExpressionMatchIterator it = QRegularExpression(QStringLiteral("<xdr:row>(\\d+)</xdr:row>")).globalMatch(QString::fromUtf8(drawing));
         while (it.hasNext()) rows << it.next().captured(1).toInt();
-        // frame and stand-in of the first slicer (rows 8 to 13), then of the second (14 to 19, now 16 to 21)
-        QCOMPARE(rows, (QList<int>{8, 13, 8, 13, 16, 21, 16, 21}));
+        // frame and stand-in of the first slicer (rows 8 to 13), then of the second (14 to 19, now 16 to 21); in the nested form the one anchor of each
+        QCOMPARE(rows, nestedForm() ? (QList<int>{8, 13, 16, 21}) : (QList<int>{8, 13, 8, 13, 16, 21, 16, 21}));
     }
+    void rowsInsertedAboveTheSecondSlicerMoveOnlyThatAnchor_data() { forms(); }
 
     // Ctrl-click adds an item to the ones shown, or takes it away; a click on the only one shown clears the filter.
     void aCtrlClickAddsOrTakesAwayAnItem()
