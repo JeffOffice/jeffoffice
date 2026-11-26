@@ -556,12 +556,12 @@ private Q_SLOTS:
         QVERIFY(sortWith(e, QStringLiteral("B3:C5"), byColumn(0)).ok);
         QVERIFY(e.settle());
         QCOMPARE(shown(e, QStringLiteral("B3:C5")), QStringLiteral("1|2|3|6|9|18"));
-        QCOMPARE(s->calculation()->content(0, 2, 2).formula, QStringLiteral("B3*2"));
+        QCOMPARE(s->calculation()->content(0, 2, 2, false).formula, QStringLiteral("B3*2"));
         // filled down: the formula of C5 into C6 and C7, which read the blank cells beside them
         QVERIFY(s->fill(0, rangeOf(QStringLiteral("C5")), crunch::EditSession::FillDirection::Down, 2).ok);
         QVERIFY(e.settle());
         QCOMPARE(shown(e, QStringLiteral("C5:C7")), QStringLiteral("18|0|0"));
-        QCOMPARE(s->calculation()->content(0, 6, 2).formula, QStringLiteral("B7*2"));
+        QCOMPARE(s->calculation()->content(0, 6, 2, false).formula, QStringLiteral("B7*2"));
         // text pasted over cells that were never there
         QVERIFY(s->pasteText(0, rangeOf(QStringLiteral("E2")), {{QStringLiteral("x"), QStringLiteral("y")}, {QStringLiteral("z"), QStringLiteral("w")}}, crunch::EditSession::PasteOptions()).ok);
         QVERIFY(e.settle());
@@ -571,7 +571,7 @@ private Q_SLOTS:
         QVERIFY(e.settle());
         QCOMPARE(shown(e, QStringLiteral("B9:C11")), QStringLiteral("1|2|3|6|9|18"));
         QCOMPARE(shown(e, QStringLiteral("B3:C5")), QStringLiteral("|||||"));
-        QCOMPARE(s->calculation()->content(0, 8, 2).formula, QStringLiteral("B9*2"));
+        QCOMPARE(s->calculation()->content(0, 8, 2, false).formula, QStringLiteral("B9*2"));
         // the sheet copied is the same cells at the same places
         int made = -1;
         QVERIFY(s->copySheet(0, 1, QStringLiteral("Copy"), &made).ok);
@@ -597,8 +597,8 @@ private Q_SLOTS:
         QVERIFY(again.settle());
         for (const char *range : {"A1:G13"}) QCOMPARE(shown(again, QString::fromLatin1(range)), shown(e, QString::fromLatin1(range)));
         QCOMPARE(shown(again, QStringLiteral("B9:C11")), QStringLiteral("1|2|3|6|9|18"));
-        QCOMPARE(again.win.w.session()->calculation()->content(0, 8, 2).formula, QStringLiteral("B9*2"));
-        QCOMPARE(again.win.w.session()->calculation()->content(0, 6, 2).formula, QStringLiteral("B7*2"));
+        QCOMPARE(again.win.w.session()->calculation()->content(0, 8, 2, false).formula, QStringLiteral("B9*2"));
+        QCOMPARE(again.win.w.session()->calculation()->content(0, 6, 2, false).formula, QStringLiteral("B7*2"));
         QCOMPARE(again.win.w.session()->calculation()->sheet(0).cells.cellCount(), s->calculation()->sheet(0).cells.cellCount());
     }
 

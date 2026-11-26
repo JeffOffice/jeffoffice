@@ -131,6 +131,7 @@ CellRange Calculation::arrayRangeAt(int sheet, quint32 row, quint32 col) const
 CellRange Calculation::arrayMeeting(int sheet, quint32 row1, quint32 col1, quint32 row2, quint32 col2) const
 {
     if (sheet < 0 || sheet >= int(m_sheets.size())) return CellRange();
+    m_guard.check("Calculation::arrayMeeting");   // (the worker adds to the ranges when a formula spills its first block)
     const Sheet &s = m_sheets[size_t(sheet)];
     for (const CellRange &r : s.ranges) {
         if (!r.valid || r.row1 > row2 || r.row2 < row1 || r.col1 > col2 || r.col2 < col1) continue;

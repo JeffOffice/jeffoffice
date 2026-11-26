@@ -368,6 +368,7 @@ SpecialResult goToSpecial(const EditSession &session, int sheet, const CellRange
         return out;
     }
     case SpecialKind::CurrentArray: {
+        const std::shared_ptr<void> held = session.holdForReads();   // (the ranges are added to by the worker, for the first block of a formula that spills)
         for (const CellRange &r : s.ranges)
             if (r.valid && activeRow >= r.row1 && activeRow <= r.row2 && activeCol >= r.col1 && activeCol <= r.col2) {
                 // (the ranges also hold those of data tables: the first cell of one says which it is)
@@ -407,7 +408,7 @@ SpecialResult goToSpecial(const EditSession &session, int sheet, const CellRange
         std::vector<Value> columnValue;
         if (!byRow)
             for (quint32 col = look.col1; col <= look.col2; ++col) {
-                columnBase.push_back(calc->content(sheet, activeRow, col));
+                columnBase.push_back(session.contentHeld(sheet, activeRow, col));
                 columnValue.push_back(session.valueAt(sheet, activeRow, col));
             }
         bool stop = false;
@@ -415,7 +416,7 @@ SpecialResult goToSpecial(const EditSession &session, int sheet, const CellRange
             Calculation::CellContent base;
             Value baseValue;
             if (byRow) {
-                base = calc->content(sheet, row, activeCol);   // (the cell with the cursor in this row, read once)
+                base = session.contentHeld(sheet, row, activeCol);   // (the cell with the cursor in this row, read once)
                 baseValue = session.valueAt(sheet, row, activeCol);
             }
             for (quint32 col = look.col1; col <= look.col2; ++col) {

@@ -477,7 +477,7 @@ private Q_SLOTS:
         QVERIFY(s->formatCells(0, jp::office::sheet::CellRange{rowOf(QStringLiteral("F5")), colOf(QStringLiteral("F5")), rowOf(QStringLiteral("F5")), colOf(QStringLiteral("F5")), true}, money, QStringLiteral("Number")).ok);
         jp::office::sheet::FormatChange bold;
         bold.numberFormat = QStringLiteral("@");
-        const auto at = [&](const QString &cell) { return s->calculation()->content(0, rowOf(cell), colOf(cell)).style; };
+        const auto at = [&](const QString &cell) { return s->calculation()->content(0, rowOf(cell), colOf(cell), false).style; };
         QVERIFY(s->formatCells(0, jp::office::sheet::CellRange{rowOf(QStringLiteral("E5")), colOf(QStringLiteral("E5")), rowOf(QStringLiteral("E5")), colOf(QStringLiteral("E5")), true}, bold, QStringLiteral("Bold")).ok);
         const quint32 valueStyle = at(QStringLiteral("F5")), labelStyle = at(QStringLiteral("E5")), otherStyle = at(QStringLiteral("G5"));
         QVERIFY2(valueStyle != 0 && labelStyle != 0 && valueStyle != labelStyle, qPrintable(QStringLiteral("%1 %2").arg(valueStyle).arg(labelStyle)));

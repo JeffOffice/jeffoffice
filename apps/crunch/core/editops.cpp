@@ -383,6 +383,7 @@ EditSession::Outcome EditSession::fill(int sheet, const CellRange &source, FillD
                                                      : hiddenRowsIn(sheet, source.row1, source.row2);
     auto rowHidden = [&](quint32 row) { return !hiddenRows.empty() && std::binary_search(hiddenRows.begin(), hiddenRows.end(), row); };
     Step step;
+    std::shared_ptr<void> held = holdForReads();   // (the nodes of the cells filled from and over are read for Undo; let go before the step is pushed)
     for (quint32 line = 0; line < lines; ++line) {
         if (!vertical && rowHidden(source.row1 + line)) continue;
         // the cells of the strip, in the order the fill goes on from
@@ -636,6 +637,7 @@ EditSession::Outcome EditSession::fill(int sheet, const CellRange &source, FillD
         }
     stripDone:;
     }
+    held.reset();
     if (step.empty()) return out;
     pushStep(std::move(step), tr("Fill"));
     return out;
@@ -719,7 +721,7 @@ EditSession::Outcome EditSession::justify(int sheet, const CellRange &range, dou
         ch.sheet = sheet;
         ch.row = quint32(r);
         ch.col = quint16(col);
-        ch.before = calc->content(sheet, quint32(r), col);
+        ch.before = contentHeld(sheet, quint32(r), col);
         ch.after = ch.before;
         ch.after.isFormula = false;
         ch.after.formula.clear();
@@ -807,12 +809,12 @@ EditSession::Outcome EditSession::fillAcrossSheets(int sheet, const CellRange &r
                     out.problem = tr("The first row of a table holds the names of its columns, so it can't be filled over. Choose cells that do not reach it.");
                     return out;
                 }
-                const Calculation::CellContent from = calc->content(sheet, r, c);
+                const Calculation::CellContent from = contentHeld(sheet, r, c);
                 CellChange ch;
                 ch.sheet = t;
                 ch.row = r;
                 ch.col = quint16(c);
-                ch.before = calc->content(t, r, c);
+                ch.before = contentHeld(t, r, c);
                 if (what == FillWhat::FormatsOnly) {
                     if (!ch.before.exists && from.style == 0) continue;
                     ch.after = ch.before;

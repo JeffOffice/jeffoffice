@@ -114,7 +114,7 @@ EditSession::Outcome EditSession::flashFill(int sheet, quint32 row, quint32 col,
         ch.sheet = sheet;
         ch.row = r;
         ch.col = quint16(col);
-        ch.before = calc->content(sheet, r, col);
+        ch.before = contentHeld(sheet, r, col);
         ch.after = ch.before;
         ch.after.isFormula = false;
         ch.after.formula.clear();

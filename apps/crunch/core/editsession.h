@@ -920,6 +920,11 @@ public:
     Outcome deleteCells(int sheet, const jp::office::sheet::CellRange &block, bool shiftUp);
     // Whether the edit can be made now, and if not, why (a sentence).
     bool canMove(const jp::office::sheet::StructEdit &edit, QString *why = nullptr) const;
+    // The worker held back for a read of the formulas' nodes (Calculation::content with its nodes, the graph): null when this thread has it held already, or no worker serves. Let it go (reset, or the end of
+    // the scope) before anything that takes a hold of its own, such as pushStep: a second hold on one thread waits for the first for ever.
+    std::shared_ptr<void> holdForReads() const;
+    // The whole content of one cell (its nodes too), read with the worker held back for that one read unless this thread has it.
+    jp::office::sheet::Calculation::CellContent contentHeld(int sheet, quint32 row, quint32 col) const;
     // The results the worker tells name cells by the ids of their rows and columns, which edits of rows and columns do not change, so a batch in flight when one is made lands on the right cells.
     // `dropStale` takes out of a batch those worked out under an epoch older than the stamp of the cell's formula (an edit moved cells one by one, or put the ids in order again, after they were
     // worked out: they name what was at the place then); the formula is worked out again.

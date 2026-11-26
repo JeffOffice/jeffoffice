@@ -71,7 +71,7 @@ void CrunchEditTests::editingACellASpillFillsAndLeavingItAsItWasChangesNothing()
     QVERIFY(!e.win.w.isEditing());
     QCOMPARE(e.win.w.undoStack()->count(), steps);
     QVERIFY(e.win.w.session()->calculation()->isSpillMember(0, 1, 0));
-    QVERIFY(!e.win.w.session()->calculation()->content(0, 1, 0).isFormula);
+    QVERIFY(!e.win.w.session()->calculation()->content(0, 1, 0, false).isFormula);
     QCOMPARE(e.valueAt(QStringLiteral("A1")), QStringLiteral("n:1"));
     QCOMPARE(e.valueAt(QStringLiteral("A3")), QStringLiteral("n:3"));
     // F2, then Escape
@@ -358,8 +358,8 @@ void CrunchEditTests::aFormulaOfAnOlderFileShowsItsImplicitIntersection()
     e.key(Qt::Key_Return);
     QVERIFY(e.settle());
     QCOMPARE(e.win.w.undoStack()->count(), steps);
-    QCOMPARE(calc->content(0, 1, 0).formula, QStringLiteral("A1:A3*2"));
-    QVERIFY(!calc->content(0, 1, 0).dynamic);
+    QCOMPARE(calc->content(0, 1, 0, false).formula, QStringLiteral("A1:A3*2"));
+    QVERIFY(!calc->content(0, 1, 0, false).dynamic);
     // typed without the mark, a formula that can give a block spills as it does in a new file
     e.select(QStringLiteral("E1"));
     e.enter(QStringLiteral("=A1:A3*2"));
@@ -1280,7 +1280,11 @@ void CrunchEditTests::theFormulaBarReadsNoNodeOfTheWorker()
         QCOMPARE(s->barText(0, 2, 1, QStringLiteral("3")), QStringLiteral("=SEQUENCE(A1)"));   // (a cell the block fills shows the formula that fills it)
         QCOMPARE(s->barText(0, 0, 2, QStringLiteral("=A1+1")), QStringLiteral("=A1+1"));
         QCOMPARE(calc->contentNodeReads(), before);
-        QVERIFY(calc->content(0, 0, 2).isFormula);   // (the whole content looks at the node: the count moves)
+        {
+            auto hold = e.win.w.workbookLoader().hold();   // (the nodes are read with the worker held back)
+            QVERIFY(hold);
+            QVERIFY(calc->content(0, 0, 2).isFormula);   // (the whole content looks at the node: the count moves)
+        }
         QVERIFY(calc->contentNodeReads() > before);
     }
 }
@@ -1310,6 +1314,104 @@ void CrunchEditTests::theWindowsQuestionsAboutACellReadNoNodeOfTheWorker()
         QVERIFY(s->canEditCell(0, 0, 2, &why));
         QVERIFY(s->quickHasData(0, CellRange{0, 0, 0, 2, true}));
         QCOMPARE(calc->contentNodeReads(), before);
+    }
+}
+
+// The rule for reads (strict mode, as for changes): a thread that is not the worker and has not held it back asks Calculation::content for the nodes of a cell (the stored result and the held formula)
+// and is named; with the worker held, or asking without nodes, it is not. Fails when the check in content is taken out (the unheld call is not named).
+void CrunchEditTests::aWindowReadOfANodeWithoutTheHoldIsNamedByStrictMode()
+{
+    using jp::office::sheet::MutationGuard;
+    EditWindow e;
+    QVERIFY(e.openBlank());
+    e.select(QStringLiteral("A1"));
+    e.enter(QStringLiteral("3"));
+    e.select(QStringLiteral("B1"));
+    e.enter(QStringLiteral("=A1+1"));
+    QVERIFY(e.settle());
+    auto &loader = e.win.w.workbookLoader();
+    const Calculation *calc = e.win.w.session()->calculation();
+    auto named = [&](const std::function<void()> &read) {
+        {
+            const std::lock_guard<std::mutex> lock(g_violationLock);
+            g_violations.clear();
+        }
+        MutationGuard::setViolationHandler(recordViolation);
+        read();
+        MutationGuard::setViolationHandler(nullptr);
+        const std::lock_guard<std::mutex> lock(g_violationLock);
+        return g_violations;
+    };
+    const std::vector<std::string> unheld = named([&] { calc->content(0, 0, 1); });
+    QCOMPARE(unheld.size(), size_t(1));
+    QCOMPARE(unheld[0], std::string("Calculation::content(withNodes)"));
+    QVERIFY(named([&] { calc->content(0, 0, 1, false); }).empty());
+    {
+        auto hold = loader.hold();
+        QVERIFY(hold);
+        QVERIFY(named([&] { calc->content(0, 0, 1); }).empty());
+    }
+}
+
+// Copying, typing into a cell, pasting (cells and text), clearing, filling, and breaking links read the nodes of the cells they save for Undo with the worker held back (strict mode names a read without
+// the hold), and Undo of each puts back the bytes the file had. Fails when one of them reads without the hold (its name is recorded), on and off.
+void CrunchEditTests::theCopyAndEditEntryPointsReadNodesOnlyUnderTheHold()
+{
+    using jp::office::sheet::MutationGuard;
+    for (const bool index : {true, false}) {
+        SpillIndexSwitch sw(index);
+        EditWindow e;
+        QVERIFY(e.openBlank());
+        EditSession *s = e.win.w.session();
+        const struct {
+            const char *ref, *text;
+        } cells[] = {{"A1", "3"}, {"A2", "4"}, {"B1", "=A1+1"}, {"B2", "=A2*2"}, {"D1", "=SEQUENCE(A1)"}, {"F1", "hello"}};
+        for (const auto &c : cells) {
+            e.select(QString::fromLatin1(c.ref));
+            e.enter(QString::fromLatin1(c.text));
+        }
+        QVERIFY(e.settle());
+        const QByteArray original = savedBytes(e, QStringLiteral("before.xlsx"));
+        QVERIFY(!original.isEmpty());
+        {
+            const std::lock_guard<std::mutex> lock(g_violationLock);
+            g_violations.clear();
+        }
+        MutationGuard::setViolationHandler(recordViolation);
+        auto undoneIsAsItWas = [&](const char *what) {
+            e.win.w.undoStack()->undo();
+            if (!e.settle()) return false;
+            static int saves = 0;
+            const QByteArray now = savedBytes(e, QStringLiteral("after%1.xlsx").arg(++saves));
+            if (now != original) qWarning("the bytes differ after Undo of %s: %d against %d", what, int(now.size()), int(original.size()));
+            return now == original;
+        };
+        auto range = [](quint32 r1, quint32 c1, quint32 r2, quint32 c2) { return CellRange{r1, c1, r2, c2, true}; };
+        bool allUndone = true;
+        e.select(QStringLiteral("B1"));
+        e.enter(QStringLiteral("9"));   // (typedChange)
+        allUndone = undoneIsAsItWas("typing") && allUndone;
+        const crunch::ClipData clip = s->copyCells(0, range(0, 0, 1, 1), false);
+        const crunch::ClipData cut = s->copyCells(0, range(0, 1, 1, 1), true);
+        QVERIFY(clip.valid() && cut.valid());
+        QVERIFY(s->paste(0, range(4, 0, 4, 0), clip, crunch::EditSession::PasteOptions()).ok);   // (paste)
+        allUndone = undoneIsAsItWas("paste") && allUndone;
+        QVERIFY(s->pasteText(0, range(5, 5, 5, 5), {QStringList{QStringLiteral("p"), QStringLiteral("7")}}, {}).ok);   // (pasteText)
+        allUndone = undoneIsAsItWas("paste text") && allUndone;
+        QVERIFY(s->clear(0, 0, 1, 1, 1).ok);   // (clearSelection)
+        allUndone = undoneIsAsItWas("clear") && allUndone;
+        QVERIFY(s->fill(0, range(0, 0, 1, 1), crunch::EditSession::FillDirection::Down, 3).ok);   // (fill)
+        allUndone = undoneIsAsItWas("fill") && allUndone;
+        int cellsBroken = 0, namesBroken = 0;
+        QVERIFY(s->breakExternalLinks(&cellsBroken, &namesBroken, 0).ok);   // (none to break: it looks at the formulas)
+        MutationGuard::setViolationHandler(nullptr);
+        std::vector<std::string> seen;
+        {
+            const std::lock_guard<std::mutex> lock(g_violationLock);
+            seen = g_violations;
+        }
+        QVERIFY2(seen.empty(), seen.empty() ? "" : seen[0].c_str());
+        QVERIFY(allUndone);
     }
 }
 
@@ -1660,7 +1762,7 @@ void CrunchEditTests::theFormulaBarCommittingAFilledCellsFormulaUnchangedChanges
     QVERIFY(!e.win.w.isEditing());
     QCOMPARE(e.win.w.undoStack()->count(), steps);
     QVERIFY(e.win.w.session()->calculation()->isSpillMember(0, 1, 0));
-    QVERIFY(!e.win.w.session()->calculation()->content(0, 1, 0).isFormula);
+    QVERIFY(!e.win.w.session()->calculation()->content(0, 1, 0, false).isFormula);
     QCOMPARE(e.valueAt(QStringLiteral("A1")), QStringLiteral("n:1"));
     QCOMPARE(e.valueAt(QStringLiteral("A3")), QStringLiteral("n:3"));
 }

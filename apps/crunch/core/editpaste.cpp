@@ -62,6 +62,7 @@ ClipData EditSession::copyCells(int sheet, const CellRange &range, bool cut) con
     d.cut = cut;
     if (!m_book || !m_book->calc || !m_book->book || !range.valid || sheet < 0 || sheet >= m_book->calc->sheetCount()) return d;
     const Calculation *calc = m_book->calc.get();
+    const std::shared_ptr<void> held = holdForReads();   // (the nodes of the cells are read: the stored result and the held formula that a paste puts back)
     const Sheet &s = calc->sheet(sheet);
     // (the rows and columns of the selection past the last the sheet has cells in hold nothing: a whole column is its used rows)
     const quint32 lastRow = std::min(range.row2, std::max(range.row1, s.extentRows > 0 ? s.extentRows - 1 : 0));
@@ -203,6 +204,7 @@ EditSession::Outcome EditSession::pasteChanges(int sheet, const CellRange &targe
         return refuse(tr("That is more cells than JeffCrunch pastes at once (%1). Paste into fewer.").arg(QLocale().toString(kMaxCellsPerEdit)));
     const Calculation *calc = m_book->calc.get();
     Step step;
+    std::shared_ptr<void> held = holdForReads();   // (the nodes of the cells pasted over are read for Undo; let go before the step is pushed)
     // (a pasted value is not held to the rules of validation, as in the programs people know: only what is typed is)
     for (quint32 tr_ = 0; tr_ < tilesRows; ++tr_)
         for (quint32 tc = 0; tc < tilesCols; ++tc)
@@ -228,6 +230,7 @@ EditSession::Outcome EditSession::pasteChanges(int sheet, const CellRange &targe
                         return refuse(tr("The first row of a table holds the names of its columns, so cells can't be pasted over it. Paste below it, or change the names one by one."));
                     step.cells.push_back(std::move(ch));
                 }
+    held.reset();
     if (withMerges && qint64(merges.size()) * qint64(tilesRows) * qint64(tilesCols) > jp::office::sheet::kMaxMerges)
         return refuse(tr("That would make more merged cells than JeffCrunch makes at once. Paste into fewer cells."));
     if (withMerges && calc->mergeCountOf(sheet) == qint64(calc->mergesOf(sheet).size())) {

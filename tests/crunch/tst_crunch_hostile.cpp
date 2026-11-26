@@ -68,7 +68,7 @@ QStringList cellsOf(const Calculation *calc)
 {
     QStringList out;
     calc->sheet(0).cells.forEach([&](quint32 row, quint32 col, const office::sheet::Cell &) {
-        const Calculation::CellContent c = calc->content(0, row, col);
+        const Calculation::CellContent c = calc->content(0, row, col, false);
         if (!c.exists) return;
         out << QStringLiteral("%1:%2=%3").arg(cellName(row, col), c.isFormula ? QLatin1Char('=') + c.formula : QString(), calc->cell(0, row, col).debug());
     });
@@ -203,8 +203,8 @@ private Q_SLOTS:
             const crunch::EditSession::Outcome in = s->insertColumns(0, 0, 100);
             QVERIFY2(in.ok && !in.confirm, qPrintable(QStringLiteral("pair %1: insert refused: %2").arg(pairs).arg(in.problem)));
             // (what was in column A is in column CW now)
-            QCOMPARE(s->calculation()->content(0, 0, 100).value.number(), 1.0);
-            QVERIFY(!s->calculation()->content(0, 0, 0).exists);
+            QCOMPARE(s->calculation()->content(0, 0, 100, false).value.number(), 1.0);
+            QVERIFY(!s->calculation()->content(0, 0, 0, false).exists);
             const quint32 next = s->calculation()->sheet(0).cols().nextId().value();
             if (next < lastNext) ++rebases;
             lastNext = next;
@@ -304,7 +304,7 @@ private Q_SLOTS:
         QVERIFY2(last <= 2 * first + 200, qPrintable(QStringLiteral("work of an edit: %1 at first, %2 at the end").arg(first).arg(last)));
         QVERIFY2(calc->sheet(0).cells.rows().runCount() >= size_t(edits) && calc->sheet(0).cells.rows().runCount() <= size_t(edits) + 4, qPrintable(QString::number(calc->sheet(0).cells.rows().runCount())));
         QVERIFY2(calc->sheet(0).formulaTexts.size() <= textsBefore + 4, qPrintable(QStringLiteral("%1 texts, %2 before").arg(calc->sheet(0).formulaTexts.size()).arg(textsBefore)));   // (the formulas that moved were not written again)
-        QCOMPARE(calc->content(0, quint32(edits), 1).formula, QStringLiteral("A%1*2").arg(edits + 1));
+        QCOMPARE(calc->content(0, quint32(edits), 1, false).formula, QStringLiteral("A%1*2").arg(edits + 1));
         QVERIFY(storeDiffers(e).isEmpty());
         QSignalSpy spy(&e.win.w, &CrunchWindow::saved);
         QVERIFY(e.win.w.save());
@@ -378,7 +378,7 @@ private Q_SLOTS:
         }
         QVERIFY(e.settle());
         QCOMPARE(calc->cell(0, 5 + count - 1, 1).number(), 14.0);
-        QCOMPARE(calc->content(0, 5 + count - 1, 1).formula, QStringLiteral("A%1*2").arg(5 + count));
+        QCOMPARE(calc->content(0, 5 + count - 1, 1, false).formula, QStringLiteral("A%1*2").arg(5 + count));
         QCOMPARE(calc->positionalFormulas(), qint64(0));
         QVERIFY2(calc->sheet(0).formulaTexts.size() < 50, qPrintable(QString::number(calc->sheet(0).formulaTexts.size())));
         for (const StructEdit &edit : {StructEdit::insertRows(0, 0, 1), StructEdit::deleteRows(0, 2, 1), StructEdit::insertColumns(0, 0, 1)}) {

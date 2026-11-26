@@ -107,7 +107,7 @@ QByteArray gradientBook()
 jp::office::sheet::FillSpec fillAt(CrunchWindow &w, quint32 row, quint32 col)
 {
     const auto &styles = w.session()->workbook()->styles();
-    return styles.fill(styles.format(w.session()->calculation()->content(0, row, col).style).fill);
+    return styles.fill(styles.format(w.session()->calculation()->content(0, row, col, false).style).fill);
 }
 
 } // namespace

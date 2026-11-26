@@ -491,7 +491,7 @@ private Q_SLOTS:
         QVERIFY(e.shownAt(QStringLiteral("A3")).isEmpty());
         QCOMPARE(e.shownAt(QStringLiteral("B3")), QStringLiteral("4"));
         QCOMPARE(e.shownAt(QStringLiteral("C3")), QStringLiteral("x & y"));
-        QVERIFY(!e.win.w.session()->calculation()->content(0, 1, 2).isFormula);
+        QVERIFY(!e.win.w.session()->calculation()->content(0, 1, 2, false).isFormula);
         // a page with no table is said not to be a workbook
         const QString plain = e.folder.write(QStringLiteral("plain.html"), QByteArray("<html><body><p>No table here</p></body></html>"));
         jp::office::sheet::Workbook book;

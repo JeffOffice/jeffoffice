@@ -1172,7 +1172,7 @@ private Q_SLOTS:
         QVERIFY(s->type(0, 3, 3, QStringLiteral("=[@Q1]+[@[Q2]]")).ok);   // beside the table, in its row: the table grows and the column is filled
         QVERIFY(e.settle());
         const Calculation *calc = s->calculation();
-        QCOMPARE(calc->content(0, 3, 3).formula, QStringLiteral("Table1[[#This Row],[Q1]]+Table1[[#This Row],[Q2]]"));
+        QCOMPARE(calc->content(0, 3, 3, false).formula, QStringLiteral("Table1[[#This Row],[Q1]]+Table1[[#This Row],[Q2]]"));
         QCOMPARE(valueOf(e, QStringLiteral("D4")), QStringLiteral("n:33"));
         QCOMPARE(valueOf(e, QStringLiteral("D2")), QStringLiteral("n:11"));
     }
@@ -1571,7 +1571,7 @@ private Q_SLOTS:
         QCOMPARE(w.cellEditor()->text(), QStringLiteral("=2*[@Q1]"));
         e.key(Qt::Key_Return);
         QVERIFY(e.settle());
-        QCOMPARE(w.session()->calculation()->content(0, 2, 2).formula, QStringLiteral("2*Table1[[#This Row],[Q1]]"));
+        QCOMPARE(w.session()->calculation()->content(0, 2, 2, false).formula, QStringLiteral("2*Table1[[#This Row],[Q1]]"));
         QCOMPARE(valueOf(e, QStringLiteral("C3")), QStringLiteral("n:4"));
         // where no reference may go (after a name, a number), or on a cell that is in no table: the click ends the entry
         e.select(QStringLiteral("F4"));

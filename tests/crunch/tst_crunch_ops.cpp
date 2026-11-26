@@ -586,7 +586,7 @@ private Q_SLOTS:
         QCOMPARE(shown(e, QStringLiteral("A1:A2")), QStringLiteral("|"));
         QCOMPARE(e.view()->rangeName(), QStringLiteral("E1:E2"));
         QCOMPARE(e.win.w.undoStack()->count(), 1);
-        QCOMPARE(e.win.w.session()->calculation()->content(0, 0, 2).formula, QStringLiteral("E1+E2"));
+        QCOMPARE(e.win.w.session()->calculation()->content(0, 0, 2, false).formula, QStringLiteral("E1+E2"));
         pressUndo(&e.win.w);
         QCOMPARE(shown(e, QStringLiteral("A1:A2")), QStringLiteral("1|2"));
         // with Ctrl: a copy
@@ -622,7 +622,7 @@ private Q_SLOTS:
         Q_EMIT e.view()->moveRequested(grid::GridRange{0, 0, 1, 0}, grid::GridRange{0, 2, 1, 2}, false);   // A1:A2 dropped on C1:C2
         QCOMPARE(shown(e, QStringLiteral("C1:C2")), QStringLiteral("1|2"));
         const jp::office::sheet::Calculation *calc = e.win.w.session()->calculation();
-        QCOMPARE(calc->content(1, 0, 0).formula, QStringLiteral("Sheet1!C1+Sheet1!C2"));
+        QCOMPARE(calc->content(1, 0, 0, false).formula, QStringLiteral("Sheet1!C1+Sheet1!C2"));
         QString pts;
         QVERIFY(calc->nameText(-1, QStringLiteral("Pts"), &pts));
         QCOMPARE(pts.remove(QLatin1Char('=')), QStringLiteral("Sheet1!$C$1:$C$2"));
@@ -631,7 +631,7 @@ private Q_SLOTS:
         QCOMPARE(rangeName(rules.first().ranges.first()), QStringLiteral("C1:C2"));
         QCOMPARE(e.win.w.undoStack()->count(), 1);
         pressUndo(&e.win.w);
-        QCOMPARE(calc->content(1, 0, 0).formula, QStringLiteral("Sheet1!A1+Sheet1!A2"));
+        QCOMPARE(calc->content(1, 0, 0, false).formula, QStringLiteral("Sheet1!A1+Sheet1!A2"));
         QCOMPARE(rangeName(calc->sheet(0).conditionalFormats.first().ranges.first()), QStringLiteral("A1:A2"));
     }
 
@@ -820,9 +820,9 @@ private Q_SLOTS:
             QVERIFY(e.open(book(QString())));
             crunch::EditSession *s = e.win.w.session();
             QVERIFY(s->fill(0, rangeOf(QStringLiteral("A1048575")), Dir::Down, 4000000000u, crunch::EditSession::FillOptions()).ok);   // (one row is left)
-            QCOMPARE(s->calculation()->content(0, 1048575, 0).value.number(), 9.0);
+            QCOMPARE(s->calculation()->content(0, 1048575, 0, false).value.number(), 9.0);
             QVERIFY(s->fill(0, rangeOf(QStringLiteral("A2")), Dir::Up, 4000000000u).ok);               // (one row is above)
-            QCOMPARE(s->calculation()->content(0, 0, 0).value.number(), 2.0);
+            QCOMPARE(s->calculation()->content(0, 0, 0, false).value.number(), 2.0);
         }
         {
             EditWindow e;   // the last row is in an area wider than the cells filled from
@@ -866,7 +866,7 @@ private Q_SLOTS:
             EditWindow e;   // the same area on both
             QVERIFY(e.open(bookOfSheets({{"A1=5", "B1=6"}, {"C1=1"}}, {{0, merged}, {1, merged}})));
             QVERIFY(e.win.w.session()->fillAcrossSheets(0, rangeOf(QStringLiteral("A1:B1")), {1}, What::All).ok);
-            QCOMPARE(e.win.w.session()->calculation()->content(1, 0, 0).value.number(), 5.0);
+            QCOMPARE(e.win.w.session()->calculation()->content(1, 0, 0, false).value.number(), 5.0);
         }
         {
             EditWindow e;   // an area on the sheet it comes from that the range cuts
@@ -889,7 +889,7 @@ private Q_SLOTS:
         copy.what = What::FormatsOnly;
         QVERIFY(s->fill(0, rangeOf(QStringLiteral("A1")), Dir::Down, 2, copy).ok);   // A2 keeps its 7, now as a percent; A3 gets the format and nothing in it
         QCOMPARE(shown(e, QStringLiteral("A1:A3")), QStringLiteral("25%|700%|"));
-        QCOMPARE(s->calculation()->content(0, 2, 0).style, s->calculation()->content(0, 0, 0).style);
+        QCOMPARE(s->calculation()->content(0, 2, 0, false).style, s->calculation()->content(0, 0, 0, false).style);
         copy.what = What::ValuesOnly;
         QVERIFY(s->fill(0, rangeOf(QStringLiteral("B1")), Dir::Down, 2, copy).ok);   // B2 and B3 are General cells: they take 0.5 and are shown so
         QCOMPARE(shown(e, QStringLiteral("B1:B3")), QStringLiteral("50%|0.5|0.5"));
@@ -936,24 +936,24 @@ private Q_SLOTS:
         QVERIFY(s->fillAcrossSheets(0, rangeOf(QStringLiteral("A1:B2")), {1, 2}, What::All).ok);
         QCOMPARE(e.win.w.undoStack()->count(), 1);
         for (const int sheet : {1, 2}) {
-            QCOMPARE(s->calculation()->content(sheet, 0, 0).value.number(), 5.0);
-            QCOMPARE(s->calculation()->content(sheet, 0, 0).style, s->calculation()->content(0, 0, 0).style);
-            QCOMPARE(s->calculation()->content(sheet, 0, 1).value.text(), QStringLiteral("x"));
-            QCOMPARE(s->calculation()->content(sheet, 1, 0).formula, QStringLiteral("A1*2"));
+            QCOMPARE(s->calculation()->content(sheet, 0, 0, false).value.number(), 5.0);
+            QCOMPARE(s->calculation()->content(sheet, 0, 0, false).style, s->calculation()->content(0, 0, 0, false).style);
+            QCOMPARE(s->calculation()->content(sheet, 0, 1, false).value.text(), QStringLiteral("x"));
+            QCOMPARE(s->calculation()->content(sheet, 1, 0, false).formula, QStringLiteral("A1*2"));
         }
-        QCOMPARE(s->calculation()->content(1, 0, 2).value.text(), QStringLiteral("keep"));   // (outside the cells: untouched)
+        QCOMPARE(s->calculation()->content(1, 0, 2, false).value.text(), QStringLiteral("keep"));   // (outside the cells: untouched)
         pressUndo(e.view());
         QVERIFY(e.settle());
-        QTRY_COMPARE(s->calculation()->content(1, 0, 0).value.number(), 9.0);
-        QVERIFY(!s->calculation()->content(2, 0, 1).exists);
+        QTRY_COMPARE(s->calculation()->content(1, 0, 0, false).value.number(), 9.0);
+        QVERIFY(!s->calculation()->content(2, 0, 1, false).exists);
         // just the formats: the cells keep what they hold
         QVERIFY(s->fillAcrossSheets(0, rangeOf(QStringLiteral("A1")), {1}, What::FormatsOnly).ok);
-        QCOMPARE(s->calculation()->content(1, 0, 0).value.number(), 9.0);
-        QCOMPARE(s->calculation()->content(1, 0, 0).style, s->calculation()->content(0, 0, 0).style);
+        QCOMPARE(s->calculation()->content(1, 0, 0, false).value.number(), 9.0);
+        QCOMPARE(s->calculation()->content(1, 0, 0, false).style, s->calculation()->content(0, 0, 0, false).style);
         // just the contents: the formats stay
         QVERIFY(s->fillAcrossSheets(0, rangeOf(QStringLiteral("A1")), {2}, What::ValuesOnly).ok);
-        QCOMPARE(s->calculation()->content(2, 0, 0).value.number(), 5.0);
-        QCOMPARE(s->calculation()->content(2, 0, 0).style, quint32(0));
+        QCOMPARE(s->calculation()->content(2, 0, 0, false).value.number(), 5.0);
+        QCOMPARE(s->calculation()->content(2, 0, 0, false).style, quint32(0));
         // not the sheet it is on, a sheet that is not there, or none
         QVERIFY(!s->fillAcrossSheets(0, rangeOf(QStringLiteral("A1")), {0}, What::All).ok);
         QVERIFY(!s->fillAcrossSheets(0, rangeOf(QStringLiteral("A1")), {7}, What::All).ok);
@@ -1030,7 +1030,7 @@ private Q_SLOTS:
         QCOMPARE(e.win.w.undoStack()->count(), 1);
         QVERIFY(choose("fillOpt.formatsOnly"));
         QCOMPARE(shown(e, QStringLiteral("A1:A3")), QStringLiteral("25%||"));
-        QCOMPARE(e.win.w.session()->calculation()->content(0, 2, 0).style, e.win.w.session()->calculation()->content(0, 0, 0).style);
+        QCOMPARE(e.win.w.session()->calculation()->content(0, 2, 0, false).style, e.win.w.session()->calculation()->content(0, 0, 0, false).style);
         QVERIFY(choose("fillOpt.copy"));
         QCOMPARE(shown(e, QStringLiteral("A1:A3")), QStringLiteral("25%|25%|25%"));
         QCOMPARE(e.win.w.undoStack()->count(), 1);
@@ -1081,8 +1081,8 @@ private Q_SLOTS:
             QVERIFY(e.open(bookOfSheets({{"A1=5", "B1=x"}, {}, {}})));
             e.view()->selectRange(0, 0, 0, 1);
             QVERIFY(e.win.w.fillAcrossSheets({1}, crunch::EditSession::FillWhat::All));
-            QCOMPARE(e.win.w.session()->calculation()->content(1, 0, 1).value.text(), QStringLiteral("x"));
-            QVERIFY(!e.win.w.session()->calculation()->content(2, 0, 1).exists);
+            QCOMPARE(e.win.w.session()->calculation()->content(1, 0, 1, false).value.text(), QStringLiteral("x"));
+            QVERIFY(!e.win.w.session()->calculation()->content(2, 0, 1, false).exists);
             FillAcrossDialog d(QStringList{"Sheet1", "Sheet2", "Sheet3"}, 0);
             auto *list = d.findChild<QListWidget *>(QStringLiteral("fillAcrossSheets"));
             QVERIFY(list);

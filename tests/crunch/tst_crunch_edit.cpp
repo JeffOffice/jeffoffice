@@ -2512,7 +2512,7 @@ void CrunchEditTests::whatDependsOnACellIsWorkedOutAgain()
     QCOMPARE(e.win.w.formulaBar()->text(), QStringLiteral("=STDEV.S(A1:A3)"));
     const Calculation *calc = e.win.w.calculation();
     QVERIFY(calc);
-    QCOMPARE(calc->content(0, 1, 4).formula, QStringLiteral("_xlfn.STDEV.S(A1:A3)"));
+    QCOMPARE(calc->content(0, 1, 4, false).formula, QStringLiteral("_xlfn.STDEV.S(A1:A3)"));
 }
 
 

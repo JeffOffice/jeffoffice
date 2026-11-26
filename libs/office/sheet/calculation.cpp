@@ -3644,6 +3644,7 @@ Calculation::CellContent Calculation::content(int sheet, quint32 row, quint32 co
             out.arrayRange = spillBlock(sheet, row, col);   // (the block it fills now: what a file says of a formula that spills)
         }
         if (!withNodes) return out;
+        m_guard.check("Calculation::content(withNodes)");   // (the nodes are the worker's while it works: a thread that is not it reads them with it held back; one flag test when strict mode is off)
         m_contentNodeReads.fetch_add(1, std::memory_order_relaxed);
         const quint32 id = nodeAt(sheet, row, col);
         if (id != kNone && (m_nodes[id].flags & Kept)) {

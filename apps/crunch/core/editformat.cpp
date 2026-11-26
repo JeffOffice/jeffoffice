@@ -993,6 +993,7 @@ EditSession::Outcome EditSession::clearAll(int sheet, const CellRange &range)
     const Sheet &s = calc->sheet(sheet);
     std::vector<CellChange> changes;
     bool array = false, locked = false, many = false;
+    std::shared_ptr<void> held = holdForReads();   // (the nodes of the cells are read for Undo; let go before the step is pushed)
     s.cells.forEachInRange(range.row1, range.col1, range.row2, range.col2, [&](quint32 cellRow, quint32 cellCol, const Cell &c) {
         const Calculation::CellContent before = calc->content(sheet, cellRow, cellCol);
         if (!before.editable) {
@@ -1019,6 +1020,7 @@ EditSession::Outcome EditSession::clearAll(int sheet, const CellRange &range)
         changes.push_back(std::move(ch));
         return true;
     });
+    held.reset();
     if (array || locked || many) {
         out.ok = false;
         out.problem = array ? tr("You can't change part of an array or a data table.") : locked ? lockedMessage()
@@ -1120,7 +1122,7 @@ EditSession::Outcome EditSession::mergeCells(int sheet, const CellRange &range, 
         bool bad = false;
         s.cells.forEachInRange(b.row1, b.col1, b.row2, b.col2, [&](quint32 cellRow, quint32 cellCol, const Cell &c) {
             if (++seen > kMaxCellsPerEdit) return false;
-            const Calculation::CellContent content = calc->content(sheet, cellRow, cellCol);
+            const Calculation::CellContent content = calc->content(sheet, cellRow, cellCol, false);
             if (!content.editable) {
                 bad = true;
                 return false;

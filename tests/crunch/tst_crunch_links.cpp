@@ -288,7 +288,7 @@ private Q_SLOTS:
         QCOMPARE(e.shownAt(QStringLiteral("F5")), QStringLiteral("the new page"));
         // a person sees one step
         QCOMPARE(e.win.w.undoStack()->count(), steps + 1);
-        QVERIFY(s->calculation()->content(0, 4, 5).style != 0);   // (the look of a link: a format of its own)
+        QVERIFY(s->calculation()->content(0, 4, 5, false).style != 0);   // (the look of a link: a format of its own)
         e.win.w.undoStack()->undo();
         QVERIFY(!s->anchors().linkAt(0, 4, 5));
         QCOMPARE(e.shownAt(QStringLiteral("F5")), QString());

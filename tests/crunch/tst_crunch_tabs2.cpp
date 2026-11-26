@@ -2008,7 +2008,7 @@ private Q_SLOTS:
         QCOMPARE(fix->text(), QStringLiteral("Include the Cell"));
         fix->trigger();
         QCOMPARE(w.undoStack()->count(), steps + 1);
-        QVERIFY(w.session()->calculation()->content(0, 0, 1).formula.contains(QLatin1String("A1:A3")));
+        QVERIFY(w.session()->calculation()->content(0, 0, 1, false).formula.contains(QLatin1String("A1:A3")));
         QVERIFY(e.settle());
         QTRY_COMPARE(w.session()->valueAt(0, 0, 1).number(), 50.0);
         menu()->close();
@@ -2049,8 +2049,8 @@ private Q_SLOTS:
             QVERIFY(fix && ignore);
             fix->trigger();
             QVERIFY(e.settle());
-            QVERIFY(w.session()->calculation()->content(0, 0, 1).formula.contains(QLatin1String("A1:A2")));
-            QVERIFY(!w.session()->calculation()->content(0, 0, 1).formula.contains(QLatin1String("A1:A3")));
+            QVERIFY(w.session()->calculation()->content(0, 0, 1, false).formula.contains(QLatin1String("A1:A2")));
+            QVERIFY(!w.session()->calculation()->content(0, 0, 1, false).formula.contains(QLatin1String("A1:A3")));
             QCOMPARE(w.undoStack()->count(), steps);
             if (!readOnly) QVERIFY2(e.win.told.join('|').contains(QLatin1String("protected")), qPrintable(e.win.told.join('|')));
             // (Ignore Error changes no cell: on a protected sheet it is taken, as in Error Checking's own window; in a workbook open for reading only it is refused)

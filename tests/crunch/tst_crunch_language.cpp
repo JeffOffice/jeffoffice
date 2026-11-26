@@ -65,7 +65,7 @@ struct Proofing {
 Proofing proofingOf(EditWindow &e, quint32 row, quint32 col)
 {
     Proofing p;
-    const auto c = e.win.w.session()->calculation()->content(0, row, col);
+    const auto c = e.win.w.session()->calculation()->content(0, row, col, false);
     p.language = e.win.w.session()->proofingLanguageOfStyle(c.style, &p.noProof);
     return p;
 }

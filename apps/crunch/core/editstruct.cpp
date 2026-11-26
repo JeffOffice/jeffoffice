@@ -161,7 +161,10 @@ bool EditSession::canMove(const StructEdit &edit, QString *why) const
 {
     if (!canEdit(why) || !canEditSheet(edit.sheet, why)) return false;
     if (edit.kind == StructEdit::Kind::Move && !canEditSheet(edit.toSheet, why)) return false;
-    if (!m_book->calc->canApply(edit, why)) return false;
+    {
+        const std::shared_ptr<void> held = holdForReads();   // (it may tell the graph what was left for later: the worker's)
+        if (!m_book->calc->canApply(edit, why)) return false;
+    }
     // a pivot table sits on the cells of its sheet, where the file says: what would move it or cut through it is not done (the file would have it where it was); the rest of the sheet is
     // edited as ever
     using K = StructEdit::Kind;

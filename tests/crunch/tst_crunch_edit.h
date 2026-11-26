@@ -178,6 +178,8 @@ private Q_SLOTS:
     void theWindowReadsTheBlocksOfTheBatchItTook();
     void theFormulaBarReadsNoNodeOfTheWorker();
     void theWindowsQuestionsAboutACellReadNoNodeOfTheWorker();
+    void aWindowReadOfANodeWithoutTheHoldIsNamedByStrictMode();
+    void theCopyAndEditEntryPointsReadNodesOnlyUnderTheHold();
     void aWindowReadingABlockWhileTheWorkerGrowsAndShrinksItReadsNoFreedCell();
     void aWindowReadingABlockWhileTheWorkerMakesCellsOfItIsFoundByTheCheckedBuild();
     void aBlockOfASliceIsNotReadUntilItsBatchIsTaken();

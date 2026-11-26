@@ -362,7 +362,7 @@ EditSession::Outcome EditSession::pivotStep(std::vector<PivotChange> changes, co
                 const qint64 top = std::max<qint64>(qint64(oldLoc.row1), qint64(oldLoc.row1) + gridRow - 512);
                 for (qint64 r = qint64(oldLoc.row1) + gridRow; r >= top && *budget > 0; --r) {
                     --*budget;
-                    const Calculation::CellContent c = m_book->calc->content(sheet, quint32(r), oldLoc.col1 + quint32(gridCol));
+                    const Calculation::CellContent c = contentHeld(sheet, quint32(r), oldLoc.col1 + quint32(gridCol));
                     if (c.exists && !c.isFormula && c.value.isNumber() && c.value.number() == v) {
                         found = book.styles().numFmtId(c.style);
                         break;
@@ -477,7 +477,7 @@ EditSession::Outcome EditSession::pivotStep(std::vector<PivotChange> changes, co
             cc.sheet = sheet;
             cc.row = row;
             cc.col = quint16(col);
-            cc.before = m_book->calc->content(sheet, row, col);
+            cc.before = contentHeld(sheet, row, col);
             cc.after = cc.before;
             const bool hadValue = cc.before.exists && (cc.before.isFormula || !cc.before.value.isEmpty());
             if (pc.kind == PivotCell::Empty) {
@@ -1044,7 +1044,7 @@ EditSession::Outcome EditSession::showPivotDetail(int sheet, quint32 row, quint3
         cc.sheet = target;
         cc.row = r;
         cc.col = quint16(c);
-        cc.before = m_book->calc->content(target, r, c);
+        cc.before = contentHeld(target, r, c);
         cc.after = cc.before;
         cc.after.exists = true;
         cc.after.isFormula = false;
@@ -1113,7 +1113,7 @@ EditSession::Outcome EditSession::listPivotFormulas(int table, int *made)
         cc.sheet = target;
         cc.row = r;
         cc.col = quint16(c);
-        cc.before = m_book->calc->content(target, r, c);
+        cc.before = contentHeld(target, r, c);
         cc.after = cc.before;
         cc.after.exists = true;
         cc.after.isFormula = false;

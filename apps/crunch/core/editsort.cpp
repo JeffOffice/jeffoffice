@@ -441,6 +441,7 @@ EditSession::Outcome EditSession::applySort(SortPlan &plan, qint64 budget)
     }
     // every cell as it is, once
     if (plan.stage == 0) {
+        const std::shared_ptr<void> held = holdForReads();   // (the nodes of the cells are read: they move with the cells and are put back by Undo)
         for (; plan.readAt < n; ++plan.readAt) {
             if (full()) {
                 out.pending = true;

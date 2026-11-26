@@ -1231,7 +1231,7 @@ private Q_SLOTS:
         QCOMPARE(e.valueAt(QStringLiteral("E7")), QStringLiteral("n:6"));
         QCOMPARE(formulaOf(e, QStringLiteral("G1")), QStringLiteral("=SUM(E5:E7)"));
         QCOMPARE(e.valueAt(QStringLiteral("G1")), QStringLiteral("n:12"));
-        QVERIFY(e.win.w.calculation()->content(0, 4, 4).arrayRange.valid);
+        QVERIFY(e.win.w.calculation()->content(0, 4, 4, false).arrayRange.valid);
         // a change to what the array reads reaches it where it is
         e.select(QStringLiteral("A2"));
         e.enter(QStringLiteral("20"));
@@ -1242,7 +1242,7 @@ private Q_SLOTS:
         QVERIFY(e.settle());
         QCOMPARE(e.valueAt(QStringLiteral("E5")), QStringLiteral("-"));
         QCOMPARE(e.valueAt(QStringLiteral("C2")), QStringLiteral("n:4"));
-        QVERIFY(e.win.w.calculation()->content(0, 0, 2).arrayRange.valid);
+        QVERIFY(e.win.w.calculation()->content(0, 0, 2, false).arrayRange.valid);
         e.win.w.act(QStringLiteral("edit.redo"))->trigger();
         QVERIFY(e.settle());
         QCOMPARE(e.valueAt(QStringLiteral("E7")), QStringLiteral("n:6"));
@@ -1258,7 +1258,7 @@ private Q_SLOTS:
         QVERIFY2(!xml.contains(QStringLiteral("C1:C3\"")) && !xml.contains(QStringLiteral("r=\"C2\"")), qPrintable(xml));
         Window second;
         QVERIFY(second.open(e.copyOfFile()));
-        const auto content = second.w.calculation()->content(0, 4, 4);
+        const auto content = second.w.calculation()->content(0, 4, 4, false);
         QVERIFY(content.isFormula && content.arrayRange.valid);
         QCOMPARE(rangeName(content.arrayRange), QStringLiteral("E5:E7"));
     }

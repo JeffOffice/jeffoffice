@@ -140,12 +140,12 @@ private Q_SLOTS:
         const int steps = e.win.w.undoStack()->count();
         QVERIFY(e.win.w.session()->type(0, 1, 0, QStringLiteral("one\ntwo\nthree")).ok);
         QCOMPARE(e.win.w.undoStack()->count(), steps + 1);
-        const auto &style = e.win.w.session()->workbook()->styles().format(e.win.w.session()->calculation()->content(0, 1, 0).style);
+        const auto &style = e.win.w.session()->workbook()->styles().format(e.win.w.session()->calculation()->content(0, 1, 0, false).style);
         QVERIFY(style.wrap);
         QTRY_VERIFY(rowPx(e, 1) >= plain * 2 + plain / 2);
         e.win.w.undoStack()->undo();
         QTRY_COMPARE(rowPx(e, 1), plain);
-        QVERIFY(!e.win.w.session()->workbook()->styles().format(e.win.w.session()->calculation()->content(0, 1, 0).style).wrap);
+        QVERIFY(!e.win.w.session()->workbook()->styles().format(e.win.w.session()->calculation()->content(0, 1, 0, false).style).wrap);
     }
 
     void aLargerFontMakesTheRowTaller()

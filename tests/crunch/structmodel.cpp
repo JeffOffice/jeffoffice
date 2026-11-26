@@ -1379,7 +1379,7 @@ private:
 // (an array formula or a data table, or a text that is not a formula).
 bool readsOfFormula(const Calculation *calc, int sheet, quint32 row, quint32 col, std::vector<calc::CellArea> *reads)
 {
-    const Calculation::CellContent content = calc->content(sheet, row, col);
+    const Calculation::CellContent content = calc->content(sheet, row, col, false);
     if (!content.isFormula || content.arrayRange.valid || content.dataTable) return false;
     const calc::ParseResult pr = calc::parseFormula(content.formula, calc::ParseOptions());
     if (!pr.program) return false;
@@ -1454,7 +1454,7 @@ QString graphMisses(Live &live, qint64 *formulas, qint64 *reads, bool fakeRead)
             if (c.hasFormula()) cells.emplace_back(row, col);
         });
         for (const auto &cell : cells) {
-            const Calculation::CellContent content = calc->content(s, cell.first, cell.second);
+            const Calculation::CellContent content = calc->content(s, cell.first, cell.second, false);
             std::vector<calc::CellArea> areas;
             const quint32 node = calc->nodeAt(s, cell.first, cell.second);
             if (node == 0xFFFFFFFFu || !readsOfFormula(calc, s, cell.first, cell.second, &areas)) continue;

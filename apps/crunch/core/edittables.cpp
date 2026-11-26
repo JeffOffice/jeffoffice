@@ -161,7 +161,7 @@ CellChange EditSession::textCell(int sheet, quint32 row, quint32 col, const QStr
     ch.sheet = sheet;
     ch.row = row;
     ch.col = quint16(col);
-    ch.before = m_book->calc->content(sheet, row, col);
+    ch.before = contentHeld(sheet, row, col);
     ch.after = ch.before;
     ch.after.exists = true;
     ch.after.isFormula = false;
@@ -179,7 +179,7 @@ CellChange EditSession::formulaCell(int sheet, quint32 row, quint32 col, const Q
     ch.sheet = sheet;
     ch.row = row;
     ch.col = quint16(col);
-    ch.before = m_book->calc->content(sheet, row, col);
+    ch.before = contentHeld(sheet, row, col);
     ch.after = ch.before;
     ch.after.exists = true;
     ch.after.isFormula = true;
@@ -196,7 +196,7 @@ CellChange EditSession::clearedCell(int sheet, quint32 row, quint32 col)
     ch.sheet = sheet;
     ch.row = row;
     ch.col = quint16(col);
-    ch.before = m_book->calc->content(sheet, row, col);
+    ch.before = contentHeld(sheet, row, col);
     ch.after = ch.before;
     ch.after.isFormula = false;
     ch.after.formula.clear();
@@ -424,7 +424,7 @@ EditSession::Outcome EditSession::tableToRange(int table)
             f.sheet = s;
             f.row = r;
             f.col = quint16(c);
-            f.before = calc->content(s, r, c);
+            f.before = contentHeld(s, r, c);
             f.after = f.before;
             f.after.formula = converted;
             f.after.hasStored = false;
@@ -512,7 +512,7 @@ EditSession::Outcome EditSession::renameTable(int table, const QString &name)
             f.sheet = s;
             f.row = r;
             f.col = quint16(c);
-            f.before = calc->content(s, r, c);
+            f.before = contentHeld(s, r, c);
             f.after = f.before;
             f.after.formula = renamed;
             f.after.hasStored = false;
@@ -849,13 +849,13 @@ EditSession::Outcome EditSession::resizeTable(int table, const CellRange &range)
         const quint32 col = t.col1 + quint32(i);
         QString name;
         if (t.headerRows > 0) {
-            const Calculation::CellContent c = m_book->calc->content(t.sheet, t.row1, col);
+            const Calculation::CellContent c = m_book->calc->content(t.sheet, t.row1, col, false);
             if (c.exists && (c.isFormula || !c.value.isEmpty())) name = displayText(t.sheet, t.row1, col).trimmed();
         }
         const QString unique = name.isEmpty() ? QString() : used.unique(name);
         name = unique.isEmpty() ? used.fresh(int(after.columns.size()) + 1) : unique;
         if (t.headerRows > 0) {
-            const Calculation::CellContent c = m_book->calc->content(t.sheet, t.row1, col);
+            const Calculation::CellContent c = m_book->calc->content(t.sheet, t.row1, col, false);
             if (!(c.exists && !c.isFormula && c.value.isText() && c.value.text() == name)) step.cells.push_back(textCell(t.sheet, t.row1, col, name));
         }
         after.columns << name;
@@ -870,14 +870,14 @@ EditSession::Outcome EditSession::resizeTable(int table, const CellRange &range)
         const int common = int(std::min<qint64>(t.columns.size(), after.columns.size()));
         for (int i = 0; i < common; ++i) {
             const quint32 col = t.col1 + quint32(i);
-            const Calculation::CellContent was = m_book->calc->content(t.sheet, t.row2, col);
+            const Calculation::CellContent was = m_book->calc->content(t.sheet, t.row2, col, false);
             if (!was.exists || (!was.isFormula && was.value.isEmpty())) continue;
             // (the cell the totals go to: the old totals row is a row of data now when the table is longer, and is cleared)
             CellChange moved;
             moved.sheet = t.sheet;
             moved.row = after.row2;
             moved.col = quint16(col);
-            moved.before = m_book->calc->content(t.sheet, after.row2, col);
+            moved.before = contentHeld(t.sheet, after.row2, col);
             moved.after = was;
             moved.after.style = moved.before.exists ? moved.before.style : was.style;
             moved.textToShare = false;
@@ -1121,7 +1121,7 @@ void EditSession::growTableAfterEntry(int sheet, quint32 row, quint32 col, const
             if (row == t.row1) {
                 name = displayText(sheet, row, col).trimmed();
             } else {
-                const Calculation::CellContent head = m_book->calc->content(sheet, t.row1, newCol);
+                const Calculation::CellContent head = m_book->calc->content(sheet, t.row1, newCol, false);
                 if (head.exists && (head.isFormula || !head.value.isEmpty())) name = displayText(sheet, t.row1, newCol).trimmed();
             }
         }

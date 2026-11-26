@@ -550,9 +550,12 @@ EditSession::Outcome EditSession::breakExternalLinks(int *cells, int *names, int
         quint32 row, col;
     };
     std::vector<Place> places;
-    m_book->calc->forEachFormulaText([&](int sheet, quint32 row, quint32 col, const QString &formula) {
-        if (readsAnotherWorkbook(formula, only)) places.push_back({sheet, row, col});
-    });
+    {
+        const std::shared_ptr<void> held = holdForReads();   // (the formulas are the worker's while it works)
+        m_book->calc->forEachFormulaText([&](int sheet, quint32 row, quint32 col, const QString &formula) {
+            if (readsAnotherWorkbook(formula, only)) places.push_back({sheet, row, col});
+        });
+    }
     QVector<int> nameIds;
     for (int id = 0; id < m_nameTable.slots(); ++id)
         if (nameListed(id) && readsAnotherWorkbook(nameTextOf(id), only)) nameIds.append(id);

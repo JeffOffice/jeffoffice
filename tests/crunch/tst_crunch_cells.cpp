@@ -48,7 +48,7 @@ QString differences(const office::sheet::Calculation *a, const office::sheet::Ca
         a->sheet(s).cells.forEach([&](quint32 row, quint32 col, const office::sheet::Cell &c) { circular = circular || a->isCircular(s, row, col); });
     for (int s = 0; s < a->sheetCount() && out.size() < 12; ++s) {
         auto compareAt = [&](quint32 row, quint32 col) {
-            const Calculation::CellContent x = a->content(s, row, col), y = b->content(s, row, col);
+            const Calculation::CellContent x = a->content(s, row, col, false), y = b->content(s, row, col, false);
             const QString where = QStringLiteral("%1!%2").arg(s).arg(cellName(row, col));
             if (empty(x) && empty(y)) return;
             // (a cell of an array holds the result the file had, which is no part of what it means: what it shows is compared below)
@@ -210,7 +210,7 @@ QStringList rebaseScript(bool limited, int kind, bool *rebased, QString *problem
         return true;
     };
     // (what the Move did, in absolute terms: B1's 3 is at I23 -- row 21 moved down by the two rows the last insert made -- B1 is empty, and C1, which read B1, reads I23)
-    auto content = [&](quint32 row, quint32 col) { return s->calculation()->content(0, row, col); };
+    auto content = [&](quint32 row, quint32 col) { return s->calculation()->content(0, row, col, false); };
     if (kind == 2 && (content(22, 8).value.number() != 3 || content(0, 1).exists || content(0, 2).formula != QStringLiteral("I23+1"))) {
         *problem = QStringLiteral("the cells were not moved: I23 holds %1, C1 holds %2").arg(content(22, 8).value.debug(), content(0, 2).formula);
         return {};
@@ -2127,7 +2127,7 @@ private Q_SLOTS:
             QVERIFY(second.open(e.copyOfFile()));
             QVERIFY(differences(e.win.w.calculation(), second.w.calculation(), {}).isEmpty());
             for (const Typed &t : typed)
-                if (t.alive) QCOMPARE(second.w.calculation()->content(0, t.row, t.col).value.number(), t.value);
+                if (t.alive) QCOMPARE(second.w.calculation()->content(0, t.row, t.col, false).value.number(), t.value);
         }
         QVERIFY(dead > 0);   // (some of the cells were deleted with their rows or columns, and are not in the file)
     }

@@ -720,10 +720,26 @@ QString EditSession::barText(int sheet, quint32 row, quint32 col, const QString 
     return gridText;
 }
 
+std::shared_ptr<void> EditSession::holdForReads() const
+{
+    if (!m_loader || !m_loader->canHold() || m_loader->holdingHere()) return nullptr;
+    return std::shared_ptr<void>(m_loader->hold());
+}
+
+jp::office::sheet::Calculation::CellContent EditSession::contentHeld(int sheet, quint32 row, quint32 col) const
+{
+    const std::shared_ptr<void> held = holdForReads();
+    return m_book->calc->content(sheet, row, col);
+}
+
 bool EditSession::typedChange(int sheet, quint32 row, quint32 col, const QString &typed, CellChange *out, bool *none, Outcome *problem)
 {
     const Calculation *calc = m_book->calc.get();
-    const Calculation::CellContent before = calc->content(sheet, row, col);
+    Calculation::CellContent before;
+    {
+        const std::shared_ptr<void> held = holdForReads();   // (the worker's nodes are read: the stored result and the held formula, for Undo)
+        before = calc->content(sheet, row, col);
+    }
     // (a cell that holds nothing has its row's or its column's format, and a cell typed in takes it)
     const quint32 baseStyle = before.exists ? before.style : implicitStyle(sheet, row, col);
     const QString code = m_book->book->styles().formatCode(baseStyle, m_locale);
@@ -1010,7 +1026,7 @@ EditSession::Outcome EditSession::typeInHeader(int sheet, quint32 row, quint32 c
         return out;
     }
     const QString oldName = t.columns[column];
-    const Calculation::CellContent before = m_book->calc->content(sheet, row, col);
+    const Calculation::CellContent before = contentHeld(sheet, row, col);
     if (name == oldName && before.value == Value::text(name)) return out;   // (nothing to change)
     std::vector<CellChange> changes;
     CellChange ch;
@@ -1113,6 +1129,7 @@ EditSession::Outcome EditSession::typeArray(int sheet, qint64 row1, qint64 col1,
     col2 = std::min<qint64>(col2, jp::calc::kGridCols - 1);
     if (row2 < row1 || col2 < col1) return out;
     const Calculation *calc = m_book->calc.get();
+    std::shared_ptr<void> held = holdForReads();   // (the arrays' ranges and the nodes of the cells are read for Undo; let go before the step is pushed)
     // (one cell of an array stands for the whole array)
     if (row1 == row2 && col1 == col2) {
         CellRange whole = calc->arrayRangeAt(sheet, quint32(row1), quint32(col1));
@@ -1196,6 +1213,7 @@ EditSession::Outcome EditSession::typeArray(int sheet, qint64 row1, qint64 col1,
         const auto rank = [](const CellChange &c) { return c.after.arrayRange.valid ? 2 : c.before.arrayRange.valid ? 1 : 0; };
         return rank(a) < rank(b);
     });
+    held.reset();
     commitLinkPlan();
     Step step;
     step.cells = std::move(changes);
@@ -1222,6 +1240,7 @@ EditSession::Outcome EditSession::clearRanges(int sheet, const std::vector<CellR
     std::vector<CellChange> changes;
     bool tooMany = false, array = false, locked = false, header = false;
     std::set<quint64> done;   // (a cell in two of the ranges is cleared once)
+    std::shared_ptr<void> held = holdForReads();   // (the nodes of the cells are read for Undo; let go before the step is pushed)
     for (const CellRange &range : ranges) {
     const qint64 row1 = range.row1, col1 = range.col1, row2 = range.row2, col2 = range.col2;
     s.cells.forEachInRange(quint32(row1), quint32(col1), quint32(row2), quint32(col2), [&](quint32 cellRow, quint32 cellCol, const Cell &c) {
@@ -1275,6 +1294,7 @@ EditSession::Outcome EditSession::clearRanges(int sheet, const std::vector<CellR
     });
     if (array || locked || header || tooMany) break;
     }
+    held.reset();
     // (the cell that holds an array's formula goes last: Undo makes the array again from it, when the others are put back)
     std::stable_partition(changes.begin(), changes.end(), [](const CellChange &c) { return !c.before.arrayRange.valid; });
     if (array) {
@@ -1862,7 +1882,7 @@ bool EditSession::takeSnapshot(Snapshot *out, QString *why, bool pivotParts, con
     auto written = [&](int sheet) { return sheet >= 0 && sheet < listed.sheets.size() && !listed.sheets[sheet].deleted && !listed.sheets[sheet].isNew; };
     auto addCell = [&](int sheet, quint32 row, quint32 col) {
         const quint64 key = markOf(sheet, row, col);
-        const Calculation::CellContent c = calc->content(sheet, row, col);
+        const Calculation::CellContent c = contentHeld(sheet, row, col);
         SavedCell cell;
         cell.row = row;
         cell.col = quint16(col);
