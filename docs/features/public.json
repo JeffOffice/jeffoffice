@@ -1569,11 +1569,11 @@
        "items": [
         {
          "status": "partly",
-         "text": "9c1b9e7f0aac498fc161c3721ae8deacdc5bacf60dec657a926b574cd9efc8ba"
+         "text": "e472cbfc435ed730e36f2bf5909ce80cb0e00b60b992915395637460744a4c6e"
         },
         {
          "status": "partly",
-         "text": "8a8c27269b23ff331891660759fe321d234c2062609144cdbc2e6ea6fbf6f6aa"
+         "text": "ecd2ee277a52d1fc1210a71178544d34905f74c2857a9db5806645c85bafac50"
         }
        ]
       },
@@ -18573,18 +18573,6 @@
     "fr": ""
    }
   },
-  "8a8c27269b23ff331891660759fe321d234c2062609144cdbc2e6ea6fbf6f6aa": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Timeline: click to filter and choose a time level",
-    "es": "Escala de tiempo: clic para filtrar y elección del nivel de tiempo",
-    "fr": "Chronologie : clic pour filtrer et choix du niveau de temps"
-   }
-  },
   "8a9741e4f2fdaac5572b99f8eb1251f8a545c1ad54d2f5724d9c2ac2ef2664af": {
    "drop": false,
    "en": "Text effects (shadow, reflection, glow, and transform) are set from the Text Effects menu on the Shape Format tab, with text fill and outline in their own menus.",
@@ -19747,18 +19735,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "9c1b9e7f0aac498fc161c3721ae8deacdc5bacf60dec657a926b574cd9efc8ba": {
-   "drop": false,
-   "en": "List slicers in a pane, click a button to filter the tables it names (Ctrl-click adds or removes an item), undo the filter in one step, and see which tables a slicer filters in Report Connections.",
-   "es": "Vea las segmentaciones en un panel, haga clic en un botón para filtrar las tablas que indica (Ctrl-clic agrega o quita un elemento), deshaga el filtro en un solo paso y consulte qué tablas filtra una segmentación en Conexiones de informe.",
-   "fr": "Affichez les segments dans un volet, cliquez sur un bouton pour filtrer les tableaux qu’il désigne (Ctrl-clic ajoute ou retire un élément), annulez le filtre en une seule étape et voyez quels tableaux un segment filtre dans Connexions de rapport.",
-   "soon": {
-    "drop": false,
-    "en": "Slicer drawn over the cells, change which tables it filters, and style looks",
-    "es": "Segmentación dibujada sobre las celdas, cambio de las tablas que filtra y aspecto de los estilos",
-    "fr": "Segment dessiné sur les cellules, changement des tableaux filtrés et apparence des styles"
    }
   },
   "9c2455feaddd8b09fbecc74ddd1d153dec9520e6fd70c839facaa7b45d6dffe6": {
@@ -24993,6 +24969,18 @@
     "fr": ""
    }
   },
+  "e472cbfc435ed730e36f2bf5909ce80cb0e00b60b992915395637460744a4c6e": {
+   "drop": false,
+   "en": "Slicers in a file are drawn over the cells with a caption, a button for each item, and a clear-filter button. Click, Ctrl-click, or the clear button to filter the linked tables as one step of Undo.",
+   "es": "Los segmentadores de un archivo se dibujan sobre las celdas con un título, un botón para cada elemento y un botón para borrar el filtro. Haga clic, Ctrl+clic o use el botón de borrar para filtrar las tablas vinculadas en un solo paso de Deshacer.",
+   "fr": "Les segments d’un fichier sont dessinés sur les cellules avec une légende, un bouton pour chaque élément et un bouton d’effacement du filtre. Cliquez, Ctrl+clic ou utilisez le bouton d’effacement pour filtrer les tableaux liés en une seule étape d’annulation.",
+   "soon": {
+    "drop": false,
+    "en": "Slicer tab: select, move, size, and delete slicers, insert slicers, change which tables a slicer filters, and slicer styles",
+    "es": "Pestaña Segmentador: seleccionar, mover, cambiar el tamaño y eliminar segmentadores, insertar segmentadores, cambiar qué tablas filtra un segmentador y estilos de segmentador",
+    "fr": "Onglet Segment : sélectionner, déplacer, redimensionner et supprimer des segments, insérer des segments, changer les tableaux filtrés par un segment et styles de segment"
+   }
+  },
   "e4909f9574f475c64362dd26a897c973eba8a48408347852dfbb93f2e5ed2580": {
    "drop": false,
    "en": "Layer, group, and lock objects, including locking position and size.",
@@ -25735,6 +25723,18 @@
     "en": "",
     "es": "",
     "fr": ""
+   }
+  },
+  "ecd2ee277a52d1fc1210a71178544d34905f74c2857a9db5806645c85bafac50": {
+   "drop": false,
+   "en": "A timeline’s settings are read from the file, and the Slicers pane lists it. Clicking a button filters the tables it names as one step of Undo.",
+   "es": "Los ajustes de una escala de tiempo se leen del archivo y el panel Segmentadores la muestra en una lista. Al hacer clic en un botón se filtran las tablas que nombra, en un solo paso de Deshacer.",
+   "fr": "Les paramètres d’une chronologie sont lus dans le fichier et le volet Segments la répertorie. Un clic sur un bouton filtre les tableaux qu’elle nomme, en une seule étape d’annulation.",
+   "soon": {
+    "drop": false,
+    "en": "Timeline tab: draw timelines over the cells, click and change time levels, insert timelines, and timeline styles",
+    "es": "Pestaña Escala de tiempo: dibujar escalas de tiempo sobre las celdas, hacer clic y cambiar los niveles de tiempo, insertar escalas de tiempo y estilos de escala de tiempo",
+    "fr": "Onglet Chronologie : dessiner les chronologies sur les cellules, cliquer et changer les niveaux de temps, insérer des chronologies et styles de chronologie"
    }
   },
   "ece40f16626684f64082dd5efec8558d95a1cbfd4010af5a591580b8b56b0de5": {
