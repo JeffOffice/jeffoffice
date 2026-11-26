@@ -642,6 +642,8 @@ private Q_SLOTS:
             {QStringLiteral("edit.repeat"), QStringLiteral("it is on only after a command that can be repeated was given, and no place here gave one; CrunchLines13Tests::repeatDoesTheLastFormatAgainAsOneStep runs it")},
             {QStringLiteral("design.themes.reset"), QStringLiteral("it is on only once the theme differs from the one the workbook was opened with, which no place here changes; theMenusChangeTheThemeInOneStepAndTheCellsFollow runs it")},
             {QStringLiteral("cond.clearSelection"), QStringLiteral("it is on only when a rule of conditional formatting covers the selected cells, and no place here has a rule; the conditional formatting tests run it")},
+            {QStringLiteral("cond.clearTable"), QStringLiteral("it is on only when a table holds the selection and a rule of conditional formatting covers some of the table, and no place here has a rule; the conditional formatting tests run it")},
+            {QStringLiteral("cond.clearPivot"), QStringLiteral("it is on only when a pivot table holds the selection and a rule of conditional formatting covers some of it, and no place here has a rule; the conditional formatting tests run it")},
             {QStringLiteral("cond.clearSheet"), QStringLiteral("it is on only when the sheet has a rule of conditional formatting, and no place here has one; the conditional formatting tests run it")},
         };
     }

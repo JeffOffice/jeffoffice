@@ -597,6 +597,9 @@ public:
     // ---- tables (edittables.cpp). A table is named by its place among the workbook's tables (Workbook::tables); each of these is one step of Undo, and nothing is changed when it is not ok.
     // The table whose cells include the cell, or -1; and the one whose header row, data, or totals row it is in is the same table.
     int tableAt(int sheet, quint32 row, quint32 col) const;
+    // The cells the table (or pivot table) that includes the cell covers, header row and totals row too, or an invalid range when the cell is in none.
+    jp::office::sheet::CellRange tableAreaAt(int sheet, quint32 row, quint32 col) const;
+    jp::office::sheet::CellRange pivotAreaAt(int sheet, quint32 row, quint32 col) const;
     // Insert > Table: the cells of `range` become a table. With `hasHeaders` the first row holds the names of the columns (a cell that is not text becomes the text it shows, an empty one is
     // named, and two of one name are numbered); without, the table has no header row and its columns are named Column1, Column2, and so on. A table needs a row of data: a single row
     // with headers is given the empty row under it. `made` is the table's place.

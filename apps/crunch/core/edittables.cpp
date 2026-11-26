@@ -73,6 +73,12 @@ int EditSession::tableAt(int sheet, quint32 row, quint32 col) const
     return -1;
 }
 
+CellRange EditSession::tableAreaAt(int sheet, quint32 row, quint32 col) const
+{
+    const int at = tableAt(sheet, row, col);
+    return at < 0 ? CellRange() : rangeOf(m_book->book->tables()[at]);
+}
+
 QStringList EditSession::tableNames(int limit) const
 {
     QStringList out;

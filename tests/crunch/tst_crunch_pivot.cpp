@@ -374,6 +374,38 @@ private Q_SLOTS:
     }
 
     // Refresh with the data as it was: no cell changes, and the table shows what the file stored.
+    // Clear Rules from This Pivot Table takes the rules off the pivot table the selection is in, and leaves the rest of the sheet (here the second table, and the data) as it was.
+    void clearRulesFromAPivotTableLeavesTheRestOfTheSheet()
+    {
+        EditWindow e;
+        QVERIFY(e.open(pivotWorkbook(true)));
+        CrunchWindow &w = e.win.w;
+        auto select = [&](const char *a, const char *b) {
+            e.view()->selectRange(rowOf(QLatin1String(a)), colOf(QLatin1String(a)), rowOf(QLatin1String(b)), colOf(QLatin1String(b)));
+        };
+        select("E4", "H7");
+        w.act(QStringLiteral("cond.bar.0.gradient"))->trigger();
+        select("K4", "N7");
+        w.act(QStringLiteral("cond.bar.0.gradient"))->trigger();
+        select("A2", "C7");
+        w.act(QStringLiteral("cond.bar.0.gradient"))->trigger();
+        QCOMPARE(int(w.session()->condRules(0).size()), 3);
+        QVERIFY(!w.act(QStringLiteral("cond.clearPivot"))->isEnabled());   // (the data is in no pivot table)
+        QVERIFY(!w.act(QStringLiteral("cond.clearTable"))->isEnabled());
+        select("F5", "F5");
+        QVERIFY(w.act(QStringLiteral("cond.clearPivot"))->isEnabled());
+        const int steps = w.undoStack()->count();
+        w.act(QStringLiteral("cond.clearPivot"))->trigger();
+        QCOMPARE(w.undoStack()->count(), steps + 1);
+        const QVector<jp::office::sheet::CondRule> left = w.session()->condRules(0);
+        QCOMPARE(int(left.size()), 2);
+        for (const auto &r : left)
+            for (const auto &range : r.ranges) QVERIFY2(range.col1 < colOf(QStringLiteral("E1")) || range.col1 > colOf(QStringLiteral("H1")), "a rule is still on the first pivot table");
+        QVERIFY(!w.act(QStringLiteral("cond.clearPivot"))->isEnabled());   // (nothing left on it)
+        w.undoStack()->undo();
+        QCOMPARE(int(w.session()->condRules(0).size()), 3);
+    }
+
     void refreshOfDataThatDidNotChangeChangesNoCell()
     {
         EditWindow e;

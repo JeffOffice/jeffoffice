@@ -71,6 +71,25 @@ int EditSession::pivotAt(int sheet, quint32 row, quint32 col) const
     return -1;
 }
 
+CellRange EditSession::pivotAreaAt(int sheet, quint32 row, quint32 col) const
+{
+    const int at = pivotAt(sheet, row, col);
+    if (at < 0) return CellRange();
+    const PivotBook &pb = m_book->book->pivots();
+    CellRange area = pb.locationOf(at);
+    if (!area.valid) return area;
+    if (pb.table(at).table) {
+        const CellRange page = pageArea(*pb.table(at).table, area);
+        if (page.valid) {
+            area.row1 = std::min(area.row1, page.row1);
+            area.col1 = std::min(area.col1, page.col1);
+            area.row2 = std::max(area.row2, page.row2);
+            area.col2 = std::max(area.col2, page.col2);
+        }
+    }
+    return area;
+}
+
 bool EditSession::pivotUsable(int table, QString *why) const
 {
     if (!m_book || !m_book->book || table < 0) return false;

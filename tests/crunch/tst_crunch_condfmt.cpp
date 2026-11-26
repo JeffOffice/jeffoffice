@@ -943,6 +943,34 @@ private Q_SLOTS:
         QVERIFY(open.win.w.act(QStringLiteral("cond.clearSheet"))->isEnabled());
     }
 
+    // Clear Rules from This Table takes the rules off the table the selection is in (and only there: a rule that covers the table and more keeps the rest), as one step of Undo.
+    void clearRulesFromATableLeavesTheCellsOutsideIt()
+    {
+        EditWindow e;
+        QVERIFY(e.open(condBook()));
+        CrunchWindow &w = e.win.w;
+        QVERIFY(w.session()->makeTable(0, rangeOf(QStringLiteral("A1:B4")), true, QString()).ok);
+        selectRange(e, QStringLiteral("A1:C5"));
+        run(e, "cond.bar.0.gradient");
+        QCOMPARE(int(w.session()->condRules(0).size()), 1);
+        selectRange(e, QStringLiteral("C5:C5"));
+        QVERIFY(!w.act(QStringLiteral("cond.clearTable"))->isEnabled());   // (outside the table)
+        selectRange(e, QStringLiteral("B3:B3"));
+        QVERIFY(w.act(QStringLiteral("cond.clearTable"))->isEnabled());
+        QVERIFY(!w.act(QStringLiteral("cond.clearPivot"))->isEnabled());
+        const int steps = w.undoStack()->count();
+        run(e, "cond.clearTable");
+        QCOMPARE(w.undoStack()->count(), steps + 1);
+        // (the rule stays on the cells outside the table: C1:C4 and the row under it)
+        const QVector<CondRule> left = w.session()->condRules(0);
+        QVERIFY(!left.isEmpty());
+        for (const CondRule &r : left)
+            for (const CellRange &c : r.ranges) QVERIFY2(c.col1 >= 2 || c.row1 >= 4, "a rule is still on the table");
+        QVERIFY(!w.act(QStringLiteral("cond.clearTable"))->isEnabled());
+        w.undoStack()->undo();
+        QVERIFY(w.act(QStringLiteral("cond.clearTable"))->isEnabled());
+    }
+
     // A New Rule made in Manage Rules reads a typed formula as seen from the cell with the cursor, as the New Rule of the menu does, whatever corner of the selection that is.
     void aNewRuleInManageRulesReadsItsFormulaFromTheCellWithTheCursor()
     {

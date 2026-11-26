@@ -1400,7 +1400,8 @@ private:
     void createCondActions();
     bool askCondRule(CondAnswer *answer);
     void makeCondRule(CondAnswer::Kind kind);
-    void clearCondRules(bool wholeSheet);
+    jp::office::sheet::CellRange condClearArea(int what) const;
+    void clearCondRules(int what);
     void updateCondActions();
     qint64 m_condScanned = 0;   // how many rules the last look for the choices of Clear Rules went through (a test reads it)
     void showNameInBox();

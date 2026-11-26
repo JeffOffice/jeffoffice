@@ -146,8 +146,10 @@ void CrunchWindow::createCondActions()
     mk(QStringLiteral("cond.manage"), tr("Manage Rules…"), QString(), QKeySequence(), [this] { manageCondRules(); });
     m_opsActions << QStringLiteral("cond.new") << QStringLiteral("cond.manage");
     // (the two that clear are on only when there is a rule for them to clear: see updateCondActions)
-    mk(QStringLiteral("cond.clearSelection"), tr("Clear Rules from Selected Cells"), QString(), QKeySequence(), [this] { clearCondRules(false); }, false, false);
-    mk(QStringLiteral("cond.clearSheet"), tr("Clear Rules from This Sheet"), QString(), QKeySequence(), [this] { clearCondRules(true); }, false, false);
+    mk(QStringLiteral("cond.clearSelection"), tr("Clear Rules from Selected Cells"), QString(), QKeySequence(), [this] { clearCondRules(0); }, false, false);
+    mk(QStringLiteral("cond.clearSheet"), tr("Clear Rules from This Sheet"), QString(), QKeySequence(), [this] { clearCondRules(1); }, false, false);
+    mk(QStringLiteral("cond.clearTable"), tr("Clear Rules from This Table"), QString(), QKeySequence(), [this] { clearCondRules(2); }, false, false);
+    mk(QStringLiteral("cond.clearPivot"), tr("Clear Rules from This Pivot Table"), QString(), QKeySequence(), [this] { clearCondRules(3); }, false, false);
     connect(m_view, &grid::GridView::selectionChanged, this, [this] { updateCondActions(); });
 }
 
@@ -521,32 +523,50 @@ void CrunchWindow::manageCondRules()
 void CrunchWindow::updateCondActions()
 {
     QAction *selection = act(QStringLiteral("cond.clearSelection")), *sheet = act(QStringLiteral("cond.clearSheet"));
-    if (!selection || !sheet) return;
-    bool any = false, onSelection = false;
+    QAction *table = act(QStringLiteral("cond.clearTable")), *pivot = act(QStringLiteral("cond.clearPivot"));
+    if (!selection || !sheet || !table || !pivot) return;
+    bool any = false;
+    bool on[3] = {false, false, false};   // the selection, the table, and the pivot table that the selection is in
     m_condScanned = 0;
     if (m_session && m_sheet >= 0 && !isReadOnly()) {
-        const jp::office::sheet::CellRange selected = selectedRange();
         const QVector<CondRule> rules = m_session->condRules(m_sheet);
         const bool allowed = m_session->allows(m_sheet, crunch::EditSession::Allow::FormatCells);   // (a rule is a format: see condRulesRefusal)
         any = allowed && !rules.isEmpty();
+        const jp::office::sheet::CellRange areas[3] = {condClearArea(0), condClearArea(2), condClearArea(3)};
         constexpr int kLook = 2000;   // (a sheet with more rules than that: the choice is on, and Clear looks for itself)
-        if (allowed && rules.size() > kLook) onSelection = true;
-        for (qsizetype at = 0; allowed && at < std::min<qsizetype>(rules.size(), kLook) && !onSelection; ++at) {
+        if (allowed && rules.size() > kLook)
+            for (int i = 0; i < 3; ++i) on[i] = areas[i].valid;
+        for (qsizetype at = 0; allowed && at < std::min<qsizetype>(rules.size(), kLook); ++at) {
             const CondRule &r = rules[at];
             ++m_condScanned;
             for (const jp::office::sheet::CellRange &c : r.ranges)
-                onSelection = onSelection || (c.valid && selected.valid && c.row1 <= selected.row2 && c.row2 >= selected.row1 && c.col1 <= selected.col2 && c.col2 >= selected.col1);
+                for (int i = 0; i < 3; ++i)
+                    on[i] = on[i] || (c.valid && areas[i].valid && c.row1 <= areas[i].row2 && c.row2 >= areas[i].row1 && c.col1 <= areas[i].col2 && c.col2 >= areas[i].col1);
         }
     }
-    selection->setEnabled(onSelection);
+    selection->setEnabled(on[0]);
+    table->setEnabled(on[1]);
+    pivot->setEnabled(on[2]);
     sheet->setEnabled(any);
 }
 
-void CrunchWindow::clearCondRules(bool wholeSheet)
+// The cells Clear Rules works on: the selection (0), the whole sheet (1, an invalid range), the table (2) or the pivot table (3) the active cell is in.
+jp::office::sheet::CellRange CrunchWindow::condClearArea(int what) const
+{
+    if (what == 1) return jp::office::sheet::CellRange();
+    const jp::office::sheet::CellRange selected = selectedRange();
+    if (what == 0 || !m_session || !selected.valid) return selected;
+    // (the table or pivot table the first selected cell is in)
+    return what == 2 ? m_session->tableAreaAt(m_sheet, selected.row1, selected.col1) : m_session->pivotAreaAt(m_sheet, selected.row1, selected.col1);
+}
+
+void CrunchWindow::clearCondRules(int what)
 {
     if (m_edit.active && !commitEdit(CellEditor::Way::Stay)) return;
     if (!editingAllowed() || !m_session || m_sheet < 0) return;
-    const crunch::EditSession::Outcome o = m_session->clearCondRules(m_sheet, wholeSheet ? jp::office::sheet::CellRange() : selectedRange());
+    const jp::office::sheet::CellRange area = condClearArea(what);
+    if (what >= 2 && !area.valid) return;
+    const crunch::EditSession::Outcome o = m_session->clearCondRules(m_sheet, area);
     if (!o.ok) notice(tr("Conditional Formatting"), o.problem);
 }
 

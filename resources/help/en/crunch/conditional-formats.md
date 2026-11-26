@@ -59,7 +59,7 @@ Only an .xlsx workbook keeps conditional formats. Saving as an older kind of fil
 
 ## Clear rules
 
-**Clear Rules from Selected Cells** takes away every rule that is on any of the selected cells. **Clear Rules from This Sheet** takes away all the rules of the sheet. Each is one step you can undo. A choice does nothing when there is no rule to clear.
+**Clear Rules from Selected Cells** takes away every rule that is on any of the selected cells. **Clear Rules from This Sheet** takes away all the rules of the sheet. **Clear Rules from This Table** and **Clear Rules from This Pivot Table** take away the rules that are on the table (or pivot table) the selected cells are in, and are on only when the selection is in one. Each is one step you can undo. A choice does nothing when there is no rule to clear.
 
 ## What is not done yet
 
