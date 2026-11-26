@@ -67,14 +67,25 @@ struct DrawingObject {
     QDomElement element;           // the object's element (xdr:sp, xdr:pic, xdr:grpSp, xdr:cxnSp, or the graphic frame); lives as long as the SheetDrawing's document
 };
 
+// A slicer's place on a sheet: the anchor of its graphic frame (the file also keeps a stand-in text box for programs that do not know slicers; it is not an object here). The slicer's name is the
+// one its slicer part gives (slicer.h); what it filters is the part's, not the drawing's.
+struct DrawingSlicer {
+    int ordinal = 0;               // the place of the element it is in among the children of the part's root (as DrawingObject::ordinal)
+    DrawingAnchor anchor;
+    QString name;
+    bool hidden = false;
+    bool prints = true;
+};
+
 struct SheetDrawing {
     QString part;                          // the drawing part's name
     std::shared_ptr<QDomDocument> document;
     QVector<DrawingObject> objects;        // in the order of the file (which is the order they are drawn in, the first at the back)
+    QVector<DrawingSlicer> slicers;        // the slicers (not timelines), in the order of the file; they count among the anchors, so at most kMaxDrawingAnchors objects and slicers are read between them
     int anchorsInPart = 0;                 // anchors the part holds (the objects are those read, up to the limit)
     int rootChildren = 0;                  // elements the part's root holds (an object's `ordinal` counts among them; one added at the end has the next)
     bool truncated = false;                // more anchors than kMaxDrawingAnchors: the rest were left out
-    int skipped = 0;                       // anchors that hold nothing that is read (a form control, an ink stroke, a table or slicer)
+    int skipped = 0;                       // anchors that hold nothing that is read (a form control, an ink stroke, a table or timeline)
     QString problem;                       // what is wrong with the part, if it could not be read
 };
 

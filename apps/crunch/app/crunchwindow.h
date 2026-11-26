@@ -1188,6 +1188,10 @@ private:
     void pivotRibbonParts(RibbonParts &parts);
     void showSlicers(bool show);                               // the Slicers pane
     void fillSlicers();
+    void slicerClicked(int slicer, int item, bool extend);
+    void slicerCleared(int slicer);
+    void connectSlicers();                                       // the slicers drawn on the sheets: what they show, and what a click on one does
+    void refreshSlicerLooks();                                   // they are drawn again when a pivot table changed   // a button of a slicer was clicked (in the pane or on the sheet; `item` is the item's place)
     void updatePrintAreaAction();
     static const std::vector<const char *> &pivotSelectionActions();
     void updatePivotFieldActions();                           // the commands that work on a pivot table's cell are on only with the cursor in one
@@ -1954,6 +1958,7 @@ private:
     bool m_slicerFilling = false;
     quintptr m_slicersStamp = 0;   // the pivot tables as the pane last showed the slicers of
     int m_slicerFills = 0;
+    quintptr m_slicerLooksStamp = 0;   // the pivot tables as the slicers on the sheet were last drawn from
     QString m_saveFileName;   // the file name of the save being made (a pivot chart's name in the file has it)
     QString m_untitled;       // the name of a workbook that has no file yet ("Book1")
     bool m_blank = false;     // the workbook is a new one (made by newBlank) that has not been saved

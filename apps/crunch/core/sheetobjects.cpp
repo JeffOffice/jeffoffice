@@ -168,6 +168,24 @@ SheetObjects::SheetObjects(QObject *parent) : QObject(parent), m_doc(std::make_u
             if (const std::optional<jp::grid::LayerObject> lo = m_embeds.layerObjectOf(sheet, id)) m_layer.addObject(*lo);
         }
     });
+    // a slicer that moved, or came back or went with its cells: as a control is, and a slicer whose look changed is drawn again
+    connect(&m_slicers, &SheetSlicers::changed, this, [this](int sheet, int id) {
+        if (sheet != m_shown) return;
+        const jp::grid::ObjectLayer &layer = m_layer;
+        bool inLayer = false;
+        for (int i = 0; i < layer.count() && !inLayer; ++i) inLayer = layer.object(i).id == id;
+        const bool gone = m_slicers.isGone(sheet, id);
+        if (inLayer) {
+            m_layer.setDeleted(id, gone);
+            m_layer.setAnchor(id, m_slicers.anchorOf(sheet, id));
+            m_layer.invalidate(id);
+        } else if (!gone) {
+            if (const std::optional<jp::grid::LayerObject> lo = m_slicers.layerObjectOf(sheet, id)) m_layer.addObject(*lo);
+        }
+    });
+    connect(&m_slicers, &SheetSlicers::lookChanged, this, [this](int sheet, int id) {
+        if (sheet == m_shown) m_layer.invalidate(id);
+    });
     m_embeds.setBoxSource([this](int sheet, int id, double *w, double *h) {
         if (sheet != m_shown) return false;
         bool ok = false;
@@ -203,6 +221,7 @@ void SheetObjects::open(const std::shared_ptr<Workbook> &book)
     m_book = book;
     m_controls.open(book);
     m_embeds.open(book);
+    m_slicers.open(book);
     m_cells.reset();
     m_source = nullptr;
     m_values = nullptr;
@@ -450,6 +469,7 @@ void SheetObjects::list(int sheet, Sheet &s)
         s.counts.why << tr("a drawing that could not be read (%1)").arg(why);
         return;
     }
+    m_slicers.list(sheet, s.drawing.slicers);
     DrawingCounts &c = s.counts;
     c.anchors = s.drawing.anchorsInPart;
     c.skipped = s.drawing.skipped;
@@ -1198,6 +1218,7 @@ std::vector<jp::grid::LayerObject> SheetObjects::printObjects(int sheet)
         if (!o->deleted && o->meta.prints) out.push_back(layerObject(sheet, o));
     for (jp::grid::LayerObject &c : m_controls.layerObjects(sheet, true)) out.push_back(std::move(c));
     for (jp::grid::LayerObject &c : m_embeds.layerObjects(sheet)) out.push_back(std::move(c));
+    for (jp::grid::LayerObject &c : m_slicers.layerObjects(sheet, true)) out.push_back(std::move(c));
     return out;
 }
 
@@ -1209,6 +1230,7 @@ void SheetObjects::showNow(int sheet)
     for (const std::shared_ptr<Object> &o : s.objects) objects.push_back(layerObject(sheet, o));
     for (jp::grid::LayerObject &c : m_controls.layerObjects(sheet)) objects.push_back(std::move(c));
     for (jp::grid::LayerObject &c : m_embeds.layerObjects(sheet)) objects.push_back(std::move(c));
+    for (jp::grid::LayerObject &c : m_slicers.layerObjects(sheet)) objects.push_back(std::move(c));
     m_shown = sheet;
     m_layer.setObjects(std::move(objects));
     for (const std::shared_ptr<Object> &o : s.objects)
@@ -1433,6 +1455,7 @@ void SheetObjects::cellsMoved()
     m_linkIndexClean = false;
     m_controls.cellsMoved();
     m_embeds.cellsMoved();
+    m_slicers.cellsMoved();
     if (!m_edits) return;
     const std::vector<StructEdit> &edits = m_edits();
     if (m_cells) m_cells->sizesChanged();   // (a hidden row moves with the rows inserted or deleted above it)
@@ -1892,6 +1915,7 @@ void SheetObjects::saved()
 {
     m_controls.saved();
     m_embeds.saved();
+    m_slicers.saved();
     for (Sheet &sh : m_sheets)
         for (const std::shared_ptr<Object> &o : sh.objects)
             if (o->textLinked && !o->linkSavingRef.isEmpty()) o->linkFileAttr = o->linkSavingRef;

@@ -75,7 +75,7 @@ bool ObjectPicker::press(const QPoint &point, const grid::GridLayout &layout, Qt
     // (a handle of the one object picked is the layer's: Shift on a corner keeps the proportions)
     if ((modifiers & (Qt::ShiftModifier | Qt::ControlModifier)) && m_layer->handleAt(point) < 0) {
         const int hit = m_layer->objectAt(point);
-        if (hit >= 0) {
+        if (hit >= 0 && !m_layer->takesKeys(hit)) {   // (a slicer is clicked with Ctrl, not picked)
             std::vector<int> ids = m_picked;
             const auto at = std::find(ids.begin(), ids.end(), hit);
             if (at != ids.end()) ids.erase(at);

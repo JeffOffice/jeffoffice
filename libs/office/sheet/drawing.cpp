@@ -109,6 +109,33 @@ bool readObject(const QDomElement &anchor, const Package &package, const QString
     return false;
 }
 
+// The name of the slicer a graphic frame holds (its graphic data has a `slicer` element), or empty if it holds none.
+bool slicerFrame(const QDomElement &frame, QString *name)
+{
+    if (frame.localName() != QLatin1String("graphicFrame")) return false;
+    const QDomElement data = childByLocal(childByLocal(frame, "graphic"), "graphicData");
+    const QDomElement slicer = childByLocal(data, "slicer");
+    if (slicer.isNull()) return false;
+    *name = attr(slicer, QStringLiteral("name")).left(256);
+    return true;
+}
+
+// The slicer an anchor holds, if it holds one.
+bool readSlicerAnchor(const QDomElement &anchor, DrawingSlicer *out)
+{
+    for (QDomElement c = anchor.firstChildElement(); !c.isNull(); c = c.nextSiblingElement()) {
+        QString name;
+        if (!slicerFrame(c, &name)) continue;
+        out->name = name;
+        const QDomElement cNvPr = childByLocal(childByLocal(c, "nvGraphicFramePr"), "cNvPr");
+        out->hidden = parseBool(attr(cNvPr, QStringLiteral("hidden")));
+        const QString prints = attr(childByLocal(anchor, "clientData"), QStringLiteral("fPrintsWithSheet"));
+        out->prints = prints.isEmpty() || parseBool(prints);
+        return true;
+    }
+    return false;
+}
+
 // Whether a shape's text holds math (a14:m), which the shape's own text does not show: an equation.
 bool holdsMath(const QDomElement &shape)
 {
@@ -253,6 +280,22 @@ bool readDrawing(const Package &package, const QString &drawingPart, SheetDrawin
         if (isAnchor(top.localName())) {
             anchors << top;
         } else if (top.localName() == QLatin1String("AlternateContent")) {
+            // a slicer: the newer form holds its frame, the older a text box that stands for it (not an object: the slicer is drawn from its parts)
+            bool slicer = false;
+            for (QDomElement a = childByLocal(top, "Choice").firstChildElement(); !a.isNull() && !slicer; a = a.nextSiblingElement()) {
+                DrawingSlicer s;
+                if (!isAnchor(a.localName()) || !readSlicerAnchor(a, &s)) continue;
+                slicer = true;
+                ++out->anchorsInPart;
+                if (out->objects.size() + out->slicers.size() >= kMaxDrawingAnchors) {
+                    out->truncated = true;
+                    continue;
+                }
+                s.ordinal = ordinal;
+                s.anchor = readAnchor(a);
+                out->slicers.push_back(s);
+            }
+            if (slicer) continue;
             for (const char *branch : {"Choice", "Fallback"}) {
                 for (QDomElement a = childByLocal(top, branch).firstChildElement(); !a.isNull(); a = a.nextSiblingElement())
                     if (isAnchor(a.localName())) anchors << a;
@@ -270,12 +313,19 @@ bool readDrawing(const Package &package, const QString &drawingPart, SheetDrawin
         }
         for (const QDomElement &a : std::as_const(anchors)) {
             ++out->anchorsInPart;
-            if (out->objects.size() >= kMaxDrawingAnchors) {
+            if (out->objects.size() + out->slicers.size() >= kMaxDrawingAnchors) {
                 out->truncated = true;
                 continue;
             }
             DrawingObject o;
             if (!readObject(a, package, drawingPart, &o)) {
+                DrawingSlicer s;
+                if (readSlicerAnchor(a, &s)) {
+                    s.ordinal = ordinal;
+                    s.anchor = readAnchor(a);
+                    out->slicers.push_back(s);
+                    continue;
+                }
                 ++out->skipped;
                 continue;
             }

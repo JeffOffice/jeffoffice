@@ -5,6 +5,7 @@
 
 #include "app/pivotpane.h"
 #include "app/slicerpane.h"
+#include "core/sheetobjects.h"
 #include "app/settings.h"
 #include "core/formulaspot.h"
 #include "core/gotospecial.h"
@@ -1281,6 +1282,52 @@ void CrunchWindow::fillSlicers()
     m_slicerPane->setEntries(entries);
 }
 
+// A click on the button of an item, in the pane or on the sheet: the tables it filters show the items chosen (one step of Undo), and what shows them is made again.
+void CrunchWindow::slicerClicked(int slicer, int item, bool extend)
+{
+    if (!m_session) return;
+    pivotProblem(tr("Slicer"), m_session->clickSlicerItem(slicer, item, extend));
+    m_pivotShown = nullptr;
+    updatePivotTab();
+    updateTableLooks();
+    fillSlicers();
+}
+
+void CrunchWindow::slicerCleared(int slicer)
+{
+    if (!m_session) return;
+    QSet<qint32> shown;
+    qint64 count = 0;
+    if (!m_session->slicerChoice(slicer, &shown, &count) || shown.isEmpty() || qint64(shown.size()) >= count) return;   // (nothing is filtered: nothing to clear)
+    pivotProblem(tr("Slicer"), m_session->chooseSlicerItems(slicer, {}));
+    m_pivotShown = nullptr;
+    updatePivotTab();
+    updateTableLooks();
+    fillSlicers();
+}
+
+// The slicers drawn on the sheets ask the session for their buttons when they are drawn, and tell the window of a click.
+void CrunchWindow::connectSlicers()
+{
+    if (!m_objects || !m_session) return;
+    crunch::SheetSlicers *s = m_objects->slicers();
+    s->setSources([this](int slicer, qint64 first, int most, crunch::SlicerFace *face) { return m_session && m_session->slicerFace(slicer, first, most, face); },
+                  [this](const QString &name, int sheet) { return m_session ? m_session->slicerNamed(name, sheet) : -1; });
+    disconnect(s, nullptr, this, nullptr);
+    connect(s, &crunch::SheetSlicers::itemClicked, this, [this](int slicer, int place, bool extend) { slicerClicked(slicer, place, extend); });
+    connect(s, &crunch::SheetSlicers::clearClicked, this, [this](int slicer) { slicerCleared(slicer); });
+    m_slicerLooksStamp = m_session->pivotTablesStamp();
+}
+
+void CrunchWindow::refreshSlicerLooks()
+{
+    if (!m_objects || !m_session || m_objects->slicers()->countOf(m_sheet) == 0) return;
+    const quintptr stamp = m_session->pivotTablesStamp();
+    if (stamp == m_slicerLooksStamp) return;
+    m_slicerLooksStamp = stamp;
+    m_objects->slicers()->looksChanged(m_sheet);
+}
+
 void CrunchWindow::showSlicers(bool show)
 {
     if (show && !m_slicerPane) {
@@ -1291,32 +1338,7 @@ void CrunchWindow::showSlicers(bool show)
         m_slicerDock->setWidget(m_slicerPane);
         addDockWidget(Qt::RightDockWidgetArea, m_slicerDock);
         resizeDocks({m_slicerDock}, {260}, Qt::Horizontal);
-        connect(m_slicerPane, &SlicerPane::itemClicked, this, [this](int slicer, int item, bool extend) {
-            QSet<qint32> shown;
-            qint64 count = 0;
-            if (!m_session || !m_session->slicerChoice(slicer, &shown, &count)) return;
-            if (extend) {
-                if (shown.size() >= count) {
-                    shown.clear();   // (all were chosen: Ctrl-click takes the item out of them)
-                    for (qint32 i = 0; i < count; ++i)
-                        if (i != item) shown.insert(i);
-                } else if (shown.contains(item)) {
-                    shown.remove(item);
-                } else {
-                    shown.insert(item);
-                }
-            } else if (shown.size() == 1 && shown.contains(item)) {
-                shown.clear();   // (the only one chosen is clicked again: the filter goes)
-            } else {
-                shown = {qint32(item)};
-            }
-            if (shown.isEmpty() || shown.size() >= count) shown.clear();
-            pivotProblem(tr("Slicer"), m_session->chooseSlicerItems(slicer, shown));
-            m_pivotShown = nullptr;
-            updatePivotTab();
-            updateTableLooks();
-            fillSlicers();
-        });
+        connect(m_slicerPane, &SlicerPane::itemClicked, this, [this](int slicer, int item, bool extend) { slicerClicked(slicer, item, extend); });
         connect(m_slicerPane, &SlicerPane::connectionsRequested, this, [this](int slicer) {
             const auto all = m_session ? m_session->slicers() : std::vector<crunch::EditSession::SlicerInfo>();
             if (slicer < 0 || slicer >= int(all.size())) return;
@@ -1409,6 +1431,7 @@ void CrunchWindow::updatePivotFieldActions()
 void CrunchWindow::updatePivotTab()
 {
     updatePivotFieldActions();
+    refreshSlicerLooks();
     if (m_slicerPane && m_slicerDock && m_slicerDock->isVisible() && m_session && !m_slicerFilling && m_session->pivotTablesStamp() != m_slicersStamp) fillSlicers();   // (an Undo, a Redo, or an edit of a table changes what a slicer shows: not a move of the cursor)
     const int t = selectedPivot();
     if (m_ribbon) m_ribbon->setContextVisible(QStringLiteral("Pivot Table"), t >= 0);

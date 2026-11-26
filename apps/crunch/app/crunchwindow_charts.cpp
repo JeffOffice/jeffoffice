@@ -983,6 +983,15 @@ void CrunchWindow::placeChartButtons()
 }
 void CrunchWindow::objectContextMenu(int id, const QPoint &global)
 {
+    if (crunch::isSlicerId(id)) {
+        // (a slicer on the sheet is not picked yet: its menu is the Slicers pane)
+        auto *slicerMenu = new QMenu(this);
+        slicerMenu->setAttribute(Qt::WA_DeleteOnClose);
+        slicerMenu->setObjectName(QStringLiteral("objectMenu"));
+        slicerMenu->addAction(act(QStringLiteral("pivot.slicers")));
+        slicerMenu->popup(global);
+        return;
+    }
     if (crunch::isEmbedId(id)) {
         auto *embedMenu = new QMenu(this);
         embedMenu->setAttribute(Qt::WA_DeleteOnClose);

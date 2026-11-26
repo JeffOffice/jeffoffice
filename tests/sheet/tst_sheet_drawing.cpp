@@ -168,6 +168,50 @@ private Q_SLOTS:
         QCOMPARE(d.objects[1].ordinal, 1);   // (the place of the wrapper among the part's children: what saving removes by)
     }
 
+    // A slicer's frame is a slicer of the drawing (its anchor, name, and whether it prints), not an object: the text box the file keeps beside it for older programs is left out, a frame with
+    // no wrapper is read too, and the slicers count among the anchors, so a drawing of thousands of them is read to the limit and no further.
+    void aSlicerFrameIsASlicerAndItsStandInIsNotAnObject()
+    {
+        auto frame = [](int id, const QString &name, bool hidden) {
+            return QStringLiteral("<xdr:graphicFrame><xdr:nvGraphicFramePr><xdr:cNvPr id=\"%1\" name=\"%2\"%3/><xdr:cNvGraphicFramePr/></xdr:nvGraphicFramePr><xdr:xfrm><a:off x=\"0\" y=\"0\"/><a:ext cx=\"0\" cy=\"0\"/></xdr:xfrm>"
+                                  "<a:graphic><a:graphicData uri=\"http://schemas.microsoft.com/office/drawing/2010/slicer\"><sle:slicer xmlns:sle=\"http://schemas.microsoft.com/office/drawing/2010/slicer\" name=\"%2\"/></a:graphicData></a:graphic></xdr:graphicFrame>")
+                .arg(id).arg(name, hidden ? QStringLiteral(" hidden=\"1\"") : QString());
+        };
+        auto wrapped = [&](int id, const QString &name, int row) {
+            return QStringLiteral("<mc:AlternateContent xmlns:mc=\"http://schemas.openxmlformats.org/markup-compatibility/2006\"><mc:Choice Requires=\"sle15\">%1</mc:Choice><mc:Fallback>%2</mc:Fallback></mc:AlternateContent>")
+                .arg(twoCell(3, row, 5, row + 4, frame(id, name, false)), twoCell(3, row, 5, row + 4, shapeElement(id, QStringLiteral("This shape represents a slicer."))));
+        };
+        QString noPrint = twoCell(7, 0, 8, 3, frame(20, QStringLiteral("Bare"), true));
+        noPrint.replace(QStringLiteral("<xdr:clientData/>"), QStringLiteral("<xdr:clientData fPrintsWithSheet=\"0\"/>"));
+        const QString anchors = twoCell(0, 0, 1, 1, shapeElement(2, QStringLiteral("Plain"))) + wrapped(3, QStringLiteral("Region"), 2) + noPrint;
+        Opened o;
+        QString why;
+        QVERIFY2(open(&o, bookWithDrawing({dataSheet()}, drawingPart(anchors), {}), &why), qPrintable(why));
+        SheetDrawing d;
+        QVERIFY2(readDrawing(o.package, o.drawingPart, &d, &why), qPrintable(why));
+        QCOMPARE(d.objects.size(), 1);   // (the plain shape: not the slicer's stand-in)
+        QCOMPARE(d.slicers.size(), 2);
+        QCOMPARE(d.slicers[0].name, QStringLiteral("Region"));
+        QCOMPARE(d.slicers[0].ordinal, 1);
+        QCOMPARE(int(d.slicers[0].anchor.from.col), 3);
+        QCOMPARE(int(d.slicers[0].anchor.to.row), 6);
+        QVERIFY(d.slicers[0].prints && !d.slicers[0].hidden);
+        QCOMPARE(d.slicers[1].name, QStringLiteral("Bare"));
+        QVERIFY(!d.slicers[1].prints && d.slicers[1].hidden);
+        QCOMPARE(d.anchorsInPart, 3);
+        QCOMPARE(d.skipped, 0);
+        // thousands of them: the objects and slicers read are at most the limit between them
+        QString many;
+        for (int i = 0; i < kMaxDrawingAnchors + 5; ++i) many += wrapped(2 + i, QStringLiteral("S%1").arg(i), i % 1000);
+        Opened big;
+        QVERIFY2(open(&big, bookWithDrawing({dataSheet()}, drawingPart(many), {}), &why), qPrintable(why));
+        SheetDrawing b;
+        QVERIFY2(readDrawing(big.package, big.drawingPart, &b, &why), qPrintable(why));
+        QCOMPARE(b.slicers.size(), kMaxDrawingAnchors);
+        QVERIFY(b.truncated);
+        QCOMPARE(b.objects.size(), 0);
+    }
+
     // A chart sheet has a drawing of its own, named by the sheet part's relationships.
     void aChartSheetHasItsDrawing()
     {

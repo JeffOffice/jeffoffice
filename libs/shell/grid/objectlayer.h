@@ -79,6 +79,9 @@ struct LayerObject {
     // and says whether it took the click; a click it takes picks nothing and drags nothing (the object is not picked at all: it is not one to move). With `fixed` the object is never
     // moved or sized with the mouse or the keys. `tooltip` is shown while the mouse is over it.
     std::function<bool(const QPointF &fraction, const QSizeF &units)> operate;
+    // The same, told which keys were held at the press (Ctrl and Shift choose several items of a slicer); used instead of `operate` when set (set `operate` too, for the places that ask only whether the
+    // object is worked with a click). Such an object is not picked by a right click either.
+    std::function<bool(const QPointF &fraction, const QSizeF &units, Qt::KeyboardModifiers keys)> operateKeys;
     bool fixed = false;
     QString tooltip;
     // How far the object is turned about its center (degrees, clockwise), once it is known (see `settle`): `box` is its unturned frame, and the outline a person sees is the box that holds the
@@ -163,6 +166,8 @@ public:
 
     // Where the object is on the screen now, in the part of the grid given: empty if it is not shown there.
     QRect deviceRect(int id, Pane pane) const;
+    // Whether the object is told which keys were held at a click (LayerObject::operateKeys): such a click is its own, not a way to pick it with Shift or Ctrl.
+    bool takesKeys(int id) const;
     // The object at a point of the viewport (the topmost whose ink, or whose box for a picture or chart, is under it), or -1.
     int objectAt(const QPoint &point) const;
 

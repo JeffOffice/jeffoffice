@@ -1095,6 +1095,12 @@ void ObjectLayer::finishDrag(bool commit)
 
 void ObjectLayer::cancelDrag() { finishDrag(false); }
 
+bool ObjectLayer::takesKeys(int id) const
+{
+    const size_t i = entryOf(id);
+    return i < m_entries.size() && bool(m_entries[i].object.operateKeys);
+}
+
 bool ObjectLayer::press(const QPoint &point, const GridLayout &layout, Qt::KeyboardModifiers modifiers)
 {
     m_layout = &layout;
@@ -1129,7 +1135,8 @@ bool ObjectLayer::press(const QPoint &point, const GridLayout &layout, Qt::Keybo
         QPointF fraction;
         QSizeF units;
         if (m_selected >= 0) select(-1);
-        return fractionAt(e, layout, point, &fraction, &units) && e.object.operate(fraction, units);
+        if (!fractionAt(e, layout, point, &fraction, &units)) return false;
+        return e.object.operateKeys ? e.object.operateKeys(fraction, units, modifiers) : e.object.operate(fraction, units);
     }
     if (hit >= 0) {
         select(hit);
@@ -1250,7 +1257,7 @@ bool ObjectLayer::contextMenu(const QPoint &point, const QPoint &global, const G
     m_layout = &layout;
     const int hit = objectAt(point);
     if (hit < 0) return false;
-    select(hit);
+    if (!m_entries[entryOf(hit)].object.operateKeys) select(hit);
     Q_EMIT contextMenuRequested(hit, global);
     return true;
 }
@@ -1265,7 +1272,8 @@ bool ObjectLayer::doubleClick(const QPoint &point, const GridLayout &layout)
         const Entry &e = m_entries[entryOf(hit)];
         QPointF fraction;
         QSizeF units;
-        return fractionAt(e, layout, point, &fraction, &units) && e.object.operate(fraction, units);
+        if (!fractionAt(e, layout, point, &fraction, &units)) return false;
+        return e.object.operateKeys ? e.object.operateKeys(fraction, units, Qt::NoModifier) : e.object.operate(fraction, units);
     }
     select(hit);
     Q_EMIT objectActivated(hit);

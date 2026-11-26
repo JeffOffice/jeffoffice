@@ -12,6 +12,7 @@
 #include "core/anchors.h"
 #include "core/clipdata.h"
 #include "core/keyset.h"
+#include "core/slicerface.h"
 #include "core/pagesettings.h"
 #include "core/loader.h"
 #include "core/nametable.h"
@@ -496,6 +497,15 @@ public:
     quintptr pivotTablesStamp() const;
     // Chooses the items (by place) of the slicer: every table it filters shows only them (all, when none is given), as one step of Undo.
     Outcome chooseSlicerItems(int slicer, const QSet<qint32> &chosen);
+    // A slicer as the sheet draws it (core/slicerface.h): its caption and look, and its buttons from the `first`th (in the order it shows them: sorted as its part says, without the items with no
+    // data when it hides them). Only the `most` buttons asked for are made (a field has up to a million items). False for a slicer that is not one (a timeline), or filters no table that can be read.
+    static constexpr int kMaxSlicerSorted = 20000;   // a slicer with more items than this shows them in the data's own order (sorting a million texts for each look is not done)
+    bool slicerFace(int slicer, qint64 first, int most, SlicerFace *out) const;
+    // The place of the slicer the file's drawing calls `name` (the slicer parts of the sheet, then the others), among slicers() (-1 if there is none).
+    int slicerNamed(const QString &name, int sheet) const;
+    // A click on the button of the item at `place`: it alone is chosen, or with `extend` (Ctrl) it is added to the chosen or taken from them; a click on the only one chosen clears the filter. One step of
+    // Undo, as chooseSlicerItems; the same for the pane's buttons and the slicer on the sheet.
+    Outcome clickSlicerItem(int slicer, qint32 place, bool extend);
     // Makes the table from other cells ("Sheet1!A1:D100", "A1:D100" on the same sheet as the source now is, a table's name, or a defined name), then reads them.
     Outcome changePivotSource(int table, const QString &where, const QString &file = QString());   // (`file`: as for createPivot)
     // Puts the table's layout, fields, and options as `changed` has them (a copy of the table with its fields moved, its totals switched, a filter set): the cells are worked out again.

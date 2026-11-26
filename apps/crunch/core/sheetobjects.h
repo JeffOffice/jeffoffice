@@ -17,6 +17,7 @@
 #include "core/objectstate.h"
 #include "core/sheetcontrols.h"
 #include "core/sheetembeds.h"
+#include "core/sheetslicers.h"
 #include "grid/chartcells.h"
 #include "grid/objectlayer.h"
 #include "grid/valuestore.h"
@@ -86,6 +87,7 @@ public:
         m_edits = std::move(edits);
         m_controls.setEditsSource(m_edits);
         m_embeds.setEditsSource(m_edits);
+        m_slicers.setEditsSource(m_edits);
     }
     void setSheetOpsSource(SheetOpsSource ops) { m_sheetOps = std::move(ops); }
     // Where the sheet a sheet was copied from is asked (-1: it is no copy): a copy has objects of its own.
@@ -102,6 +104,8 @@ public:
     SheetControls *controls() { return &m_controls; }
     // The embedded objects of the workbook's sheets (they are in the layer with the other objects, under ids that start at kEmbedIdBase).
     SheetEmbeds *embeds() { return &m_embeds; }
+    // The slicers of the workbook's sheets (in the layer with the other objects, under ids that start at kSlicerIdBase).
+    SheetSlicers *slicers() { return &m_slicers; }
     // The cells charts read (null until the workbook is whole), and the theme the workbook's charts are set in.
     const jp::office::sheet::ChartCells *cells() const { return m_cells.get(); }
     const jp::office::Theme &theme();
@@ -517,6 +521,7 @@ private:
     jp::grid::ObjectLayer m_layer;
     SheetControls m_controls;
     SheetEmbeds m_embeds;
+    SheetSlicers m_slicers;
     std::unique_ptr<jp::Document> m_doc;
     jp::LayoutCache m_layoutCache;
     QHash<QString, QString> m_images;

@@ -184,6 +184,7 @@ void CrunchWindow::connectObjects()
 {
     if (!m_objects || !m_session) return;
     connectControls();
+    connectSlicers();
     connect(m_session.get(), &crunch::EditSession::cellsMoved, this, [this] {
         if (m_objects) m_objects->cellsMoved();
     });
@@ -282,7 +283,7 @@ bool CrunchWindow::linkPickedShape(const QString &entry)
 // Delete with an object picked: it is taken away, as a step Undo gives back.
 void CrunchWindow::deleteObject(int id)
 {
-    if (!m_session || m_edit.active || m_saving) return;
+    if (!m_session || m_edit.active || m_saving || crunch::isSlicerId(id)) return;
     if (crunch::isControlId(id)) {
         // (a form control is taken away as one step; the saved file has neither its shape nor its entry)
         if (!m_objects || !m_objects->controls()->owns(m_sheet, id) || m_objects->controls()->isGone(m_sheet, id)) return;
