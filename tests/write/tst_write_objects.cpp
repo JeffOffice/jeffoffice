@@ -19,6 +19,7 @@
 
 #include <QApplication>
 #include <QClipboard>
+#include <QMenu>
 #include <QMimeData>
 #include <QPushButton>
 #include <QSignalSpy>
