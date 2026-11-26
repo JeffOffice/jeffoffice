@@ -54,9 +54,9 @@ bool addSpellingSuggestions(QMenu &menu, PageView *view)
     // (Of what is being edited: the text, or the header or footer.)
     SpellCheck *spelling = view ? view->editedSpelling() : nullptr;
     // (a document open for reading only is not changed by a correction: none is offered)
-    if (!view || !view->document() || view->editsBlocked() || !spelling || !spelling->enabled() || !spelling->story()) return false;
+    if (!view || !view->document() || !spelling || !spelling->enabled() || !spelling->story()) return false;
     const QPair<int, int> word = spelling->misspellingAt(view->contextPosition());
-    if (word.first < 0) return false;
+    if (word.first < 0 || view->editsBlockedAt(spelling->story(), word.first, word.second)) return false;   // (the word is where the correction lands)
     QTextDocument *story = spelling->story();
     QTextCursor w(story);
     w.setPosition(word.first);
@@ -622,10 +622,11 @@ bool SpellPane::stillThere()
 
 void SpellPane::change(bool all)
 {
-    if (m_complete || m_searching || !m_list->currentItem() || m_view->editsBlocked() || !stillThere()) return;   // (a document open for reading only is not changed by a correction)
+    if (m_complete || m_searching || !m_list->currentItem() || !stillThere()) return;
+    QTextDocument *story = liveStory();
+    if (m_view->editsBlockedAt(story, m_range.first, m_range.second)) return;   // (a document open for reading only is not changed by a correction, nor is a word of text that the protection holds: the place of the word, not the caret, is asked)
     m_result->clear();
     m_result->hide();
-    QTextDocument *story = liveStory();
     if (!m_grammarPhase && !canReplaceWord(story, m_range.first, m_range.second)) return;
     const QString chosen = m_grammarPhase ? m_list->currentItem()->data(Qt::UserRole).toString() : m_list->currentItem()->text(), word = m_word;
     if (m_grammarPhase) {
@@ -666,7 +667,7 @@ void SpellPane::change(bool all)
                 for (int at = int(text.indexOf(word)); at >= 0; at = int(text.indexOf(word, at + 1))) {
                     const int pos = b.position() + at;
                     const QPair<int, int> w = check->misspellingAt(pos);
-                    if (w.first == pos && w.second == pos + int(word.size()) && canReplaceWord(where, w.first, w.second)) one.places << w;
+                    if (w.first == pos && w.second == pos + int(word.size()) && canReplaceWord(where, w.first, w.second) && !m_view->editsBlockedAt(where, w.first, w.second)) one.places << w;
                 }
             }
             // What changed length before the word, and before where the check began, moved them.

@@ -1317,6 +1317,13 @@ void PageView::dragMoveEvent(QDragMoveEvent *e)
         e->ignore();
         return;
     }
+    if (m_formsOnly && !wantsDrop(e->mimeData())) {   // (text is dropped only where the protection leaves it editable)
+        const int at = positionAt(hitAt(e->position().toPoint()));
+        if (at < 0 || editsBlockedAt(m_doc->story(), at, at)) {
+            e->ignore();
+            return;
+        }
+    }
     e->acceptProposedAction();
     // Near the top or the bottom edge of the window the pages scroll, so that the text can be dropped farther along.
     if (wantsTextDrop(e->mimeData())) {

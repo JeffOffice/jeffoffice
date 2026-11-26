@@ -17,12 +17,22 @@
 #include "core/writedoc.h"
 #include "core/writeprops.h"
 #include "../localepin.h"
+#include "../settingguard.h"
+#include "app/spellpane.h"
+#include "app/writefindpane.h"
 #include "office/package.h"
 #include "text/textengine.h"
 #include "text/textprops.h"
 #include "wml/wml.h"
 
+#include <QClipboard>
+#include <QDragEnterEvent>
+#include <QDragMoveEvent>
+#include <QDropEvent>
 #include <QElapsedTimer>
+#include <QGuiApplication>
+#include <QInputMethodEvent>
+#include <QMimeData>
 #include <QMenu>
 #include <QSignalSpy>
 #include <QMouseEvent>
@@ -116,6 +126,55 @@ QString shownAt(WriteDoc &doc, int position)
     QTextCursor c(doc.story());
     c.setPosition(position + 1);
     return c.charFormat().stringProperty(tp::Field);
+}
+
+
+// A window on a document with two sections, protected for filling in forms: the first (closed) is held, the second (open) is left out of the protection by w:formProt.
+const QByteArray kFormsProtection = "<w:documentProtection w:edit=\"forms\" w:enforcement=\"1\"/>";
+const QByteArray kClosedThenOpen = "<w:p><w:pPr><w:sectPr/></w:pPr><w:r><w:t>Closed text</w:t></w:r></w:p><w:p><w:r><w:t>Open text</w:t></w:r></w:p><w:sectPr><w:formProt w:val=\"false\"/></w:sectPr>";
+
+std::unique_ptr<WriteWindow> windowOn(const QByteArray &body, const QByteArray &settings = QByteArray())
+{
+    auto made = open(makeDocx(body, settings));
+    if (!made) return nullptr;
+    std::unique_ptr<WriteWindow> w(new WriteWindow);
+    w->setNotifier([](const QString &, const QString &) {});
+    w->resize(900, 700);
+    w->show();
+    w->setDocument(std::move(made), QString());
+    return w;
+}
+
+void caretAt(PageView *view, int position, int anchor = -1)
+{
+    QTextCursor c(view->document()->story());
+    c.setPosition(anchor < 0 ? position : anchor);
+    if (anchor >= 0) c.setPosition(position, QTextCursor::KeepAnchor);
+    view->setCursor(c);
+}
+
+// The place in the viewport a drop at the text position `position` goes to.
+QPoint pointAt(PageView *view, int position)
+{
+    caretAt(view, position);
+    QRect r;
+    if (!view->caretRect(&r)) return QPoint(-1, -1);
+    return QPoint(r.left() + 3, r.center().y());
+}
+
+// A drop of text from another program, as the system makes it: enter, move, drop.
+bool dropTextAt(PageView *view, const QPoint &at, const QString &text)
+{
+    QMimeData mime;
+    mime.setText(text);
+    QDragEnterEvent enter(at, Qt::CopyAction, &mime, Qt::LeftButton, Qt::NoModifier);
+    QApplication::sendEvent(view->viewport(), &enter);
+    QDragMoveEvent move(at, Qt::CopyAction, &mime, Qt::LeftButton, Qt::NoModifier);
+    QApplication::sendEvent(view->viewport(), &move);
+    QDropEvent drop(QPointF(at), Qt::CopyAction, &mime, Qt::LeftButton, Qt::NoModifier);
+    drop.setAccepted(false);
+    QApplication::sendEvent(view->viewport(), &drop);
+    return drop.isAccepted();
 }
 
 } // namespace
@@ -1836,6 +1895,122 @@ private Q_SLOTS:
         view->setCursor(c);
         QTest::keyClicks(view, "q");
         QVERIFY(documentXml(doc->toDocx()).contains("<w:ins "));
+    }
+
+    // ---- an edit is judged by where it lands, not by where the caret is (a document protected for forms)
+    void aDropIsJudgedWhereItLandsNotWhereTheCaretIs()
+    {
+        auto w = windowOn(kClosedThenOpen, kFormsProtection);
+        QVERIFY(w);
+        PageView *view = w->view();
+        WriteDoc *doc = w->document();
+        const QStringList original = lines(*doc);
+        const int openAt = doc->story()->characterCount() - 2;
+        // (A point is asked for just before its drop, with the caret then put elsewhere without scrolling the pages: the two sections are on pages of their own.)
+        QPoint onClosed, onOpen;
+        QTRY_VERIFY((onClosed = pointAt(view, 3)).x() >= 0);
+        view->cursor().setPosition(openAt);   // the caret is in the open text, the drop is on the closed text: nothing goes in
+        QVERIFY(!dropTextAt(view, onClosed, QStringLiteral("DROPPED")));
+        QCOMPARE(lines(*doc), original);
+        QVERIFY(!doc->canUndo());
+        QTRY_VERIFY((onOpen = pointAt(view, openAt)).x() >= 0);
+        view->cursor().setPosition(3);   // the caret is in the closed text, the drop is on the open text: it goes in
+        QVERIFY(dropTextAt(view, onOpen, QStringLiteral("DROPPED")));
+        QCOMPARE(lines(*doc), (QStringList{original[0], QStringLiteral("Open text DROPPED")}));
+    }
+
+    void aCutOrPasteOrTypingThatReachesIntoClosedTextIsRefused()
+    {
+        auto w = windowOn(kClosedThenOpen, kFormsProtection);
+        QVERIFY(w);
+        PageView *view = w->view();
+        WriteDoc *doc = w->document();
+        const QStringList original = lines(*doc);
+        const int end = doc->story()->characterCount() - 1;
+        QGuiApplication::clipboard()->setText(QStringLiteral("PASTED"));
+        // A selection from the closed text into the open text: cut, paste, typing, and Backspace all leave the text as it is.
+        caretAt(view, 3, end);
+        view->cut();
+        view->paste();
+        QTest::keyClicks(view, "x");
+        QTest::keyClick(view, Qt::Key_Backspace);
+        QCOMPARE(lines(*doc), original);
+        // Backspace at the start of the open text would join it to the closed text: refused.
+        caretAt(view, 12);
+        QTest::keyClick(view, Qt::Key_Backspace);
+        QCOMPARE(lines(*doc), original);
+        // Delete at the end of the closed text, with the caret in it: refused too.
+        caretAt(view, 11);
+        QTest::keyClick(view, Qt::Key_Delete);
+        QCOMPARE(lines(*doc), original);
+        // The same keys inside the open text work, and a selection in it is cut whole.
+        caretAt(view, end - 5, end);
+        view->cut();
+        QCOMPARE(lines(*doc), (QStringList{original[0], QStringLiteral("Open")}));
+        QCOMPARE(QGuiApplication::clipboard()->text(), QStringLiteral(" text"));
+        view->paste();
+        QCOMPARE(lines(*doc), original);
+        QTest::keyClick(view, Qt::Key_Backspace);
+        QCOMPARE(lines(*doc), (QStringList{original[0], QStringLiteral("Open tex")}));
+    }
+
+    void aSpellingChangeIsJudgedWhereTheWordIsNotWhereTheCaretIs()
+    {
+        const jptest::SettingGuard asType(QStringLiteral("proof/checkAsYouType"), true, true);
+        const QByteArray body = "<w:p><w:pPr><w:sectPr/></w:pPr><w:r><w:t>zzclosed here</w:t></w:r></w:p><w:p><w:r><w:t>zzopen there</w:t></w:r></w:p><w:sectPr><w:formProt w:val=\"false\"/></w:sectPr>";
+        // (The pane is open before the protection is put on: the commands that open it are held by a protection.)
+        auto w = windowOn(body);
+        QVERIFY(w);
+        PageView *view = w->view();
+        WriteDoc *doc = w->document();
+        const QStringList original = lines(*doc);
+        caretAt(view, doc->story()->characterCount() - 2);   // (the caret is in the open section)
+        w->act("review.spelling")->trigger();
+        auto *pane = w->findChild<SpellPane *>();
+        QVERIFY(pane);
+        auto button = [&](const char *name) { return pane->findChild<QPushButton *>(QString::fromLatin1(name)); };
+        QTRY_VERIFY(!pane->searching());
+        QTRY_COMPARE(pane->word(), QStringLiteral("zzclosed"));
+        view->setReadOnly(true);
+        view->setFormsOnly(true);
+        caretAt(view, doc->story()->characterCount() - 2);
+        button("spellChange")->click();
+        QCOMPARE(lines(*doc), original);
+        QVERIFY(!doc->canUndo());
+        QVERIFY(button("spellChangeAll"));
+        button("spellChangeAll")->click();
+        QCOMPARE(lines(*doc), original);
+        QVERIFY(!doc->canUndo());
+        // The open word is changed: the same pane, the caret still where it was.
+        button("spellIgnore")->click();
+        QTRY_VERIFY(!pane->searching());
+        QCOMPARE(pane->word(), QStringLiteral("zzopen"));
+        button("spellChange")->click();
+        QTRY_VERIFY(!pane->searching());
+        QCOMPARE(lines(*doc)[0], original[0]);
+        QVERIFY(lines(*doc)[1] != original[1]);
+    }
+
+    void replaceAllChangesTheOpenTextOnlyAndSaysHowManyWereHeld()
+    {
+        const QByteArray body = "<w:p><w:pPr><w:sectPr/></w:pPr><w:r><w:t>cat in the closed</w:t></w:r></w:p><w:p><w:r><w:t>cat in the open, cat</w:t></w:r></w:p><w:sectPr><w:formProt w:val=\"false\"/></w:sectPr>";
+        auto w = windowOn(body, kFormsProtection);
+        QVERIFY(w);
+        WriteDoc *doc = w->document();
+        w->showFindPane(true);
+        WriteFindPane *pane = w->findPane();
+        QVERIFY(pane);
+        pane->findBox()->setText(QStringLiteral("cat"));
+        pane->replaceBox()->setText(QStringLiteral("dog"));
+        pane->replaceAll();
+        QCOMPARE(lines(*doc), (QStringList{QStringLiteral("cat in the closed"), QStringLiteral("dog in the open, dog")}));
+        QCOMPARE(pane->status(), QStringLiteral("JeffWrite made 2 replacements. 1 match is in text that is protected."));
+        // Replace on a match in the closed text says so and changes nothing.
+        caretAt(w->view(), 0, 3);
+        pane->findBox()->setText(QStringLiteral("cat"));
+        pane->replaceBox()->setText(QStringLiteral("cow"));
+        pane->replaceOne();
+        QCOMPARE(lines(*doc)[0], QStringLiteral("cat in the closed"));
     }
 };
 

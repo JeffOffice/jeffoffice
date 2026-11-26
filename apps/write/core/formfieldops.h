@@ -77,5 +77,10 @@ void selectFormField(QTextCursor &c, const FormField &field);
 bool formsEditableAt(WriteDoc &doc, QTextDocument *story, int position);
 // Whether the section of the text that holds the place is one the protection leaves out (w:formProt off).
 bool formsSectionOpenAt(WriteDoc &doc, int position);
+// For each section of the text, whether the protection leaves it out.
+QVector<bool> formsOpenSections(WriteDoc &doc);
+// THE answer to "may text here be edited in a document protected for forms?": the place (or range) is in the text, and every section it lies in is one the protection leaves out. A range that
+// reaches from a section that is left out into one that is not is refused. `sections` is formsOpenSections(doc) when the caller asks again and again.
+bool formsRangeOpen(WriteDoc &doc, QTextDocument *story, int from, int to, const QVector<bool> *sections = nullptr);
 
 } // namespace jp::write

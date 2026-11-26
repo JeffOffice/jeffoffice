@@ -834,6 +834,10 @@ private:
     write::SortOptions m_sortOptions;
     QString m_protectKind;   // what the enforced protection of the document allows (readOnly, comments, trackedChanges, or forms), else empty
     bool m_readOnlyByProtection = false;
+public:
+    // The document is protected for filling in forms: the window holds it read only, but the text that the protection leaves out can be replaced.
+    bool formsHeld() const { return m_readOnlyByProtection && m_protectKind == QLatin1String("forms"); }
+private:
     QString m_titledKind;
     QTimer m_refreshTimer, m_recoverTimer, m_wordTimer, m_proofTimer;
     quint64 m_serial = 0;

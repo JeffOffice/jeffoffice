@@ -74,7 +74,13 @@ public:
     void beginSearchBlock() { ++m_searchBlocks; }
     void endSearchBlock() { if (m_searchBlocks > 0) --m_searchBlocks; }
     bool searchBlocked() const { return m_searchBlocks > 0; }
-    bool editsBlocked() const { return (m_readOnly && !(m_formsOnly && formsSectionOpenAtCaret())) || m_searchBlocks > 0; }
+    // True while the whole document is held (read only, or a search under way): what the commands that are never allowed in a document protected for forms ask.
+    bool editsBlocked() const { return m_readOnly || m_searchBlocks > 0; }
+    // What an edit that lands on the range from..to of a story asks: held as above, except that a document protected for forms lets text be edited where the protection leaves sections out (and
+    // there only: a range that reaches into a section it holds is refused). Every edit asks for the place it will change, never where the caret is.
+    bool editsBlockedAt(QTextDocument *story, int from, int to) const;
+    bool keyEditsBlocked(int key, Qt::KeyboardModifiers m) const;
+    bool editsBlockedAtSelection() const { return editsBlockedAt(m_cursor.document(), m_cursor.selectionStart(), m_cursor.selectionEnd()); }
     // A document protected for filling in forms: the text is held read only, but the form fields can be filled in (typing, Space on a check box, a click on a drop-down, and Tab and
     // Shift+Tab from field to field), and so can a section the protection leaves out. Undo and Redo take back and do again the fills made since (and only those).
     void setFormsOnly(bool on);
@@ -577,9 +583,6 @@ protected:
     int m_searchBlocks = 0;
     bool m_formsOnly = false;
     int m_formUndo = 0, m_formRedo = 0;   // the fills made in a document protected for forms that Undo can take back, and Redo do again
-    bool formsSectionOpenAtCaret() const;
-    mutable quint64 m_formOpenKey = 0;   // (what the last answer of formsSectionOpenAtCaret was for: the text's revision and the selection)
-    mutable bool m_formOpen = false;
     void contextMenuEvent(QContextMenuEvent *e) override;
     void focusInEvent(QFocusEvent *e) override;
     void focusOutEvent(QFocusEvent *e) override;

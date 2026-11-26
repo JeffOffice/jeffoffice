@@ -143,7 +143,11 @@ private:
         QVector<QTextCursor> found;
         QVector<QStringList> groups;
         int kept = 0;   // matches left as they are because they are in content that can't be edited
+        int held = 0;   // matches left as they are because they are in text a protection for forms holds
+        QVector<bool> open;   // (with that protection: which sections it leaves out)
     };
+    bool refusedReplace();
+    bool heldByProtection(const Plan &plan, int from, int to) const;
     bool planStory(QTextDocument *story, QString *problem, StoryWords *given, Plan *plan);
     int applyPlan(const Plan &plan);
     int replaceInStory(QTextDocument *story, QString *problem, StoryWords *given = nullptr, bool onlyLook = false);

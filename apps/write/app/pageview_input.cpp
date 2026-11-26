@@ -203,7 +203,7 @@ bool PageView::smartCutPaste() { return Settings::get().value(QStringLiteral("ed
 
 void PageView::cut()
 {
-    if (editsBlocked()) return;
+    if (editsBlockedAtSelection()) return;
     if (m_shapeEditor) {
         m_shapeEditor->cut();
         return;
@@ -249,7 +249,7 @@ static qint64 sizeOfClip(const Clip &clip)
 
 void PageView::cutToSpike()
 {
-    if (!m_doc || editsBlocked() || m_shapeEditor || !m_cursor.hasSelection()) return;
+    if (!m_doc || editsBlockedAtSelection() || m_shapeEditor || !m_cursor.hasSelection()) return;
     const Clip clip = copySelection(*m_doc, m_cursor);
     if (clip.isEmpty()) return;
     sayTablesAreWords(clip);
@@ -272,7 +272,7 @@ void PageView::cutToSpike()
 
 void PageView::pasteSpike()
 {
-    if (!m_doc || editsBlocked() || m_shapeEditor || spike().isEmpty()) return;
+    if (!m_doc || editsBlockedAtSelection() || m_shapeEditor || spike().isEmpty()) return;
     const QVector<Clip> clips = spike();
     m_cursor.beginEditBlock();
     if (m_cursor.hasSelection()) removeSelection(*m_doc, m_cursor);
@@ -477,7 +477,7 @@ bool PageView::pasteSource(const PasteSource &src)
 
 void PageView::paste()
 {
-    if (editsBlocked()) return;
+    if (editsBlockedAtSelection()) return;
     if (m_shapeEditor) {
         m_shapeEditor->paste();
         return;
@@ -603,7 +603,7 @@ bool PageView::canPasteFrom(const PasteSource &from, PasteKind kind) const
 
 void PageView::pasteAs(PasteKind kind)
 {
-    if (editsBlocked()) return;
+    if (editsBlockedAtSelection()) return;
     const PasteSource src = source();
     if (!m_doc || !canPasteFrom(src, kind)) return;
     const int pasteFrom = m_cursor.selectionStart(), pasteSelectionEnd = m_cursor.selectionEnd();
@@ -674,7 +674,7 @@ void PageView::notePaste(int from, int selectionEnd, const PasteSource &made, bo
 
 bool PageView::pasteOptionsAvailable() const
 {
-    return m_doc && !editsBlocked() && m_lastPaste.story == m_doc->story() && m_cursor.document() == m_doc->story() && !m_cursor.hasSelection() && m_cursor.position() == m_lastPaste.to &&
+    return m_doc && !editsBlockedAtSelection() && m_lastPaste.story == m_doc->story() && m_cursor.document() == m_doc->story() && !m_cursor.hasSelection() && m_cursor.position() == m_lastPaste.to &&
            m_doc->story()->revision() == m_lastPaste.revision && m_lastPaste.to > m_lastPaste.from;
 }
 
@@ -801,8 +801,17 @@ void PageView::selectAll()
 
 void PageView::insertText(const QString &text)
 {
-    if (editsBlocked()) return;
     if (!m_doc) return;
+    {
+        // (The place the letters land: the selection they replace, else the caret, with overtype as far as the letters it takes.)
+        int from = m_cursor.selectionStart(), to = m_cursor.selectionEnd();
+        if (m_cursor.hasSelection() && !m_typingReplaces) from = to;
+        else if (m_overtype && !m_cursor.hasSelection()) {
+            const QTextBlock b = m_cursor.block();
+            to = from + std::max(0, std::min<int>(b.position() + b.length() - 1 - from, int(text.size())));
+        }
+        if (editsBlockedAt(m_cursor.document(), from, to)) return;
+    }
     if (m_cursor.hasSelection() && !m_typingReplaces) {
         m_cursor.setPosition(m_cursor.selectionEnd());
     } else if (m_overtype && !m_cursor.hasSelection()) {
@@ -887,7 +896,7 @@ void PageView::typeKey(int key, Qt::KeyboardModifiers m)
     const int runEnd = m_typedEnd;
     QTextDocument *runStory = m_typedStory;
     endTypedRun();
-    if (editsBlocked()) {   // (only the keys that move the caret)
+    if (keyEditsBlocked(key, m)) {   // (only the keys that move the caret)
         switch (key) {
         case Qt::Key_Left: case Qt::Key_Right: case Qt::Key_Up: case Qt::Key_Down: case Qt::Key_Home: case Qt::Key_End: case Qt::Key_PageUp: case Qt::Key_PageDown: break;
         default: return;
@@ -1159,7 +1168,7 @@ void PageView::keyPressEvent(QKeyEvent *e)
         e->accept();
         return;
     }
-    if (editsBlocked()) {
+    if (keyEditsBlocked(e->key(), e->modifiers())) {
         // (only the keys that move the caret)
         switch (e->key()) {
         case Qt::Key_Left: case Qt::Key_Right: case Qt::Key_Up: case Qt::Key_Down: case Qt::Key_Home: case Qt::Key_End: case Qt::Key_PageUp: case Qt::Key_PageDown:
@@ -1220,7 +1229,7 @@ void PageView::keyPressEvent(QKeyEvent *e)
 void PageView::inputMethodEvent(QInputMethodEvent *e)
 {
     m_pasteOffer->cancelTap();
-    if (!m_doc || editsBlocked() || m_selectObjectsMode) return;
+    if (!m_doc || editsBlockedAtSelection() || m_selectObjectsMode) return;
     if (!e->commitString().isEmpty()) insertText(e->commitString());
     e->accept();
 }
@@ -1378,7 +1387,7 @@ void PageView::mousePressEvent(QMouseEvent *e)
     if (m_clicks <= 2 && !(e->modifiers() & (Qt::ShiftModifier | Qt::ControlModifier)) && clickInFormField(at, e->globalPosition().toPoint(), m_clicks)) return;
     if (m_clicks <= 2 && !(e->modifiers() & (Qt::ShiftModifier | Qt::ControlModifier)) && clickInControl(at, e->position().toPoint(), e->globalPosition().toPoint(), m_clicks)) return;
     // A press inside the selection may begin a drag of its text: the selection stays until the pointer has moved (or the button is let go, which puts the caret there).
-    if (m_clicks == 1 && m_textDragAllowed && m_dragTextOption && !editsBlocked() && !(e->modifiers() & Qt::ShiftModifier) && m_cursor.hasSelection() && !m_hf.active && !m_note.active && m_cursor.document() == m_doc->story() &&
+    if (m_clicks == 1 && m_textDragAllowed && m_dragTextOption && !editsBlockedAtSelection() && !(e->modifiers() & Qt::ShiftModifier) && m_cursor.hasSelection() && !m_hf.active && !m_note.active && m_cursor.document() == m_doc->story() &&
         at >= m_cursor.selectionStart() && at < m_cursor.selectionEnd() && !isLocked(m_cursor.block())) {
         m_textDrag.pending = true;
         m_textDrag.start = e->position().toPoint();
@@ -1958,7 +1967,7 @@ bool PageView::clickOnAddItem(const QPoint &viewportPos)
 
 bool PageView::putInPictureControl(int at, const QByteArray &bytes, const QString &name)
 {
-    if (!m_doc || editsBlocked() || m_hf.active || m_note.active || m_cursor.document() != m_doc->story()) return false;
+    if (!m_doc || editsBlockedAt(m_cursor.document(), at, at) || m_hf.active || m_note.active || m_cursor.document() != m_doc->story()) return false;
     const write::ContentControl c = write::contentControlAt(*m_doc, at);
     if (!c.valid() || !c.editable || c.props.kind != write::ControlKind::Picture) return false;
     if (c.props.lockContents) {
@@ -1973,7 +1982,7 @@ bool PageView::putInPictureControl(int at, const QByteArray &bytes, const QStrin
 
 bool PageView::clickInControl(int at, const QPoint &viewportPos, const QPoint &globalPos, int clicks)
 {
-    if (!m_doc || editsBlocked() || m_hf.active || m_note.active || m_cursor.document() != m_doc->story() || at < 0) return false;
+    if (!m_doc || editsBlockedAt(m_cursor.document(), at, at) || m_hf.active || m_note.active || m_cursor.document() != m_doc->story() || at < 0) return false;
     if (clicks == 1 && clickOnAddItem(viewportPos)) return true;
     const write::ContentControl c = controlUnder(at, viewportPos);
     if (!c.valid() || !c.editable || (clicks > 1 && c.props.kind != write::ControlKind::CheckBox && c.props.kind != write::ControlKind::ComboBox)) return false;   // (a check box flips at each click, however quick; the others are a double click's word)
@@ -2018,7 +2027,7 @@ bool PageView::clickInControl(int at, const QPoint &viewportPos, const QPoint &g
 
 bool PageView::activateControlAtCaret(int key, const QPoint &globalPos)
 {
-    if (!m_doc || editsBlocked() || m_hf.active || m_note.active || m_cursor.document() != m_doc->story() || m_cursor.hasSelection()) return false;
+    if (!m_doc || editsBlockedAtSelection() || m_hf.active || m_note.active || m_cursor.document() != m_doc->story() || m_cursor.hasSelection()) return false;
     const write::ContentControl c = write::contentControlAt(*m_doc, m_cursor.position());
     if (!c.valid() || !c.editable || c.props.lockContents) return false;
     if (c.props.kind == write::ControlKind::CheckBox && key == Qt::Key_Space) {
@@ -2050,15 +2059,25 @@ void PageView::setFormsOnly(bool on)
     m_formUndo = m_formRedo = 0;
 }
 
-// Whether the selection is in the section of the text that the protection for forms leaves out (one answer for each state of the text and of the selection).
-bool PageView::formsSectionOpenAtCaret() const
+// Whether the key would change text it must not: the place it lands is the selection, and, for Backspace and Delete with nothing selected, the character (or with Ctrl the words, held to the
+// paragraph) that goes.
+bool PageView::keyEditsBlocked(int key, Qt::KeyboardModifiers m) const
 {
-    if (!m_formsOnly || !m_doc || m_cursor.document() != m_doc->story()) return false;
-    const quint64 key = (quint64(m_doc->story()->revision()) << 32) ^ (quint64(m_cursor.selectionStart()) << 16) ^ quint64(m_cursor.selectionEnd()) ^ 0x8000000000000000ull;
-    if (key == m_formOpenKey) return m_formOpen;
-    m_formOpenKey = key;
-    m_formOpen = write::formsSectionOpenAt(*m_doc, m_cursor.selectionStart()) && write::formsSectionOpenAt(*m_doc, m_cursor.selectionEnd());
-    return m_formOpen;
+    int from = m_cursor.selectionStart(), to = m_cursor.selectionEnd();
+    if (!m_cursor.hasSelection()) {
+        const QTextBlock b = m_cursor.block();
+        const bool ctrl = m & Qt::ControlModifier;
+        if (key == Qt::Key_Backspace) from = ctrl && from > b.position() ? b.position() : std::max(0, from - 1);
+        else if (key == Qt::Key_Delete) to = ctrl && to < b.position() + b.length() - 1 ? b.position() + b.length() - 1 : to + 1;
+    }
+    return editsBlockedAt(m_cursor.document(), from, to);
+}
+
+bool PageView::editsBlockedAt(QTextDocument *story, int from, int to) const
+{
+    if (m_searchBlocks > 0) return true;
+    if (!m_readOnly) return false;
+    return !(m_formsOnly && m_doc && write::formsRangeOpen(*m_doc, story, from, to));
 }
 
 namespace {
@@ -2290,7 +2309,7 @@ void PageView::startTextDrag()
 bool PageView::wantsTextDrop(const QMimeData *mime) const
 {
     // (Select Objects never changes the words: a drop of text is not taken while it is on.)
-    return m_doc && !m_selectObjectsMode && !editsBlocked() && !m_hf.active && !m_note.active && mime && (mime->hasFormat(QString::fromLatin1(kTextDragMime)) || ((mime->hasText() || mime->hasHtml() || hasRtfFormat(mime)) && !mime->hasUrls()));
+    return m_doc && !m_selectObjectsMode && m_searchBlocks == 0 && (!m_readOnly || m_formsOnly) && !m_hf.active && !m_note.active && mime && (mime->hasFormat(QString::fromLatin1(kTextDragMime)) || ((mime->hasText() || mime->hasHtml() || hasRtfFormat(mime)) && !mime->hasUrls()));
 }
 
 bool PageView::dropText(QDropEvent *e)
@@ -2298,7 +2317,8 @@ bool PageView::dropText(QDropEvent *e)
     const QMimeData *mime = e->mimeData();
     if (!wantsTextDrop(mime)) return false;
     const int at = positionAt(hitAt(e->position().toPoint()));
-    if (at < 0) {
+    // (The place the text lands, which is where the drop is: not where the caret is. A move also takes the text away from where it was.)
+    if (at < 0 || editsBlockedAt(m_doc->story(), at, at)) {
         e->ignore();
         return true;
     }
@@ -2309,7 +2329,7 @@ bool PageView::dropText(QDropEvent *e)
 #endif
         const bool copy = (e->modifiers() & copyKeys) || e->possibleActions() == Qt::CopyAction;
         QTextCursor moved = m_textDrag.selection;
-        if (moveSelectedText(*m_doc, moved, at, copy)) {
+        if (!(!copy && editsBlockedAt(moved.document(), moved.selectionStart(), moved.selectionEnd())) && moveSelectedText(*m_doc, moved, at, copy)) {
             m_cursor = moved;
             caretMoved();
             m_textDrag.done = true;

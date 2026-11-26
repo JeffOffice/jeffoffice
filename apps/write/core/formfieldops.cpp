@@ -466,14 +466,34 @@ void selectFormField(QTextCursor &c, const FormField &field)
     }
 }
 
-bool formsSectionOpenAt(WriteDoc &doc, int position)
+QVector<bool> formsOpenSections(WriteDoc &doc)
 {
     static const QRegularExpression off(QStringLiteral("^<(?:[\\w.-]+:)?formProt\\b[^>]*?[\\s:]val\\s*=\\s*\"(?:0|false|off)\""));
-    const SectionProps section = doc.sectionProps(doc.sectionCount() > 1 ? doc.sectionAt(position) : 0);
-    for (const RawChild &child : section.extra)
-        if (off.match(QString::fromUtf8(child.xml.left(200))).hasMatch()) return true;
-    return false;
+    QVector<bool> open;
+    for (int i = 0; i < std::max(1, doc.sectionCount()); ++i) {
+        bool left = false;
+        for (const RawChild &child : doc.sectionProps(i).extra)
+            if (off.match(QString::fromUtf8(child.xml.left(200))).hasMatch()) left = true;
+        open << left;
+    }
+    return open;
 }
+
+bool formsRangeOpen(WriteDoc &doc, QTextDocument *story, int from, int to, const QVector<bool> *sections)
+{
+    if (story != doc.story()) return false;
+    const bool given = sections && !sections->isEmpty();
+    const QVector<bool> own = given ? QVector<bool>() : formsOpenSections(doc);
+    const QVector<bool> &open = given ? *sections : own;
+    if (to < from) std::swap(from, to);
+    if (open.size() == 1) return open[0];
+    const int first = doc.sectionAt(from), last = to > from ? doc.sectionAt(to) : first;
+    for (int i = first; i <= last && i < open.size(); ++i)
+        if (!open[i]) return false;
+    return true;
+}
+
+bool formsSectionOpenAt(WriteDoc &doc, int position) { return formsRangeOpen(doc, doc.story(), position, position); }
 
 bool formsEditableAt(WriteDoc &doc, QTextDocument *story, int position)
 {

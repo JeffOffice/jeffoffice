@@ -7,6 +7,7 @@
 #include "core/editops.h"
 #include "core/fieldops.h"
 #include "core/findops.h"
+#include "core/formfieldops.h"
 #include "core/pictureops.h"
 #include "core/styleops.h"
 #include "app/shutdown.h"
@@ -1216,10 +1217,24 @@ bool controlKeeps(write::WriteDoc *doc, QTextDocument *story, StoryWords *text, 
 }
 } // namespace
 
+// A document protected for forms is held read only, but Replace goes on in the text the protection leaves out (each match is asked where it is).
+bool WriteFindPane::refusedReplace()
+{
+    if (m_win->formsHeld() && !m_win->searchBlocked()) return false;
+    return m_win->refuseIfReadOnly();
+}
+
+bool WriteFindPane::heldByProtection(const Plan &plan, int from, int to) const
+{
+    if (!m_win->formsHeld()) return false;
+    const int a = plan.text->toStory(from), z = to > from ? plan.text->toStoryEnd(to) : a;
+    return !write::formsRangeOpen(*m_win->document(), plan.story, a, z, &plan.open);
+}
+
 void WriteFindPane::replaceOne()
 {
     m_keepNotice = false;
-    if (!m_win->document() || !searching() || m_job || m_win->refuseIfReadOnly()) return;
+    if (!m_win->document() || !searching() || m_job || refusedReplace()) return;
     m_wait = false;
     const bool isMatch = selectionIsMatch();
     if (m_wait) {   // (the search goes on on a thread of its own: this is asked again when it is done)
@@ -1237,6 +1252,10 @@ void WriteFindPane::replaceOne()
         }
         if (controlKeeps(m_win->document(), story, text, from, to)) {
             m_status->setText(tr("Text in a content control that can't be changed can be found but not replaced."));
+            return;
+        }
+        if (m_win->formsHeld() && !write::formsRangeOpen(*m_win->document(), story, text->toStory(from), to > from ? text->toStoryEnd(to) : text->toStory(from))) {
+            m_status->setText(tr("Text that is protected can be found but not replaced."));
             return;
         }
         QTextCursor match(text->words());
@@ -1274,6 +1293,7 @@ bool WriteFindPane::planStory(QTextDocument *story, QString *problem, StoryWords
     const bool wild = m_wild->isChecked(), regex = m_regex->isChecked();
     plan->story = story;
     plan->text = text;
+    if (m_win->formsHeld()) plan->open = write::formsOpenSections(*m_win->document());
     plan->pattern = regex ? write::regexPattern(m_find->text(), m_case->isChecked()) : wild || codesTyped() ? write::wildcardPattern(patternText(), m_case->isChecked()) : write::FindPattern();
     if (!plan->pattern.error.isEmpty()) {
         *problem = plan->pattern.error;
@@ -1289,6 +1309,10 @@ bool WriteFindPane::planStory(QTextDocument *story, QString *problem, StoryWords
         if (!(plan->w.skip && plan->w.skip(m)) && !holdsMark(plan->plain, m)) {   // (a section break, a field's start, or a note's mark is found, not swapped: it would lose what it stands for)
             if (controlKeeps(m_win->document(), story, text, m.selectionStart(), m.selectionEnd())) {
                 ++plan->kept;
+                continue;
+            }
+            if (heldByProtection(*plan, m.selectionStart(), m.selectionEnd())) {
+                ++plan->held;
                 continue;
             }
             plan->found.push_back(m);
@@ -1379,7 +1403,7 @@ void WriteFindPane::replaceAll()
 {
     m_keepNotice = false;
     const QString q = m_find->text();
-    if (!m_win->document() || !searching() || m_win->refuseIfReadOnly()) return;
+    if (!m_win->document() || !searching() || refusedReplace()) return;
     if (m_job) {   // (a search is under way: this is done when it is)
         waitThen([this] { replaceAll(); }, false, true);
         return;
@@ -1390,7 +1414,7 @@ void WriteFindPane::replaceAll()
     // found is kept as it is, and the swaps are made from it: no search is made after the first swap.)
     QVector<Plan> plans(1);
     bool ok = planStory(m_win->document()->story(), &problem, nullptr, &plans[0]);
-    if (ok)
+    if (ok && !m_win->formsHeld())   // (the headers, footers, notes, and text boxes are not filled in: a protection for forms holds them)
         for (QTextDocument *d : sideStories()) {
             plans.push_back(Plan());
             if (!planStory(d, &problem, nullptr, &plans.last())) {
@@ -1403,29 +1427,31 @@ void WriteFindPane::replaceAll()
         return;
     }
     int none = 0;
-    if (ok && m_regex->isChecked()) replaceInTextBoxes(&problem, &none, true);   // (the words of the boxes are short and searched here; this only looks)
+    if (ok && m_regex->isChecked() && !m_win->formsHeld()) replaceInTextBoxes(&problem, &none, true);   // (the words of the boxes are short and searched here; this only looks)
     if (!problem.isEmpty()) {
         m_status->setText(problem);
         return;
     }
     // The text, then the headers, footers, and notes; the swaps in all of them are one step that undoes.
     const write::WriteDoc::StepGroup group(*m_win->document());
-    int n = 0, locked = 0;
+    int n = 0, locked = 0, held = 0;
     for (const Plan &plan : plans) {
         n += plan.story ? applyPlan(plan) : 0;
         locked += plan.kept;
+        held += plan.held;
     }
     int tooLarge = 0;
     m_boxesStopped = false;
-    n += replaceInTextBoxes(&problem, &tooLarge);
+    if (!m_win->formsHeld()) n += replaceInTextBoxes(&problem, &tooLarge);
     if (!problem.isEmpty()) {
         m_status->setText(problem);
         return;
     }
-    QString text = n == 0   ? (tooLarge > 0 || locked > 0 ? tr("JeffWrite made no replacements.") : tr("JeffWrite made no replacements. \"%1\" was not found.").arg(findTextForMessage(q)))
+    QString text = n == 0   ? (tooLarge > 0 || locked > 0 || held > 0 ? tr("JeffWrite made no replacements.") : tr("JeffWrite made no replacements. \"%1\" was not found.").arg(findTextForMessage(q)))
                    : n == 1 ? tr("JeffWrite made 1 replacement.")
                             : tr("JeffWrite made %1 replacements.").arg(n);
     if (locked > 0) text += QLatin1Char(' ') + tr("%n match is in content that can't be changed.", nullptr, locked);
+    if (held > 0) text += QLatin1Char(' ') + tr("%n match is in text that is protected.", nullptr, held);
     if (tooLarge > 0) text += QLatin1Char(' ') + tr("%n text box was too large to change.", nullptr, tooLarge);
     if (m_boxesStopped) text += QLatin1Char(' ') + tr("Only the first %1 text boxes were changed; use Replace All again for the rest.").arg(kMostBoxesChanged);
     m_status->setText(text);
