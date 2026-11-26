@@ -2187,6 +2187,50 @@ private Q_SLOTS:
             QApplication::clipboard()->clear();
         }
     }
+
+    void enterInATextFieldNeverSplitsTheParagraph()
+    {
+        const QByteArray tx = "<w:textInput><w:maxLength w:val=\"8\"/></w:textInput>";
+        const QByteArray body = para(run("pre ") + formField("A", tx, "FORMTEXT", run("abcd")) + run(" mid ") + formField("B", tx, "FORMTEXT", run("xy")) + run(" post"));
+        for (int protectedForForms = 0; protectedForForms < 2; ++protectedForForms) {
+            auto w = windowOn(body, protectedForForms ? kFormsProtection : QByteArray());
+            QVERIFY(w);
+            PageView *view = w->view();
+            WriteDoc *doc = w->document();
+            const QByteArray original = documentXml(doc->toDocx());
+            const FormField a = formFields(doc->story())[0];
+            // In the middle of the result, and at both of its ends, and with Shift: the paragraph is never split.
+            for (const int at : {a.separate + 3, a.separate + 1, a.end}) {
+                caretAt(view, at);
+                QTest::keyClick(view, Qt::Key_Return);
+                if (protectedForForms) {
+                    QCOMPARE(formFieldAt(doc->story(), view->cursor().selectionStart()).name, QStringLiteral("B"));
+                    caretAt(view, at);
+                } else {
+                    QCOMPARE(view->cursor().position(), at);
+                }
+                QTest::keyClick(view, Qt::Key_Enter);
+                QTest::keyClick(view, Qt::Key_Return, Qt::ShiftModifier);
+                if (protectedForForms) caretAt(view, at);
+            }
+            QCOMPARE(int(doc->story()->blockCount()), 1);
+            QCOMPARE(documentXml(doc->toDocx()), original);
+            // In a protected document Enter goes on to the next field, the way Tab does, and round again.
+            if (protectedForForms) {
+                caretAt(view, a.separate + 2);
+                QTest::keyClick(view, Qt::Key_Return);
+                QCOMPARE(formFieldAt(doc->story(), view->cursor().selectionStart()).name, QStringLiteral("B"));
+                QTest::keyClick(view, Qt::Key_Return);
+                QCOMPARE(formFieldAt(doc->story(), view->cursor().selectionStart()).name, QStringLiteral("A"));
+            }
+            // Beside the field it is the ordinary key (in an unprotected document it splits the paragraph there).
+            if (!protectedForForms) {
+                caretAt(view, 1);
+                QTest::keyClick(view, Qt::Key_Return);
+                QCOMPARE(int(doc->story()->blockCount()), 2);
+            }
+        }
+    }
 };
 
 QTEST_MAIN(FieldTests)

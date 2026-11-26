@@ -2129,6 +2129,27 @@ bool PageView::clickInFormField(int at, const QPoint &globalPos, int clicks)
     return true;
 }
 
+// Leaves the field the caret is in (a number or a date is finished in its picture) for the next one, or the one before it.
+void PageView::goToFormField(const write::FormField &here, bool backward)
+{
+    QTextDocument *story = m_cursor.document();
+    if (here.valid() && here.kind == write::FormKind::Text && here.fillable() && here.separate >= 0) {
+        bool fits = true;
+        const QString finished = write::finishedFormText(here, here.result, &fits);
+        if (!fits) Q_EMIT notice(tr("What you typed doesn't fit this field's format."));
+        else if (write::fillFormText(*m_doc, story, here.begin, finished, true) && m_formsOnly) {
+            ++m_formUndo;
+            m_formRedo = 0;
+        }
+    }
+    const write::FormField next = write::nextFormField(story, here.valid() ? here.begin : m_cursor.selectionStart() - 1, backward);
+    if (next.valid()) {
+        write::selectFormField(m_cursor, next);
+        caretMoved();
+        viewport()->update();
+    }
+}
+
 bool PageView::formKey(QKeyEvent *e)
 {
     if (!m_doc || m_shapeEditor || m_searchBlocks > 0 || (m_readOnly && !m_formsOnly)) return false;
@@ -2141,21 +2162,7 @@ bool PageView::formKey(QKeyEvent *e)
         const write::FormField here = write::formFieldAtSelection(story, m_cursor.selectionStart(), m_cursor.selectionEnd());
         // (In text the protection leaves out, and not in a field, Tab is the ordinary key: a tab, or the next cell.)
         if (!here.valid() && !editsBlockedAtSelection()) return false;
-        if (here.valid() && here.kind == write::FormKind::Text && here.fillable() && here.separate >= 0) {
-            bool fits = true;
-            const QString finished = write::finishedFormText(here, here.result, &fits);
-            if (!fits) Q_EMIT notice(tr("What you typed doesn't fit this field's format."));
-            else if (write::fillFormText(*m_doc, story, here.begin, finished, true) && m_formsOnly) {
-                ++m_formUndo;
-                m_formRedo = 0;
-            }
-        }
-        const write::FormField next = write::nextFormField(story, here.valid() ? here.begin : m_cursor.selectionStart() - 1, backward);
-        if (next.valid()) {
-            write::selectFormField(m_cursor, next);
-            caretMoved();
-            viewport()->update();
-        }
+        goToFormField(here, backward);
         return true;
     }
     if (mods & (Qt::ControlModifier | Qt::MetaModifier)) return false;
@@ -2172,6 +2179,11 @@ bool PageView::formKey(QKeyEvent *e)
             m_formRedo = 0;
         }
     };
+    // Enter in a text field never splits the paragraph: in a protected document it goes on to the next field, as Tab does; in any other it does nothing.
+    if (f.kind == write::FormKind::Text && (key == Qt::Key_Return || key == Qt::Key_Enter) && !(mods & Qt::AltModifier)) {
+        if (m_formsOnly) goToFormField(f, false);
+        return true;
+    }
     if (!f.fillable()) return m_formsOnly;   // (a field that can't be filled in: in a protected document the key is no edit of anything)
     if (f.kind == write::FormKind::CheckBox) {
         if (key == Qt::Key_Space && !(mods & Qt::AltModifier)) counted(write::setFormChecked(*m_doc, story, f.begin, !f.checked));

@@ -227,6 +227,7 @@ public:
     // drop-down, and, with the document protected for forms, Tab and Shift+Tab.
     bool clickInFormField(int position, const QPoint &globalPos, int clicks);
     bool formKey(QKeyEvent *e);
+    void goToFormField(const write::FormField &here, bool backward);
     bool formEntryField(write::FormField *out) const;
     void enterInFormField(const write::FormField &field, int key, const QString &typed);
     bool pasteIntoFormField();
