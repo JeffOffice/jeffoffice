@@ -2324,6 +2324,89 @@ private Q_SLOTS:
             QCOMPARE(result(), QStringLiteral("123"));
         }
     }
+
+    void formsUndoTakesBackEveryStepMadeSinceProtectionStartedAndNothingBefore()
+    {
+        const QByteArray tx = "<w:textInput><w:maxLength w:val=\"8\"/></w:textInput>";
+        const QByteArray body = para(run("Closed ") + formField("A", tx, "FORMTEXT", run("a0")) + run(" ") + formField("B", tx, "FORMTEXT", run("b0")), "<w:sectPr/>") +
+                                "<w:p><w:r><w:t>Open</w:t></w:r></w:p><w:sectPr><w:formProt w:val=\"false\"/></w:sectPr>";
+        auto w = windowOn(body, kFormsProtection);
+        QVERIFY(w);
+        PageView *view = w->view();
+        WriteDoc *doc = w->document();
+        const QByteArray original = documentXml(doc->toDocx());
+        const QString openLine = lines(*doc).last();
+        auto resultOf = [&](int which) { return formFields(doc->story())[which].result; };
+        // A fill of the first field, an edit in the open section, a fill of the second field.
+        caretAt(view, 0);
+        QTest::keyClick(view, Qt::Key_Tab);
+        QTest::keyClicks(view, "x");
+        QTest::keyClick(view, Qt::Key_Tab);   // (the next field: leaving the first)
+        QTest::keyClicks(view, "y");
+        QCOMPARE(resultOf(0), QStringLiteral("x"));
+        QCOMPARE(resultOf(1), QStringLiteral("y"));
+        caretAt(view, doc->story()->characterCount() - 1);
+        QTest::keyClicks(view, "Z");
+        QCOMPARE(lines(*doc).last(), openLine + QLatin1Char('Z'));
+        const QByteArray done = documentXml(doc->toDocx());
+        caretAt(view, formFields(doc->story())[1].separate + 1, formFields(doc->story())[1].end);
+        QTest::keyClicks(view, "w");
+        QCOMPARE(resultOf(1), QStringLiteral("w"));
+        // Undo takes them back one at a time, newest first: nothing is skipped and nothing before them is taken.
+        view->undo();
+        QCOMPARE(resultOf(1), QStringLiteral("y"));
+        QCOMPARE(lines(*doc).last(), openLine + QLatin1Char('Z'));
+        view->undo();
+        QCOMPARE(lines(*doc).last(), openLine);
+        QCOMPARE(resultOf(1), QStringLiteral("y"));
+        view->undo();
+        QCOMPARE(resultOf(1), QStringLiteral("b0"));
+        view->undo();
+        QCOMPARE(resultOf(0), QStringLiteral("a0"));
+        QCOMPARE(documentXml(doc->toDocx()), original);
+        view->undo();
+        view->undo();
+        QCOMPARE(documentXml(doc->toDocx()), original);
+        // Redo does them again, and no more.
+        for (int i = 0; i < 6; ++i) view->redo();
+        QCOMPARE(resultOf(0), QStringLiteral("x"));
+        QCOMPARE(resultOf(1), QStringLiteral("w"));
+        QCOMPARE(lines(*doc).last(), openLine + QLatin1Char('Z'));
+        // A new edit clears what Redo would do: a Redo then changes nothing.
+        view->undo();
+        caretAt(view, doc->story()->characterCount() - 1);
+        QTest::keyClicks(view, "Q");
+        const QByteArray after = documentXml(doc->toDocx());
+        view->redo();
+        QCOMPARE(documentXml(doc->toDocx()), after);
+    }
+
+    void formsUndoDoesNotTakeBackWhatWasThereWhenProtectionStarted()
+    {
+        const QByteArray tx = "<w:textInput><w:maxLength w:val=\"8\"/></w:textInput>";
+        const QByteArray body = para(run("Text ") + formField("A", tx, "FORMTEXT", run("a0")));
+        auto w = windowOn(body);
+        QVERIFY(w);
+        PageView *view = w->view();
+        WriteDoc *doc = w->document();
+        caretAt(view, 1);
+        QTest::keyClicks(view, "ab");   // (an edit made before the protection)
+        const QByteArray before = documentXml(doc->toDocx());
+        office::wml::DocumentProtection protection;
+        protection.edit = QStringLiteral("forms");
+        protection.enforced = true;
+        doc->setProtection(protection);
+        QVERIFY(view->formsOnly());
+        view->undo();
+        QCOMPARE(documentXml(doc->toDocx()), before);
+        const FormField f = formFields(doc->story())[0];
+        caretAt(view, f.end, f.separate + 1);
+        QTest::keyClicks(view, "z");
+        view->undo();
+        QCOMPARE(formFields(doc->story())[0].result, QStringLiteral("a0"));
+        view->undo();
+        QCOMPARE(documentXml(doc->toDocx()), before);
+    }
 };
 
 QTEST_MAIN(FieldTests)

@@ -594,6 +594,8 @@ public:
     quint64 tableStepsSeen = 0;
     quint64 nextStepSerial() const { return m_nextSerial; }
     quint64 lastStepSerial() const { return m_undoLog.isEmpty() ? 0 : m_undoLog.last().serial; }
+    // The serial of the step a Redo would do (0: none); a step keeps its serial through an Undo and a Redo.
+    quint64 lastRedoSerial() const { return m_redoLog.isEmpty() ? 0 : m_redoLog.last().serial; }
     QSet<quint64> stepSerials() const;
     // ---- styles
     const office::wml::StyleSheet &styleSheet() const { return m_wml.styles; }

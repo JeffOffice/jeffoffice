@@ -88,13 +88,6 @@ public:
     bool formsOnly() const { return m_formsOnly; }
     // The text field typed in last is finished (a number or a date put in its picture): done when the caret leaves it, and by the window before a save or a print.
     void finishFormEntry(bool wherever = false);
-    // The window made a fill (a choice from a drop-down's menu) in a document protected for forms: Undo can take it back.
-    void noteFormFill()
-    {
-        if (!m_formsOnly) return;
-        ++m_formUndo;
-        m_formRedo = 0;
-    }
 
     explicit PageView(QWidget *parent = nullptr);
     ~PageView() override;
@@ -229,6 +222,7 @@ public:
     // drop-down, and, with the document protected for forms, Tab and Shift+Tab.
     bool clickInFormField(int position, const QPoint &globalPos, int clicks);
     bool formKey(QKeyEvent *e);
+    bool formHistoryOpen(bool redo) const;
     void goToFormField(const write::FormField &here, bool backward);
     bool formEntryField(write::FormField *out) const;
     void enterInFormField(const write::FormField &field, int key, const QString &typed);
@@ -593,7 +587,7 @@ protected:
         int kind = -1, caret = -1, undo = 0, revision = 0;   // the key typed in the field last (0: a letter), where the caret was left, and the story's history and revision then
     } m_formTyped;
     QTextCursor m_formEntry;   // inside the begin mark of the text field typed in last, until it is finished
-    int m_formUndo = 0, m_formRedo = 0;   // the fills made in a document protected for forms that Undo can take back, and Redo do again
+    quint64 m_formFloor = 0;   // the last step of the history when the protection for forms began: Undo and Redo go no further back than that
     void contextMenuEvent(QContextMenuEvent *e) override;
     void focusInEvent(QFocusEvent *e) override;
     void focusOutEvent(QFocusEvent *e) override;

@@ -145,6 +145,8 @@ void PageView::setDocument(WriteDoc *doc)
 {
     setSelectObjectsMode(false);
     ++m_docEpoch;
+    m_formFloor = doc ? doc->lastStepSerial() : 0;   // (the history of a document that is given is the one Undo is held to, under protection for forms)
+    m_formEntry = QTextCursor();
     if (m_note.active) {
         QObject::disconnect(m_hfEdit);
         m_note = NoteEdit();

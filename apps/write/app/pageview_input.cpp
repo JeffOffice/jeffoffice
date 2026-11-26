@@ -57,12 +57,8 @@ bool s_copiedWhole = true;   // the words last copied from here were whole words
 void PageView::undo()
 {
     m_formEntry = QTextCursor();
-    if (editsBlocked() && !(m_formsOnly && m_formUndo > 0 && m_searchBlocks == 0)) return;   // (a search that is under way holds the text as it is)
+    if (editsBlocked() && !(m_formsOnly && formHistoryOpen(false))) return;   // (a search that is under way holds the text as it is)
     endTypedRun();
-    if (m_formsOnly && m_formUndo > 0) {
-        --m_formUndo;
-        ++m_formRedo;
-    }
     if (m_shapeEditor) {
         m_shapeEditor->undo();
         return;
@@ -83,12 +79,8 @@ void PageView::undo()
 void PageView::redo()
 {
     m_formEntry = QTextCursor();
-    if (editsBlocked() && !(m_formsOnly && m_formRedo > 0 && m_searchBlocks == 0)) return;
+    if (editsBlocked() && !(m_formsOnly && formHistoryOpen(true))) return;
     endTypedRun();
-    if (m_formsOnly && m_formRedo > 0) {
-        --m_formRedo;
-        ++m_formUndo;
-    }
     if (m_shapeEditor) {
         m_shapeEditor->redo();
         return;
@@ -2066,7 +2058,15 @@ void PageView::setFormsOnly(bool on)
 {
     if (m_formsOnly == on) return;
     m_formsOnly = on;
-    m_formUndo = m_formRedo = 0;
+    m_formFloor = m_doc ? m_doc->lastStepSerial() : 0;
+}
+
+// In a document protected for forms, Undo takes back the steps made since the protection began (the fills, and the edits in sections it leaves out), and Redo does again those it took back:
+// the step Undo or Redo would work on is one made after the protection began.
+bool PageView::formHistoryOpen(bool redo) const
+{
+    if (!m_doc || m_searchBlocks > 0) return false;
+    return (redo ? m_doc->canRedo() && m_doc->lastRedoSerial() : m_doc->canUndo() ? m_doc->lastStepSerial() : 0) > m_formFloor;
 }
 
 // Whether the key would change text it must not: the place it lands is the selection, and, for Backspace and Delete with nothing selected, the character (or with Ctrl the words, held to the
@@ -2114,10 +2114,7 @@ bool PageView::clickInFormField(int at, const QPoint &globalPos, int clicks)
     const write::FormField f = write::formFieldBeginningAt(story, begin);
     if (!f.valid() || !f.fillable()) return false;
     if (f.kind == write::FormKind::CheckBox) {
-        if (write::setFormChecked(*m_doc, story, begin, !f.checked) && m_formsOnly) {
-            ++m_formUndo;
-            m_formRedo = 0;
-        }
+        write::setFormChecked(*m_doc, story, begin, !f.checked);
     } else if (f.kind == write::FormKind::DropDown) {
         if (clicks > 1) return true;
         Q_EMIT formChoiceWanted(begin, globalPos);
@@ -2147,10 +2144,7 @@ void PageView::finishFormEntry(bool wherever)
     bool fits = true;
     const QString finished = write::finishedFormText(f, f.result, &fits);
     if (!fits) Q_EMIT notice(tr("What you typed doesn't fit this field's format."));
-    else if (write::fillFormText(*m_doc, story, f.begin, finished, true) && m_formsOnly) {
-        ++m_formUndo;
-        m_formRedo = 0;
-    }
+    else write::fillFormText(*m_doc, story, f.begin, finished, true);
 }
 
 // Leaves the field the caret is in (a number or a date is finished in its picture) for the next one, or the one before it.
@@ -2162,10 +2156,7 @@ void PageView::goToFormField(const write::FormField &here, bool backward)
         bool fits = true;
         const QString finished = write::finishedFormText(here, here.result, &fits);
         if (!fits) Q_EMIT notice(tr("What you typed doesn't fit this field's format."));
-        else if (write::fillFormText(*m_doc, story, here.begin, finished, true) && m_formsOnly) {
-            ++m_formUndo;
-            m_formRedo = 0;
-        }
+        else write::fillFormText(*m_doc, story, here.begin, finished, true);
     }
     const write::FormField next = write::nextFormField(story, here.valid() ? here.begin : m_cursor.selectionStart() - 1, backward);
     if (next.valid()) {
@@ -2198,12 +2189,6 @@ bool PageView::formKey(QKeyEvent *e)
     if (!write::fieldsNearSelection(story, m_cursor).any) return false;
     const write::FormField f = write::formFieldAtSelection(story, m_cursor.selectionStart(), m_cursor.selectionEnd());
     if (!f.valid() || m_cursor.selectionEnd() > f.end) return false;
-    auto counted = [this](bool done) {
-        if (done && m_formsOnly) {
-            ++m_formUndo;
-            m_formRedo = 0;
-        }
-    };
     // Enter in a text field never splits the paragraph: in a protected document it goes on to the next field, as Tab does; in any other it does nothing.
     if (f.kind == write::FormKind::Text && (key == Qt::Key_Return || key == Qt::Key_Enter) && !(mods & Qt::AltModifier)) {
         if (m_formsOnly) goToFormField(f, false);
@@ -2211,7 +2196,7 @@ bool PageView::formKey(QKeyEvent *e)
     }
     if (!f.fillable()) return m_formsOnly;   // (a field that can't be filled in: in a protected document the key is no edit of anything)
     if (f.kind == write::FormKind::CheckBox) {
-        if (key == Qt::Key_Space && !(mods & Qt::AltModifier)) counted(write::setFormChecked(*m_doc, story, f.begin, !f.checked));
+        if (key == Qt::Key_Space && !(mods & Qt::AltModifier)) write::setFormChecked(*m_doc, story, f.begin, !f.checked);
         else if (!(m_formsOnly || key == Qt::Key_Space)) return false;
         caretMoved();
         viewport()->update();
@@ -2227,7 +2212,7 @@ bool PageView::formKey(QKeyEvent *e)
             for (int k = 1; k <= f.entries.size(); ++k) {
                 const int index = (std::max(f.chosen, 0) + k) % int(f.entries.size());
                 if (f.entries.at(index).startsWith(letter, Qt::CaseInsensitive)) {
-                    counted(write::chooseFormEntry(*m_doc, story, f.begin, index));
+                    write::chooseFormEntry(*m_doc, story, f.begin, index);
                     break;
                 }
             }
@@ -2281,10 +2266,6 @@ void PageView::enterInFormField(const write::FormField &f, int key, const QStrin
     const bool joins = kind >= 0 && !m_cursor.hasSelection() && !m_formEntry.isNull() && m_formEntry.document() == story && m_formEntry.position() == f.begin + 1 && m_formTyped.kind == kind &&
                        m_formTyped.caret == m_cursor.position() && m_formTyped.undo == story->availableUndoSteps() && m_formTyped.revision == story->revision();
     const bool done = write::fillFormText(*m_doc, story, f.begin, text, false, &shown, joins);
-    if (done && m_formsOnly && !joins) {
-        ++m_formUndo;
-        m_formRedo = 0;
-    }
     if (done) {   // (the field is finished when the caret leaves it)
         m_formEntry = QTextCursor(story);
         m_formEntry.setPosition(f.begin + 1);

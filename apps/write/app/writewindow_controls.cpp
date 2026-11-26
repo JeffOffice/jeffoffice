@@ -89,7 +89,7 @@ void WriteWindow::createControlActions()
             a->setCheckable(true);
             a->setChecked(i == field.chosen);
             connect(a, &QAction::triggered, this, [this, story, begin, i] {
-                if (m_doc && write::chooseFormEntry(*m_doc, story, begin, i)) m_view->noteFormFill();
+                if (m_doc) write::chooseFormEntry(*m_doc, story, begin, i);
                 m_view->setFocus(Qt::OtherFocusReason);
                 m_view->viewport()->update();
             });
