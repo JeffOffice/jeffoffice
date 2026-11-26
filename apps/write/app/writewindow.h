@@ -136,6 +136,8 @@ public:
     ~WriteWindow() override;
 
     QAction *act(const QString &id) const override;
+    // Shows (and clears) what a command of the document said of being turned down because Track Changes is on and its change is not recorded yet.
+    void showTrackNotice();
     QStringList actionIds() const override;
     Ribbon *ribbon() const override { return m_ribbon; }
     // Keys for styles and symbols (Options > Customize > Keyboard): the commands the page offers to add, the making of one by its id, and its name brought up to date with the document
@@ -519,6 +521,8 @@ private:
     QAction *m_repeatCtrlY = nullptr;
     quint64 m_documentCounter = 0;
     bool m_repeatIsTyping = false;
+    // With Track Changes on, whether the command is turned down because its change is not recorded yet (the status bar says so); the notice a core command left when it did the same.
+    bool turnedDownByTracking(const QString &id);
     QAction *mk(const QString &id, const QString &text, const QString &iconName, const QKeySequence &key, const std::function<void()> &fn, bool checkable = false);
     void createActions();
     void createFormatActions();

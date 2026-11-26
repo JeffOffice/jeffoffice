@@ -5,6 +5,7 @@
 #include "app/writewindow.h"
 #include "core/contentcontrolops.h"
 #include "core/editops.h"
+#include "core/trackpolicy.h"
 #include "core/fieldops.h"
 #include "core/findops.h"
 #include "core/formfieldops.h"
@@ -991,7 +992,13 @@ FindWords WriteFindPane::wordsOf(StoryWords *text)
     // The new words take the place of the first of the characters of the match, and the look of the first of them; the characters of it between pieces kept as XML
     // are taken away, and the pieces stay. (The matches come from the last to the first, so that no swap moves another.)
     write::WriteDoc *doc = m_win->document();
-    w.put = [doc, text, story](QTextCursor &match, const QString &with) {
+    w.put = [this, doc, text, story](QTextCursor &match, const QString &with) {
+        // (Changes in a header, a footer, or a note are not recorded yet: with Track Changes on, they are left as they are.)
+        if (doc && doc->trackChanges() && story != doc->story() && !write::isTrackedStory(story)) {
+            doc->trackNotice = write::trackRefusalText();
+            m_win->showTrackNotice();
+            return;
+        }
         if (!match.hasSelection()) {   // (a match of no characters: the new words go in at its place)
             if (with.isEmpty()) return;
             QTextCursor at(story);

@@ -3,6 +3,7 @@
 
 #include "core/editops.h"
 #include "core/reviewops.h"
+#include "core/trackpolicy.h"
 #include "core/tablemodel.h"
 #include "core/writeprops.h"
 #include "flow/tableflow.h"
@@ -213,11 +214,17 @@ struct TableCommand {
     int createdFrom;
     qsizetype retiredFrom;
     static inline int depth = 0;   // (one command that runs another is one command: the records go when the outer one is done)
-    explicit TableCommand(WriteDoc &d) : doc(d), createdFrom(d.flow().tables.count()), retiredFrom(d.retiredCells.size())
+    // Set when Track Changes is on and the command does not record its change: it is turned down (nothing is done) and `tableNotice` says why. The commands that record theirs say `tracks`.
+    bool refused = false;
+    explicit TableCommand(WriteDoc &d, bool tracks = false) : doc(d), createdFrom(d.flow().tables.count()), retiredFrom(d.retiredCells.size())
     {
         if (depth++ == 0) {
             doc.tableNotice.clear();
             if (doc.tableStepsSeen == 0) doc.tableStepsSeen = doc.nextStepSerial();
+            if (!tracks && doc.trackChanges() && !untrackedEditActive()) {
+                doc.tableNotice = trackRefusalText();
+                refused = true;
+            }
         }
     }
     ~TableCommand()
@@ -246,10 +253,17 @@ bool pastTheLimits(WriteDoc &doc, int rows, int columns, qint64 cells)
     return false;
 }
 
+// A row that is made while Track Changes is on is an inserted row: the start of the row with the mark (the person and the time) among its properties. (Defined with the tracked changes.)
+QByteArray markRowInserted(WriteDoc &doc, const QByteArray &open);
+
 // The rows and columns of the cells a selection is in (grid columns, so a cell that spans columns has all of them).
 struct Area {
     int r0 = 0, r1 = 0, c0 = 0, c1 = 0;
 };
+
+// With Track Changes on, deletes the rows r0 to r1 of the table of `v` as a tracked change: the words in them are marked deleted and each row says it is deleted. False (nothing done) when every
+// one of the rows was inserted by the reviewer, which are taken out for good as untracked changes always are. (Defined with the tracked changes.)
+bool trackedDeleteRows(WriteDoc &doc, QTextCursor &c, const std::shared_ptr<View> &v, int r0, int r1);
 
 Area areaOf(const View &v, const QTextCursor &c)
 {
@@ -689,6 +703,7 @@ void addRow(WriteDoc &doc, View &v, int ref, bool below)
             np->exact = rp->exact;
         }
         np->open = rowOpenFor(rp ? rp->open : QByteArray("<w:tr>"));
+        if (doc.trackChanges() && !untrackedEditActive()) np->open = markRowInserted(doc, np->open);
         row->app = np;
     }
     struct NewParagraph {
@@ -771,7 +786,7 @@ void giveCellKey(QTextBlock first, QTextBlock last, int key)
 
 bool removeSelectionAcrossCells(WriteDoc &doc, QTextCursor &c)
 {
-    TableCommand command(doc);   // (the keys it takes out of the story go with the step that the caller's edit makes)
+    TableCommand command(doc, true);   // (the keys it takes out of the story go with the step that the caller's edit makes; the caller's edit is tracked)
     if (!c.hasSelection() || doc.flow().tables.isEmpty()) return false;
     QTextDocument *d = c.document();
     const int from = c.selectionStart(), to = c.selectionEnd();
@@ -845,7 +860,7 @@ bool removeSelectionAcrossCells(WriteDoc &doc, QTextCursor &c)
 void insertTableRow(WriteDoc &doc, QTextCursor &c, bool below)
 {
     if (lockedByControl(c)) return;   // (a content control keeps what is in it)
-    TableCommand command(doc);
+    TableCommand command(doc, true);
     auto v = viewAt(doc, c.selectionStart());
     if (!v) return;
     const Area area = areaOf(*v, c);
@@ -861,6 +876,7 @@ void insertTableColumn(WriteDoc &doc, QTextCursor &c, bool right)
 {
     if (lockedByControl(c)) return;   // (a content control keeps what is in it)
     TableCommand command(doc);
+    if (command.refused) return;
     auto v = viewAt(doc, c.selectionStart());
     if (!v) return;
     flow::TableLayout &t = *v->layout;
@@ -967,9 +983,10 @@ void insertTableColumn(WriteDoc &doc, QTextCursor &c, bool right)
 void deleteTable(WriteDoc &doc, QTextCursor &c)
 {
     if (lockedByControl(c)) return;   // (a content control keeps what is in it)
-    TableCommand command(doc);
+    TableCommand command(doc, true);
     auto v = viewAt(doc, c.selectionStart());
     if (!v) return;
+    if (doc.trackChanges() && !untrackedEditActive() && trackedDeleteRows(doc, c, v, 0, v->layout->rowCount() - 1)) return;
     QTextDocument *d = tableStory(doc);
     const int stop = parentOf(*v);
     const int at = v->index.refs()[size_t(v->first)].pos;
@@ -985,7 +1002,7 @@ void deleteTable(WriteDoc &doc, QTextCursor &c)
 void deleteTableRows(WriteDoc &doc, QTextCursor &c)
 {
     if (lockedByControl(c)) return;   // (a content control keeps what is in it)
-    TableCommand command(doc);
+    TableCommand command(doc, true);
     auto v = viewAt(doc, c.selectionStart());
     if (!v) return;
     flow::TableLayout &t = *v->layout;
@@ -994,6 +1011,7 @@ void deleteTableRows(WriteDoc &doc, QTextCursor &c)
         deleteTable(doc, c);
         return;
     }
+    if (doc.trackChanges() && !untrackedEditActive() && trackedDeleteRows(doc, c, v, area.r0, area.r1)) return;
     QTextDocument *d = tableStory(doc);
     flow::TableStore &store = doc.flow().tables;
     retireRange(doc, v->index.refs()[size_t(v->first)].pos, v->index.refs()[size_t(v->last - 1)].end);
@@ -1082,6 +1100,7 @@ void deleteTableColumns(WriteDoc &doc, QTextCursor &c)
 {
     if (lockedByControl(c)) return;   // (a content control keeps what is in it)
     TableCommand command(doc);
+    if (command.refused) return;
     auto v = viewAt(doc, c.selectionStart());
     if (!v) return;
     flow::TableLayout &t = *v->layout;
@@ -1172,7 +1191,8 @@ void deleteTableColumns(WriteDoc &doc, QTextCursor &c)
 bool deleteTableCellsShiftLeft(WriteDoc &doc, QTextCursor &c, bool apply)
 {
     if (lockedByControl(c)) return false;   // (a content control keeps what is in it)
-    TableCommand command(doc);
+    TableCommand command(doc, !apply);
+    if (command.refused) return false;
     auto v = viewAt(doc, c.selectionStart());
     if (!v) return false;
     flow::TableLayout &t = *v->layout;
@@ -1226,7 +1246,8 @@ bool deleteTableCellsShiftLeft(WriteDoc &doc, QTextCursor &c, bool apply)
 bool deleteTableCellsShiftUp(WriteDoc &doc, QTextCursor &c, bool apply)
 {
     if (lockedByControl(c)) return false;   // (a content control keeps what is in it)
-    TableCommand command(doc);
+    TableCommand command(doc, !apply);
+    if (command.refused) return false;
     auto v = viewAt(doc, c.selectionStart());
     if (!v) return false;
     const flow::TableLayout &t = *v->layout;
@@ -1301,7 +1322,7 @@ bool deleteTableCellsShiftUp(WriteDoc &doc, QTextCursor &c, bool apply)
 
 bool tabThroughCells(WriteDoc &doc, QTextCursor &c, bool back)
 {
-    TableCommand command(doc);
+    TableCommand command(doc, true);
     auto v = viewAt(doc, c.position());
     if (!v) return false;
     const flow::TableLayout &t = *v->layout;
@@ -1714,6 +1735,7 @@ double naturalWidth(const QTextDocument *d, int from, int to, QHash<QString, QFo
 void setShading(WriteDoc &doc, QTextCursor &c, const QColor &fill)
 {
     TableCommand command(doc);
+    if (command.refused) return;
     editTable(doc, c, [&](XTable &x, const View &v, const Area &a) {
         forCells(x, v, a, [&](XCell &cell, const flow::TableLayout::Cell &) { cell.open = patchPr(cell.open, kCell, {{"shd", shdXml(fill)}}); });
         return true;
@@ -1723,6 +1745,7 @@ void setShading(WriteDoc &doc, QTextCursor &c, const QColor &fill)
 void setBorders(WriteDoc &doc, QTextCursor &c, int sides, const flow::TableLine &line)
 {
     TableCommand command(doc);
+    if (command.refused) return;
     editTable(doc, c, [&](XTable &x, const View &v, const Area &a) {
         const flow::TableLayout &t = *v.layout;
         auto edge = [&](const char *side, bool on) { return on ? borderXml(side, line) : QByteArray(); };
@@ -1781,6 +1804,7 @@ bool moveTable(WriteDoc &doc, QTextCursor &c, int tablePosition, int to)
     const int removed = after.position() - start;
     const QTextDocumentFragment fragment = whole.selection();
     TableCommand command(doc);
+    if (command.refused) return false;
     QTextCursor edit(story);
     edit.beginEditBlock();
     QTextCursor cutFrom(story), cutTo(story), put(story);
@@ -1892,6 +1916,7 @@ bool paintBorderEdges(WriteDoc &doc, const QVector<BorderEdge> &edges, const flo
 {
     if (edges.isEmpty()) return false;
     TableCommand command(doc);
+    if (command.refused) return false;
     QTextCursor at(tableStory(doc));
     at.setPosition(std::clamp(edges.first().cell, 0, std::max(0, tableStory(doc)->characterCount() - 1)));
     bool changed = false;
@@ -1918,6 +1943,7 @@ bool paintBorderEdges(WriteDoc &doc, const QVector<BorderEdge> &edges, const flo
 void setCellAlignment(WriteDoc &doc, QTextCursor &c, Qt::Alignment across, flow::CellAlign down)
 {
     TableCommand command(doc);
+    if (command.refused) return;
     const auto v = viewAt(doc, c.selectionStart());
     if (!v) return;
     const Area area = areaOf(*v, c);
@@ -1953,6 +1979,7 @@ bool hasTurnedText(WriteDoc &doc, const QTextCursor &c)
 void setCellTextDirection(WriteDoc &doc, QTextCursor &c, flow::CellDirection direction)
 {
     TableCommand command(doc);
+    if (command.refused) return;
     editTable(doc, c, [&](XTable &x, const View &w, const Area &a) {
         const QByteArray element = direction == flow::CellDirection::TopToBottom ? QByteArray("<w:textDirection w:val=\"tbRl\"/>")
                                    : direction == flow::CellDirection::BottomToTop ? QByteArray("<w:textDirection w:val=\"btLr\"/>") : QByteArray();
@@ -1971,6 +1998,7 @@ void setCellTextDirection(WriteDoc &doc, QTextCursor &c, flow::CellDirection dir
 void setColumnWidth(WriteDoc &doc, QTextCursor &c, double points)
 {
     TableCommand command(doc);
+    if (command.refused) return;
     editTable(doc, c, [&](XTable &x, const View &v, const Area &a) {
         QVector<double> columns = x.columns;
         for (int col = a.c0; col <= a.c1 && col < columns.size(); ++col) columns[col] = std::max(1.0, points);
@@ -1985,6 +2013,7 @@ void setColumnWidth(WriteDoc &doc, QTextCursor &c, double points)
 void setTableWidth(WriteDoc &doc, QTextCursor &c, double points)
 {
     TableCommand command(doc);
+    if (command.refused) return;
     editTable(doc, c, [&](XTable &x, const View &v, const Area &) {
         QVector<double> columns = x.columns;
         double sum = 0;
@@ -2000,6 +2029,7 @@ void setTableWidth(WriteDoc &doc, QTextCursor &c, double points)
 void setRowHeight(WriteDoc &doc, QTextCursor &c, double points, bool exact)
 {
     TableCommand command(doc);
+    if (command.refused) return;
     editTable(doc, c, [&](XTable &x, const View &, const Area &a) {
         const QByteArray height = points > 0 ? "<w:trHeight w:val=\"" + twipsText(points) + "\" w:hRule=\"" + (exact ? "exact" : "atLeast") + "\"/>" : QByteArray();
         for (int r = a.r0; r <= a.r1 && r < x.rows.size(); ++r) x.rows[r].open = patchPr(x.rows[r].open, kRow, {{"trHeight", height}});
@@ -2010,6 +2040,7 @@ void setRowHeight(WriteDoc &doc, QTextCursor &c, double points, bool exact)
 void distributeColumns(WriteDoc &doc, QTextCursor &c)
 {
     TableCommand command(doc);
+    if (command.refused) return;
     editTable(doc, c, [&](XTable &x, const View &v, const Area &a) {
         QVector<double> columns = x.columns;
         int c0 = a.c0, c1 = std::min<int>(a.c1, int(columns.size()) - 1);
@@ -2028,6 +2059,7 @@ void distributeColumns(WriteDoc &doc, QTextCursor &c)
 void distributeRows(WriteDoc &doc, QTextCursor &c)
 {
     TableCommand command(doc);
+    if (command.refused) return;
     editTable(doc, c, [&](XTable &x, const View &v, const Area &a) {
         int r0 = a.r0, r1 = std::min<int>(a.r1, int(x.rows.size()) - 1);
         if (r0 >= r1) {
@@ -2054,6 +2086,7 @@ double textWidthAt(WriteDoc &doc, int position)
 void fitTable(WriteDoc &doc, QTextCursor &c, TableFit fit)
 {
     TableCommand command(doc);
+    if (command.refused) return;
     const double room = textWidthAt(doc, c.selectionStart());
     editTable(doc, c, [&](XTable &x, const View &v, const Area &) {
         const flow::TableLayout &t = *v.layout;
@@ -2176,6 +2209,7 @@ TableProps tablePropsAt(WriteDoc &doc, const QTextCursor &c)
 void setTableProps(WriteDoc &doc, QTextCursor &c, const TableProps &was, const TableProps &now)
 {
     TableCommand command(doc);
+    if (command.refused) return;
     if (!now.style.isEmpty() && now.style != was.style) doc.ensureTableStyle(now.style);
     editTable(doc, c, [&](XTable &x, const View &v, const Area &a) {
         QVector<Patch> table;
@@ -2233,6 +2267,7 @@ void setTableProps(WriteDoc &doc, QTextCursor &c, const TableProps &was, const T
 void setTableStyle(WriteDoc &doc, QTextCursor &c, const QString &styleId)
 {
     TableCommand command(doc);
+    if (command.refused) return;
     if (!styleId.isEmpty()) doc.ensureTableStyle(styleId);
     editTable(doc, c, [&](XTable &x, const View &, const Area &) {
         x.open = patchPr(x.open, kTbl, {{"tblStyle", styleId.isEmpty() ? QByteArray() : "<w:tblStyle w:val=\"" + escapeXml(styleId, true) + "\"/>"}});
@@ -2278,6 +2313,7 @@ void restyleTablesOfStyles(WriteDoc &doc, const QSet<QString> &styleIds)
 void setTableLook(WriteDoc &doc, QTextCursor &c, int mask, bool on)
 {
     TableCommand command(doc);
+    if (command.refused) return;
     editTable(doc, c, [&](XTable &x, const View &, const Area &) {
         int look = readTableMark(TableMark::Table, x.open).look;
         look = on ? (look | mask) : (look & ~mask);
@@ -2334,6 +2370,7 @@ bool insertReadyTable(WriteDoc &doc, QTextCursor &c, ReadyTable kind, const QDat
     table.rows = int(rows.size());
     table.columns = int(rows.first().size());
     TableCommand command(doc);
+    if (command.refused) return false;
     c.beginEditBlock();
     if (!insertTable(doc, c, table)) {
         c.endEditBlock();
@@ -2383,7 +2420,7 @@ bool roomToNest(WriteDoc &doc, int position, int columns)
 
 bool insertTable(WriteDoc &doc, QTextCursor &c, const NewTable &table)
 {
-    TableCommand command(doc);
+    TableCommand command(doc, true);
     if (table.rows < 1 || table.columns < 1 || table.rows > 500 || table.columns > 63) return false;
     QTextDocument *d = tableStory(doc);
     if (c.document() != d || (cellKeyOf(d->findBlock(c.selectionStart())) && !table.nested) || inEndnoteWords(c)) return false;   // (a note's words are paragraphs and no more: the notes the pages set hold no table)
@@ -2412,6 +2449,7 @@ bool insertTable(WriteDoc &doc, QTextCursor &c, const NewTable &table)
     for (int r = 0; r < table.rows; ++r) {
         XRow row;
         row.open = "<w:tr>";
+        if (doc.trackChanges() && !untrackedEditActive()) row.open = markRowInserted(doc, row.open);
         for (int col = 0; col < table.columns; ++col) {
             XCell cell;
             cell.open = "<w:tc><w:tcPr><w:tcW w:w=\"" + QByteArray::number(twipsOf(columns, col, 1)) + "\" w:type=\"dxa\"/></w:tcPr>";
@@ -2536,6 +2574,7 @@ bool mergeCells(WriteDoc &doc, QTextCursor &c)
 {
     if (lockedByControl(c)) return false;   // (a content control keeps what is in it)
     TableCommand command(doc);
+    if (command.refused) return false;
     const auto v = viewAt(doc, c.selectionStart());
     if (!v) return false;
     const Area a = closedArea(*v, areaOf(*v, c));
@@ -2695,6 +2734,7 @@ bool splitCells(WriteDoc &doc, QTextCursor &c, int columns, int rows)
 {
     if (lockedByControl(c)) return false;   // (a content control keeps what is in it)
     TableCommand command(doc);
+    if (command.refused) return false;
     if (columns < 1 || rows < 1 || columns * rows < 2) return refuse(doc, tableText(QT_TRANSLATE_NOOP("jp::write::Tables", "A cell is split into at least two cells.")));
     if (columns > 63) return refuse(doc, tableText(QT_TRANSLATE_NOOP("jp::write::Tables", "A cell can be split into at most 63 columns.")));
     if (rows > 500) return refuse(doc, tableText(QT_TRANSLATE_NOOP("jp::write::Tables", "A cell can be split into at most 500 rows.")));
@@ -3073,6 +3113,7 @@ bool canConvertTextToTable(WriteDoc &doc, const QTextCursor &c)
 bool convertTextToTable(WriteDoc &doc, QTextCursor &c, TextSeparator separator, QChar other, int columns)
 {
     TableCommand command(doc);
+    if (command.refused) return false;
     QTextDocument *d = tableStory(doc);
     if (!canConvertTextToTable(doc, c)) return refuse(doc, tableText(QT_TRANSLATE_NOOP("jp::write::Tables", "Text that is in a table can't be made into a table.")));
     int a = c.selectionStart(), b = c.selectionEnd();
@@ -3280,6 +3321,7 @@ bool pasteCells(WriteDoc &doc, QTextCursor &c, const office::wml::ClipTable &cel
 {
     if (lockedByControl(c)) return false;   // (a content control keeps what is in it)
     TableCommand command(doc);
+    if (command.refused) return false;
     if (cells.rows.isEmpty() || cells.rows[0].isEmpty() || !canPasteCells(doc, c, how)) return false;
     const int rows = int(cells.rows.size()), cols = int(cells.rows[0].size());
     if (rows > office::wml::kMostClipRows || cols > office::wml::kMostClipColumns) return refuse(doc, tableText(QT_TRANSLATE_NOOP("jp::write::Tables", "A table pasted from cells can have at most 500 rows and 63 columns.")));
@@ -3354,6 +3396,7 @@ bool convertTableToText(WriteDoc &doc, QTextCursor &c, TextSeparator separator, 
 {
     if (lockedByControl(c)) return false;   // (a content control keeps what is in it)
     TableCommand command(doc);
+    if (command.refused) return false;
     const auto v = viewAt(doc, c.selectionStart());
     if (!v) return false;
     QTextDocument *d = tableStory(doc);
@@ -3401,6 +3444,7 @@ bool splitTable(WriteDoc &doc, QTextCursor &c)
 {
     if (lockedByControl(c)) return false;   // (a content control keeps what is in it)
     TableCommand command(doc);
+    if (command.refused) return false;
     const auto v = viewAt(doc, c.selectionStart());
     if (!v) return false;
     const flow::TableLayout &t = *v->layout;
@@ -3450,6 +3494,7 @@ bool sortTableRows(WriteDoc &doc, QTextCursor &c, const QVector<TableSortKey> &k
 {
     if (lockedByControl(c)) return false;   // (a content control keeps what is in it)
     TableCommand command(doc);
+    if (command.refused) return false;
     if (keys.isEmpty()) return false;
     const auto v = viewAt(doc, c.selectionStart());
     if (!v) return false;
@@ -3666,6 +3711,66 @@ TableChange makeChange(TableChange::Kind kind, const QByteArray &xml, int from, 
     c.to = to;
     c.block = block;
     return c;
+}
+
+} // namespace
+
+namespace {
+
+// Whether the row is one the reviewer inserted while changes were tracked, or one that says it is deleted.
+bool rowSays(WriteDoc &doc, const flow::TableLayout::Row &row, const char *name, bool byReviewer)
+{
+    const RowPart *rp = static_cast<const RowPart *>(row.data->app.get());
+    if (!rp) return false;
+    for (const Record &r : recordsOf(rp->open, kRow))
+        if (r.name == name && (!byReviewer || revisionAuthorOf(r.xml) == doc.reviewer())) return true;
+    return false;
+}
+
+QByteArray markRowInserted(WriteDoc &doc, const QByteArray &open)
+{
+    QByteArray mark = revisionStartTag(doc, QStringLiteral("ins"));
+    mark.chop(1);
+    return patchPr(open, kRow, {{"ins", mark + "/>"}});
+}
+
+bool trackedDeleteRows(WriteDoc &doc, QTextCursor &c, const std::shared_ptr<View> &v, int r0, int r1)
+{
+    const flow::TableLayout &t = *v->layout;
+    r1 = std::min(r1, t.rowCount() - 1);
+    if (r0 < 0 || r0 > r1) return false;
+    bool allOwn = true;
+    for (int r = r0; r <= r1 && allOwn; ++r) allOwn = rowSays(doc, t.row(r), "ins", true);
+    if (allOwn) return false;
+    QTextDocument *d = tableStory(doc);
+    // The words of every cell of the rows, last first (marking a deletion puts pieces in the text, which move the places after them).
+    struct Span {
+        int from, to;
+    };
+    QVector<Span> spans;
+    for (int r = r0; r <= r1; ++r)
+        for (int i = t.row(r).cell0; i < t.row(r).cell0 + t.row(r).cells; ++i) {
+            const flow::TableLayout::Cell &cell = t.cell(i);
+            if (cell.to - 1 > cell.from) spans.push_back({cell.from, cell.to - 1});
+        }
+    std::sort(spans.begin(), spans.end(), [](const Span &a, const Span &b) { return a.from > b.from; });
+    const flow::TableLayout::Row &first = t.row(r0), &last = t.row(r1);
+    QTextCursor rows(d);   // (it stays on the rows as the pieces go in)
+    rows.setPosition(t.cell(first.cell0).from);
+    rows.setPosition(t.cell(last.cell0 + last.cells - 1).to - 1, QTextCursor::KeepAnchor);
+    QVector<bool> already;
+    for (int r = r0; r <= r1; ++r) already.push_back(rowSays(doc, t.row(r), "del", false));
+    c.beginEditBlock();
+    for (const Span &s : std::as_const(spans)) trackRangeDeleted(doc, d, s.from, s.to);
+    QByteArray mark = revisionStartTag(doc, QStringLiteral("del"));
+    mark.chop(1);
+    editTable(doc, rows, [&](XTable &x, const View &, const Area &a) {
+        for (int r = a.r0; r <= a.r1 && r < x.rows.size(); ++r)
+            if (r - r0 >= 0 && r - r0 < already.size() ? !already[r - r0] : true) x.rows[r].open = patchPr(x.rows[r].open, kRow, {{"del", mark + "/>"}});
+        return true;
+    });
+    c.endEditBlock();
+    return true;
 }
 
 } // namespace
@@ -4015,7 +4120,7 @@ bool saysTracked(const QByteArray &xml)
 
 } // namespace
 
-TableRecordScope::TableRecordScope(WriteDoc &doc) : m_command(new TableCommand(doc)) {}
+TableRecordScope::TableRecordScope(WriteDoc &doc) : m_command(new TableCommand(doc, true)) {}
 
 TableRecordScope::~TableRecordScope() { delete static_cast<TableCommand *>(m_command); }
 

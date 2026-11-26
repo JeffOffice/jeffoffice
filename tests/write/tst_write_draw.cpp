@@ -3988,6 +3988,11 @@ private Q_SLOTS:
         win.w.view()->selectObjects({0, 1});
         win.w.refreshNow();
         const QByteArray before = documentXml(doc->toDocx());
+        // (A change of a drawn object is not recorded as a tracked change, so with Track Changes on it is turned down, and the document is as it was.)
+        win.w.act("shape.union")->trigger();
+        QCOMPARE(drawnPlaces(*doc).size(), 2);
+        QCOMPARE(documentXml(doc->toDocx()), before);
+        doc->setTrackChanges(false);
         win.w.act("shape.union")->trigger();
         QCOMPARE(drawnPlaces(*doc).size(), 1);
         QVERIFY(doc->undo());

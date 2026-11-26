@@ -3310,11 +3310,9 @@ private Q_SLOTS:
         const QByteArray plain = bodyXml(w.document()->toDocx());
         putCells({QStringLiteral("a|b")});
         w.view()->pasteCellsAsColumns();
-        const QByteArray xml = bodyXml(w.document()->toDocx());
-        QCOMPARE(count(w, "<w:gridCol "), 3);
-        QCOMPARE(xml.count("<w:del "), 0);
-        QCOMPARE(xml.count("<w:cellIns"), plain.count("<w:cellIns"));
-        QCOMPARE(xml.count("<w:ins "), 2);
+        // (New columns are not recorded as tracked changes yet, so with Track Changes on they are turned down and nothing changes with no mark.)
+        QCOMPARE(bodyXml(w.document()->toDocx()), plain);
+        QCOMPARE(count(w, "<w:gridCol "), 1);
     }
 
     // Set Default Paste: what Paste does is the form set for where the content came from: this document, another document, or another program. The Options > Advanced page chooses them.

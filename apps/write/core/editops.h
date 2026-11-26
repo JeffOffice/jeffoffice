@@ -95,6 +95,8 @@ public:
     UntrackedEdit(const UntrackedEdit &) = delete;
     UntrackedEdit &operator=(const UntrackedEdit &) = delete;
 };
+// Whether an UntrackedEdit is alive (the program's own code is changing the document, and what it does is not a person's edit to record).
+bool untrackedEditActive();
 // While one is alive, an edit of this story (the words of a text box, taken out of the document to be changed) is recorded as a tracked change when Track Changes is on, as one of the text's is.
 class TrackedStory {
 public:

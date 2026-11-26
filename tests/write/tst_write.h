@@ -48,6 +48,7 @@
 #include "core/gotoops.h"
 #include "app/tabledialogs.h"
 #include "core/tableops.h"
+#include "core/trackpolicy.h"
 #include "core/wordformat.h"
 #include "core/writedoc.h"
 #include "core/writeprops.h"
@@ -1894,7 +1895,7 @@ private Q_SLOTS:
     void draggingTheBorderPainterAlongALinePutsTheBorderOnBothSides();
     void theBorderPainterWithNoBorderAsItsStyleErasesTheLinesItIsDraggedAlong();
     void paintedBordersSurviveSaveAndOpenInEveryFormat();
-    void paintingBordersWithTrackChangesOnIsNotRecordedAsTheOtherBorderCommandsAreNot();
+    void paintingBordersWithTrackChangesOnIsTurnedDownAsTheOtherTableCommandsAre();
     void theBorderPainterIsInTheTableDesignTabAndTheCellMenu();
     void aTableHandleAtTheCornerMovesTheTableWhenPulledAndSelectsItWhenClicked();
     void movingATableKeepsItsCellsAndBordersThroughEveryFormat();
@@ -1903,7 +1904,7 @@ private Q_SLOTS:
     void aTableIsOfferedAMoveOnlyWhereTheMoveIsDoneAndAFailedMoveSaysWhy();
     void aTableIsNotPutRightAgainstAnotherTable();
     void aTablePulledAndLetGoInAnotherTableMovesNothingAndSaysSo();
-    void movingATableWithTrackChangesOnRecordsNothingAsDeleteTableDoesNot();
+    void movingATableWithTrackChangesOnIsTurnedDownAsTheOtherTableCommandsAre();
     void aTableMoveIsOneLookAtItsNeighborsNotAWalkOfTheTable();
     void lettingGoOfAPullOnLosingTheFocusDoesNotMoveTheTableOrPaintBorders();
     void theMoveHandleIsNotShownWhereTheDocumentCannotBeChanged();

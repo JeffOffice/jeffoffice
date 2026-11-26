@@ -6,6 +6,7 @@
 #include "app/ribboncustom.h"
 #include "app/writewindow.h"
 #include "core/pagesetup.h"
+#include "core/trackpolicy.h"
 #include "core/themeops.h"
 #include "core/normaltemplate.h"
 #include "core/pagenumberops.h"
@@ -239,6 +240,7 @@ QAction *WriteWindow::mk(const QString &id, const QString &text, const QString &
             runWhereOpen(openHere, fn);
         }
         if (!self) return;
+        showTrackNotice();
         if (m_doc && (repeatableCommand(id) || m_testRepeatable.contains(id))) {
             // (A command that turns something on or off is repeated as the state it made, not as a toggle: bold on one word is bold on the next, whatever that has.)
             const std::optional<bool> made = toggleResult(id);
@@ -256,6 +258,23 @@ QAction *WriteWindow::mk(const QString &id, const QString &text, const QString &
 }
 
 QAction *WriteWindow::act(const QString &id) const { return m_actions.value(id); }
+
+bool WriteWindow::turnedDownByTracking(const QString &id)
+{
+    if (!m_doc || !m_doc->trackChanges()) return false;
+    const write::TrackPolicy policy = write::trackPolicyOf(id);
+    if (policy == write::TrackPolicy::Neutral || policy == write::TrackPolicy::Tracked) return false;
+    if (policy == write::TrackPolicy::TrackedInText && !cursorInTable()) return false;
+    statusBar()->showMessage(write::trackRefusalText(), 6000);
+    return true;
+}
+
+void WriteWindow::showTrackNotice()
+{
+    if (!m_doc || m_doc->trackNotice.isEmpty()) return;
+    statusBar()->showMessage(m_doc->trackNotice, 6000);
+    m_doc->trackNotice.clear();
+}
 
 QStringList WriteWindow::actionIds() const
 {
@@ -429,6 +448,7 @@ struct Edit {
         w->document()->takeFormattingRefused();
         fn(*w->document(), w->view()->cursor());
         if (w->document()->takeFormattingRefused()) w->statusBar()->showMessage(QCoreApplication::translate("jp::WriteWindow", "Formatting is limited in this document. Only styles that are not locked can be used."), 6000);
+        w->showTrackNotice();
         w->view()->setFocus(Qt::OtherFocusReason);
         w->view()->viewport()->update();
     }

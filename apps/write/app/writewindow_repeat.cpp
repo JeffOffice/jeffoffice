@@ -150,7 +150,7 @@ bool WriteWindow::refuseCommand(const QString &id, bool *openHere)
         return true;
     }
     if (openHere) *openHere = openByForms;
-    return false;
+    return turnedDownByTracking(id);
 }
 
 // Runs a command in text a forms-protected document leaves open: the window is not read only for the length of the command.

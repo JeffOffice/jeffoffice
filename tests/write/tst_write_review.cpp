@@ -18,6 +18,7 @@
 #include "app/reviewpane.h"
 #include "app/writefindpane.h"
 #include "app/writewindow.h"
+#include "app/writeoutlineview.h"
 #include "wml/xmltree.h"
 #include "core/appinfo.h"
 #include "core/commentops.h"
@@ -27,6 +28,8 @@
 #include "core/fonts.h"
 #include "core/reviewops.h"
 #include "core/spellcheck.h"
+#include "core/tableops.h"
+#include "core/trackpolicy.h"
 #include "core/writedoc.h"
 #include "core/writeprops.h"
 #include "office/package.h"
@@ -5952,6 +5955,386 @@ private Q_SLOTS:
         }
         // four times the marks, about four times the work (counted changes, not time)
         QVERIFY2(counts[1] <= 4 * counts[0] + 100, qPrintable(QStringLiteral("%1 vs %2").arg(counts[0]).arg(counts[1])));
+    }
+
+    // ---------------------------------------------------------------- what each command does while Track Changes is on (slice 1 of tracking everything a person edits)
+    static QTextCursor inParagraph(WriteDoc &doc, const char *text, int offset = 1)
+    {
+        QTextCursor c(doc.story());
+        for (QTextBlock b = doc.story()->begin(); b.isValid(); b = b.next())
+            if (b.text() == QLatin1String(text)) c.setPosition(b.position() + offset);
+        return c;
+    }
+
+    static QByteArray twoByTwoTable() { return para(run("before")) + tableOf({{QByteArray(), {cellOf({}, para(run("a1"))), cellOf({}, para(run("a2")))}}, {QByteArray(), {cellOf({}, para(run("b1"))), cellOf({}, para(run("b2")))}}}, 2); }
+
+    static int rowsOf(const QByteArray &xmlText) { return count(xmlText, "<w:tr>") + count(xmlText, "<w:tr "); }
+
+    void everyCommandOfTheWindowIsNamedInTheTrackingPolicy()
+    {
+        WriteWindow w;
+        QStringList unnamed;
+        for (const QString &id : w.actionIds()) {
+            bool known = false;
+            trackPolicyOf(id, &known);
+            if (!known) unnamed << id;
+        }
+        QVERIFY2(unnamed.isEmpty(), qPrintable(unnamed.join(QLatin1Char(' '))));
+        QCOMPARE(trackPolicyOf(QStringLiteral("fmt.bold")), TrackPolicy::Tracked);
+        QCOMPARE(trackPolicyOf(QStringLiteral("layout.size.a4")), TrackPolicy::Refused);
+        QCOMPARE(trackPolicyOf(QStringLiteral("view.ruler")), TrackPolicy::Neutral);
+        bool known = true;
+        QCOMPARE(trackPolicyOf(QStringLiteral("some.command.added.later"), &known), TrackPolicy::Refused);
+        QVERIFY(!known);
+    }
+
+    void aCommandWhoseChangeIsNotRecordedIsTurnedDownWithTrackingOnAndChangesNothing()
+    {
+        for (const char *id : {"layout.size.a4", "layout.columns.2", "layout.margins.narrow", "layout.landscape", "para.bullets", "para.numbers", "para.indentInc", "refs.footnote", "refs.endnote",
+                               "refs.toc", "insert.header", "insert.footer", "insert.control.text", "design.watermark.1", "insert.chart.bar", "insert.textBox.simple", "insert.equation.design.0"}) {
+            WriteWindow w;
+            w.setNotifier([](const QString &, const QString &) {});
+            w.show();
+            w.setDocument(open(makeDocx(para(run("alpha beta")) + para(run("gamma")))), QString());
+            WriteDoc *doc = w.document();
+            QTextCursor c(doc->story());
+            c.setPosition(6);
+            c.setPosition(10, QTextCursor::KeepAnchor);
+            w.view()->setCursor(c);
+            QAction *a = w.act(QString::fromLatin1(id));
+            QVERIFY2(a, id);
+            doc->setTrackChanges(true);
+            const QByteArray before = documentXml(doc->toDocx());
+            a->trigger();
+            QVERIFY2(documentXml(doc->toDocx()) == before, id);
+            QVERIFY2(w.statusBar()->currentMessage() == trackRefusalText(), id);
+            QVERIFY2(!doc->canUndo(), id);
+        }
+    }
+
+    void withTrackingOffTheSameCommandsStillWork()
+    {
+        WriteWindow w;
+        w.setNotifier([](const QString &, const QString &) {});
+        w.show();
+        w.setDocument(open(makeDocx(para(run("alpha beta")) + para(run("gamma")))), QString());
+        QTextCursor c(w.document()->story());
+        c.setPosition(2);
+        w.view()->setCursor(c);
+        const QByteArray before = documentXml(w.document()->toDocx());
+        w.act(QStringLiteral("layout.landscape"))->trigger();
+        QVERIFY(documentXml(w.document()->toDocx()) != before);
+    }
+
+    // Runs every command that is said to be recorded, with the caret in the text and in a table's cell, and checks that a change it makes comes with a mark: a command that changes the file and marks
+    // nothing is the worst case (it changes the document with no sign of it).
+    void everyCommandSaidToBeRecordedMarksItsChangeOrChangesNothing()
+    {
+        const QByteArray body = para(run("alpha beta")) + para(run("gamma")) + tableOf({{QByteArray(), {cellOf({}, para(run("a1"))), cellOf({}, para(run("a2")))}}, {QByteArray(), {cellOf({}, para(run("b1"))), cellOf({}, para(run("b2")))}}}, 2);
+        auto marks = [](const QByteArray &x) { return count(x, "<w:ins ") + count(x, "<w:del ") + count(x, "<w:ins/>") + count(x, "<w:del/>") + count(x, "Change "); };
+        WriteWindow w;
+        w.setNotifier([](const QString &, const QString &) {});
+        w.show();
+        QTimer closer;
+        QObject::connect(&closer, &QTimer::timeout, [] {
+            if (QWidget *m = QApplication::activeModalWidget()) m->close();
+        });
+        closer.start(20);
+        QStringList silent;
+        int ran = 0, marked = 0;
+        for (const QString &id : w.actionIds()) {
+            const TrackPolicy policy = trackPolicyOf(id);
+            if (policy != TrackPolicy::Tracked && policy != TrackPolicy::TrackedInText) continue;
+            for (int scenario = 0; scenario < 2; ++scenario) {
+                w.setDocument(open(makeDocx(body)), QString());
+                WriteDoc *doc = w.document();
+                doc->setTrackChanges(true);
+                const QByteArray before = documentXml(doc->toDocx());
+                QTextCursor c(doc->story());
+                if (scenario == 0) {
+                    c.setPosition(6);
+                    c.setPosition(10, QTextCursor::KeepAnchor);
+                } else {
+                    c = inParagraph(*doc, "a1");
+                }
+                w.view()->setCursor(c);
+                const bool outline = id.startsWith(QLatin1String("outline."));
+                if (outline && w.outlineView() == nullptr) w.act(QStringLiteral("view.outline"))->trigger();
+                if (outline) {
+                    w.act(QStringLiteral("view.outline"))->trigger();
+                    w.outlineView()->selectParagraphAt(inParagraph(*doc, "gamma").block().position());
+                }
+                QAction *a = w.act(id);
+                if (!a || !a->isEnabled()) continue;
+                a->trigger();
+                if (outline) w.act(QStringLiteral("view.printLayout"))->trigger();
+                ++ran;
+                const QByteArray after = documentXml(doc->toDocx());
+                if (after == before) continue;
+                if (marks(after) > marks(before)) ++marked;
+                else silent << id;
+            }
+        }
+        closer.stop();
+        QVERIFY2(silent.isEmpty(), qPrintable(silent.join(QLatin1Char(' '))));
+        QVERIFY2(ran > 40 && marked > 20, qPrintable(QStringLiteral("%1 ran, %2 marked").arg(ran).arg(marked)));
+    }
+
+    void aRowInsertedWithTrackingOnIsAnInsertedRowThatRejectTakesOutAndAcceptKeeps()
+    {
+        const QByteArray file = makeDocx(twoByTwoTable());
+        for (const bool below : {true, false}) {
+            auto doc = open(file);
+            QVERIFY(doc);
+            doc->setReviewer(QStringLiteral("Zed"), QString());
+            const QByteArray saved = documentXml(doc->toDocx());
+            doc->setTrackChanges(true);
+            QTextCursor c = inParagraph(*doc, "a1");
+            insertTableRow(*doc, c, below);
+            const QByteArray marked = documentXml(doc->toDocx());
+            QCOMPARE(rowsOf(marked), 3);
+            QCOMPARE(count(marked, "<w:trPr><w:ins "), 1);
+            QVERIFY2(marked.contains("w:author=\"Zed\""), marked.constData());
+            QCOMPARE(documentRevisionCount(*doc), 1);
+            // Saved and read back, the row is an inserted row to review: Reject All gives the saved file back, Accept All leaves the row with no mark.
+            auto again = open(doc->toDocx());
+            QVERIFY(again);
+            QCOMPARE(documentRevisionCount(*again), 1);
+            QCOMPARE(rejectAll(*again), 1);
+            QVERIFY2(documentXml(again->toDocx()) == saved, qPrintable(documentXml(again->toDocx())));
+            QCOMPARE(acceptAll(*doc), 1);
+            const QByteArray accepted = documentXml(doc->toDocx());
+            QCOMPARE(rowsOf(accepted), 3);
+            QVERIFY2(!accepted.contains("<w:ins ") && !accepted.contains("<w:del "), accepted.constData());
+            // One Undo takes the whole change back (the accepting first, then the row).
+            QVERIFY(doc->undo());
+            QVERIFY(doc->undo());
+            QVERIFY2(documentXml(doc->toDocx()) == saved, qPrintable(documentXml(doc->toDocx())));
+            QVERIFY(!doc->canUndo());
+        }
+    }
+
+    void aRowInsertedWithTrackingOnThatThenHadTrackedTextTypedInIsTakenOutWithItsTextByReject()
+    {
+        auto doc = open(makeDocx(twoByTwoTable()));
+        QVERIFY(doc);
+        const QByteArray saved = documentXml(doc->toDocx());
+        doc->setTrackChanges(true);
+        QTextCursor c = inParagraph(*doc, "b1");
+        insertTableRow(*doc, c, true);
+        // The caret goes to the new row's first cell, and words are typed there (as an insertion of their own).
+        QTextCursor in(doc->story());
+        for (QTextBlock b = doc->story()->begin(); b.isValid(); b = b.next())
+            if (b.text().isEmpty() && cellKeyOf(b) && b.previous().text() == QLatin1String("b2")) in.setPosition(b.position());
+        insertText(*doc, in, QStringLiteral("typed"));
+        QVERIFY(documentXml(doc->toDocx()).contains("typed"));
+        QCOMPARE(documentRevisionCount(*doc), 2);
+        QCOMPARE(rejectAll(*doc), 2);
+        QVERIFY2(documentXml(doc->toDocx()) == saved, qPrintable(documentXml(doc->toDocx())));
+    }
+
+    void rowsDeletedWithTrackingOnStayAsDeletedRowsWithTheirWordsMarkedAndRejectGivesThemBack()
+    {
+        const QByteArray file = makeDocx(twoByTwoTable());
+        auto doc = open(file);
+        QVERIFY(doc);
+        const QByteArray saved = documentXml(doc->toDocx());
+        doc->setTrackChanges(true);
+        QTextCursor c = inParagraph(*doc, "b1");
+        deleteTableRows(*doc, c);
+        const QByteArray marked = documentXml(doc->toDocx());
+        QCOMPARE(rowsOf(marked), 2);   // (the row stays, marked)
+        QCOMPARE(count(marked, "<w:trPr><w:del "), 1);
+        QVERIFY2(marked.contains("b1") && marked.contains("b2") && count(marked, "<w:delText") == 2, marked.constData());
+        QCOMPARE(documentRevisionCount(*doc), 3);   // (the row's mark and the two words)
+        QVERIFY(doc->canUndo());
+        // Saved and read back; Reject All gives the saved file back, Accept All takes the row out.
+        auto again = open(doc->toDocx());
+        QVERIFY(again);
+        QCOMPARE(documentRevisionCount(*again), 3);
+        QCOMPARE(rejectAll(*again), 3);
+        QVERIFY2(documentXml(again->toDocx()) == saved, qPrintable(documentXml(again->toDocx())));
+        QCOMPARE(acceptAll(*doc), 3);
+        const QByteArray accepted = documentXml(doc->toDocx());
+        QCOMPARE(rowsOf(accepted), 1);
+        QVERIFY2(!accepted.contains("b1") && !accepted.contains("<w:del "), accepted.constData());
+        // Undo: the accepting, then the deleting, in one step each.
+        QVERIFY(doc->undo());
+        QVERIFY(doc->undo());
+        QVERIFY2(documentXml(doc->toDocx()) == saved, qPrintable(documentXml(doc->toDocx())));
+        QVERIFY(!doc->canUndo());
+    }
+
+    void aRowTheSamePersonInsertedWithTrackingOnIsTakenOutForGoodWhenTheyDeleteIt()
+    {
+        auto doc = open(makeDocx(twoByTwoTable()));
+        QVERIFY(doc);
+        doc->setReviewer(QStringLiteral("Zed"), QString());
+        const QByteArray saved = documentXml(doc->toDocx());
+        doc->setTrackChanges(true);
+        QTextCursor c = inParagraph(*doc, "a1");
+        insertTableRow(*doc, c, true);
+        QCOMPARE(rowsOf(documentXml(doc->toDocx())), 3);
+        QCOMPARE(count(documentXml(doc->toDocx()), "<w:trPr><w:ins "), 1);
+        QTextCursor fresh = inParagraph(*doc, "a1");
+        for (QTextBlock b = doc->story()->begin(); b.isValid(); b = b.next())
+            if (b.text().isEmpty() && cellKeyOf(b) && b.previous().text() == QLatin1String("a2")) fresh.setPosition(b.position());
+        deleteTableRows(*doc, fresh);
+        QVERIFY2(documentXml(doc->toDocx()) == saved, qPrintable(documentXml(doc->toDocx())));
+        QCOMPARE(documentRevisionCount(*doc), 0);
+    }
+
+    void aTableDeletedWithTrackingOnIsEveryRowDeletedAndRejectGivesItBack()
+    {
+        auto doc = open(makeDocx(twoByTwoTable()));
+        QVERIFY(doc);
+        const QByteArray saved = documentXml(doc->toDocx());
+        doc->setTrackChanges(true);
+        QTextCursor c = inParagraph(*doc, "a2");
+        deleteTable(*doc, c);
+        const QByteArray marked = documentXml(doc->toDocx());
+        QCOMPARE(rowsOf(marked), 2);
+        QCOMPARE(count(marked, "<w:trPr><w:del "), 2);
+        QCOMPARE(count(marked, "<w:delText"), 4);
+        QCOMPARE(rejectAll(*doc), 6);
+        QVERIFY2(documentXml(doc->toDocx()) == saved, qPrintable(documentXml(doc->toDocx())));
+    }
+
+    void tableCommandsThatDoNotRecordTheirChangeAreTurnedDownWithTrackingOnAndWorkWithItOff()
+    {
+        const QByteArray file = makeDocx(twoByTwoTable());
+        using Command = std::function<void(WriteDoc &, QTextCursor &)>;
+        const QVector<std::pair<const char *, Command>> commands = {
+            {"insert column", [](WriteDoc &d, QTextCursor &c) { insertTableColumn(d, c, true); }},
+            {"delete columns", [](WriteDoc &d, QTextCursor &c) { deleteTableColumns(d, c); }},
+            {"delete cells left", [](WriteDoc &d, QTextCursor &c) { deleteTableCellsShiftLeft(d, c); }},
+            {"delete cells up", [](WriteDoc &d, QTextCursor &c) { deleteTableCellsShiftUp(d, c); }},
+            {"shading", [](WriteDoc &d, QTextCursor &c) { setShading(d, c, QColor(255, 0, 0)); }},
+            {"column width", [](WriteDoc &d, QTextCursor &c) { setColumnWidth(d, c, 90); }},
+            {"row height", [](WriteDoc &d, QTextCursor &c) { setRowHeight(d, c, 40, false); }},
+            {"distribute rows", [](WriteDoc &d, QTextCursor &c) { distributeRows(d, c); }},
+            {"fit", [](WriteDoc &d, QTextCursor &c) { fitTable(d, c, TableFit::Window); }},
+            {"split table", [](WriteDoc &d, QTextCursor &c) { splitTable(d, c); }},
+            {"table to text", [](WriteDoc &d, QTextCursor &c) { convertTableToText(d, c, TextSeparator::Tabs, QChar()); }},
+            {"merge cells", [](WriteDoc &d, QTextCursor &c) {
+                 c.setPosition(c.block().position());
+                 c.setPosition(c.block().next().position() + 1, QTextCursor::KeepAnchor);
+                 mergeCells(d, c);
+             }},
+            {"split cells", [](WriteDoc &d, QTextCursor &c) { splitCells(d, c, 2, 1); }},
+            {"borders", [](WriteDoc &d, QTextCursor &c) { setBorders(d, c, 0xF, flow::TableLine()); }},
+        };
+        for (const auto &command : commands) {
+            for (const bool tracking : {true, false}) {
+                auto doc = open(file);
+                QVERIFY(doc);
+                const QByteArray saved = documentXml(doc->toDocx());
+                doc->setTrackChanges(tracking);
+                QTextCursor c = inParagraph(*doc, "b1");
+                command.second(*doc, c);
+                if (tracking) {
+                    QVERIFY2(documentXml(doc->toDocx()) == saved, command.first);
+                    QVERIFY2(doc->tableNotice == trackRefusalText(), command.first);
+                    QVERIFY2(!doc->canUndo(), command.first);
+                } else {
+                    QVERIFY2(documentXml(doc->toDocx()) != saved, command.first);
+                }
+            }
+        }
+    }
+
+    void aTableMadeWithTrackingOnIsInsertedRows()
+    {
+        auto doc = open(makeDocx(para(run("one")) + para(run("two"))));
+        QVERIFY(doc);
+        const QByteArray saved = documentXml(doc->toDocx());
+        doc->setTrackChanges(true);
+        QTextCursor c = inParagraph(*doc, "one", 3);
+        NewTable table;
+        table.rows = 2;
+        table.columns = 2;
+        QVERIFY(insertTable(*doc, c, table));
+        const QByteArray marked = documentXml(doc->toDocx());
+        QCOMPARE(rowsOf(marked), 2);
+        QCOMPARE(count(marked, "<w:trPr><w:ins "), 2);
+        QVERIFY(rejectAll(*doc) >= 2);
+        QVERIFY2(documentXml(doc->toDocx()) == saved, qPrintable(documentXml(doc->toDocx())));
+    }
+
+    void typingInAHeaderOrANoteWithTrackingOnIsTurnedDownAndChangesNothing()
+    {
+        StoryParts parts;
+        parts.header = para(run("head"));
+        parts.footnote = para(run("note"));
+        for (const bool tracking : {true, false}) {
+            auto doc = open(makeDocxWithStories(parts));
+            QVERIFY(doc);
+            doc->setTrackChanges(tracking);
+            const QVector<QTextDocument *> stories = doc->storiesWithChanges(true);
+            QVERIFY(stories.size() >= 2);
+            for (QTextDocument *story : stories) {
+                const QString before = story->toPlainText();
+                QTextCursor c(story);
+                c.setPosition(1);
+                doc->trackNotice.clear();
+                insertText(*doc, c, QStringLiteral("X"));
+                if (tracking) {
+                    QCOMPARE(story->toPlainText(), before);
+                    QCOMPARE(doc->trackNotice, trackRefusalText());
+                    QTextCursor del(story);
+                    del.setPosition(1);
+                    del.setPosition(3, QTextCursor::KeepAnchor);
+                    removeSelection(*doc, del);
+                    QCOMPARE(story->toPlainText(), before);
+                } else {
+                    QVERIFY(story->toPlainText() != before);
+                }
+            }
+        }
+    }
+
+    void replaceAllWithTrackingOnChangesTheTextAsTrackedChangesAndLeavesAHeaderAsItIs()
+    {
+        StoryParts parts;
+        parts.body = para(run("a cat sat"));
+        parts.header = para(run("cat head"));
+        for (const bool tracking : {true, false}) {
+            WriteWindow w;
+            w.setNotifier([](const QString &, const QString &) {});
+            w.resize(900, 700);
+            w.show();
+            w.setDocument(open(makeDocxWithStories(parts)), QString());
+            w.document()->setTrackChanges(tracking);
+            w.showFindPane();
+            WriteFindPane *pane = w.findPane();
+            pane->findBox()->setText(QStringLiteral("cat"));
+            pane->replaceBox()->setText(QStringLiteral("dog"));
+            pane->replaceAll();
+            QStringList header;
+            for (QTextDocument *story : w.document()->storiesWithChanges(true)) header << story->toPlainText();
+            QVERIFY2(header.join(QLatin1Char(' ')).contains(tracking ? "cat head" : "dog head"), qPrintable(header.join(QLatin1Char('|'))));
+            const QByteArray x = documentXml(w.document()->toDocx());
+            QVERIFY2(tracking ? x.contains("<w:ins ") && x.contains("<w:del ") : !x.contains("<w:ins "), x.constData());
+        }
+    }
+
+    void numberingAndIndentCommandsAreTurnedDownWithTrackingOnAndWorkWithItOff()
+    {
+        for (const bool tracking : {true, false}) {
+            auto doc = open(makeDocx(para(run("alpha")) + para(run("beta"))));
+            QVERIFY(doc);
+            const QByteArray saved = documentXml(doc->toDocx());
+            doc->setTrackChanges(tracking);
+            QTextCursor c = inParagraph(*doc, "alpha");
+            toggleList(*doc, c, true);
+            changeIndent(*doc, c, 36);
+            if (tracking) {
+                QVERIFY(documentXml(doc->toDocx()) == saved);
+                QCOMPARE(doc->trackNotice, trackRefusalText());
+            } else {
+                QVERIFY(documentXml(doc->toDocx()) != saved);
+            }
+        }
     }
 };
 
