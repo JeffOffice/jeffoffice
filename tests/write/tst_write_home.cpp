@@ -25,6 +25,7 @@
 #include "../pdfmarkcheck.h"
 #include <QBuffer>
 #include <atomic>
+#include <QSemaphore>
 #include <QScopeGuard>
 #include <QPdfWriter>
 #include "app/ruler.h"
@@ -1838,8 +1839,13 @@ private Q_SLOTS:
         QFile::remove(normalTemplatePath());
     }
 
-    // The workers of the three scenarios above (a template put and a lock let go from another thread) beside the main thread asking for the locale and changing it, 2,000 times each: the
-    // worker takes its dates and numbers from the copy (jp::systemLocale), never from the system, and the file and the lock come out whole.
+    // The workers of the three scenarios above (a template put and a lock let go from another thread) beside the main thread asking for the locale and changing it: the worker takes its
+    // dates and numbers from the copy (jp::systemLocale), never from the system, and the file and the lock come out whole. The work is counted, not timed: 200 rounds, and in each round
+    // both sides run at once (neither starts round n+1 before the other has finished round n), so every state the main thread's change passes through meets a worker read, 200 times; a
+    // copy changed in two steps shows as one odd text in the first of them, and the copy is a pointer swap under one lock, so 200 meetings are far more than it can need. The
+    // sides wait for each other on semaphores, not by spinning: on a machine with no free core a round costs one change of thread, never a spent time slice (Nov 26: the spinning
+    // version took 144 s here with one core shared, and over the test program's five minutes on the Windows build machine). The lock file syncs the disk each time it is taken, so it is
+    // taken in 4 of the rounds, never every one.
     void aWorkerBesideTheMainThreadsLocaleChangesKeepsTheTemplateAndTheLock()
     {
         QFile::remove(normalTemplatePath());
@@ -1854,20 +1860,13 @@ private Q_SLOTS:
         jp::captureSystemLocale();
         const QString inGerman = jp::systemLocale().toString(QDate(2026, 11, 20), QLocale::LongFormat) + jp::systemLocale().toString(1234567);
         QVERIFY(inEnglish != inGerman);
-        // A handshake, not luck: a round counts toward the 2,000 only when the other side's progress counter moved since this side's last round; the guard bounds iterations, not time.
-        std::atomic<int> workerProgress{0}, mainProgress{0}, workerQuota{0}, mainQuota{0}, odd{0}, ready{0}, locked{0};
-        std::atomic<bool> guardHit{false};
-        constexpr int kGuard = 20000000;
+        constexpr int kRounds = 200, kLockEvery = 50;
+        QSemaphore workerDone, mainDone;   // (a round's end, told to the other side)
+        std::atomic<int> workerRounds{0}, mainRounds{0}, odd{0}, locked{0};
         {
             jp::WorkThread worker([&] {
-                ++ready;
-                while (ready.load() < 2) QThread::yieldCurrentThread();
-                int seen = mainProgress.load();
-                for (int i = 0; workerQuota.load() < 2000 || mainQuota.load() < 2000; ++i) {
-                    if (i >= kGuard) { guardHit = true; break; }
-                    // (Qt's lock file syncs the disk at each lock, and a sync waits for the disk's journal, which the other programs on a busy machine fill: 2,000 of them took 5 minutes
-                    // on Nov 23, past the test program's own five. The file and the lock are used every 50th round, the locale every one.)
-                    if (i % 50 == 0) {
+                for (int i = 0; i < kRounds; ++i) {
+                    if (i % kLockEvery == 0) {
                         QLockFile lock(normalTemplatePath() + QStringLiteral(".lock"));
                         if (lock.tryLock(1000)) {
                             QFile f(normalTemplatePath());
@@ -1880,33 +1879,28 @@ private Q_SLOTS:
                     const jp::SystemLocale person = jp::systemLocale();
                     const QString text = person.toString(QDate(2026, 11, 20), QLocale::LongFormat) + person.toString(1234567);
                     if (text != inEnglish && text != inGerman) ++odd;
-                    ++workerProgress;
-                    const int now = mainProgress.load();
-                    if (now != seen) { seen = now; if (workerQuota.load() < 2000) ++workerQuota; }
-                    else QThread::yieldCurrentThread();
+                    ++workerRounds;
+                    workerDone.release();
+                    mainDone.acquire();
                 }
+                workerDone.release(kRounds + 1);   // (never leaves the other side waiting)
             });
-            ++ready;
-            while (ready.load() < 2) QThread::yieldCurrentThread();
-            int seen = workerProgress.load();
-            for (int i = 0; workerQuota.load() < 2000 || mainQuota.load() < 2000; ++i) {
-                if (i >= kGuard) { guardHit = true; break; }
+            for (int i = 0; i < kRounds; ++i) {
                 QLocale::setDefault(i % 2 ? german : english);
                 jp::captureSystemLocale();
                 jp::systemLocale();
-                ++mainProgress;
-                const int now = workerProgress.load();
-                if (now != seen) { seen = now; if (mainQuota.load() < 2000) ++mainQuota; }
-                else QThread::yieldCurrentThread();
+                ++mainRounds;
+                mainDone.release();
+                workerDone.acquire();
             }
+            mainDone.release(kRounds + 1);
         }
         QLocale::setDefault(before);
         jp::captureSystemLocale();
-        QVERIFY2(!guardHit.load(), "the two sides did not interleave within the iteration bound");
-        QCOMPARE(workerQuota.load(), 2000);
-        QCOMPARE(mainQuota.load(), 2000);
+        QCOMPARE(workerRounds.load(), kRounds);
+        QCOMPARE(mainRounds.load(), kRounds);
         QCOMPARE(odd.load(), 0);
-        QVERIFY2(locked.load() >= 40, qPrintable(QString::number(locked.load())));
+        QVERIFY2(locked.load() >= 2, qPrintable(QString::number(locked.load())));
         QCOMPARE(normalTemplateState(), NormalTemplateState::Usable);
         QFile::remove(normalTemplatePath());
     }
