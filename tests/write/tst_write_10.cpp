@@ -1378,6 +1378,56 @@ void WriteTests::facingPagesMirrorTheMarginsOfEvenPages()
 }
 
 
+// An object set in the inside or outside strip of a margin, or aligned to the inside or the outside, follows the page: the inside is the left of an odd page and the right of an even one, with
+// facing pages (whose even pages have their margins swapped) and without.
+void WriteTests::anObjectSetInsideOrOutsideFollowsTheBindingOfItsPage()
+{
+    const QByteArray sect = "<w:sectPr><w:pgSz w:w=\"12240\" w:h=\"15840\"/><w:pgMar w:top=\"1440\" w:right=\"800\" w:bottom=\"1440\" w:left=\"2000\" w:header=\"720\" w:footer=\"720\" w:gutter=\"0\"/></w:sectPr>";
+    auto box = [](const QByteArray &horizontal, int id) {
+        return "<w:r><w:drawing><wp:anchor distT=\"0\" distB=\"0\" distL=\"0\" distR=\"0\" simplePos=\"0\" relativeHeight=\"1\" behindDoc=\"0\" locked=\"0\" layoutInCell=\"1\" allowOverlap=\"1\">"
+               "<wp:simplePos x=\"0\" y=\"0\"/>" + horizontal + "<wp:positionV relativeFrom=\"page\"><wp:posOffset>2286000</wp:posOffset></wp:positionV>"
+               "<wp:extent cx=\"1270000\" cy=\"254000\"/><wp:wrapNone/><wp:docPr id=\"" + QByteArray::number(id) + "\" name=\"Box\"/><wp:cNvGraphicFramePr/>"
+               "<a:graphic><a:graphicData uri=\"http://schemas.microsoft.com/office/word/2010/wordprocessingShape\"><wps:wsp><wps:cNvSpPr txBox=\"1\"/><wps:spPr><a:xfrm><a:off x=\"0\" y=\"0\"/>"
+               "<a:ext cx=\"1270000\" cy=\"254000\"/></a:xfrm><a:prstGeom prst=\"rect\"><a:avLst/></a:prstGeom></wps:spPr><wps:txbx><w:txbxContent><w:p><w:r><w:t>Box</w:t></w:r></w:p></w:txbxContent></wps:txbx>"
+               "<wps:bodyPr/></wps:wsp></a:graphicData></a:graphic></wp:anchor></w:drawing></w:r>";
+    };
+    const QByteArray strip = "<wp:positionH relativeFrom=\"insideMargin\"><wp:posOffset>0</wp:posOffset></wp:positionH>";
+    const QByteArray alignedInside = "<wp:positionH relativeFrom=\"margin\"><wp:align>inside</wp:align></wp:positionH>";
+    const QByteArray alignedOutside = "<wp:positionH relativeFrom=\"margin\"><wp:align>outside</wp:align></wp:positionH>";
+    const QByteArray body = "<w:p><w:r><w:t>One</w:t></w:r>" + box(strip, 1) + box(alignedInside, 2) + box(alignedOutside, 3) + "</w:p><w:p><w:r><w:br w:type=\"page\"/></w:r></w:p>"
+                            "<w:p><w:r><w:t>Two</w:t></w:r>" + box(strip, 4) + box(alignedInside, 5) + box(alignedOutside, 6) + "</w:p>";
+    const QByteArray ns = " xmlns:wp=\"http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing\" xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\""
+                          " xmlns:wps=\"http://schemas.microsoft.com/office/word/2010/wordprocessingShape\"";
+    for (const bool mirrored : {false, true}) {
+        QByteArray namespaced = body;
+        auto doc = open(makeDocxWithParts(namespaced.replace(QByteArray("<w:p>"), QByteArray("<w:p ") + ns.mid(1) + ">"), sect, {}, mirrored ? QByteArray("<w:mirrorMargins/>") : QByteArray()));
+        QVERIFY(doc);
+        QCOMPARE(doc->pager().pageCount(), 2);
+        // Where each of the three boxes of a page is (the width is 100 points, and the page 612 wide; the margins are 100 and 40, swapped on an even page that is mirrored).
+        auto lefts = [&](int page) {
+            QVector<double> x;
+            const auto m = doc->pager().materialize(page);
+            if (!m) return x;
+            for (const auto &it : m->doc->pages[0]->items)
+                if (it->id.startsWith(QLatin1String("flow-object-"))) x.push_back(it->rect.left());
+            std::sort(x.begin(), x.end());
+            return x;
+        };
+        // page 1 (odd): the inside is the left: the strip begins at the page's edge, aligned to the inside is the margin's left edge (100), and to the outside is its right edge, less the width
+        QCOMPARE(lefts(0).size(), 3);
+        const QVector<double> one = lefts(0);
+        QVERIFY2(std::abs(one[0] - 0.0) < 0.01 && std::abs(one[1] - 100.0) < 0.01 && std::abs(one[2] - (572.0 - 100.0)) < 0.01, qPrintable(QStringLiteral("page 1: %1 %2 %3").arg(one[0]).arg(one[1]).arg(one[2])));
+        // page 2 (even): the inside is the right. Mirrored, the margins are 40 and 100 and the strip on the right is 100 wide (from 512); else it is 40 wide (from 572).
+        const double right = mirrored ? 512.0 : 572.0, marginRight = right, marginLeft = mirrored ? 40.0 : 100.0;
+        const QVector<double> two = lefts(1);
+        QCOMPARE(two.size(), 3);
+        QVector<double> want{marginLeft, marginRight - 100.0, right};   // (outside aligned: the margin's left edge; inside aligned: its right edge less the width; the strip: its left edge)
+        std::sort(want.begin(), want.end());
+        for (int i = 0; i < 3; ++i) QVERIFY2(std::abs(two[i] - want[i]) < 0.01, qPrintable(QStringLiteral("%1 page 2 box %2: %3 and not %4").arg(mirrored ? "mirrored" : "plain").arg(i).arg(two[i]).arg(want[i])));
+    }
+}
+
+
 // A run's display style makes its letters italic and bold where the layout is a word processor's, and is nothing in any other.
 void WriteTests::aDisplayStyleSetsTheFaceOfAWordRun()
 {

@@ -1590,6 +1590,7 @@ private Q_SLOTS:
     void aFrameAlignedInsideOrOutsideFollowsThePageNumber();
     void contentControlsShowTheirContentInEveryPlace();
     void facingPagesMirrorTheMarginsOfEvenPages();
+    void anObjectSetInsideOrOutsideFollowsTheBindingOfItsPage();
     void aDisplayStyleSetsTheFaceOfAWordRun();
     void anAbsolutePositionTabGoesToTheMarginAndIsKept();
     void theEndnotesAreSetAfterTheLastTextAndAreNotWritten();
