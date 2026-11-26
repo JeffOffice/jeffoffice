@@ -500,6 +500,9 @@ private Q_SLOTS:
         // a protected presentation's kept versions are opened with its password
         protect(w, QStringLiteral("hunter2"));
         QVERIFY(w.saveTo(path));
+        const QByteArray kept = fileBytes(write::VersionStore(path, QStringLiteral(".pptx")).folder() + QLatin1Char('/') + w.versions().first().file);
+        QVERIFY(kept.startsWith(kCompound));   // (the kept version is encrypted at rest, not a plain package)
+        QVERIFY(!kept.startsWith("PK"));
         QVERIFY2(w.compareWithVersion(w.versions().first().file, &why), qPrintable(why));
         w.editor()->markSaved();
     }
