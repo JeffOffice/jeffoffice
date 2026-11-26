@@ -136,8 +136,8 @@ QString slicerMoreText(const SlicerFace &face, const SlicerGeometry &g)
         for (int i = 0; i < g.shown && i < int(face.buttons.size()); ++i) inView += face.buttons[size_t(i)].selected ? 1 : 0;
         chosen = std::max<qint64>(0, face.chosenCount - inView);
     }
-    if (chosen > 0) return QCoreApplication::translate("jp::crunch::Slicer", "%n more item(s), %1 chosen", nullptr, left).arg(chosen);
-    return QCoreApplication::translate("jp::crunch::Slicer", "%n more item(s)", nullptr, left);
+    if (chosen > 0) return QCoreApplication::translate("jp::crunch::Slicer", "More items: %1 (%2 chosen)").arg(left).arg(chosen);
+    return QCoreApplication::translate("jp::crunch::Slicer", "More items: %1").arg(left);
 }
 
 QString slicerUnusableText(SlicerWhy why)

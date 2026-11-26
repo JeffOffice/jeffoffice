@@ -36,7 +36,7 @@ struct SlicerHit {
 };
 SlicerHit slicerHit(const SlicerGeometry &geometry, const SlicerFace &face, const QPointF &at);
 
-// The line that says how many items are not drawn ("52 more items", or "52 more items, 3 chosen" when some of them are chosen), and the sentence of a slicer that cannot be used here.
+// The line that says how many items are not drawn ("More items: 52", or "More items: 52 (3 chosen)" when some of them are chosen), and the sentence of a slicer that cannot be used here.
 QString slicerMoreText(const SlicerFace &face, const SlicerGeometry &geometry);
 QString slicerUnusableText(SlicerWhy why);
 
