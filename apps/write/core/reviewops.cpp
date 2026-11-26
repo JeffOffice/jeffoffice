@@ -340,6 +340,7 @@ void addRevisionsOfAll(const QTextBlock &b, QVector<Revision> *out)
                 r.from = c.from;
                 r.to = c.to;
                 r.block = blockNo;
+                r.level = c.level;
                 out->push_back(r);
             }
         }
@@ -362,7 +363,7 @@ void addRevisionsOf(const QTextBlock &b, QVector<Revision> *out, bool folded = t
         const bool inserted = r.kind == Revision::Insertion || r.kind == Revision::MarkInserted || r.kind == Revision::RowInserted;
         const bool deleted = r.kind == Revision::Deletion || r.kind == Revision::MarkDeleted || r.kind == Revision::RowDeleted;
         if (!inserted && !deleted) continue;
-        if (coveredByRowChange(cells, b, inserted, r.author, r.kind != Revision::RowInserted && r.kind != Revision::RowDeleted)) out->removeAt(i);
+        if (coveredByRowChange(cells, b, inserted, r.author, r.kind == Revision::RowInserted || r.kind == Revision::RowDeleted ? r.level + 1 : 0)) out->removeAt(i);
     }
 }
 
@@ -1320,7 +1321,7 @@ int resolveRevisions(WriteDoc &doc, QTextDocument *story, const QVector<Revision
     {   // A row that stays (an inserted row that is kept, a deleted row that is put back) takes what is marked in it along: its words, its paragraph marks, and the rows of the tables in it.
         QVector<Revision> more;
         QSet<qint64> have;
-        for (const Revision &r : std::as_const(which)) have.insert(qint64(r.kind) << 40 | r.from);
+        for (const Revision &r : std::as_const(which)) have.insert(qint64(r.kind) << 40 | qint64(r.level) << 52 | r.from);   // (a row that holds a table begins where the table's first row does: the level tells them apart)
         for (const Revision &r : std::as_const(whichGiven)) {
             if (!((r.kind == Revision::RowInserted && accept) || (r.kind == Revision::RowDeleted && !accept))) continue;
             const bool inserted = r.kind == Revision::RowInserted;
@@ -1330,8 +1331,8 @@ int resolveRevisions(WriteDoc &doc, QTextDocument *story, const QVector<Revision
                 for (const Revision &x : std::as_const(all)) {
                     const bool kindFits = inserted ? (x.kind == Revision::Insertion || x.kind == Revision::MarkInserted || x.kind == Revision::RowInserted)
                                                    : (x.kind == Revision::Deletion || x.kind == Revision::MarkDeleted || x.kind == Revision::RowDeleted);
-                    if (!kindFits || x.moved || x.author != r.author || x.from < r.from || x.from > r.to || have.contains(qint64(x.kind) << 40 | x.from)) continue;
-                    have.insert(qint64(x.kind) << 40 | x.from);
+                    if (!kindFits || x.moved || x.author != r.author || x.from < r.from || x.from > r.to || have.contains(qint64(x.kind) << 40 | qint64(x.level) << 52 | x.from)) continue;
+                    have.insert(qint64(x.kind) << 40 | qint64(x.level) << 52 | x.from);
                     more.push_back(x);
                 }
             }

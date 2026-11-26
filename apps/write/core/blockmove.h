@@ -12,7 +12,7 @@ namespace jp::write {
 
 // Moves the paragraphs from the one holding `first` to the one holding `last` to before the paragraph holding `before` (the end of the text when `before` is negative). False where nothing
 // moved: `why` (if given) says why when the move was refused, and is left empty when the run is already there. Where the first moved paragraph is now goes in `movedTo`.
-// Refused: Track Changes on, a protected document, endnotes set at the ends of sections, a run or a place that cuts a table, a table put against another, a run that holds one end of a
+// Refused: a protected document, endnotes set at the ends of sections, a run or a place that cuts a table, a table put against another, a run that holds one end of a
 // bookmark, comment, field, or content control whose other end is outside it, and a run that holds a section break unless it is whole sections that go between sections.
 bool moveBlocks(WriteDoc &doc, int first, int last, int before, QString *why = nullptr, int *movedTo = nullptr);
 

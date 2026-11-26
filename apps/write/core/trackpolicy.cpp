@@ -1,5 +1,8 @@
 #include "core/trackpolicy.h"
 
+#include "core/editops.h"
+#include "core/reviewops.h"
+
 #include <QCoreApplication>
 #include <QSet>
 #include <QStringList>
@@ -49,7 +52,7 @@ TrackPolicy trackPolicyOf(const QString &id, bool *known)
         "refs.previousEndnote", "refs.showNotes", "refs.citationStyle", "refs.manageSources", "hf.close", "hf.showDocumentText", "hf.previousSection", "hf.nextSection", "fields.toggleCode",
         "fields.toggleAllCodes", "insert.manageBlocks", "insert.saveBlock", "insert.cover.save", "insert.textBox.save", "design.themes.browse", "design.themes.save", "mail.preview",
         "mail.highlight", "mail.first", "mail.last", "mail.next", "mail.prev", "mail.find", "mail.check", "mail.editList", "mail.matchFields", "picture.lockAspect", "shape.createLink",
-        "shape.breakLink", "para.sort"});
+        "shape.breakLink"});
     // Changes that are not recorded yet, each made as it is with Track Changes off, with a notice (see DESIGN: the slices that record them are listed there): the properties of sections (page setup,
     // columns, margins, line numbers, a watermark, page borders), numbering and indents, notes, generated tables and indexes, fields and links, content controls, headers and footers, the
     // drawn objects and pictures and their properties, and what is made of the merge.
@@ -77,6 +80,19 @@ bool trackedMarksCanBeResolved(const WriteDoc &doc)
     const auto protection = doc.protection();
     if (!protection || !protection->enforced) return true;
     return !(protection->edit == QLatin1String("trackedChanges") || protection->edit == QLatin1String("readOnly") || protection->edit == QLatin1String("comments") || protection->edit == QLatin1String("forms"));
+}
+
+UntrackedGesture::UntrackedGesture(WriteDoc *doc) : m_doc(doc && doc->trackChanges() && !untrackedEditActive() ? doc : nullptr)
+{
+    if (!m_doc) return;
+    m_steps = m_doc->nextStepSerial();
+    m_marks = revisionCount(m_doc->story());
+}
+
+UntrackedGesture::~UntrackedGesture()
+{
+    // (A gesture that made a mark is a tracked one, and one that made no step changed nothing.)
+    if (m_doc && m_doc->nextStepSerial() > m_steps && revisionCount(m_doc->story()) == m_marks) m_doc->noteUntrackedChange();
 }
 
 QString untrackedNoticeText() { return QCoreApplication::translate("jp::write::Tracking", "This change was not recorded as a tracked change."); }

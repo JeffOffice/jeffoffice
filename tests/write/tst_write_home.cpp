@@ -463,18 +463,19 @@ private Q_SLOTS:
         QCOMPARE(texts(*doc), (QStringList{"z 1/15/2020", "y 1/15/2020", "x 3/1/2020"}));
     }
 
-    void sortRefusesWhileTrackingAndForOneParagraph()
+    void sortWorksWhileTrackingAndRefusesOneParagraph()
     {
         auto doc = open(makeDocx(para(run("b")) + para(run("a"))));
         QTextCursor c = selectBlocks(doc->story(), 0, 1);
         SortOptions o;
         o.keys = {SortKey{}};
         doc->setTrackChanges(true);
-        QCOMPARE(sortParagraphs(*doc, c, o), 0);
+        QCOMPARE(sortParagraphs(*doc, c, o), 2);   // (a sort is not recorded as a tracked change: it is made as it is with Track Changes off)
+        QCOMPARE(texts(*doc), (QStringList{"a", "b"}));
         doc->setTrackChanges(false);
         QTextCursor one = selectBlocks(doc->story(), 0, 0);
         QCOMPARE(sortParagraphs(*doc, one, o), 0);
-        QCOMPARE(texts(*doc), (QStringList{"b", "a"}));
+        QCOMPARE(texts(*doc), (QStringList{"a", "b"}));
     }
 
     void wordCountCountsWordsCharactersAndParagraphs()

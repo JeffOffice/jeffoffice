@@ -15,7 +15,7 @@ This is an outline of your document. It lists each paragraph that has an **outli
 - The two commands are dimmed, and their tooltips say why, when there is no heading at or above the caret, when Track Changes is on, when the document is protected or open for reading only, and when the caret is in a header, footer, note, text box, or comment instead of the main text.
 - A section is not moved, and the status bar says why, when it holds one end of a bookmark, comment, field, or content control whose other end is outside it, when it includes a section break that would change the page layout of other text, when it holds endnotes or a text frame, when the document collects endnotes at the end of each section, or when the move would cut a table. A content control, a block of custom XML, or a tracked insertion that holds whole paragraphs of the section moves with them.
 - If you edit the text while the list is still catching up, a move from the list is refused and the list is updated. Choose the heading again.
-- Moving a section does not record a tracked change, so it is refused while Track Changes is on. Outline view is different: its Move Up and Move Down record the move as a tracked change when Track Changes is on.
+- Moving a section is made as usual while Track Changes is on, without a record, and the status bar says it was not recorded as a tracked change. Outline view is different: its Move Up and Move Down record the move as a tracked change when Track Changes is on.
 - Right-click and choose **Expand All** or **Collapse All** to open or close the whole list.
 
 ## Pages

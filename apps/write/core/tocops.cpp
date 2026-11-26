@@ -1,4 +1,5 @@
 #include "core/tocops.h"
+#include <optional>
 
 #include "core/editops.h"
 #include "core/wordformat.h"
@@ -681,6 +682,8 @@ bool addTextToToc(WriteDoc &doc, QTextCursor &c, int level)
 {
     if (level < 0 || level > 9 || c.document() != doc.story()) return false;
     const QString id = level == 0 ? doc.defaultParagraphStyle() : QStringLiteral("Heading%1").arg(level);
+    std::optional<WriteDoc::StepGroup> group;   // (with Track Changes on, making the style and applying it are one step)
+    if (doc.trackChanges()) group.emplace(doc);
     if (level > 0) {
         const quint64 sheet = doc.styleSheetRevision();
         if (!doc.ensureStyle(id)) return false;

@@ -25,6 +25,21 @@ bool trackedMarksCanBeResolved(const WriteDoc &doc);
 // The notice for a change that is made and not recorded as a tracked change.
 QString untrackedNoticeText();
 
+// A mouse gesture that changes the document and records no tracked change (a picture or a shape moved, turned, or sized, a ruler marker pulled): made as it is with Track Changes off, and the
+// window says so once. Make one where the gesture is finished; the change counts at the end of its scope.
+class UntrackedGesture {
+public:
+    explicit UntrackedGesture(WriteDoc *doc);
+    ~UntrackedGesture();
+    UntrackedGesture(const UntrackedGesture &) = delete;
+    UntrackedGesture &operator=(const UntrackedGesture &) = delete;
+
+private:
+    WriteDoc *m_doc;
+    quint64 m_steps = 0;
+    int m_marks = 0;
+};
+
 // The message for a change that is not made because it would take part of a tracked row.
 QString trackedRowsText();
 

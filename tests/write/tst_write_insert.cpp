@@ -64,6 +64,7 @@
 #include <QFile>
 #include <QHelpEvent>
 #include <QToolTip>
+#include "core/trackpolicy.h"
 #include <QStatusBar>
 #include <QScrollBar>
 #include <QDialog>
@@ -1569,6 +1570,39 @@ private Q_SLOTS:
             send(QEvent::MouseButtonRelease, far, Qt::NoButton, Qt::LeftButton);
             if (how == 0) QVERIFY2(ruler->leftIndent() > 1, "a drag that is finished moves the indent");
             else QCOMPARE(ruler->leftIndent(), 0.0);
+        }
+    }
+
+    // A marker pulled on the ruler with Track Changes on: a margin is changed as with it off, nothing is marked, and the status bar says it was not recorded (once the pull is let go); an indent is
+    // recorded as a change of the paragraph, so nothing is said.
+    void aRulerDragWithTrackingOnSaysTheChangeWasNotRecordedOnlyWhereItWasNot()
+    {
+        for (const write::Ruler::Marker marker : {write::Ruler::Marker::LeftIndent, write::Ruler::Marker::LeftMargin}) {
+            const bool recorded = marker == write::Ruler::Marker::LeftIndent;
+            for (const bool tracking : {true, false}) {
+                Win win;
+                write::Ruler *ruler = win.w.ruler();
+                QCoreApplication::processEvents();
+                win.w.document()->setTrackChanges(tracking);
+                const QByteArray before = documentXml(win.w.document()->toDocx());
+                QPointF at;
+                QVERIFY(ruler->markerPoint(marker, 0, &at));
+                auto send = [&](QEvent::Type type, const QPointF &where, Qt::MouseButtons held, Qt::MouseButton changed) {
+                    QMouseEvent ev(type, where, ruler->mapToGlobal(where), changed, held, Qt::NoModifier);
+                    QCoreApplication::sendEvent(ruler, &ev);
+                };
+                win.w.statusBar()->clearMessage();
+                send(QEvent::MouseButtonPress, at, Qt::LeftButton, Qt::LeftButton);
+                const QPointF far = at + QPointF(60, 0);
+                send(QEvent::MouseMove, far, Qt::LeftButton, Qt::NoButton);
+                QVERIFY(win.w.statusBar()->currentMessage().isEmpty());   // (nothing is said while the marker is held)
+                send(QEvent::MouseButtonRelease, far, Qt::NoButton, Qt::LeftButton);
+                const QByteArray after = documentXml(win.w.document()->toDocx());
+                QVERIFY(after != before);
+                QVERIFY2((win.w.statusBar()->currentMessage() == write::untrackedNoticeText()) == (tracking && !recorded), qPrintable(QStringLiteral("marker %1, tracking %2: [%3]").arg(int(marker)).arg(tracking).arg(win.w.statusBar()->currentMessage())));
+                QVERIFY(!after.contains("<w:ins ") && !after.contains("<w:del "));
+                QCOMPARE(after.contains("pPrChange"), tracking && recorded);
+            }
         }
     }
 

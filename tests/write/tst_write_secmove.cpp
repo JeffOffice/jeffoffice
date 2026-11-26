@@ -579,9 +579,9 @@ private Q_SLOTS:
         QCOMPARE(doc->story()->blockCount(), open(p.docx())->story()->blockCount());
     }
 
-    // Tracked changes in the section go with it (the section is moved, not edited); what the move records: nothing, and with Track Changes on the move is refused, since a cut and a paste would
-    // be a deletion and an insertion of the whole section (every table, picture, and note in it twice), which this does not make.
-    void trackedChangesInsideTheSectionMoveWithItAndTrackingRefusesTheMove()
+    // Tracked changes in the section go with it (the section is moved, not edited); what the move records: nothing (a cut and a paste would be a deletion and an insertion of the whole section, every
+    // table, picture, and note in it twice, which this does not make), so with Track Changes on the move is made as with it off, and the document says it was not recorded.
+    void trackedChangesInsideTheSectionMoveWithItAndTrackingMovesItAndSaysSo()
     {
         Pieces p;
         p.beta = head("Beta") + "<w:p>" + run("Beta words ") + "<w:ins w:id=\"30\" w:author=\"Ann\" w:date=\"2026-01-02T03:04:05Z\"><w:r><w:t>added</w:t></w:r></w:ins>"

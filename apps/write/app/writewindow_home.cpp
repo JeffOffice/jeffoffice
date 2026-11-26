@@ -146,10 +146,6 @@ void WriteWindow::createHomeActions()
     });
     mk("para.sort", tr("Sort…"), "arrow-down-a-z", QKeySequence(), [this] {
         if (!m_doc || refuseIfReadOnly()) return;
-        if (m_doc->trackChanges()) {
-            statusBar()->showMessage(tr("Turn off Track Changes to sort: a sort is not recorded as a change."), 6000);
-            return;
-        }
         const bool table = cursorInTable();
         if (!table && (!m_view->cursor().hasSelection() || write::selectedBlocks(m_view->cursor()).size() < 2)) {
             statusBar()->showMessage(tr("Select two or more paragraphs to sort."), 5000);
@@ -270,20 +266,21 @@ int WriteWindow::sortSelection(const write::SortOptions &options)
 {
     if (!m_doc) return 0;
     int n = 0;
+    m_doc->tableNotice.clear();
     if (cursorInTable()) {
         QVector<write::TableSortKey> keys;
         for (const write::SortKey &k : options.keys)
             keys.push_back({k.type == write::SortKey::Number ? write::TableSortKey::Kind::Number : k.type == write::SortKey::Date ? write::TableSortKey::Kind::Date : write::TableSortKey::Kind::Text, std::max(0, k.field - 1), !k.descending});
         QTextCursor c = m_view->cursor();
         n = write::sortTableRows(*m_doc, c, keys, options.header) ? 1 : 0;
-        statusBar()->showMessage(n > 0 ? tr("The rows are sorted.") : tr("Nothing was sorted."), 5000);
+        statusBar()->showMessage(n > 0 ? tr("The rows are sorted.") : !m_doc->tableNotice.isEmpty() ? m_doc->tableNotice : tr("Nothing was sorted."), 5000);
     } else {
         if (write::selectedBlocks(m_view->cursor()).size() > write::kMostSortParagraphs) {
             statusBar()->showMessage(tr("There are too many paragraphs to sort at once. Select %n paragraph(s) or fewer.", nullptr, write::kMostSortParagraphs), 8000);
             return 0;
         }
         n = write::sortParagraphs(*m_doc, m_view->cursor(), options);
-        statusBar()->showMessage(n > 0 ? tr("%n paragraph(s) sorted.", nullptr, n) : tr("Nothing was sorted."), 5000);
+        statusBar()->showMessage(n > 0 ? tr("%n paragraph(s) sorted.", nullptr, n) : !m_doc->tableNotice.isEmpty() ? m_doc->tableNotice : tr("Nothing was sorted."), 5000);
     }
     m_view->setFocus(Qt::OtherFocusReason);
     m_view->viewport()->update();

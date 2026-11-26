@@ -27,6 +27,7 @@ struct Revision {
     QDateTime date;               // none (invalid) when the file gives none
     int from = 0, to = 0;         // the places in the story: the two pieces that mark a change of the text are the first and last character of it; a paragraph mark is the character after its text
     int block = 0;                // the number of the paragraph it begins in
+    int level = 0;                // for a row (RowInserted, RowDeleted): how many tables hold the paragraph inside the row's own table (0: the row is the paragraph's own row)
     bool partner = false;         // set where changes are listed or resolved together: the second half of a move, and the paragraph marks that went with it (a move is shown once)
     bool moved = false;           // a paragraph mark (MarkInserted, MarkDeleted) that a move inserted or took away (w:moveTo, w:moveFrom), which goes with its move
 

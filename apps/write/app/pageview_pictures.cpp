@@ -11,6 +11,7 @@
 #include "core/barcodeitem.h"
 #include "core/editops.h"
 #include "core/textboxops.h"
+#include "core/trackpolicy.h"
 #include "flow/paginator.h"
 #include "core/mergeops.h"
 #include "core/writeprops.h"
@@ -903,6 +904,7 @@ void PageView::updatePictureDrag(const QPoint &pos, Qt::KeyboardModifiers modifi
 void PageView::endPictureDrag(const QPoint &pos, Qt::KeyboardModifiers modifiers)
 {
     if (!m_pictureDrag.active) return;
+    const UntrackedGesture untrackedNote(m_doc);
     updatePictureDrag(pos, m_pictureDrag.altHeld ? (modifiers | Qt::AltModifier) : (modifiers & ~Qt::AltModifier));
     const PictureDrag d = m_pictureDrag;
     m_pictureDrag = PictureDrag();

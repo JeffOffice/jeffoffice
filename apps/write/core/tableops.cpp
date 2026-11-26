@@ -3832,7 +3832,7 @@ bool collectTargets(WriteDoc &doc, const View &v, int r0, int r1, QVector<MarkTa
                 if (int(v.index.chain(refs[size_t(i)].key).size()) <= v.depth + 1) continue;
                 const auto nested = viewAt(doc, refs[size_t(i)].pos, v.depth + 1);
                 if (!nested) continue;
-                if (out.size() >= kMostTablesMarked) return false;
+                if (out.size() > kMostTablesMarked) return false;   // (out holds the table itself too: 200 tables in the rows are marked, the 201st is refused)
                 MarkTarget target{d->findBlock(nested->index.refs()[size_t(nested->first)].pos).blockNumber(), nested->depth, {}};
                 for (int n = 0; n < nested->layout->rowCount(); ++n)
                     if (!rowSays(doc, nested->layout->row(n), "del", false) && !rowSays(doc, nested->layout->row(n), "ins", true)) target.rows.push_back(n);
@@ -3854,7 +3854,7 @@ bool trackedDeleteRows(WriteDoc &doc, QTextCursor &c, const std::shared_ptr<View
     if (own.size() == r1 - r0 + 1) return false;
     QTextDocument *d = tableStory(doc);
     {   // (what is found first is looked at with nothing changed: a table that holds too many tables is left as it is)
-        QVector<MarkTarget> found;
+        QVector<MarkTarget> found{MarkTarget{0, 0, {}}};   // (the table itself counts as the first, as it does below)
         if (!collectTargets(doc, *v, r0, r1, found)) {
             doc.tableNotice = tableText(QT_TRANSLATE_NOOP("jp::write::Tables", "This change was not made: the rows hold too many tables to mark as deleted."));
             return true;
@@ -3934,29 +3934,41 @@ bool trackedDeleteRows(WriteDoc &doc, QTextCursor &c, const std::shared_ptr<View
 
 qint64 tableRecordParsesForTest() { return g_recordParses.load(); }
 
-bool coveredByRowChange(const flow::TableStore &store, const QTextBlock &b, bool inserted, const QString &author, bool ownRowCounts)
+bool coveredByRowChange(const flow::TableStore &store, const QTextBlock &b, bool inserted, const QString &author, int fromLevel)
 {
     const int key = cellKeyOf(b);
-    bool own = true;
     int depth = 0;
     for (const flow::CellRecord *rec = key ? store.get(key) : nullptr; rec && depth < 64; rec = rec->parent ? store.get(rec->parent) : nullptr, ++depth) {
         const RowPart *rp = static_cast<const RowPart *>(rec->row ? rec->row->app.get() : nullptr);
-        if (rp && (ownRowCounts || !own))
+        if (rp && depth >= fromLevel)
             for (const Record &r : recordsOf(rp->open, kRow))
                 if (r.name == (inserted ? "ins" : "del") && QString(revisionAuthorOf(r.xml)) == author) return true;
-        own = false;
+    }
+    return false;
+}
+
+bool inTrackedRow(const QTextBlock &b)
+{
+    const QVariant stored = b.document()->property(kTableStoreProperty);
+    const int key = cellKeyOf(b);
+    if (!stored.isValid() || !key) return false;
+    const flow::TableStore &store = *reinterpret_cast<const flow::TableStore *>(stored.value<quintptr>());
+    int depth = 0;
+    for (const flow::CellRecord *rec = store.get(key); rec && depth < 64; rec = rec->parent ? store.get(rec->parent) : nullptr, ++depth) {
+        const RowPart *rp = static_cast<const RowPart *>(rec->row ? rec->row->app.get() : nullptr);
+        if (rp)
+            for (const Record &r : recordsOf(rp->open, kRow))
+                if (r.name == "ins" || r.name == "del") return true;
     }
     return false;
 }
 
 void tableChangesAt(const flow::TableStore &store, const QTextBlock &b, QVector<TableChange> *out)
 {
-    const int key = cellKeyOf(b);
-    const flow::CellRecord *rec = key ? store.get(key) : nullptr;
-    if (!rec) return;
+    const int key0 = cellKeyOf(b);
+    if (!key0 || !store.get(key0)) return;
     const QTextBlock prev = b.previous();
     const int pkey = prev.isValid() ? cellKeyOf(prev) : 0;
-    if (pkey && inCellOf(store, pkey, key)) return;   // (not the first paragraph of its cell)
     const flow::CellRecord *prec = pkey ? store.get(pkey) : nullptr;
     // Where the cell, the row, and the table end: the last paragraph that is in them.
     auto endOf = [&](auto inside) {
@@ -3968,34 +3980,56 @@ void tableChangesAt(const flow::TableStore &store, const QTextBlock &b, QVector<
         }
         return to;
     };
-    const CellPart *cp = static_cast<const CellPart *>(rec->cell.app.get());
-    const RowPart *rp = static_cast<const RowPart *>(rec->row ? rec->row->app.get() : nullptr);
-    const TablePart *tp = static_cast<const TablePart *>(rec->table ? rec->table->app.get() : nullptr);
-    // The row and the table begin here when the paragraph before is not in them (at the depth of this cell).
-    int own = 0;
-    store.get(key);
-    const flow::CellRecord *sibling = nullptr;
-    if (prec) {
-        int depthOfThis = 0;
-        for (const flow::CellRecord *p = rec; p && p->parent && depthOfThis < 64; p = store.get(p->parent)) ++depthOfThis;
-        sibling = ancestorAtDepth(store, prec, depthOfThis, &own);
-    }
-    const bool newTable = !sibling || sibling->table != rec->table;
-    const bool newRow = newTable || sibling->row != rec->row;
     const int block = b.blockNumber();
-    if (newTable && tp)
-        for (const Record &r : recordsOf(tp->open, kTbl))
-            out->push_back(makeChange(TableChange::TableProps, r.xml, b.position(), endOf([&](int k) { for (const flow::CellRecord *q = store.get(k); q; q = store.get(q->parent)) if (q->table == rec->table) return true; return false; }), block));
-    if (newRow && rp)
-        for (const Record &r : recordsOf(rp->open, kRow)) {
-            const TableChange::Kind kind = r.name == "ins" ? TableChange::RowInserted : r.name == "del" ? TableChange::RowDeleted : TableChange::RowProps;
-            out->push_back(makeChange(kind, r.xml, b.position(), endOf([&](int k) { for (const flow::CellRecord *q = store.get(k); q; q = store.get(q->parent)) if (q->row == rec->row) return true; return false; }), block));
+    auto at = [](int depth, TableChange c) {
+        c.depth = depth;
+        return c;
+    };
+    int cellsDeep = 0;   // (how many cells hold the paragraph, the cell it is in too)
+    for (const flow::CellRecord *q = store.get(key0); q && cellsDeep < 64; q = q->parent ? store.get(q->parent) : nullptr) ++cellsDeep;
+    // The cells that this paragraph is in, the inner one first: a paragraph that begins a nested table also begins the cell (and the row, and the table) that holds it, so it begins them all, at every
+    // level, as long as it is the first paragraph of the cell at that level.
+    QVector<int> levels;
+    for (int k = key0, n = 0; k && n < 64; ++n) {
+        if (pkey && inCellOf(store, pkey, k)) break;   // (not the first paragraph of this cell)
+        levels.push_back(k);
+        const flow::CellRecord *q = store.get(k);
+        k = q ? q->parent : 0;
+    }
+    for (qsizetype li = levels.size(); li-- > 0;) {   // (the outer cell first)
+        const int key = levels[li];
+        const flow::CellRecord *rec = store.get(key);
+        if (!rec) continue;
+        const CellPart *cp = static_cast<const CellPart *>(rec->cell.app.get());
+        const RowPart *rp = static_cast<const RowPart *>(rec->row ? rec->row->app.get() : nullptr);
+        const TablePart *tp = static_cast<const TablePart *>(rec->table ? rec->table->app.get() : nullptr);
+        // The row and the table begin here when the paragraph before is not in them (at the depth of this cell).
+        int own = 0;
+        const flow::CellRecord *sibling = nullptr;
+        if (prec) {
+            int depthOfThis = 0;
+            for (const flow::CellRecord *p = rec; p && p->parent && depthOfThis < 64; p = store.get(p->parent)) ++depthOfThis;
+            sibling = ancestorAtDepth(store, prec, depthOfThis, &own);
         }
-    if (cp)
-        for (const Record &r : recordsOf(cp->open, kCell)) {
-            const TableChange::Kind kind = r.name == "cellIns" ? TableChange::CellInserted : r.name == "cellDel" ? TableChange::CellDeleted : r.name == "cellMerge" ? TableChange::CellMerged : TableChange::CellProps;
-            out->push_back(makeChange(kind, r.xml, b.position(), endOf([&](int k) { return inCellOf(store, k, key); }), block));
-        }
+        const int depth = cellsDeep - 1 - int(li);   // (how many cells deep this cell's table is)
+        const bool newTable = !sibling || sibling->table != rec->table;
+        const bool newRow = newTable || sibling->row != rec->row;
+        if (newTable && tp)
+            for (const Record &r : recordsOf(tp->open, kTbl))
+                out->push_back(at(depth, makeChange(TableChange::TableProps, r.xml, b.position(), endOf([&](int k) { for (const flow::CellRecord *q = store.get(k); q; q = store.get(q->parent)) if (q->table == rec->table) return true; return false; }), block)));
+        if (newRow && rp)
+            for (const Record &r : recordsOf(rp->open, kRow)) {
+                const TableChange::Kind kind = r.name == "ins" ? TableChange::RowInserted : r.name == "del" ? TableChange::RowDeleted : TableChange::RowProps;
+                TableChange c = makeChange(kind, r.xml, b.position(), endOf([&](int k) { for (const flow::CellRecord *q = store.get(k); q; q = store.get(q->parent)) if (q->row == rec->row) return true; return false; }), block);
+                c.level = int(li);
+                out->push_back(at(depth, c));
+            }
+        if (cp)
+            for (const Record &r : recordsOf(cp->open, kCell)) {
+                const TableChange::Kind kind = r.name == "cellIns" ? TableChange::CellInserted : r.name == "cellDel" ? TableChange::CellDeleted : r.name == "cellMerge" ? TableChange::CellMerged : TableChange::CellProps;
+                out->push_back(at(depth, makeChange(kind, r.xml, b.position(), endOf([&](int k) { return inCellOf(store, k, key); }), block)));
+            }
+    }
 }
 
 namespace {
@@ -4139,7 +4173,7 @@ struct Settled {
 };
 
 // Takes the records of changes out of the table (the one at `at` is in), or gives the old properties back, in one pass over the table's parts.
-void settleRecords(WriteDoc &doc, int at, const QVector<Settled> &records, bool accept, int *done, int *kept)
+void settleRecords(WriteDoc &doc, int at, int depth, const QVector<Settled> &records, bool accept, int *done, int *kept)
 {
     QTextCursor c(tableStory(doc));
     c.setPosition(at);
@@ -4194,7 +4228,7 @@ void settleRecords(WriteDoc &doc, int at, const QVector<Settled> &records, bool 
             }
         }
         return true;
-    });
+    }, depth);
 }
 
 } // namespace
@@ -4209,7 +4243,7 @@ int resolveTableChanges(WriteDoc &doc, QTextDocument *story, const QVector<Table
     int done = 0, kept = 0;
     for (qsizetype i = 0; i < which.size();) {
         // The changes of one table, together: those that begin in it (the table's paragraphs from its first to its last).
-        const auto v = viewAt(doc, which[i].from);
+        const auto v = viewAt(doc, which[i].from, which[i].depth);
         if (!v) {
             ++i;
             continue;
@@ -4219,7 +4253,7 @@ int resolveTableChanges(WriteDoc &doc, QTextDocument *story, const QVector<Table
         QVector<TableChange> group;
         for (; i < which.size() && which[i].from >= tableFrom && which[i].from < tableTo; ++i) {
             // (a change in a table inside this one is a later one: its own table's)
-            const auto inner = viewAt(doc, which[i].from);
+            const auto inner = viewAt(doc, which[i].from, which[i].depth);
             if (inner && inner->first == v->first && inner->last == v->last) group.push_back(which[i]);
             else break;
         }
@@ -4251,6 +4285,7 @@ int resolveTableChanges(WriteDoc &doc, QTextDocument *story, const QVector<Table
         struct Step {
             int from, to;
             bool row;
+            int at = -1;   // for a row: a paragraph of its own table's cells to put the cursor in (the row may begin with a table inside its first cell)
         };
         QVector<Step> steps;
         for (auto it = cellsOfRow.cbegin(); it != cellsOfRow.cend(); ++it) {
@@ -4272,22 +4307,34 @@ int resolveTableChanges(WriteDoc &doc, QTextDocument *story, const QVector<Table
             if (all) rowsToGo.insert(it.key());
         }
         // The records: taken out (or the old properties given back) in one pass over the table's parts.
-        if (!records.isEmpty()) settleRecords(doc, group.first().from, records, accept, &done, &kept);
+        if (!records.isEmpty()) settleRecords(doc, group.first().from, group.first().depth, records, accept, &done, &kept);
         // A run of rows that go in one step. Every step is done from the later places to the earlier, and its place is as it was when the table was looked at (nothing before it has changed).
         QVector<int> rows = rowsToGo.values().toVector();
         std::sort(rows.begin(), rows.end());
         for (qsizetype r = 0; r < rows.size();) {
             qsizetype e = r;
             while (e + 1 < rows.size() && rows[e + 1] == rows[e] + 1) ++e;
-            steps.push_back({t.row(rows[r]).from, t.row(rows[e]).to, true});
+            Step step{t.row(rows[r]).from, t.row(rows[e]).to, true};
+            const std::vector<flow::BlockRef> &blocks = v->index.refs();
+            if (int(v->index.chain(blocks[size_t(t.cell(t.row(rows[r]).cell0).r0)].key).size()) != v->depth + 1) {
+                // The row begins with a table inside its first cell: the cursor goes in a paragraph that is directly in the row's own cells (every cell ends with one).
+                const flow::TableLayout::Row &first = t.row(rows[r]);
+                for (int ci = first.cell0; ci < first.cell0 + first.cells && step.at < 0; ++ci)
+                    for (int k = t.cell(ci).r0; k < t.cell(ci).r1; ++k)
+                        if (int(v->index.chain(blocks[size_t(k)].key).size()) == v->depth + 1) {
+                            step.at = blocks[size_t(k)].pos;
+                            break;
+                        }
+            }
+            steps.push_back(step);
             r = e + 1;
         }
         std::sort(steps.begin(), steps.end(), [](const Step &a, const Step &b) { return a.from > b.from; });
         for (const Step &st : std::as_const(steps)) {
             QTextCursor c(tableStory(doc));
-            c.setPosition(st.from);
+            c.setPosition(st.row && st.at >= 0 ? st.at : st.from);
             if (st.row) {
-                c.setPosition(std::max(st.from, st.to - 1), QTextCursor::KeepAnchor);
+                c.setPosition(std::max(st.at >= 0 ? st.at : st.from, st.to - 1), QTextCursor::KeepAnchor);
                 deleteTableRows(doc, c);
             } else if (deleteTableCellsShiftLeft(doc, c)) {
                 ++done;
@@ -4297,7 +4344,8 @@ int resolveTableChanges(WriteDoc &doc, QTextDocument *story, const QVector<Table
                 here.kind = accept ? TableChange::CellDeleted : TableChange::CellInserted;
                 here.from = st.from;
                 here.to = st.to;
-                settleRecords(doc, st.from, {{here, true}}, accept, &done, &kept);
+                here.depth = group.first().depth;
+                settleRecords(doc, st.from, here.depth, {{here, true}}, accept, &done, &kept);
             }
         }
     }

@@ -5,6 +5,7 @@
 #include "app/settings.h"
 #include "core/editops.h"
 #include "core/pagesetup.h"
+#include "core/trackpolicy.h"
 
 #include <QApplication>
 #include <QCoreApplication>
@@ -269,7 +270,10 @@ void Ruler::mouseReleaseEvent(QMouseEvent *e)
 {
     Q_UNUSED(e);
     if (m_drag == Marker::None) return;
-    if (m_dragMoved || m_dragOut) commit();
+    if (m_dragMoved || m_dragOut) {
+        const UntrackedGesture untrackedNote(m_view->document());
+        commit();
+    }
     m_drag = Marker::None;
     m_dragIndex = -1;
     m_dragOut = false;

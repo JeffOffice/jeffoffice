@@ -4,6 +4,7 @@
 #include "core/wordformat.h"
 #include "core/styleops.h"
 #include "core/tableops.h"
+#include "core/trackpolicy.h"
 #include "flow/tableflow.h"
 #include "core/writeprops.h"
 #include "flow/flowdocument.h"
@@ -207,7 +208,7 @@ int compareParsed(const ParsedField &a, const ParsedField &b, SortKey::Type type
 
 int sortParagraphs(WriteDoc &doc, QTextCursor &c, const SortOptions &options)
 {
-    if (doc.trackChanges() || options.keys.isEmpty()) return 0;
+    if (options.keys.isEmpty()) return 0;
     QTextCursor sel = c;
     const NoteScopeGuard scopeGuard(doc, sel);
     if (!intoBody(sel)) return 0;
@@ -215,6 +216,12 @@ int sortParagraphs(WriteDoc &doc, QTextCursor &c, const SortOptions &options)
     if (blocks.size() > kMostSortParagraphs) return 0;
     for (const QTextBlock &b : blocks)
         if (isLocked(b) || b.blockFormat().hasProperty(prop::EndnoteBlock)) return 0;
+    if (doc.trackChanges() && !untrackedEditActive() && trackedMarksCanBeResolved(doc))   // (a sort is not recorded: it does not take part of a row that carries a tracked mark)
+        for (const QTextBlock &b : blocks)
+            if (inTrackedRow(b)) {
+                doc.tableNotice = trackedRowsText();
+                return 0;
+            }
     const int skip = options.header ? 1 : 0;
     if (int(blocks.size()) - skip < 2) return 0;
     QTextDocument *d = sel.document();

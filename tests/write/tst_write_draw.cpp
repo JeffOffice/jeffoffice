@@ -2707,6 +2707,42 @@ private Q_SLOTS:
         QVERIFY(std::abs(info.width / info.height - 2.0) < 0.02);
     }
 
+    // A shape pulled or moved with the mouse while Track Changes is on: the change is made as with it off, nothing is marked, and the status bar says it was not recorded once the button is let go.
+    void aShapeDraggedOrSizedWithTrackingOnSaysTheChangeWasNotRecorded()
+    {
+        for (const bool tracking : {true, false}) {
+            for (const bool resize : {true, false}) {
+                Win win;
+                write::WriteDoc *doc = win.w.document();
+                QTextCursor c(doc->story());
+                c.setPosition(0);
+                QCOMPARE(insertShape(*doc, c, QStringLiteral("rect"), QSizeF(120, 60)), PictureResult::Ok);
+                QVERIFY(setPicturePlace(*doc, 0, 150, 150));
+                win.w.view()->refresh();
+                win.w.view()->selectPicture(0);
+                doc->setTrackChanges(tracking);
+                QWidget *vp = win.w.view()->viewport();
+                QRectF r;
+                QTRY_VERIFY(win.w.view()->pictureRect(0, &r));
+                const double s = win.w.view()->zoom() * 96.0 / 72.0;
+                const PictureInfo was = pictureAt(*doc, doc->story(), 0);
+                const QPoint from = resize ? r.bottomRight().toPoint() : r.center().toPoint();
+                const QPoint to = from + QPoint(int(40 * s), int(10 * s));
+                win.w.statusBar()->clearMessage();
+                QTest::mousePress(vp, Qt::LeftButton, Qt::NoModifier, from);
+                QTest::mouseMove(vp, from + QPoint(int(15 * s), int(4 * s)));
+                QTest::mouseMove(vp, to);
+                QVERIFY(win.w.statusBar()->currentMessage().isEmpty());
+                QTest::mouseRelease(vp, Qt::LeftButton, Qt::NoModifier, to);
+                const PictureInfo now = pictureAt(*doc, doc->story(), 0);
+                QVERIFY(now.width != was.width || now.left != was.left || now.top != was.top);
+                QCOMPARE(win.w.statusBar()->currentMessage() == write::untrackedNoticeText(), tracking);
+                QVERIFY(!documentXml(doc->toDocx()).contains("<w:ins ") && !documentXml(doc->toDocx()).contains("<w:del "));
+                QVERIFY(doc->undo());   // (one step takes the drag back)
+            }
+        }
+    }
+
     void aRoundedRectangleHasAYellowHandleThatSetsItsCornerAndIsSavedAsTheAdjustment()
     {
         auto doc = textDoc({"Before after"});
