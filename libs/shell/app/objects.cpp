@@ -196,8 +196,9 @@ bool layOutPages(const QByteArray &docx, QTextDocument *doc)
     office::wml::HtmlOptions options;
     options.singleFile = true;
     const QString html = QString::fromUtf8(office::wml::documentToHtml(words, options));
-    if (office::wml::htmlRefusal(html) != office::wml::HtmlRefusal::None) return false;   // (a document that is lists or tables on a scale no page has: not laid out)
-    doc->setHtml(html);
+    const office::wml::GuardedHtml guarded = office::wml::guardHtml(html);
+    if (guarded.refusal != office::wml::HtmlRefusal::None) return false;   // (a document that is lists or tables on a scale no page has: not laid out)
+    doc->setHtml(guarded.html);
     doc->setDocumentMargin(54);
     doc->setPageSize(QSizeF(kPageWidth, kPageHeight));
     return true;

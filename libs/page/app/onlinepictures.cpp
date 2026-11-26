@@ -50,8 +50,9 @@ void clean(Picture *p)
 // (a field of a library's answer: a page the parser is not given is read as its words)
 QString plain(const QString &html)
 {
-    if (office::wml::htmlRefusal(html) != office::wml::HtmlRefusal::None) return office::wml::htmlPlainText(html);
-    return QTextDocumentFragment::fromHtml(html).toPlainText().simplified();
+    const office::wml::GuardedHtml guarded = office::wml::guardHtml(html);
+    if (guarded.refusal != office::wml::HtmlRefusal::None) return office::wml::htmlPlainText(html);
+    return QTextDocumentFragment::fromHtml(guarded.html).toPlainText().simplified();
 }
 
 // An address from a library: none, or one that starts https and names a host

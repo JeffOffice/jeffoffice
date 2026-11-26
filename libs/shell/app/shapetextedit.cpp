@@ -475,10 +475,13 @@ void ShapeTextEdit::marksChanged()
 
 void ShapeTextEdit::insertFromMimeData(const QMimeData *source)
 {
-    // (a page the parser is not given is pasted as its plain text, and the person is told)
-    if (const auto plain = office::wml::plainTextInsteadOfRefusedHtml(source)) {
+    // (the parser is given the guarded page, never the page as it came; a page that is refused is pasted as its plain text, and the person is told)
+    bool refused = false;
+    const std::unique_ptr<QMimeData> guarded = office::wml::guardedMimeData(source, &refused);
+    if (guarded) source = guarded.get();
+    if (refused) {
         QToolTip::showText(mapToGlobal(cursorRect().bottomLeft()), jp::plainToolTip(office::wml::htmlPasteRefusedNote()), this);
-        QTextEdit::insertFromMimeData(plain.get());
+        QTextEdit::insertFromMimeData(source);
         return;
     }
     // (Paste into an empty paragraph brings the pasted paragraph's alignment with it: Qt keeps the paragraph's own.)

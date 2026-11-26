@@ -319,8 +319,6 @@ struct Reader {
 
 namespace {
 
-HtmlRefusal checkHtml(const QByteArray &html) { return htmlRefusal(html); }
-HtmlRefusal checkHtml(const QString &html) { return htmlRefusal(html, kMostClipHtmlBytes); }
 QString refusalText(HtmlRefusal why) { return htmlRefusalText(why); }
 
 } // namespace
@@ -360,13 +358,17 @@ QVector<HtmlTable> readHtmlTables(const QByteArray &html, bool *tooMany, QString
 {
     QVector<HtmlTable> tables;
     if (tooMany) *tooMany = false;
-    if (const HtmlRefusal why = checkHtml(html); why != HtmlRefusal::None) {
-        if (error) *error = refusalText(why);
+    // (only the words of the cells are read: the styles of the page are left out, which is what takes the parser most of its time on a copy of cells)
+    HtmlLimits limits;
+    limits.styles = 0;
+    const GuardedHtml guarded = guardHtml(html, limits);
+    if (guarded.refusal != HtmlRefusal::None) {
+        if (error) *error = refusalText(guarded.refusal);
         return tables;
     }
     QTextDocument page;
     page.setUndoRedoEnabled(false);
-    page.setHtml(QString::fromUtf8(html));
+    page.setHtml(guarded.html);
     qint64 cells = 0;
     bool tooBig = false;
     for (QTextFrame::iterator it = page.rootFrame()->begin(); !it.atEnd(); ++it) {
@@ -406,10 +408,14 @@ std::optional<ClipTable> clipTable(const QString &html, const QString &text)
     ++g_clipTableParses;
     ClipTable out;
     if (!html.isEmpty() && html.size() <= kMostClipHtmlBytes && html.contains(QLatin1String("<table"), Qt::CaseInsensitive)) {
-        if (checkHtml(html) != HtmlRefusal::None) return std::nullopt;
+        HtmlLimits limits;
+        limits.bytes = kMostClipHtmlBytes;
+        limits.styles = 0;   // (only the words of the cells are read)
+        const GuardedHtml guarded = guardHtml(html, limits);
+        if (guarded.refusal != HtmlRefusal::None) return std::nullopt;
         QTextDocument page;
         page.setUndoRedoEnabled(false);
-        page.setHtml(html);
+        page.setHtml(guarded.html);
         QTextTable *only = nullptr;
         for (QTextFrame::iterator it = page.rootFrame()->begin(); !it.atEnd(); ++it) {
             if (auto *table = qobject_cast<QTextTable *>(it.currentFrame())) {
@@ -462,13 +468,14 @@ std::optional<ClipTable> clipTable(const QString &html, const QString &text)
 
 bool readHtml(const QByteArray &html, Document *out, QString *error, const QString &baseDir)
 {
-    if (const HtmlRefusal why = checkHtml(html); why != HtmlRefusal::None) {
-        if (error) *error = refusalText(why);
+    const GuardedHtml guarded = guardHtml(html);
+    if (guarded.refusal != HtmlRefusal::None) {
+        if (error) *error = refusalText(guarded.refusal);
         return false;
     }
     QTextDocument page;
     page.setUndoRedoEnabled(false);
-    page.setHtml(QString::fromUtf8(html));
+    page.setHtml(guarded.html);
     Document d = newDocument();
     Reader r{&d};
     r.baseDir = baseDir;

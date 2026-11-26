@@ -387,11 +387,10 @@ const QString &PageView::htmlOf(const PasteSource &from) const
         f.htmlDone = true;
         // (a mime object can't say how big a format is without reading it: the size is checked on the one read, before anything is converted or parsed)
         if (from.mime->data(QStringLiteral("text/html")).size() <= kMostPastedHtml) {
-            f.html = safeClipHtml(from.mime->html());
-            if (office::wml::htmlRefusal(f.html) != office::wml::HtmlRefusal::None) {
-                f.html.clear();
-                f.htmlRefused = true;
-            }
+            // (what the parser is given is the guarded page, never the page as it came)
+            const office::wml::GuardedHtml guarded = office::wml::guardHtml(safeClipHtml(from.mime->html()));
+            if (guarded.refusal != office::wml::HtmlRefusal::None) f.htmlRefused = true;
+            else f.html = guarded.html;
         }
     }
     return f.html;

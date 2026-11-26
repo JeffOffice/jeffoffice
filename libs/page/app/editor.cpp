@@ -2210,7 +2210,7 @@ PastedTableResult Editor::pasteHtmlTable(const QMimeData *md, bool overSelected,
 bool Editor::pasteCells(const QMimeData *md)
 {
     // (a page the parser is not given: its text is read as cells, if it has them, and the person is told)
-    const bool refused = md && md->hasHtml() && office::wml::htmlRefusal(md->html()) != office::wml::HtmlRefusal::None;
+    const bool refused = md && md->hasHtml() && office::wml::guardHtml(md->html()).refusal != office::wml::HtmlRefusal::None;
     if (md && md->hasHtml() && !refused) {
         const PastedTableResult res = pasteHtmlTable(md, true, true);
         if (res == PastedTableResult::Ok) return true;
@@ -2279,7 +2279,8 @@ void Editor::paste(bool textOnly)
     const QMimeData *md = QApplication::clipboard()->mimeData();
     if (!md) return;
     // A page the parser is not given (too deep or too much work) is pasted as its plain text, and the person is told.
-    const bool refused = !textOnly && md->hasHtml() && !md->hasFormat("application/x-jeffpub-text") && !md->hasFormat(kItemsMime) && office::wml::htmlRefusal(md->html()) != office::wml::HtmlRefusal::None;
+    const office::wml::GuardedHtml guarded = !textOnly && md->hasHtml() ? office::wml::guardHtml(md->html()) : office::wml::GuardedHtml();
+    const bool refused = !textOnly && md->hasHtml() && !md->hasFormat("application/x-jeffpub-text") && !md->hasFormat(kItemsMime) && guarded.refusal != office::wml::HtmlRefusal::None;
     if (refused) {
         textOnly = true;
         Q_EMIT status(office::wml::htmlPasteRefusedNote());
@@ -2303,8 +2304,8 @@ void Editor::paste(bool textOnly)
             const int from = m_cursor.selectionStart();
             m_cursor.insertFragment(QTextDocumentFragment(&tmp));
             m_doc->adoptText(m_cursor.document(), from, m_cursor.position());
-        } else if (!textOnly && md->hasHtml()) {
-            m_cursor.insertFragment(QTextDocumentFragment::fromHtml(md->html()));
+        } else if (!textOnly && md->hasHtml() && guarded.refusal == office::wml::HtmlRefusal::None) {
+            m_cursor.insertFragment(QTextDocumentFragment::fromHtml(guarded.html));
         } else if (md->hasText() || refused) {
             m_cursor.insertText(plain());
         }
@@ -2342,7 +2343,7 @@ void Editor::paste(bool textOnly)
         const QSizeF ps = m_doc->pageSize();
         auto t = std::static_pointer_cast<TextItem>(newTextBox(QRectF(ps.width() * 0.2, ps.height() * 0.3, ps.width() * 0.6, ps.height() * 0.25)));
         QTextCursor c(m_doc->storyDoc(t->storyId));
-        if (!textOnly && md->hasHtml()) c.insertFragment(QTextDocumentFragment::fromHtml(md->html()));
+        if (!textOnly && md->hasHtml() && guarded.refusal == office::wml::HtmlRefusal::None) c.insertFragment(QTextDocumentFragment::fromHtml(guarded.html));
         else c.insertText(plain());
         surfaceItems().push_back(t);
         m_sel = QStringList{t->id};

@@ -380,11 +380,12 @@ bool loadTextFileInto(QTextDocument *doc, const QString &path, QString *problem,
         docxHtml = docxToHtml(package, &left, &cut);
         readerLeftOut = readerLeftOut || cut;
         unreadable = docxHtml.isEmpty();
-        if (const auto refused = office::wml::htmlRefusal(docxHtml); refused != office::wml::HtmlRefusal::None) {
-            if (problem) *problem = QCoreApplication::translate("Importers", "\"%1\" couldn't be read, so nothing was inserted.\n%2").arg(name, office::wml::htmlRefusalText(refused));
+        const office::wml::GuardedHtml guarded = office::wml::guardHtml(docxHtml);
+        if (guarded.refusal != office::wml::HtmlRefusal::None) {
+            if (problem) *problem = QCoreApplication::translate("Importers", "\"%1\" couldn't be read, so nothing was inserted.\n%2").arg(name, office::wml::htmlRefusalText(guarded.refusal));
             return false;
         }
-        fragment = QTextDocumentFragment::fromHtml(docxHtml);
+        fragment = QTextDocumentFragment::fromHtml(guarded.html);
         if (!unreadable && fragment.toPlainText().trimmed().isEmpty()) {
             if (problem) *problem = QCoreApplication::translate("Importers", "No text was found in \"%1\", so nothing was inserted.").arg(name);
             return false;
@@ -401,11 +402,12 @@ bool loadTextFileInto(QTextDocument *doc, const QString &path, QString *problem,
     if (packaged) {
         c.insertFragment(fragment);
     } else if (suffix == "html" || suffix == "htm") {
-        if (const auto refused = office::wml::htmlRefusal(data); refused != office::wml::HtmlRefusal::None) {
-            if (problem) *problem = QCoreApplication::translate("Importers", "\"%1\" couldn't be read, so nothing was inserted.\n%2").arg(name, office::wml::htmlRefusalText(refused));
+        const office::wml::GuardedHtml guarded = office::wml::guardHtml(data);
+        if (guarded.refusal != office::wml::HtmlRefusal::None) {
+            if (problem) *problem = QCoreApplication::translate("Importers", "\"%1\" couldn't be read, so nothing was inserted.\n%2").arg(name, office::wml::htmlRefusalText(guarded.refusal));
             return false;
         }
-        c.insertFragment(QTextDocumentFragment::fromHtml(QString::fromUtf8(data)));
+        c.insertFragment(QTextDocumentFragment::fromHtml(guarded.html));
     } else if (suffix == "md") {
         QTextDocument tmp;
         tmp.setMarkdown(QString::fromUtf8(data));
