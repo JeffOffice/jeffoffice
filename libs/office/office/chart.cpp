@@ -1190,6 +1190,13 @@ bool Reader::read(const QDomElement &root, QString *error)
             else if ((name == QLatin1String("catAx") || name == QLatin1String("valAx") || name == QLatin1String("dateAx") || name == QLatin1String("serAx")) && c.axes.size() < kMaxAxes)
                 c.axes << readAxis(e);
         }
+        // a radar beside another plot is not drawn as a radar (the spokes have no place beside axes): the chart is drawn the way a kind not drawn yet is, and its part kept as it is
+        if (c.plots.size() > 1)
+            for (ChartPlot &p : c.plots)
+                if (p.type == ChartType::Radar) {
+                    p.type = ChartType::Other;
+                    p.filled = false;
+                }
         if (const QDomElement table = cChild(area, "dTable"); !table.isNull()) {
             ChartDataTable &t = c.dataTable;
             t.present = true;

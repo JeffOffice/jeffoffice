@@ -3,6 +3,7 @@
 
 #include "core/fonts.h"
 #include "office/chart_trend.h"
+#include "office/chart_write.h"
 #include "core/workthread.h"
 #include <algorithm>
 #include <cmath>
@@ -548,6 +549,39 @@ private Q_SLOTS:
         QVERIFY2(readChart(chartPart(QStringLiteral("<c:radarChart><c:radarStyle val=\"filled\"/>") + chartSeries(0, QStringLiteral("R"), {"a", "b"}, {1, 2}, fill)
                                      + QStringLiteral("<c:axId val=\"111\"/><c:axId val=\"222\"/></c:radarChart>") + chartAxes()), defaultTheme(), ColorMap(), &c, &err), qPrintable(err));
         QCOMPARE(c.plots[0].series[0].color, QColor(0, 0xFF, 0));
+    }
+
+    // A radar beside another plot has no place on one set of axes: the chart is drawn as a kind not drawn yet is (every plot as columns, as before radar was a kind), and the part is kept as written.
+    void aRadarBesideAnotherPlotIsDrawnAsColumnsAndKept()
+    {
+        const QString radar = QStringLiteral("<c:radarChart><c:radarStyle val=\"marker\"/><c:varyColors val=\"0\"/>") + chartSeries(1, QStringLiteral("R"), {"a", "b", "c"}, {3, 1, 2})
+                              + QStringLiteral("<c:axId val=\"111\"/><c:axId val=\"222\"/></c:radarChart>");
+        const QString bars = QStringLiteral("<c:barChart><c:barDir val=\"col\"/><c:grouping val=\"clustered\"/><c:varyColors val=\"0\"/>") + chartSeries(0, QStringLiteral("B"), {"a", "b", "c"}, {1, 2, 3})
+                             + QStringLiteral("<c:axId val=\"111\"/><c:axId val=\"222\"/></c:barChart>");
+        for (const QString &body : {bars + radar + chartAxes(), radar + bars + chartAxes()}) {
+            const QByteArray part = chartPart(body);
+            Chart c;
+            QString err;
+            QVERIFY2(readChart(part, defaultTheme(), ColorMap(), &c, &err), qPrintable(err));
+            QCOMPARE(int(c.plots.size()), 2);
+            for (const ChartPlot &p : c.plots) QVERIFY(p.type != ChartType::Radar);
+            // both are drawn: the same picture as the chart whose second kind is one not drawn yet, and in it the series of both
+            QString other = body;
+            other.replace(QStringLiteral("radarChart"), QStringLiteral("stockChart"));
+            Chart o;
+            QVERIFY2(readChart(chartPart(other), defaultTheme(), ColorMap(), &o, &err), qPrintable(err));
+            QCOMPARE(chartSvg(c, QSizeF(400, 300)), chartSvg(o, QSizeF(400, 300)));
+            const QImage img = renderChart(c, QSizeF(400, 300), 2);
+            QVERIFY(colorArea(img, defaultTheme().colors[Theme::Accent1]) > 200);
+            QVERIFY(colorArea(img, defaultTheme().colors[Theme::Accent2]) > 200);
+            // not written over: the part is kept as it is
+            QVERIFY(!chartIsFullyModeled(part));
+        }
+        // alone it is a radar
+        Chart c;
+        QString err;
+        QVERIFY2(readChart(chartPart(radar + chartAxes()), defaultTheme(), ColorMap(), &c, &err), qPrintable(err));
+        QCOMPARE(int(c.plots[0].type), int(ChartType::Radar));
     }
 
     void chartRefusesWhatIsNotAChart()
