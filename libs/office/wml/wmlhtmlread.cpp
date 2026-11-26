@@ -20,6 +20,7 @@
 
 #include <algorithm>
 #include <climits>
+#include <vector>
 
 namespace jp::office::wml {
 
@@ -316,6 +317,167 @@ struct Reader {
 
 } // namespace
 
+namespace {
+
+enum class HtmlRefusal { None, TooLarge, TooDeep, TooManyCells };
+
+quint32 tagId(const QByteArray &name)
+{
+    quint32 h = 2166136261u;
+    for (char ch : name) h = (h ^ quint8(ch)) * 16777619u;
+    return h;
+}
+
+// One look at a page, in time that grows with its size (the parser of the page takes time that grows with the square of its depth): how deep its parts and its tables stand, and how many rows and cells it has.
+// A part left open (a paragraph, a list item, or a cell with no closing tag) is closed by the next of its kind, as a page is read, so a page that is slack with closing tags is not counted deeper than it is.
+template <class Get>
+HtmlRefusal scanHtml(qsizetype n, Get at)
+{
+    struct Open {
+        quint32 id;
+        QByteArray name;
+    };
+    std::vector<Open> stack;
+    QHash<quint32, int> open;      // how many parts of each name are open
+    int tableDepth = 0;
+    qint64 cells = 0, rows = 0;
+    static const QByteArrayList voids = {"br", "hr", "img", "input", "meta", "link", "area", "base", "col", "embed", "param", "source", "track", "wbr"};
+    const quint32 idTable = tagId("table"), idTd = tagId("td"), idTh = tagId("th"), idTr = tagId("tr"), idLi = tagId("li"), idUl = tagId("ul"), idOl = tagId("ol"), idDl = tagId("dl"), idDt = tagId("dt"), idDd = tagId("dd"), idP = tagId("p");
+    auto popTo = [&](qsizetype keep) {
+        while (qsizetype(stack.size()) > keep) {
+            const Open o = stack.back();
+            stack.pop_back();
+            --open[o.id];
+            if (o.id == idTable) --tableDepth;
+        }
+    };
+    // The nearest open part of id `target` above any part of id `stop1`, `stop2`: the number of parts to keep below it, or -1.
+    auto closeSibling = [&](quint32 target, quint32 stop1, quint32 stop2, quint32 also) {
+        if (!open.value(target) && !(also && open.value(also))) return;
+        for (qsizetype i = qsizetype(stack.size()) - 1; i >= 0; --i) {
+            const quint32 id = stack[size_t(i)].id;
+            if (id == stop1 || id == stop2) return;
+            if (id == target || (also && id == also)) {
+                popTo(i);
+                return;
+            }
+        }
+    };
+    qsizetype i = 0;
+    while (i < n) {
+        if (at(i) != '<') {
+            ++i;
+            continue;
+        }
+        ++i;
+        if (i >= n) break;
+        if (at(i) == '!' || at(i) == '?') {
+            // (a comment ends at "-->", anything else of this kind at ">")
+            if (i + 2 < n && at(i) == '!' && at(i + 1) == '-' && at(i + 2) == '-') {
+                i += 3;
+                while (i + 2 < n && !(at(i) == '-' && at(i + 1) == '-' && at(i + 2) == '>')) ++i;
+                i += 3;
+            } else {
+                while (i < n && at(i) != '>') ++i;
+                ++i;
+            }
+            continue;
+        }
+        const bool closing = at(i) == '/';
+        if (closing) ++i;
+        QByteArray name;
+        while (i < n && name.size() < 24) {
+            const int ch = at(i);
+            const bool ok = (ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') || (ch >= '0' && ch <= '9') || ch == '-' || ch == ':';
+            if (!ok) break;
+            name += char(ch >= 'A' && ch <= 'Z' ? ch + 32 : ch);
+            ++i;
+        }
+        if (name.isEmpty() || (i < n && (at(i) == '_' || at(i) > 127 || (at(i) >= 'a' && at(i) <= 'z') || (at(i) >= 'A' && at(i) <= 'Z')))) continue;   // (not a tag: a "<" in the text)
+        // The rest of the tag: to the ">" that is not in quotes.
+        int quote = 0;
+        bool selfClosing = false;
+        while (i < n) {
+            const int ch = at(i);
+            if (quote) {
+                if (ch == quote) quote = 0;
+            } else if (ch == '"' || ch == '\'') {
+                quote = ch;
+            } else if (ch == '>') {
+                break;
+            }
+            selfClosing = !quote && ch == '/' && i + 1 < n && at(i + 1) == '>';
+            ++i;
+        }
+        ++i;
+        const quint32 id = tagId(name);
+        if (closing) {
+            if (!open.value(id)) continue;
+            for (qsizetype k = qsizetype(stack.size()) - 1; k >= 0; --k)
+                if (stack[size_t(k)].id == id) {
+                    popTo(k);
+                    break;
+                }
+            continue;
+        }
+        if (id == idTd || id == idTh) {
+            if (++cells > kMostHtmlCells) return HtmlRefusal::TooManyCells;
+            closeSibling(idTd, idTable, 0, idTh);
+        } else if (id == idTr) {
+            if (++rows > kMostHtmlRows) return HtmlRefusal::TooManyCells;
+            closeSibling(idTd, idTable, 0, idTh);
+            closeSibling(idTr, idTable, 0, 0);
+        } else if (id == idLi) {
+            closeSibling(idLi, idUl, idOl, 0);
+        } else if (id == idDt || id == idDd) {
+            closeSibling(idDt, idDl, 0, idDd);
+        } else if (id == idP) {
+            if (!stack.empty() && stack.back().id == idP) popTo(qsizetype(stack.size()) - 1);
+        }
+        if (selfClosing || voids.contains(name)) continue;
+        stack.push_back({id, name});
+        ++open[id];
+        if (id == idTable && ++tableDepth > kMostHtmlTableDepth) return HtmlRefusal::TooDeep;
+        if (qsizetype(stack.size()) > kMostPageDepth) return HtmlRefusal::TooDeep;
+        if (name == "script" || name == "style") {
+            // (what stands in a script or a style is not parts of the page)
+            const QByteArray end = "</" + name;
+            while (i < n) {
+                if (at(i) == '<' && i + end.size() <= n) {
+                    bool same = true;
+                    for (int k = 0; k < end.size() && same; ++k) {
+                        const int ch = at(i + k);
+                        same = (ch >= 'A' && ch <= 'Z' ? ch + 32 : ch) == end[k];
+                    }
+                    if (same) break;
+                }
+                ++i;
+            }
+        }
+    }
+    return HtmlRefusal::None;
+}
+
+HtmlRefusal checkHtml(const QByteArray &html)
+{
+    if (html.size() > kMostHtmlBytes) return HtmlRefusal::TooLarge;
+    return scanHtml(html.size(), [&](qsizetype k) { return int(quint8(html.constData()[k])); });
+}
+
+HtmlRefusal checkHtml(const QString &html)
+{
+    return scanHtml(html.size(), [&](qsizetype k) { return int(html.at(k).unicode()); });
+}
+
+QString refusalText(HtmlRefusal why)
+{
+    if (why == HtmlRefusal::TooDeep) return QCoreApplication::translate("jp::office::wml", "This web page nests its tables or other parts too deeply to open.");
+    if (why == HtmlRefusal::TooManyCells) return QCoreApplication::translate("jp::office::wml", "This web page has too many table rows or cells to open.");
+    return QCoreApplication::translate("jp::office::wml", "The web page is too large to open.");
+}
+
+} // namespace
+
 bool looksLikeHtml(const QByteArray &bytes)
 {
     QByteArray head = bytes.left(512);
@@ -351,14 +513,15 @@ QVector<HtmlTable> readHtmlTables(const QByteArray &html, bool *tooMany, QString
 {
     QVector<HtmlTable> tables;
     if (tooMany) *tooMany = false;
-    if (html.size() > kMostHtmlBytes) {
-        if (error) *error = QCoreApplication::translate("jp::office::wml", "The web page is too large to open.");
+    if (const HtmlRefusal why = checkHtml(html); why != HtmlRefusal::None) {
+        if (error) *error = refusalText(why);
         return tables;
     }
     QTextDocument page;
     page.setUndoRedoEnabled(false);
     page.setHtml(QString::fromUtf8(html));
     qint64 cells = 0;
+    bool tooBig = false;
     for (QTextFrame::iterator it = page.rootFrame()->begin(); !it.atEnd(); ++it) {
         auto *table = qobject_cast<QTextTable *>(it.currentFrame());
         if (!table) continue;
@@ -367,11 +530,16 @@ QVector<HtmlTable> readHtmlTables(const QByteArray &html, bool *tooMany, QString
             break;
         }
         const int rows = table->rows(), cols = table->columns();
-        if (rows <= 0 || cols <= 0 || cells + qint64(rows) * cols > 4 * qint64(kMaxTableCells)) continue;
+        if (rows <= 0 || cols <= 0) continue;
+        if (cells + qint64(rows) * cols > 4 * qint64(kMaxTableCells)) {
+            tooBig = true;
+            continue;
+        }
         cells += qint64(rows) * cols;
         HtmlTable out = rowsOf(table, rows, cols);
         tables.push_back(out);
     }
+    if (tables.isEmpty() && tooBig && error) *error = refusalText(HtmlRefusal::TooManyCells);
     return tables;
 }
 
@@ -391,6 +559,7 @@ std::optional<ClipTable> clipTable(const QString &html, const QString &text)
     ++g_clipTableParses;
     ClipTable out;
     if (!html.isEmpty() && html.size() <= kMostClipHtmlBytes && html.contains(QLatin1String("<table"), Qt::CaseInsensitive)) {
+        if (checkHtml(html) != HtmlRefusal::None) return std::nullopt;
         QTextDocument page;
         page.setUndoRedoEnabled(false);
         page.setHtml(html);
@@ -446,8 +615,8 @@ std::optional<ClipTable> clipTable(const QString &html, const QString &text)
 
 bool readHtml(const QByteArray &html, Document *out, QString *error, const QString &baseDir)
 {
-    if (html.size() > kMostHtmlBytes) {
-        if (error) *error = QCoreApplication::translate("jp::office::wml", "The web page is too large to open.");
+    if (const HtmlRefusal why = checkHtml(html); why != HtmlRefusal::None) {
+        if (error) *error = refusalText(why);
         return false;
     }
     QTextDocument page;

@@ -1,6 +1,7 @@
 // Tests of the reader of the old binary workbook format (BIFF8 and BIFF5): the sheets of a workbook, the cell records, the string table with its
 // continuations, formula results, shared formulas, arrays and data tables, defined names, the styles, the layout of a sheet, BIFF5's own forms, what is refused,
 // and what is not read. Every workbook is built in memory by xlshelpers.
+#include "wml/wmlhtmlread.h"
 #include <QScopeGuard>
 #include "xlshelpers.h"
 
@@ -1448,6 +1449,36 @@ private Q_SLOTS:
         QVERIFY(refused != QLatin1String("opened"));
         Workbook named;
         QVERIFY(open("name,qty\nApples,3\n", &named, QStringLiteral("h.xlsx")) != QLatin1String("opened"));
+    }
+
+    // A web page too deep or too large for its parser is refused in words that say so (not "no table"), under any of the page names, before the parser runs.
+    void aHostileWebPageIsRefusedInWordsThatSayWhatIsWrong()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        auto open = [&](const QByteArray &bytes, const QString &name) {
+            const QString path = dir.filePath(name);
+            QFile f(path);
+            f.open(QIODevice::WriteOnly | QIODevice::Truncate);
+            f.write(bytes);
+            f.close();
+            Workbook wb;
+            QString why;
+            return wb.openFile(path, &why) ? QStringLiteral("opened") : why;
+        };
+        QByteArray deep = "<html><body>";
+        for (int i = 0; i < jp::office::wml::kMostHtmlTableDepth + 1; ++i) deep += "<table><tr><td>";
+        deep += "x";
+        for (int i = 0; i < jp::office::wml::kMostHtmlTableDepth + 1; ++i) deep += "</td></tr></table>";
+        deep += "</body></html>";
+        for (const QString &name : {QStringLiteral("d.xls"), QStringLiteral("d.html")}) {
+            const QString why = open(deep, name);
+            QVERIFY2(why.contains(QLatin1String("too deeply")), qPrintable(name + ": " + why));
+        }
+        QByteArray wide = "<html><body><table>";
+        for (int r = 0; r <= jp::office::wml::kMostHtmlRows; ++r) wide += "<tr>";
+        const QString many = open(wide, QStringLiteral("w.xls"));
+        QVERIFY2(many.contains(QLatin1String("too many")) && !many.contains(QLatin1String("no table")), qPrintable(many));
     }
 
     // The double-byte code pages are read by the system's own converter (Windows', CoreFoundation's, or iconv), so that no platform depends on how Qt was built; Qt's, where Qt has

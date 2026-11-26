@@ -2072,7 +2072,7 @@ private Q_SLOTS:
         Document e;
         QVERIFY2(readDocx(htmlPackage(nest + "<w:p/>", htmlStyles(), htmlNumbering()), &e, &err), qPrintable(err));
         const QString deep = QString::fromUtf8(documentToHtml(e, HtmlOptions()));
-        QVERIFY(deep.count(QLatin1String("<table")) <= kMostHtmlDepth);
+        QVERIFY(deep.count(QLatin1String("<table")) <= kMostPageDepth);
         QVERIFY(!deep.contains(QLatin1String("deep")));
     }
 
@@ -3544,6 +3544,91 @@ private Q_SLOTS:
         QVERIFY(t);
         QCOMPARE(t->rows.size(), kMostClipRows);
         QCOMPARE(t->rows[0][0].size(), kMostClipCellChars);
+    }
+
+    // ---- a hostile page: the page's parser takes time that grows with the square of the depth, so depth and size are refused before it runs
+    static QByteArray nestedTables(int n)
+    {
+        QByteArray h = "<html><body>";
+        for (int i = 0; i < n; ++i) h += "<table><tr><td>";
+        h += "x";
+        for (int i = 0; i < n; ++i) h += "</td></tr></table>";
+        return h + "</body></html>";
+    }
+    static QByteArray nestedParts(const QByteArray &open, const QByteArray &close, int n)
+    {
+        QByteArray h = "<html><body><table><tr><td>a</td></tr></table>";
+        for (int i = 0; i < n; ++i) h += open;
+        h += "x";
+        for (int i = 0; i < n; ++i) h += close;
+        return h + "</body></html>";
+    }
+    void tablesNestedPastTheLimitAreRefusedBeforeTheyAreParsed()
+    {
+        bool many = false;
+        QString why;
+        const auto ok = readHtmlTables(nestedTables(kMostHtmlTableDepth), &many, &why);
+        QCOMPARE(ok.size(), 1);
+        QVERIFY2(why.isEmpty(), qPrintable(why));
+        why.clear();
+        const QByteArray deep = nestedTables(kMostHtmlTableDepth + 1);
+        QVERIFY(readHtmlTables(deep, &many, &why).isEmpty());
+        QVERIFY2(why.contains(QLatin1String("too deeply")), qPrintable(why));
+        // (the writer's reader and the clipboard's refuse it the same way)
+        Document d;
+        why.clear();
+        QVERIFY(!readHtml(deep, &d, &why));
+        QVERIFY2(why.contains(QLatin1String("too deeply")), qPrintable(why));
+        QVERIFY(!clipTable(QString::fromUtf8(deep), QString()));
+    }
+    void partsNestedPastTheLimitAreRefused()
+    {
+        for (const auto &kind : {std::pair<QByteArray, QByteArray>("<div>", "</div>"), {"<ul><li>", "</li></ul>"}, {"<b>", "</b>"}}) {
+            const int per = kind.first == "<ul><li>" ? 2 : 1;
+            QString why;
+            QVERIFY(!readHtmlTables(nestedParts(kind.first, kind.second, kMostPageDepth / per + 1), nullptr, &why).size());
+            QVERIFY2(why.contains(QLatin1String("too deeply")), kind.first.constData());
+            why.clear();
+            QCOMPARE(readHtmlTables(nestedParts(kind.first, kind.second, (kMostPageDepth - 10) / per - 5), nullptr, &why).size(), 1);
+        }
+    }
+    void aPageSlackWithClosingTagsIsNotCountedDeeperThanItIs()
+    {
+        // (paragraphs, list items, rows, and cells left open are closed by the next of their kind: a few thousand of each is a flat page)
+        QByteArray h = "<html><body><ul>";
+        for (int i = 0; i < 2 * kMostPageDepth; ++i) h += "<li><p>item";
+        h += "</ul><table>";
+        for (int r = 0; r < 2 * kMostPageDepth; ++r) h += "<tr><td><p>a<td><p>b";
+        h += "</table></body></html>";
+        QString why;
+        const auto t = readHtmlTables(h, nullptr, &why);
+        QVERIFY2(why.isEmpty(), qPrintable(why));
+        QCOMPARE(t.size(), 1);
+        QCOMPARE(t[0].rows.size(), 2 * kMostPageDepth);
+        // (and what a script or a style holds is text)
+        QByteArray s = "<html><body><script>";
+        for (int i = 0; i < 2 * kMostPageDepth; ++i) s += "var a = '<div><table>';";
+        s += "</script><!-- ";
+        for (int i = 0; i < 2 * kMostPageDepth; ++i) s += "<table>";
+        s += " --><table><tr><td>a</td></tr></table></body></html>";
+        QCOMPARE(readHtmlTables(s, nullptr, &why).size(), 1);
+    }
+    void cellsAndRowsPastTheLimitAreRefusedWithTheReason()
+    {
+        QString why;
+        QByteArray h = "<table><tr>";
+        for (int i = 0; i <= kMostHtmlCells; ++i) h += "<td>";
+        QVERIFY(readHtmlTables(h, nullptr, &why).isEmpty());
+        QVERIFY2(why.contains(QLatin1String("too many")), qPrintable(why));
+        QByteArray r = "<table>";
+        for (int i = 0; i <= kMostHtmlRows; ++i) r += "<tr>";
+        why.clear();
+        QVERIFY(readHtmlTables(r, nullptr, &why).isEmpty());
+        QVERIFY2(why.contains(QLatin1String("too many")), qPrintable(why));
+        Document d;
+        why.clear();
+        QVERIFY(!readHtml(r, &d, &why));
+        QVERIFY(why.contains(QLatin1String("too many")));
     }
 };
 
