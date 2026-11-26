@@ -179,6 +179,23 @@ private Q_SLOTS:
         QVERIFY(win.boldAt(QStringLiteral("two")));
     }
 
+    // Repeat is a command like the others: it ends Select Objects first, and then repeats.
+    void repeatEndsSelectObjectsModeAndThenRepeats()
+    {
+        Win win({"one two three"});
+        win.select(QStringLiteral("one"));
+        win.act("fmt.bold")->trigger();
+        win.settle();
+        win.select(QStringLiteral("three"));
+        win.w.view()->setSelectObjectsMode(true);
+        QVERIFY(win.w.view()->selectObjectsMode());
+        const int before = win.steps();
+        win.act("edit.repeat")->trigger();
+        QVERIFY(!win.w.view()->selectObjectsMode());
+        QVERIFY(win.boldAt(QStringLiteral("three")));
+        QCOMPARE(win.steps(), before + 1);
+    }
+
     // A paragraph command and a style are repeated on the paragraph of now.
     void aParagraphCommandAndAStyleAreRepeated()
     {
