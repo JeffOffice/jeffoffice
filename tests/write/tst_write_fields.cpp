@@ -6,6 +6,7 @@
 #include "core/fieldops.h"
 #include "core/formfieldops.h"
 #include "core/refops.h"
+#include "core/reviewops.h"
 #include "core/tocops.h"
 #include "app/pageview.h"
 #include "app/settings.h"
@@ -2080,6 +2081,58 @@ private Q_SLOTS:
                 QCOMPARE(formFields(doc->story())[0].result, QStringLiteral("q"));
             }
         }
+    }
+
+    void aFieldsMarksAreNeverTakenPieceByPieceWithOrWithoutTrackChanges()
+    {
+        const QByteArray tx = "<w:textInput><w:maxLength w:val=\"4\"/></w:textInput>";
+        const QByteArray body = para(run("pre ") + formField("A", tx, "FORMTEXT", run("abc")) + run(" post"));
+        for (int track = 0; track < 2; ++track) {
+            auto w = windowOn(body);
+            QVERIFY(w);
+            PageView *view = w->view();
+            WriteDoc *doc = w->document();
+            doc->setTrackChanges(track);
+            const QByteArray original = documentXml(doc->toDocx());
+            const FormField f = formFields(doc->story())[0];
+            // Backspace at the start of the result, Delete at its end, Backspace after the end mark: the field stays as it is.
+            caretAt(view, f.separate + 1);
+            QTest::keyClick(view, Qt::Key_Backspace);
+            caretAt(view, f.end);
+            QTest::keyClick(view, Qt::Key_Delete);
+            caretAt(view, f.end + 1);
+            QTest::keyClick(view, Qt::Key_Backspace);
+            // A selection that starts outside the field and ends inside it, or the other way round, typed over or cut.
+            caretAt(view, f.begin - 1, f.separate + 2);
+            QTest::keyClicks(view, "X");
+            caretAt(view, f.separate + 2, f.end + 2);
+            view->cut();
+            caretAt(view, f.begin, f.separate + 1);
+            QTest::keyClicks(view, "X");
+            QCOMPARE(documentXml(doc->toDocx()), original);
+            QCOMPARE(formFields(doc->story()).size(), 1);
+            QVERIFY(!doc->canUndo());
+            // The whole field selected and typed over: all of it goes, and with Track Changes on, a rejection brings all of it back.
+            caretAt(view, f.begin, f.end + 1);
+            QTest::keyClicks(view, "R");
+            if (track) {
+                rejectAll(*doc);
+                QCOMPARE(formFields(doc->story()).size(), 1);
+                QCOMPARE(formFields(doc->story())[0].result, QStringLiteral("abc"));
+                QCOMPARE(lines(*doc)[0], QStringLiteral("pre abc post"));
+            } else {
+                QCOMPARE(formFields(doc->story()).size(), 0);
+                QCOMPARE(lines(*doc)[0], QStringLiteral("pre R post"));
+            }
+        }
+        auto w = windowOn(body);
+        w->document()->setTrackChanges(true);
+        const FormField f = formFields(w->document()->story())[0];
+        caretAt(w->view(), f.begin, f.end + 1);
+        QTest::keyClicks(w->view(), "R");
+        acceptAll(*w->document());
+        QCOMPARE(formFields(w->document()->story()).size(), 0);
+        QCOMPARE(lines(*w->document())[0], QStringLiteral("pre R post"));
     }
 };
 

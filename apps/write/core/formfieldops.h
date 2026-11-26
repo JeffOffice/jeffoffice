@@ -56,6 +56,9 @@ FormField formFieldAtSelection(QTextDocument *story, int from, int to);
 // The field whose begin mark is at the place, none valid where there is none.
 FormField formFieldBeginningAt(QTextDocument *story, int begin);
 
+// Whether taking the range from..to out (or typing over it) would take part of a form field's structure (its begin mark, code, separator, or end mark) and not the whole field.
+bool formStructureCut(QTextDocument *story, int from, int to);
+
 // The text a text field takes for what is typed in it: cut to its longest text, in its case (upper, lower, first capital, title), and, for a number, with only the characters a number has.
 QString enteredFormText(const FormField &field, const QString &typed);
 // The text a text field shows once it is left: a number or date put in the picture the field has. `ok` is false where the text is not a number (or date) and is left as typed.

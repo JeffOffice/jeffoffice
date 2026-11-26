@@ -199,6 +199,25 @@ FormField formFieldAtSelection(QTextDocument *story, int from, int to)
     return f;
 }
 
+bool formStructureCut(QTextDocument *story, int from, int to)
+{
+    if (to <= from) return false;
+    {
+        // (A field's marks are objects: a range with none in it takes no part of a field's structure.)
+        QTextCursor look(story);
+        look.setPosition(from);
+        look.setPosition(to, QTextCursor::KeepAnchor);
+        if (!look.selectedText().contains(QChar::ObjectReplacementCharacter)) return false;
+    }
+    for (const FormField &f : formFields(story)) {
+        const int head = (f.separate >= 0 ? f.separate : f.end - 1) + 1;   // the begin mark, the code, and the separator end here
+        const bool touchesHead = from < head && to > f.begin, touchesEnd = from < f.end + 1 && to > f.end;
+        if (!touchesHead && !touchesEnd) continue;
+        if (!(from <= f.begin && to >= f.end + 1)) return true;   // (some of it and not all: the field's marks are never taken piece by piece)
+    }
+    return false;
+}
+
 namespace {
 
 QString titleCased(const QString &s, bool everyWord)

@@ -2076,7 +2076,8 @@ bool PageView::keyEditsBlocked(int key, Qt::KeyboardModifiers m) const
 bool PageView::editsBlockedAt(QTextDocument *story, int from, int to) const
 {
     if (m_searchBlocks > 0) return true;
-    if (!m_readOnly) return false;
+    if (!m_readOnly) return m_doc && story == m_doc->story() && write::formStructureCut(story, from, to);
+    if (m_doc && story == m_doc->story() && write::formStructureCut(story, from, to)) return true;
     return !(m_formsOnly && m_doc && write::formsRangeOpen(*m_doc, story, from, to));
 }
 
