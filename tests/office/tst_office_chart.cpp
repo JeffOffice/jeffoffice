@@ -1564,6 +1564,70 @@ private Q_SLOTS:
         QVERIFY(coarser);
         QVERIFY2(range.second >= 200 && range.first <= -100, qPrintable(QStringLiteral("axis %1 to %2").arg(range.first).arg(range.second)));
     }
+    // One series holding both the highest and the lowest value of a bucket must not lose one of them: the bucket then draws two points.
+    static void checkBothExtremesOfOneSeries(bool inFirst)
+    {
+        QStringList cats;
+        QVector<double> a, b;
+        for (int i = 0; i < 3000; ++i) {
+            cats << QStringLiteral("d%1").arg(i);
+            double x = inFirst ? 50 : 60;
+            if (i == 1000) x = 200;
+            if (i == 1001) x = -100;
+            a << (inFirst ? x : 50);
+            b << (inFirst ? 60 : x);
+        }
+        QString axes = stockAxes(10);
+        axes.replace(QStringLiteral("<c:max val=\"10\"/><c:min val=\"0\"/>"), QString());
+        QString plot = stockPlot({a, b}, false, QStringLiteral("<c:axId val=\"111\"/><c:axId val=\"222\"/>"), 0, cats);
+        plot.replace(QStringLiteral("stockChart"), QStringLiteral("lineChart"));
+        Chart c;
+        QString err;
+        QVERIFY2(readChart(chartPart(plot + axes), defaultTheme(), ColorMap(), &c, &err), qPrintable(err));
+        QVERIFY(c.plots[0].hiLowLines && !c.plots[0].stock);
+        bool coarser = false;
+        const QString svg = QString::fromUtf8(chartSvg(c, QSizeF(400, 300), &coarser));
+        QVERIFY(coarser);
+        const QPair<double, double> range = axisNumbersRange(svg);
+        QVERIFY2(range.second >= 200 && range.first <= -100, qPrintable(QStringLiteral("axis %1 to %2").arg(range.first).arg(range.second)));
+        // (the red lines join the series, one for each category drawn: no more than the cap of a series)
+        int lines = 0;
+        for (const QRegularExpressionMatch &m : QRegularExpression(QStringLiteral("<g [^>]*stroke=\"#ff0000\"[^>]*>(.*?)</g>"), QRegularExpression::DotMatchesEverythingOption).globalMatch(svg)) lines += int(m.captured(1).count(QStringLiteral("<polyline")));
+        QVERIFY2(lines > 100 && lines <= 2000, qPrintable(QStringLiteral("%1 lines").arg(lines)));
+    }
+    void aThinnedLinePlotKeepsBothExtremesOfTheFirstSeries() { checkBothExtremesOfOneSeries(true); }
+    void aThinnedLinePlotKeepsBothExtremesOfTheSecondSeries() { checkBothExtremesOfOneSeries(false); }
+    // A stock chart's legend keys show what is drawn (a high-low line through a box), not the colors of series that are drawn in no color; on a dark fill its text, lines, and boxes are light.
+    static QString stockLegendSvg(const QColor &fill, QVector<QColor> *colors)
+    {
+        const QVector<double> op{3, 4, 5, 4}, h{8, 9, 9, 8}, l{1, 2, 3, 2}, cl{4, 5, 4, 6};
+        Chart c;
+        QString err;
+        if (!readChart(chartPart(stockPlot({op, h, l, cl}, true) + stockAxes(10), QString(), QStringLiteral("<c:legend><c:legendPos val=\"r\"/><c:overlay val=\"0\"/></c:legend>")), defaultTheme(), ColorMap(), &c, &err)) return err;
+        if (fill.isValid()) c.background = fill;
+        for (const ChartSeries &s : c.plots[0].series) *colors << s.color;
+        return QString::fromUtf8(chartSvg(c, QSizeF(400, 300)));
+    }
+    void aStockChartLegendKeysShowWhatIsDrawn()
+    {
+        QVector<QColor> colors;
+        const QString svg = stockLegendSvg(QColor(), &colors);
+        QCOMPARE(colors.size(), 4);
+        for (const QColor &color : colors) QVERIFY2(!svg.contains(QStringLiteral("fill=\"%1\"").arg(color.name())), qPrintable(color.name()));
+        QVERIFY(svg.contains(QStringLiteral("Series")) || svg.contains(QStringLiteral("<text")));
+    }
+    void aStockChartOnADarkFillIsDrawnInLightInk()
+    {
+        QVector<QColor> colors;
+        const QString light = stockLegendSvg(QColor(), &colors), dark = stockLegendSvg(QColor(0x20, 0x20, 0x30), &colors);
+        QVERIFY(light.contains(QStringLiteral("#000000")));
+        QVERIFY(!light.contains(QStringLiteral("#ffffff\"")) || light.count(QStringLiteral("#ffffff\"")) < dark.count(QStringLiteral("#ffffff\"")));
+        // (the text and the high-low lines and box edges are drawn in white, not black)
+        static const QRegularExpression blackInk(QStringLiteral("(stroke|fill)=\"#000000\""));
+        const int blackLight = int(light.count(blackInk)), blackDark = int(dark.count(blackInk));
+        // (the writer's own opening groups hold a few black defaults in both)
+        QVERIFY2(blackLight - blackDark >= 5, qPrintable(QStringLiteral("%1 black in light, %2 in dark").arg(blackLight).arg(blackDark)));
+    }
     void aThinnedStockChartAddsUpItsVolume()
     {
         QStringList cats;
