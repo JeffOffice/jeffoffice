@@ -546,7 +546,9 @@ QByteArray chartWorkbookAt(const WriteDoc &doc, int position);
 bool setChartWorkbookData(WriteDoc &doc, int position, const ChartData &data);
 // A chart of the kind at the cursor (in line with the text), in place of a selection, one step that undoes; `size` (points; empty for the usual 360 by 216) is held to the least and most
 // a picture's is. Unreadable for data that is empty, or has more than the most categories or series, or numbers that are not numbers.
-PictureResult insertChart(WriteDoc &doc, QTextCursor &c, ChartForm form, const ChartData &data = sampleChartData(), const QSizeF &size = QSizeF());
+PictureResult insertChart(WriteDoc &doc, QTextCursor &c, ChartForm form, const ChartData &data, const QSizeF &size = QSizeF());
+// The same with the numbers the form begins with (a stock form's are its prices, in the series its order asks for).
+inline PictureResult insertChart(WriteDoc &doc, QTextCursor &c, ChartForm form) { return insertChart(doc, c, form, sampleChartData(form)); }
 // Changes to the chart at `position`, one step each; false when it is no chart that can be changed (a chart the program does not write whole is refused, with a notice) or the change makes
 // no difference. Its look is kept: its title, legend, colors, and page.
 bool setChartForm(WriteDoc &doc, int position, ChartForm form);
