@@ -389,6 +389,10 @@ private Q_SLOTS:
         m_app.skipped = {};
         m_app.quiet = {
             {QStringLiteral("design.slideSize"), QStringLiteral("the name of the Slide Size menu: its choices are the commands, and it has none of its own")},
+            {QStringLiteral("chart.type.stockHighLowClose"), QStringLiteral("it needs the chart's series in the order the form asks for (the sample chart has two), and says so in a message when they are not; the chart and chart-maker tests run it with series that fit")},
+            {QStringLiteral("chart.type.stockOpenHighLowClose"), QStringLiteral("it needs the chart's series in the order the form asks for (the sample chart has two), and says so in a message when they are not; the chart and chart-maker tests run it with series that fit")},
+            {QStringLiteral("chart.type.stockVolumeHighLowClose"), QStringLiteral("it needs the chart's series in the order the form asks for (the sample chart has two), and says so in a message when they are not; the chart and chart-maker tests run it with series that fit")},
+            {QStringLiteral("chart.type.stockVolumeOpenHighLowClose"), QStringLiteral("it needs the chart's series in the order the form asks for (the sample chart has two), and says so in a message when they are not; the chart and chart-maker tests run it with series that fit")},
             {QStringLiteral("design.setDefaultSlideSize"), QStringLiteral("it keeps this slide size for new presentations, and nothing changes in this one")},
             {QStringLiteral("design.setDefaultTheme"), QStringLiteral("it keeps this theme for new presentations, and nothing changes in this one")},
             {QStringLiteral("tbl.gridlines"), QStringLiteral("it draws the edges of the cells that have no line, and the tables the checks make have lines; the window's tests check the drawing")},

@@ -556,6 +556,10 @@ private Q_SLOTS:
         };
         m_app.skipped = {};
         m_app.quiet = {
+            {QStringLiteral("chart.type.stockHighLowClose"), QStringLiteral("it needs the chart's series in the order the form asks for (the sample chart has two), and says so in a message when they are not; the chart and chart-maker tests run it with series that fit")},
+            {QStringLiteral("chart.type.stockOpenHighLowClose"), QStringLiteral("it needs the chart's series in the order the form asks for (the sample chart has two), and says so in a message when they are not; the chart and chart-maker tests run it with series that fit")},
+            {QStringLiteral("chart.type.stockVolumeHighLowClose"), QStringLiteral("it needs the chart's series in the order the form asks for (the sample chart has two), and says so in a message when they are not; the chart and chart-maker tests run it with series that fit")},
+            {QStringLiteral("chart.type.stockVolumeOpenHighLowClose"), QStringLiteral("it needs the chart's series in the order the form asks for (the sample chart has two), and says so in a message when they are not; the chart and chart-maker tests run it with series that fit")},
             {QStringLiteral("rev.wordCount"), QStringLiteral("it tells the counts in a message and changes nothing")},
             {QStringLiteral("tb.textFit"), QStringLiteral("the name of a menu: its choices are the commands, and it has none of its own")},
             {QStringLiteral("arr.relMargins"), QStringLiteral("a setting that only the next Align reads: its check mark is all of it")},
