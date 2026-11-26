@@ -332,36 +332,27 @@ private:
             }
             return widest;
         };
-        qint64 widest = widestOf(anyRows);
-        if (anyRows && (rows > lim.spanRows || qint64(rows) * widest > lim.spanGrid)) {
-            // (a table of that size is laid out without its cells that span rows)
-            for (size_t k = t.firstSite; k < sites.size(); ++k) sites[k].rows = 1;
-            ++counts.spansDropped;
-            anyRows = false;
-        }
-        // the spans of a page are held to a budget: the first ones are kept, the rest are not
-        bool leftOut = false;
+        const qint64 widest = widestOf(anyRows);
+        // the spans of a page are held to a budget. A span is never dropped or cut to fit (the cells after it would stand in the wrong columns): a page past the budget is refused
         for (size_t k = t.firstSite; k < sites.size(); ++k) {
-            Site &st = sites[k];
+            const Site &st = sites[k];
             const qint64 covered = qint64(st.cols) * st.rows - 1;
             if (covered == 0) continue;
             if (counts.spanCells >= lim.spanCells || counts.spanCovered + covered > lim.spanCovered) {
-                ++counts.spansLeftOut;
-                st.cols = st.rows = 1;
-                leftOut = true;
-                continue;
+                sites.resize(t.firstSite);
+                fail(HtmlRefusal::TooManyCells);
+                return;
             }
             ++counts.spanCells;
             counts.spanCovered += covered;
         }
-        if (leftOut || !anyRows) widest = widestOf(anyRows);
         for (size_t k = t.firstSite; k < sites.size(); ++k) {
             const Site &st = sites[k];
             for (int w = 0; w < 2; ++w) {
                 const qsizetype at = w == 0 ? st.colAt : st.rowAt;
                 if (at < 0) continue;
                 int v = w == 0 ? st.cols : st.rows;
-                for (int d = 2; d >= 0; --d, v /= 10) out[at + d] = QLatin1Char(char('0' + v % 10));
+                for (int d = 5; d >= 0; --d, v /= 10) out[at + d] = QLatin1Char(char('0' + v % 10));
             }
         }
         sites.resize(t.firstSite);
@@ -569,7 +560,7 @@ private:
                 if (numberOf(At(a), 999999, true, false, &number)) out += QLatin1Char(' ') + QLatin1String(kAtName[a]) + QLatin1String("=\"") + QString::number(number) + QLatin1String("\"");
                 break;
             case AColspan: case ARowspan:
-                if (emitSpans && numberOf(At(a), 999, false, false, &number) && number > 1) {
+                if (emitSpans && numberOf(At(a), kMostHtmlSpan, false, false, &number) && number > 1) {
                     out += QLatin1Char(' ') + QLatin1String(kAtName[a]) + QLatin1String("=\"");
                     if (a == ARowspan) {
                         site.rowAt = out.size();
@@ -578,7 +569,7 @@ private:
                         site.colAt = out.size();
                         site.cols = number;
                     }
-                    out += QLatin1String("000\"");
+                    out += QLatin1String("000000\"");
                 }
                 break;
             case ABgcolor: case AColor: case AAlign: case AValign: case AType: case ADir:

@@ -27,10 +27,8 @@ constexpr int kMostHtmlPictures = 2000;                 // pictures in the page 
 constexpr int kMostHtmlNesting = 100;                     // parts standing inside one another in the rewritten page (more are left out; their words stay)
 constexpr int kMostHtmlTableDepth = 20;                 // tables standing inside one another (more become their words)
 constexpr int kMostHtmlListItems = 100;                 // items of one list (a longer list is written as several lists that go on from one another)
-constexpr int kMostHtmlSpan = 999;                      // columns or rows a cell spans (and never more than the table has)
-constexpr int kMostHtmlSpanRows = 3000;                 // rows of a table whose cells may span rows (the parser is slow with spans in a longer table)
-constexpr qint64 kMostHtmlSpanGrid = 30000;             // cells of the grid of a table that has cells spanning rows, counting the cells those cells cover
-constexpr int kMostHtmlSpanCells = 20000;               // cells in the page that span (the parser takes about 25 microseconds for each, and 3 for each cell it covers)
+constexpr int kMostHtmlSpan = 999999;                   // columns or rows a cell spans (and never more than the table has: a span is never cut to a number that moves the cells after it)
+constexpr int kMostHtmlSpanCells = 20000;               // cells in the page that span (the parser takes about 25 microseconds for each, and 3 for each cell it covers); past it the page is refused
 constexpr qint64 kMostHtmlSpanCovered = 100000;         // cells that the spanning cells of the page cover
 constexpr int kMostHtmlStyles = 200000;                 // style attributes in the page (more are left out)
 constexpr qint64 kMostHtmlStyleChars = 24 * 1024 * 1024; // characters of style attributes in the page (more are left out)
@@ -53,8 +51,6 @@ struct HtmlLimits {
     int tableDepth = kMostHtmlTableDepth;
     int listItems = kMostHtmlListItems;
     int span = kMostHtmlSpan;
-    int spanRows = kMostHtmlSpanRows;
-    qint64 spanGrid = kMostHtmlSpanGrid;
     int spanCells = kMostHtmlSpanCells;
     qint64 spanCovered = kMostHtmlSpanCovered;
     int styles = kMostHtmlStyles;
@@ -73,10 +69,8 @@ struct HtmlCounts {
     int tables = 0;         // tables written
     int flattened = 0;      // parts left out because they stood too deep (their words stay)
     int listSplits = 0;     // lists written as two because of their items
-    int spansDropped = 0;   // tables whose cells do not span rows any more (too many rows or too large a grid for the parser)
     int spanCells = 0;      // cells that span (columns or rows) in what was written
     qint64 spanCovered = 0; // cells those cover
-    int spansLeftOut = 0;   // cells whose spans were left out because the page held too many
     qint64 styles = 0, styleChars = 0;      // style attributes written, and their characters
     int stylesLeftOut = 0;  // style attributes left out because the page held too many
 };

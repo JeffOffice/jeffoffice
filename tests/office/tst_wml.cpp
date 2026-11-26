@@ -3799,7 +3799,7 @@ private Q_SLOTS:
             const QString page = repeatedText(unit, times, before);
             HtmlLimits wide;   // (the limits stop a page early: they are set out of the way, so that the work is the guard's whole)
             wide.parts = wide.cells = wide.rows = wide.pictures = 1 << 30;
-            wide.grid = wide.spanGrid = Q_INT64_C(1) << 40;
+            wide.grid = Q_INT64_C(1) << 40;
             const GuardedHtml g = guardHtml(page, wide);
             QVERIFY2(g.counts.work <= 3 * qint64(page.size()) + 100, qPrintable(QStringLiteral("%1 times: work %2 for %3 characters").arg(times).arg(g.counts.work).arg(page.size())));
             QVERIFY(g.counts.work >= qint64(page.size()) / 2);
@@ -3869,14 +3869,17 @@ private Q_SLOTS:
     {
         // columns: no more than the widest row has
         QString g = guardHtml(QStringLiteral("<table><tr><td colspan=2000000000>a</td><td>b</td></tr><tr><td>c</td><td>d</td><td>e</td></tr></table>")).html;
-        QVERIFY2(g.contains(QLatin1String("colspan=\"003\"")), qPrintable(g));
+        QVERIFY2(g.contains(QLatin1String("colspan=\"000003\"")), qPrintable(g));
         // rows: no more than the rows left in the table
         g = guardHtml(QStringLiteral("<table><tr><td rowspan=1000>a</td><td>b</td></tr><tr><td rowspan=2>c</td><td>d</td></tr><tr><td>e</td></tr></table>")).html;
-        QVERIFY2(g.contains(QLatin1String("rowspan=\"003\"")), qPrintable(g));
-        QVERIFY2(g.contains(QLatin1String("rowspan=\"002\"")), qPrintable(g));
-        // a span is no more than the constant
+        QVERIFY2(g.contains(QLatin1String("rowspan=\"000003\"")), qPrintable(g));
+        QVERIFY2(g.contains(QLatin1String("rowspan=\"000002\"")), qPrintable(g));
+        // a span is no more than the table has (here, a row of 2,001 cells)
         g = guardHtml(repeatedText(QStringLiteral("<tr><td>x"), 3, QStringLiteral("<table><tr><td colspan=5000>a</td>") + repeatedText(QStringLiteral("<td>b"), 2000), QString())).html;
-        QVERIFY2(g.contains(QStringLiteral("colspan=\"%1\"").arg(kMostHtmlSpan)), qPrintable(g.left(300)));
+        QVERIFY2(g.contains(QStringLiteral("colspan=\"002001\"")), qPrintable(g.left(300)));
+        // a span of more than 999 is kept as it is when the table is that tall (cut to 999, the cells of the rows after it would stand a column over)
+        g = guardHtml(QStringLiteral("<table><tr><td rowspan=2500>a</td><td>b</td></tr>") + repeatedText(QStringLiteral("<tr><td>x</td></tr>"), 2999, QString(), QStringLiteral("</table>"))).html;
+        QVERIFY2(g.contains(QStringLiteral("rowspan=\"002500\"")), qPrintable(g.left(300)));
         // the parser reads the clamped spans as spans
         QTextDocument d;
         d.setHtml(guardHtml(QStringLiteral("<table><tr><td colspan=2000000000>a</td><td>b</td></tr><tr><td>c</td><td>d</td><td>e</td></tr></table>")).html);
@@ -3885,24 +3888,76 @@ private Q_SLOTS:
         QCOMPARE(table->columns(), 4);   // (a cell of three, and one: the cell spans the three that the widest row has)
         QCOMPARE(table->cellAt(0, 0).columnSpan(), 3);
     }
-    // fails when off: yes (the three cases that the span constants and the table's own counts clamp)
-    void aTableThatIsTooTallOrTooWideForSpansHasNone()
+    // Every cell of a table, in its row and column, as the parser reads it (the text of the cell at each place, and what the cell spans).
+    static QStringList tableCells(const QString &page, bool guard)
     {
-        // rows past the limit: no cell spans rows (the page's parser takes more time than the page is worth with them)
-        const QString tall = repeatedText(QStringLiteral("<tr><td rowspan=2>a</td><td>b</td></tr>"), kMostHtmlSpanRows + 1, QStringLiteral("<table>"), QStringLiteral("</table>"));
-        const GuardedHtml g = guardHtml(tall);
-        QCOMPARE(g.refusal, HtmlRefusal::None);
-        QCOMPARE(g.counts.spansDropped, 1);
-        QVERIFY(!g.html.contains(QLatin1String("rowspan=\"002\"")));
-        // the same table with rows to spare keeps them
-        const GuardedHtml ok = guardHtml(repeatedText(QStringLiteral("<tr><td rowspan=2>a</td><td>b</td></tr>"), 100, QStringLiteral("<table>"), QStringLiteral("</table>")));
-        QCOMPARE(ok.counts.spansDropped, 0);
-        QVERIFY(ok.html.contains(QLatin1String("rowspan=\"002\"")));
-        // spans that pile up (each row's cell spans many rows, so the grid is rows times the cells that cover each) are counted in the grid, and dropped when it is large
-        const GuardedHtml piled = guardHtml(repeatedText(QStringLiteral("<tr><td rowspan=999>a</td><td>b</td></tr>"), 1000, QStringLiteral("<table>"), QStringLiteral("</table>")));
-        QCOMPARE(piled.counts.spansDropped, 1);
-        QVERIFY(piled.counts.grid <= 2 * 1000);
-        QVERIFY(!piled.html.contains(QLatin1String("rowspan=\"999\"")));
+        QTextDocument d;
+        d.setUndoRedoEnabled(false);
+        d.setHtml(guard ? guardHtml(page).html : page);
+        QStringList cells;
+        auto *table = qobject_cast<QTextTable *>(d.rootFrame()->childFrames().value(0));
+        if (!table) return cells;
+        for (int r = 0; r < table->rows(); ++r) {
+            for (int c = 0; c < table->columns(); ++c) {
+                const QTextTableCell cell = table->cellAt(r, c);
+                if (cell.row() != r || cell.column() != c) continue;
+                QTextCursor cur = cell.firstCursorPosition();
+                cur.setPosition(cell.lastCursorPosition().position(), QTextCursor::KeepAnchor);
+                cells << QStringLiteral("%1,%2 %3x%4 %5").arg(r).arg(c).arg(cell.rowSpan()).arg(cell.columnSpan()).arg(cur.selectedText());
+            }
+        }
+        return cells;
+    }
+    // fails when off: yes (with the old cut-off at 3,000 rows put back, the cells of the second half stand a column to the left)
+    void aTallTableWithRowSpansKeepsEveryCellInItsColumn()
+    {
+        for (const int groups : {1750, 12000}) {   // 3,500 rows, and 24,000 rows
+            QString page = QStringLiteral("<table border=1>");
+            for (int i = 0; i < groups; ++i) page += QStringLiteral("<tr><td rowspan=2>g%1</td><td>a%1</td></tr><tr><td>b%1</td></tr>").arg(i);
+            page += QStringLiteral("</table>");
+            const GuardedHtml g = guardHtml(page);
+            QCOMPARE(int(g.refusal), int(HtmlRefusal::None));
+            QCOMPARE(g.counts.spanCells, groups);
+            const QStringList plain = tableCells(page, false), guarded = tableCells(page, true);
+            QCOMPARE(plain.size(), groups * 3);
+            QCOMPARE(guarded, plain);
+            QCOMPARE(guarded.value(3 * (groups - 1)), QStringLiteral("%1,0 2x1 g%2").arg(2 * (groups - 1)).arg(groups - 1));
+            QCOMPARE(guarded.value(3 * (groups - 1) + 2), QStringLiteral("%1,1 1x1 b%2").arg(2 * (groups - 1) + 1).arg(groups - 1));
+        }
+        // a cell that spans more rows than the old limit of 999 reaches the last of them
+        QString tall = QStringLiteral("<table><tr><td rowspan=2500>a</td><td>b</td></tr>");
+        for (int i = 1; i < 2500; ++i) tall += QStringLiteral("<tr><td>x%1</td></tr>").arg(i);
+        tall += QStringLiteral("</table>");
+        QCOMPARE(tableCells(tall, true), tableCells(tall, false));
+        QVERIFY(tableCells(tall, true).contains(QStringLiteral("0,0 2500x1 a")));
+    }
+
+    // A cell's spans are never cut to a number that moves the cells after it: a page the budget cannot hold is refused.
+    // fails when off: yes (the checks of the span budget taken out of htmlguard.cpp)
+    void theSpansOfAPageAreHeldToABudgetAndRefuseTheWholePage()
+    {
+        const QString cells = repeatedText(QStringLiteral("<tr><td colspan=2>a</td><td>b</td></tr>"), 10, QStringLiteral("<table>"), QStringLiteral("</table>"));
+        HtmlLimits few;
+        few.spanCells = 9;
+        QCOMPARE(int(guardHtml(cells, few).refusal), int(HtmlRefusal::TooManyCells));
+        few.spanCells = 10;
+        const GuardedHtml g = guardHtml(cells, few);
+        QCOMPARE(int(g.refusal), int(HtmlRefusal::None));
+        QCOMPARE(g.counts.spanCells, 10);
+        QCOMPARE(g.html.count(QLatin1String("colspan=\"000002\"")), 10);
+        HtmlLimits covers;
+        covers.spanCovered = 9;   // (each of these covers one cell)
+        QCOMPARE(int(guardHtml(cells, covers).refusal), int(HtmlRefusal::TooManyCells));
+        covers.spanCovered = 10;
+        QCOMPARE(int(guardHtml(cells, covers).refusal), int(HtmlRefusal::None));
+        // the constants: a page of cells that span, up to the limit, is read whole; one more is refused
+        const QString many = repeatedText(QStringLiteral("<tr><td colspan=2>a</td><td>b</td></tr>"), kMostHtmlSpanCells, QStringLiteral("<table>"), QStringLiteral("</table>"));
+        QCOMPARE(int(guardHtml(many).refusal), int(HtmlRefusal::None));
+        QCOMPARE(int(guardHtml(many + QStringLiteral("<table><tr><td colspan=2>a</td><td>b</td></tr></table>")).refusal), int(HtmlRefusal::TooManyCells));
+        // spans that pile up (each row's cell spans all the rows below it) cover more cells than the budget holds
+        const GuardedHtml piled = guardHtml(repeatedText(QStringLiteral("<tr><td rowspan=1000>a</td><td>b</td></tr>"), 1000, QStringLiteral("<table>"), QStringLiteral("</table>")));
+        QCOMPARE(int(piled.refusal), int(HtmlRefusal::TooManyCells));
+        QVERIFY(piled.html.isEmpty());
         // columns: the grid of a table is its rows times its widest row, counted with the spans
         HtmlLimits l;
         const GuardedHtml wide = guardHtml(QStringLiteral("<table><tr><td colspan=100>a</td></tr>") + repeatedText(QStringLiteral("<tr><td>x</td></tr>"), 50, QString(), QStringLiteral("</table>")) + QString(), l);
@@ -3910,28 +3965,6 @@ private Q_SLOTS:
         QCOMPARE(wide.counts.grid, qint64(51));   // (a span is no more than the widest row, which is one cell)
         const GuardedHtml real = guardHtml(QStringLiteral("<table><tr>") + repeatedText(QStringLiteral("<td>a"), 30) + QStringLiteral("</tr>") + repeatedText(QStringLiteral("<tr><td colspan=30>x</td></tr>"), 20) + QStringLiteral("</table>"));
         QCOMPARE(real.counts.grid, qint64(21 * 30));
-    }
-
-    // fails when off: yes (the budget of spans taken out of htmlguard.cpp)
-    void theSpansOfAPageAreHeldToABudget()
-    {
-        const QString cells = repeatedText(QStringLiteral("<tr><td colspan=2>a</td><td>b</td></tr>"), 10, QStringLiteral("<table>"), QStringLiteral("</table>"));
-        HtmlLimits few;
-        few.spanCells = 3;
-        const GuardedHtml g = guardHtml(cells, few);
-        QCOMPARE(g.counts.spanCells, 3);
-        QCOMPARE(g.counts.spansLeftOut, 7);
-        QCOMPARE(g.html.count(QLatin1String("colspan=\"002\"")), 3);
-        HtmlLimits covers;
-        covers.spanCovered = 4;   // (each of these covers one cell)
-        const GuardedHtml c = guardHtml(cells, covers);
-        QCOMPARE(c.counts.spanCells, 4);
-        QCOMPARE(c.counts.spanCovered, qint64(4));
-        QCOMPARE(c.counts.spansLeftOut, 6);
-        // the constants: a page of cells that span, up to the limit, keeps them all
-        const QString many = repeatedText(QStringLiteral("<tr><td colspan=2>a</td><td>b</td></tr>"), kMostHtmlSpanCells, QStringLiteral("<table>"), QStringLiteral("</table>"));
-        QCOMPARE(guardHtml(many).counts.spansLeftOut, 0);
-        QCOMPARE(guardHtml(many + QStringLiteral("<table><tr><td colspan=2>a</td><td>b</td></tr></table>")).counts.spansLeftOut, 1);
     }
 
     void aLongListIsWrittenAsSeveralThatGoOn()
