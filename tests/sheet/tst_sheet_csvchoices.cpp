@@ -367,6 +367,148 @@ private Q_SLOTS:
         // a binary file is no text: nothing to show
         QVERIFY(csvPreview(QByteArray("ab\0cd", 5), QStringLiteral("x.csv"), CsvImport(), QLocale::c(), nullptr, &columns).isEmpty());
     }
+
+    // ---- the guess of each column's kind, for the import preview to propose
+
+    static CsvGuess guess(const QByteArray &file, bool names, const CsvImport &c = CsvImport())
+    {
+        return guessCsvColumns(file, QStringLiteral("g.csv"), c, EntryLocale(QLocale(QLocale::English, QLocale::UnitedStates)), names);
+    }
+    static QString kindOf(const CsvGuess &g, int col)
+    {
+        const CsvColumn k = g.columns.value(col);
+        switch (k.kind) {
+        case CsvColumn::Kind::General: return QStringLiteral("number");
+        case CsvColumn::Kind::Text: return QStringLiteral("text");
+        case CsvColumn::Kind::Date: return QStringLiteral("date ") + k.dateOrder;
+        case CsvColumn::Kind::Skip: return QStringLiteral("skip");
+        }
+        return QString();
+    }
+
+    void aGuessProposesTextNumberAndDateFromWhatEveryValueShows()
+    {
+        const CsvGuess g = guess("name,qty,price,born,zip,gap\nAnn,3,1.50,1990-05-13,02134,\nBob,12,-2,1985-12-01,90210,\n,,,,,\n", true);
+        QCOMPARE(g.columns.size(), 6);
+        QCOMPARE(kindOf(g, 0), QStringLiteral("text"));
+        QCOMPARE(kindOf(g, 1), QStringLiteral("number"));
+        QCOMPARE(kindOf(g, 2), QStringLiteral("number"));
+        QCOMPARE(kindOf(g, 3), QStringLiteral("date YMD"));
+        QCOMPARE(kindOf(g, 4), QStringLiteral("text"));   // (a zero in front)
+        QCOMPARE(kindOf(g, 5), QStringLiteral("text"));   // (no value at all)
+    }
+
+    void codesAndMixedKindsAreProposedAsText()
+    {
+        // leading zeros, a plus sign, 16 digits, and an exponent each spoil a column of numbers; so do a word, a boolean, and a number with a date
+        const QByteArray file = "007,+5,1234567890123456,1E5,1,TRUE,5,12:30,1.5\n12,6,7,2,x,FALSE,01/02/2024,13:45,2,5\n";
+        const CsvGuess g = guess(file, false);
+        for (int c = 0; c < 8; ++c) QVERIFY2(kindOf(g, c) == QStringLiteral("text"), qPrintable(QString::number(c)));
+        // 15 digits are a number, and so is a column of plain numbers beside them
+        const CsvGuess plain = guess("123456789012345,0.5,-3,0\n999999999999999,10,4,0\n", false);
+        for (int c = 0; c < 4; ++c) QCOMPARE(kindOf(plain, c), QStringLiteral("number"));
+        // a code with digits grouped past 15 digits stays text
+        QCOMPARE(kindOf(guess("\"1,234,567,890,123,456\"\n", false), 0), QStringLiteral("text"));
+    }
+
+    void aDateIsGuessedOnlyInTheOrderTheDataProves()
+    {
+        // 05/13/2024 can only be month first; 13/05/2024 only day first
+        QCOMPARE(kindOf(guess("05/13/2024\n01/02/2024\n", false), 0), QStringLiteral("date MDY"));
+        QCOMPARE(kindOf(guess("13/05/2024\n01/02/2024\n", false), 0), QStringLiteral("date DMY"));
+        QCOMPARE(kindOf(guess("2024.05.13\n", false), 0), QStringLiteral("date YMD"));
+        // every value fits both orders: text, and the column says why
+        const CsvGuess both = guess("05/06/2024\n01/02/2024\n", false);
+        QCOMPARE(kindOf(both, 0), QStringLiteral("text"));
+        QVERIFY(both.dateOrderUnclear.value(0));
+        // two values that prove different orders: text, and no order to offer
+        const CsvGuess clash = guess("05/13/2024\n13/05/2024\n", false);
+        QCOMPARE(kindOf(clash, 0), QStringLiteral("text"));
+        QVERIFY(!clash.dateOrderUnclear.value(0));
+        // a date with a number, a day that is no day, and any other way to write one: text
+        QCOMPARE(kindOf(guess("05/13/2024\n7\n", false), 0), QStringLiteral("text"));
+        QCOMPARE(kindOf(guess("02/30/2024\n", false), 0), QStringLiteral("text"));
+        QCOMPARE(kindOf(guess("May 13, 2024\n", false), 0), QStringLiteral("text"));
+        QCOMPARE(kindOf(guess("20240513\n", false), 0), QStringLiteral("number"));   // (eight digits are a number until a person says it is a date)
+    }
+
+    void aNumberIsJudgedByTheMarksTheImportChose()
+    {
+        CsvImport german;
+        german.decimalMark = QLatin1Char(',');
+        german.thousandsMark = QLatin1Char('.');
+        QCOMPARE(kindOf(guess("\"1.234,5\"\n12\n", false, german), 0), QStringLiteral("number"));
+        CsvImport english;
+        english.decimalMark = QLatin1Char('.');
+        english.thousandsMark = QLatin1Char(',');
+        QCOMPARE(kindOf(guess("\"1.234,5\"\n12\n", false, english), 0), QStringLiteral("text"));
+        QCOMPARE(kindOf(guess("\"1,234.5\"\n12\n", false, english), 0), QStringLiteral("number"));
+        // a minus sign after the number counts only when the import says so
+        QCOMPARE(kindOf(guess("5-\n", false), 0), QStringLiteral("text"));
+        CsvImport trailing;
+        trailing.trailingMinus = true;
+        QCOMPARE(kindOf(guess("5-\n", false, trailing), 0), QStringLiteral("number"));
+    }
+
+    void theRowOfNamesIsNotSampledWhenItIsOnAndIsFoundWhenTextIsOverValues()
+    {
+        const QByteArray file = "qty,note\n1,a\n2,b\n";
+        const CsvGuess with = guess(file, true), without = guess(file, false);
+        QCOMPARE(kindOf(with, 0), QStringLiteral("number"));
+        QCOMPARE(kindOf(without, 0), QStringLiteral("text"));
+        QVERIFY(with.namesFound && without.namesFound);
+        // no names: numbers all the way, or text that is under text
+        QVERIFY(!guess("1,2\n3,4\n", false).namesFound);
+        QVERIFY(!guess("a,b\nc,d\n", false).namesFound);
+        // a first row with a number in it is data
+        QVERIFY(!guess("id,3\nx,4\n", false).namesFound);
+        // the rows before the first one chosen are left out
+        CsvImport from;
+        from.firstRow = 1;
+        QCOMPARE(kindOf(guess("junk line\n1,2\n3,4\n", false, from), 0), QStringLiteral("number"));
+    }
+
+    // The guess looks at the first 200 rows, the first 100 columns, and the first megabyte, whatever the file holds (each limit is counted: remove one and a count here changes).
+    void theGuessIsBounded()
+    {
+        // a word on row 250 is not looked at; one on row 200 is
+        QByteArray rows = "n\n";
+        for (int r = 1; r < 250; ++r) rows += "1\n";
+        const CsvGuess far = guess(rows + "word\n", true);
+        QCOMPARE(kindOf(far, 0), QStringLiteral("number"));
+        QCOMPARE(far.fieldsLooked, qint64(kCsvGuessRows) + 1);   // (200 rows, and the one after them that a row of names would leave the first of)
+        QByteArray near = "1\n";
+        for (int r = 1; r < kCsvGuessRows - 1; ++r) near += "1\n";
+        QCOMPARE(kindOf(guess(near + "word\n", false), 0), QStringLiteral("text"));
+        // 300 columns of 1,000 rows: the first 100 columns of the first 201 rows, and the rest said to be cut
+        QByteArray wide;
+        QByteArray line;
+        for (int c = 0; c < 300; ++c) line += QByteArray::number(c % 7) + ",";
+        line += "\n";
+        for (int r = 0; r < 1000; ++r) wide += line;
+        const CsvGuess g = guess(wide, false);
+        QCOMPARE(g.columns.size(), kCsvPreviewColumns);
+        QVERIFY(g.columnsCut);
+        QCOMPARE(g.fieldsLooked, qint64(kCsvGuessRows + 1) * kCsvPreviewColumns);
+        // 16,000 columns: still the first 100, and no more of the file than its first megabyte
+        QByteArray huge;
+        QByteArray hugeLine;
+        for (int c = 0; c < 16000; ++c) hugeLine += QByteArray::number(c % 7) + ",";
+        hugeLine += "\n";
+        for (int r = 0; r < 300; ++r) huge += hugeLine;
+        const CsvGuess h = guess(huge, false);
+        QCOMPARE(h.columns.size(), kCsvPreviewColumns);
+        QVERIFY(h.columnsCut);
+        QVERIFY(h.fieldsLooked >= kCsvPreviewColumns);
+        QVERIFY(h.fieldsLooked <= (kCsvPreviewBytes / hugeLine.size() + 2) * kCsvPreviewColumns);
+        QVERIFY(h.fieldsLooked < qint64(kCsvGuessRows) * kCsvPreviewColumns);
+        // a file that is one line of megabytes: no more than the first megabyte is scanned, and the field is text
+        const CsvGuess one = guess(QByteArray(5 << 20, '1'), false);
+        QCOMPARE(one.columns.size(), 1);
+        QCOMPARE(kindOf(one, 0), QStringLiteral("text"));
+        // a binary file has nothing to guess
+        QVERIFY(guess(QByteArray("ab\0cd", 5), false).columns.isEmpty());
+    }
 };
 
 JP_TEST_CLASS(SheetCsvChoicesTests)

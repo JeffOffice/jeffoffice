@@ -715,6 +715,8 @@ public:
     bool failed() const { return m_failed; }
     qint64 rows() const { return std::max<qint64>(0, m_rec - m_choices.firstRow); }
     qint64 heldBytes() const { return m_held; }
+    // The cell the last field made (the guess of a column's kind reads what a field comes to).
+    const Cell &lastCell() const { return m_last; }
 
 private:
     bool add(quint32 row, quint32 col, Cell c, qint64 extra)
@@ -730,6 +732,7 @@ private:
             m_failed = true;
             return false;
         }
+        m_last = c;
         m_s.cells.add(row, col, c);
         m_s.extentRows = std::max(m_s.extentRows, row + 1);
         m_s.extentCols = std::max(m_s.extentCols, col + 1);
@@ -896,6 +899,7 @@ private:
     Sheet &m_s;
     EntryOptions m_options;
     qint64 m_rec = 0, m_cells = 0, m_held = 0;
+    Cell m_last;
     CsvImport m_choices;
     QVector<int> m_shift;
     int m_shiftRest = 0;
@@ -1207,10 +1211,11 @@ private:
 
 } // namespace
 
-QVector<QStringList> csvPreview(const QByteArray &file, const QString &fileName, const CsvImport &choices, const EntryLocale &locale, CsvForm *formOut, int *columnsOut)
+namespace {
+
+// The first bytes of a file (at most kCsvPreviewBytes) scanned as the choices say, into `sink`; `form` gets the form they come to. False when the file is empty or is no text.
+bool scanHead(const QByteArray &file, const QString &fileName, const CsvImport &choices, const EntryLocale &locale, Sink *sink, CsvForm *formOut)
 {
-    QVector<QStringList> rows;
-    int widest = 0;
     const QByteArray head = file.left(kCsvPreviewBytes);
     CsvForm form = detectCsvForm(head, fileName, locale);
     CsvImport c = choices;
@@ -1219,12 +1224,8 @@ QVector<QStringList> csvPreview(const QByteArray &file, const QString &fileName,
         form.encoding = c.encoding;
         form.codePage = c.codePage;
     }
-    if (c.firstRow < 0) c.firstRow = 0;
     if (formOut) *formOut = form;
-    if (head.isEmpty() || (!head.startsWith("\xFF\xFE") && !head.startsWith("\xFE\xFF") && head.left(8192).contains('\0'))) {
-        if (columnsOut) *columnsOut = 0;
-        return rows;
-    }
+    if (head.isEmpty() || (!head.startsWith("\xFF\xFE") && !head.startsWith("\xFE\xFF") && head.left(8192).contains('\0'))) return false;
     qint64 skip = markLength(form.encoding, head);
     if (form.sepLine) {
         const qsizetype nl = head.indexOf('\n', skip);
@@ -1236,13 +1237,210 @@ QVector<QStringList> csvPreview(const QByteArray &file, const QString &fileName,
     QString text;
     if (wide || form.encoding == CsvEncoding::Legacy) text = decodeSample(head, skip, count, form);
     else text = QString::fromUtf8(head.constData() + skip, qsizetype(count));
-    PreviewSink sink(c, &rows, &widest);
     const QString separators = c.separators.isEmpty() ? QString(form.delimiter) : c.separators;
-    Scanner scanner(separators, c.quote, c.mergeSeparators, &sink, kCsvPreviewFieldChars * 4);
+    Scanner scanner(separators, c.quote, c.mergeSeparators, sink, kCsvPreviewFieldChars * 4);
     if (c.fixedWidth) scanner.setFixed(c.breaks);
     if (scanner.feed(text)) scanner.finish();   // (the last row of a file cut short is shown as far as it goes)
+    return true;
+}
+
+} // namespace
+
+QVector<QStringList> csvPreview(const QByteArray &file, const QString &fileName, const CsvImport &choices, const EntryLocale &locale, CsvForm *formOut, int *columnsOut)
+{
+    QVector<QStringList> rows;
+    int widest = 0;
+    CsvImport c = choices;
+    if (c.firstRow < 0) c.firstRow = 0;
+    PreviewSink sink(c, &rows, &widest);
+    if (!scanHead(file, fileName, c, locale, &sink, formOut)) {
+        if (columnsOut) *columnsOut = 0;
+        return rows;
+    }
     if (columnsOut) *columnsOut = widest;
     return rows;
+}
+
+namespace {
+
+// ---- the kind of each column, guessed from its first rows
+
+constexpr int kOrderMDY = 1, kOrderDMY = 2, kOrderYMD = 4;
+
+// What a value is, as far as the guess is concerned.
+enum class Seen { Empty, Number, Date, Text };
+
+// What one column's values have shown so far.
+struct ColumnSeen {
+    bool any = false, allNumber = true, allDate = true, text = false;
+    int orders = kOrderMDY | kOrderDMY | kOrderYMD;
+    void add(Seen what, int mask)
+    {
+        if (what == Seen::Empty) return;
+        any = true;
+        if (what == Seen::Text) text = true;
+        if (what != Seen::Number) allNumber = false;
+        if (what != Seen::Date) allDate = false;
+        else orders &= mask;
+    }
+    CsvColumn kind(bool *unclear) const
+    {
+        CsvColumn k;
+        k.kind = CsvColumn::Kind::Text;
+        if (!any || text) return k;
+        if (allNumber) {
+            k.kind = CsvColumn::Kind::General;
+            return k;
+        }
+        if (!allDate) return k;
+        if (orders == kOrderMDY || orders == kOrderDMY || orders == kOrderYMD) {
+            k.kind = CsvColumn::Kind::Date;
+            k.dateOrder = orders == kOrderMDY ? QStringLiteral("MDY") : orders == kOrderDMY ? QStringLiteral("DMY") : QStringLiteral("YMD");
+        } else if (orders != 0 && unclear) {
+            *unclear = true;
+        }
+        return k;
+    }
+};
+
+// The sink of a guess: classifies each field of the first rows, as the person's choices would read it, and counts what the columns show.
+class GuessSink : public Sink {
+public:
+    GuessSink(const CsvImport &choices, const EntryLocale &locale)
+        : m_formats(formatsOf(locale)), m_words(knownWordsOf(locale.locale, &m_months)), m_choices(choices),
+          m_sink(m_formats, m_words, m_months, locale, Limits(), nullptr, -1, &m_scratch, plain(choices))
+    {
+        for (auto it = m_formats.cbegin(); it != m_formats.cend(); ++it) m_codes.insert(it.value(), it.key());
+    }
+
+    bool field(quint32 col, QStringView text, bool quoted) override
+    {
+        Q_UNUSED(quoted)
+        const qint64 row = m_rec - m_choices.firstRow;
+        if (row < 0) return true;
+        if (col >= quint32(kCsvPreviewColumns)) {
+            m_cut = true;
+            return true;
+        }
+        if (row > kCsvGuessRows) return false;
+        const Seen seen = classify(text);
+        if (seen != Seen::Empty) ++m_looked;
+        if (m_all.size() <= qsizetype(col)) {
+            m_all.resize(col + 1);
+            m_rest.resize(col + 1);
+            m_first.resize(col + 1);
+        }
+        if (row < kCsvGuessRows) m_all[col].add(seen, m_mask);
+        if (row >= 1) m_rest[col].add(seen, m_mask);
+        else m_first[col] = seen;
+        return true;
+    }
+    bool endRecord() override
+    {
+        ++m_rec;
+        return m_rec - m_choices.firstRow <= kCsvGuessRows;
+    }
+
+    CsvGuess result(bool firstRowNames) const
+    {
+        CsvGuess g;
+        g.columnsCut = m_cut;
+        g.fieldsLooked = m_looked;
+        const QVector<ColumnSeen> &use = firstRowNames ? m_rest : m_all;
+        bool firstIsText = false, firstHasValues = false, valuesBelow = false;
+        for (qsizetype c = 0; c < use.size(); ++c) {
+            bool unclear = false;
+            g.columns.append(use[c].kind(&unclear));
+            g.dateOrderUnclear.append(unclear);
+            if (m_first[c] != Seen::Empty) {
+                firstHasValues = true;
+                firstIsText = firstIsText || m_first[c] == Seen::Text;
+                bool ignored = false;
+                if (m_first[c] == Seen::Text && m_rest[c].kind(&ignored).kind != CsvColumn::Kind::Text) valuesBelow = true;
+            }
+        }
+        // (names: every value of the first row is text, and a column under one of them holds only numbers or dates)
+        bool allText = firstHasValues;
+        for (const Seen s : m_first)
+            if (s != Seen::Empty && s != Seen::Text) allText = false;
+        g.namesFound = allText && firstIsText && valuesBelow;
+        return g;
+    }
+
+private:
+    static QHash<QString, quint32> formatsOf(const EntryLocale &locale)
+    {
+        QHash<QString, quint32> formats;
+        quint32 next = 1;
+        for (const QString &code : entryFormatCodes(locale))
+            if (!formats.contains(code)) formats.insert(code, next++);
+        return formats;
+    }
+    // (a guess reads fields as typed: no formulas, no columns left out, so that nothing but the marks decide)
+    static CsvImport plain(CsvImport c)
+    {
+        c.readFormulas = false;
+        c.columns.clear();
+        c.rest = CsvColumn();
+        c.firstRow = 0;
+        return c;
+    }
+
+    Seen classify(QStringView raw)
+    {
+        m_mask = 0;
+        const QStringView s = raw.trimmed();
+        if (s.isEmpty()) return Seen::Empty;
+        static const QRegularExpression leadingZero(QStringLiteral("^-?0[0-9]")), exponent(QStringLiteral("[0-9][eE][+-]?[0-9]")),
+            separated(QStringLiteral("^\\d{1,4}[\\s/.\\-]\\d{1,2}[\\s/.\\-]\\d{1,4}$"));
+        // (what a number would damage or a sign would lose stays text)
+        if (s.front() == QLatin1Char('+') || keepsAsText(s)) return Seen::Text;
+        const QString text = s.toString();
+        if (separated.match(text).hasMatch()) {
+            double serial = 0;
+            if (dateInOrder(text, QStringLiteral("MDY"), &serial)) m_mask |= kOrderMDY;
+            if (dateInOrder(text, QStringLiteral("DMY"), &serial)) m_mask |= kOrderDMY;
+            if (dateInOrder(text, QStringLiteral("YMD"), &serial)) m_mask |= kOrderYMD;
+            return m_mask ? Seen::Date : Seen::Text;
+        }
+        if (leadingZero.match(text).hasMatch() || exponent.match(text).hasMatch()) return Seen::Text;
+        qsizetype digits = 0;
+        for (const QChar c : s)
+            if (c.isDigit()) ++digits;
+        if (digits > 15) return Seen::Text;
+        // (a number is what the reader makes of the field, as typed, with the person's marks; a date or a time it reads without an order stays text)
+        m_sink.field(0, s, false);
+        m_sink.endRecord();
+        const Cell &c = m_sink.lastCell();
+        if (c.type != CellType::Number) return Seen::Text;
+        const QString code = m_codes.value(c.style);
+        if (code.contains(QLatin1Char('h')) || code.startsWith(QLatin1String("m/d/yyyy")) || code.contains(QLatin1Char('E'))) return Seen::Text;
+        return Seen::Number;
+    }
+
+    QHash<QString, quint32> m_formats;
+    QHash<quint32, QString> m_codes;
+    QSet<QString> m_months;
+    QSet<QString> m_words;
+    CsvImport m_choices;
+    Sheet m_scratch;
+    SheetSink m_sink;
+    QVector<ColumnSeen> m_all, m_rest;
+    QVector<Seen> m_first;
+    int m_mask = 0;
+    qint64 m_rec = 0, m_looked = 0;
+    bool m_cut = false;
+};
+
+} // namespace
+
+CsvGuess guessCsvColumns(const QByteArray &file, const QString &fileName, const CsvImport &choices, const EntryLocale &locale, bool firstRowNames)
+{
+    CsvImport c = choices;
+    if (c.firstRow < 0) c.firstRow = 0;
+    GuessSink sink(c, locale);
+    if (!scanHead(file, fileName, c, locale, &sink, nullptr)) return CsvGuess();
+    return sink.result(firstRowNames);
 }
 
 bool Workbook::openDelimited(const QByteArray &file, const QString &path, QString *error, const Limits &limits)

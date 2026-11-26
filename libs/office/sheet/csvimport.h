@@ -59,6 +59,8 @@ constexpr int kMaxCsvBreaks = 255;
 constexpr int kCsvPreviewRows = 200;
 constexpr int kCsvPreviewColumns = 100;
 constexpr int kCsvPreviewFieldChars = 120;
+// The rows a guess of each column's kind is made from (after the row of names, when there is one): a column is judged by these and no more.
+constexpr int kCsvGuessRows = 200;
 constexpr qint64 kCsvPreviewBytes = qint64(1) << 20;
 
 } // namespace jp::office::sheet

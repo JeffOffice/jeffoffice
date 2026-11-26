@@ -51,6 +51,21 @@ int legacyCodePageFor(const QLocale &locale);
 // kCsvPreviewBytes of the file. `form`, if given, gets the form the choices (or the file) come to; `columns` the number of columns the widest row has.
 QVector<QStringList> csvPreview(const QByteArray &file, const QString &fileName, const CsvImport &choices, const EntryLocale &locale, CsvForm *form = nullptr, int *columns = nullptr);
 
+// The kind each column of a file should be read as, guessed from its first kCsvGuessRows rows (not the row of names when `firstRowNames`), for the import preview to propose. Only what the data proves:
+//  - As typed (a number) only when every value that is there is a number in the marks `choices` names, with no plus sign, no zero in front of more digits, no more than 15 digits, and no exponent (1E5);
+//  - a date in an order only when every value is three numbers with a slash, dash, dot, or space between that read as a date in that order and in no other; a column whose dates fit more than one order
+//    (05/06/2024) is Text, and `dateOrderUnclear` says so for it, so the preview can offer the choice;
+//  - Text for everything else: words, a mix of kinds, any other way of writing a date or time, and a column with no value.
+// The columns past kCsvPreviewColumns are not looked at (the caller reads them as text). The work is bounded by the first kCsvPreviewBytes of the file and kCsvGuessRows rows of kCsvPreviewColumns columns.
+struct CsvGuess {
+    QVector<CsvColumn> columns;       // one for each column found, in order
+    QVector<bool> dateOrderUnclear;   // the column's dates fit more than one order, so it is Text for now
+    bool namesFound = false;          // the first row looks like names: text over values that are all numbers or dates
+    bool columnsCut = false;          // there are more than kCsvPreviewColumns columns
+    qint64 fieldsLooked = 0;          // the fields that were looked at (for tests)
+};
+CsvGuess guessCsvColumns(const QByteArray &file, const QString &fileName, const CsvImport &choices, const EntryLocale &locale, bool firstRowNames);
+
 class CsvBook : public ForeignBook {
 public:
     // The most characters of one field (a cell holds 32,767).
