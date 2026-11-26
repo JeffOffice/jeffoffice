@@ -14,6 +14,9 @@
 #include "../localepin.h"
 
 #include <QAction>
+#include <QApplication>
+#include <QClipboard>
+#include <QMimeData>
 #include <QCheckBox>
 #include <QComboBox>
 #include <QLabel>
@@ -358,6 +361,178 @@ private Q_SLOTS:
         QCOMPARE(dialog.previewRows(), jp::office::sheet::kCsvPreviewRows);
         QCOMPARE(dialog.previewColumns(), jp::office::sheet::kCsvPreviewColumns);
         QVERIFY(!dialog.findChild<QLabel *>(QStringLiteral("textImportNote"))->text().isEmpty());
+    }
+
+    // ---- the kind of each column, guessed from the first rows where the person sees the preview
+
+    static int kindIndex(TextImportDialog &dialog, int col)
+    {
+        auto *box = dialog.findChild<QComboBox *>(QStringLiteral("columnKind%1").arg(col));
+        return box ? box->currentIndex() : -1;
+    }
+    static TextImportRequest guessing(const QByteArray &head, bool on = true)
+    {
+        TextImportRequest req;
+        req.path = QStringLiteral("data.csv");
+        req.head = head;
+        req.size = head.size();
+        req.locale = QLocale(QLocale::English, QLocale::UnitedStates);
+        req.guessKinds = on;
+        return req;
+    }
+
+    // The boxes above the columns start at the guess: 0 as typed (a number), 1 text, 3 and up dates and the like. A dialog that is not asked to guess leaves every column as typed, as before.
+    void theDialogProposesEachColumnsKindAndTheBoxesShowIt()
+    {
+        const QByteArray file = "name,qty,born,zip,code\nAnn,3,1990-05-13,02134,1E5\nBob,12,1985-12-01,90210,7\n";
+        TextImportDialog dialog(guessing(file));
+        QCOMPARE(dialog.previewColumns(), 5);
+        QCOMPARE(kindIndex(dialog, 0), 1);
+        QCOMPARE(kindIndex(dialog, 1), 0);
+        QCOMPARE(kindIndex(dialog, 2), 4);   // (year, month, day)
+        QCOMPARE(kindIndex(dialog, 3), 1);
+        QCOMPARE(kindIndex(dialog, 4), 1);
+        QVERIFY(dialog.findChild<QCheckBox *>(QStringLiteral("textImportNames"))->isChecked());   // (text over values: the first row is names)
+        const jp::office::sheet::CsvImport c = dialog.choices();
+        QCOMPARE(c.columns.size(), 5);
+        QCOMPARE(c.columns[2].dateOrder, QStringLiteral("YMD"));
+        QCOMPARE(c.rest.kind, jp::office::sheet::CsvColumn::Kind::Text);
+        QVERIFY(dialog.findChild<QLabel *>(QStringLiteral("textImportNote"))->text().contains(QStringLiteral("guessed from its first 200 rows")));
+        // not asked to guess: as typed, no box of names, no note
+        TextImportDialog plain(guessing(file, false));
+        for (int col = 0; col < 5; ++col) QCOMPARE(kindIndex(plain, col), 0);
+        QVERIFY(!plain.findChild<QCheckBox *>(QStringLiteral("textImportNames")));
+        QVERIFY(plain.findChild<QLabel *>(QStringLiteral("textImportNote"))->text().isEmpty());
+        QCOMPARE(plain.choices().rest.kind, jp::office::sheet::CsvColumn::Kind::General);
+        QVERIFY(plain.choices().columns.size() <= 5);
+        for (const auto &k : plain.choices().columns) QCOMPARE(k.kind, jp::office::sheet::CsvColumn::Kind::General);
+    }
+
+    // Dates that fit two orders are kept as text, the note names the column, and the person picks the order from the box.
+    void datesThatFitTwoOrdersAreTextUntilThePersonChoosesAnOrder()
+    {
+        TextImportDialog dialog(guessing("id,day\n1,05/06/2024\n2,01/02/2024\n"));
+        QCOMPARE(kindIndex(dialog, 1), 1);
+        const QString note = dialog.findChild<QLabel *>(QStringLiteral("textImportNote"))->text();
+        QVERIFY2(note.contains(QStringLiteral("more than one order")) && note.contains(QStringLiteral(": B.")), qPrintable(note));
+        dialog.findChild<QComboBox *>(QStringLiteral("columnKind1"))->setCurrentIndex(3);
+        QTRY_COMPARE(dialog.choices().columns.value(1).dateOrder, QStringLiteral("DMY"));
+        QTRY_VERIFY(!dialog.findChild<QLabel *>(QStringLiteral("textImportNote"))->text().contains(QStringLiteral("more than one order")));
+        QCOMPARE(kindIndex(dialog, 1), 3);
+        // a date that proves its order is proposed in it, with no question
+        TextImportDialog proven(guessing("id,day\n1,05/13/2024\n2,01/02/2024\n"));
+        QCOMPARE(kindIndex(proven, 1), 2);
+    }
+
+    // A kind the person set stays through every later change (separator, marks, names), and a column they did not set is guessed again from the new split.
+    void aKindThePersonSetIsNeverReplacedByALaterGuess()
+    {
+        TextImportDialog dialog(guessing("a,b,c\n1,2,3\n4,5,6\n"));
+        QCOMPARE(kindIndex(dialog, 1), 0);
+        QCOMPARE(kindIndex(dialog, 2), 0);
+        dialog.findChild<QComboBox *>(QStringLiteral("columnKind1"))->setCurrentIndex(1);   // text
+        QTRY_COMPARE(dialog.choices().columns.value(1).kind, jp::office::sheet::CsvColumn::Kind::Text);
+        // the names box off: the letters make column 0 and 2 text again, and the person's column 1 stays as it was set
+        dialog.findChild<QCheckBox *>(QStringLiteral("textImportNames"))->setChecked(false);
+        QTRY_COMPARE(kindIndex(dialog, 0), 1);
+        QCOMPARE(kindIndex(dialog, 2), 1);
+        QCOMPARE(kindIndex(dialog, 1), 1);
+        // a different separator: column 1 is the person's still, and the others follow the new split
+        dialog.findChild<QCheckBox *>(QStringLiteral("sepComma"))->setChecked(false);
+        dialog.findChild<QCheckBox *>(QStringLiteral("sepSemicolon"))->setChecked(true);
+        QTRY_COMPARE(dialog.previewColumns(), 1);
+        QCOMPARE(dialog.choices().columns.value(0).kind, jp::office::sheet::CsvColumn::Kind::Text);   // (the guess of the one column: its words)
+        dialog.findChild<QCheckBox *>(QStringLiteral("sepSemicolon"))->setChecked(false);
+        dialog.findChild<QCheckBox *>(QStringLiteral("sepComma"))->setChecked(true);
+        QTRY_COMPARE(dialog.previewColumns(), 3);
+        QCOMPARE(dialog.choices().columns.value(1).kind, jp::office::sheet::CsvColumn::Kind::Text);
+        // a column the caller gave is a choice too
+        TextImportRequest given = guessing("a,b\n1,2\n3,4\n");
+        given.choices.columns = {jp::office::sheet::CsvColumn{jp::office::sheet::CsvColumn::Kind::Skip, QString()}};
+        TextImportDialog kept(given);
+        QCOMPARE(kindIndex(kept, 0), 5);
+    }
+
+    // The marks the person chooses change what is a number: the guess follows them.
+    void theMarksChosenDecideWhichColumnsAreNumbers()
+    {
+        TextImportDialog dialog(guessing("amount;n\n\"1.234,50\";1\n\"2.000,00\";2\n"));
+        QCOMPARE(kindIndex(dialog, 0), 1);   // (the language's own marks are the point and comma: 1.234,50 is not a number in them)
+        auto *decimal = dialog.findChild<QComboBox *>(QStringLiteral("textImportDecimal"));
+        auto *thousands = dialog.findChild<QComboBox *>(QStringLiteral("textImportThousands"));
+        decimal->setCurrentIndex(decimal->findData(int(',')));
+        thousands->setCurrentIndex(thousands->findData(int('.')));
+        QTRY_COMPARE(kindIndex(dialog, 0), 0);
+    }
+
+    // A file of 300 columns: the first 100 are shown and guessed, the others come in as text, and the note says so.
+    void aWideFileGuessesWhatIsShownAndBringsTheRestInAsText()
+    {
+        QByteArray line;
+        for (int c = 0; c < 300; ++c) line += QByteArray::number(c) + ",";
+        TextImportDialog dialog(guessing(line + "\n" + line + "\n"));
+        QCOMPARE(dialog.previewColumns(), jp::office::sheet::kCsvPreviewColumns);
+        QCOMPARE(dialog.choices().columns.size(), jp::office::sheet::kCsvPreviewColumns);
+        QCOMPARE(dialog.choices().rest.kind, jp::office::sheet::CsvColumn::Kind::Text);
+        QVERIFY(dialog.findChild<QLabel *>(QStringLiteral("textImportNote"))->text().contains(QStringLiteral("first 100 are brought in as text")));
+    }
+
+    // Where the person sees the preview first (a text file opened in a window that asks, and pasted text) the request says to guess; where nobody is asked (a window that does not prompt, or the
+    // command line's choices) the file is read exactly as before: a code stays what the reader makes of it, and nothing is proposed.
+    void onlyWhereThePreviewIsSeenFirstIsTheKindGuessed()
+    {
+        const QByteArray file = "code,when\n1E5,05/13/2024\n007,01/02/2024\n";
+        {
+            EditWindow e;
+            e.win.w.setPromptForText(true);
+            bool guessed = false;
+            e.win.w.anchorHooks().textImportAsker = [&guessed](TextImportRequest *r) {
+                guessed = r->guessKinds;
+                TextImportDialog dialog(*r);
+                r->choices = dialog.choices();
+                return true;
+            };
+            QVERIFY(e.open(file, QStringLiteral("g.csv")));
+            QVERIFY(guessed);
+            QCOMPARE(e.shownAt(QStringLiteral("A2")), QStringLiteral("1E5"));   // (kept: as typed it would be 100000)
+            QCOMPARE(e.shownAt(QStringLiteral("A3")), QStringLiteral("007"));
+            QCOMPARE(e.shownAt(QStringLiteral("B2")), QStringLiteral("2024-05-13"));   // (month first: 13 is no month)
+        }
+        {
+            // a window that does not ask reads the file as before
+            EditWindow e;
+            bool asked = false;
+            e.win.w.anchorHooks().textImportAsker = [&asked](TextImportRequest *) {
+                asked = true;
+                return true;
+            };
+            QVERIFY(e.open(file, QStringLiteral("g.csv")));
+            QVERIFY(!asked);
+            QCOMPARE(e.shownAt(QStringLiteral("A2")), QStringLiteral("1.00E+05"));   // (read as a number, as on main)
+            QCOMPARE(e.shownAt(QStringLiteral("A3")), QStringLiteral("007"));
+            QCOMPARE(e.shownAt(QStringLiteral("B2")), QStringLiteral("5/13/2024"));
+        }
+        {
+            // pasted text asks the same way
+            EditWindow e;
+            QVERIFY(e.open(editBook()));
+            auto *md = new QMimeData;
+            md->setText(QStringLiteral("code,qty\n007,5\n008,6\n"));
+            QApplication::clipboard()->setMimeData(md);
+            bool guessed = false;
+            e.win.w.anchorHooks().textImportAsker = [&guessed](TextImportRequest *r) {
+                guessed = r->guessKinds;
+                TextImportDialog dialog(*r);
+                r->choices = dialog.choices();
+                return true;
+            };
+            e.select(QStringLiteral("D5"));
+            e.win.w.act(QStringLiteral("paste.textImport"))->trigger();
+            QVERIFY(e.settle());
+            QVERIFY(guessed);
+            QCOMPARE(e.shownAt(QStringLiteral("D6")), QStringLiteral("007"));
+            QCOMPARE(e.shownAt(QStringLiteral("E6")), QStringLiteral("5"));
+        }
     }
 };
 

@@ -2,6 +2,7 @@
 // a new name ending in .xlsx (or .csv, for the values of the sheet) and never offers the file the workbook came from; and Save As of any workbook can write the values of the sheet in
 // view as a .csv. Every file is built here, in a temporary folder.
 #include "../sheet/odshelpers.h"
+#include "app/anchordialogs.h"
 #include "app/crunchinfo.h"
 #include "app/crunchwindow.h"
 #include "app/csvsavedialog.h"
@@ -9,6 +10,7 @@
 #include "app/oldformat.h"
 #include "app/otherformats.h"
 #include "app/settings.h"
+#include "app/textimportdialog.h"
 #include "core/appinfo.h"
 #include "sheet/odsdraw.h"
 #include "core/fonts.h"
@@ -401,6 +403,33 @@ private Q_SLOTS:
             QVERIFY2(exported.count() > 0 || exported.wait(20000), qPrintable(QString::fromLatin1(f.name) + QStringLiteral(" ") + o.told.join(QLatin1Char('|'))));
             QVERIFY2(exported.first().at(1).toBool(), f.name);
             QVERIFY2(o.folder.read(QString::fromLatin1(f.copy)) == f.bytes, f.name);
+            QVERIFY(o.originalIsUntouched());
+        }
+    }
+
+    // The same file opened through the import preview, with the kinds it proposes and nothing changed, is saved as a copy as the same bytes: the guess changes how cells are read, never the file.
+    void aCsvOpenedThroughTheGuessedPreviewIsSavedWithoutEditsAsTheSameFile()
+    {
+        LocaleScope locale(QLocale(QLocale::English, QLocale::UnitedStates));
+        const QByteArray files[] = {"code,when,amt\n007,05/13/2024,1E5\n008,01/02/2024,2.50\n", "a;b\r\n+5;13/05/2024\r\n1234567890123456;02/03/2024\r\n"};
+        for (const QByteArray &bytes : files) {
+            Win o;
+            o.w.setPromptForText(true);
+            bool guessed = false;
+            o.w.anchorHooks().textImportAsker = [&guessed](TextImportRequest *r) {
+                guessed = r->guessKinds;
+                TextImportDialog dialog(*r);
+                r->choices = dialog.choices();
+                return true;
+            };
+            QVERIFY(o.open(bytes, QStringLiteral("g.csv")));
+            QVERIFY(guessed);
+            o.answer = o.folder.dir.filePath(QStringLiteral("copy.csv"));
+            QSignalSpy exported(&o.w, &CrunchWindow::csvExported);
+            QVERIFY(o.w.save());
+            QVERIFY2(exported.count() > 0 || exported.wait(20000), qPrintable(o.told.join(QLatin1Char('|'))));
+            QVERIFY(exported.first().at(1).toBool());
+            QCOMPARE(o.folder.read(QStringLiteral("copy.csv")), bytes);
             QVERIFY(o.originalIsUntouched());
         }
     }

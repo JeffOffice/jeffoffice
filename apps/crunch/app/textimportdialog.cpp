@@ -61,6 +61,13 @@ const Code kCodes[] = {
     {Big950, QT_TRANSLATE_NOOP("jp::TextImportDialog", "Chinese, traditional (950)"), CsvEncoding::Legacy, 950},
 };
 
+CsvColumn textColumn()
+{
+    CsvColumn k;
+    k.kind = CsvColumn::Kind::Text;
+    return k;
+}
+
 } // namespace
 
 TextImportDialog::TextImportDialog(const TextImportRequest &request, QWidget *parent) : QDialog(parent), m_request(request)
@@ -182,6 +189,12 @@ TextImportDialog::TextImportDialog(const TextImportRequest &request, QWidget *pa
     m_start->setRange(1, 1000000);
     m_start->setValue(request.choices.firstRow + 1);
     form->addRow(tr("Begin at row"), m_start);
+    if (request.guessKinds) {
+        m_names = new QCheckBox(tr("The first row has column names"), this);
+        m_names->setObjectName(QStringLiteral("textImportNames"));
+        m_names->setToolTip(tr("The row of names is not used to guess what the columns hold."));
+        form->addRow(QString(), m_names);
+    }
     layout->addLayout(form);
     m_note = plainLabel(new QLabel(this));
     m_note->setObjectName(QStringLiteral("textImportNote"));
@@ -199,6 +212,7 @@ TextImportDialog::TextImportDialog(const TextImportRequest &request, QWidget *pa
     connect(buttons, &QDialogButtonBox::rejected, this, &QDialog::reject);
     layout->addWidget(buttons);
     m_columns = request.choices.columns;
+    m_chosen = QVector<bool>(m_columns.size(), true);   // (what the caller gave is a choice)
     auto again = [this] { refresh(); };
     for (QCheckBox *b : {m_comma, m_semicolon, m_tab, m_space, m_pipe, m_merge}) connect(b, &QCheckBox::toggled, this, again);
     connect(m_other, &QLineEdit::textChanged, this, again);
@@ -211,6 +225,11 @@ TextImportDialog::TextImportDialog(const TextImportRequest &request, QWidget *pa
     connect(m_formulas, &QCheckBox::toggled, this, again);
     connect(m_fixed, &QCheckBox::toggled, this, again);
     connect(m_breaks, &QLineEdit::textChanged, this, again);
+    if (m_names) {
+        // (the names are found from the first rows as the file is split now; the person may change the box)
+        m_names->setChecked(guessCsvColumns(request.head, request.path, choices(), EntryLocale(request.locale), false).namesFound);
+        connect(m_names, &QCheckBox::toggled, this, again);
+    }
     refresh();
 }
 
@@ -238,6 +257,7 @@ CsvImport TextImportDialog::choices() const
             c.codePage = code.codePage;
         }
     c.columns = m_columns;
+    if (m_request.guessKinds) c.rest = textColumn();   // (the columns past the ones shown are not looked at: text, so that nothing in them is damaged)
     c.decimalMark = QChar(ushort(m_decimal->currentData().toInt()));
     c.thousandsMark = QChar(ushort(m_thousands->currentData().toInt()));
     c.trailingMinus = m_minus->isChecked();
@@ -322,6 +342,7 @@ void TextImportDialog::refresh()
 {
     if (m_filling) return;
     m_filling = true;
+    if (m_request.guessKinds) guessKinds(choices());
     const CsvImport c = choices();
     for (QWidget *w : std::initializer_list<QWidget *>{m_comma, m_semicolon, m_tab, m_space, m_pipe, m_merge, m_other, m_quote}) w->setEnabled(!c.fixedWidth);
     fillRuler();
@@ -346,8 +367,35 @@ void TextImportDialog::refresh()
     m_table->resizeColumnsToContents();
     for (int col = 0; col < columns; ++col) m_table->setColumnWidth(col, std::min(m_table->columnWidth(col), 220));
     const bool bounded = m_request.size > kCsvPreviewBytes || rows.size() >= kCsvPreviewRows;
-    m_note->setText(bounded ? tr("The preview shows the first %1 rows of the file. The whole file is opened.").arg(rows.size()) : QString());
+    QStringList notes;
+    if (bounded) notes << tr("The preview shows the first %1 rows of the file. The whole file is opened.").arg(rows.size());
+    if (m_request.guessKinds) {
+        notes << tr("What each column holds is guessed from its first %1 rows. Change any column above before you open the file.").arg(kCsvGuessRows);
+        if (!m_unclearDates.isEmpty()) notes << tr("Columns that could be dates in more than one order are kept as text until you choose an order: %1.").arg(m_unclearDates.join(QStringLiteral(", ")));
+        if (m_columnsCut) notes << tr("The columns after the first %1 are brought in as text.").arg(kCsvPreviewColumns);
+    }
+    m_note->setText(notes.join(QLatin1Char('\n')));
     m_filling = false;
+}
+
+// Proposes the kind of each column the person has not set, from the first rows as the choices now split them. A column the person set keeps its kind, whatever the separators, marks, or first
+// row are changed to afterward (the preview's note says the rest is guessed). Columns past the end of the file's width that were only guessed go.
+void TextImportDialog::guessKinds(const CsvImport &now)
+{
+    const CsvGuess g = guessCsvColumns(m_request.head, m_request.path, now, EntryLocale(m_request.locale), m_names && m_names->isChecked());
+    m_columnsCut = g.columnsCut;
+    while (m_columns.size() < g.columns.size()) m_columns.append(CsvColumn());
+    m_chosen.resize(m_columns.size());
+    m_unclearDates.clear();
+    for (int col = 0; col < g.columns.size(); ++col) {
+        if (m_chosen[col]) continue;
+        m_columns[col] = g.columns[col];
+        if (g.dateOrderUnclear.value(col)) m_unclearDates << columnName(quint32(col));
+    }
+    while (m_columns.size() > g.columns.size() && !m_chosen.last()) {
+        m_columns.removeLast();
+        m_chosen.removeLast();
+    }
 }
 
 // The box above each column that says how it is read.
@@ -355,6 +403,7 @@ void TextImportDialog::fillKinds()
 {
     const int columns = m_table->columnCount();
     while (m_columns.size() < columns) m_columns.append(CsvColumn());
+    m_chosen.resize(m_columns.size());
     for (int col = 0; col < columns; ++col) {
         auto *box = new QComboBox;
         box->setObjectName(QStringLiteral("columnKind%1").arg(col));
@@ -386,6 +435,7 @@ void TextImportDialog::fillKinds()
             default: break;
             }
             m_columns[col] = k;
+            m_chosen[col] = true;   // (the person's: no later guess replaces it)
             QMetaObject::invokeMethod(this, [this] { refresh(); }, Qt::QueuedConnection);   // (the boxes are made again: not while one is telling us)
         });
         m_table->setCellWidget(0, col, box);

@@ -1,6 +1,7 @@
 #pragma once
 // The dialog that opens a text file of values: how its fields are separated and quoted (or cut at places, for columns of fixed width), the code page, the marks numbers are written with, the row to begin at, and how each column is read (as it is typed, as text,
-// as a date in an order, or left out), with a preview of the first rows that follows every change. The preview reads at most the first megabyte of the file and shows 200 rows and 100
+// as a date in an order, or left out), with a preview of the first rows that follows every change. Where the request says so, each column's kind is first guessed from the first rows (see
+// guessCsvColumns), shown in the box above the column, and left alone once the person has changed it. The preview reads at most the first megabyte of the file and shows 200 rows and 100
 // columns, each field cut to 120 characters, so a huge file or a very long line opens it at once.
 
 #include "sheet/csvimport.h"
@@ -28,6 +29,8 @@ struct TextImportRequest {
     qint64 size = 0;                              // the file's size
     QLocale locale;
     jp::office::sheet::CsvImport choices;         // in: what the file is found to be; out: what the person chose
+    // Whether the kind of each column is proposed from the first rows (text, number, or date) for the person to change. Set only where the person sees the preview first.
+    bool guessKinds = false;
 };
 
 class TextImportDialog : public QDialog {
@@ -43,6 +46,7 @@ public:
 private:
     void refresh();
     void fillKinds();
+    void guessKinds(const jp::office::sheet::CsvImport &now);
     void fillRuler();
     void toggleBreak(int column);
     bool eventFilter(QObject *watched, QEvent *event) override;
@@ -52,13 +56,16 @@ private:
     QLineEdit *m_other = nullptr;
     QSpinBox *m_start = nullptr;
     QComboBox *m_decimal = nullptr, *m_thousands = nullptr;
-    QCheckBox *m_minus = nullptr, *m_fixed = nullptr, *m_formulas = nullptr;
+    QCheckBox *m_minus = nullptr, *m_fixed = nullptr, *m_formulas = nullptr, *m_names = nullptr;
     QLineEdit *m_breaks = nullptr;
     QPlainTextEdit *m_ruler = nullptr;
     QTableWidget *m_table = nullptr;
     QLabel *m_note = nullptr;
     std::vector<QComboBox *> m_kinds;
-    QVector<jp::office::sheet::CsvColumn> m_columns;   // what the person chose for each column so far
+    QVector<jp::office::sheet::CsvColumn> m_columns;   // what the person chose for each column so far (or what was guessed, for a column the person has not changed)
+    QVector<bool> m_chosen;                            // the columns the person set (or the caller gave): a guess never replaces these
+    QStringList m_unclearDates;                        // the columns kept as text because their dates fit more than one order
+    bool m_columnsCut = false;
     bool m_filling = false;
 };
 

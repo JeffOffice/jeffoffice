@@ -17,6 +17,7 @@ bool CrunchWindow::askTextImport(const QString &path, std::shared_ptr<const jp::
     TextImportRequest req;
     req.path = path;
     req.locale = QLocale();
+    req.guessKinds = true;   // (the person sees the preview before the file is read: the kinds are proposed there)
     QFile f(path);
     if (!f.open(QIODevice::ReadOnly)) {
         notice(tr("Open"), tr("%1 can't open \"%2\".\nThe file can't be read.").arg(appInfo().name, QFileInfo(path).fileName()));
