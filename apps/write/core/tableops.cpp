@@ -1223,6 +1223,82 @@ bool deleteTableCellsShiftLeft(WriteDoc &doc, QTextCursor &c, bool apply)
     return true;
 }
 
+bool deleteTableCellsShiftUp(WriteDoc &doc, QTextCursor &c, bool apply)
+{
+    if (lockedByControl(c)) return false;   // (a content control keeps what is in it)
+    TableCommand command(doc);
+    auto v = viewAt(doc, c.selectionStart());
+    if (!v) return false;
+    const flow::TableLayout &t = *v->layout;
+    QTextDocument *d = tableStory(doc);
+    const Area area = areaOf(*v, c);
+    const int last = t.rowCount() - 1, gone = area.r1 - area.r0 + 1;
+    // The cells of the columns, row by row from the first row of the selection to the end: the same ones in the same columns in each, none joined down, none with a table in it.
+    QVector<std::pair<int, int>> shape;
+    QVector<QVector<int>> cells(last - area.r0 + 1);
+    for (int r = area.r0; r <= last; ++r) {
+        const flow::TableLayout::Row &row = t.row(r);
+        QVector<std::pair<int, int>> mine;
+        for (int i = row.cell0; i < row.cell0 + row.cells; ++i) {
+            const flow::TableLayout::Cell &cell = t.cell(i);
+            if (cell.col > area.c1 || cell.col + cell.span - 1 < area.c0) continue;
+            if (cell.covered || cell.rows > 1 || cell.rec->cell.vmerge != flow::CellData::VMerge::None) return false;
+            for (QTextBlock b = d->findBlock(cell.from); b.isValid() && b.position() < cell.to; b = b.next())
+                if (cellKeyOf(b) != cell.rec->key) return false;
+            mine.push_back({cell.col, cell.span});
+            cells[r - area.r0].push_back(i);
+        }
+        if (mine.isEmpty()) return false;
+        if (r == area.r0) shape = mine;
+        else if (mine != shape) return false;
+    }
+    if (!apply) return true;
+    struct Content {
+        QTextDocumentFragment words;
+        QVector<QTextBlockFormat> formats;
+    };
+    // The words of each cell that is to move: the cells below the ones that go.
+    QVector<QVector<Content>> was(cells.size());
+    for (int r = gone; r < cells.size(); ++r)
+        for (const int i : std::as_const(cells[r])) {
+            const flow::TableLayout::Cell &cell = t.cell(i);
+            Content content;
+            QTextCursor all(d);
+            all.setPosition(cell.from);
+            all.setPosition(std::max(cell.from, cell.to - 1), QTextCursor::KeepAnchor);
+            content.words = all.selection();
+            for (QTextBlock b = d->findBlock(cell.from); b.isValid() && b.position() < cell.to; b = b.next()) content.formats.push_back(b.blockFormat());
+            was[r].push_back(content);
+        }
+    // Each cell is given the words of the one `gone` rows under it, or none; from the last cell to the first, so that the places of those before are as they were.
+    const int firstFrom = t.cell(cells.first().first()).from;
+    c.beginEditBlock();
+    for (int r = cells.size() - 1; r >= 0; --r)
+        for (int k = cells[r].size() - 1; k >= 0; --k) {
+            const flow::TableLayout::Cell &cell = t.cell(cells[r][k]);
+            QTextCursor fill(d);
+            fill.setPosition(cell.from);
+            fill.setPosition(std::max(cell.from, cell.to - 1), QTextCursor::KeepAnchor);
+            const bool has = r + gone < cells.size() && !was[r + gone][k].words.isEmpty();
+            if (!has) {
+                fill.removeSelectedText();
+                continue;
+            }
+            const Content &src = was[r + gone][k];
+            fill.insertFragment(src.words);
+            const int stop = fill.position();
+            int n = 0;
+            for (QTextBlock b = d->findBlock(cell.from); b.isValid() && b.position() <= stop && n < src.formats.size(); b = b.next(), ++n) {
+                QTextBlockFormat bf = src.formats[n];
+                bf.setProperty(flow::fp::Cell, cell.rec->key);
+                QTextCursor(b).setBlockFormat(bf);
+            }
+        }
+    c.setPosition(firstFrom);
+    c.endEditBlock();
+    return true;
+}
+
 bool tabThroughCells(WriteDoc &doc, QTextCursor &c, bool back)
 {
     TableCommand command(doc);

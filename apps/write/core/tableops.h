@@ -51,6 +51,10 @@ void deleteTableColumns(WriteDoc &doc, QTextCursor &c);
 // Delete Cells, shifting the cells to the right of them left: the cells the selection touches go (with their words), and the rest of each row moves left, the row ending in an empty
 // space instead of a cell. One step. False, with nothing done, where a cell is joined with others down or across rows, or where no cell of a row would be left (Delete Rows is that).
 bool deleteTableCellsShiftLeft(WriteDoc &doc, QTextCursor &c, bool apply = true);   // (not `apply`: only whether it could be)
+// Delete Cells, shifting the cells below them up: the cells the selection touches go (with their words), the words of the cells under them move up in their columns, and the
+// last cells of the columns are empty. The cells keep their places, widths, and looks; only the words move. One step. False, with nothing done, where a cell in the columns from the first row of
+// the selection to the end of the table is joined with others down, or holds a table, or where those rows do not have their cells in the same columns.
+bool deleteTableCellsShiftUp(WriteDoc &doc, QTextCursor &c, bool apply = true);   // (not `apply`: only whether it could be)
 void deleteTable(WriteDoc &doc, QTextCursor &c);
 
 // ---- Tables in a copy (a copy or a saved block that holds a whole table keeps it as a table, in this document or another)

@@ -1721,6 +1721,67 @@ private Q_SLOTS:
         // Page Setup names the paper the same way.
         QString found;
         QTimer::singleShot(0, [&found] {
+    // Delete Cells, Shift Up: the words of the cells under the ones that go move up in their columns and the last cells are empty; one step; refused where a cell down the column is joined with others.
+    void deleteCellsShiftUpMovesTheWordsOfTheColumnUpAndLeavesTheLastCellsEmpty()
+    {
+        auto cell = [](const char *t, const char *extra = "") { return QByteArray("<w:tc><w:tcPr><w:tcW w:w=\"1000\" w:type=\"dxa\"/>") + extra + "</w:tcPr><w:p><w:r><w:t>" + t + "</w:t></w:r></w:p></w:tc>"; };
+        auto grid = [](const QByteArray &rows) {
+            return "<w:tbl><w:tblPr><w:tblW w:w=\"2000\" w:type=\"dxa\"/></w:tblPr><w:tblGrid><w:gridCol w:w=\"1000\"/><w:gridCol w:w=\"1000\"/></w:tblGrid>" + rows + "</w:tbl><w:p/>";
+        };
+        auto words = [](WriteDoc &doc) {
+            QStringList out;
+            for (QTextBlock b = doc.story()->begin(); b.isValid(); b = b.next())
+                if (inTable(b)) out << b.text();
+            return out.join(QLatin1Char('|'));
+        };
+        QString err;
+        auto doc = WriteDoc::fromDocx(makeDocx(grid("<w:tr>" + cell("a1") + cell("b1") + "</w:tr><w:tr>" + cell("a2") + cell("b2") + "</w:tr><w:tr>" + cell("a3") + cell("b3") + "</w:tr>"), QByteArray()), &err);
+        QVERIFY(doc);
+        auto caretIn = [&](const char *word) {
+            QTextCursor c(doc->story());
+            c.setPosition(doc->story()->toPlainText().indexOf(QLatin1String(word)) + 1);
+            return c;
+        };
+        QCOMPARE(words(*doc), QStringLiteral("a1|b1|a2|b2|a3|b3"));
+        // one cell: its column moves up by one
+        QTextCursor c = caretIn("b1");
+        QVERIFY(deleteTableCellsShiftUp(*doc, c, false));   // (only asked)
+        QCOMPARE(words(*doc), QStringLiteral("a1|b1|a2|b2|a3|b3"));
+        QVERIFY(deleteTableCellsShiftUp(*doc, c));
+        QCOMPARE(words(*doc), QStringLiteral("a1|b2|a2|b3|a3|"));
+        // the file keeps three rows of two cells, and says the same on reading it
+        auto again = WriteDoc::fromDocx(doc->toDocx(), &err);
+        QVERIFY(again);
+        QCOMPARE(words(*again), QStringLiteral("a1|b2|a2|b3|a3|"));
+        office::Package pkg;
+        pkg.read(doc->toDocx());
+        const QByteArray xml = pkg.part(QStringLiteral("/word/document.xml"));
+        QCOMPARE(xml.count("<w:tr>") + xml.count("<w:tr "), 3);
+        QCOMPARE(xml.count("<w:tc>"), 6);
+        QVERIFY(doc->undo());
+        QCOMPARE(words(*doc), QStringLiteral("a1|b1|a2|b2|a3|b3"));
+        QVERIFY(!doc->canUndo());
+        // two cells selected in a column: the third moves up by two
+        QTextCursor two = caretIn("a1");
+        two.setPosition(doc->story()->toPlainText().indexOf(QLatin1String("a2")) + 1, QTextCursor::KeepAnchor);
+        QVERIFY(deleteTableCellsShiftUp(*doc, two));
+        QCOMPARE(words(*doc), QStringLiteral("a3|b1||b2||b3"));
+        QVERIFY(doc->undo());
+        // the last cell of a column: its words go and nothing moves
+        QTextCursor lastCell = caretIn("b3");
+        QVERIFY(deleteTableCellsShiftUp(*doc, lastCell));
+        QCOMPARE(words(*doc), QStringLiteral("a1|b1|a2|b2|a3|"));
+        QVERIFY(doc->undo());
+        // a cell below joined with others down is in the way, and nothing changes
+        auto joined = WriteDoc::fromDocx(makeDocx(grid("<w:tr>" + cell("a1") + cell("b1") + "</w:tr><w:tr>" + cell("a2", "<w:vMerge w:val=\"restart\"/>") + cell("b2") + "</w:tr><w:tr>" + cell("", "<w:vMerge/>") + cell("b3") + "</w:tr>"), QByteArray()), &err);
+        QVERIFY(joined);
+        QTextCursor j(joined->story());
+        j.setPosition(joined->story()->toPlainText().indexOf(QLatin1String("a1")) + 1);
+        QVERIFY(!deleteTableCellsShiftUp(*joined, j, false));
+        QVERIFY(!deleteTableCellsShiftUp(*joined, j));
+        QVERIFY(!joined->canUndo());
+    }
+
             auto *dlg = qobject_cast<QDialog *>(QApplication::activeModalWidget());
             if (!dlg) return;
             auto *size = dlg->findChild<QComboBox *>(QStringLiteral("paperSize"));
