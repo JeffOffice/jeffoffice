@@ -510,6 +510,91 @@ private Q_SLOTS:
         }
     }
 
+    // The cells of a stock table typed into a blank workbook, one row of texts after another from A1, and selected.
+    static void typeStockTable(EditWindow &e, const QVector<QStringList> &rows)
+    {
+        for (int r = 0; r < rows.size(); ++r)
+            for (int c = 0; c < rows[r].size(); ++c) {
+                e.select(QStringLiteral("%1%2").arg(QChar('A' + c)).arg(r + 1));
+                e.enter(rows[r][c]);
+            }
+        QVERIFY(e.settle());
+        selectRange(e, QStringLiteral("A1:%1%2").arg(QChar('A' + int(rows.first().size()) - 1)).arg(rows.size()));
+    }
+
+    // Each of the four stock forms and the Stock button on the ribbon makes its form from cells that fit it, with the prices' columns as the series (a header row of names, the days down the first column).
+    void everyStockFormOnTheRibbonMakesItsForm()
+    {
+        struct Case {
+            const char *id;
+            ChartKind kind;
+            int columns;   // the prices' columns after the days
+        };
+        const Case cases[] = {{"chart.stock", ChartKind::StockHLC, 3}, {"chart.stock.hlc", ChartKind::StockHLC, 3}, {"chart.stock.ohlc", ChartKind::StockOHLC, 4},
+                              {"chart.stock.vhlc", ChartKind::StockVHLC, 4}, {"chart.stock.vohlc", ChartKind::StockVOHLC, 5}};
+        for (const Case &c : cases) {
+            EditWindow e;
+            QVERIFY(e.openBlank());
+            QVERIFY(e.settle());
+            QVector<QStringList> rows;
+            QStringList names = {QStringLiteral("Day")};
+            for (int k = 0; k < c.columns; ++k) names << QStringLiteral("P%1").arg(k);
+            rows << names;
+            for (int d = 0; d < 4; ++d) {
+                QStringList row = {QStringLiteral("Mon%1").arg(d)};
+                for (int k = 0; k < c.columns; ++k) row << QString::number(10 * (k + 1) + d);
+                rows << row;
+            }
+            typeStockTable(e, rows);
+            QVERIFY2(e.win.w.act(QString::fromLatin1(c.id)) && e.win.w.act(QString::fromLatin1(c.id))->isEnabled(), c.id);
+            e.win.w.act(QString::fromLatin1(c.id))->trigger();
+            QVERIFY2(e.win.w.objects()->layer()->count() == 1, c.id);
+            const Chart made = chartOf(e);
+            QCOMPARE(int(kindOfChart(made)), int(c.kind));
+            const QVector<ChartSeries> all = chartAllSeries(made);
+            QCOMPARE(int(all.size()), c.columns);
+            for (int k = 0; k < c.columns; ++k) QCOMPARE(all[k].values.value(2), double(10 * (k + 1) + 2));   // (a column of the cells for each series, in their order)
+        }
+    }
+
+    // Cells a stock chart is made of whatever their shape: the series are the columns when there are more columns than days, when there are only two days, and when the days are numbers that rise.
+    void aStockChartTakesItsSeriesFromTheColumnsWhateverTheShape()
+    {
+        struct Case {
+            const char *what;
+            const char *id;
+            ChartKind kind;
+            QVector<QStringList> rows;
+            int series;
+            int points;
+        };
+        const Case cases[] = {
+            {"volume form, four days by five columns, no header row", "chart.stock.vhlc", ChartKind::StockVHLC,
+             {{"Mon", "100", "9", "7", "8"}, {"Tue", "110", "9", "7", "8"}, {"Wed", "120", "9", "7", "8"}, {"Thu", "130", "9", "7", "8"}}, 4, 4},
+            {"volume form, four days by five columns, header row", "chart.stock.vhlc", ChartKind::StockVHLC,
+             {{"Day", "V", "H", "L", "C"}, {"Mon", "100", "9", "7", "8"}, {"Tue", "110", "9", "7", "8"}, {"Wed", "120", "9", "7", "8"}, {"Thu", "130", "9", "7", "8"}}, 4, 4},
+            {"two days", "chart.stock.hlc", ChartKind::StockHLC, {{"Day", "H", "L", "C"}, {"Mon", "9", "7", "8"}, {"Tue", "9", "7", "8"}}, 3, 2},
+            {"two days, no header row", "chart.stock.hlc", ChartKind::StockHLC, {{"Mon", "9", "7", "8"}, {"Tue", "9", "7", "8"}}, 3, 2},
+            {"two days of the open form", "chart.stock.ohlc", ChartKind::StockOHLC, {{"Day", "O", "H", "L", "C"}, {"Mon", "8", "9", "7", "8"}, {"Tue", "8", "9", "7", "8"}}, 4, 2},
+            {"day numbers that rise", "chart.stock.hlc", ChartKind::StockHLC, {{"Day", "H", "L", "C"}, {"1", "9", "7", "8"}, {"2", "9", "7", "8"}, {"3", "9", "7", "8"}}, 3, 3},
+            {"day numbers that rise, no header row", "chart.stock.ohlc", ChartKind::StockOHLC, {{"1", "8", "9", "7", "8"}, {"2", "8", "9", "7", "8"}, {"3", "8", "9", "7", "8"}, {"4", "8", "9", "7", "8"}, {"5", "8", "9", "7", "8"}}, 4, 5},
+        };
+        for (const Case &c : cases) {
+            EditWindow e;
+            QVERIFY(e.openBlank());
+            QVERIFY(e.settle());
+            typeStockTable(e, c.rows);
+            QVERIFY2(e.win.w.act(QString::fromLatin1(c.id)) && e.win.w.act(QString::fromLatin1(c.id))->isEnabled(), c.what);
+            e.win.w.act(QString::fromLatin1(c.id))->trigger();
+            QVERIFY2(e.win.w.objects()->layer()->count() == 1, c.what);
+            const Chart made = chartOf(e);
+            QVERIFY2(kindOfChart(made) == c.kind, c.what);
+            const QVector<ChartSeries> all = chartAllSeries(made);
+            QVERIFY2(all.size() == c.series, c.what);
+            for (const ChartSeries &s : all) QVERIFY2(s.values.size() == c.points && s.categories.size() == c.points, c.what);
+        }
+    }
+
     // A chart of text beside text (names and the names turned around) draws no path with a number that is none: every kind, from the cells a person typed.
     void everyKindOfChartOfTextCellsDrawsOnlyFinitePaths()
     {
@@ -4708,7 +4793,7 @@ private Q_SLOTS:
             auto *d = static_cast<InsertChartDialog *>(dialog.get());
             d->setRowsAndColumns(true);
             for (const ChartKindEntry &k : chartKindEntries())
-                if (!jp::office::sheet::isStockKind(k.kind)) d->selectKind(k.kind);   // (a stock kind's picture is blank for cells whose series do not fit its order)
+                if (!jp::office::sheet::isStockKind(k.kind)) d->selectKind(k.kind);   // (a stock kind's picture is blank for cells whose columns are not as many as its series)
             QVERIFY(!d->previewShown().isNull());
             const qint64 read = cells->reads() - before;
             QVERIFY2(read < 510 * int(chartKindEntries().size()), qPrintable(QString::number(read)));   // (the block of the selection is looked for once, and each kind is drawn from it, about 490 reads for each of the 20 kinds: found again for each kind and the swap it would be read several times over)
