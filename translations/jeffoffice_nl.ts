@@ -16739,12 +16739,12 @@ Open het bestand in uw e-mailprogramma, voeg geadresseerden toe en verzend het.<
     <message>
         <location line="+1963"/>
         <source>This file is a web page that was saved with an .%1 name. This program can&apos;t open that kind of file yet.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Dit bestand is een webpagina die is opgeslagen met de naam .%1. Dit programma kan dat soort bestanden nog niet openen.</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>This file is a spreadsheet written as plain text and saved with an .%1 name. This program can&apos;t open that kind of file yet.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Dit bestand is een spreadsheet die als platte tekst is geschreven en is opgeslagen met de naam .%1. Dit programma kan dat soort bestanden nog niet openen.</translation>
     </message>
     <message>
         <location filename="../libs/office/sheet/chartembed.cpp" line="+118"/>
@@ -17485,7 +17485,7 @@ Open het bestand in uw e-mailprogramma, voeg geadresseerden toe en verzend het.<
     <message>
         <location line="+18"/>
         <source>Cells with the error #UNKNOWN! (%1), which the old format has no code for; they show #N/A</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Cellen met de fout #UNKNOWN! (%1), waarvoor het oude formaat geen code heeft; ze worden weergegeven als #N/A</translation>
     </message>
     <message>
         <location line="+115"/>
@@ -63444,7 +63444,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
     <message>
         <location line="+4"/>
         <source>Text that is protected can be found but not replaced.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Tekst die is beveiligd, kan worden gevonden maar niet worden vervangen.</translation>
     </message>
     <message>
         <location line="+192"/>
@@ -63477,12 +63477,12 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
     <message>
         <location line="+1"/>
         <source>Matches left as they are because the text is protected: %1.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Overeenkomsten zijn ongewijzigd gelaten omdat de tekst is beveiligd: %1.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Text in headers, footers, notes, and text boxes was left as it is.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Tekst in koppteksten, voetteksten, notities en tekstvakken is ongewijzigd gebleven.</translation>
     </message>
     <message numerus="yes">
         <location line="+1"/>
@@ -78435,22 +78435,22 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
     <message>
         <location filename="../apps/crunch/core/slicerpaint.cpp" line="+139"/>
         <source>More items: %1 (%2 chosen)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Meer items: %1 (%2 gekozen)</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>More items: %1</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Meer items: %1</translation>
     </message>
     <message>
         <location line="+5"/>
         <source>This slicer filters a table; JeffCrunch shows it but cannot use it yet.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Deze slicer filtert een tabel; JeffCrunch toont deze, maar kan hem nog niet gebruiken.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>What this slicer filters is not in the file, so JeffCrunch shows it but cannot use it.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Waarop deze slicer filtert, staat niet in het bestand, dus JeffCrunch toont deze maar kan hem niet gebruiken.</translation>
     </message>
 </context>
 <context>
@@ -81298,12 +81298,12 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
     <message>
         <location filename="../libs/office/wml/htmlguard.cpp" line="+1468"/>
         <source>This web page has too many table rows or cells to open.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Deze webpagina heeft te veel tabelrijen of cellen om te openen.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>This web page is too complicated to open.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Deze webpagina is te ingewikkeld om te openen.</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -81313,12 +81313,12 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
     <message>
         <location line="+51"/>
         <source>The copied page was too large or too complicated to read, so its plain text was pasted.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">De gekopieerde pagina was te groot of te ingewikkeld om te lezen, dus is de platte tekst geplakt.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>The copied page was too large or too complicated to read, so nothing was pasted.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">De gekopieerde pagina was te groot of te ingewikkeld om te lezen, dus er is niets geplakt.</translation>
     </message>
     <message>
         <location filename="../libs/office/wml/wmlfonts.cpp" line="+107"/>
@@ -86313,7 +86313,7 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
         <location line="+165"/>
         <location line="+12"/>
         <source>What you typed doesn&apos;t fit this field&apos;s format.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Wat u hebt getypt, past niet bij de opmaak van dit veld.</translation>
     </message>
     <message>
         <location line="+140"/>

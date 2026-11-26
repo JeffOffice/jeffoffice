@@ -16739,12 +16739,12 @@ Aprilo nel programma di posta elettronica, aggiungi i destinatari e invialo.</tr
     <message>
         <location line="+1963"/>
         <source>This file is a web page that was saved with an .%1 name. This program can&apos;t open that kind of file yet.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Questo file è una pagina web salvata con un nome .%1. Questo programma non può ancora aprire questo tipo di file.</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>This file is a spreadsheet written as plain text and saved with an .%1 name. This program can&apos;t open that kind of file yet.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Questo file è un foglio di calcolo scritto come testo semplice e salvato con un nome .%1. Questo programma non può ancora aprire questo tipo di file.</translation>
     </message>
     <message>
         <location filename="../libs/office/sheet/chartembed.cpp" line="+118"/>
@@ -17485,7 +17485,7 @@ Aprilo nel programma di posta elettronica, aggiungi i destinatari e invialo.</tr
     <message>
         <location line="+18"/>
         <source>Cells with the error #UNKNOWN! (%1), which the old format has no code for; they show #N/A</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Celle con l&apos;errore #UNKNOWN! (%1), per il quale il vecchio formato non ha un codice; vengono visualizzate come #N/D</translation>
     </message>
     <message>
         <location line="+115"/>
@@ -63444,7 +63444,7 @@ Il browser web aprirà LibreTranslate, un servizio di traduzione gratuito e open
     <message>
         <location line="+4"/>
         <source>Text that is protected can be found but not replaced.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Il testo protetto può essere trovato ma non sostituito.</translation>
     </message>
     <message>
         <location line="+192"/>
@@ -63477,12 +63477,12 @@ Il browser web aprirà LibreTranslate, un servizio di traduzione gratuito e open
     <message>
         <location line="+1"/>
         <source>Matches left as they are because the text is protected: %1.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Corrispondenze lasciate invariate perché il testo è protetto: %1.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Text in headers, footers, notes, and text boxes was left as it is.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Il testo in intestazioni, piè di pagina, note e caselle di testo è stato lasciato invariato.</translation>
     </message>
     <message numerus="yes">
         <location line="+1"/>
@@ -78435,22 +78435,22 @@ Impossibile applicare la password al file.</translation>
     <message>
         <location filename="../apps/crunch/core/slicerpaint.cpp" line="+139"/>
         <source>More items: %1 (%2 chosen)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Altri elementi: %1 (%2 selezionati)</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>More items: %1</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Altri elementi: %1</translation>
     </message>
     <message>
         <location line="+5"/>
         <source>This slicer filters a table; JeffCrunch shows it but cannot use it yet.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Questo segmentatore filtra una tabella; JeffCrunch la mostra ma non può ancora usarla.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>What this slicer filters is not in the file, so JeffCrunch shows it but cannot use it.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Ciò che questo segmentatore filtra non è presente nel file, quindi JeffCrunch lo mostra ma non può usarlo.</translation>
     </message>
 </context>
 <context>
@@ -81298,12 +81298,12 @@ Impossibile applicare la password al file.</translation>
     <message>
         <location filename="../libs/office/wml/htmlguard.cpp" line="+1468"/>
         <source>This web page has too many table rows or cells to open.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Questa pagina web contiene troppe righe o celle di tabella per essere aperta.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>This web page is too complicated to open.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Questa pagina web è troppo complessa per essere aperta.</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -81313,12 +81313,12 @@ Impossibile applicare la password al file.</translation>
     <message>
         <location line="+51"/>
         <source>The copied page was too large or too complicated to read, so its plain text was pasted.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">La pagina copiata era troppo grande o troppo complessa per essere letta, quindi è stato incollato il suo testo semplice.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>The copied page was too large or too complicated to read, so nothing was pasted.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">La pagina copiata era troppo grande o troppo complessa per essere letta, quindi non è stato incollato nulla.</translation>
     </message>
     <message>
         <location filename="../libs/office/wml/wmlfonts.cpp" line="+107"/>
@@ -86313,7 +86313,7 @@ Impossibile applicare la password al file.</translation>
         <location line="+165"/>
         <location line="+12"/>
         <source>What you typed doesn&apos;t fit this field&apos;s format.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Il contenuto digitato non corrisponde al formato di questo campo.</translation>
     </message>
     <message>
         <location line="+140"/>

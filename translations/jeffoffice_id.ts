@@ -16994,12 +16994,12 @@ Buka di program email Anda, tambahkan penerima, lalu kirim.</translation>
     <message>
         <location line="+1963"/>
         <source>This file is a web page that was saved with an .%1 name. This program can&apos;t open that kind of file yet.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Berkas ini adalah halaman web yang disimpan dengan nama .%1. Program ini belum dapat membuka jenis berkas tersebut.</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>This file is a spreadsheet written as plain text and saved with an .%1 name. This program can&apos;t open that kind of file yet.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Berkas ini adalah lembar kerja yang ditulis sebagai teks biasa dan disimpan dengan nama .%1. Program ini belum dapat membuka jenis berkas tersebut.</translation>
     </message>
     <message>
         <location filename="../libs/office/sheet/chartembed.cpp" line="+118"/>
@@ -17484,7 +17484,7 @@ Buka di program email Anda, tambahkan penerima, lalu kirim.</translation>
     <message>
         <location line="+18"/>
         <source>Cells with the error #UNKNOWN! (%1), which the old format has no code for; they show #N/A</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Sel dengan kesalahan #UNKNOWN! (%1), yang tidak memiliki kode di format lama; sel ini ditampilkan sebagai #N/A</translation>
     </message>
     <message>
         <location line="+115"/>
@@ -63359,7 +63359,7 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
     <message>
         <location line="+4"/>
         <source>Text that is protected can be found but not replaced.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Teks yang dilindungi dapat ditemukan tetapi tidak dapat diganti.</translation>
     </message>
     <message>
         <location line="+192"/>
@@ -63391,12 +63391,12 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
     <message>
         <location line="+1"/>
         <source>Matches left as they are because the text is protected: %1.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Hasil yang cocok dibiarkan apa adanya karena teksnya dilindungi: %1.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Text in headers, footers, notes, and text boxes was left as it is.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Teks di header, footer, catatan, dan kotak teks dibiarkan apa adanya.</translation>
     </message>
     <message numerus="yes">
         <location line="+1"/>
@@ -78324,22 +78324,22 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
     <message>
         <location filename="../apps/crunch/core/slicerpaint.cpp" line="+139"/>
         <source>More items: %1 (%2 chosen)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Item lainnya: %1 (%2 dipilih)</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>More items: %1</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Item lainnya: %1</translation>
     </message>
     <message>
         <location line="+5"/>
         <source>This slicer filters a table; JeffCrunch shows it but cannot use it yet.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Pengiris ini menyaring tabel; JeffCrunch menampilkannya tetapi belum dapat menggunakannya.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>What this slicer filters is not in the file, so JeffCrunch shows it but cannot use it.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Data yang disaring pengiris ini tidak ada di berkas, sehingga JeffCrunch menampilkannya tetapi tidak dapat menggunakannya.</translation>
     </message>
 </context>
 <context>
@@ -81173,12 +81173,12 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
     <message>
         <location filename="../libs/office/wml/htmlguard.cpp" line="+1468"/>
         <source>This web page has too many table rows or cells to open.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Halaman web ini memiliki terlalu banyak baris atau sel tabel untuk dibuka.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>This web page is too complicated to open.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Halaman web ini terlalu rumit untuk dibuka.</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -81188,12 +81188,12 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
     <message>
         <location line="+51"/>
         <source>The copied page was too large or too complicated to read, so its plain text was pasted.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Halaman yang disalin terlalu besar atau terlalu rumit untuk dibaca, sehingga teks biasa yang ditempel.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>The copied page was too large or too complicated to read, so nothing was pasted.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Halaman yang disalin terlalu besar atau terlalu rumit untuk dibaca, sehingga tidak ada yang ditempel.</translation>
     </message>
     <message>
         <location filename="../libs/office/wml/wmlfonts.cpp" line="+107"/>
@@ -86184,7 +86184,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
         <location line="+165"/>
         <location line="+12"/>
         <source>What you typed doesn&apos;t fit this field&apos;s format.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Yang Anda ketik tidak sesuai dengan format bidang ini.</translation>
     </message>
     <message>
         <location line="+140"/>

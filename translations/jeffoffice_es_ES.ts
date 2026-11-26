@@ -1029,6 +1029,14 @@ Download it from %2 now? (%3, once.)</source>
         <translation type="unfinished">El nombre de una hoja es más largo que en cualquier fichero real.</translation>
     </message>
     <message>
+        <source>This file is a web page that was saved with an .%1 name. This program can't open that kind of file yet.</source>
+        <translation type="unfinished">Este fichero es una página web guardada con el nombre .%1. Este programa todavía no puede abrir ese tipo de fichero.</translation>
+    </message>
+    <message>
+        <source>This file is a spreadsheet written as plain text and saved with an .%1 name. This program can't open that kind of file yet.</source>
+        <translation type="unfinished">Este fichero es una hoja de cálculo escrita como texto sin formato y guardada con el nombre .%1. Este programa todavía no puede abrir ese tipo de fichero.</translation>
+    </message>
+    <message>
         <source>The sheet would take more memory to hold than any real file's does.</source>
         <translation type="unfinished">La hoja necesitaría más memoria que la de cualquier fichero real.</translation>
     </message>
@@ -3005,6 +3013,13 @@ No se pudo aplicar la contraseña al fichero.</translation>
             <numerusform>El fichero almacena este gráfico junto con %n gráfico más, por lo que no se puede modificar aquí.</numerusform>
             <numerusform>El fichero almacena este gráfico junto con %n gráficos más, por lo que no se puede modificar aquí.</numerusform>
         </translation>
+    </message>
+</context>
+<context>
+    <name>jp::crunch::Slicer</name>
+    <message>
+        <source>What this slicer filters is not in the file, so JeffCrunch shows it but cannot use it.</source>
+        <translation type="unfinished">Lo que filtra este segmentador no está en el fichero, así que JeffCrunch lo muestra, pero no puede usarlo.</translation>
     </message>
 </context>
 <context>

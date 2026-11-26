@@ -17269,12 +17269,12 @@ Open it in your email program, add recipients and send.</source>
     <message>
         <location line="+1963"/>
         <source>This file is a web page that was saved with an .%1 name. This program can&apos;t open that kind of file yet.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Цей файл є веб-сторінкою, збереженою з іменем .%1. Ця програма поки що не може відкривати такий тип файлів.</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>This file is a spreadsheet written as plain text and saved with an .%1 name. This program can&apos;t open that kind of file yet.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Цей файл є електронною таблицею, записаною як звичайний текст і збереженою з іменем .%1. Ця програма поки що не може відкривати такий тип файлів.</translation>
     </message>
     <message>
         <location filename="../libs/office/sheet/chartembed.cpp" line="+118"/>
@@ -17761,7 +17761,7 @@ Open it in your email program, add recipients and send.</source>
     <message>
         <location line="+18"/>
         <source>Cells with the error #UNKNOWN! (%1), which the old format has no code for; they show #N/A</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Комірки з помилкою #UNKNOWN! (%1), для якої старий формат не має коду; вони відображаються як #N/A</translation>
     </message>
     <message>
         <location line="+115"/>
@@ -63529,7 +63529,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     <message>
         <location line="+4"/>
         <source>Text that is protected can be found but not replaced.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Текст, який захищено, можна знайти, але не можна замінити.</translation>
     </message>
     <message>
         <location line="+192"/>
@@ -63563,12 +63563,12 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     <message>
         <location line="+1"/>
         <source>Matches left as they are because the text is protected: %1.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Збіги залишено без змін, оскільки текст захищено: %1.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Text in headers, footers, notes, and text boxes was left as it is.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Текст у верхніх і нижніх колонтитулах, виносках, примітках і текстових полях залишено без змін.</translation>
     </message>
     <message numerus="yes">
         <location line="+1"/>
@@ -78546,22 +78546,22 @@ The password couldn&apos;t be put on the file.</source>
     <message>
         <location filename="../apps/crunch/core/slicerpaint.cpp" line="+139"/>
         <source>More items: %1 (%2 chosen)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Ще елементів: %1 (вибрано: %2)</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>More items: %1</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Ще елементів: %1</translation>
     </message>
     <message>
         <location line="+5"/>
         <source>This slicer filters a table; JeffCrunch shows it but cannot use it yet.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Цей слайсер фільтрує таблицю; JeffCrunch показує його, але поки що не може ним скористатися.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>What this slicer filters is not in the file, so JeffCrunch shows it but cannot use it.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Того, що фільтрує цей слайсер, немає у файлі, тому JeffCrunch показує його, але не може ним скористатися.</translation>
     </message>
 </context>
 <context>
@@ -81345,12 +81345,12 @@ The password couldn&apos;t be put on the file.</source>
     <message>
         <location filename="../libs/office/wml/htmlguard.cpp" line="+1468"/>
         <source>This web page has too many table rows or cells to open.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Ця веб-сторінка має забагато рядків або комірок таблиці, щоб її відкрити.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>This web page is too complicated to open.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Ця веб-сторінка надто складна, щоб її відкрити.</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -81360,12 +81360,12 @@ The password couldn&apos;t be put on the file.</source>
     <message>
         <location line="+51"/>
         <source>The copied page was too large or too complicated to read, so its plain text was pasted.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Скопійована сторінка була надто великою або надто складною для читання, тому її простий текст вставлено.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>The copied page was too large or too complicated to read, so nothing was pasted.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Скопійована сторінка була надто великою або надто складною для читання, тому нічого не вставлено.</translation>
     </message>
     <message>
         <location filename="../libs/office/wml/wmlread.cpp" line="+446"/>
@@ -86442,7 +86442,7 @@ The password couldn&apos;t be put on the file.</source>
         <location line="+165"/>
         <location line="+12"/>
         <source>What you typed doesn&apos;t fit this field&apos;s format.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Введені вами дані не відповідають формату цього поля.</translation>
     </message>
     <message>
         <location line="+140"/>
