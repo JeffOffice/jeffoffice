@@ -149,6 +149,32 @@ private Q_SLOTS:
         initCore();
     }
 
+    // Text or a web page that has an .xls name opens as what it is, and a copy of it saved as .xls asks about what that old kind can't hold, as every copy does (the same list Check Compatibility
+    // gives); a copy that loses nothing asks nothing.
+    void aCopyOfATextFileNamedXlsAsksAboutWhatTheOldKindLoses()
+    {
+        auto copyTold = [&](const QByteArray &bytes, const QString &name) {
+            Win o;
+            if (!o.open(bytes, name)) return QStringList{QStringLiteral("did not open")};
+            o.answer = o.folder.dir.filePath(QStringLiteral("copy.xls"));
+            QSignalSpy exported(&o.w, &CrunchWindow::copyExported);
+            if (!o.w.saveCopy()) return QStringList{QStringLiteral("did not start")};
+            if (exported.count() == 0) exported.wait(20000);
+            QStringList asked;
+            for (const QString &t : std::as_const(o.told))
+                if (t.contains(QLatin1String("can't hold everything"))) asked << t;
+            if (exported.count() == 0 || !QFileInfo::exists(o.answer)) asked << QStringLiteral("no copy written");
+            return asked;
+        };
+        QByteArray wide;
+        for (int c = 0; c < 300; ++c) wide += (c ? "," : "") + QByteArray::number(c);
+        const QStringList lost = copyTold(wide + "\n", QStringLiteral("t.xls"));
+        QCOMPARE(lost.size(), 1);
+        QVERIFY2(lost[0].contains(QLatin1String("cut or changed to fit")), qPrintable(lost[0]));
+        QVERIFY2(copyTold("a,b\n1,2\n", QStringLiteral("u.xls")).isEmpty(), "a small text file loses nothing");
+        QVERIFY2(copyTold("<html><body><table><tr><td>a</td><td>b</td></tr></table></body></html>", QStringLiteral("p.xls")).isEmpty(), "a page loses nothing");
+    }
+
     // An .ods opens as an .xlsx does: its sheets as tabs, its cells shown, its formulas worked out from the constants (the stored result here is wrong on purpose), and nothing said
     // when there is nothing it does not read.
     void anOdsWorkbookOpensAndItsFormulasAreWorkedOut()
