@@ -380,6 +380,9 @@ const ChartName kChartNames[] = {
     {write::ChartForm::Area, "area", QT_TRANSLATE_NOOP("jp::WriteWindow", "Area"), "chart-area"},
     {write::ChartForm::AreaStacked, "areaStacked", QT_TRANSLATE_NOOP("jp::WriteWindow", "Stacked Area"), "chart-area"},
     {write::ChartForm::Scatter, "scatter", QT_TRANSLATE_NOOP("jp::WriteWindow", "Scatter"), "chart-scatter"},
+    {write::ChartForm::Radar, "radar", QT_TRANSLATE_NOOP("jp::WriteWindow", "Radar"), "radar"},
+    {write::ChartForm::RadarMarkers, "radarMarkers", QT_TRANSLATE_NOOP("jp::WriteWindow", "Radar with Markers"), "radar"},
+    {write::ChartForm::RadarFilled, "radarFilled", QT_TRANSLATE_NOOP("jp::WriteWindow", "Filled Radar"), "radar"},
 };
 
 } // namespace

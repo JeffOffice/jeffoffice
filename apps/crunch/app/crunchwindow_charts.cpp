@@ -75,6 +75,9 @@ const KindAction kKindActions[] = {
     {"chart.scatter.points", QT_TRANSLATE_NOOP("jp::CrunchWindow", "Scatter, points"), "chart-scatter", ChartKind::Scatter},
     {"chart.scatter.joined", QT_TRANSLATE_NOOP("jp::CrunchWindow", "Scatter, joined points"), "chart-scatter", ChartKind::ScatterLines},
     {"chart.scatter.smooth", QT_TRANSLATE_NOOP("jp::CrunchWindow", "Scatter, smooth lines"), "chart-scatter", ChartKind::ScatterSmooth},
+    {"chart.radar.plain", QT_TRANSLATE_NOOP("jp::CrunchWindow", "Radar"), "radar", ChartKind::Radar},
+    {"chart.radar.markers", QT_TRANSLATE_NOOP("jp::CrunchWindow", "Radar with markers"), "radar", ChartKind::RadarMarkers},
+    {"chart.radar.filled", QT_TRANSLATE_NOOP("jp::CrunchWindow", "Filled radar"), "radar", ChartKind::RadarFilled},
 };
 
 struct GroupAction {
@@ -89,6 +92,7 @@ const GroupAction kGroupActions[] = {
     {"chart.line", QT_TRANSLATE_NOOP("jp::CrunchWindow", "Line"), "chart-line", ChartKind::Line},                {"chart.pie", QT_TRANSLATE_NOOP("jp::CrunchWindow", "Pie"), "chart-pie", ChartKind::Pie},
     {"chart.area", QT_TRANSLATE_NOOP("jp::CrunchWindow", "Area"), "chart-area", ChartKind::Area},                {"chart.scatter", QT_TRANSLATE_NOOP("jp::CrunchWindow", "Scatter"), "chart-scatter", ChartKind::Scatter},
     {"chart.combo", QT_TRANSLATE_NOOP("jp::CrunchWindow", "Combo"), "chart-no-axes-combined", ChartKind::Combo},
+    {"chart.radar", QT_TRANSLATE_NOOP("jp::CrunchWindow", "Radar"), "radar", ChartKind::Radar},
 };
 
 } // namespace

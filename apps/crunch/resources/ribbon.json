@@ -192,7 +192,8 @@
             {"small": "chart.area", "keytip": "CA", "split": true, "menu": ["chart.area.plain", "chart.area.stacked"]},
             {"small": "chart.scatter", "keytip": "CS", "split": true, "menu": ["chart.scatter.points", "chart.scatter.joined", "chart.scatter.smooth"]},
             {"column": true},
-            {"small": "chart.combo", "keytip": "CO"}
+            {"small": "chart.combo", "keytip": "CO"},
+            {"small": "chart.radar", "keytip": "CK", "split": true, "menu": ["chart.radar.plain", "chart.radar.markers", "chart.radar.filled"]}
           ]
         },
         {

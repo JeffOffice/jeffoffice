@@ -51,6 +51,9 @@ const QVector<ChartKindEntry> &chartKindEntries()
         {ChartKind::ScatterLines, QT_TRANSLATE_NOOP("jp::ChartKinds", "Scatter, joined points")},
         {ChartKind::ScatterSmooth, QT_TRANSLATE_NOOP("jp::ChartKinds", "Scatter, smooth lines")},
         {ChartKind::Combo, QT_TRANSLATE_NOOP("jp::ChartKinds", "Columns with a line")},
+        {ChartKind::Radar, QT_TRANSLATE_NOOP("jp::ChartKinds", "Radar")},
+        {ChartKind::RadarMarkers, QT_TRANSLATE_NOOP("jp::ChartKinds", "Radar with markers")},
+        {ChartKind::RadarFilled, QT_TRANSLATE_NOOP("jp::ChartKinds", "Filled radar")},
     };
     return entries;
 }

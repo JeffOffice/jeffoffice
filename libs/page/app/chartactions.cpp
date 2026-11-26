@@ -34,6 +34,9 @@ const ChartName kChartNames[] = {
     {ChartForm::Area, "area", QT_TRANSLATE_NOOP("jp::ChartActions", "Area"), "chart-area"},
     {ChartForm::AreaStacked, "areaStacked", QT_TRANSLATE_NOOP("jp::ChartActions", "Stacked Area"), "chart-area"},
     {ChartForm::Scatter, "scatter", QT_TRANSLATE_NOOP("jp::ChartActions", "Scatter"), "chart-scatter"},
+    {ChartForm::Radar, "radar", QT_TRANSLATE_NOOP("jp::ChartActions", "Radar"), "radar"},
+    {ChartForm::RadarMarkers, "radarMarkers", QT_TRANSLATE_NOOP("jp::ChartActions", "Radar with Markers"), "radar"},
+    {ChartForm::RadarFilled, "radarFilled", QT_TRANSLATE_NOOP("jp::ChartActions", "Filled Radar"), "radar"},
 };
 
 struct LegendName {

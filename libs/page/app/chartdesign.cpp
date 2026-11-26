@@ -297,7 +297,7 @@ QMenu *ChartDesign::elementsMenu(QWidget *owner)
                 a->setEnabled(shown && kept);
             }
         }
-        if (chart.type() != ChartType::Pie && chart.type() != ChartType::Doughnut) {
+        if (chart.type() != ChartType::Pie && chart.type() != ChartType::Doughnut && chart.type() != ChartType::Radar) {
             QMenu *trend = menu->addMenu(tr("Trendline"));
             trend->setObjectName(QStringLiteral("trendlineMenu"));
             auto *trendGroup = new QActionGroup(trend);

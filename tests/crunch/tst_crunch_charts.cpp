@@ -354,6 +354,65 @@ private Q_SLOTS:
         QCOMPARE(partsOf(e.path).value(QStringLiteral("xl/charts/chart1.xml")), first);
     }
 
+    // A radar chart made in the window, in each of its three looks, is in the saved .xlsx as a radar chart of that style and opens again as it was (the window's own save and open), and
+    // a copy saved as .ods has it as a radar of its class and opens as one; saved again with nothing changed, its part is as it was.
+    void aNewRadarChartIsSavedAndReopensInBothFormats()
+    {
+        const struct { ChartKind kind; const char *style; const char *odfClass; bool filled, markers; } looks[] = {{ChartKind::Radar, "standard", "chart:radar", false, false},
+                                                                                                                {ChartKind::RadarMarkers, "marker", "chart:radar", false, true},
+                                                                                                                {ChartKind::RadarFilled, "filled", "chart:filled-radar", true, false}};
+        for (const auto &look : looks) {
+            EditWindow e;
+            QVERIFY(e.open(plainBook()));
+            QVERIFY(e.settle());
+            selectRange(e, QStringLiteral("A1:C4"));
+            QVERIFY(e.win.w.insertChart(look.kind));
+            QVERIFY(save(e));
+            const QMap<QString, QByteArray> parts = partsOf(e.path);
+            const QByteArray part = parts.value(QStringLiteral("xl/charts/chart1.xml"));
+            QVERIFY2(part.contains(QByteArray("<c:radarChart><c:radarStyle val=\"") + look.style + "\"/>"), look.style);
+            QVERIFY(!part.contains("c:barChart"));
+            const QVector<SavedChart> charts = savedCharts(e.path);
+            QCOMPARE(charts.size(), 1);
+            QCOMPARE(int(kindOfChart(charts[0].chart)), int(look.kind));
+            Window second;
+            QVERIFY(second.open(e.copyOfFile()));
+            crunch::SheetObjects *o = second.w.objects();
+            QTRY_VERIFY(o->shownSheet() == 0 && o->layer()->count() == 1);
+            QCOMPARE(int(kindOfChart(o->chartNow(0, 0))), int(look.kind));
+            QCOMPARE(seriesOf(o->chartNow(0, 0))[0].values, (QVector<double>{10, 20, 30}));
+            // saved again with nothing changed but a cell elsewhere: the part is as it was
+            e.select(QStringLiteral("E5"));
+            e.enter(QStringLiteral("7"));
+            QVERIFY(e.settle());
+            QVERIFY(save(e));
+            QCOMPARE(partsOf(e.path).value(QStringLiteral("xl/charts/chart1.xml")), part);
+            // a copy as an .ods
+            const QString copy = e.folder.dir.filePath(QStringLiteral("radar.ods"));
+            e.win.w.setSavePicker([&](const QString &, const QString &) { return copy; });
+            QSignalSpy made(&e.win.w, &CrunchWindow::copyExported);
+            QVERIFY(e.win.w.saveCopy());
+            QTRY_COMPARE_WITH_TIMEOUT(made.count(), 1, 20000);
+            QVERIFY(made.first().at(1).toBool());
+            QByteArray ods;
+            {
+                QFile f(copy);
+                QVERIFY(f.open(QIODevice::ReadOnly));
+                ods = f.readAll();
+            }
+            QMap<QString, QByteArray> odsParts;
+            QVERIFY(jp::readZip(ods, odsParts));
+            QVERIFY2(odsParts.value(QStringLiteral("Object 1/content.xml")).contains(QByteArray("chart:class=\"") + look.odfClass + "\""), look.style);
+            EditWindow third;
+            QVERIFY(third.open(ods, QStringLiteral("radar.ods")));
+            QVERIFY(third.settle());
+            crunch::SheetObjects *q = third.win.w.objects();
+            QTRY_VERIFY(q->shownSheet() == 0 && q->layer()->count() == 1);
+            QCOMPARE(int(q->chartNow(0, 0).type()), int(ChartType::Radar));
+            QCOMPARE(q->chartNow(0, 0).plots[0].filled, look.filled);
+        }
+    }
+
     // A sheet that gets a drawing and a filter in one save has both, in the order the format wants (the filter before the drawing), and opens again with both.
     void aNewChartAndAFilterAreSavedTogetherInTheRightOrder()
     {
@@ -394,7 +453,8 @@ private Q_SLOTS:
         };
         const Case cases[] = {{"chart.column.stacked", ChartKind::ColumnStacked}, {"chart.bar.clustered", ChartKind::Bar}, {"chart.line.markers", ChartKind::LineMarkers},
                               {"chart.pie.doughnut", ChartKind::Doughnut}, {"chart.area.stacked", ChartKind::AreaStacked}, {"chart.scatter.joined", ChartKind::ScatterLines}, {"chart.scatter.smooth", ChartKind::ScatterSmooth},
-                              {"chart.combo", ChartKind::Combo}, {"chart.column", ChartKind::Column}};
+                              {"chart.combo", ChartKind::Combo}, {"chart.column", ChartKind::Column}, {"chart.radar.plain", ChartKind::Radar},
+                              {"chart.radar.markers", ChartKind::RadarMarkers}, {"chart.radar.filled", ChartKind::RadarFilled}, {"chart.radar", ChartKind::Radar}};
         for (const Case &c : cases) {
             EditWindow e;
             QVERIFY(e.open(plainBook()));
@@ -410,7 +470,7 @@ private Q_SLOTS:
     // A chart of text beside text (names and the names turned around) draws no path with a number that is none: every kind, from the cells a person typed.
     void everyKindOfChartOfTextCellsDrawsOnlyFinitePaths()
     {
-        const char *ids[] = {"chart.column", "chart.bar.clustered", "chart.line.markers", "chart.pie.doughnut", "chart.area.stacked", "chart.scatter", "chart.scatter.joined", "chart.scatter.smooth", "chart.combo"};
+        const char *ids[] = {"chart.column", "chart.bar.clustered", "chart.line.markers", "chart.pie.doughnut", "chart.area.stacked", "chart.scatter", "chart.scatter.joined", "chart.scatter.smooth", "chart.combo", "chart.radar.markers", "chart.radar.filled"};
         for (const char *id : ids) {
             EditWindow e;
             QVERIFY(e.openBlank());
