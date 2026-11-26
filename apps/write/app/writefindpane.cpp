@@ -1452,6 +1452,7 @@ void WriteFindPane::replaceAll()
                             : tr("JeffWrite made %1 replacements.").arg(n);
     if (locked > 0) text += QLatin1Char(' ') + tr("%n match is in content that can't be changed.", nullptr, locked);
     if (held > 0) text += QLatin1Char(' ') + tr("Matches left as they are because the text is protected: %1.").arg(held);
+    if (m_win->formsHeld()) text += QLatin1Char(' ') + tr("Text in headers, footers, notes, and text boxes was left as it is.");   // (a protection for forms holds them: they are not searched)
     if (tooLarge > 0) text += QLatin1Char(' ') + tr("%n text box was too large to change.", nullptr, tooLarge);
     if (m_boxesStopped) text += QLatin1Char(' ') + tr("Only the first %1 text boxes were changed; use Replace All again for the rest.").arg(kMostBoxesChanged);
     m_status->setText(text);
