@@ -3753,6 +3753,7 @@ private Q_SLOTS:
         const GuardedHtml open = guardHtml(repeatedText(QStringLiteral("<i>w"), 3 * kMostHtmlOpen));
         QCOMPARE(open.refusal, HtmlRefusal::None);
         QVERIFY(open.counts.deepest <= kMostHtmlNesting);
+        QCOMPARE(open.counts.mostOpen, kMostHtmlOpen);   // (the page's parts are held open up to the limit and no more: the memory of the guard is its input's)
         QCOMPARE(lookOf(open.html).text.size(), 3 * kMostHtmlOpen);
         // tables nested past the limit become their words
         QString tables;
@@ -3909,6 +3910,28 @@ private Q_SLOTS:
         QCOMPARE(wide.counts.grid, qint64(51));   // (a span is no more than the widest row, which is one cell)
         const GuardedHtml real = guardHtml(QStringLiteral("<table><tr>") + repeatedText(QStringLiteral("<td>a"), 30) + QStringLiteral("</tr>") + repeatedText(QStringLiteral("<tr><td colspan=30>x</td></tr>"), 20) + QStringLiteral("</table>"));
         QCOMPARE(real.counts.grid, qint64(21 * 30));
+    }
+
+    // fails when off: yes (the budget of spans taken out of htmlguard.cpp)
+    void theSpansOfAPageAreHeldToABudget()
+    {
+        const QString cells = repeatedText(QStringLiteral("<tr><td colspan=2>a</td><td>b</td></tr>"), 10, QStringLiteral("<table>"), QStringLiteral("</table>"));
+        HtmlLimits few;
+        few.spanCells = 3;
+        const GuardedHtml g = guardHtml(cells, few);
+        QCOMPARE(g.counts.spanCells, 3);
+        QCOMPARE(g.counts.spansLeftOut, 7);
+        QCOMPARE(g.html.count(QLatin1String("colspan=\"002\"")), 3);
+        HtmlLimits covers;
+        covers.spanCovered = 4;   // (each of these covers one cell)
+        const GuardedHtml c = guardHtml(cells, covers);
+        QCOMPARE(c.counts.spanCells, 4);
+        QCOMPARE(c.counts.spanCovered, qint64(4));
+        QCOMPARE(c.counts.spansLeftOut, 6);
+        // the constants: a page of cells that span, up to the limit, keeps them all
+        const QString many = repeatedText(QStringLiteral("<tr><td colspan=2>a</td><td>b</td></tr>"), kMostHtmlSpanCells, QStringLiteral("<table>"), QStringLiteral("</table>"));
+        QCOMPARE(guardHtml(many).counts.spansLeftOut, 0);
+        QCOMPARE(guardHtml(many + QStringLiteral("<table><tr><td colspan=2>a</td><td>b</td></tr></table>")).counts.spansLeftOut, 1);
     }
 
     void aLongListIsWrittenAsSeveralThatGoOn()

@@ -69,6 +69,7 @@ struct HtmlCounts {
     qint64 text = 0;        // characters of words written
     qint64 cells = 0, rows = 0, grid = 0, pictures = 0;
     int deepest = 0;        // the most parts that stand inside one another in what was written
+    int mostOpen = 0;       // the most parts of the given page that stood open at once
     int tables = 0;         // tables written
     int flattened = 0;      // parts left out because they stood too deep (their words stay)
     int listSplits = 0;     // lists written as two because of their items

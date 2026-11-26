@@ -286,6 +286,7 @@ private:
         Frame f{name, src.cls, emitted, block};
         pos[src.cls].push_back(int(stack.size()));
         stack.push_back(f);
+        counts.mostOpen = std::max(counts.mostOpen, int(stack.size()));
         if (emitted) {
             ++emitDepth;
             counts.deepest = std::max(counts.deepest, emitDepth);
