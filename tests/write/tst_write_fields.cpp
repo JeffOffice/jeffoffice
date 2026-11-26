@@ -2005,7 +2005,7 @@ private Q_SLOTS:
         pane->replaceBox()->setText(QStringLiteral("dog"));
         pane->replaceAll();
         QCOMPARE(lines(*doc), (QStringList{QStringLiteral("cat in the closed"), QStringLiteral("dog in the open, dog")}));
-        QCOMPARE(pane->status(), QStringLiteral("JeffWrite made 2 replacements. 1 match is in text that is protected."));
+        QCOMPARE(pane->status(), QStringLiteral("JeffWrite made 2 replacements. Matches left as they are because the text is protected: 1."));
         // Replace on a match in the closed text says so and changes nothing.
         caretAt(w->view(), 0, 3);
         pane->findBox()->setText(QStringLiteral("cat"));
