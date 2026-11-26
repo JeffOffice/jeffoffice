@@ -2746,6 +2746,22 @@ QString plainKindOfText(const QByteArray &bytes)
     return QString();
 }
 
+// Whether a file is text a person could read: some bytes in its first 16 KB, none of them a control character but tab and the line ends, and no zero byte (except in a text with a
+// byte order mark of UTF-16, whose letters hold them).
+bool looksLikePlainText(const QByteArray &file)
+{
+    const QByteArray head = file.left(16384);
+    if (head.isEmpty()) return false;
+    const bool wide = head.startsWith("\xFF\xFE") || head.startsWith("\xFE\xFF");
+    if (wide) return true;
+    for (const char c : head) {
+        const quint8 b = quint8(c);
+        if (b < 0x20 && b != '\t' && b != '\n' && b != '\r') return false;
+        if (b == 0x7F) return false;
+    }
+    return true;
+}
+
 // What a file that is none of the kinds this program opens says it is, from its first bytes, in words for the person (never empty: a file nothing is known of is said to be that).
 QString notAWorkbookMessage(const QByteArray &head, qint64 size)
 {
@@ -2947,6 +2963,15 @@ bool Workbook::openFileWith(const QString &path, QString *error, const Limits &l
             if (!readWholeFile(path, &text, error, limits.fileBytes)) return false;
             if (!flat && isHtmlName(path)) return openHtml(text, path, error, limits);
             return flat ? openOpenDocument(text, true, error, limits) : openDelimited(text, path, error, limits);
+        }
+        // (a web page, or text, saved with an .xls name is opened as what it is: its tables are the sheets, or its lines are the rows; a spreadsheet written as XML is told apart and refused)
+        if (QFileInfo(path).suffix().compare(QLatin1String("xls"), Qt::CaseInsensitive) == 0) {
+            const bool page = wml::looksLikeHtml(head) || head.left(1024).toLower().contains("<html");
+            if (page || (plainKindOfText(head).isEmpty() && looksLikePlainText(head))) {
+                QByteArray text;
+                if (!readWholeFile(path, &text, error, limits.fileBytes)) return false;
+                return page ? openHtml(text, path, error, limits) : openDelimited(text, path, error, limits);
+            }
         }
         const QString kind = plainKindOfText(head);
         if (!kind.isEmpty()) {

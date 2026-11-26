@@ -1409,33 +1409,45 @@ private Q_SLOTS:
         }
     }
 
-    // A web page or a spreadsheet written as plain text that has an .xls name is said to be what it is, in plain words, and that this program cannot open that kind; other text gets the general
-    // refusal.
-    void aWebPageOrAnXmlSpreadsheetNamedXlsSaysWhatItIs()
+    // A web page or text that has an .xls name is opened as what it is (the page's tables are the sheets, the text's lines are the rows); a spreadsheet written as plain XML is said to be what it is,
+    // in plain words, and that this program cannot open that kind; a file of bytes that is none of these gets the general refusal.
+    void aWebPageOrTextNamedXlsOpensAsWhatItIs()
     {
         QTemporaryDir dir;
         QVERIFY(dir.isValid());
-        auto open = [&](const QByteArray &bytes) {
-            const QString path = dir.filePath(QStringLiteral("f.xls"));
+        auto open = [&](const QByteArray &bytes, Workbook *wb, const QString &name = QStringLiteral("f.xls")) {
+            const QString path = dir.filePath(name);
             QFile f(path);
             f.open(QIODevice::WriteOnly | QIODevice::Truncate);
             f.write(bytes);
             f.close();
-            Workbook wb;
             QString why;
-            return wb.openFile(path, &why) ? QStringLiteral("opened") : why;
+            return wb->openFile(path, &why) ? QStringLiteral("opened") : why;
         };
-        const QString page = open("<html><head><title>x</title></head><body><table><tr><td>1</td></tr></table></body></html>");
-        QVERIFY2(page.contains(QLatin1String("web page")) && page.contains(QLatin1String("can't open")), qPrintable(page));
-        QCOMPARE(open("\n  <!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01//EN\"><HTML><BODY></BODY></HTML>"), page);
-        QCOMPARE(open("\xEF\xBB\xBF<?xml version=\"1.0\"?><HTML xmlns=\"http://www.w3.org/TR/REC-html40\"><BODY/></HTML>"), page);
-        const QString xml = open("<?xml version=\"1.0\"?>\n<?mso-application progid=\"Excel.Sheet\"?>\n<Workbook xmlns=\"urn:schemas-x:office:spreadsheet\"><Worksheet/></Workbook>");
+        Workbook page;
+        QCOMPARE(open("<html><head><title>x</title></head><body><table><tr><td>1</td></tr></table></body></html>", &page), QStringLiteral("opened"));
+        QCOMPARE(int(page.info().sheets.size()), 1);
+        Workbook upper;
+        QCOMPARE(open("\n  <!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01//EN\"><HTML><BODY><TABLE><TR><TD>a</TD></TR></TABLE></BODY></HTML>", &upper, QStringLiteral("g.XLS")), QStringLiteral("opened"));
+        Workbook none;
+        const QString noTable = open("<html><body><p>No table here</p></body></html>", &none);
+        QVERIFY2(noTable.contains(QStringLiteral("no table")), qPrintable(noTable));
+        Workbook xmlBook;
+        const QString xml = open("<?xml version=\"1.0\"?>\n<?mso-application progid=\"Excel.Sheet\"?>\n<Workbook xmlns=\"urn:schemas-x:office:spreadsheet\"><Worksheet/></Workbook>", &xmlBook);
         QVERIFY2(xml.contains(QLatin1String("written as plain text")) && xml.contains(QLatin1String("can't open")), qPrintable(xml));
-        QVERIFY(xml != page);
-        for (const QString &word : {QStringLiteral("Excel"), QStringLiteral("Microsoft")}) QVERIFY(!xml.contains(word) && !page.contains(word));
-        const QString other = open("AMTMIS 10 11 12");
-        QVERIFY(!other.contains(QLatin1String("web page")) && !other.contains(QLatin1String("written as plain text")));
-        QVERIFY(other != QLatin1String("opened"));
+        for (const QString &word : {QStringLiteral("Excel"), QStringLiteral("Microsoft")}) QVERIFY(!xml.contains(word));
+        // text: its lines are the rows, its tabs or commas split them
+        Workbook text;
+        QCOMPARE(open("name,qty\nApples,3\nPears,4\n", &text), QStringLiteral("opened"));
+        QCOMPARE(int(text.info().sheets.size()), 1);
+        Workbook single;
+        QCOMPARE(open("AMTMIS 10 11 12", &single), QStringLiteral("opened"));
+        // bytes that are no text are refused, and so is the same text with the name of a package
+        Workbook binary;
+        const QString refused = open(QByteArray("\x13\x37random bytes that no program here knows \x00\x01\x02"), &binary);
+        QVERIFY(refused != QLatin1String("opened"));
+        Workbook named;
+        QVERIFY(open("name,qty\nApples,3\n", &named, QStringLiteral("h.xlsx")) != QLatin1String("opened"));
     }
 
     // The double-byte code pages are read by the system's own converter (Windows', CoreFoundation's, or iconv), so that no platform depends on how Qt was built; Qt's, where Qt has
