@@ -69,12 +69,14 @@
 #include <vector>
 
 class QMenu;
-class QPlainTextEdit;
+class QTextEdit;
+class QTextDocument;
 class QPainter;
 
 namespace jp {
 
 class Document;
+class Editor;
 struct Page;
 class LayoutCache;
 class PresenterView;
@@ -302,7 +304,7 @@ public:
     // filled again whenever the show moves; Esc closes it first. At most kSpeakerNotesLimit characters are shown, cut between whole characters, with a sentence saying so.
     // Not offered while Presenter View is open: it shows the notes, and a box would be on the audience's screen.
     void showSpeakerNotes();
-    QPlainTextEdit *speakerNotesBox() const;
+    QTextEdit *speakerNotesBox() const;
     static constexpr int kSpeakerNotesLimit = 5000;
     // Zoom into the slide: the slide twice as large, with the point `about` of the window kept where it is; a drag moves it, and it ends with Esc, the menu entry
     // again, another slide or step, a black or white screen, a pen, or a new window size. Nothing on a black or white screen, at the end, or while an effect plays.
@@ -345,6 +347,12 @@ public:
     bool notesReadOnly() const { return m_notesReadOnly && m_notesReadOnly(); }
     // Someone is about to type in Presenter View's notes: whoever holds typed notes that are not saved yet saves them first.
     void startNotesTyping() { Q_EMIT notesTypingStarted(); }
+    // The window's editor, which Presenter View's notes are edited through (so they are formatted, with the same commands and the one undo history as the notes under the slide). Without
+    // it (a show that belongs to no window) Presenter View shows the notes formatted and read only.
+    void setNotesEditor(Editor *ed);
+    Editor *notesEditor() const;
+    // Presenter View's notes box holds the notes' story (true) or lets it go (false); the window's own views of the notes give it up while it is held.
+    void holdNotes(bool on) { Q_EMIT notesHeld(on); }
 
     void setVisible(bool visible) override;
     // The show as a part of a window (Reading View) rather than a window of its own: it is `host`'s child, plays by an individual, goes where the host puts it, and
@@ -355,6 +363,7 @@ public:
 Q_SIGNALS:
     void notesEdited(const QString &pageId, const QString &text);
     void notesTypingStarted();
+    void notesHeld(bool on);
     // The show was ended; `lastSlide` is the slide it was on.
     void ended(int lastSlide);
     // The ink or the laser pointer changed, or the pointer did.
@@ -528,7 +537,10 @@ private:
     QImage m_zoomImage;         // the slide at kZoomFactor times the window's size while zoomed
     QPointF m_zoomOrigin, m_panFrom, m_panOrigin, m_menuAnchor;
     bool m_haveAnchor = false;   // a right click on the show set m_menuAnchor for the next menu
-    QPointer<QPlainTextEdit> m_notesBox;
+    QPointer<QTextEdit> m_notesBox;
+    QPointer<QObject> m_notesEditor;
+    QPointer<QTextDocument> m_notesDoc;   // (the copy of the notes the Speaker Notes box shows)
+    QString m_notesKey;
     QPointer<PresenterView> m_presenter;
     std::function<bool()> m_notesReadOnly;
     bool m_watchingScreens = false;

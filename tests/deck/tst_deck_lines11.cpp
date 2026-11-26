@@ -284,7 +284,7 @@ private Q_SLOTS:
         w->act(QStringLiteral("show.presenterView"))->trigger();
         SlideShow *show = w->slideShow();
         QVERIFY(show && show->presenterView());
-        auto *edit = show->presenterView()->findChild<QPlainTextEdit *>(QStringLiteral("notesText"));
+        auto *edit = show->presenterView()->findChild<QTextEdit *>(QStringLiteral("notesText"));
         QVERIFY(edit && !edit->isReadOnly());
         edit->setFocus();
         QTest::keyClicks(edit, QStringLiteral("spoken"));

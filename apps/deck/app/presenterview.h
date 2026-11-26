@@ -21,11 +21,13 @@
 class QAbstractButton;
 class QLabel;
 class QListWidget;
-class QPlainTextEdit;
+class QTextEdit;
+class QTextDocument;
 class QStackedWidget;
 
 namespace jp {
 
+class PresenterNotes;
 class SlideShow;
 class SlideView;
 
@@ -34,12 +36,14 @@ class PresenterView : public QWidget {
 public:
     // Closes when the show ends.
     explicit PresenterView(SlideShow *show);
+    ~PresenterView() override;
 
     // "Slide 2 of 12", or "End of slide show".
     QString counterText() const;
     QString notesText() const;
-    // The notes are typed here: what was typed goes to the show (the window makes it a step of Undo) when typing pauses, when the box is left, when the
-    // show moves to another slide, and when the show ends. Esc in the box goes back to the keys of the show.
+    // The notes are shown formatted, as they are in the notes under the slide, and typed here through the window's editor (the same typing, commands, and one history of Undo: typed
+    // words are one step when typing pauses, when the box is left, when the show moves to another slide, and when the show ends; Bold, Italic, and Underline keys work). The box is the
+    // one view of the notes' story while Presenter View is up. A show with no window's editor shows them formatted and read only. Esc in the box goes back to the keys of the show.
     void commitNotes();
     // What the next click shows, under Next: the slide (the one on the screen,
     // while it has steps left to play), -1 for none, how many of its steps have
@@ -83,13 +87,19 @@ private:
     QPointer<SlideShow> m_show;
     SlideView *m_current = nullptr, *m_nextView = nullptr;
     QLabel *m_counter = nullptr, *m_timerLabel = nullptr, *m_clock = nullptr;
-    QPlainTextEdit *m_notes = nullptr;
+    QTextEdit *m_notes = nullptr;
+    PresenterNotes *m_rich = nullptr;   // m_notes, when the show has an editor to edit the notes through
+    QPointer<QTextDocument> m_copy;     // otherwise: what the box shows, a copy of the story
+    QString m_copyKey;
+    bool m_held = false;
+    void releaseNotes();                // lets the story go (the window's own views have it again)
+    void applyNotesSize();
+    void showCopy(const QTextDocument *story, const QString &key);
     QStackedWidget *m_pages = nullptr;
     QListWidget *m_grid = nullptr;
     QAbstractButton *m_pause = nullptr, *m_black = nullptr, *m_all = nullptr, *m_pointerButton = nullptr, *m_swap = nullptr;
     QTimer m_notesIdle;
     QString m_notesPage;       // the page the box's text is of
-    bool m_loadingNotes = false, m_typed = false;   // typed since the last save or load
     QTimer m_tick;
     QElapsedTimer m_since;     // when the timer last started running
     qint64 m_before = 0;       // what it had counted before that

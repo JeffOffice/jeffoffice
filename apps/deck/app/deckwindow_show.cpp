@@ -5,6 +5,7 @@
 // with what a show leaves behind (ink, and new times) kept or discarded when it ends.
 
 #include "app/deckcanvas.h"
+#include "app/notespageview.h"
 #include "app/deckwindow.h"
 
 #include "app/editor.h"
@@ -615,7 +616,11 @@ void DeckWindow::watchShow(SlideShow *show, bool recording)
     connect(show, &SlideShow::destroyed, this, [this] { activateWindow(); });
     // A show in a window leaves the deck open to editing: it follows the slides by their pages; a presentation put in the window in
     // place of this one ends it.
-    connect(m_ed, &Editor::changed, show, &SlideShow::documentChanged);
+    // (words typed in the notes change nothing the show draws: it is told when typing is over, not for each key, which would draw the slides again and look through the pages)
+    connect(m_ed, &Editor::changed, show, [this, show] {
+        if (m_ed->editingStoryOnly()) return;
+        show->documentChanged();
+    });
     // Notes typed in Presenter View: one step of Undo for each, as the notes pane makes them (the show is only a reader of the deck).
     connect(show, &SlideShow::notesEdited, this, [this](const QString &pageId, const QString &text) {
         Document *d = m_ed->doc();
@@ -630,6 +635,12 @@ void DeckWindow::watchShow(SlideShow *show, bool recording)
         m_ed->endChange();
     });
     show->setNotesReadOnly([this] { return m_ed->readOnly(); });
+    // Presenter View's notes are edited through this window's editor; while it holds the notes' story, this window's own views of them (under the slide and on the Notes Page) give it up.
+    show->setNotesEditor(m_ed);
+    connect(show, &SlideShow::notesHeld, this, [this](bool on) {
+        m_notes->setYielding(on);
+        if (m_notesPage) m_notesPage->notesBox()->setYielding(on);
+    });
     // The notes pane and Presenter View's notes never overwrite each other: whichever is about to be typed in, the other saves what it holds first.
     connect(show, &SlideShow::notesTypingStarted, this, [this] { m_notes->commit(); });
     connect(m_notes, &NotesPane::typingStarted, show, [show] {

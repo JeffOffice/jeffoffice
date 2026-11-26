@@ -1,4 +1,6 @@
 // JeffDeck's tests of the slide show: settings, custom shows, ink, and rehearsal.
+#include "app/notespageview.h"
+#include <QTextEdit>
 #include <QScopeGuard>
 #include "deckhelpers.h"
 #include "../withdialog.h"
@@ -1383,7 +1385,7 @@ private Q_SLOTS:
         SlideShow *show = w.slideShow();
         QVERIFY(show && show->presenterView());
         PresenterView *pv = show->presenterView();
-        QPlainTextEdit *edit = pv->findChild<QPlainTextEdit *>(QStringLiteral("notesText"));
+        QTextEdit *edit = pv->findChild<QTextEdit *>(QStringLiteral("notesText"));
         QVERIFY(edit && !edit->isReadOnly());
         QCOMPARE(edit->toPlainText(), QStringLiteral("First notes"));
         // Typing is not a key of the show: the slide stays.
@@ -1421,38 +1423,300 @@ private Q_SLOTS:
         QCOMPARE(notes(0), QStringLiteral("First notes and more"));
     }
 
-    // The notes pane and Presenter View's notes on the same slide: typing in one while the other holds typing not yet saved keeps both, in order,
-    // each as its own step of Undo.
-    void presenterViewAndNotesPaneKeepEachOthersWords()
+    // While Presenter View is up its box is the one view of the notes' story: the pane under the slide gives the story up (and has it again when the show ends), so two views never
+    // hold one document. Words typed in the box are the story's at once and are one step of Undo, as in the pane.
+    void presenterViewHoldsTheNotesAloneWhileItIsUp()
     {
         DeckWindow w;
         Editor *ed = w.editor();
         w.newSlide();
         ed->setCurrentPage(0);
+        auto story = [&] { return ed->doc()->storyDoc(ed->doc()->pages[0]->notesStoryId); };
         auto notes = [&] { return deck::notesText(*ed->doc(), *ed->doc()->pages[0]); };
+        QTest::keyClicks(w.notesPane(), QStringLiteral("one"));
+        QVERIFY(w.notesPane()->document() == story());
         w.act("show.presenterView")->trigger();
         SlideShow *show = w.slideShow();
         QVERIFY(show && show->presenterView());
         PresenterView *pv = show->presenterView();
-        QPlainTextEdit *edit = pv->findChild<QPlainTextEdit *>(QStringLiteral("notesText"));
+        QTextEdit *edit = pv->findChild<QTextEdit *>(QStringLiteral("notesText"));
         QVERIFY(edit);
-        // Typed in the pane (not saved yet), then in Presenter View, then in the pane again, with no pause and no focus change between.
-        QTest::keyClicks(w.notesPane(), QStringLiteral("one"));
-        QVERIFY(w.notesPane()->hasTyping());
+        QVERIFY(edit->document() == story());
+        QVERIFY2(w.notesPane()->document() != story() && w.notesPageView()->notesBox()->document() != story(), "the window's views let the story go");
+        QTRY_COMPARE(edit->toPlainText(), QStringLiteral("one"));
+        edit->setFocus();
         edit->moveCursor(QTextCursor::End);
         QTest::keyClicks(edit, QStringLiteral(" two"));
-        QCOMPARE(notes(), QStringLiteral("one"));   // the pane's words were saved before the first key here
-        QTRY_COMPARE(edit->toPlainText(), QStringLiteral("one two"));
-        w.notesPane()->moveCursor(QTextCursor::End);
-        QTest::keyClicks(w.notesPane(), QStringLiteral(" three"));
-        QCOMPARE(notes(), QStringLiteral("one two three"));   // Presenter View's words were saved before the first key in the pane, which is typing in the notes at once
-        w.notesPane()->commit();
-        QCOMPARE(notes(), QStringLiteral("one two three"));
-        QTRY_COMPARE(edit->toPlainText(), QStringLiteral("one two three"));
-        ed->undo();
-        QCOMPARE(notes(), QStringLiteral("one two"));
+        QCOMPARE(notes(), QStringLiteral("One two"));   // (the words are the story's at once)
+        pv->commitNotes();
         ed->undo();
         QCOMPARE(notes(), QStringLiteral("one"));
+        ed->redo();
+        QCOMPARE(notes(), QStringLiteral("One two"));
+        QTRY_COMPARE(edit->toPlainText(), QStringLiteral("One two"));
+        show->close();
+        QTRY_VERIFY(!w.slideShow());
+        QVERIFY(w.notesPane()->document() == story());
+        QCOMPARE(w.notesPane()->toPlainText(), QStringLiteral("One two"));
+        QVERIFY(w.notesPageView()->notesBox()->document() != story());   // (the page's box is out of sight)
+    }
+
+    // The words of a presenter's notes, with a mark around each run that is bold (B), italic (I), or underlined (U): "alpha [B]beta[/B] gamma".
+    static QString markedNotes(const QTextDocument *story)
+    {
+        QString out;
+        for (QTextBlock b = story->begin(); b.isValid(); b = b.next()) {
+            if (b != story->begin()) out += QLatin1Char('|');
+            for (QTextBlock::iterator it = b.begin(); !it.atEnd(); ++it) {
+                const QTextCharFormat cf = it.fragment().charFormat();
+                QString m;
+                if (cf.fontWeight() > QFont::Normal) m += QLatin1Char('B');
+                if (cf.fontItalic()) m += QLatin1Char('I');
+                if (cf.fontUnderline()) m += QLatin1Char('U');
+                out += m.isEmpty() ? it.fragment().text() : QStringLiteral("[%1]%2[/%1]").arg(m, it.fragment().text());
+            }
+        }
+        return out;
+    }
+    // A window with a slide whose notes have a bold word, and Presenter View open on it.
+    static PresenterView *presenterOnFormattedNote(DeckWindow &w, SlideShow **show)
+    {
+        Editor *ed = w.editor();
+        w.resize(1280, 800);
+        w.show();
+        w.newSlide();
+        ed->setCurrentPage(0);
+        QTextDocument *story = ed->doc()->storyDoc(ed->doc()->pages[0]->notesStoryId);
+        QTextCursor c(story);
+        QTextCharFormat bold;
+        bold.setFontWeight(QFont::Bold);
+        c.insertText(QStringLiteral("alpha "), QTextCharFormat());
+        c.insertText(QStringLiteral("beta"), bold);
+        c.insertText(QStringLiteral(" gamma"), QTextCharFormat());
+        w.notesPane()->reload();
+        ed->undoStack()->clear();
+        w.act("show.presenterView")->trigger();
+        *show = w.slideShow();
+        return *show ? (*show)->presenterView() : nullptr;
+    }
+
+    // Presenter View shows the note formatted and edits it through the same widget as the notes under the slide: an edit at the start and one at the end with no pause between keep
+    // the formatting between them, Ctrl+B bolds the selection, and the Undo history is the presentation's.
+    void presenterViewShowsAndEditsTheNoteFormatted()
+    {
+        DeckWindow w;
+        SlideShow *show = nullptr;
+        PresenterView *pv = presenterOnFormattedNote(w, &show);
+        QVERIFY(show && pv);
+        Editor *ed = w.editor();
+        QTextEdit *edit = pv->findChild<QTextEdit *>(QStringLiteral("notesText"));
+        QVERIFY(edit);
+        QTextDocument *story = ed->doc()->storyDoc(ed->doc()->pages[0]->notesStoryId);
+        QTRY_VERIFY(edit->document() == story);
+        QCOMPARE(markedNotes(edit->document()), QStringLiteral("alpha [B]beta[/B] gamma"));   // (shown formatted: it is the story's own document)
+        edit->setFocus();
+        edit->moveCursor(QTextCursor::Start);
+        QTest::keyClicks(edit, QStringLiteral(">"));
+        edit->moveCursor(QTextCursor::End);   // (the caret jumps; no pause)
+        QTest::keyClicks(edit, QStringLiteral("<"));
+        QCOMPARE(markedNotes(story), QStringLiteral(">alpha [B]beta[/B] gamma<"));
+        // Ctrl+B on the selected word.
+        QTextCursor sel(edit->document());
+        sel.setPosition(1);
+        sel.setPosition(6, QTextCursor::KeepAnchor);
+        edit->setTextCursor(sel);
+        QTest::keyClick(edit, Qt::Key_B, Qt::ControlModifier);
+        QCOMPARE(markedNotes(story), QStringLiteral(">[B]alpha[/B] [B]beta[/B] gamma<"));
+        pv->commitNotes();
+        QCOMPARE(deck::notesText(*ed->doc(), *ed->doc()->pages[0]), QStringLiteral(">alpha beta gamma<"));
+        ed->undo();   // the bold
+        QCOMPARE(markedNotes(ed->doc()->storyDoc(ed->doc()->pages[0]->notesStoryId)), QStringLiteral(">alpha [B]beta[/B] gamma<"));
+        show->close();
+        QTRY_VERIFY(!w.slideShow());
+    }
+
+    // A+ and A- change how big the notes are shown and nothing in the note: its words, formats, default font, and revision stay; the shown size follows.
+    void presenterViewTextSizeChangesOnlyTheDisplay()
+    {
+        DeckWindow w;
+        SlideShow *show = nullptr;
+        PresenterView *pv = presenterOnFormattedNote(w, &show);
+        QVERIFY(show && pv);
+        Editor *ed = w.editor();
+        QTextEdit *edit = pv->findChild<QTextEdit *>(QStringLiteral("notesText"));
+        QTextDocument *story = ed->doc()->storyDoc(ed->doc()->pages[0]->notesStoryId);
+        QTRY_VERIFY(edit->document() == story);
+        const QString html = story->toHtml();
+        const QFont font = story->defaultFont();
+        const int revision = story->revision(), steps = ed->undoStack()->count();
+        const int size = pv->notesPointSize();
+        auto height = [&] { return edit->document()->size().height(); };
+        QTRY_VERIFY(height() > 1);
+        const double before = height();
+        for (int i = 0; i < 4; ++i) pv->findChild<QAbstractButton *>(QStringLiteral("notesBigger"))->click();
+        QCOMPARE(pv->notesPointSize(), size + 8);
+        QTRY_VERIFY2(height() > before * 1.2, qPrintable(QStringLiteral("%1 -> %2").arg(before).arg(height())));
+        for (int i = 0; i < 8; ++i) pv->findChild<QAbstractButton *>(QStringLiteral("notesSmaller"))->click();
+        QTRY_VERIFY(height() < before * 0.9);
+        QCOMPARE(story->toHtml(), html);
+        QCOMPARE(story->defaultFont(), font);
+        QCOMPARE(story->revision(), revision);
+        QCOMPARE(ed->undoStack()->count(), steps);
+        show->close();
+        QTRY_VERIFY(!w.slideShow());
+    }
+
+    // The sequence of the notes everywhere: the caret in each notes view (under the slide, on the Notes Page, in Presenter View), the presentation becomes read only, a key and a format
+    // command are refused, and nothing of the edit is left (a stale cursor crashed the next command).
+    void aReadOnlyPresentationRefusesEditsInPresenterViewNotes()
+    {
+        DeckWindow w;
+        SlideShow *show = nullptr;
+        PresenterView *pv = presenterOnFormattedNote(w, &show);
+        QVERIFY(show && pv);
+        Editor *ed = w.editor();
+        QTextEdit *edit = pv->findChild<QTextEdit *>(QStringLiteral("notesText"));
+        QTextDocument *story = ed->doc()->storyDoc(ed->doc()->pages[0]->notesStoryId);
+        QTRY_VERIFY(edit->document() == story);
+        QTest::mouseClick(edit->viewport(), Qt::LeftButton, Qt::NoModifier, QPoint(3, 3));
+        QVERIFY(ed->editingStoryOnly());
+        const QString before = markedNotes(story);
+        w.setReadOnly(true);
+        QVERIFY(!ed->isEditingText());
+        QTest::keyClicks(edit, QStringLiteral("zz"));
+        QTest::keyClick(edit, Qt::Key_B, Qt::ControlModifier);
+        ed->typeText(QStringLiteral("zz"));
+        ed->toggleBold();
+        QCOMPARE(markedNotes(story), before);
+        QVERIFY(!ed->isEditingText());
+        w.setReadOnly(false);
+        show->close();
+        QTRY_VERIFY(!w.slideShow());
+    }
+
+    // No command of a notes view reaches a slide object selected on the slide: Ctrl+B in Presenter View's notes formats the words selected there only.
+    void aSlideObjectNeverReceivesABoldKeyFromPresenterViewNotes()
+    {
+        DeckWindow w;
+        Editor *ed = w.editor();
+        w.newSlide();
+        ed->setCurrentPage(0);
+        auto text = std::static_pointer_cast<TextItem>(ed->newTextBox(QRectF(72, 72, 400, 100), QStringLiteral("slide words")));
+        ed->addItem(text);
+        ed->select(text->id);
+        const QByteArray item = QJsonDocument(text->toJson()).toJson(QJsonDocument::Compact);
+        const QString slideWords = markedNotes(ed->doc()->storyDoc(text->storyId));
+        SlideShow *show = nullptr;
+        PresenterView *pv = presenterOnFormattedNote(w, &show);
+        QVERIFY(show && pv);
+        QTextEdit *edit = pv->findChild<QTextEdit *>(QStringLiteral("notesText"));
+        QTRY_VERIFY(edit->document() == ed->doc()->storyDoc(ed->doc()->pages[0]->notesStoryId));
+        edit->setFocus();
+        QTextCursor sel(edit->document());
+        sel.setPosition(0);
+        sel.setPosition(5, QTextCursor::KeepAnchor);
+        edit->setTextCursor(sel);
+        QTest::keyClick(edit, Qt::Key_I, Qt::ControlModifier);
+        QCOMPARE(markedNotes(ed->doc()->storyDoc(ed->doc()->pages[0]->notesStoryId)), QStringLiteral("[I]alpha[/I] [B]beta[/B] gamma"));
+        QCOMPARE(QJsonDocument(text->toJson()).toJson(QJsonDocument::Compact), item);
+        QCOMPARE(markedNotes(ed->doc()->storyDoc(text->storyId)), slideWords);
+        show->close();
+        QTRY_VERIFY(!w.slideShow());
+    }
+
+    // The window goes while the caret is in Presenter View's notes: the show and Presenter View go with it, and nothing is saved into the closing window.
+    void aWindowGoingWithTheCaretInPresenterViewNotesLeavesNothing()
+    {
+        auto *w = new DeckWindow;
+        SlideShow *show = nullptr;
+        PresenterView *pv = presenterOnFormattedNote(*w, &show);
+        QVERIFY(show && pv);
+        QPointer<SlideShow> showGuard(show);
+        QPointer<PresenterView> pvGuard(pv);
+        QTextEdit *edit = pv->findChild<QTextEdit *>(QStringLiteral("notesText"));
+        QTRY_VERIFY(edit->document() == w->editor()->doc()->storyDoc(w->editor()->doc()->pages[0]->notesStoryId));
+        QTest::mouseClick(edit->viewport(), Qt::LeftButton, Qt::NoModifier, QPoint(3, 3));
+        QTest::keyClicks(edit, QStringLiteral("zz"));
+        delete w;
+        QCoreApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete);
+        QVERIFY(showGuard.isNull() && pvGuard.isNull());
+    }
+
+    // The Speaker Notes box shows the note formatted, follows the show, keeps the cut at 5,000 characters and its sentence (the cut text keeps its formatting, the sentence has none),
+    // and, while Presenter View is up (it shows the notes: a box would be on the audience's screen), is not offered.
+    void speakerNotesBoxShowsTheNoteFormatted()
+    {
+        auto d = showDeck(3);
+        {
+            QTextDocument *story = d->storyDoc(d->pages[0]->notesStoryId);
+            story->clear();
+            QTextCursor c(story);
+            QTextCharFormat bold;
+            bold.setFontWeight(QFont::Bold);
+            c.insertText(QStringLiteral("plain "), QTextCharFormat());
+            c.insertText(QStringLiteral("bold"), bold);
+            c.insertBlock();
+            c.insertText(QStringLiteral("second paragraph"), QTextCharFormat());
+            QTextDocument *longer = d->storyDoc(d->pages[2]->notesStoryId);
+            longer->clear();
+            QTextCursor lc(longer);
+            lc.insertText(QString(SlideShow::kSpeakerNotesLimit + 500, QLatin1Char('x')), bold);
+        }
+        LayoutCache cache;
+        SlideShow show(d.get(), &cache, 0);
+        show.resize(960, 540);
+        show.show();
+        show.showSpeakerNotes();
+        QTextEdit *box = show.speakerNotesBox();
+        QVERIFY(box && box->isVisible());
+        QCOMPARE(box->toPlainText(), QStringLiteral("plain bold\nsecond paragraph"));
+        QCOMPARE(markedNotes(box->document()), QStringLiteral("plain [B]bold[/B]|second paragraph"));
+        QVERIFY(!box->isModal() && box->isReadOnly() && box->focusPolicy() == Qt::NoFocus);
+        // (the note itself is as it was)
+        QCOMPARE(markedNotes(d->storyDoc(d->pages[0]->notesStoryId)), QStringLiteral("plain [B]bold[/B]|second paragraph"));
+        show.goTo(2);
+        const QString cutNote = QStringLiteral("\n\nThese notes were cut short because they are very long.");
+        QVERIFY(box->toPlainText().endsWith(cutNote));
+        QCOMPARE(box->toPlainText().size(), SlideShow::kSpeakerNotesLimit + cutNote.size());
+        const QString shown = markedNotes(box->document());
+        QVERIFY2(shown.startsWith(QStringLiteral("[B]xxx")), qPrintable(shown.left(20)));
+        QVERIFY2(shown.contains(QStringLiteral("x[/B]|")) && shown.endsWith(QStringLiteral("very long.")), qPrintable(shown.right(80)));
+        show.goTo(0);
+        QCOMPARE(markedNotes(box->document()), QStringLiteral("plain [B]bold[/B]|second paragraph"));
+    }
+
+    void speakerNotesBoxIsNotOfferedWhilePresenterViewIsUp()
+    {
+        DeckWindow w;
+        SlideShow *show = nullptr;
+        PresenterView *pv = presenterOnFormattedNote(w, &show);
+        QVERIFY(show && pv && pv->isVisible());
+        show->showSpeakerNotes();
+        QVERIFY(!show->speakerNotesBox());
+        show->close();
+        QTRY_VERIFY(!w.slideShow());
+    }
+
+    // Keys typed in Presenter View's notes do not make the show draw its slides again or look through the pages (that work is of the presentation's size): the show is told of a change
+    // when typing is over, so an undo of it still brings the notes back into the box.
+    void typingInPresenterViewNotesDoesNotRedrawTheShowForEachKey()
+    {
+        DeckWindow w;
+        SlideShow *show = nullptr;
+        PresenterView *pv = presenterOnFormattedNote(w, &show);
+        QVERIFY(show && pv);
+        Editor *ed = w.editor();
+        QTextEdit *edit = pv->findChild<QTextEdit *>(QStringLiteral("notesText"));
+        QTRY_VERIFY(edit->document() == ed->doc()->storyDoc(ed->doc()->pages[0]->notesStoryId));
+        QTest::mouseClick(edit->viewport(), Qt::LeftButton, Qt::NoModifier, QPoint(3, 3));
+        QVERIFY(ed->editingStoryOnly());
+        QSignalSpy told(show, &SlideShow::slidesChanged);
+        for (int i = 0; i < 30; ++i) QTest::keyClick(edit, Qt::Key_X);
+        QVERIFY2(told.count() <= 1, qPrintable(QString::number(told.count())));
+        pv->commitNotes();
+        ed->undo();
+        QTRY_VERIFY(told.count() >= 1);
+        QTRY_COMPARE(edit->toPlainText(), QStringLiteral("alpha beta gamma"));
         show->close();
         QTRY_VERIFY(!w.slideShow());
     }
@@ -1473,7 +1737,7 @@ private Q_SLOTS:
         QVERIFY(show && show->presenterView());
         QVERIFY(!w.notesPane()->hasTyping());
         QCOMPARE(ed->undoStack()->count(), steps + 1);
-        QPlainTextEdit *edit = show->presenterView()->findChild<QPlainTextEdit *>(QStringLiteral("notesText"));
+        QTextEdit *edit = show->presenterView()->findChild<QTextEdit *>(QStringLiteral("notesText"));
         QVERIFY(edit);
         QTRY_COMPARE(edit->toPlainText(), QStringLiteral("Spoken words"));
         QCOMPARE(deck::notesText(*ed->doc(), *ed->doc()->pages[0]), QStringLiteral("Spoken words"));
@@ -1496,7 +1760,7 @@ private Q_SLOTS:
         QVERIFY(show && show->presenterView());
         PresenterView *pv = show->presenterView();
         pv->activateWindow();
-        QPlainTextEdit *edit = pv->findChild<QPlainTextEdit *>(QStringLiteral("notesText"));
+        QTextEdit *edit = pv->findChild<QTextEdit *>(QStringLiteral("notesText"));
         edit->setFocus();
         QTest::keyClicks(edit, QStringLiteral("abc"));
         QCOMPARE(show->currentSlide(), 0);   // letters are the text's
@@ -1533,7 +1797,7 @@ private Q_SLOTS:
         SlideShow *show = w.slideShow();
         QVERIFY(show && show->presenterView());
         QVERIFY(show->notesReadOnly());
-        QPlainTextEdit *box = show->presenterView()->findChild<QPlainTextEdit *>(QStringLiteral("notesText"));
+        QTextEdit *box = show->presenterView()->findChild<QTextEdit *>(QStringLiteral("notesText"));
         QVERIFY(box->isReadOnly());
         // And it follows the file becoming writable and read only again during the show.
         w.editor()->setReadOnly(false);
@@ -1565,7 +1829,7 @@ private Q_SLOTS:
         QVERIFY(show && show->presenterView());
         PresenterView *pv = show->presenterView();
         pv->resize(1200, 760);
-        QPlainTextEdit *edit = pv->findChild<QPlainTextEdit *>(QStringLiteral("notesText"));
+        QTextEdit *edit = pv->findChild<QTextEdit *>(QStringLiteral("notesText"));
         edit->setFocus();
         edit->moveCursor(QTextCursor::End);
         QTest::keyClicks(edit, QStringLiteral(" Then pause for questions."));
@@ -3731,7 +3995,7 @@ private Q_SLOTS:
         show.activateWindow();
         std::unique_ptr<QMenu> menu(show.buildMenu(&show));
         menu->findChild<QAction *>(QStringLiteral("menuSpeakerNotes"))->trigger();
-        QPlainTextEdit *box = show.speakerNotesBox();
+        QTextEdit *box = show.speakerNotesBox();
         QVERIFY(box);
         QVERIFY(box->isVisible());
         QCOMPARE(box->toPlainText(), QStringLiteral("Notes 1"));
@@ -3753,7 +4017,7 @@ private Q_SLOTS:
         menu->findChild<QAction *>(QStringLiteral("menuSpeakerNotes"))->trigger();
         QCOMPARE(show.speakerNotesBox(), box);
         // Esc closes the box and not the show; the next one ends the show.
-        QPointer<QPlainTextEdit> gone = box;
+        QPointer<QTextEdit> gone = box;
         QTest::keyClick(&show, Qt::Key_Escape);
         QVERIFY(!show.speakerNotesBox());
         QVERIFY(show.isVisible());
@@ -3777,7 +4041,7 @@ private Q_SLOTS:
         show.resize(960, 540);
         show.show();
         show.showSpeakerNotes();
-        QPlainTextEdit *box = show.speakerNotesBox();
+        QTextEdit *box = show.speakerNotesBox();
         QVERIFY(box);
         const QString cutNote = QStringLiteral("\n\nThese notes were cut short because they are very long.");
         for (int slide = 0; slide < 3; ++slide) {

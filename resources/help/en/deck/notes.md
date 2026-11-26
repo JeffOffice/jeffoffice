@@ -11,13 +11,13 @@ You can format the notes as you do the text on a slide. Select words in the note
 
 What you type becomes one step that Ctrl+Z can take back once you pause, or when you click somewhere else. Each formatting change is a step of its own.
 
-To type on a page that looks like the printed notes page, click **View > Presentation Views > Notes Page**.
+To type on a page that looks like the printed notes page, click **View > Presentation Views > Notes Page**. The notes box on that page is the same editor, with the same formatting, and its words get bigger and smaller as you zoom the page. Zooming never changes the notes. If the notes are longer than the box, they are shown smaller to fit, the way the printed page sets them, so you can see all of them. A very long note is cut off at the bottom of the box on the printed page, and a page is never added.
 
 To change the height of the box, drag the line between it and the slide. To hide it and get more room for the slide, click **View > Show > Notes**, or the **Notes** button on the status bar. Click again to bring it back.
 
 ## Use notes while you present
 
-Presenter View shows the notes of the slide on the screen, in a size you choose. See [Play the slide show and use Presenter View](show).
+Presenter View shows the notes of the slide on the screen with their formatting, in a size you choose. You can type in them there too. The slide show's **Speaker Notes** box shows them formatted as well. See [Play the slide show and use Presenter View](show).
 
 ## Print notes
 

@@ -36,8 +36,11 @@
 #include <QPainter>
 #include <QPainterPath>
 #include <QPixmap>
-#include <QPlainTextEdit>
+#include <QTextEdit>
+#include "app/editor.h"
+#include "app/notesdisplay.h"
 #include <QTextBoundaryFinder>
+#include <QTextCursor>
 #include <QRandomGenerator>
 #include <QRadialGradient>
 #include <QScreen>
@@ -2959,7 +2962,10 @@ void SlideShow::showPresenterView()
     openPresenterView(mine);
 }
 
-QPlainTextEdit *SlideShow::speakerNotesBox() const { return m_notesBox; }
+void SlideShow::setNotesEditor(Editor *ed) { m_notesEditor = ed; }
+Editor *SlideShow::notesEditor() const { return qobject_cast<Editor *>(m_notesEditor.data()); }
+
+QTextEdit *SlideShow::speakerNotesBox() const { return m_notesBox; }
 
 // What the box says: the notes of the slide on the screen, cut between whole characters (never inside a pair of UTF-16 units or between a letter and its marks).
 QString SlideShow::speakerNotesText() const
@@ -2977,11 +2983,43 @@ QString SlideShow::speakerNotesText() const
     return notes;
 }
 
+// The box shows the story's own words, formatted (a copy: the notes are never changed by being shown), cut as speakerNotesText says. It is made again only when the slide or the
+// words changed.
 void SlideShow::fillSpeakerNotes()
 {
     if (!m_notesBox) return;
-    const QString text = speakerNotesText();
-    if (text != m_notesBox->toPlainText()) m_notesBox->setPlainText(text);
+    const int slide = targetSlide();
+    const QTextDocument *story = slide >= 0 && slide < m_doc->pages.size() ? m_doc->storyDoc(m_doc->pages[slide]->notesStoryId) : nullptr;
+    const QString key = story ? m_doc->pages[slide]->notesStoryId + QLatin1Char('/') + QString::number(story->revision()) + QLatin1Char('/') + QString::number(reinterpret_cast<quintptr>(story)) : QString();
+    if (!key.isEmpty() && key == m_notesKey && m_notesDoc) return;
+    m_notesKey = key;
+    if (!story || story->toPlainText().trimmed().isEmpty()) {
+        if (m_notesDoc) {
+            QTextDocument *own = m_notesDoc;
+            m_notesBox->setDocument(new QTextDocument(m_notesBox));
+            delete own;
+            m_notesDoc = nullptr;
+        }
+        m_notesKey.clear();
+        const QString text = speakerNotesText();
+        if (text != m_notesBox->toPlainText()) m_notesBox->setPlainText(text);
+        return;
+    }
+    bool cut = false;
+    std::unique_ptr<QTextDocument> copy = notesDisplayCopy(story, kSpeakerNotesLimit, m_notesBox->font().pointSizeF(), &cut);
+    if (cut) {
+        QTextCursor end(copy.get());
+        end.movePosition(QTextCursor::End);
+        end.insertBlock(QTextBlockFormat(), QTextCharFormat());
+        end.insertBlock(QTextBlockFormat(), QTextCharFormat());
+        end.insertText(tr("These notes were cut short because they are very long."));
+    }
+    QTextDocument *own = m_notesDoc;
+    QTextDocument *now = copy.release();
+    now->setParent(m_notesBox);
+    m_notesBox->setDocument(now);
+    m_notesDoc = now;
+    if (own) delete own;
 }
 
 void SlideShow::closeSpeakerNotes()
@@ -2994,7 +3032,7 @@ void SlideShow::showSpeakerNotes()
 {
     if (m_presenter && m_presenter->isVisible()) return;
     if (!m_notesBox) {
-        auto *box = new QPlainTextEdit(this);
+        auto *box = new QTextEdit(this);
         box->setWindowFlags(Qt::Tool | Qt::WindowDoesNotAcceptFocus | Qt::WindowStaysOnTopHint);
         box->setObjectName(QStringLiteral("speakerNotes"));
         box->setWindowTitle(tr("Speaker Notes"));

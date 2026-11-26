@@ -1,7 +1,10 @@
 #include "app/presenterview.h"
 #include "text/storyio.h"
 
+#include "app/editor.h"
+#include "app/notesdisplay.h"
 #include "app/settings.h"
+#include "app/storyedit.h"
 #include "app/slideshow.h"
 #include "core/deck.h"
 #include "core/document.h"
@@ -17,7 +20,7 @@
 #include <QMenu>
 #include <QMouseEvent>
 #include <QPainter>
-#include <QPlainTextEdit>
+#include <QTextEdit>
 #include <QPushButton>
 #include <QStackedWidget>
 #include <QVBoxLayout>
@@ -29,6 +32,43 @@ namespace {
 constexpr int kMinNotes = 10, kMaxNotes = 72;
 const QColor kBars(0x10, 0x10, 0x10);
 }
+
+// The notes box when the show has the window's editor: the notes' story as the editor has it, formatted, edited through the editor. Bold, Italic, and Underline have their keys here
+// (there is no ribbon in this window); a slide with no notes gets its story as the first words are put in.
+class PresenterNotes : public StoryEdit {
+public:
+    PresenterNotes(Editor *ed, QWidget *parent) : StoryEdit(ed, parent), m_editor(ed) {}
+    void setPage(const QString &id) { m_page = id; }
+
+protected:
+    QString makeStory() override
+    {
+        Document *d = m_editor->doc();
+        const int i = d ? d->pageIndexOf(m_page) : -1;
+        if (i < 0) return QString();
+        Page &slide = *d->pages[i];
+        if (slide.notesStoryId.isEmpty() || !d->storyDoc(slide.notesStoryId)) slide.notesStoryId = d->createStory();
+        return slide.notesStoryId;
+    }
+    void keyPressEvent(QKeyEvent *e) override
+    {
+        const bool bold = e->matches(QKeySequence::Bold), italic = e->matches(QKeySequence::Italic), underline = e->matches(QKeySequence::Underline);
+        if ((bold || italic || underline) && !isReadOnly() && !m_editor->readOnly()) {
+            if (takeTarget()) {
+                if (bold) m_editor->toggleBold();
+                else if (italic) m_editor->toggleItalic();
+                else m_editor->toggleUnderline();
+            }
+            e->accept();
+            return;
+        }
+        StoryEdit::keyPressEvent(e);
+    }
+
+private:
+    Editor *m_editor;
+    QString m_page;
+};
 
 // A slide drawn to fill the widget, or the end of the show.
 class SlideView : public QWidget {
@@ -118,7 +158,7 @@ PresenterView::PresenterView(SlideShow *show) : QWidget(nullptr, Qt::Window), m_
         "#presenterView QPushButton:hover { background: #4a4a4a; }"
         "#presenterView QPushButton:checked { background: #b6420f; border-color: #b6420f; }"
         "#presenterView QPushButton:disabled { color: #888888; }"
-        "#presenterView QPlainTextEdit, #presenterView QListWidget { background: #262626; color: #f4f4f4; border: 1px solid #444444; }"
+        "#presenterView QTextEdit, #presenterView QListWidget { background: #262626; color: #f4f4f4; border: 1px solid #444444; }"
         "#presenterView QListWidget::item { color: #f0f0f0; padding: 4px; }"
         "#presenterView QListWidget::item:selected { background: #b6420f; }"));
 
@@ -186,7 +226,15 @@ PresenterView::PresenterView(SlideShow *show) : QWidget(nullptr, Qt::Window), m_
     notesRow->addStretch(1);
     notesRow->addWidget(smaller);
     notesRow->addWidget(bigger);
-    m_notes = new QPlainTextEdit(main);
+    if (show->notesEditor()) {
+        m_rich = new PresenterNotes(show->notesEditor(), main);
+        m_notes = m_rich;
+        m_held = true;
+        show->holdNotes(true);   // (the window's own views of the notes let go of the story first)
+    } else {
+        m_notes = new QTextEdit(main);
+        m_notes->setReadOnly(true);
+    }
     m_notes->setObjectName(QStringLiteral("notesText"));
     m_notes->setAccessibleName(tr("Notes"));
     m_notes->setPlaceholderText(tr("Click to add notes"));
@@ -258,11 +306,7 @@ PresenterView::PresenterView(SlideShow *show) : QWidget(nullptr, Qt::Window), m_
     m_notesIdle.setSingleShot(true);
     m_notesIdle.setInterval(700);
     connect(&m_notesIdle, &QTimer::timeout, this, &PresenterView::commitNotes);
-    connect(m_notes, &QPlainTextEdit::textChanged, this, [this] {
-        if (m_loadingNotes) return;
-        m_typed = true;
-        m_notesIdle.start();
-    });
+    connect(m_notes, &QTextEdit::textChanged, this, [this] { m_notesIdle.start(); });
     connect(end, &QAbstractButton::clicked, this, [this] { if (m_show) m_show->close(); });
     connect(m_pause, &QAbstractButton::clicked, this, [this] { setPaused(!m_paused); });
     connect(reset, &QAbstractButton::clicked, this, &PresenterView::resetTimer);
@@ -288,6 +332,8 @@ PresenterView::PresenterView(SlideShow *show) : QWidget(nullptr, Qt::Window), m_
         if (m_show) m_pointerButton->setChecked(m_show->pointer() != SlideShow::Pointer::Arrow);
     });
     connect(show, &SlideShow::ended, this, [this] {
+        commitNotes();
+        releaseNotes();
         hide();
         deleteLater();
     });
@@ -333,19 +379,17 @@ void PresenterView::refresh()
     m_counter->setText(slide >= 0 ? tr("Slide %1 of %2").arg(slide + 1).arg(doc->pages.size()) : tr("End of slide show"));
     const bool onSlide = slide >= 0 && slide < doc->pages.size();
     const QString pageId = onSlide ? doc->pages[slide]->id : QString();
-    // What was typed is kept before another slide's notes come; on the same slide, the deck changing under it does not take typing away.
-    if (!(m_typed && pageId == m_notesPage)) {
-        commitNotes();
-        const QTextDocument *story = onSlide ? doc->storyDoc(doc->pages[slide]->notesStoryId) : nullptr;
-        const QString notes = story ? storyTextKeepingBreaks(story) : QString();   // (a line break stays one)
-        m_loadingNotes = true;
-        if (notes != storyTextKeepingBreaks(m_notes->document())) {
-            const bool atEnd = m_notes->textCursor().position() >= m_notes->document()->characterCount() - 1;   // (a cursor at the end stays there)
-            m_notes->setPlainText(notes);
-            if (atEnd) m_notes->moveCursor(QTextCursor::End);
-        }
-        m_loadingNotes = false;
-        m_notesPage = pageId;
+    // What was typed is kept before another slide's notes come (typed words go into the story at once: closing them as one step is all there is to do).
+    const QString storyId = onSlide ? doc->pages[slide]->notesStoryId : QString();
+    if (pageId != m_notesPage) commitNotes();
+    m_notesPage = pageId;
+    if (m_rich) {
+        m_rich->setPage(pageId);
+        m_rich->setStory(storyId);
+        applyNotesSize();
+    } else {
+        const QTextDocument *story = doc->storyDoc(storyId);
+        showCopy(story, story ? storyId + QLatin1Char('/') + QString::number(story->revision()) + QLatin1Char('/') + QString::number(reinterpret_cast<quintptr>(story)) : QString());
     }
     m_notes->setReadOnly(!onSlide || m_show->notesReadOnly());
     m_swap->setEnabled(m_show->canSwapScreens());
@@ -362,19 +406,44 @@ QString PresenterView::counterText() const { return m_counter->text(); }
 
 QString PresenterView::notesText() const { return m_notes->toPlainText(); }
 
+PresenterView::~PresenterView() { releaseNotes(); }
+
+void PresenterView::releaseNotes()
+{
+    if (!m_held) return;
+    m_held = false;
+    if (m_rich) m_rich->setYielding(true);   // (the box lets the story go before the window's views take it)
+    if (m_show) m_show->holdNotes(false);
+}
+
+// Where there is no editor: a copy of the story, formatted, shown read only; made again only when the story or the size changed.
+void PresenterView::showCopy(const QTextDocument *story, const QString &key)
+{
+    const QString full = key + QLatin1Char('/') + QString::number(m_notesSize);
+    if (full == m_copyKey && m_copy) return;
+    m_copyKey = full;
+    std::unique_ptr<QTextDocument> copy = notesDisplayCopy(story, -1, m_notesSize);
+    QTextDocument *own = m_copy;
+    QTextDocument *now = copy.release();
+    now->setParent(m_notes);
+    m_notes->setDocument(now);
+    m_copy = now;
+    if (own) delete own;
+}
+
+// The size A+ and A- choose: how big the words are shown (the notes themselves are never changed by it). The story's own size is what the chosen size is for.
+void PresenterView::applyNotesSize()
+{
+    if (!m_rich) return;
+    const QFont f = m_rich->document()->defaultFont();
+    const double base = m_rich->storyId().isEmpty() || f.pointSizeF() <= 0 ? 11.0 : f.pointSizeF();
+    m_rich->setDisplayScale(m_notesSize / base);
+}
+
 void PresenterView::commitNotes()
 {
     m_notesIdle.stop();
-    if (!m_typed) return;
-    m_typed = false;
-    if (!m_show || m_notesPage.isEmpty()) return;
-    const Document *doc = m_show->document();
-    const int at = doc->pageIndexOf(m_notesPage);
-    const QString text = storyTextKeepingBreaks(m_notes->document());
-    if (at < 0) return;
-    const QTextDocument *was = doc->storyDoc(doc->pages[at]->notesStoryId);
-    if ((was ? storyTextKeepingBreaks(was) : QString()) == text) return;
-    m_show->editNotes(m_notesPage, text);
+    if (m_rich) m_rich->flushTyping();
 }
 
 QImage PresenterView::nextImage() const { return m_nextView->image(); }
@@ -382,9 +451,13 @@ QImage PresenterView::nextImage() const { return m_nextView->image(); }
 void PresenterView::setNotesPointSize(int pt)
 {
     m_notesSize = std::clamp(pt, kMinNotes, kMaxNotes);
-    QFont f = m_notes->font();
-    f.setPointSize(m_notesSize);
-    m_notes->setFont(f);
+    if (m_rich) applyNotesSize();
+    else if (m_show) {
+        const int slide = m_show->targetSlide();
+        const Document *doc = m_show->document();
+        const QTextDocument *story = slide >= 0 && slide < doc->pages.size() ? doc->storyDoc(doc->pages[slide]->notesStoryId) : nullptr;
+        showCopy(story, story ? doc->pages[slide]->notesStoryId + QLatin1Char('/') + QString::number(story->revision()) + QLatin1Char('/') + QString::number(reinterpret_cast<quintptr>(story)) : QString());
+    }
     Settings::get().setValue(QStringLiteral("show/notesSize"), m_notesSize);
 }
 
@@ -474,7 +547,8 @@ bool PresenterView::eventFilter(QObject *o, QEvent *e)
         if (e->type() == QEvent::FocusOut) commitNotes();
         if (m_show && (e->type() == QEvent::FocusIn || e->type() == QEvent::KeyPress)) m_notes->setReadOnly(m_notesPage.isEmpty() || m_show->notesReadOnly());   // (the file can become read only during the show)
         // Whoever else holds typed notes saves them before these are typed in.
-        if (m_show && (e->type() == QEvent::FocusIn || (e->type() == QEvent::KeyPress && !static_cast<QKeyEvent *>(e)->text().isEmpty() && !m_notes->isReadOnly())))
+        // (a box edited through the editor holds the story alone, and its keys must not close the typing step each time)
+        if (m_show && !m_rich && (e->type() == QEvent::FocusIn || (e->type() == QEvent::KeyPress && !static_cast<QKeyEvent *>(e)->text().isEmpty() && !m_notes->isReadOnly())))
             m_show->startNotesTyping();
         // The keys that move the show on belong to the show, as the arrows and the letters belong to the text.
         if (e->type() == QEvent::KeyPress && m_show) {
