@@ -827,6 +827,38 @@ private Q_SLOTS:
         QCOMPARE(theTable(ed)->cols, 3);
     }
 
+    // Typing in a cell grows its row to hold the words (and the table with it); a row never shrinks by typing, and a table that does not grow to fit stays as it is.
+    void aRowGrowsAsWordsAreTypedInItsCell()
+    {
+        DeckWindow w;
+        w.resize(1440, 900);
+        w.show();
+        Editor *ed = w.editor();
+        tableOnSlide(w, 2, 2);
+        const QString id = theTable(ed)->id;
+        const double row0 = theTable(ed)->rowH[0], row1 = theTable(ed)->rowH[1], height = theTable(ed)->rect.height();
+        ed->beginTextEdit(id, 0, 0, 0);
+        QTest::keyClicks(w.canvas(), QStringLiteral(" the quick brown fox jumps over the lazy dog and keeps on running through the field").repeated(3));
+        QVERIFY2(theTable(ed)->rowH[0] > row0 + 20, qPrintable(QString::number(theTable(ed)->rowH[0])));
+        QCOMPARE(theTable(ed)->rowH[1], row1);
+        QCOMPARE(theTable(ed)->rect.height(), theTable(ed)->rowH[0] + theTable(ed)->rowH[1]);
+        QVERIFY(theTable(ed)->rect.height() > height + 20);
+        // Deleting the words does not shrink the row.
+        const double grown = theTable(ed)->rowH[0];
+        QTest::keyClick(w.canvas(), Qt::Key_A, Qt::ControlModifier);
+        QTest::keyClick(w.canvas(), Qt::Key_Delete);
+        QCOMPARE(theTable(ed)->rowH[0], grown);
+        ed->endTextEdit();
+        // A table that is not to grow to fit keeps its rows.
+        theTable(ed)->growToFit = false;
+        theTable(ed)->rowH[0] = row0;
+        theTable(ed)->syncRect();
+        ed->beginTextEdit(id, 0, 1, 0);
+        QTest::keyClicks(w.canvas(), QStringLiteral(" the quick brown fox jumps over the lazy dog and keeps on running through the field").repeated(3));
+        QCOMPARE(theTable(ed)->rowH[1], row1);
+        ed->endTextEdit();
+    }
+
     // Dragging the line between two columns of a table moves it: the column on its left widens, and the table's width stays.
     void tableColumnBorderDragResizesTheColumns()
     {
