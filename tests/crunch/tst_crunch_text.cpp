@@ -387,7 +387,7 @@ private Q_SLOTS:
         const QByteArray file = "name,qty,born,zip,code\nAnn,3,1990-05-13,02134,1E5\nBob,12,1985-12-01,90210,7\n";
         TextImportDialog dialog(guessing(file));
         QCOMPARE(dialog.previewColumns(), 5);
-        QCOMPARE(kindIndex(dialog, 0), 1);
+        QCOMPARE(kindIndex(dialog, 0), 0);   // (words: as typed keeps them as text)
         QCOMPARE(kindIndex(dialog, 1), 0);
         QCOMPARE(kindIndex(dialog, 2), 4);   // (year, month, day)
         QCOMPARE(kindIndex(dialog, 3), 1);
@@ -499,24 +499,53 @@ private Q_SLOTS:
         }
     }
 
+    // Whatever as typed reads right stays as typed: the file opened through the guessing preview comes in exactly as in a window that does not guess (booleans, times, dates with month names, signed numbers).
+    void whatAsTypedReadsRightComesInAsInAWindowThatDoesNotGuess()
+    {
+        const QByteArray file = "b,t,d,n,w\nTRUE,12:30,\"May 13, 2024\",-5,x\nFALSE,13:45,\"Jun 1, 2024\",-7.5,y\ntrue,9:05,\"Jul 4, 2024\",+3,z\n";
+        QStringList asked, plain;
+        for (const bool ask : {true, false}) {
+            EditWindow e;
+            e.win.w.setPromptForText(ask);
+            e.win.w.anchorHooks().textImportAsker = [](TextImportRequest *r) {
+                TextImportDialog d(*r);
+                for (int col = 0; col < 5; ++col) {
+                    auto *box = d.findChild<QComboBox *>(QStringLiteral("columnKind%1").arg(col));
+                    if (!box || box->currentIndex() != 0) return false;   // (every column is proposed as typed)
+                }
+                r->choices = d.choices();
+                return true;
+            };
+            QVERIFY(e.open(file, QStringLiteral("g.csv")));
+            for (const QString &col : {QStringLiteral("A"), QStringLiteral("B"), QStringLiteral("C"), QStringLiteral("D")})
+                for (int row = 2; row <= 4; ++row) (ask ? asked : plain) << e.shownAt(col + QString::number(row));
+        }
+        QCOMPARE(asked, plain);
+        QCOMPARE(asked.size(), 12);
+        QCOMPARE(asked.at(0), QStringLiteral("TRUE"));
+        QVERIFY(asked.at(3).contains(QLatin1Char(':')));
+        QCOMPARE(asked.at(9), QStringLiteral("-5"));
+    }
+
     // A kind the person set stays through every later change (separator, marks, names), and a column they did not set is guessed again from the new split.
     void aKindThePersonSetIsNeverReplacedByALaterGuess()
     {
-        TextImportDialog dialog(guessing("a,b,c\n1,2,3\n4,5,6\n"));
+        TextImportDialog dialog(guessing("007,b,c\n1,2,3\n4,5,6\n"));
+        QCOMPARE(kindIndex(dialog, 0), 0);
         QCOMPARE(kindIndex(dialog, 1), 0);
         QCOMPARE(kindIndex(dialog, 2), 0);
         dialog.findChild<QComboBox *>(QStringLiteral("columnKind1"))->setCurrentIndex(1);   // text
         QTRY_COMPARE(dialog.choices().columns.value(1).kind, jp::office::sheet::CsvColumn::Kind::Text);
-        // the names box off: the letters make column 0 and 2 text again, and the person's column 1 stays as it was set
+        // the names box off: the 007 is a code in column 0, which is text again, and the person's column 1 stays as it was set
         dialog.findChild<QCheckBox *>(QStringLiteral("textImportNames"))->setChecked(false);
         QTRY_COMPARE(kindIndex(dialog, 0), 1);
-        QCOMPARE(kindIndex(dialog, 2), 1);
+        QCOMPARE(kindIndex(dialog, 2), 0);
         QCOMPARE(kindIndex(dialog, 1), 1);
         // a different separator: column 1 is the person's still, and the others follow the new split
         dialog.findChild<QCheckBox *>(QStringLiteral("sepComma"))->setChecked(false);
         dialog.findChild<QCheckBox *>(QStringLiteral("sepSemicolon"))->setChecked(true);
         QTRY_COMPARE(dialog.previewColumns(), 1);
-        QCOMPARE(dialog.choices().columns.value(0).kind, jp::office::sheet::CsvColumn::Kind::Text);   // (the guess of the one column: its words)
+        QCOMPARE(dialog.choices().columns.value(0).kind, jp::office::sheet::CsvColumn::Kind::General);   // (the guess of the one column: as typed)
         dialog.findChild<QCheckBox *>(QStringLiteral("sepSemicolon"))->setChecked(false);
         dialog.findChild<QCheckBox *>(QStringLiteral("sepComma"))->setChecked(true);
         QTRY_COMPARE(dialog.previewColumns(), 3);
@@ -528,16 +557,16 @@ private Q_SLOTS:
         QCOMPARE(kindIndex(kept, 0), 5);
     }
 
-    // The marks the person chooses change what is a number: the guess follows them.
+    // The marks the person chooses change what as typed reads as a number: the guess follows them.
     void theMarksChosenDecideWhichColumnsAreNumbers()
     {
-        TextImportDialog dialog(guessing("amount;n\n\"1.234,50\";1\n\"2.000,00\";2\n"));
-        QCOMPARE(kindIndex(dialog, 0), 0);   // (the language's own marks are the point and comma: 1.234,50 is no number in them, and as typed keeps it as the text it is)
+        TextImportDialog dialog(guessing("amount\n\"1.234.567.890.123.456\"\n\"2.000.000.000.000.000\"\n"));
+        QCOMPARE(kindIndex(dialog, 0), 0);   // (the language's own marks are the point and comma: that is no number in them, and as typed keeps it as the text it is)
         auto *decimal = dialog.findChild<QComboBox *>(QStringLiteral("textImportDecimal"));
         auto *thousands = dialog.findChild<QComboBox *>(QStringLiteral("textImportThousands"));
         decimal->setCurrentIndex(decimal->findData(int(',')));
         thousands->setCurrentIndex(thousands->findData(int('.')));
-        QTRY_COMPARE(kindIndex(dialog, 0), 0);
+        QTRY_COMPARE(kindIndex(dialog, 0), 1);   // (a number of 19 digits now: text, so that its last digits are not lost)
     }
 
     // A file of 300 columns: the first 100 are shown and guessed, the others come in as text, and the note says so.

@@ -378,7 +378,7 @@ private Q_SLOTS:
     {
         const CsvColumn k = g.columns.value(col);
         switch (k.kind) {
-        case CsvColumn::Kind::General: return QStringLiteral("number");
+        case CsvColumn::Kind::General: return QStringLiteral("as typed");
         case CsvColumn::Kind::Text: return QStringLiteral("text");
         case CsvColumn::Kind::Date: return QStringLiteral("date ") + k.dateOrder;
         case CsvColumn::Kind::Skip: return QStringLiteral("skip");
@@ -390,25 +390,67 @@ private Q_SLOTS:
     {
         const CsvGuess g = guess("name,qty,price,born,zip,gap\nAnn,3,1.50,1990-05-13,02134,\nBob,12,-2,1985-12-01,90210,\n,,,,,\n", true);
         QCOMPARE(g.columns.size(), 6);
-        QCOMPARE(kindOf(g, 0), QStringLiteral("text"));
-        QCOMPARE(kindOf(g, 1), QStringLiteral("number"));
-        QCOMPARE(kindOf(g, 2), QStringLiteral("number"));
+        QCOMPARE(kindOf(g, 0), QStringLiteral("as typed"));   // (words: as typed keeps them as text)
+        QCOMPARE(kindOf(g, 1), QStringLiteral("as typed"));
+        QCOMPARE(kindOf(g, 2), QStringLiteral("as typed"));
         QCOMPARE(kindOf(g, 3), QStringLiteral("date YMD"));
-        QCOMPARE(kindOf(g, 4), QStringLiteral("text"));   // (a zero in front)
-        QCOMPARE(kindOf(g, 5), QStringLiteral("text"));   // (no value at all)
+        QCOMPARE(kindOf(g, 4), QStringLiteral("text"));   // (a zero in front, beside a number)
+        QCOMPARE(kindOf(g, 5), QStringLiteral("as typed"));   // (no value at all)
     }
 
-    void codesAndMixedKindsAreProposedAsText()
+    // What the guess may do: leave the column as typed (the cells a window that does not guess makes), or keep it as text. Each line of the rule, with the cells it gives compared with as typed.
+    void aColumnIsTextOnlyWhereAsTypedWouldDamageIt()
     {
-        // leading zeros, a plus sign, 16 digits, and an exponent each spoil a column of numbers; so do a word, a boolean, and a number with a date
-        const QByteArray file = "007,+5,1234567890123456,1E5,1,TRUE,5,12:30,1.5\n12,6,7,2,x,FALSE,01/02/2024,13:45,2,5\n";
-        const CsvGuess g = guess(file, false);
-        for (int c = 0; c < 8; ++c) QVERIFY2(kindOf(g, c) == QStringLiteral("text"), qPrintable(QString::number(c)));
-        // 15 digits are a number, and so is a column of plain numbers beside them
-        const CsvGuess plain = guess("123456789012345,0.5,-3,0\n999999999999999,10,4,0\n", false);
-        for (int c = 0; c < 4; ++c) QCOMPARE(kindOf(plain, c), QStringLiteral("number"));
-        // a code with digits grouped past 15 digits stays text
-        QCOMPARE(kindOf(guess("\"1,234,567,890,123,456\"\n", false), 0), QStringLiteral("text"));
+        LocaleScope locale(QLocale(QLocale::English, QLocale::UnitedStates));
+        struct Row {
+            const char *file;
+            const char *kind;
+        };
+        const Row rows[] = {
+            // as typed reads these right: left as typed, and the same cells
+            {"TRUE\nFALSE\ntrue\n", "as typed"},
+            {"12:30\n13:45\n", "as typed"},
+            {"2024-05-13 10:30\n2024-05-14 11:45\n", "as typed"},
+            {"May 13, 2024\nJun 1, 2024\n", "as typed"},
+            {"13 May 2024\n", "as typed"},
+            {"-5\n-7.5\n+3\n", "as typed"},
+            {"$5.00\n$7\n", "as typed"},
+            {"50%\n7%\n", "as typed"},
+            {"abc\ndef\n", "as typed"},
+            {"5\nabc\n", "as typed"},
+            {"007\n008\n", "text"},   // (a zero in front: as typed keeps these as text in a file, and a paste would not)
+            {"007\nabc\n", "text"},
+            {"1E5\n2E3\n", "as typed"},   // (codes only: as typed reads them all alike)
+            {"1234567890123456\n1234567890123457\n", "text"},
+            {"05/13/2024\n7\n", "as typed"},   // (a date with a number: as typed reads each as it is)
+            {"02/30/2024\n", "as typed"},
+            {"5\n \n6\n", "as typed"},
+            // what a number or a date would damage: text
+            {"007\n90210\n", "text"},   // (a zero in front, beside a number)
+            {"007\n12:30\n", "text"},
+            {"1234567890123456\n7\n", "text"},   // (more than 15 digits, beside a number)
+            {"\"1,234,567,890,123,456\"\n", "text"},   // (a number with more than 15 digits)
+            {"+5551234567\n+4412345678\n", "text"},   // (a plus sign before seven or more digits: a phone number)
+            {"+5551234567\n5\n", "text"},
+            {"1E5\nAB12\n", "text"},   // (an exponent, in a column that also holds other codes)
+            {"1E5\n12345\n", "text"},
+            {"1.13.2\n1/2/3\n", "text"},   // (as typed makes a date nobody wrote of 1/2/3)
+        };
+        QStringList wrong;
+        for (const Row &row : rows) {
+            const QByteArray file = row.file;
+            const CsvGuess g = guess(file, false);
+            const bool asTyped = QString::fromLatin1(row.kind) == QLatin1String("as typed");
+            bool right = kindOf(g, 0) == QString::fromLatin1(row.kind);
+            if (asTyped) right = right && imported(file, g.columns) == imported(file);   // (a column left as typed comes in as it does where nobody guesses)
+            else if (!QByteArray(row.file).startsWith("007") && !QByteArray(row.file).startsWith("12345678901234")) right = right && imported(file, g.columns) != imported(file);   // (text where as typed would change a value)
+            if (!right) wrong << QString::fromLatin1(file).replace(QLatin1Char('\n'), QLatin1Char('|'));
+        }
+        QVERIFY2(wrong.isEmpty(), qPrintable(wrong.join(QLatin1String("  "))));
+        // a plus sign before fewer digits is a sign, and the text of a phone number is kept as it was written
+        QCOMPARE(imported("+5551234567\n", guess("+5551234567\n", false).columns), QStringList{QStringLiteral("i:+5551234567")});
+        // a value that is no more than spaces: the guess and the import agree (the import keeps the spaces as text, and the column is as typed)
+        QCOMPARE(imported("5\n \n6\n", guess("5\n \n6\n", false).columns).value(1), imported("5\n \n6\n").value(1));
     }
 
     void aDateIsGuessedOnlyInTheOrderTheDataProves()
@@ -425,37 +467,41 @@ private Q_SLOTS:
         const CsvGuess clash = guess("05/13/2024\n13/05/2024\n", false);
         QCOMPARE(kindOf(clash, 0), QStringLiteral("text"));
         QVERIFY(!clash.dateOrderUnclear.value(0));
-        // a date with a number, a day that is no day, and any other way to write one: text
-        QCOMPARE(kindOf(guess("05/13/2024\n7\n", false), 0), QStringLiteral("text"));
-        QCOMPARE(kindOf(guess("02/30/2024\n", false), 0), QStringLiteral("text"));
-        QCOMPARE(kindOf(guess("May 13, 2024\n", false), 0), QStringLiteral("text"));
-        QCOMPARE(kindOf(guess("20240513\n", false), 0), QStringLiteral("number"));   // (eight digits are a number until a person says it is a date)
+        // a date with a number, a day that is no day, and any other way to write one: as typed
+        QCOMPARE(kindOf(guess("05/13/2024\n7\n", false), 0), QStringLiteral("as typed"));
+        QCOMPARE(kindOf(guess("02/30/2024\n", false), 0), QStringLiteral("as typed"));
+        QCOMPARE(kindOf(guess("May 13, 2024\n", false), 0), QStringLiteral("as typed"));
+        QCOMPARE(kindOf(guess("20240513\n", false), 0), QStringLiteral("as typed"));   // (eight digits are a number until a person says it is a date)
     }
 
+    // The marks the import chose decide what as typed reads as a number, so they decide whether a number of more than 15 digits is there to damage.
     void aNumberIsJudgedByTheMarksTheImportChose()
     {
+        const QByteArray file = "\"1.234.567.890.123.456\"\n";
         CsvImport german;
         german.decimalMark = QLatin1Char(',');
         german.thousandsMark = QLatin1Char('.');
-        QCOMPARE(kindOf(guess("\"1.234,5\"\n12\n", false, german), 0), QStringLiteral("number"));
+        QCOMPARE(kindOf(guess(file, false, german), 0), QStringLiteral("text"));   // (a number of 19 digits in these marks)
         CsvImport english;
         english.decimalMark = QLatin1Char('.');
         english.thousandsMark = QLatin1Char(',');
-        QCOMPARE(kindOf(guess("\"1.234,5\"\n12\n", false, english), 0), QStringLiteral("number"));   // (as typed keeps 1.234,5 as the text it is: left as typed)
-        QCOMPARE(kindOf(guess("\"1,234.5\"\n12\n", false, english), 0), QStringLiteral("number"));
+        QCOMPARE(kindOf(guess(file, false, english), 0), QStringLiteral("as typed"));   // (as typed keeps it as the text it is)
         // a minus sign after the number counts only when the import says so
-        QCOMPARE(kindOf(guess("5-\n", false), 0), QStringLiteral("number"));   // (a text for as typed: left as typed)
+        QCOMPARE(kindOf(guess("12345678901234567-\n", false), 0), QStringLiteral("as typed"));
         CsvImport trailing;
         trailing.trailingMinus = true;
-        QCOMPARE(kindOf(guess("5-\n", false, trailing), 0), QStringLiteral("number"));
+        QCOMPARE(kindOf(guess("12345678901234567-\n", false, trailing), 0), QStringLiteral("text"));
     }
 
     void theRowOfNamesIsNotSampledWhenItIsOnAndIsFoundWhenTextIsOverValues()
     {
         const QByteArray file = "qty,note\n1,a\n2,b\n";
         const CsvGuess with = guess(file, true), without = guess(file, false);
-        QCOMPARE(kindOf(with, 0), QStringLiteral("number"));
-        QCOMPARE(kindOf(without, 0), QStringLiteral("text"));
+        QCOMPARE(kindOf(with, 0), QStringLiteral("as typed"));
+        QCOMPARE(kindOf(without, 0), QStringLiteral("as typed"));
+        // the row of names is left out of what is sampled: a code over numbers is a name, not a code in the column
+        QCOMPARE(kindOf(guess("007\n1\n2\n", true), 0), QStringLiteral("as typed"));
+        QCOMPARE(kindOf(guess("007\n1\n2\n", false), 0), QStringLiteral("text"));
         QVERIFY(with.namesFound && without.namesFound);
         // no names: numbers all the way, or text that is under text
         QVERIFY(!guess("1,2\n3,4\n", false).namesFound);
@@ -465,21 +511,21 @@ private Q_SLOTS:
         // the rows before the first one chosen are left out
         CsvImport from;
         from.firstRow = 1;
-        QCOMPARE(kindOf(guess("junk line\n1,2\n3,4\n", false, from), 0), QStringLiteral("number"));
+        QCOMPARE(kindOf(guess("junk line\n1,2\n3,4\n", false, from), 0), QStringLiteral("as typed"));
     }
 
     // The guess looks at the first 200 rows, the first 100 columns, and the first megabyte, whatever the file holds (each limit is counted: remove one and a count here changes).
     void theGuessIsBounded()
     {
-        // a word on row 250 is not looked at; one on row 200 is
+        // a code with a zero in front on row 250 is not looked at; one on row 200 is
         QByteArray rows = "n\n";
         for (int r = 1; r < 250; ++r) rows += "1\n";
-        const CsvGuess far = guess(rows + "word\n", true);
-        QCOMPARE(kindOf(far, 0), QStringLiteral("number"));
+        const CsvGuess far = guess(rows + "007\n", true);
+        QCOMPARE(kindOf(far, 0), QStringLiteral("as typed"));
         QCOMPARE(far.fieldsLooked, qint64(kCsvGuessRows) + 1);   // (200 rows, and the one after them that a row of names would leave the first of)
         QByteArray near = "1\n";
         for (int r = 1; r < kCsvGuessRows - 1; ++r) near += "1\n";
-        QCOMPARE(kindOf(guess(near + "word\n", false), 0), QStringLiteral("text"));
+        QCOMPARE(kindOf(guess(near + "007\n", false), 0), QStringLiteral("text"));
         // 300 columns of 1,000 rows: the first 100 columns of the first 201 rows, and the rest said to be cut
         QByteArray wide;
         QByteArray line;
@@ -553,7 +599,7 @@ private Q_SLOTS:
         for (const QByteArray &file : versions) {
             const CsvGuess g = usGuess(file);
             // as typed when main keeps these as text, text when it would turn them into dates: never a date, and the import is never worse than main's
-            QVERIFY2(kindOf(g, 0) == (mainKeepsText(file) ? QStringLiteral("number") : QStringLiteral("text")), file.constData());
+            QVERIFY2(kindOf(g, 0) == (mainKeepsText(file) ? QStringLiteral("as typed") : QStringLiteral("text")), file.constData());
             if (mainKeepsText(file)) QCOMPARE(imported(file, g.columns), imported(file));
         }
         // a column that could be dates with two-digit years says so (the note offers the choice); four dotted numbers and the like are no dates
@@ -584,7 +630,7 @@ private Q_SLOTS:
         LocaleScope locale(QLocale(QLocale::English, QLocale::UnitedStates));
         const QByteArray files[] = {"=1+1\n=SUM(A1:A1)\n", "=1+1\n5\n", "5\n=1+1\nabc\n", "007\n=1+1\n"};
         for (const QByteArray &file : files) {
-            QCOMPARE(kindOf(usGuess(file, true), 0), QStringLiteral("number"));   // (as typed)
+            QCOMPARE(kindOf(usGuess(file, true), 0), QStringLiteral("as typed"));   // (as typed)
             QCOMPARE(kindOf(usGuess(file, false), 0), QStringLiteral("text"));
             // with the guess's columns, a ticked box still reads the formula: the same cells as a window that does not guess
             QCOMPARE(imported(file, usGuess(file, true).columns, true), imported(file, QVector<CsvColumn>(), true));

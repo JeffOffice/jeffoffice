@@ -1268,53 +1268,73 @@ namespace {
 
 constexpr int kOrderMDY = 1, kOrderDMY = 2, kOrderYMD = 4;
 
-// What a value is, as far as the guess is concerned.
-enum class Seen { Empty, Number, Date, Text, Plain, Formula };
+// What a value is, as far as the guess is concerned. The guess only leaves a column as typed (what the reader makes of every value, as in a window that does not guess), keeps it as text,
+// or makes it dates of one order: so each value is judged by what as typed makes of it.
+enum class Seen {
+    Empty,
+    Plain,     // as typed makes no number of it (a word, TRUE, a version number): nothing to protect
+    Number,    // as typed makes a number, a date, or a time of it
+    Date,      // three numbers with a four-digit year, in an order or more that make a date
+    Kept,      // digits with a zero in front or more than 15: as typed keeps these as text, because a number would damage them
+    ECode,     // as typed makes a number of it with an exponent (1E5): a code, in a column of codes
+    Formula,   // begins with = and "Read formulas" is on
+    Text,      // a value that as typed would damage or misread: its column is text
+};
+
+bool isNumeric(Seen what) { return what == Seen::Number || what == Seen::Date || what == Seen::ECode; }
 
 // What one column's values have shown so far.
 struct ColumnSeen {
-    bool any = false, allNumber = true, allDate = true, text = false, plain = false, formula = false;
+    bool any = false, formula = false, text = false;
     int orders = kOrderMDY | kOrderDMY | kOrderYMD;
     int shortOrders = kOrderMDY | kOrderDMY | kOrderYMD;   // (the orders a value with no four-digit year could be a date in, for the values that have none)
-    qint64 values = 0, shorts = 0;
+    qint64 values = 0, shorts = 0, numbers = 0, dates = 0, kept = 0, codes = 0;
     void add(Seen what, int mask, bool shortDate)
     {
         if (what == Seen::Empty) return;
         any = true;
         ++values;
-        if (what == Seen::Text) text = true;
-        if (what == Seen::Plain) plain = true;
-        if (what == Seen::Formula) formula = true;
-        if (what != Seen::Number) allNumber = false;
-        if (what != Seen::Date) allDate = false;
-        else orders &= mask;
+        if (isNumeric(what)) ++numbers;
+        switch (what) {
+        case Seen::Text: text = true; break;
+        case Seen::Formula: formula = true; break;
+        case Seen::Kept: ++kept; break;
+        case Seen::ECode: ++codes; break;
+        case Seen::Date:
+            ++dates;
+            orders &= mask;
+            break;
+        default: break;
+        }
         if (shortDate) {
             ++shorts;
             shortOrders &= mask;
         }
     }
+    // Whether every value is a number or a date (a row of names over such a column is found).
+    bool allNumeric() const { return any && numbers == values; }
     CsvColumn kind(bool *unclear) const
     {
         CsvColumn k;
-        k.kind = CsvColumn::Kind::Text;
         // (a column of version numbers or the like, which as typed keeps as the text it is, is left as typed; one that could be dates with two-digit years is offered the choice)
         if (unclear && shorts == values && shortOrders != 0) *unclear = true;
-        if (formula) {   // (a value the person asked to be read as a formula: the person's box is not overridden)
-            k.kind = CsvColumn::Kind::General;
+        if (formula || !any) return k;   // (a value to read as a formula is the person's: as typed; no value, nothing to guess)
+        k.kind = CsvColumn::Kind::Text;
+        if (text) return k;
+        // (a code with a zero in front, or of more than 15 digits, that a number would damage when it is typed in as it is pasted; and as typed would turn the values beside it into numbers or dates and keep it
+        // as text, changing it; or an exponent beside what it could be mistaken for)
+        if (kept > 0) return k;
+        if (codes > 0 && codes < values) return k;
+        if (dates == values) {
+            if (orders == kOrderMDY || orders == kOrderDMY || orders == kOrderYMD) {
+                k.kind = CsvColumn::Kind::Date;
+                k.dateOrder = orders == kOrderMDY ? QStringLiteral("MDY") : orders == kOrderDMY ? QStringLiteral("DMY") : QStringLiteral("YMD");
+            } else if (orders != 0 && unclear) {
+                *unclear = true;
+            }
             return k;
         }
-        if (!any || text) return k;
-        if (allNumber || (plain && !allDate && orders == (kOrderMDY | kOrderDMY | kOrderYMD))) {
-            k.kind = CsvColumn::Kind::General;
-            return k;
-        }
-        if (!allDate) return k;
-        if (orders == kOrderMDY || orders == kOrderDMY || orders == kOrderYMD) {
-            k.kind = CsvColumn::Kind::Date;
-            k.dateOrder = orders == kOrderMDY ? QStringLiteral("MDY") : orders == kOrderDMY ? QStringLiteral("DMY") : QStringLiteral("YMD");
-        } else if (orders != 0 && unclear) {
-            *unclear = true;
-        }
+        k.kind = CsvColumn::Kind::General;
         return k;
     }
 };
@@ -1326,7 +1346,6 @@ public:
         : m_formats(formatsOf(locale)), m_words(knownWordsOf(locale.locale, &m_months)), m_choices(choices),
           m_sink(m_formats, m_words, m_months, locale, Limits(), nullptr, -1, &m_scratch, plain(choices))
     {
-        for (auto it = m_formats.cbegin(); it != m_formats.cend(); ++it) m_codes.insert(it.value(), it.key());
     }
 
     bool field(quint32 col, QStringView text, bool quoted) override
@@ -1363,23 +1382,21 @@ public:
         g.columnsCut = m_cut;
         g.fieldsLooked = m_looked;
         const QVector<ColumnSeen> &use = firstRowNames ? m_rest : m_all;
-        bool firstIsText = false, firstHasValues = false, valuesBelow = false;
+        bool firstHasValues = false, valuesBelow = false;
         for (qsizetype c = 0; c < use.size(); ++c) {
             bool unclear = false;
             g.columns.append(use[c].kind(&unclear));
             g.dateOrderUnclear.append(unclear);
             if (m_first[c] != Seen::Empty) {
                 firstHasValues = true;
-                firstIsText = firstIsText || m_first[c] == Seen::Text;
-                bool ignored = false;
-                if (m_first[c] == Seen::Text && m_rest[c].kind(&ignored).kind != CsvColumn::Kind::Text) valuesBelow = true;
+                if (!isNumeric(m_first[c]) && m_rest[c].allNumeric()) valuesBelow = true;
             }
         }
         // (names: every value of the first row is text, and a column under one of them holds only numbers or dates)
         bool allText = firstHasValues;
         for (const Seen s : m_first)
-            if (s != Seen::Empty && s != Seen::Text) allText = false;
-        g.namesFound = allText && firstIsText && valuesBelow;
+            if (isNumeric(s)) allText = false;
+        g.namesFound = allText && valuesBelow;
         return g;
     }
 
@@ -1406,15 +1423,26 @@ private:
     {
         m_mask = 0;
         m_short = false;
+        if (raw.isEmpty()) return Seen::Empty;
         const QStringView s = raw.trimmed();
-        if (s.isEmpty()) return Seen::Empty;
-        static const QRegularExpression leadingZero(QStringLiteral("^-?0[0-9]")), exponent(QStringLiteral("[0-9][eE][+-]?[0-9]")),
-            separated(QStringLiteral("^(\\d{1,4})[\\s/.\\-](\\d{1,2})[\\s/.\\-](\\d{1,4})$"));
-        // (what a number would damage or a sign would lose stays text)
+        if (s.isEmpty()) return Seen::Plain;   // (spaces only: the import keeps them as text, so there is nothing to guess from)
         // (a value that begins with = is a formula only when the person ticked "Read formulas": then the column stays as typed; if not, it is text)
         if (s.front() == QLatin1Char('=') && s.size() > 1) return m_choices.readFormulas ? Seen::Formula : Seen::Text;
-        if (s.front() == QLatin1Char('+') || keepsAsText(s)) return Seen::Text;
+        static const QRegularExpression phone(QStringLiteral("^\\+\\d{7,}")), exponent(QStringLiteral("^[+\\-]?\\d+(\\.\\d+)?[eE][+\\-]?\\d+$")),
+            separated(QStringLiteral("^(\\d{1,4})[\\s/.\\-](\\d{1,2})[\\s/.\\-](\\d{1,4})$"));
+        // (what as typed makes of the value: a number only if the cell it leaves is one)
+        m_sink.forgetLast();
+        m_sink.field(0, raw, false);
+        m_sink.endRecord();
+        const bool number = m_sink.lastCell().type == CellType::Number;
+        if (keepsAsText(s)) return Seen::Kept;
         const QString text = s.toString();
+        // (a plus sign before seven digits or more is a phone number, which a number would shorten to its digits)
+        if (phone.match(text).hasMatch()) return Seen::Text;
+        qsizetype digits = 0;
+        for (const QChar c : s)
+            if (c.isDigit()) ++digits;
+        if (digits > 15 && number) return Seen::Text;   // (the 16th digit and the ones after it would become zeros)
         if (const QRegularExpressionMatch parts = separated.match(text); parts.hasMatch()) {
             // (a date is proven only with a year of four digits: 1.13.2 is a version number, and as typed makes of 1/2/3 a date nobody wrote)
             const bool yearFirst = parts.captured(1).size() == 4, yearLast = parts.captured(3).size() == 4;
@@ -1422,40 +1450,20 @@ private:
             if (yearLast && dateInOrder(text, QStringLiteral("MDY"), &serial)) m_mask |= kOrderMDY;
             if (yearLast && dateInOrder(text, QStringLiteral("DMY"), &serial)) m_mask |= kOrderDMY;
             if (yearFirst && dateInOrder(text, QStringLiteral("YMD"), &serial)) m_mask |= kOrderYMD;
-            if (yearFirst || yearLast) return m_mask ? Seen::Date : Seen::Text;
-            m_short = true;
-            if (dateInOrder(text, QStringLiteral("MDY"), &serial)) m_mask |= kOrderMDY;
-            if (dateInOrder(text, QStringLiteral("DMY"), &serial)) m_mask |= kOrderDMY;
-            if (dateInOrder(text, QStringLiteral("YMD"), &serial)) m_mask |= kOrderYMD;
-            m_sink.forgetLast();
-            m_sink.field(0, raw, false);
-            m_sink.endRecord();
-            return m_sink.lastCell().type == CellType::Number ? Seen::Text : Seen::Plain;   // (as typed makes a date of it: text then; as typed keeps it text: left as typed)
+            if (m_mask) return Seen::Date;
+            if (!yearFirst && !yearLast) {
+                m_short = true;
+                if (dateInOrder(text, QStringLiteral("MDY"), &serial)) m_mask |= kOrderMDY;
+                if (dateInOrder(text, QStringLiteral("DMY"), &serial)) m_mask |= kOrderDMY;
+                if (dateInOrder(text, QStringLiteral("YMD"), &serial)) m_mask |= kOrderYMD;
+            }
+            return number ? Seen::Text : Seen::Plain;   // (as typed makes a date nobody wrote of it: text then; as typed keeps it text: left as typed)
         }
-        if (leadingZero.match(text).hasMatch() || exponent.match(text).hasMatch()) return Seen::Text;
-        qsizetype digits = 0;
-        for (const QChar c : s)
-            if (c.isDigit()) ++digits;
-        if (digits > 15) return Seen::Text;
-        // (a number is what the reader makes of the field, as typed, with the person's marks; a date or a time it reads without an order stays text)
-        m_sink.forgetLast();
-        m_sink.field(0, s, false);
-        m_sink.endRecord();
-        const Cell &c = m_sink.lastCell();
-        if (c.type != CellType::Number) {
-            // (digits and marks that as typed keeps as text, 1.2.3.4: left as typed)
-            bool letters = false;
-            for (const QChar ch : s)
-                if (ch.isLetter()) letters = true;
-            return letters ? Seen::Text : Seen::Plain;
-        }
-        const QString code = m_codes.value(c.style);
-        if (code.contains(QLatin1Char('h')) || code.startsWith(QLatin1String("m/d/yyyy")) || code.contains(QLatin1Char('E'))) return Seen::Text;
-        return Seen::Number;
+        if (!number) return Seen::Plain;
+        return exponent.match(text).hasMatch() ? Seen::ECode : Seen::Number;
     }
 
     QHash<QString, quint32> m_formats;
-    QHash<quint32, QString> m_codes;
     QSet<QString> m_months;
     QSet<QString> m_words;
     CsvImport m_choices;
