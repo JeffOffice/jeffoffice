@@ -35,6 +35,7 @@ The box under the search box sets how the places are listed. **As text** lists t
 - **Promote** and **Demote** make the selected headings, and the headings under them, one level bigger or smaller. Alt+Shift+Left and Alt+Shift+Right do the same.
 - **Promote to Heading 1** and **Demote to Body Text** jump to the biggest heading or to plain text.
 - **Move Up** and **Move Down** (Alt+Shift+Up and Alt+Shift+Down) move a heading, with everything under it, above or below the one next to it.
+- Drag the small square at the left of a heading to move it, with everything under it, to another place. A line shows where it will go, and it goes before the row the line is above. Drag it above the first row to make it the first, or below the last row to make it the last. Pressing the words of a row only selects it. It is one step you can undo. Like **Move Section Up** in the pages, a drag is refused while Track Changes is on; use **Move Up** and **Move Down** then.
 - The small arrow beside a heading, or **Expand** and **Collapse**, shows or hides what is under it.
 - **Show Level** shows only the headings down to the level you pick, such as Level 2, and hides the text. **All Levels** shows everything.
 - **Show Text Formatting** draws big headings in bold. **Show First Line Only** cuts each paragraph of text to one line.

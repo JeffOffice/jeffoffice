@@ -5,7 +5,13 @@
 #include "core/styleinspect.h"
 #include "core/writedoc.h"
 
+#include <QApplication>
+#include <QFrame>
 #include <QHeaderView>
+#include <QIcon>
+#include <QMouseEvent>
+#include <QPainter>
+#include <QPixmap>
 #include <QKeyEvent>
 #include <QStack>
 #include <QTextBlock>
@@ -15,6 +21,21 @@ namespace jp {
 
 namespace {
 constexpr int kPositionRole = Qt::UserRole, kLevelRole = Qt::UserRole + 1;
+
+constexpr int kSymbolSize = 10;
+
+// The small square at the left of a heading's words: the thing to hold to move the heading with all that is under it.
+QIcon headingSymbol(const QColor &color)
+{
+    QPixmap pm(kSymbolSize * 2, kSymbolSize * 2);
+    pm.setDevicePixelRatio(2);
+    pm.fill(Qt::transparent);
+    QPainter p(&pm);
+    p.setPen(Qt::NoPen);
+    p.setBrush(color);
+    p.drawRoundedRect(QRectF(1, 1, kSymbolSize - 2, kSymbolSize - 2), 1.5, 1.5);
+    return QIcon(pm);
+}
 
 QString keyOf(int level, const QString &text) { return QString::number(level) + QLatin1Char(':') + text; }
 } // namespace
@@ -33,6 +54,7 @@ WriteOutlineView::WriteOutlineView(QWidget *parent) : QTreeWidget(parent)
     setRootIsDecorated(true);
     setFrameShape(QFrame::NoFrame);
     header()->setStretchLastSection(true);
+    setIconSize(QSize(kSymbolSize, kSymbolSize));
     connect(this, &QTreeWidget::itemChanged, this, [this](QTreeWidgetItem *item, int) {
         if (!m_building) Q_EMIT textTyped(positionOf(item), item->text(0));
     });
@@ -58,6 +80,90 @@ void WriteOutlineView::keyPressEvent(QKeyEvent *e)
         return;
     }
     QTreeWidget::keyPressEvent(e);
+}
+
+// Dragging a heading's symbol moves its section: a line shows where it will go, and letting go says so (the window moves it). It is done here and not with the tree's own drag and drop,
+// which would move the rows and not the text.
+void WriteOutlineView::mousePressEvent(QMouseEvent *e)
+{
+    endDrag();
+    if (e->button() == Qt::LeftButton && m_doc && state() != EditingState) {
+        const QModelIndex index = indexAt(e->pos());
+        const QTreeWidgetItem *item = index.isValid() ? itemFromIndex(index) : nullptr;
+        if (item && levelOf(item) < write::kBodyLevel) {
+            const QRect r = visualRect(index);
+            if (e->pos().x() >= r.left() && e->pos().x() < r.left() + kSymbolSize + 8) {
+                m_dragPosition = positionOf(item);
+                m_pressedAt = e->pos();
+            }
+        }
+    }
+    QTreeWidget::mousePressEvent(e);
+}
+
+void WriteOutlineView::mouseMoveEvent(QMouseEvent *e)
+{
+    if (m_dragPosition < 0 || !(e->buttons() & Qt::LeftButton)) {
+        QTreeWidget::mouseMoveEvent(e);
+        return;
+    }
+    if (!m_dragging && (e->pos() - m_pressedAt).manhattanLength() < QApplication::startDragDistance()) return;
+    m_dragging = true;
+    viewport()->setCursor(Qt::ClosedHandCursor);
+    int lineY = 0;
+    m_dropBefore = dropBeforeAt(e->pos().y(), &lineY);
+    if (!m_dropLine) {
+        m_dropLine = new QFrame(viewport());
+        m_dropLine->setObjectName(QStringLiteral("outlineDropLine"));
+        m_dropLine->setAutoFillBackground(true);
+        m_dropLine->setAttribute(Qt::WA_TransparentForMouseEvents);
+        QPalette pal = m_dropLine->palette();
+        pal.setColor(QPalette::Window, palette().color(QPalette::Highlight));
+        m_dropLine->setPalette(pal);
+    }
+    m_dropLine->setGeometry(0, std::max(0, lineY - 1), viewport()->width(), 2);
+    m_dropLine->show();
+    m_dropLine->raise();
+}
+
+void WriteOutlineView::mouseReleaseEvent(QMouseEvent *e)
+{
+    if (!m_dragging) {
+        endDrag();
+        QTreeWidget::mouseReleaseEvent(e);
+        return;
+    }
+    const int position = m_dragPosition, before = m_dropBefore;
+    endDrag();
+    Q_EMIT sectionDragged(position, before);
+}
+
+void WriteOutlineView::endDrag()
+{
+    if (m_dragging) viewport()->unsetCursor();
+    m_dragging = false;
+    m_dragPosition = -1;
+    if (m_dropLine) m_dropLine->hide();
+}
+
+int WriteOutlineView::dropBeforeAt(int y, int *lineY) const
+{
+    const QTreeWidgetItem *last = nullptr;
+    for (const QTreeWidgetItem *item = itemAt(1, 0); item; item = itemBelow(item)) {
+        const QRect r = visualItemRect(item);
+        if (y < r.center().y()) {
+            *lineY = r.top();
+            return positionOf(item);
+        }
+        if (y < r.bottom() + 1) {
+            const QTreeWidgetItem *next = itemBelow(item);
+            *lineY = r.bottom() + 1;
+            return next ? positionOf(next) : -1;
+        }
+        last = item;
+    }
+    *lineY = last ? visualItemRect(last).bottom() + 1 : 0;
+    return -1;
 }
 
 void WriteOutlineView::setDocument(write::WriteDoc *doc)
@@ -171,6 +277,7 @@ void WriteOutlineView::rebuild()
         item->setData(0, kPositionRole, r.position);
         item->setData(0, kLevelRole, r.level);
         if (r.editable) item->setFlags(item->flags() | Qt::ItemIsEditable);
+        if (r.heading()) item->setIcon(0, headingSymbol(palette().color(QPalette::Mid)));
         if (r.heading())
             while (!open.isEmpty() && levelOf(open.top()) >= r.level) open.pop();
         if (open.isEmpty()) addTopLevelItem(item);

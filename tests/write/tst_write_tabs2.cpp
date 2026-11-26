@@ -31,6 +31,9 @@
 
 #include "office/package.h"
 #include <QAction>
+#include <QApplication>
+#include <QFrame>
+#include <QMouseEvent>
 #include <QInputMethodEvent>
 #include <QBuffer>
 #include <QImage>
@@ -789,6 +792,57 @@ private Q_SLOTS:
         QCOMPARE(texts(*w.document()), (QStringList{"One", "Sub", "", "body"}));
         QCOMPARE(levels(*w.document()).at(2), 1);
         QCOMPARE(w.outlineView()->selectedRange().first, outlineRows(*w.document())[2].position);
+    }
+
+    // Dragging the symbol of a heading moves its section (with real press, move, and release events): a line shows where it will go, and one step of Undo puts it back. A press on the words only
+    // selects, and a drag that ends where it began, or inside the section itself, moves nothing.
+    void draggingAHeadingSymbolMovesItsSection()
+    {
+        WriteWindow w;
+        w.setNotifier([](const QString &, const QString &) {});
+        w.resize(900, 700);
+        w.show();
+        w.setDocument(outlineDoc({{"One", 0}, {"body", kBodyLevel}, {"Two", 0}, {"Three", 0}}), QString());
+        w.setOutlineMode(true);
+        WriteOutlineView *view = w.outlineView();
+        QWidget *port = view->viewport();
+        auto item = [&](int row) {
+            QTreeWidgetItem *it = view->topLevelItem(0);
+            for (int i = 0; i < row && it; ++i) it = view->itemBelow(it);
+            return it;
+        };
+        auto send = [&](QEvent::Type type, QPoint at, Qt::MouseButton button, Qt::MouseButtons held) {
+            QMouseEvent e(type, at, port->mapToGlobal(at), button, held, Qt::NoModifier);
+            QApplication::sendEvent(port, &e);
+        };
+        auto drag = [&](int fromRow, int toRow, bool below, bool onSymbol = true) {
+            const QRect from = view->visualItemRect(item(fromRow));
+            const QRect to = view->visualItemRect(item(toRow));
+            const QPoint start(from.left() + (onSymbol ? 4 : from.width() / 2), from.center().y());
+            const QPoint end(to.left() + 30, below ? to.bottom() - 2 : to.top() + 2);
+            send(QEvent::MouseButtonPress, start, Qt::LeftButton, Qt::LeftButton);
+            send(QEvent::MouseMove, QPoint(start.x(), start.y() + 1), Qt::NoButton, Qt::LeftButton);
+            send(QEvent::MouseMove, end, Qt::NoButton, Qt::LeftButton);
+            const QFrame *line = port->findChild<QFrame *>(QStringLiteral("outlineDropLine"));
+            const bool shown = line && line->isVisible();
+            send(QEvent::MouseButtonRelease, end, Qt::LeftButton, Qt::NoButton);
+            return shown;
+        };
+        // "Three" to the top: before "One".
+        QVERIFY2(drag(3, 0, false), "a line shows where it will go");
+        QCOMPARE(texts(*w.document()), (QStringList{"Three", "One", "body", "Two"}));
+        QVERIFY(!port->findChild<QFrame *>(QStringLiteral("outlineDropLine"))->isVisible());
+        w.document()->undo();
+        QCOMPARE(texts(*w.document()), (QStringList{"One", "body", "Two", "Three"}));
+        // "One" with its body, to the end.
+        QVERIFY(drag(0, 3, true));
+        QCOMPARE(texts(*w.document()), (QStringList{"Two", "Three", "One", "body"}));
+        w.document()->undo();
+        // Dragged by its words, and let go where it began, nothing moves.
+        QVERIFY2(!drag(2, 0, false, false), "no line is drawn for a drag by the words");
+        QCOMPARE(texts(*w.document()), (QStringList{"One", "body", "Two", "Three"}));
+        drag(0, 1, false);   // (inside its own section)
+        QCOMPARE(texts(*w.document()), (QStringList{"One", "body", "Two", "Three"}));
     }
 
     void draftViewJoinsThePagesAndDrawsNoEdgesOrHeaders()

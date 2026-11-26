@@ -1,6 +1,7 @@
 #pragma once
 // Outline view (View > Outline): the document's paragraphs as a tree, a heading with the headings and text under it, to promote, demote, and move as a whole, and to show down to a level.
 
+#include <QPoint>
 #include <QSet>
 #include <QTreeWidget>
 
@@ -9,6 +10,8 @@ class WriteDoc;
 class StyleArea;
 struct StyleRow;
 }
+
+class QFrame;
 
 namespace jp {
 
@@ -56,14 +59,21 @@ Q_SIGNALS:
     void levelKeyPressed(int by);
     // Words typed into a row: the place in the text of its paragraph and the new words.
     void textTyped(int position, const QString &text);
+    // A heading's symbol was dragged and let go: the place in the text of its paragraph, and the place of the paragraph its section is to go before (-1: the end of the text).
+    void sectionDragged(int position, int before);
 
 protected:
     bool event(QEvent *e) override;
     void updateGeometries() override;   // (the tree sets the viewport's margins itself; the strip's room is put back)
     void keyPressEvent(QKeyEvent *e) override;
+    void mousePressEvent(QMouseEvent *e) override;
+    void mouseMoveEvent(QMouseEvent *e) override;
+    void mouseReleaseEvent(QMouseEvent *e) override;
 
 private:
     void applyLevel();
+    void endDrag();
+    int dropBeforeAt(int y, int *lineY) const;   // the place a section dropped at this height goes before, and the height of the line that shows it
     void applyLook(QTreeWidgetItem *item);
     write::WriteDoc *m_doc = nullptr;
     write::StyleArea *m_styleArea = nullptr;
@@ -72,6 +82,11 @@ private:
     int m_level = 0;
     bool m_formatting = true, m_firstLine = false;
     bool m_building = false;
+    QPoint m_pressedAt;
+    int m_dragPosition = -1;     // the paragraph whose symbol is held (-1: none)
+    bool m_dragging = false;
+    int m_dropBefore = -1;
+    QFrame *m_dropLine = nullptr;
     QSet<QString> m_collapsed;   // (level and words of a collapsed heading)
 };
 

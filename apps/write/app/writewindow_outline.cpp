@@ -9,6 +9,7 @@
 #include "app/ruler.h"
 #include "app/settings.h"
 #include "core/outlineops.h"
+#include "core/sectionmove.h"
 
 #include <QAction>
 #include <QActionGroup>
@@ -101,6 +102,17 @@ void WriteWindow::createOutlineActions()
         outlineEdited();
         m_outline->selectParagraphAt(at);
         if (QTreeWidgetItem *item = m_outline->currentItem(); item && (item->flags() & Qt::ItemIsEditable)) m_outline->editItem(item);
+    });
+    connect(m_outline, &WriteOutlineView::sectionDragged, this, [this](int position, int before) {
+        if (!m_doc || !m_outlineOn || !mayEdit()) return;
+        QString why;
+        int at = -1;
+        if (write::moveSection(*m_doc, position, before, &why, &at)) {
+            outlineEdited();
+            m_outline->selectParagraphAt(at);
+        } else if (!why.isEmpty()) {
+            statusBar()->showMessage(why, 5000);
+        }
     });
     connect(m_outline, &WriteOutlineView::textTyped, this, [this](int position, const QString &text) {
         if (!m_doc || !m_outlineOn) return;
