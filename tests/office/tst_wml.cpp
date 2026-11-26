@@ -3703,6 +3703,54 @@ private Q_SLOTS:
         QCOMPARE(g.html.count(QLatin1String("<body")), 1);
     }
 
+    // A copied spreadsheet block: a style on every cell, as another program writes it to the clipboard.
+    static QString styledSheet(int rows, int cols)
+    {
+        QString page = QStringLiteral("<html><body><!--StartFragment--><table border=0 cellpadding=0 cellspacing=0 style=\"border-collapse:collapse;table-layout:fixed\">");
+        for (int r = 0; r < rows; ++r) {
+            page += QStringLiteral("<tr height=20 style=\"height:15.0pt\">");
+            for (int c = 0; c < cols; ++c) {
+                page += QStringLiteral("<td class=xl65 style=\"%1font-size:11.0pt;font-family:Calibri,sans-serif;text-align:general;vertical-align:bottom;border:none;mso-ignore:padding;color:black;background:#%2\">%3</td>")
+                            .arg(r == 0 ? QStringLiteral("font-weight:700;") : QString(), (r + c) % 7 == 0 ? QStringLiteral("FFFF00") : QStringLiteral("FFFFFF"), QString::number(r * cols + c));
+            }
+            page += QStringLiteral("</tr>");
+        }
+        return page + QStringLiteral("</table><!--EndFragment--></body></html>");
+    }
+    // The two everyday blocks that the style cap must let through with every look kept: 5,000 x 20 cells (10 million characters of style), and a price list of 20,000 x 8 (16.3 million).
+    // fails when off: yes for the cap (a cap under 16.3 million leaves out looks of the price list, and the count says so; theStylesOfAPageAreHeldToTheCharacterCap fails with the check taken out)
+    void aCopiedSpreadsheetKeepsTheLookOfEveryCell()
+    {
+        for (const QPair<int, int> shape : {QPair<int, int>(5000, 20), QPair<int, int>(20000, 8)}) {
+            const GuardedHtml g = guardHtml(styledSheet(shape.first, shape.second));
+            QCOMPARE(int(g.refusal), int(HtmlRefusal::None));
+            QCOMPARE(g.counts.cells, qint64(shape.first) * shape.second);
+            QCOMPARE(g.counts.stylesLeftOut, 0);
+            QCOMPARE(g.html.count(QLatin1String("font-family:Calibri,sans-serif")), shape.first * shape.second);
+            QVERIFY(g.html.contains(QLatin1String("background:#FFFF00")));
+            QVERIFY(g.html.contains(QLatin1String("font-weight:700")));
+            QVERIFY(!g.html.contains(QLatin1String("mso-")));
+            QVERIFY(g.counts.styleChars <= kMostHtmlStyleChars);
+        }
+    }
+    // fails when off: yes (the check of the style characters taken out of htmlguard.cpp)
+    void theStylesOfAPageAreHeldToTheCharacterCap()
+    {
+        QStringList family;   // (eight long declarations: a value is at most 100 characters)
+        for (int i = 0; i < 8; ++i) family << QStringLiteral("font-family:") + QString(90, QLatin1Char('a'));
+        const QString unit = QStringLiteral("<span style=\"") + family.join(QLatin1Char(';')) + QStringLiteral("\">x</span>");
+        const qint64 each = guardHtml(unit).counts.styleChars;
+        QVERIFY(each > 800);
+        const qint64 fit = kMostHtmlStyleChars / each;
+        GuardedHtml g = guardHtml(repeatedText(unit, fit));
+        QCOMPARE(g.counts.stylesLeftOut, 0);
+        QVERIFY(g.counts.styleChars <= kMostHtmlStyleChars);
+        g = guardHtml(repeatedText(unit, fit + 2));
+        QCOMPARE(g.counts.stylesLeftOut, 2);
+        QVERIFY(g.counts.styleChars <= kMostHtmlStyleChars);
+        QCOMPARE(int(g.refusal), int(HtmlRefusal::None));
+    }
+
     // A table's own style that says "no border" over its own border attribute (what a copied web spreadsheet writes) is not a default, and the table comes out as it does unguarded.
     // fails when off: yes (the border test of isDefault taken back to the border of the table the part stands in)
     void aTableStyleThatSaysNoBorderOverItsBorderAttributeIsKept()
