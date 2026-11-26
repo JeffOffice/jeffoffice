@@ -517,7 +517,9 @@ void Calculation::letGoOfSpill(int sheet, qint32 formula)
     for (const auto &[row, col] : gone) {
         const quint32 rowId = s.cells.rowIdAt(row), colId = s.cells.colIdAt(col);
         if (defer) {
-            m_strays.push_back({sheet, rowId, colId, formula, true});
+            Stray st{sheet, rowId, colId, formula};
+            st.formulaGoing = true;
+            m_strays.push_back(st);
             m_strayPlaces.insert(StrayPlace{sheet, rowId, colId});
             m_strayCount.store(qint64(m_strays.size()), std::memory_order_release);
             tellGone(sheet, rowId, colId);
