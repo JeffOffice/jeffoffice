@@ -272,6 +272,16 @@ ChartPlan planChart(const ChartCells &cells, int sheet, const QString &sheetName
     if (scatter || isStockKind(kind)) inRows = inRowsAsked == 1;   // (a stock chart's series are its columns, whatever the shape of the cells)
     ChartPlan plan = planChartFrom(sheetName, r, headerRow, headerColumn, inRows, kind);
     plan.truncated = plan.truncated || truncated;
+    if (isStockKind(kind) && headerColumn && !inRows) {
+        // the first column is days when every cell of it that has something is a date
+        quint32 dates = 0, others = 0;
+        for (quint32 row = r.row1 + (headerRow ? 1 : 0); row <= r.row2 && row < r.row1 + 4096; ++row) {
+            const Kind k = kindOfCell(row, r.col1);
+            if (k == Kind::Date) ++dates;
+            else if (k != Kind::Empty) ++others;
+        }
+        plan.dates = dates > 0 && others == 0;
+    }
     return plan;
 }
 
@@ -322,19 +332,10 @@ ChartPlot plotOf(ChartKind kind)
         p.stock = true;
         p.grouping = ChartGrouping::Standard;
         p.markers = false;
+        // (the high-low lines and the bars say nothing of their looks, as other programs write them: the chart draws them thin black, a rise near white and a fall dark gray)
         p.hiLowLines = true;
-        p.hiLowLine.set = true;
-        p.hiLowLine.color = QColor(0x40, 0x40, 0x40);
-        p.hiLowLine.width = 1;
         p.upDownBars = kind == ChartKind::StockOHLC || kind == ChartKind::StockVOHLC;
-        if (p.upDownBars) {
-            // a rise is hollow and a fall is filled
-            p.upBarFill = QColor(Qt::white);
-            p.downBarFill = QColor(0x40, 0x40, 0x40);
-            p.upBarLine.set = p.downBarLine.set = true;
-            p.upBarLine.color = p.downBarLine.color = QColor(0x40, 0x40, 0x40);
-            p.upBarLine.width = p.downBarLine.width = 0.75;
-        }
+        p.upDownGap = 150;
         break;
     }
     }
@@ -457,13 +458,14 @@ Chart chartFromSeries(const QVector<ChartSeries> &series, const QVector<SeriesKi
         }
         if (p.type == ChartType::Scatter) s.smooth = p.lines && p.smooth;
         if (p.stock) {
-            // a stock chart's series are not joined; the close has a mark where there are no bars (the high and low have none)
-            const int price = i - (kinds.value(0).kind == ChartKind::Column ? 1 : 0), prices = p.upDownBars ? 4 : 3;
+            // a stock chart's series are not joined; the close has a dot where there are no bars (3 points, 5 with a volume), and nothing else has a mark
+            const bool withVolume = kinds.value(0).kind == ChartKind::Column;
+            const int price = i - (withVolume ? 1 : 0), prices = p.upDownBars ? 4 : 3;
             s.outline = ChartLine();
             s.outline.set = s.outline.none = true;
             s.marker = ChartMarker();
-            s.marker.size = 7;
-            s.marker.symbol = !p.upDownBars && price == prices - 1 ? ChartMarker::Dash : ChartMarker::None;
+            s.marker.size = withVolume ? 5 : 3;
+            s.marker.symbol = !p.upDownBars && price == prices - 1 ? ChartMarker::Dot : ChartMarker::None;
             s.smooth = false;
         } else if (like && stockLike) {
             s.outline = ChartLine();   // (what a stock chart's series said of their lines and marks belongs to it)
@@ -503,10 +505,22 @@ Chart chartFromSeries(const QVector<ChartSeries> &series, const QVector<SeriesKi
             val.format = QStringLiteral("0%");
             val.formatLinked = false;
         }
+        // (a stock chart of days: the categories are on a date axis, by the day, as the common programs make it)
+        bool stockOfDays = false;
+        for (const Group &g : groups) stockOfDays = stockOfDays || (g.plot.stock && !g.plot.series.isEmpty() && g.plot.series.first().categoryRefNumeric);
+        const auto asDays = [&](ChartAxis &a) {
+            if (!stockOfDays) return;
+            a.kind = ChartAxis::Date;
+            a.baseTimeUnit = QStringLiteral("days");
+            a.format = QStringLiteral("m/d/yyyy");
+            a.formatLinked = false;   // (the days are shown as month, day, and year whatever the cells show: a day with no cell, a weekend, is labeled the same way)
+        };
+        asDays(cat);
         c.axes << cat << val;
         if (anySecondary) {
             ChartAxis cat2 = axisOf(ChartAxis::Category, kCat2Id, kVal2Id, QStringLiteral("b"));
             cat2.deleted = true;
+            asDays(cat2);
             ChartAxis val2 = axisOf(ChartAxis::Value, kVal2Id, kCat2Id, QStringLiteral("r"));
             val2.crosses = QStringLiteral("max");
             c.axes << cat2 << val2;
@@ -598,6 +612,8 @@ Chart makeChart(ChartKind kind, const ChartPlan &plan, const jp::office::Theme &
         s.categoryRef = plan.series[i].categoryRef;
         s.valueRef = plan.series[i].valueRef;
         s.xRef = plan.series[i].xRef;
+        s.categoryRefNumeric = plan.dates && isStockKind(kind);   // (the days of a stock chart are numbers: the chart is spaced by the day)
+        if (s.categoryRefNumeric) s.categoryFormat = QStringLiteral("m/d/yyyy");
         series << s;
         // a combo: columns, and the last series a line on a second pair of axes
         kinds << (combo && i == count - 1 ? SeriesKind{ChartKind::LineMarkers, true} : SeriesKind{kind == ChartKind::Combo ? ChartKind::Column : kind, false});

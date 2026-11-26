@@ -364,23 +364,35 @@ private Q_SLOTS:
             QVERIFY(stock.stock && stock.hiLowLines);
             QCOMPARE(stock.upDownBars, f.bars);
             QCOMPARE(int(stock.series.size()), f.series - (f.plots == 2 ? 1 : 0));
-            // no line through a series, and the close alone is marked where there are no bars
+            // no line through a series, and the close alone is marked where there are no bars: a dot of 3 points, of 5 with a volume
             for (int i = 0; i < stock.series.size(); ++i) {
                 QVERIFY(stock.series[i].outline.none);
-                QCOMPARE(int(stock.series[i].marker.symbol), int(!f.bars && i == stock.series.size() - 1 ? ChartMarker::Dash : ChartMarker::None));
+                const bool close = !f.bars && i == stock.series.size() - 1;
+                QCOMPARE(int(stock.series[i].marker.symbol), int(close ? ChartMarker::Dot : ChartMarker::None));
+                if (close) QCOMPARE(stock.series[i].marker.size, f.plots == 2 ? 5.0 : 3.0);
             }
+            // the lines between the series say nothing of their looks (they are drawn thin black, a rise near white and a fall dark gray), and the bars are a gap of 150
+            QVERIFY(!stock.hiLowLine.set && !stock.upBarFill.isValid() && !stock.downBarFill.isValid() && !stock.upBarLine.set && !stock.downBarLine.set);
+            QCOMPARE(stock.upDownGap, 150);
             if (f.plots == 2) {
                 // the volume is columns on the first axes; the prices are against a second pair, whose value axis is on the right
                 QCOMPARE(int(made.plots[0].type), int(ChartType::Bar));
                 QCOMPARE(int(made.plots[0].series.size()), 1);
                 QCOMPARE(made.axes.size(), 4);
                 QCOMPARE(made.axis(stock.axisIds[1])->position, QStringLiteral("r"));
+                // the volume's axis is the visible one on the left, with gridlines; the prices' is on the right, crosses at the greatest, has none, and its category axis is deleted
+                const ChartAxis *volumeValue = made.axis(made.plots[0].axisIds[1]), *priceValue = made.axis(stock.axisIds[1]);
+                QVERIFY(!volumeValue->deleted && volumeValue->majorGridlines && volumeValue->position == QLatin1String("l"));
+                QVERIFY(!priceValue->majorGridlines && priceValue->crosses == QLatin1String("max"));
+                QVERIFY(!made.axis(made.plots[0].axisIds[0])->deleted && made.axis(stock.axisIds[0])->deleted);
                 QVERIFY(made.plots[0].axisIds[1] != stock.axisIds[1]);
             } else {
                 QCOMPARE(made.axes.size(), 2);
             }
             const QByteArray part = writeChartPart(made);
             QVERIFY(part.contains("<c:stockChart>"));
+            QVERIFY(part.contains("<c:hiLowLines/>"));
+            QCOMPARE(part.contains("<c:upBars/><c:downBars/>"), f.bars);
             QString why;
             QVERIFY2(chartIsFullyModeled(part, &why), qPrintable(why));
             Chart back;

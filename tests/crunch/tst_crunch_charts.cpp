@@ -511,15 +511,15 @@ private Q_SLOTS:
     }
 
     // The cells of a stock table typed into a blank workbook, one row of texts after another from A1, and selected.
-    static void typeStockTable(EditWindow &e, const QVector<QStringList> &rows)
+    static void typeStockTable(EditWindow &e, const QVector<QStringList> &rows, char firstColumn = 'A')
     {
         for (int r = 0; r < rows.size(); ++r)
             for (int c = 0; c < rows[r].size(); ++c) {
-                e.select(QStringLiteral("%1%2").arg(QChar('A' + c)).arg(r + 1));
+                e.select(QStringLiteral("%1%2").arg(QChar(firstColumn + c)).arg(r + 1));
                 e.enter(rows[r][c]);
             }
         QVERIFY(e.settle());
-        selectRange(e, QStringLiteral("A1:%1%2").arg(QChar('A' + int(rows.first().size()) - 1)).arg(rows.size()));
+        selectRange(e, QStringLiteral("%1%2:%3%4").arg(QChar(firstColumn)).arg(1).arg(QChar(firstColumn + int(rows.first().size()) - 1)).arg(rows.size()));
     }
 
     // Each of the four stock forms and the Stock button on the ribbon makes its form from cells that fit it, with the prices' columns as the series (a header row of names, the days down the first column).
@@ -593,6 +593,45 @@ private Q_SLOTS:
             QVERIFY2(all.size() == c.series, c.what);
             for (const ChartSeries &s : all) QVERIFY2(s.values.size() == c.points && s.categories.size() == c.points, c.what);
         }
+    }
+
+    // Days typed as dates make a stock chart on a date axis: spaced by the day (the weekend has its places and labels), kept so when the workbook is saved and opened again.
+    void aStockChartOfDatesIsMadeOnADateAxisAndKeptSo()
+    {
+        EditWindow e;
+        QVERIFY(e.openBlank());
+        QVERIFY(e.settle());
+        typeStockTable(e, {{"Day", "H", "L", "C"}, {"11/11/2026", "9", "7", "8"}, {"11/12/2026", "9", "7", "8"}, {"11/13/2026", "9", "7", "8"}, {"11/16/2026", "9", "7", "8"}});
+        e.win.w.act(QStringLiteral("chart.stock.hlc"))->trigger();
+        QCOMPARE(e.win.w.objects()->layer()->count(), 1);
+        const Chart made = chartOf(e);
+        QCOMPARE(int(made.axes[0].kind), int(ChartAxis::Date));
+        QCOMPARE(made.axes[0].baseTimeUnit, QStringLiteral("days"));
+        const ChartSeries &first = chartAllSeries(made).first();
+        QVERIFY(first.categoryRefNumeric);
+        QCOMPARE(first.categoryNumbers.size(), qsizetype(4));
+        QCOMPARE(first.categoryNumbers.last() - first.categoryNumbers.first(), 5.0);
+        const QString svg = QString::fromUtf8(chartSvg(made, QSizeF(480, 288)));
+        QVERIFY2(svg.contains(QStringLiteral(">11/14/2026<")) && svg.contains(QStringLiteral(">11/15/2026<")), "the weekend has its labels");
+        // saved and opened again, the chart is the same, and its part has the date axis and the days as numbers
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        const QString file = dir.filePath(QStringLiteral("days.xlsx"));
+        QSignalSpy savedSpy(&e.win.w, &CrunchWindow::saved);
+        QVERIFY(e.win.w.saveAs(file) && savedOk(savedSpy));
+        const QVector<SavedChart> saved = savedCharts(file);
+        QCOMPARE(saved.size(), 1);
+        QCOMPARE(int(saved[0].chart.axes[0].kind), int(ChartAxis::Date));
+        QVERIFY(chartAllSeries(saved[0].chart).first().categoryRefNumeric);
+        QCOMPARE(chartAllSeries(saved[0].chart).first().categoryNumbers.size(), qsizetype(4));
+        Window second;
+        const QString copy = dir.filePath(QStringLiteral("copy.xlsx"));
+        QVERIFY(QFile::copy(file, copy));
+        QVERIFY(second.open(copy));
+        QTRY_VERIFY(second.w.objects()->layer()->count() == 1);
+        const Chart again = second.w.objects()->chartNow(0, 0);
+        QCOMPARE(int(again.axes[0].kind), int(ChartAxis::Date));
+        QCOMPARE(chartSvg(again, QSizeF(480, 288)), svg);
     }
 
     // A chart of text beside text (names and the names turned around) draws no path with a number that is none: every kind, from the cells a person typed.

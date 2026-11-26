@@ -1587,6 +1587,101 @@ private Q_SLOTS:
         QVERIFY2(range.second >= 1000, qPrintable(QStringLiteral("axis %1 to %2").arg(range.first).arg(range.second)));
     }
 
+    // Days as numbers (c:numRef) in place of the words the helper writes.
+    static QString withNumberCategories(QString part, const QString &code = QStringLiteral("General"))
+    {
+        static const QRegularExpression cat(QStringLiteral("<c:cat><c:strRef>(.*?)<c:strCache>(.*?)</c:strCache></c:strRef></c:cat>"), QRegularExpression::DotMatchesEverythingOption);
+        return part.replace(cat, QStringLiteral("<c:cat><c:numRef>\\1<c:numCache><c:formatCode>%1</c:formatCode>\\2</c:numCache></c:numRef></c:cat>").arg(code));
+    }
+    static QString dateAxes(double max)
+    {
+        QString axes = stockAxes(max);
+        return axes.replace(QStringLiteral("<c:catAx>"), QStringLiteral("<c:dateAx>")).replace(QStringLiteral("</c:catAx>"), QStringLiteral("</c:dateAx>")).remove(QStringLiteral("<c:lblAlgn val=\"ctr\"/>"))
+            .replace(QStringLiteral("<c:lblOffset val=\"100\"/>"), QStringLiteral("<c:lblOffset val=\"100\"/><c:baseTimeUnit val=\"days\"/>"));
+    }
+
+    // A stock chart on a date axis is spaced by the day: a weekend is an empty place with its label, as the common programs draw it; the same days as words are evenly spaced.
+    void aStockChartOnADateAxisIsSpacedByTheDay()
+    {
+        const QVector<double> h{9, 8, 7, 6}, l{1, 4, 2, 3}, cl{5, 7, 3, 5};
+        const QStringList days = {"45000", "45001", "45002", "45005"};
+        const QString noAxisId = QStringLiteral("<c:axId val=\"111\"/><c:axId val=\"222\"/>");
+        const QByteArray part = chartPart(withNumberCategories(stockPlot({h, l, cl}, false, noAxisId, 0, days)) + dateAxes(10));
+        Chart c;
+        QString err;
+        QVERIFY2(readChart(part, defaultTheme(), ColorMap(), &c, &err), qPrintable(err));
+        QCOMPARE(int(c.axes[0].kind), int(ChartAxis::Date));
+        QCOMPARE(c.plots[0].series[0].categoryNumbers.size(), qsizetype(4));
+        const QVector<Run> red = colorColumns(renderChart(c, QSizeF(400, 300), 2), Qt::red);
+        QCOMPARE(int(red.size()), 4);
+        const double first = (red[1].left + red[1].right) / 2.0 - (red[0].left + red[0].right) / 2.0, last = (red[3].left + red[3].right) / 2.0 - (red[2].left + red[2].right) / 2.0;
+        QVERIFY2(std::abs(last / first - 3.0) < 0.1, qPrintable(QStringLiteral("%1 and %2").arg(first).arg(last)));
+        // the days between have their places and their labels
+        const QString svg = QString::fromUtf8(chartSvg(c, QSizeF(400, 300)));
+        QVERIFY(svg.contains(QStringLiteral(">45003<")) && svg.contains(QStringLiteral(">45004<")));
+        // the same days as words are evenly spaced, and have no places between
+        const QByteArray words = chartPart(stockPlot({h, l, cl}, false, noAxisId, 0, days) + stockAxes(10));
+        Chart w;
+        QVERIFY2(readChart(words, defaultTheme(), ColorMap(), &w, &err), qPrintable(err));
+        const QVector<Run> even = colorColumns(renderChart(w, QSizeF(400, 300), 2), Qt::red);
+        QCOMPARE(int(even.size()), 4);
+        QVERIFY(std::abs(((even[3].left + even[3].right) - (even[2].left + even[2].right)) / double((even[1].left + even[1].right) - (even[0].left + even[0].right)) - 1.0) < 0.1);
+        QVERIFY(!QString::fromUtf8(chartSvg(w, QSizeF(400, 300))).contains(QStringLiteral(">45003<")));
+        // a date axis whose days are not whole numbers or not in order is evenly spaced too
+        QByteArray odd = part;
+        odd.replace("45001", "45000.5");
+        Chart o;
+        QVERIFY2(readChart(odd, defaultTheme(), ColorMap(), &o, &err), qPrintable(err));
+        QVERIFY(!QString::fromUtf8(chartSvg(o, QSizeF(400, 300))).contains(QStringLiteral(">45003<")));
+    }
+
+    // A chart whose file says nothing of the look of its high-low lines and bars draws them as the common programs do: thin black lines, a near-white box for a rise, and a dark gray one for a fall.
+    void aStockChartWithNoLookForItsLinesAndBarsIsDrawnThinBlackNearWhiteAndDarkGray()
+    {
+        const QVector<double> op{5, 5, 6, 6}, h{9, 8, 7, 7}, l{1, 4, 2, 3}, cl{7, 4, 5, 6.5};   // (rise, fall, fall, rise)
+        QString plot = stockPlot({op, h, l, cl}, true);
+        static const QRegularExpression looks(QStringLiteral("<c:hiLowLines>.*</c:upDownBars>"), QRegularExpression::DotMatchesEverythingOption);
+        plot.replace(looks, QStringLiteral("<c:hiLowLines/><c:upDownBars><c:gapWidth val=\"150\"/><c:upBars/><c:downBars/></c:upDownBars>"));
+        Chart c;
+        QString err;
+        QVERIFY2(readChart(chartPart(plot + stockAxes(10)), defaultTheme(), ColorMap(), &c, &err), qPrintable(err));
+        QVERIFY(c.plots[0].upDownBars && !c.plots[0].upBarFill.isValid() && !c.plots[0].downBarFill.isValid());
+        const QString svg = QString::fromUtf8(chartSvg(c, QSizeF(400, 300)));
+        QCOMPARE(svg.count(QStringLiteral("fill=\"#f9f9f9\"")), 2);   // the two rises, and the two falls: counted in the picture's own text
+        QCOMPARE(svg.count(QStringLiteral("fill=\"#3f3f3f\"")), 2);
+    }
+
+    // The volume's axis of a stock chart is scaled as any other: 5 million as the largest runs to 6 million, with the room above a column that every axis has.
+    void aStockChartsVolumeAxisRunsToTheNextRoundNumberAbove()
+    {
+        const QStringList cats = {"a", "b", "c", "d"};
+        QString axes = stockAxes(200);
+        axes.replace(QStringLiteral("<c:max val=\"200\"/><c:min val=\"0\"/>"), QString());
+        Chart c;
+        QString err;
+        QVERIFY2(readChart(chartPart(volumePlot({1000000, 5000000, 3000000, 2000000}, cats) + stockPlot({{108, 105, 107, 104}, {98, 97, 99, 96}, {103, 99, 104, 100}}, false, QStringLiteral("<c:axId val=\"333\"/><c:axId val=\"444\"/>"), 1, cats) + axes + stockAxes(10, true)), defaultTheme(), ColorMap(), &c, &err), qPrintable(err));
+        const QPair<double, double> range = axisNumbersRange(QString::fromUtf8(chartSvg(c, QSizeF(400, 300))));
+        QCOMPARE(range.second, 6000000.0);
+    }
+
+    // Empty cells shown as zero are zero in the scale too: the axis of the prices runs down to 0; left out, it does not.
+    void aStockChartWithEmptyCellsAsZeroScalesItsAxisToZero()
+    {
+        const double none = std::nan("");
+        const QVector<double> h{108, 105, 107, 104}, l{98, 97, 99, 96}, cl{103, none, 104, 100};
+        for (const QString &mode : {QStringLiteral("gap"), QStringLiteral("span"), QStringLiteral("zero")}) {
+            QString axes = stockAxes(10);
+            axes.replace(QStringLiteral("<c:max val=\"10\"/><c:min val=\"0\"/>"), QString());
+            QByteArray part = chartPart(stockPlot({h, l, cl}, false) + axes);
+            part.replace("<c:dispBlanksAs val=\"gap\"/>", QByteArray("<c:dispBlanksAs val=\"") + mode.toLatin1() + "\"/>");
+            Chart c;
+            QString err;
+            QVERIFY2(readChart(part, defaultTheme(), ColorMap(), &c, &err), qPrintable(err));
+            const QPair<double, double> range = axisNumbersRange(QString::fromUtf8(chartSvg(c, QSizeF(400, 300))));
+            QVERIFY2((mode == QLatin1String("zero")) == (range.first == 0), qPrintable(mode + QStringLiteral(": axis from %1").arg(range.first)));
+        }
+    }
+
     // A stock plot whose series a filter leaves fitting no form is drawn as columns and never as stock.
     void aStockChartWithASeriesFilteredOutIsDrawnAsColumns()
     {
