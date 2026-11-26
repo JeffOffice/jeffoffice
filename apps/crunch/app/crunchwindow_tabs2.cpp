@@ -602,6 +602,10 @@ void CrunchWindow::fixFormulaProblem(quint32 row, quint32 col)
 void CrunchWindow::showErrorMenu(quint32 row, quint32 col)
 {
     if (!m_session) return;
+    if (m_clickEndedEdit) {   // (the click ended a cell entry: it belongs to the entry, and no menu opens)
+        m_clickEndedEdit = false;
+        return;
+    }
     std::vector<crunch::FormulaProblem> here;
     for (const crunch::FormulaProblem &p : formulaProblems())
         if (p.row == row && p.col == col) here.push_back(p);

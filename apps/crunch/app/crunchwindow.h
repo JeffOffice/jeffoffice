@@ -1299,6 +1299,7 @@ public:
     // The menu a click on the green triangle of a cell opens (named "errorMenu", opened beside the cell and deleted when closed): what is the matter, the fix when there is one, Ignore Error,
     // and Error Checking. The cell is selected first. Nothing opens for a cell with no problem.
     void showErrorMenu(quint32 row, quint32 col);
+    bool m_clickEndedEdit = false;
     // Ignores the problem of that cell (kept in the file, one step of Undo).
     void ignoreFormulaProblem(quint32 row, quint32 col, int kind = -1);   // (`kind`: only the problem of that FormulaProblem::Kind; -1 for every problem of the cell)
     // The cells the Watch Window lists (kept while the workbook is open), and adding one; false if it is watched already or too many are.

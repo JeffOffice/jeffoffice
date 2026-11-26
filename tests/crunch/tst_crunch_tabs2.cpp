@@ -2028,6 +2028,56 @@ private Q_SLOTS:
         QVERIFY(!menu());
     }
 
+    // While a cell is being edited a click on a green triangle belongs to the edit: it points at the cell (a formula being typed) or ends the entry (plain text), and opens no menu.
+    void aClickOnTheGreenTriangleWhileEditingOpensNoMenu()
+    {
+        const QString rows = QStringLiteral("<row r=\"1\"><c r=\"A1\" t=\"inlineStr\"><is><t>5</t></is></c></row>");
+        EditWindow e;
+        QVERIFY(e.open(buildXlsx({worksheet(rows)})));
+        QVERIFY(e.settle());
+        CrunchWindow &w = e.win.w;
+        QTRY_COMPARE(w.view()->errorCorners().size(), size_t(1));
+        auto menu = [&]() { return w.findChild<QMenu *>(QStringLiteral("errorMenu")); };
+        const QPoint corner = w.view()->cellRectAt(0, 0).topLeft() + QPoint(2, 2);
+        // (a formula being typed: the click points at the cell)
+        e.select(QStringLiteral("D5"));
+        e.type(QStringLiteral("="));
+        QVERIFY(w.isEditing());
+        QTest::mouseClick(w.view()->viewport(), Qt::LeftButton, Qt::NoModifier, corner);
+        QVERIFY(!menu());
+        QVERIFY(w.isEditing());
+        QCOMPARE(w.cellEditor()->text(), QStringLiteral("=A1"));
+        e.key(Qt::Key_Escape);
+        QVERIFY(!w.isEditing());
+        // (plain text being typed: the click ends the entry and opens no menu)
+        e.select(QStringLiteral("D6"));
+        e.type(QStringLiteral("abc"));
+        QVERIFY(w.isEditing());
+        QTest::mouseClick(w.view()->viewport(), Qt::LeftButton, Qt::NoModifier, corner);
+        QVERIFY(!menu());
+        QVERIFY(!w.isEditing());
+        QCOMPARE(w.session()->editText(0, 5, 3), QStringLiteral("abc"));
+    }
+
+    // A cell scrolled out of sight under frozen rows has a triangle that is not drawn: a click where the cell would be falls on the cell that shows there, and opens no menu.
+    void aGreenTriangleOfACellScrolledUnderFrozenRowsIsNotClicked()
+    {
+        QString rows = QStringLiteral("<row r=\"3\"><c r=\"B3\" t=\"inlineStr\"><is><t>5</t></is></c></row>");
+        for (int r = 4; r <= 60; ++r) rows += QStringLiteral("<row r=\"%1\"><c r=\"A%1\"><v>1</v></c></row>").arg(r);
+        EditWindow e;
+        QVERIFY(e.open(buildXlsx({worksheet(rows)})));
+        QVERIFY(e.settle());
+        CrunchWindow &w = e.win.w;
+        QTRY_COMPARE(w.view()->errorCorners().size(), size_t(1));
+        const QPoint where = w.view()->cellRectAt(2, 1).topLeft() + QPoint(2, 2);   // (B3 as it shows before the sheet is frozen and scrolled)
+        w.view()->freezeAt(2, 0);
+        QVERIFY(w.view()->ensureVisible(58, 0));   // (the rows scroll up under the frozen ones)
+        QVERIFY(w.view()->cellRectAt(2, 1).isEmpty());   // (B3 is out of sight)
+        QTest::mouseClick(w.view()->viewport(), Qt::LeftButton, Qt::NoModifier, where);
+        QVERIFY(!w.findChild<QMenu *>(QStringLiteral("errorMenu")));
+        QVERIFY(w.view()->selection().activeRow != 2);
+    }
+
     void checkAccessibilityListsWhatIsHardToUseAndGoesToIt()
     {
         const QString rows = QStringLiteral("<row r=\"1\"><c r=\"A1\"><v>1</v></c><c r=\"B1\"><v>2</v></c></row><row r=\"2\"><c r=\"A2\"><v>3</v></c><c r=\"B2\"><v>4</v></c></row>");

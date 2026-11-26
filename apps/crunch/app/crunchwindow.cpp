@@ -223,6 +223,7 @@ CrunchWindow::CrunchWindow(QWidget *parent) : AppWindow(parent)
     m_view->setClickGuard([this] {
         // (a click that cannot point ends the entry on the formula's own sheet, and does no more: the cell it is over belongs to the sheet that was shown)
         const bool away = m_edit.active && m_sheet != m_edit.sheet;
+        m_clickEndedEdit = m_edit.active;   // (a click on a green triangle that ends an entry belongs to the entry: showErrorMenu reads this)
         return commitEdit(CellEditor::Way::Stay) && !away;
     });
     // (a double click on a value of a pivot table shows the rows behind it, on a new sheet; F2 still edits)
