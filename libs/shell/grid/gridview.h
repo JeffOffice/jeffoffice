@@ -211,6 +211,9 @@ public:
     size_t noteCellCount() const { return m_noteCells.size(); }
     // How many boxes of shown notes have been laid out so far (for tests: a box is laid out once for a zoom, not at every paint).
     qint64 shownNoteLayouts() const { return m_shownLayouts; }
+    // Whether the small mark in the corner of a cell with a note is drawn (the notes that are shown all the time are drawn either way).
+    void setNoteMarks(bool on) { if (m_noteMarks == on) return; m_noteMarks = on; viewport()->update(); }
+    bool noteMarks() const { return m_noteMarks; }
     void setShownNotes(std::vector<ShownNote> notes);
     // The cell the pointer is on (-1 for none), and the place a note about it is to appear (the cell's right edge, in the viewport's pixels).
     qint64 hoverRow() const { return m_hoverRow; }
@@ -593,6 +596,7 @@ private:
     std::function<bool(const GridRange &, bool, const QPoint &)> m_altDrop;
     std::vector<PageBreakLine> m_breakRows, m_breakCols;
     bool m_breakView = false, m_breakEditRows = true, m_breakEditCols = true;
+    bool m_noteMarks = true;
     std::vector<GridRange> m_breakAreas;
     std::vector<BreakPage> m_breakPageList;
     BreakGrab m_breakGrab;

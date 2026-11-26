@@ -795,7 +795,7 @@ void CrunchWindow::createActions()
             if (auto *size = qobject_cast<QDoubleSpinBox *>((*newBook)[1].data())) Settings::get().setValue(QStringLiteral("crunch/newFontSize"), size->value());
             if (auto *sheets = qobject_cast<QSpinBox *>((*newBook)[2].data())) Settings::get().setValue(QStringLiteral("crunch/newSheets"), sheets->value());
         }};
-        auto display = std::make_shared<std::array<QPointer<QWidget>, 3>>();
+        auto display = std::make_shared<std::array<QPointer<QWidget>, 6>>();
         pages << OptionsPage{tr("Display"), [this, display] {
             auto *page = new QWidget;
             auto *layout = new QFormLayout(page);
@@ -830,13 +830,35 @@ void CrunchWindow::createActions()
             width->setEnabled(m_session && m_sheet >= 0 && !m_chartSheetShown);
             layout->addRow(tr("Standard column width (this sheet)"), width);
             (*display)[0] = color;
+            auto *tabs = new QCheckBox(tr("Show the sheet tabs"), page);
+            tabs->setObjectName(QStringLiteral("optionSheetTabs"));
+            tabs->setChecked(sheetTabsShown());
+            layout->addRow(tabs);
+            auto *bars = new QCheckBox(tr("Show the scroll bars"), page);
+            bars->setObjectName(QStringLiteral("optionScrollBars"));
+            bars->setChecked(scrollBarsShown());
+            layout->addRow(bars);
+            auto *notes = new QComboBox(page);
+            notes->setObjectName(QStringLiteral("optionNoteDisplay"));
+            notes->setAccessibleName(tr("Notes"));
+            notes->addItem(tr("A mark on the cell, and the note when the pointer rests on it"), 0);
+            notes->addItem(tr("A mark on the cell only"), 1);
+            notes->addItem(tr("Nothing"), 2);
+            notes->setCurrentIndex(notes->findData(noteDisplay()));
+            layout->addRow(tr("Show a cell's note as"), notes);
             (*display)[1] = zoom;
             (*display)[2] = width;
             return static_cast<QWidget *>(page);
+            (*display)[3] = tabs;
+            (*display)[4] = bars;
+            (*display)[5] = notes;
         }, [this, display] {
             if (auto *color = qobject_cast<QPushButton *>((*display)[0].data())) setGridlineColor(color->property("color").value<QColor>());
             if (auto *zoom = qobject_cast<QSpinBox *>((*display)[1].data())) setDefaultZoom(zoom->value());
             if (auto *width = qobject_cast<QDoubleSpinBox *>((*display)[2].data())) {
+            if (auto *tabs = qobject_cast<QCheckBox *>((*display)[3].data())) setSheetTabsShown(tabs->isChecked());
+            if (auto *bars = qobject_cast<QCheckBox *>((*display)[4].data())) setScrollBarsShown(bars->isChecked());
+            if (auto *notes = qobject_cast<QComboBox *>((*display)[5].data())) setNoteDisplay(notes->currentData().toInt());
                 const int mdw = m_view->sheet().looks().maxDigitWidth();
                 const double now = grid::GridSheet::shownWidth(m_view->sheet().layout().cols.defaultSize() / double(std::max(1, mdw)), mdw);
                 if (width->isEnabled() && std::abs(width->value() - now) > 0.005) setStandardColumnWidth(width->value());
@@ -887,6 +909,8 @@ void CrunchWindow::createActions()
     m_editInCell = Settings::get().value(QStringLiteral("crunch/editInCell"), true).toBool();
     if (const QColor c(Settings::get().value(QStringLiteral("crunch/gridColor")).toString()); c.isValid()) m_view->setGridlineColor(c);
     m_fixedDecimals = std::clamp(Settings::get().value(QStringLiteral("crunch/fixedDecimals"), 0).toInt(), -crunch::kMaxFixedDecimals, crunch::kMaxFixedDecimals);
+    setScrollBarsShown(scrollBarsShown());
+    setNoteDisplay(noteDisplay());
     // ---- view
     mk("view.gridlines", tr("Gridlines"), "grid-3x3", QKeySequence(), [this] { m_view->setShowGridlines(act("view.gridlines")->isChecked()); }, true)->setChecked(true);
     mk("view.headings", tr("Headings"), "table-properties", QKeySequence(), [this] { m_view->setShowHeadings(act("view.headings")->isChecked()); }, true)->setChecked(true);

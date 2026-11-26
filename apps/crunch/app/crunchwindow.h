@@ -724,6 +724,15 @@ public:
     bool editingInFormulaBar() const { return m_edit.active && m_point.line == m_formulaBar; }
     QColor gridlineColor() const { return m_view->gridlineColor(); }
     void setGridlineColor(const QColor &color);
+    // Also in Display: whether the sheet tabs and the scroll bars are shown, and how notes are shown (0: a mark on the cell, and the note when the pointer rests on it; 1: the mark only; 2: neither).
+    // They are kept for the person, not in the workbook.
+    bool sheetTabsShown() const;
+    void setSheetTabsShown(bool on);
+    bool scrollBarsShown() const;
+    void setScrollBarsShown(bool on);
+    int noteDisplay() const;
+    void setNoteDisplay(int how);
+    bool noteHoverPending() const { return m_hoverTimer.isActive(); }
     int defaultZoom() const;
     void setDefaultZoom(int percent);
     bool removePersonalOnSave() const;

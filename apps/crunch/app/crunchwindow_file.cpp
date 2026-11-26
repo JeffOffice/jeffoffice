@@ -467,7 +467,7 @@ void CrunchWindow::fillTabs()
         m_tabs->selectOnly(m_tabs->currentIndex());
         refreshStripes();
     }
-    m_sheetTabRow->setVisible(!m_tabSheets.isEmpty());
+    m_sheetTabRow->setVisible(!m_tabSheets.isEmpty() && sheetTabsShown());
     m_switchingTabs = false;
 }
 

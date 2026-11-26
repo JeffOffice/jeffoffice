@@ -356,7 +356,7 @@ void GridView::paintNotes(QPainter *painter, const QRect &clip)
     painter->setBrush(QColor(0xC0, 0x1E, 0x1E));
     for (Pane p : {Pane::Corner, Pane::Top, Pane::Left, Pane::Body}) {
         const PaneView v = L.pane(p);
-        if (v.isEmpty()) continue;
+        if (v.isEmpty() || !m_noteMarks) continue;
         // (the notes of the rows in view: found in the sorted list, not by looking at every note)
         auto it = std::lower_bound(m_noteCells.begin(), m_noteCells.end(), quint64(std::max<qint64>(0, v.firstRow)) << 32);
         const quint64 end = (quint64(std::max<qint64>(0, v.lastRow)) + 1) << 32;

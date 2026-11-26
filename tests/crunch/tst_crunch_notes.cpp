@@ -168,6 +168,44 @@ private Q_SLOTS:
         QVERIFY(!popup()->isVisible());
     }
 
+    // Options > Display chooses how a cell's note is shown: the mark and the note on hover (as it was), the mark only, or nothing. The notes that are shown all the time stay.
+    void theDisplayOptionChoosesTheMarkAndTheNoteOnHover()
+    {
+        EditWindow e;
+        QVERIFY(e.open(bookWithNotes()));
+        CrunchWindow &w = e.win.w;
+        w.setNoteDisplay(0);
+        auto marks = [&] {
+            const QImage image = e.view()->viewport()->grab().toImage();
+            int red = 0;
+            for (int y = 0; y < image.height(); ++y)
+                for (int x = 0; x < image.width(); ++x)
+                    if (image.pixelColor(x, y) == QColor(0xC0, 0x1E, 0x1E)) ++red;
+            return red;
+        };
+        QTest::mouseMove(e.view()->viewport(), centerOf(e, QStringLiteral("A1")));
+        QTRY_VERIFY(w.noteHoverPending());
+        QVERIFY(e.view()->noteMarks());
+        const int withMarks = marks();
+        QVERIFY(withMarks > 0);
+        // (the mark only: no note appears)
+        w.setNoteDisplay(1);
+        QVERIFY(e.view()->noteMarks());
+        QCOMPARE(marks(), withMarks);
+        QTest::mouseMove(e.view()->viewport(), centerOf(e, QStringLiteral("B3")));
+        QTest::mouseMove(e.view()->viewport(), centerOf(e, QStringLiteral("A1")));
+        QVERIFY(!w.noteHoverPending());
+        // (nothing: no mark either)
+        w.setNoteDisplay(2);
+        QVERIFY(!e.view()->noteMarks());
+        QCOMPARE(marks(), 0);
+        // (the choice is the program's, and is kept)
+        QCOMPARE(w.noteDisplay(), 2);
+        w.setNoteDisplay(0);
+        QVERIFY(e.view()->noteMarks());
+        QCOMPARE(marks(), withMarks);
+    }
+
     void aNoteCanBeMadeEditedAndDeletedAndEachIsAStepOfUndo()
     {
         EditWindow e;

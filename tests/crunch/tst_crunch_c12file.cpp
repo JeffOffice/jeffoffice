@@ -2,6 +2,7 @@
 #include <QScopeGuard>
 #include "app/crunchinfo.h"
 #include "app/crunchwindow.h"
+#include "app/sheettabs.h"
 #include "app/settings.h"
 #include "app/anchordialogs.h"
 #include "core/accesscheck.h"
@@ -542,6 +543,49 @@ private Q_SLOTS:
         QCOMPARE(int(std::lround(fresh.view()->zoom() * 100)), 150);
         w.setEditInCell(true);
         w.setRemovePersonalOnSave(false);
+    }
+
+    // Options > Display shows or hides the sheet tabs and the scroll bars (kept for the person), and offers the choice of how notes are shown.
+    void theDisplayOptionsHideTheSheetTabsAndTheScrollBars()
+    {
+        EditWindow e;
+        QVERIFY(e.open(editBook()));
+        CrunchWindow &w = e.win.w;
+        w.setSheetTabsShown(true);
+        w.setScrollBarsShown(true);
+        w.setNoteDisplay(0);
+        QVERIFY(!w.sheetTabs()->parentWidget()->isHidden());
+        auto *watch = new QTimer(&w);
+        watch->setInterval(10);
+        connect(watch, &QTimer::timeout, watch, [watch] {
+            QWidget *dialog = QApplication::activeModalWidget();
+            if (!dialog || dialog->findChildren<QCheckBox *>(QStringLiteral("optionSheetTabs")).isEmpty()) return;
+            watch->stop();
+            dialog->findChild<QCheckBox *>(QStringLiteral("optionSheetTabs"))->setChecked(false);
+            dialog->findChild<QCheckBox *>(QStringLiteral("optionScrollBars"))->setChecked(false);
+            auto *notes = dialog->findChild<QComboBox *>(QStringLiteral("optionNoteDisplay"));
+            notes->setCurrentIndex(notes->findData(1));
+            if (auto *buttons = dialog->findChild<QDialogButtonBox *>()) buttons->button(QDialogButtonBox::Ok)->click();
+        });
+        watch->start();
+        w.act(QStringLiteral("file.options"))->trigger();
+        QVERIFY(!w.sheetTabsShown());
+        QVERIFY(!w.scrollBarsShown());
+        QVERIFY(w.sheetTabs()->parentWidget()->isHidden());
+        QCOMPARE(e.view()->horizontalScrollBarPolicy(), Qt::ScrollBarAlwaysOff);
+        QCOMPARE(e.view()->verticalScrollBarPolicy(), Qt::ScrollBarAlwaysOff);
+        QCOMPARE(w.noteDisplay(), 1);
+        QCOMPARE(Settings::get().value(QStringLiteral("crunch/showSheetTabs")).toBool(), false);
+        // (a workbook opened later in the window keeps the tabs hidden)
+        EditWindow again;
+        QVERIFY(again.open(editBook()));
+        QVERIFY(again.win.w.sheetTabs()->parentWidget()->isHidden());
+        QCOMPARE(again.view()->horizontalScrollBarPolicy(), Qt::ScrollBarAlwaysOff);
+        w.setSheetTabsShown(true);
+        w.setScrollBarsShown(true);
+        w.setNoteDisplay(0);
+        QVERIFY(!w.sheetTabs()->parentWidget()->isHidden());
+        QCOMPARE(e.view()->horizontalScrollBarPolicy(), Qt::ScrollBarAsNeeded);
     }
 
     // Options > Formulas sets how the open workbook works out its formulas (calculation by hand, the rounds of going round a circular formula): one step of Undo, nothing when nothing was

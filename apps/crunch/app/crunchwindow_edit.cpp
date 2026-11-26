@@ -368,6 +368,34 @@ void CrunchWindow::setGridlineColor(const QColor &color)
     Settings::get().setValue(QStringLiteral("crunch/gridColor"), color.name());
 }
 
+bool CrunchWindow::sheetTabsShown() const { return Settings::get().value(QStringLiteral("crunch/showSheetTabs"), true).toBool(); }
+
+void CrunchWindow::setSheetTabsShown(bool on)
+{
+    Settings::get().setValue(QStringLiteral("crunch/showSheetTabs"), on);
+    m_sheetTabRow->setVisible(!m_tabSheets.isEmpty() && on);
+}
+
+bool CrunchWindow::scrollBarsShown() const { return Settings::get().value(QStringLiteral("crunch/showScrollBars"), true).toBool(); }
+
+void CrunchWindow::setScrollBarsShown(bool on)
+{
+    Settings::get().setValue(QStringLiteral("crunch/showScrollBars"), on);
+    const Qt::ScrollBarPolicy policy = on ? Qt::ScrollBarAsNeeded : Qt::ScrollBarAlwaysOff;
+    m_view->setHorizontalScrollBarPolicy(policy);
+    m_view->setVerticalScrollBarPolicy(policy);
+}
+
+int CrunchWindow::noteDisplay() const { return std::clamp(Settings::get().value(QStringLiteral("crunch/noteDisplay"), 0).toInt(), 0, 2); }
+
+void CrunchWindow::setNoteDisplay(int how)
+{
+    how = std::clamp(how, 0, 2);
+    Settings::get().setValue(QStringLiteral("crunch/noteDisplay"), how);
+    m_view->setNoteMarks(how < 2);
+    hideHoverTip();
+}
+
 int CrunchWindow::defaultZoom() const { return std::clamp(Settings::get().value(QStringLiteral("crunch/defaultZoom"), 100).toInt(), 10, 400); }
 
 void CrunchWindow::setDefaultZoom(int percent) { Settings::get().setValue(QStringLiteral("crunch/defaultZoom"), std::clamp(percent, 10, 400)); }

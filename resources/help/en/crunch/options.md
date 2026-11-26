@@ -36,6 +36,8 @@ The **Proofing** page is shared by the JeffOffice apps. It decides whether spell
 - **Gridline color** is the color of the lines between cells on your screen. It is a choice for your screen only, not saved in the workbook.
 - **Zoom of a new workbook** is how large the sheets of a new workbook look, from 10% to 400%.
 - **Standard column width (this sheet)** is the width of every column of this sheet that has no width of its own. It is the same as **Default Width** on the Home tab.
+- **Show the sheet tabs** and **Show the scroll bars** hide or show the row of sheet tabs under the cells and the scroll bars at the right and bottom. They are choices for your screen only, kept for every workbook you open.
+- **Show a cell's note as** chooses what a cell with a note looks like: a small mark on the cell and the note when the pointer rests on it, the mark only, or nothing. A note you chose to show all the time (**Show Note**) stays on the sheet in every case.
 
 ## Customize
 

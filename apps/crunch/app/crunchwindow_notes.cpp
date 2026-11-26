@@ -386,7 +386,7 @@ void CrunchWindow::hoverCell(qint64 row, qint64 col)
         return;
     }
     const crunch::CellAnchors &a = m_session->anchors();
-    if (a.noteAt(m_sheet, quint32(row), quint32(col)) || a.linkAt(m_sheet, quint32(row), quint32(col))) m_hoverTimer.start();
+    if ((noteDisplay() == 0 && a.noteAt(m_sheet, quint32(row), quint32(col))) || a.linkAt(m_sheet, quint32(row), quint32(col))) m_hoverTimer.start();
     else m_hoverTimer.stop();
 }
 
@@ -405,7 +405,7 @@ QString CrunchWindow::hoverTipText(bool *isNote) const
     const qint64 row = m_view->hoverRow(), col = m_view->hoverCol();
     if (row < 0 || !m_session || m_sheet < 0) return QString();
     const crunch::CellAnchors &a = m_session->anchors();
-    if (const NoteInfo *n = a.noteAt(m_sheet, quint32(row), quint32(col))) {
+    if (const NoteInfo *n = noteDisplay() == 0 ? a.noteAt(m_sheet, quint32(row), quint32(col)) : nullptr) {
         if (isNote) *isNote = true;
         return n->thread ? threadTipText(*n) : n->text;
     }
