@@ -28,6 +28,12 @@ struct SlicerFace {
     qint64 itemCount = 0;    // the buttons the slicer has in all
     qint64 chosenCount = 0;  // how many of them the table shows (all of them when nothing is filtered), among all the buttons and not only those made
     std::vector<SlicerButton> buttons;
+    // How the picture is made, not what the file says: a slicer in the window scrolls (its scroll bar is drawn when the buttons do not fit), one printed does not (its last row says how many are left out);
+    // `first` is the place among the buttons of the first made (a row start); `focus` the button the keyboard is on (-1: none).
+    bool scrolls = false;
+    bool printed = false;    // drawn for a page (nothing can scroll there)
+    qint64 first = 0;
+    qint64 focus = -1;
 };
 
 } // namespace jp::crunch

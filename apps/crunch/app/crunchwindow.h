@@ -1191,6 +1191,8 @@ private:
     void fillSlicers();
     void slicerClicked(int slicer, int item, bool extend);
     void slicerCleared(int slicer);
+    void slicerRunChosen(int slicer, const QVector<int> &places, bool extend);
+    bool slicerFocusNext(bool backwards);
     void connectSlicers();                                       // the slicers drawn on the sheets: what they show, and what a click on one does
     void refreshSlicerLooks();                                   // they are drawn again when a pivot table changed   // a button of a slicer was clicked (in the pane or on the sheet; `item` is the item's place)
     void updatePrintAreaAction();

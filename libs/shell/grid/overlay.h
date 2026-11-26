@@ -62,6 +62,14 @@ public:
         return false;
     }
     // A double click at a point of the viewport: true if an object was under it.
+    // The wheel turned at a point of the viewport (`steps`: notches, positive away from the person): true if the overlay used it (an object scrolls), else the grid scrolls.
+    virtual bool wheel(const QPoint &point, const GridLayout &layout, int steps)
+    {
+        Q_UNUSED(point);
+        Q_UNUSED(layout);
+        Q_UNUSED(steps);
+        return false;
+    }
     virtual bool doubleClick(const QPoint &point, const GridLayout &layout)
     {
         Q_UNUSED(point);

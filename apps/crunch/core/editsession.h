@@ -507,6 +507,8 @@ public:
     // A click on the button of the item at `place`: it alone is chosen, or with `extend` (Ctrl) it is added to the chosen or taken from them; a click on the only one chosen clears the filter. One step of
     // Undo, as chooseSlicerItems; the same for the pane's buttons and the slicer on the sheet.
     Outcome clickSlicerItem(int slicer, qint32 place, bool extend);
+    // A run of items chosen with one Shift-click (or Shift and Space): they are the choice, or with `extend` are added to it. At most kMaxSlicerRange places are taken (a run is cut off there).
+    Outcome clickSlicerRun(int slicer, const QVector<int> &places, bool extend);
     // Makes the table from other cells ("Sheet1!A1:D100", "A1:D100" on the same sheet as the source now is, a table's name, or a defined name), then reads them.
     Outcome changePivotSource(int table, const QString &where, const QString &file = QString());   // (`file`: as for createPivot)
     // Puts the table's layout, fields, and options as `changed` has them (a copy of the table with its fields moved, its totals switched, a filter set): the cells are worked out again.

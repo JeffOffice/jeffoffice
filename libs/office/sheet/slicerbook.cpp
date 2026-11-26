@@ -1,5 +1,11 @@
 // The slicers and timelines of a workbook: the parts its relationships name, read once (a part named by many relationships is read once too).
 #include "sheet/sheetreader.h"
+#include "sheet/xmlscan.h"
+
+#include <QRegularExpression>
+
+#include <algorithm>
+#include <set>
 
 #include <atomic>
 
@@ -145,6 +151,193 @@ std::map<QString, QByteArray> slicerPartPatches(const Workbook &book)
         book.slicerPartsWritten().insert(sc.part);
     }
     return out;
+}
+
+namespace {
+
+using xmlscan::Tag;
+
+qsizetype endOfElement(const QByteArray &xml, const Tag &open)
+{
+    if (open.selfClosing) return open.end;
+    int depth = 1;
+    qsizetype pos = open.end;
+    Tag t;
+    while (xmlscan::nextTag(xml, pos, &t)) {
+        pos = t.end;
+        if (t.closing) {
+            if (--depth == 0) return t.end;
+        } else if (!t.selfClosing) {
+            ++depth;
+        }
+    }
+    return -1;
+}
+
+QString attributeOf(const QByteArray &xml, const Tag &t, const char *name)
+{
+    bool found = false;
+    const QByteArrayView v = xmlscan::attribute(QByteArrayView(xml).sliced(t.start, t.end - t.start), name, &found);
+    return found ? xmlscan::unescape(v) : QString();
+}
+
+// Cuts the ranges out of the bytes (they do not overlap).
+QByteArray cut(const QByteArray &xml, std::vector<std::pair<qsizetype, qsizetype>> ranges)
+{
+    std::sort(ranges.begin(), ranges.end());
+    QByteArray out;
+    qsizetype at = 0;
+    for (const auto &r : ranges) {
+        if (r.first < at) continue;
+        out += xml.mid(at, r.first - at);
+        at = r.second;
+    }
+    return out + xml.mid(at);
+}
+
+} // namespace
+
+QByteArray removeSlicerElements(const QByteArray &xml, const QSet<QString> &names, int *left, bool *any)
+{
+    std::vector<std::pair<qsizetype, qsizetype>> ranges;
+    int depth = 0, kept = 0;
+    Tag t;
+    qsizetype pos = 0;
+    while (xmlscan::nextTag(xml, pos, &t)) {
+        pos = t.end;
+        if (t.closing) {
+            --depth;
+            continue;
+        }
+        if (depth == 1 && (t.local == "slicer" || t.local == "timeline")) {
+            if (t.local == "slicer" && names.contains(attributeOf(xml, t, "name"))) {
+                const qsizetype end = endOfElement(xml, t);
+                if (end > 0) {
+                    ranges.emplace_back(t.start, end);
+                    pos = end;
+                    continue;
+                }
+            }
+            ++kept;
+        }
+        if (!t.selfClosing) ++depth;
+    }
+    *any = !ranges.empty();
+    *left = kept;
+    return ranges.empty() ? xml : cut(xml, ranges);
+}
+
+QByteArray dropExtensionEntries(const QByteArray &xml, const QByteArray &entry, const QStringList &relIds)
+{
+    std::vector<std::pair<qsizetype, qsizetype>> ranges;
+    Tag t;
+    qsizetype pos = 0;
+    while (xmlscan::nextTag(xml, pos, &t)) {
+        pos = t.end;
+        if (t.closing || t.local != QByteArrayView(entry)) continue;
+        const QString id = attributeOf(xml, t, "r:id");
+        const qsizetype end = endOfElement(xml, t);
+        if (end < 0) break;
+        if (!id.isEmpty() && relIds.contains(id)) ranges.emplace_back(t.start, end);
+        pos = end;
+    }
+    if (ranges.empty()) return xml;
+    QByteArray out = cut(xml, ranges);
+    // (a list left with nothing in it, the extension that held it, and an extension list left with no extension)
+    static const QRegularExpression emptyList(QStringLiteral("<(\\w+:)?(slicerList|slicerCaches)\\b[^>]*?(/>|>\\s*</(\\w+:)?(slicerList|slicerCaches)>)"));
+    static const QRegularExpression emptyExt(QStringLiteral("<(\\w+:)?ext\\b[^>]*?>\\s*</(\\w+:)?ext>"));
+    static const QRegularExpression emptyExtLst(QStringLiteral("<(\\w+:)?extLst>\\s*</(\\w+:)?extLst>"));
+    QString text = QString::fromUtf8(out);
+    text.remove(emptyList);
+    text.remove(emptyExt);
+    text.remove(emptyExtLst);
+    return text.toUtf8();
+}
+
+QByteArray dropDefinedNames(const QByteArray &xml, const QStringList &names)
+{
+    std::vector<std::pair<qsizetype, qsizetype>> ranges;
+    Tag t;
+    qsizetype pos = 0;
+    while (xmlscan::nextTag(xml, pos, &t)) {
+        pos = t.end;
+        if (t.closing || t.local != "definedName") continue;
+        const qsizetype end = endOfElement(xml, t);
+        if (end < 0) break;
+        pos = end;
+        if (!names.contains(attributeOf(xml, t, "name"), Qt::CaseSensitive) || attributeOf(xml, t, "localSheetId").size() > 0) continue;
+        const QByteArray body = xml.mid(t.end, end - t.end);
+        if (body.startsWith("#N/A")) ranges.emplace_back(t.start, end);
+    }
+    if (ranges.empty()) return xml;
+    QByteArray out = cut(xml, ranges);
+    static const QRegularExpression emptyNames(QStringLiteral("<(\\w+:)?definedNames>\\s*</(\\w+:)?definedNames>"));
+    QString text = QString::fromUtf8(out);
+    text.remove(emptyNames);
+    return text.toUtf8();
+}
+
+bool planSlicerRemovals(const Workbook &book, const std::vector<std::pair<int, QString>> &removed, SlicerRemovalPlan *out)
+{
+    if (removed.empty()) return true;
+    const Package &package = book.package();
+    QSet<QString> caches;   // the caches the removed slicers read
+    std::map<QString, QByteArray> parts;   // the slicer parts as they are with what is taken out so far
+    std::set<QString> emptied;
+    for (const auto &[sheet, name] : removed) {
+        if (sheet < 0 || sheet >= book.info().sheets.size() || book.info().sheets[sheet].part.isEmpty()) continue;
+        const QString sheetPart = book.info().sheets[sheet].part;
+        for (const Relationship &r : package.relationshipsOfType(sheetPart, QStringLiteral("/slicer"))) {
+            if (r.external || emptied.count(r.target)) continue;
+            const QByteArray had = parts.count(r.target) ? parts[r.target] : package.part(r.target);
+            QVector<SlicerView> views;
+            if (had.isEmpty() || !readSlicerViews(had, &views)) continue;
+            QString cache;
+            bool mine = false;
+            for (const SlicerView &v : views)
+                if (v.name == name && !v.timeline) {
+                    cache = v.cache;
+                    mine = true;
+                }
+            if (!mine) continue;
+            int left = 0;
+            bool any = false;
+            const QByteArray now = removeSlicerElements(had, {name}, &left, &any);
+            if (!any) continue;
+            caches.insert(cache);
+            if (left == 0) {
+                emptied.insert(r.target);
+                parts.erase(r.target);
+                out->released.emplace_back(sheetPart, QStringList{r.id});
+                out->sheetEntries[sheet] << r.id;
+            } else {
+                parts[r.target] = now;
+            }
+        }
+    }
+    out->partsKept = parts;
+    // (a cache that no slicer left in the file reads goes: its link from the workbook, its entry in the workbook's list, and its name)
+    for (const QString &cacheName : caches) {
+        bool used = false;
+        for (int s = 0; s < book.info().sheets.size() && !used; ++s) {
+            if (book.info().sheets[s].deleted) continue;
+            for (const SlicerView &v : book.slicerViews(s)) {
+                if (v.cache != cacheName) continue;
+                if (std::find(removed.begin(), removed.end(), std::make_pair(s, v.name)) == removed.end()) used = true;
+            }
+        }
+        if (used) continue;
+        for (const SlicerCache &c : book.slicerCaches()) {
+            if (c.name != cacheName || c.timeline) continue;
+            for (const Relationship &r : package.relationshipsOfType(book.mainPart(), QStringLiteral("/slicerCache"))) {
+                if (r.external || r.target.compare(c.part, Qt::CaseInsensitive) != 0) continue;
+                out->released.emplace_back(book.mainPart(), QStringList{r.id});
+                out->workbookEntries << r.id;
+            }
+            out->definedNames << c.name;
+        }
+    }
+    return true;
 }
 
 } // namespace jp::office::sheet

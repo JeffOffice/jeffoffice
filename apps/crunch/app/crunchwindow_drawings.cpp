@@ -283,7 +283,18 @@ bool CrunchWindow::linkPickedShape(const QString &entry)
 // Delete with an object picked: it is taken away, as a step Undo gives back.
 void CrunchWindow::deleteObject(int id)
 {
-    if (!m_session || m_edit.active || m_saving || crunch::isSlicerId(id)) return;
+    if (!m_session || m_edit.active || m_saving) return;
+    if (crunch::isSlicerId(id)) {
+        // (a slicer is taken away as one step; the saved file has neither its frame, nor its part, nor the cache nobody else reads. The filter it put on the table stays, as when the Slicers pane is closed)
+        if (!m_objects || !m_objects->slicers()->owns(m_sheet, id) || m_objects->slicers()->isGone(m_sheet, id) || !editingAllowed()) return;
+        const crunch::ObjectState before = m_objects->stateOf(m_sheet, id);
+        crunch::ObjectState after = before;
+        after.deleted = true;
+        const crunch::EditSession::Outcome o = m_session->deleteObject(m_sheet, id, tr("Delete Slicer"), before, after);
+        if (!o.ok) notice(tr("Delete"), o.problem);
+        else m_objects->layer()->select(-1);
+        return;
+    }
     if (crunch::isControlId(id)) {
         // (a form control is taken away as one step; the saved file has neither its shape nor its entry)
         if (!m_objects || !m_objects->controls()->owns(m_sheet, id) || m_objects->controls()->isGone(m_sheet, id)) return;

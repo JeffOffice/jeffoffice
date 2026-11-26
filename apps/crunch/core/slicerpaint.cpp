@@ -14,7 +14,7 @@ namespace jp::crunch {
 
 namespace {
 
-constexpr double kHeader = 28, kPad = 4, kClearSide = 22, kDefaultButton = 24;
+constexpr double kHeader = 28, kPad = 4, kClearSide = 22, kDefaultButton = 24, kBar = 12, kMinThumb = 16;
 
 QFont fontOf(bool bold)
 {
@@ -84,7 +84,20 @@ SlicerGeometry slicerGeometry(const QSizeF &size, const SlicerFace &face)
     g.buttonWidth = std::max(1.0, (g.body.width() - g.gap * (g.columns - 1)) / g.columns);
     g.rows = g.body.height() < g.buttonHeight ? 0 : int((g.body.height() + g.gap) / (g.buttonHeight + g.gap));
     if (face.unusable != SlicerWhy::None) return g;
-    const qint64 total = std::max<qint64>(face.itemCount, qint64(face.buttons.size()));
+    const qint64 total = std::max<qint64>(face.itemCount, qint64(face.buttons.size()) + std::max<qint64>(0, face.first));
+    if (face.scrolls && g.rows > 0) {
+        // (every button is reached by scrolling: a bar takes the right of the body when they do not all fit; a frame too short for one row has nothing to scroll, and says how many there are)
+        if (total > g.capacity()) {
+            g.body.setWidth(std::max(1.0, g.body.width() - kBar - 2));
+            g.buttonWidth = std::max(1.0, (g.body.width() - g.gap * (g.columns - 1)) / g.columns);
+            g.bar = QRectF(g.body.right() + 2, g.body.top(), kBar, g.rows * (g.buttonHeight + g.gap) - g.gap);
+            const qint64 totalRows = (total + g.columns - 1) / g.columns;
+            g.maxRow = int(std::max<qint64>(0, totalRows - g.rows));
+            g.thumb = slicerThumbAt(g, int(std::min<qint64>(face.first / g.columns, g.maxRow)), totalRows);
+        }
+        g.shown = int(std::min<qint64>(qint64(face.buttons.size()), g.capacity()));
+        return g;
+    }
     const qint64 made = std::min<qint64>(qint64(face.buttons.size()), kMaxSlicerButtons);
     if (total <= std::min<qint64>(g.capacity(), made)) {
         g.shown = int(total);
@@ -99,6 +112,23 @@ SlicerGeometry slicerGeometry(const QSizeF &size, const SlicerFace &face)
     return g;
 }
 
+QRectF slicerThumbAt(const SlicerGeometry &g, int row, qint64 totalRows)
+{
+    if (g.bar.isNull() || totalRows <= 0) return QRectF();
+    const double h = std::clamp(g.bar.height() * double(g.rows) / double(totalRows), std::min(kMinThumb, g.bar.height()), g.bar.height());
+    const double room = g.bar.height() - h;
+    const double at = g.maxRow > 0 ? room * double(std::clamp(row, 0, g.maxRow)) / double(g.maxRow) : 0;
+    return QRectF(g.bar.left(), g.bar.top() + at, g.bar.width(), h);
+}
+
+int slicerRowAtThumb(const SlicerGeometry &g, double top, qint64 totalRows)
+{
+    Q_UNUSED(totalRows);
+    const double room = g.bar.height() - g.thumb.height();
+    if (g.maxRow <= 0 || room <= 0) return 0;
+    return std::clamp(int(std::lround((top - g.bar.top()) / room * g.maxRow)), 0, g.maxRow);
+}
+
 SlicerHit slicerHit(const SlicerGeometry &g, const SlicerFace &face, const QPointF &at)
 {
     SlicerHit hit;
@@ -108,6 +138,10 @@ SlicerHit slicerHit(const SlicerGeometry &g, const SlicerFace &face, const QPoin
     }
     if (g.header.contains(at)) {
         hit.part = SlicerPart::Header;
+        return hit;
+    }
+    if (!g.bar.isNull() && g.bar.contains(at)) {
+        hit.part = g.thumb.contains(at) ? SlicerPart::Thumb : at.y() < g.thumb.top() ? SlicerPart::BarAbove : SlicerPart::BarBelow;
         return hit;
     }
     if (!g.moreLine.isNull() && g.moreLine.contains(at)) {
@@ -137,6 +171,7 @@ QString slicerMoreText(const SlicerFace &face, const SlicerGeometry &g)
         chosen = std::max<qint64>(0, face.chosenCount - inView);
     }
     if (chosen > 0) return QCoreApplication::translate("jp::crunch::Slicer", "More items: %1 (%2 chosen)").arg(left).arg(chosen);
+    if (!face.scrolls && face.printed) return QCoreApplication::translate("jp::crunch::Slicer", "More items: %1 (not printed)").arg(left);
     return QCoreApplication::translate("jp::crunch::Slicer", "More items: %1").arg(left);
 }
 
@@ -215,6 +250,18 @@ void paintSlicer(QPainter *p, const QRectF &rect, const SlicerFace &face)
         words(p, r, b.text, ink, false, Qt::AlignCenter);
     }
     if (!g.moreLine.isNull()) words(p, g.moreLine, slicerMoreText(face, g), c.ink, false, Qt::AlignLeft);
+    if (face.focus >= face.first && face.focus - face.first < g.shown) {
+        p->setPen(QPen(c.ink, 2));
+        p->setBrush(Qt::NoBrush);
+        p->drawRect(g.button(int(face.focus - face.first)).adjusted(1, 1, -1, -1));
+    }
+    if (!g.bar.isNull()) {
+        p->setPen(Qt::NoPen);
+        p->setBrush(c.offDim);
+        p->drawRect(g.bar);
+        p->setBrush(c.frame);
+        p->drawRect(g.thumb);
+    }
     p->restore();
 }
 

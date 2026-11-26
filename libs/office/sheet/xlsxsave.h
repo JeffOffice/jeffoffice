@@ -393,6 +393,9 @@ struct SaveChanges {
     // Drawing objects a person deleted: for each drawing part (by its name), the places of their elements among the children of the part's root (DrawingObject::ordinal). What they leave
     // unused (the relationships of the drawing, and the chart or picture parts nothing else in the package relates to, with their own relationships and types) goes with them.
     std::map<QString, std::vector<int>> removedObjects;
+    // Slicers a person deleted, as (the sheet, the slicer's name): the slicer is taken out of its part (the part and its link go with the last one), and the cache, with its link, its entry, and its name,
+    // when no slicer left reads it (see planSlicerRemovals). The frame and stand-in of each are taken away with `removedObjects`, by the place of their element in the drawing.
+    std::vector<std::pair<int, QString>> removedSlicers;
     // Drawing parts (by name) whose hidden objects that are inside groups that stay are taken out (the objects hidden on their own are in removedObjects): found in the part as it is when it is
     // saved, with what only they used.
     std::set<QString> removedNestedHidden;

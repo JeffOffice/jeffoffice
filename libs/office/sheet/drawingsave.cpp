@@ -777,21 +777,25 @@ bool setDrawingAnchors(const QByteArray &xml, const std::map<int, DrawingAnchor>
         if (ordinal < 0 || size_t(ordinal) >= children.size() || anchor.kind != AnchorKind::TwoCell) continue;
         const qsizetype from0 = children[size_t(ordinal)].first, to0 = children[size_t(ordinal)].second;
         if (from0 < copied) continue;
-        // the first anchor of the child (a two-cell, one-cell, or absolute one)
+        // the first anchor of the child (a two-cell, one-cell, or absolute one); a stand-in pair (a slicer's frame and its fallback shape) has one in each branch, and both are written
         Tag t;
         qsizetype pos = from0;
-        Tag open;
-        bool found = false;
+        std::vector<Tag> opens;
+        bool pair = false, first = true;
         while (xmlscan::nextTag(xml, pos, &t) && t.start < to0) {
             pos = t.end;
             if (t.closing) continue;
+            if (first) pair = t.local == "AlternateContent";
+            first = false;
             if (t.local == "twoCellAnchor" || t.local == "oneCellAnchor" || t.local == "absoluteAnchor") {
-                open = t;
-                found = true;
-                break;
+                opens.push_back(t);
+                if (!pair) break;
+                const qsizetype end = elementEnd(xml, t);
+                if (end < 0) break;
+                pos = end;
             }
         }
-        if (!found) continue;
+        for (const Tag &open : opens) {
         const qsizetype anchorEnd = elementEnd(xml, open);
         if (anchorEnd < 0) continue;
         const QByteArray prefix(xmlscan::prefixOf(open.name).data(), xmlscan::prefixOf(open.name).size());
@@ -857,6 +861,7 @@ bool setDrawingAnchors(const QByteArray &xml, const std::map<int, DrawingAnchor>
         }
         result += xml.mid(copied, open.start - copied) + tag + point(prefix, "from", anchor.from) + point(prefix, "to", anchor.to) + kept + "</" + newName + ">";
         copied = anchorEnd;
+        }
     }
     if (copied == 0 && result.isEmpty()) return true;
     result += xml.mid(copied);

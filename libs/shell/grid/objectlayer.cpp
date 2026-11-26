@@ -1150,6 +1150,31 @@ bool ObjectLayer::takesKeys(int id) const
     return i < m_entries.size() && bool(m_entries[i].object.operateKeys);
 }
 
+bool ObjectLayer::worksAt(const QPoint &point, const GridLayout &layout) const
+{
+    const int hit = objectAt(point);
+    if (hit < 0) return false;
+    const Entry &e = m_entries[entryOf(hit)];
+    if (!e.object.operateKeys) return false;
+    QPointF fraction;
+    QSizeF units;
+    if (!fractionAt(e, layout, point, &fraction, &units)) return false;
+    if (m_mirrored) fraction.setX(1 - fraction.x());
+    return !e.object.worksAt || e.object.worksAt(fraction, units);
+}
+
+bool ObjectLayer::wheel(const QPoint &point, const GridLayout &layout, int steps)
+{
+    const int hit = objectAt(point);
+    if (hit < 0 || !m_entries[entryOf(hit)].object.wheel) return false;
+    const Entry &e = m_entries[entryOf(hit)];
+    QPointF fraction;
+    QSizeF units;
+    if (!fractionAt(e, layout, point, &fraction, &units)) return false;
+    if (m_mirrored) fraction.setX(1 - fraction.x());
+    return e.object.wheel(fraction, units, steps);
+}
+
 bool ObjectLayer::press(const QPoint &point, const GridLayout &layout, Qt::KeyboardModifiers modifiers)
 {
     m_layout = &layout;
@@ -1178,15 +1203,33 @@ bool ObjectLayer::press(const QPoint &point, const GridLayout &layout, Qt::Keybo
         }
     }
     const int hit = objectAt(point);
-    if (hit >= 0 && m_entries[entryOf(hit)].object.operate) {
+    if (hit >= 0 && m_entries[entryOf(hit)].object.operateKeys) {
+        // (an object that is worked and picked: a press on what it works is its own, any other picks it)
+        const Entry &e = m_entries[entryOf(hit)];
+        QPointF fraction;
+        QSizeF units;
+        if (fractionAt(e, layout, point, &fraction, &units)) {
+            if (m_mirrored) fraction.setX(1 - fraction.x());
+            if (e.object.operateKeys(fraction, units, modifiers)) {
+                if (e.object.dragWork) {
+                    m_work = hit;
+                    for (const Pane pane : kPanes)
+                        if (layout.pane(pane).rect.contains(point)) {
+                            m_workRect = rectIn(layout, pane, e);
+                            m_workUnits = units;
+                        }
+                }
+                return true;
+            }
+        }
+    } else if (hit >= 0 && m_entries[entryOf(hit)].object.operate) {
         // (a control is worked, not picked)
         const Entry &e = m_entries[entryOf(hit)];
         QPointF fraction;
         QSizeF units;
         if (m_selected >= 0) select(-1);
         if (!fractionAt(e, layout, point, &fraction, &units)) return false;
-        if (e.object.operateKeys && m_mirrored) fraction.setX(1 - fraction.x());   // (the picture is turned back on a mirrored sheet: its left is on the screen's left)
-        return e.object.operateKeys ? e.object.operateKeys(fraction, units, modifiers) : e.object.operate(fraction, units);
+        return e.object.operate(fraction, units);
     }
     if (hit >= 0) {
         select(hit);
@@ -1207,6 +1250,17 @@ bool ObjectLayer::press(const QPoint &point, const GridLayout &layout, Qt::Keybo
 
 bool ObjectLayer::mouseMove(const QPoint &point, const GridLayout &layout, Qt::MouseButtons buttons, Qt::KeyboardModifiers modifiers)
 {
+    if (m_work >= 0) {
+        const size_t at = entryOf(m_work);
+        const bool held = buttons & Qt::LeftButton;
+        if (at < m_entries.size() && m_entries[at].object.dragWork && !m_workRect.isEmpty() && held) {
+            QPointF fraction((point.x() - m_workRect.left()) / double(m_workRect.width()), (point.y() - m_workRect.top()) / double(m_workRect.height()));
+            if (m_mirrored) fraction.setX(1 - fraction.x());
+            m_entries[at].object.dragWork(fraction, m_workUnits, false);
+            return true;
+        }
+        m_work = -1;
+    }
     if (m_boxDragging) {
         m_layout = &layout;
         if (!(buttons & Qt::LeftButton)) {
@@ -1246,6 +1300,16 @@ bool ObjectLayer::mouseMove(const QPoint &point, const GridLayout &layout, Qt::M
 
 bool ObjectLayer::mouseRelease(const QPoint &point, const GridLayout &layout, Qt::KeyboardModifiers modifiers)
 {
+    if (m_work >= 0) {
+        const size_t at = entryOf(m_work);
+        m_work = -1;
+        if (at < m_entries.size() && m_entries[at].object.dragWork && !m_workRect.isEmpty()) {
+            QPointF fraction((point.x() - m_workRect.left()) / double(m_workRect.width()), (point.y() - m_workRect.top()) / double(m_workRect.height()));
+            if (m_mirrored) fraction.setX(1 - fraction.x());
+            m_entries[at].object.dragWork(fraction, m_workUnits, true);
+            return true;
+        }
+    }
     if (m_boxDragging) {
         m_layout = &layout;
         QPointF at;
@@ -1307,7 +1371,7 @@ bool ObjectLayer::contextMenu(const QPoint &point, const QPoint &global, const G
     m_layout = &layout;
     const int hit = objectAt(point);
     if (hit < 0) return false;
-    if (!m_entries[entryOf(hit)].object.operateKeys) select(hit);
+    select(hit);
     Q_EMIT contextMenuRequested(hit, global);
     return true;
 }
@@ -1317,14 +1381,18 @@ bool ObjectLayer::doubleClick(const QPoint &point, const GridLayout &layout)
     m_layout = &layout;
     const int hit = objectAt(point);
     if (hit < 0) return false;
-    if (m_entries[entryOf(hit)].object.operate) {
+    if (m_entries[entryOf(hit)].object.operate || m_entries[entryOf(hit)].object.operateKeys) {
         // (the second click of a double click works the control again)
         const Entry &e = m_entries[entryOf(hit)];
         QPointF fraction;
         QSizeF units;
         if (!fractionAt(e, layout, point, &fraction, &units)) return false;
         if (e.object.operateKeys && m_mirrored) fraction.setX(1 - fraction.x());
-        return e.object.operateKeys ? e.object.operateKeys(fraction, units, Qt::NoModifier) : e.object.operate(fraction, units);
+        if (e.object.operateKeys) {
+            if (!e.object.operateKeys(fraction, units, Qt::NoModifier)) select(hit);   // (a double click on what is not its work picks it)
+            return true;
+        }
+        return e.object.operate(fraction, units);
     }
     select(hit);
     Q_EMIT objectActivated(hit);
@@ -1395,6 +1463,7 @@ bool ObjectLayer::key(QKeyEvent *event)
         return true;
     }
     if (m_selected < 0) return false;
+    if (m_entries[entryOf(m_selected)].object.keys && m_entries[entryOf(m_selected)].object.keys(event)) return true;
     switch (event->key()) {
     case Qt::Key_Shift:
     case Qt::Key_Control:

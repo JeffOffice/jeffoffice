@@ -29,6 +29,7 @@
 #include "core/syslocale.h"
 #include <QThreadPool>
 
+#include <climits>
 #include <algorithm>
 #include <cmath>
 #include <set>
@@ -180,7 +181,21 @@ SheetObjects::SheetObjects(QObject *parent) : QObject(parent), m_doc(std::make_u
             m_layer.setAnchor(id, m_slicers.anchorOf(sheet, id));
             m_layer.invalidate(id);
         } else if (!gone) {
-            if (const std::optional<jp::grid::LayerObject> lo = m_slicers.layerObjectOf(sheet, id)) m_layer.addObject(*lo);
+            if (const std::optional<jp::grid::LayerObject> lo = m_slicers.layerObjectOf(sheet, id)) {
+                m_layer.addObject(*lo);
+                // (it comes back where the file draws it, not over the others: after the objects whose place in the drawing is before its own)
+                const int ordinal = m_slicers.ordinalOf(sheet, id);
+                size_t before = 0;
+                for (int k = 0; k + 1 < m_layer.count(); ++k) {
+                    const int other = m_layer.object(k).id;
+                    int theirs = INT_MAX;
+                    if (isSlicerId(other)) theirs = m_slicers.ordinalOf(sheet, other);
+                    else if (!isControlId(other) && !isEmbedId(other))
+                        if (const Object *o = find(sheet, other)) theirs = o->meta.ordinal;
+                    if (theirs < ordinal) ++before;
+                }
+                m_layer.moveObject(id, before);
+            }
         }
     });
     connect(&m_slicers, &SheetSlicers::lookChanged, this, [this](int sheet, int id) {
@@ -1303,6 +1318,7 @@ bool SheetObjects::canDelete(int sheet, int id, QString *why)
 
 bool SheetObjects::isDeleted(int sheet, int id)
 {
+    if (isSlicerId(id)) return m_slicers.isDeleted(sheet, id);
     if (isEmbedId(id)) return m_embeds.isDeleted(sheet, id);
     for (const std::shared_ptr<Object> &o : sheetState(sheet).objects)
         if (o->id == id) return o->deleted;
@@ -1604,6 +1620,7 @@ void SheetObjects::addToSave(SaveChanges *changes)
         std::vector<int> removedOrdinals;
         for (const std::shared_ptr<Object> &o : s.objects)
             if (o->deleted && !o->added && !o->gone && o->meta.ordinal >= 0) removedOrdinals.push_back(o->meta.ordinal);
+        for (const int ordinal : m_slicers.removedOrdinals(int(i))) removedOrdinals.push_back(ordinal);
         const std::vector<int> deletedOrdinals = removedOrdinals;   // (the objects a person deleted)
         std::vector<const DrawingObject *> hiddenOnes;   // (the objects the file hides that go with a chart part only they used)
         s.hiddenAfterSave.clear();
@@ -1624,6 +1641,18 @@ void SheetObjects::addToSave(SaveChanges *changes)
         }
         std::sort(removedOrdinals.begin(), removedOrdinals.end());
         removedOrdinals.erase(std::unique(removedOrdinals.begin(), removedOrdinals.end()), removedOrdinals.end());
+        m_slicers.addToSave(int(i), s.drawingPart, changes, removedOrdinals, [&](const DrawingAnchor &a) {
+            // (a place and a size, as the layer gives one that keeps its size, is the two places it covers on the rows and columns now)
+            if (a.kind == AnchorKind::TwoCell || !m_source) return a;
+            const jp::grid::GridGeometry &g = geometryOf();
+            const jp::grid::ObjectBox b = jp::grid::anchorBox(a, g.layout.rows, g.layout.cols);
+            DrawingAnchor t = a;
+            t.kind = AnchorKind::TwoCell;
+            t.x = t.y = t.cx = t.cy = 0;
+            if (a.kind != AnchorKind::OneCell) t.from = jp::grid::anchorPointAt(g.layout.rows, g.layout.cols, b.x, b.y);
+            t.to = jp::grid::anchorPointAt(g.layout.rows, g.layout.cols, b.x + b.w, b.y + b.h);
+            return t;
+        });
         if (!s.hiddenDropped)
             for (const Sheet::HiddenAt &h : s.hidden) {
                 if (h.nested && std::find(deletedOrdinals.begin(), deletedOrdinals.end(), h.ordinal) != deletedOrdinals.end()) continue;
@@ -2116,7 +2145,11 @@ void SheetObjects::knowShapeIds(int sheet, Sheet &s)
     s.nextShapeId = std::max(s.nextShapeId, most + 1);
 }
 
-bool SheetObjects::exists(int sheet, int id) { return isEmbedId(id) ? m_embeds.owns(sheet, id) : find(sheet, id) != nullptr; }
+bool SheetObjects::exists(int sheet, int id)
+{
+    if (isSlicerId(id)) return m_slicers.owns(sheet, id);
+    return isEmbedId(id) ? m_embeds.owns(sheet, id) : find(sheet, id) != nullptr;
+}
 
 bool SheetObjects::equationOf(int sheet, int id, QString *linear, QByteArray *markup)
 {
@@ -2138,6 +2171,7 @@ ObjectKind SheetObjects::kindOf(int sheet, int id)
 
 QString SheetObjects::nameOf(int sheet, int id)
 {
+    if (isSlicerId(id)) return m_slicers.nameOf(sheet, id);
     if (isEmbedId(id)) return m_embeds.nameOf(sheet, id);
     const Object *o = find(sheet, id);
     return o ? o->meta.name : QString();
@@ -2166,6 +2200,7 @@ QString SheetObjects::newName(int sheet, ObjectKind kind)
 ObjectState SheetObjects::stateOf(int sheet, int id)
 {
     ObjectState st;
+    if (isSlicerId(id)) return m_slicers.stateOf(sheet, id, m_epoch);
     if (isEmbedId(id)) return m_embeds.stateOf(sheet, id, m_epoch);
     if (isControlId(id)) {
         bool found = false;
@@ -2245,6 +2280,7 @@ bool SheetObjects::printsOf(int sheet, int id)
 
 ObjectState SheetObjects::stateMoved(int sheet, int id, const DrawingAnchor &anchor)
 {
+    if (isSlicerId(id)) return m_slicers.stateMoved(sheet, id, anchor, m_epoch);
     if (isEmbedId(id)) {
         // (the size the anchor gives on the rows and columns now: an object of ours that is sized has its picture drawn again at it)
         QSizeF units;
@@ -2264,6 +2300,10 @@ ObjectState SheetObjects::stateWithEmbed(int sheet, int id, const jp::office::ol
 
 void SheetObjects::applyState(int sheet, int id, const ObjectState &st)
 {
+    if (isSlicerId(id)) {
+        m_slicers.apply(sheet, id, st, st.epoch == m_epoch);
+        return;
+    }
     if (isEmbedId(id)) {
         if (st.embed) m_embeds.apply(sheet, id, *st.embed, st.deleted, st.epoch == m_epoch);
         return;
@@ -3263,6 +3303,7 @@ QVector<ChartBlock> SheetObjects::chartReads(int sheet, int objectId)
 
 DrawingAnchor SheetObjects::anchorOf(int sheet, int objectId)
 {
+    if (isSlicerId(objectId)) return m_slicers.anchorOf(sheet, objectId);
     if (isEmbedId(objectId)) return m_embeds.anchorOf(sheet, objectId);
     for (const std::shared_ptr<Object> &o : sheetState(sheet).objects)
         if (o->id == objectId) return o->anchor;

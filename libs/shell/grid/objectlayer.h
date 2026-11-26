@@ -79,9 +79,18 @@ struct LayerObject {
     // and says whether it took the click; a click it takes picks nothing and drags nothing (the object is not picked at all: it is not one to move). With `fixed` the object is never
     // moved or sized with the mouse or the keys. `tooltip` is shown while the mouse is over it.
     std::function<bool(const QPointF &fraction, const QSizeF &units)> operate;
-    // The same, told which keys were held at the press (Ctrl and Shift choose several items of a slicer); used instead of `operate` when set (set `operate` too, for the places that ask only whether the
-    // object is worked with a click). Such an object is not picked by a right click either.
+    // The same, told which keys were held at the press (Ctrl and Shift choose several items of a slicer); used instead of `operate` when set (`operate` is left unset). Such an object is picked, moved, sized, and deleted
+    // as others are, but for the presses its `operateKeys` takes.
     std::function<bool(const QPointF &fraction, const QSizeF &units, Qt::KeyboardModifiers keys)> operateKeys;
+    // With `operateKeys`: whether a press at the point is the object's own work (it is told of it, and nothing is picked) or not (the press picks the object, which is then moved, sized, or deleted like the
+    // others, and Shift or Ctrl add it to the pick). `operateKeys` returns false for a press that is not its own work, too.
+    std::function<bool(const QPointF &fraction, const QSizeF &units)> worksAt;
+    // The wheel turned over the object (`steps`: a notch is one, positive away from the person): true if it used it (the cells do not scroll).
+    std::function<bool(const QPointF &fraction, const QSizeF &units, int steps)> wheel;
+    // A press that `operateKeys` took went on: the mouse moved with the button down (`done` false), or was let go (`done` true), at a place given the same way, not held to the object's box.
+    std::function<void(const QPointF &fraction, const QSizeF &units, bool done)> dragWork;
+    // A key pressed while the object is picked, before the layer's own keys (Delete, Escape, and the arrows that move it); true if the object took it.
+    std::function<bool(QKeyEvent *event)> keys;
     bool fixed = false;
     QString tooltip;
     // How far the object is turned about its center (degrees, clockwise), once it is known (see `settle`): `box` is its unturned frame, and the outline a person sees is the box that holds the
@@ -169,6 +178,10 @@ public:
     QRect deviceRect(int id, Pane pane) const;
     // Whether the object is told which keys were held at a click (LayerObject::operateKeys): such a click is its own, not a way to pick it with Shift or Ctrl.
     bool takesKeys(int id) const;
+    // Whether a press at the point is the work of the object under it (LayerObject::worksAt): a Ctrl or Shift press on it is that work, and on the rest of the object picks it.
+    bool worksAt(const QPoint &point, const GridLayout &layout) const;
+    // The wheel turned at a point of the viewport: true if the object under it used it.
+    bool wheel(const QPoint &point, const GridLayout &layout, int steps);
     // The object at a point of the viewport (the topmost whose ink, or whose box for a picture or chart, is under it), or -1.
     int objectAt(const QPoint &point) const;
     // The same for a mouse move (which only chooses a pointer): at most one picture is made, and the rest are answered by their boxes.
@@ -246,6 +259,9 @@ private:
         size_t entry = 0;
     };
     bool m_mirrored = false;   // the painter is mirrored: pictures are turned back
+    int m_work = -1;           // the object whose work a press began (LayerObject::dragWork), and where its box is on the screen
+    QRect m_workRect;
+    QSizeF m_workUnits;
     // The box being drawn (armBox): the grid's units at the press and now, and whether Shift is down.
     bool m_boxArmed = false, m_boxDragging = false, m_boxShift = false;
     QSizeF m_boxUsual = jp::usualTextBoxSize();

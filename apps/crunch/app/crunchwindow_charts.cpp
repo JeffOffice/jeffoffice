@@ -346,6 +346,11 @@ bool CrunchWindow::moveObject(int id, const DrawingAnchor &anchor)
 {
     if (!m_session || !m_objects || m_edit.active || m_saving || m_chartSheetShown) return false;
     if (!m_objects->exists(m_sheet, id)) return false;
+    if (crunch::isSlicerId(id) && !editingAllowed()) {
+        m_objects->layer()->setAnchor(id, m_objects->anchorOf(m_sheet, id));   // (a workbook open for reading only keeps the slicer where it is)
+        m_objects->layer()->invalidate(id);
+        return false;
+    }
     crunch::ObjectEdit e;
     e.sheet = m_sheet;
     e.id = id;
@@ -353,6 +358,10 @@ bool CrunchWindow::moveObject(int id, const DrawingAnchor &anchor)
     e.after = m_objects->stateMoved(m_sheet, id, anchor);
     const crunch::EditSession::Outcome o = m_session->changeObjects({e}, tr("Move or Size Object"));
     if (!o.ok) {
+        if (crunch::isSlicerId(id)) {
+            m_objects->layer()->setAnchor(id, m_objects->anchorOf(m_sheet, id));
+            m_objects->layer()->invalidate(id);
+        }
         setStatus(o.problem);
         return false;
     }
@@ -934,9 +943,10 @@ void CrunchWindow::updateChartState()
     act(QStringLiteral("chartdesign.saveAsPicture"))->setEnabled(chart);
     act(QStringLiteral("chartdesign.saveTemplate"))->setEnabled(chart);
     act(QStringLiteral("chartdesign.applyTemplate"))->setEnabled(editable);
-    for (const char *name : {"object.properties", "object.delete"}) act(QString::fromLatin1(name))->setEnabled(picked);
-    // (an object from another app is not one of the drawing's: it has no place in their order to bring forward or send back)
-    for (const char *name : {"object.front", "object.forward", "object.backward", "object.back"}) act(QString::fromLatin1(name))->setEnabled(picked && !crunch::isEmbedId(id));
+    act(QStringLiteral("object.delete"))->setEnabled(picked);
+    act(QStringLiteral("object.properties"))->setEnabled(picked && !crunch::isSlicerId(id));
+    // (an object from another app is not one of the drawing's: it has no place in their order to bring forward or send back; nor has a slicer, which stays where the file draws it)
+    for (const char *name : {"object.front", "object.forward", "object.backward", "object.back"}) act(QString::fromLatin1(name))->setEnabled(picked && !crunch::isEmbedId(id) && !crunch::isSlicerId(id));
     if (m_ribbon) m_ribbon->setContextVisible(QStringLiteral("Chart"), chart);
     {
         const ObjectKind kind = picked ? m_objects->kindOf(m_sheet, id) : ObjectKind::Other;
@@ -993,10 +1003,12 @@ void CrunchWindow::placeChartButtons()
 void CrunchWindow::objectContextMenu(int id, const QPoint &global)
 {
     if (crunch::isSlicerId(id)) {
-        // (a slicer on the sheet is not picked yet: its menu is the Slicers pane)
+        // (a slicer's menu: Delete, and the Slicers pane. It is not in the order the file draws in that a person changes, and has no properties of its own)
         auto *slicerMenu = new QMenu(this);
         slicerMenu->setAttribute(Qt::WA_DeleteOnClose);
         slicerMenu->setObjectName(QStringLiteral("objectMenu"));
+        slicerMenu->addAction(act(QStringLiteral("object.delete")));
+        slicerMenu->addSeparator();
         slicerMenu->addAction(act(QStringLiteral("pivot.slicers")));
         slicerMenu->popup(global);
         return;

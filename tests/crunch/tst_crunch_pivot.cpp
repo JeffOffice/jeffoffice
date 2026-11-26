@@ -2761,7 +2761,7 @@ private Q_SLOTS:
         clickView(e, QPoint(east.x(), slicerRect(e).top() + 8));   // (the caption)
         clickView(e, QPoint(slicerRect(e).left() + 2, slicerRect(e).bottom() - 2));   // (the frame)
         QCOMPARE(s->undoStack()->count(), steps);
-        QCOMPARE(e.win.w.objects()->layer()->selectedId(), -1);
+        QCOMPARE(e.win.w.objects()->layer()->selectedId(), slicerId(e));   // (the caption and the frame pick the slicer; they filter nothing)
         clickView(e, west);
         finish(e);
         QCOMPARE(s->undoStack()->count(), steps + 1);
@@ -2826,8 +2826,8 @@ private Q_SLOTS:
         QCOMPARE(pivotShown(e), QStringLiteral("Sum of Amount|Month||\nRegion|Jan|Feb|Grand Total\nEast|15|20|35\nWest|7|7|14\nGrand Total|22|27|49"));
     }
 
-    // Rows inserted above the slicer move it; the slicer is not picked by a right click or by a click, and the Delete key leaves it alone.
-    void aSlicerFollowsRowsInsertedAndIsNotPicked()
+    // Rows inserted above the slicer move it.
+    void aSlicerFollowsRowsInserted()
     {
         EditWindow e;
         QVERIFY(e.open(pivotWorkbook(slicerSheetBook())));
@@ -2838,13 +2838,6 @@ private Q_SLOTS:
         QVERIFY2(inserted.ok, qPrintable(inserted.problem));
         const int shift = L.rangeRect(9, 0, 9, 0).top() - L.rangeRect(8, 0, 8, 0).top();
         QTRY_COMPARE(slicerRect(e).top(), before.top() + shift);
-        jp::grid::ObjectLayer *layer = e.win.w.objects()->layer();
-        QVERIFY(layer->contextMenu(slicerSpot(e, 0), e.view()->viewport()->mapToGlobal(slicerSpot(e, 0)), L));
-        QCOMPARE(layer->selectedId(), -1);
-        for (QMenu *m : e.win.w.findChildren<QMenu *>(QStringLiteral("objectMenu"))) m->close();
-        QTest::keyClick(e.view()->viewport(), Qt::Key_Delete);   // (it clears the cell with the cursor, as it does when nothing is picked)
-        QCOMPARE(layer->count(), 1);
-        QVERIFY(!layer->isDeleted(slicerId(e)));
     }
 
     // Thousands of slicers: each is an anchor of the drawing (read up to the limit of anchors), only those on the screen are drawn, and a click still reaches the one under it.
@@ -2860,6 +2853,609 @@ private Q_SLOTS:
         clickView(e, slicerSpot(e, 1));
         finish(e);
         QCOMPARE(e.win.w.session()->undoStack()->count(), steps + 1);
+    }
+
+    // ---- slicers on the sheet: picking, moving, sizing, deleting, scrolling, runs, and keys (slice 2)
+    static void dragView(EditWindow &e, const QPoint &from, const QPoint &to, Qt::KeyboardModifiers keys = Qt::NoModifier)
+    {
+        QWidget *vp = e.view()->viewport();
+        QTest::mousePress(vp, Qt::LeftButton, keys, onScreen(e, from));
+        QTest::mouseMove(vp, onScreen(e, (from + to) / 2));
+        QTest::mouseMove(vp, onScreen(e, to));
+        QTest::mouseRelease(vp, Qt::LeftButton, keys, onScreen(e, to));
+    }
+    static QPoint captionSpot(EditWindow &e, int nth = 0) { const QRect r = slicerRect(e, nth); return QPoint(r.left() + 40, r.top() + 8); }
+    // The places in a drawing's anchors, in the order they are written ("col,colOff,row,rowOff" of each from and to), and the drawing with them cut out.
+    static QStringList anchorPlaces(const QByteArray &drawing)
+    {
+        QStringList out;
+        static const QRegularExpression re(QStringLiteral("<xdr:(?:from|to)><xdr:col>(\\d+)</xdr:col><xdr:colOff>(-?\\d+)</xdr:colOff><xdr:row>(\\d+)</xdr:row><xdr:rowOff>(-?\\d+)</xdr:rowOff></xdr:(?:from|to)>"));
+        QRegularExpressionMatchIterator it = re.globalMatch(QString::fromUtf8(drawing));
+        while (it.hasNext()) {
+            const QRegularExpressionMatch m = it.next();
+            out << m.captured(1) + QLatin1Char(',') + m.captured(2) + QLatin1Char(',') + m.captured(3) + QLatin1Char(',') + m.captured(4);
+        }
+        return out;
+    }
+    static QByteArray drawingWithoutPlaces(const QByteArray &drawing)
+    {
+        QString t = QString::fromUtf8(drawing);
+        static const QRegularExpression re(QStringLiteral("<xdr:(from|to)>.*?</xdr:(from|to)>"));
+        t.replace(re, QStringLiteral("<PLACE/>"));
+        return t.toUtf8();
+    }
+    // A slicer book whose workbook and sheet also list the slicer in their extension lists, with the defined name the cache has: what a file made by another program holds.
+    static SlicerSheet listedSlicers(int count = 1)
+    {
+        SlicerSheet w;
+        w.count = count;
+        w.rowStep = 12;
+        w.heightRows = 10;
+        if (count > 1) w.names = {QStringLiteral("Region"), QStringLiteral("Region 2")};
+        w.edit = [count](Parts &p) {
+            if (count > 1) p[QStringLiteral("xl/slicers/slicer1.xml")].replace("</slicers>", "<slicer name=\"Region 2\" cache=\"Slicer_Region\" caption=\"Area\" rowHeight=\"241300\"/></slicers>");
+            QByteArray &wb = p[QStringLiteral("xl/workbook.xml")];
+            const int endRoot = wb.lastIndexOf("</workbook>");
+            QByteArray names = "<definedNames><definedName name=\"Slicer_Region\">#N/A</definedName></definedNames>";
+            const int calc = wb.indexOf("<calcPr");
+            if (wb.contains("<definedNames>")) wb.replace("<definedNames>", "<definedNames><definedName name=\"Slicer_Region\">#N/A</definedName>");
+            else if (calc >= 0) wb.insert(calc, names);
+            else wb.insert(endRoot, names);
+            wb.replace("</workbook>", "<extLst><ext uri=\"{BBE1A952-AA13-448e-AADC-164F8A28A991}\" xmlns:x14=\"http://schemas.microsoft.com/office/spreadsheetml/2009/9/main\"><x14:slicerCaches><x14:slicerCache r:id=\"rIdSc1\"/></x14:slicerCaches></ext></extLst></workbook>");
+            if (!wb.contains("xmlns:r=")) wb.replace("<workbook ", "<workbook xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\" ");
+            QByteArray &sh = p[kSheetPart];
+            sh.replace("</worksheet>", "<extLst><ext uri=\"{A8765BA9-456A-4dab-B4F3-ACF838C121DE}\" xmlns:x14=\"http://schemas.microsoft.com/office/spreadsheetml/2009/9/main\"><x14:slicerList><x14:slicer r:id=\"rIdSl1\"/></x14:slicerList></ext></extLst></worksheet>");
+            if (!sh.contains("xmlns:r=")) sh.replace("<worksheet ", "<worksheet xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\" ");
+        };
+        return w;
+    }
+
+    // A press on a button filters (as before); a press on the caption or on the frame picks the slicer (its handles show, nothing is filtered, no step is made); Ctrl on the caption adds it to the
+    // pick with another object; a right click picks it and offers Delete and the Slicers pane.
+    void aCaptionPicksASlicerAndAButtonFiltersIt()
+    {
+        SlicerSheet w;
+        w.after = boxAnchor(13, 8, 16, 12, "Box");
+        EditWindow e;
+        QVERIFY(e.open(pivotWorkbook(slicerSheetBook(w))));
+        QTRY_COMPARE(e.win.w.objects()->layer()->count(), 2);
+        crunch::EditSession *s = e.win.w.session();
+        jp::grid::ObjectLayer *layer = e.win.w.objects()->layer();
+        const int steps = s->undoStack()->count(), id = slicerId(e);
+        clickView(e, captionSpot(e));
+        QCOMPARE(layer->selectedId(), id);
+        QCOMPARE(s->undoStack()->count(), steps);
+        clickView(e, QPoint(slicerRect(e).left() + 400, slicerRect(e).top() + 400));   // (off every object: nothing is picked)
+        QCOMPARE(layer->selectedId(), -1);
+        clickView(e, QPoint(slicerRect(e).left() + 1, slicerRect(e).center().y()));   // (the frame's edge)
+        QCOMPARE(layer->selectedId(), id);
+        clickView(e, slicerSpot(e, 1));   // a button of the picked slicer: it filters, and the slicer stays picked
+        finish(e);
+        QCOMPARE(s->undoStack()->count(), steps + 1);
+        QCOMPARE(layer->selectedId(), id);
+        // Ctrl on the caption with the box picked adds the slicer to the pick; Ctrl on a button does not pick it
+        const int box = [&] { for (int i = 0; i < layer->count(); ++i) if (!crunch::isSlicerId(layer->object(i).id)) return layer->object(i).id; return -1; }();
+        clickView(e, layer->deviceRect(box, jp::grid::Pane::Body).center());
+        QCOMPARE(layer->selectedId(), box);
+        clickView(e, captionSpot(e), Qt::ControlModifier);
+        QCOMPARE(int(e.win.w.pickedObjects().size()), 2);
+        clickView(e, slicerSpot(e, 0), Qt::ControlModifier);   // (a button is worked with Ctrl, not picked or let go)
+        finish(e);
+        QCOMPARE(int(e.win.w.pickedObjects().size()), 2);
+        QCOMPARE(s->undoStack()->count(), steps + 2);
+        // a right click picks it and shows the menu: Delete and the Slicers pane
+        layer->select(-1);
+        QVERIFY(layer->contextMenu(captionSpot(e), e.view()->viewport()->mapToGlobal(captionSpot(e)), e.view()->sheet().layout()));
+        QCOMPARE(layer->selectedId(), id);
+        QMenu *menu = e.win.w.findChild<QMenu *>(QStringLiteral("objectMenu"));
+        QVERIFY(menu);
+        QStringList items;
+        for (const QAction *a : menu->actions()) items << a->text();
+        QVERIFY2(items.contains(QStringLiteral("Delete")) && items.contains(QStringLiteral("Slicers")), qPrintable(items.join(QLatin1Char('|'))));
+        for (QMenu *m : e.win.w.findChildren<QMenu *>(QStringLiteral("objectMenu"))) m->close();
+    }
+
+    // Dragging the caption moves the slicer (one step; Undo and Redo), and the anchor is written to the frame and to the stand-in beside it, and nothing else of the drawing, or of the slicer's
+    // parts, changes; the file reopens with the slicer where it was put. An unedited file saves identical.
+    void aSlicerIsMovedWithTheMouseAndTheFileHasItThere()
+    {
+        const QByteArray book = pivotWorkbook(slicerSheetBook(listedSlicers()));
+        EditWindow e;
+        QVERIFY(e.open(book));
+        QTRY_COMPARE(e.win.w.objects()->layer()->count(), 1);
+        crunch::EditSession *s = e.win.w.session();
+        const QRect before = slicerRect(e);
+        const grid::GridLayout &L = e.view()->sheet().layout();
+        const int steps = s->undoStack()->count();
+        const QPoint from = captionSpot(e), to = from + QPoint(int(L.cols.position(2) - L.cols.position(0)), int(L.rows.position(3) - L.rows.position(0)));
+        dragView(e, from, to);
+        QCOMPARE(s->undoStack()->count(), steps + 1);
+        const QRect moved = slicerRect(e);
+        QCOMPARE(moved.size(), before.size());
+        QVERIFY(moved.left() > before.left() && moved.top() > before.top());
+        QVERIFY(saveNow(e));
+        const Parts was = readParts(QString());   // (placeholder: replaced below)
+        Q_UNUSED(was);
+        QFile saved(e.path);
+        QVERIFY(saved.open(QIODevice::ReadOnly));
+        const QByteArray bytes = saved.readAll();
+        const QByteArray drawing = drawingOf(bytes), original = drawingOf(book);
+        const QStringList places = anchorPlaces(drawing), first = anchorPlaces(original);
+        QCOMPARE(places.size(), 4);   // (the frame's from and to, and the stand-in's)
+        QCOMPARE(places[0], places[2]);
+        QCOMPARE(places[1], places[3]);
+        QVERIFY(places != first);
+        QCOMPARE(drawingWithoutPlaces(drawing), drawingWithoutPlaces(original));
+        Parts now, old;
+        readZip(bytes, now);
+        readZip(book, old);
+        for (const QString &part : {QStringLiteral("xl/slicers/slicer1.xml"), QStringLiteral("xl/slicerCaches/slicerCache1.xml"), QStringLiteral("xl/workbook.xml")})
+            QCOMPARE(now.value(part), old.value(part));
+        EditWindow again;
+        QVERIFY(again.open(bytes, QStringLiteral("again.xlsx")));
+        QTRY_COMPARE(again.win.w.objects()->layer()->count(), 1);
+        QCOMPARE(slicerRect(again).topLeft(), moved.topLeft());
+        // Undo puts it back (and the file then has the places it began with), Redo moves it again
+        s->undoStack()->undo();
+        QCOMPARE(slicerRect(e).topLeft(), before.topLeft());
+        QVERIFY(saveNow(e));
+        QCOMPARE(anchorPlaces(drawingOf([&] { QFile f(e.path); f.open(QIODevice::ReadOnly); return f.readAll(); }())), first);
+        s->undoStack()->redo();
+        QCOMPARE(slicerRect(e).topLeft(), moved.topLeft());
+        // a file nobody changed is saved identical
+        EditWindow quiet;
+        QVERIFY(quiet.open(book));
+        QTRY_COMPARE(quiet.win.w.objects()->layer()->count(), 1);
+        QVERIFY(saveNow(quiet));
+        QFile f(quiet.path);
+        QVERIFY(f.open(QIODevice::ReadOnly));
+        Parts quietParts, bookParts;
+        readZip(f.readAll(), quietParts);
+        readZip(book, bookParts);
+        for (auto it = bookParts.begin(); it != bookParts.end(); ++it) QVERIFY2(quietParts.value(it.key()) == it.value(), qPrintable(it.key()));
+    }
+
+    // A handle sizes the slicer, the arrow keys move it (as they do another object), each one step; the anchor kind says how it follows cells.
+    void aSlicerIsSizedWithAHandleAndMovedWithTheArrowKeys()
+    {
+        EditWindow e;
+        QVERIFY(e.open(pivotWorkbook(slicerSheetBook(listedSlicers()))));
+        QTRY_COMPARE(e.win.w.objects()->layer()->count(), 1);
+        crunch::EditSession *s = e.win.w.session();
+        jp::grid::ObjectLayer *layer = e.win.w.objects()->layer();
+        clickView(e, captionSpot(e));
+        QCOMPARE(layer->selectedId(), slicerId(e));
+        const QRect before = slicerRect(e);
+        const int steps = s->undoStack()->count();
+        const QPoint corner = before.bottomRight() - QPoint(1, 1);
+        dragView(e, corner, corner + QPoint(60, 40));
+        QCOMPARE(s->undoStack()->count(), steps + 1);
+        const QRect sized = slicerRect(e);
+        QVERIFY2(sized.width() > before.width() && sized.height() > before.height(), qPrintable(QStringLiteral("%1x%2").arg(sized.width()).arg(sized.height())));
+        QCOMPARE(sized.topLeft(), before.topLeft());
+        QTest::keyClick(e.view()->viewport(), Qt::Key_Down);
+        QCOMPARE(s->undoStack()->count(), steps + 2);
+        QVERIFY(slicerRect(e).top() > sized.top());
+        s->undoStack()->undo();
+        s->undoStack()->undo();
+        QCOMPARE(slicerRect(e), before);
+    }
+
+    // Delete takes the slicer, its frame, its stand-in, its part and the link to it, the cache with its link, entry, and name, out of the saved file; the filter it put on the table stays; Undo (before a save)
+    // brings it all back byte for byte; with two slicers on one cache the cache stays until the last one is gone.
+    void aDeletedSlicerLeavesNoPartsInTheFile()
+    {
+        const QByteArray book = pivotWorkbook(slicerSheetBook(listedSlicers()));
+        EditWindow e;
+        QVERIFY(e.open(book));
+        QTRY_COMPARE(e.win.w.objects()->layer()->count(), 1);
+        crunch::EditSession *s = e.win.w.session();
+        clickView(e, slicerSpot(e, 1));
+        finish(e);
+        const int steps = s->undoStack()->count();
+        clickView(e, captionSpot(e));
+        QTest::keyClick(e.view()->viewport(), Qt::Key_Delete);
+        QCOMPARE(s->undoStack()->count(), steps + 1);
+        QVERIFY(e.win.w.objects()->layer()->isDeleted(slicerId(e)));
+        QVERIFY(saveNow(e));
+        Parts after;
+        {
+            QFile f(e.path);
+            QVERIFY(f.open(QIODevice::ReadOnly));
+            readZip(f.readAll(), after);
+        }
+        QVERIFY(!after.contains(QStringLiteral("xl/slicers/slicer1.xml")));
+        QVERIFY(!after.contains(QStringLiteral("xl/slicerCaches/slicerCache1.xml")));
+        QVERIFY(after.contains(QStringLiteral("xl/timelineCaches/timelineCache1.xml")));   // (what no deleted slicer used stays)
+        QVERIFY(!after.value(QStringLiteral("[Content_Types].xml")).contains("slicer1.xml"));
+        QVERIFY(!after.value(QStringLiteral("[Content_Types].xml")).contains("slicerCache1.xml"));
+        QVERIFY(after.value(QStringLiteral("[Content_Types].xml")).contains("timelineCache1.xml"));
+        QVERIFY(!after.value(QStringLiteral("xl/worksheets/_rels/sheet1.xml.rels")).contains("slicers/slicer1.xml"));
+        QVERIFY(!after.value(QStringLiteral("xl/_rels/workbook.xml.rels")).contains("slicerCache1.xml"));
+        QVERIFY(after.value(QStringLiteral("xl/_rels/workbook.xml.rels")).contains("timelineCache1.xml"));
+        QVERIFY(!after.value(QStringLiteral("xl/workbook.xml")).contains("slicerCache"));
+        QVERIFY(!after.value(QStringLiteral("xl/workbook.xml")).contains("Slicer_Region"));
+        QVERIFY(!after.value(QStringLiteral("xl/worksheets/sheet1.xml")).contains("slicerList"));
+        QVERIFY(!after.value(QStringLiteral("xl/worksheets/sheet1.xml")).contains("extLst"));
+        QVERIFY(!after.value(QStringLiteral("xl/drawings/drawing1.xml")).contains("slicer"));
+        QVERIFY(!after.value(QStringLiteral("xl/drawings/drawing1.xml")).contains("AlternateContent"));
+        // the filter stays on the table, as when the Slicers pane is closed
+        QCOMPARE(pivotShown(e, QStringLiteral("E3:H6")), QStringLiteral("Sum of Amount|Month||\nRegion|Jan|Feb|Grand Total\nWest|7|7|14\nGrand Total|7|7|14"));
+        // the file reopens with no slicer
+        QFile f(e.path);
+        QVERIFY(f.open(QIODevice::ReadOnly));
+        EditWindow again;
+        QVERIFY(again.open(f.readAll(), QStringLiteral("again.xlsx")));
+        QCOMPARE(again.win.w.objects()->layer()->count(), 0);
+    }
+
+    // Undo of a delete that was not saved: the file saved after it is the file as it was, byte for byte; Redo takes it out again.
+    void undoingADeletedSlicerLeavesTheFileAsItWas()
+    {
+        const QByteArray book = pivotWorkbook(slicerSheetBook(listedSlicers()));
+        EditWindow e;
+        QVERIFY(e.open(book));
+        QTRY_COMPARE(e.win.w.objects()->layer()->count(), 1);
+        crunch::EditSession *s = e.win.w.session();
+        clickView(e, captionSpot(e));
+        QTest::keyClick(e.view()->viewport(), Qt::Key_Delete);
+        QVERIFY(e.win.w.objects()->layer()->isDeleted(slicerId(e)));
+        s->undoStack()->undo();
+        QVERIFY(!e.win.w.objects()->layer()->isDeleted(slicerId(e)));
+        QVERIFY(!slicerRect(e).isEmpty());
+        QVERIFY(saveNow(e));
+        QFile f(e.path);
+        QVERIFY(f.open(QIODevice::ReadOnly));
+        Parts now, old;
+        readZip(f.readAll(), now);
+        readZip(book, old);
+        QCOMPARE(now.keys(), old.keys());
+        for (auto it = old.begin(); it != old.end(); ++it) QVERIFY2(now.value(it.key()) == it.value(), qPrintable(it.key()));
+        s->undoStack()->redo();
+        QVERIFY(e.win.w.objects()->layer()->isDeleted(slicerId(e)));
+    }
+
+    // Two slicers on one cache: deleting one leaves the other, the cache, and its parts; the slicer part loses only the deleted one's element; deleting the second takes the rest.
+    void deletingOneOfTwoSlicersOnACacheKeepsTheCache()
+    {
+        const QByteArray book = pivotWorkbook(slicerSheetBook(listedSlicers(2)));
+        EditWindow e;
+        QVERIFY(e.open(book));
+        QTRY_COMPARE(e.win.w.objects()->layer()->count(), 2);
+        jp::grid::ObjectLayer *layer = e.win.w.objects()->layer();
+        clickView(e, captionSpot(e, 0));
+        QTest::keyClick(e.view()->viewport(), Qt::Key_Delete);
+        QVERIFY(saveNow(e));
+        Parts one;
+        {
+            QFile f(e.path);
+            QVERIFY(f.open(QIODevice::ReadOnly));
+            readZip(f.readAll(), one);
+        }
+        QVERIFY(one.contains(QStringLiteral("xl/slicerCaches/slicerCache1.xml")));
+        const QByteArray part = one.value(QStringLiteral("xl/slicers/slicer1.xml"));
+        QVERIFY(part.contains("name=\"Region 2\"") && !part.contains("name=\"Region\" "));
+        QVERIFY(one.value(QStringLiteral("xl/workbook.xml")).contains("slicerCache"));
+        QVERIFY(one.value(QStringLiteral("xl/workbook.xml")).contains("Slicer_Region"));
+        QVERIFY(one.value(QStringLiteral("xl/worksheets/sheet1.xml")).contains("slicerList"));
+        QCOMPARE(anchorPlaces(one.value(QStringLiteral("xl/drawings/drawing1.xml"))).size(), 4);   // (one frame and one stand-in are left)
+        int left = -1;
+        for (int i = 0; i < layer->count(); ++i)
+            if (crunch::isSlicerId(layer->object(i).id) && !layer->isDeleted(layer->object(i).id)) left = layer->object(i).id;
+        QVERIFY(left >= 0);
+        layer->select(left);
+        QTest::keyClick(e.view()->viewport(), Qt::Key_Delete);
+        QVERIFY(saveNow(e));
+        Parts none;
+        QFile f(e.path);
+        QVERIFY(f.open(QIODevice::ReadOnly));
+        readZip(f.readAll(), none);
+        QVERIFY(!none.contains(QStringLiteral("xl/slicerCaches/slicerCache1.xml")));
+        QVERIFY(!none.contains(QStringLiteral("xl/slicers/slicer1.xml")));
+    }
+
+    // A workbook open for reading only, and a protected sheet that does not let objects be changed, refuse a move and a delete: no step, the slicer stays where it is, the notice says why.
+    void aSlicerIsNotMovedOrDeletedInAReadOnlyOrProtectedWorkbook()
+    {
+        {
+            EditWindow e;
+            e.path = e.folder.write(QStringLiteral("book.xlsx"), pivotWorkbook(slicerSheetBook(listedSlicers())));
+            QVERIFY(e.win.open(e.path, OpenHow::ReadOnly));
+            QVERIFY(e.win.w.isReadOnly());
+            QTRY_COMPARE(e.win.w.objects()->layer()->count(), 1);
+            crunch::EditSession *s = e.win.w.session();
+            const int steps = s->undoStack()->count();
+            const QRect before = slicerRect(e);
+            clickView(e, captionSpot(e));
+            dragView(e, captionSpot(e), captionSpot(e) + QPoint(80, 60));
+            QTest::keyClick(e.view()->viewport(), Qt::Key_Delete);
+            QCOMPARE(s->undoStack()->count(), steps);
+            QVERIFY(!e.win.w.objects()->layer()->isDeleted(slicerId(e)));
+            QCOMPARE(slicerRect(e).topLeft(), before.topLeft());
+        }
+        {
+            SlicerSheet w = listedSlicers();
+            w.sheetXml = "<sheetProtection sheet=\"1\" objects=\"1\"/>";
+            EditWindow e;
+            QVERIFY(e.open(pivotWorkbook(slicerSheetBook(w))));
+            QTRY_COMPARE(e.win.w.objects()->layer()->count(), 1);
+            crunch::EditSession *s = e.win.w.session();
+            const int steps = s->undoStack()->count();
+            const QRect before = slicerRect(e);
+            clickView(e, captionSpot(e));
+            dragView(e, captionSpot(e), captionSpot(e) + QPoint(80, 60));
+            QTest::keyClick(e.view()->viewport(), Qt::Key_Delete);
+            QCOMPARE(s->undoStack()->count(), steps);
+            QVERIFY(!e.win.w.objects()->layer()->isDeleted(slicerId(e)));
+            QCOMPARE(slicerRect(e).topLeft(), before.topLeft());
+        }
+    }
+
+    // Buttons that do not fit are reached by scrolling: the wheel over the slicer, a press above or below the thumb, and dragging the thumb. The sheet does not scroll under the wheel over a slicer that
+    // scrolls; the line that counted the buttons left out is gone from the window's picture (a printed one keeps it, and says they are not printed).
+    void aSlicerThatDoesNotFitScrollsByTheWheelTheBarAndTheThumb()
+    {
+        SlicerSheet w;
+        w.heightRows = 4;   // (room for one button under the caption: the second is reached by scrolling)
+        EditWindow e;
+        QVERIFY(e.open(pivotWorkbook(slicerSheetBook(w))));
+        QTRY_COMPARE(e.win.w.objects()->layer()->count(), 1);
+        crunch::EditSession *s = e.win.w.session();
+        jp::grid::ObjectLayer *layer = e.win.w.objects()->layer();
+        crunch::SheetSlicers *slicers = e.win.w.objects()->slicers();
+        const int id = slicerId(e);
+        auto geometry = [&] {
+            crunch::SlicerFace face;
+            [&] { QVERIFY(s->slicerFace(0, 0, 400, &face)); }();
+            face.scrolls = true;
+            return crunch::slicerGeometry(QSizeF(slicerRect(e).size()), face);
+        };
+        crunch::SlicerGeometry g = geometry();
+        QVERIFY(!g.bar.isNull());
+        QCOMPARE(g.maxRow, 1);
+        QCOMPARE(g.shown, 1);
+        QCOMPARE(g.moreLine, QRectF());
+        const QPoint first = QPoint(slicerRect(e).left() + int(g.button(0).center().x()), slicerRect(e).top() + int(g.button(0).center().y()));
+        const int scrollY = int(e.view()->sheet().layout().scrollY());
+        auto wheel = [&](int delta) {
+            const QPoint at = onScreen(e, slicerRect(e).center());
+            QWheelEvent ev(QPointF(at), QPointF(e.view()->viewport()->mapToGlobal(at)), QPoint(), QPoint(0, delta), Qt::NoButton, Qt::NoModifier, Qt::NoScrollPhase, false);
+            QApplication::sendEvent(e.view()->viewport(), &ev);
+        };
+        wheel(-120);
+        QCOMPARE(slicers->scrollRowOf(0, id), 1);
+        QCOMPARE(int(e.view()->sheet().layout().scrollY()), scrollY);   // (the sheet stayed)
+        clickView(e, first);   // the button in the first place now is West
+        finish(e);
+        QCOMPARE(clearedShown(e), filteredToWest());
+        wheel(120);
+        QCOMPARE(slicers->scrollRowOf(0, id), 0);
+        // a press below the thumb pages down, above it pages up
+        clickView(e, QPoint(slicerRect(e).left() + int(g.bar.center().x()), slicerRect(e).top() + int(g.bar.bottom()) - 1));
+        QCOMPARE(slicers->scrollRowOf(0, id), 1);
+        clickView(e, QPoint(slicerRect(e).left() + int(g.bar.center().x()), slicerRect(e).top() + int(g.bar.top()) + 1));
+        QCOMPARE(slicers->scrollRowOf(0, id), 0);
+        // the thumb dragged down to the end of the bar
+        const QPoint thumb(slicerRect(e).left() + int(g.thumb.center().x()), slicerRect(e).top() + int(g.thumb.center().y()));
+        dragView(e, thumb, QPoint(thumb.x(), slicerRect(e).top() + int(g.bar.bottom()) + 30));
+        QCOMPARE(slicers->scrollRowOf(0, id), 1);
+        dragView(e, QPoint(thumb.x(), slicerRect(e).top() + int(geometry().thumb.center().y())), QPoint(thumb.x(), slicerRect(e).top() - 30));
+        QCOMPARE(slicers->scrollRowOf(0, id), 0);
+        QCOMPARE(layer->selectedId(), -1);   // (the bar is the slicer's own: it is not picked by it)
+        // a slicer with room for all its buttons does not take the wheel
+        SlicerSheet big;
+        EditWindow roomy;
+        QVERIFY(roomy.open(pivotWorkbook(slicerSheetBook(big))));
+        QTRY_COMPARE(roomy.win.w.objects()->layer()->count(), 1);
+        const QPoint inside = roomy.view()->viewport()->mapFromGlobal(roomy.view()->viewport()->mapToGlobal(onScreen(roomy, slicerRect(roomy).center())));
+        QVERIFY(!roomy.win.w.objects()->layer()->wheel(inside, roomy.view()->sheet().layout(), -1));
+    }
+
+    // What the printed picture says: the buttons that do not fit are left out of a page, and the line says so.
+    void aPrintedSlicerSaysItsLeftOutItemsAreNotPrinted()
+    {
+        crunch::SlicerFace face;
+        face.columns = 1;
+        face.itemCount = 40;
+        for (int i = 0; i < 40; ++i) face.buttons.push_back({QString::number(i), i, false, false});
+        face.printed = true;
+        const crunch::SlicerGeometry g = crunch::slicerGeometry(QSizeF(200, 150), face);
+        QVERIFY(!g.moreLine.isNull() && g.bar.isNull());
+        QVERIFY2(crunch::slicerMoreText(face, g).contains(QLatin1String("not printed")), qPrintable(crunch::slicerMoreText(face, g)));
+        face.printed = false;
+        face.scrolls = true;
+        const crunch::SlicerGeometry scrolled = crunch::slicerGeometry(QSizeF(200, 150), face);
+        QVERIFY(scrolled.moreLine.isNull() && !scrolled.bar.isNull());
+        QVERIFY(scrolled.maxRow > 0);
+        QCOMPARE(int(crunch::slicerHit(scrolled, face, scrolled.thumb.center()).part), int(crunch::SlicerPart::Thumb));
+    }
+
+    // A Shift-click chooses the run of items from the one clicked last to this one, as they are shown; Ctrl and Shift together add the run to what is chosen. Told by what the slicer is asked for: no more
+    // than kMaxSlicerRange items however long the run.
+    void aShiftClickChoosesARunAndTheRunIsBounded()
+    {
+        auto buttons = [](qint64 first, int most, qint64 total, crunch::SlicerFace *face, QVector<qint64> *asked) {
+            face->columns = 1;
+            face->itemCount = total;
+            face->rowHeight = 0;
+            face->buttons.clear();
+            asked->append(most);
+            for (qint64 i = first; i < total && i < first + most; ++i) face->buttons.push_back({QString::number(i), qint32(i * 2), false, false});
+            return true;
+        };
+        for (const qint64 total : {qint64(60), qint64(20000)}) {
+            crunch::SheetSlicers slicers;
+            QVector<qint64> asked;
+            slicers.setSources([&](int, const QString &, int, qint64 first, int most, crunch::SlicerFace *face) { return buttons(first, most, total, face, &asked); }, [](const QString &, int) { return 0; });
+            DrawingSlicer d;
+            d.name = QStringLiteral("S");
+            d.anchor.kind = AnchorKind::TwoCell;
+            slicers.list(0, {d});
+            const int id = crunch::kSlicerIdBase;
+            QVector<int> run;
+            bool extended = false;
+            QObject::connect(&slicers, &crunch::SheetSlicers::runClicked, [&](int, const QVector<int> &places, bool extend) {
+                run = places;
+                extended = extend;
+            });
+            int single = -1;
+            QObject::connect(&slicers, &crunch::SheetSlicers::itemClicked, [&](int, int place, bool) { single = place; });
+            const QSizeF size(200, 400);
+            crunch::SlicerFace face;
+            asked.clear();
+            QVERIFY(buttons(0, 400, total, &face, &asked));
+            const crunch::SlicerGeometry g = crunch::slicerGeometry(size, [&] { face.scrolls = true; return face; }());
+            QVERIFY(g.shown >= 5);
+            QVERIFY(slicers.press(0, id, g.button(1).center(), size, Qt::NoModifier));
+            QCOMPARE(single, 2);
+            QVERIFY(slicers.press(0, id, g.button(4).center(), size, Qt::ShiftModifier));
+            QCOMPARE(run, (QVector<int>{2, 4, 6, 8}));
+            QVERIFY(!extended);
+            QVERIFY(slicers.press(0, id, g.button(2).center(), size, Qt::ShiftModifier | Qt::ControlModifier));
+            QVERIFY(extended);
+            if (total > crunch::kMaxSlicerRange) {
+                // a run that long is cut where the bound says: the engine is asked for no more
+                asked.clear();
+                slicers.wheeled(0, id, -1000, size);
+                QVERIFY(slicers.press(0, id, g.button(0).center(), size, Qt::NoModifier));
+                asked.clear();
+                const int rows = slicers.scrollRowOf(0, id);
+                Q_UNUSED(rows);
+                QVERIFY(slicers.press(0, id, g.button(1).center(), size, Qt::ShiftModifier));
+                for (const qint64 most : asked) QVERIFY2(most <= crunch::kMaxSlicerRange, qPrintable(QString::number(most)));
+            }
+        }
+    }
+
+    // The keyboard: F6 reaches a slicer (Shift+F6 goes back), the arrow keys move among its buttons, Space or Enter chooses one, Ctrl+Space toggles one, Ctrl+Alt+C clears, and Escape lets go (the first one
+    // returns the arrow keys to moving the slicer, the second to the cells). Each choice is one step of Undo, through the same path as the click.
+    void aSlicerIsWorkedWithTheKeyboard()
+    {
+        EditWindow e;
+        QVERIFY(e.open(pivotWorkbook(slicerSheetBook())));
+        QTRY_COMPARE(e.win.w.objects()->layer()->count(), 1);
+        crunch::EditSession *s = e.win.w.session();
+        jp::grid::ObjectLayer *layer = e.win.w.objects()->layer();
+        crunch::SheetSlicers *slicers = e.win.w.objects()->slicers();
+        const int id = slicerId(e);
+        QWidget *vp = e.view()->viewport();
+        const int steps = s->undoStack()->count();
+        QTest::keyClick(vp, Qt::Key_F6);
+        QCOMPARE(layer->selectedId(), id);
+        QCOMPARE(slicers->focusOf(0, id), qint64(0));
+        QTest::keyClick(vp, Qt::Key_Down);   // (West)
+        QCOMPARE(slicers->focusOf(0, id), qint64(1));
+        QTest::keyClick(vp, Qt::Key_Space);
+        finish(e);
+        QCOMPARE(s->undoStack()->count(), steps + 1);
+        QCOMPARE(clearedShown(e), filteredToWest());
+        QTest::keyClick(vp, Qt::Key_Up);
+        QTest::keyClick(vp, Qt::Key_Space, Qt::ControlModifier);   // East is added
+        finish(e);
+        QCOMPARE(s->undoStack()->count(), steps + 2);
+        QSet<qint32> shown;
+        qint64 count = 0;
+        QVERIFY(s->slicerChoice(0, &shown, &count));
+        QCOMPARE(shown.size(), 2);
+        QTest::keyClick(vp, Qt::Key_Down);
+        QTest::keyClick(vp, Qt::Key_Return);   // West alone
+        finish(e);
+        QCOMPARE(s->undoStack()->count(), steps + 3);
+        QTest::keyClick(vp, Qt::Key_C, Qt::ControlModifier | Qt::AltModifier);
+        finish(e);
+        QCOMPARE(s->undoStack()->count(), steps + 4);
+        QVERIFY(s->slicerChoice(0, &shown, &count));
+        QVERIFY(shown.size() >= count || shown.isEmpty());
+        QTest::keyClick(vp, Qt::Key_Escape);
+        QCOMPARE(slicers->focusOf(0, id), qint64(-1));
+        QCOMPARE(layer->selectedId(), id);
+        const QRect before = slicerRect(e);
+        QTest::keyClick(vp, Qt::Key_Right);   // (the slicer is picked, not entered: the arrow moves it)
+        QVERIFY(slicerRect(e).left() > before.left());
+        QTest::keyClick(vp, Qt::Key_Escape);
+        QCOMPARE(layer->selectedId(), -1);
+        QTest::keyClick(vp, Qt::Key_F6, Qt::ShiftModifier);   // (backwards from nothing: the last slicer)
+        QCOMPARE(layer->selectedId(), id);
+        QTest::keyClick(vp, Qt::Key_F6);   // (past the last: back to the cells)
+        QCOMPARE(layer->selectedId(), -1);
+        // a read-only workbook is refused as a click is
+        EditWindow ro;
+        ro.path = ro.folder.write(QStringLiteral("book.xlsx"), pivotWorkbook(slicerSheetBook()));
+        QVERIFY(ro.win.open(ro.path, OpenHow::ReadOnly));
+        QTRY_COMPARE(ro.win.w.objects()->layer()->count(), 1);
+        const int roSteps = ro.win.w.session()->undoStack()->count();
+        QTest::keyClick(ro.view()->viewport(), Qt::Key_F6);
+        QTest::keyClick(ro.view()->viewport(), Qt::Key_Down);
+        QTest::keyClick(ro.view()->viewport(), Qt::Key_Space);
+        QCOMPARE(ro.win.w.session()->undoStack()->count(), roSteps);
+    }
+
+    // A slicer that comes back after Undo of the rows deleted under it is where the file draws it among the objects, not on top of those drawn after it.
+    void aSlicerReturningAfterUndoKeepsItsPlaceInTheOrder()
+    {
+        SlicerSheet w;
+        w.after = boxAnchor(9, 8, 12, 14, "Box");   // (over the slicer, drawn after it)
+        EditWindow e;
+        QVERIFY(e.open(pivotWorkbook(slicerSheetBook(w))));
+        QTRY_COMPARE(e.win.w.objects()->layer()->count(), 2);
+        jp::grid::ObjectLayer *layer = e.win.w.objects()->layer();
+        auto order = [&] {
+            QStringList names;
+            for (int i = 0; i < layer->count(); ++i) names << layer->object(i).name;
+            return names;
+        };
+        QCOMPARE(order(), (QStringList{QStringLiteral("Region"), QStringLiteral("Box")}));
+        crunch::EditSession *s = e.win.w.session();
+        const crunch::EditSession::Outcome gone = s->deleteRows(0, 8, 12);   // (the slicer's rows: it goes; the box's are among them too)
+        QVERIFY2(gone.ok, qPrintable(gone.problem));
+        e.win.w.objects()->show(0);   // (the sheet is shown again while the slicer is away: it is not put in)
+        s->undoStack()->undo();
+        QTRY_COMPARE(layer->count(), 2);
+        QCOMPARE(order(), (QStringList{QStringLiteral("Region"), QStringLiteral("Box")}));
+        QVERIFY(!layer->isDeleted(slicerId(e)));
+    }
+
+    // Pictures of a picked slicer with its handles, a slicer scrolled by the wheel, and one with many buttons (JC_SHOT_DIR names a folder).
+    void aPictureOfAPickedAndAScrolledSlicer()
+    {
+        const QString dir = qEnvironmentVariable("JC_SHOT_DIR");
+        if (dir.isEmpty()) QSKIP("JC_SHOT_DIR is not set");
+        jp::applyUiTheme(1);
+        {
+            EditWindow e;
+            QVERIFY(e.open(pivotWorkbook(slicerSheetBook(listedSlicers()))));
+            QTRY_COMPARE(e.win.w.objects()->layer()->count(), 1);
+            clickView(e, captionSpot(e));
+            e.win.w.objects()->layer()->prepareAll();
+            QVERIFY(e.view()->viewport()->grab().save(dir + QStringLiteral("/slicer-picked.png")));
+        }
+        {
+            SlicerSheet w;
+            w.heightRows = 4;
+            EditWindow e;
+            QVERIFY(e.open(pivotWorkbook(slicerSheetBook(w))));
+            QTRY_COMPARE(e.win.w.objects()->layer()->count(), 1);
+            const QPoint at = onScreen(e, slicerRect(e).center());
+            QWheelEvent ev(QPointF(at), QPointF(e.view()->viewport()->mapToGlobal(at)), QPoint(), QPoint(0, -120), Qt::NoButton, Qt::NoModifier, Qt::NoScrollPhase, false);
+            QApplication::sendEvent(e.view()->viewport(), &ev);
+            e.win.w.objects()->layer()->prepareAll();
+            QVERIFY(e.view()->viewport()->grab().save(dir + QStringLiteral("/slicer-scrolled.png")));
+        }
+        crunch::SlicerFace face;
+        face.caption = QStringLiteral("Region");
+        face.columns = 2;
+        face.itemCount = 40;
+        face.scrolls = true;
+        face.first = 8;
+        face.focus = 10;
+        for (int i = 8; i < 40; ++i) face.buttons.push_back({QStringLiteral("Item %1").arg(i), i, i % 3 == 0, i % 7 == 0});
+        face.filtered = true;
+        QImage image(QSize(260, 220), QImage::Format_ARGB32_Premultiplied);
+        image.fill(Qt::white);
+        QPainter painter(&image);
+        crunch::paintSlicer(&painter, QRectF(QPointF(0, 0), QSizeF(image.size())), face);
+        painter.end();
+        QVERIFY(image.save(dir + QStringLiteral("/slicer-many.png")));
     }
 
     // A slicer with two columns of buttons, for the views below.
@@ -3216,14 +3812,14 @@ private Q_SLOTS:
             for (int y = int(g.body.top()); y < int(g.body.bottom()); ++y)
                 for (int x = int(g.body.left()); x < int(g.body.right()); ++x) ink += QColor(image.pixel(x, y)).lightness() < 160 ? 1 : 0;
             QVERIFY2(ink > 20, how.constData());   // (the sentence is in the body)
-            // (a click on it changes no table, makes no step, and reaches the cell under it)
+            // (a click on it changes no table, makes no step, and picks the slicer)
             e.select(QStringLiteral("A1"));
             const int steps = s->undoStack()->count();
             const QPoint inside(r.left() + r.width() / 2, r.top() + r.height() / 2);
             clickView(e, inside);
             QCOMPARE(s->undoStack()->count(), steps);
-            QVERIFY2(e.selected() != QStringLiteral("A1"), how.constData());
-            QCOMPARE(e.win.w.objects()->layer()->selectedId(), -1);
+            QCOMPARE(e.selected(), QStringLiteral("A1"));   // (it is an object like another: a click picks it, to move or delete it)
+            QCOMPARE(e.win.w.objects()->layer()->selectedId(), slicerId(e));
             QVERIFY(saveNow(e));
             const Parts after = readParts(e.path);
             Parts before;

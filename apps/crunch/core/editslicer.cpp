@@ -1,6 +1,7 @@
 // Slicers: what the pane shows of them, and the click that chooses items.
 #include "core/editsession.h"
 
+#include "core/slicerpaint.h"
 #include "sheet/slicer.h"
 
 #include <QCoreApplication>
@@ -239,6 +240,22 @@ EditSession::Outcome EditSession::clickSlicerItem(int slicer, qint32 place, bool
     }
     if (shown.isEmpty() || shown.size() >= count) shown.clear();
     return chooseSlicerItems(slicer, shown);
+}
+
+EditSession::Outcome EditSession::clickSlicerRun(int slicer, const QVector<int> &places, bool extend)
+{
+    QSet<qint32> shown;
+    qint64 count = 0;
+    if (!slicerChoice(slicer, &shown, &count) || places.isEmpty()) return Outcome();
+    QSet<qint32> chosen;
+    if (extend && shown.size() < count) chosen = shown;
+    int taken = 0;
+    for (const int p : places) {
+        if (taken++ >= kMaxSlicerRange) break;
+        if (p >= 0 && p < count) chosen.insert(p);
+    }
+    if (chosen.isEmpty() || chosen.size() >= count) chosen.clear();
+    return chooseSlicerItems(slicer, chosen);
 }
 
 EditSession::Outcome EditSession::chooseSlicerItems(int slicer, const QSet<qint32> &chosen)

@@ -1377,6 +1377,10 @@ void CrunchWindow::keyPressEvent(QKeyEvent *e)
         e->accept();
         return;
     }
+    if (e->key() == Qt::Key_F6 && (e->modifiers() == Qt::NoModifier || e->modifiers() == Qt::ShiftModifier) && slicerFocusNext(e->modifiers() == Qt::ShiftModifier)) {
+        e->accept();
+        return;
+    }
     AppWindow::keyPressEvent(e);
 }
 

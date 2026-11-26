@@ -30,6 +30,7 @@ public:
     std::optional<Qt::CursorShape> cursorAt(const QPoint &point, const grid::GridLayout &layout) override;
     bool contextMenu(const QPoint &point, const QPoint &global, const grid::GridLayout &layout) override;
     bool doubleClick(const QPoint &point, const grid::GridLayout &layout) override;
+    bool wheel(const QPoint &point, const grid::GridLayout &layout, int steps) override;
     bool key(QKeyEvent *event) override;
     void layoutChanged() override;
     void setMirrored(bool mirrored) override;

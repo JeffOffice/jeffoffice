@@ -75,7 +75,7 @@ bool ObjectPicker::press(const QPoint &point, const grid::GridLayout &layout, Qt
     // (a handle of the one object picked is the layer's: Shift on a corner keeps the proportions)
     if ((modifiers & (Qt::ShiftModifier | Qt::ControlModifier)) && m_layer->handleAt(point) < 0) {
         const int hit = m_layer->objectAt(point);
-        if (hit >= 0 && !m_layer->takesKeys(hit)) {   // (a slicer is clicked with Ctrl, not picked)
+        if (hit >= 0 && !m_layer->worksAt(point, layout)) {   // (a slicer's buttons are clicked with Ctrl or Shift, its caption and frame pick it)
             std::vector<int> ids = m_picked;
             const auto at = std::find(ids.begin(), ids.end(), hit);
             if (at != ids.end()) ids.erase(at);
@@ -132,6 +132,7 @@ std::optional<Qt::CursorShape> ObjectPicker::cursorAt(const QPoint &point, const
 
 bool ObjectPicker::contextMenu(const QPoint &point, const QPoint &global, const grid::GridLayout &layout) { return m_layer->contextMenu(point, global, layout); }
 bool ObjectPicker::doubleClick(const QPoint &point, const grid::GridLayout &layout) { return m_layer->doubleClick(point, layout); }
+bool ObjectPicker::wheel(const QPoint &point, const grid::GridLayout &layout, int steps) { return m_layer->wheel(point, layout, steps); }
 
 bool ObjectPicker::key(QKeyEvent *event)
 {

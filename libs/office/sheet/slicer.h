@@ -5,10 +5,12 @@
 #include "sheet/pivot.h"
 
 #include <map>
+#include <vector>
 
 #include <QByteArray>
 #include <QSet>
 #include <QString>
+#include <QStringList>
 #include <QVector>
 
 namespace jp::office::sheet {
@@ -74,5 +76,24 @@ int slicerPartsParsed();
 QVector<std::pair<int, int>> slicerTargets(const Workbook &book, const SlicerCache &slicer);
 // The slicer parts the tables' items change: for each slicer cache whose choice (the items its first table shows) is not the file's, the part with the choice put in, by the part's name.
 std::map<QString, QByteArray> slicerPartPatches(const Workbook &book);
+
+// ---- taking slicers out of a file (a person deleted them)
+// What taking the named slicers (sheet, name) out of the file takes with it: the slicer parts that stay, with the slicers taken out of them; the relationships that go (a slicer part with no slicer left,
+// a cache no slicer reads any more), as (the part the relationship is in, its ids), with the parts nothing else names, which the saver lets go of; the entries of the sheets' and the workbook's
+// extension lists that name them; and the defined names the caches had. The rest of every part is as it was, byte for byte.
+struct SlicerRemovalPlan {
+    std::map<QString, QByteArray> partsKept;
+    std::vector<std::pair<QString, QStringList>> released;
+    std::map<int, QStringList> sheetEntries;
+    QStringList workbookEntries;
+    QStringList definedNames;
+};
+bool planSlicerRemovals(const Workbook &book, const std::vector<std::pair<int, QString>> &removed, SlicerRemovalPlan *out);
+// The part of the slicers with those slicers taken out (`left`: how many slicers and timelines it holds then; `any`: whether it held one of them).
+QByteArray removeSlicerElements(const QByteArray &xml, const QSet<QString> &names, int *left, bool *any);
+// An extension list (of a sheet or the workbook) without the entries of `entry` ("slicer" or "slicerCache") that name these relationships; a list, extension, or extension list that is empty after it goes too.
+QByteArray dropExtensionEntries(const QByteArray &xml, const QByteArray &entry, const QStringList &relIds);
+// The workbook part without the defined names given (those that hold #N/A, as a slicer cache's do).
+QByteArray dropDefinedNames(const QByteArray &xml, const QStringList &names);
 
 } // namespace jp::office::sheet

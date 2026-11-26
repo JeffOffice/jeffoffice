@@ -13,8 +13,9 @@
 
 namespace jp::crunch {
 
-// The most buttons one slicer draws (a field has up to a million items): the rest are not made, drawn, or clicked.
+// The most buttons one slicer draws (and the most a Shift-click chooses in one step) (a field has up to a million items): the rest are not made, drawn, or clicked.
 constexpr int kMaxSlicerButtons = 400;
+constexpr int kMaxSlicerRange = 5000;
 
 // Where the parts of a slicer are, in units from its top left.
 struct SlicerGeometry {
@@ -25,18 +26,21 @@ struct SlicerGeometry {
     int capacity() const { return rows * columns; }   // the buttons that fit
     int shown = 0;                      // the buttons drawn and clicked (those of the face that fit, one row less when some are left out, and at most kMaxSlicerButtons)
     QRectF moreLine;                    // where the line that says buttons are left out is (null when none are)
+    QRectF bar, thumb;                  // the scroll bar and its thumb (null when every button is reachable without scrolling, or the picture does not scroll)
+    int maxRow = 0;                     // the most rows the buttons can be scrolled by
     QRectF button(int index) const;     // where the index'th button shown is (from 0, row by row)
 };
 SlicerGeometry slicerGeometry(const QSizeF &size, const SlicerFace &face);
 
-enum class SlicerPart : quint8 { None, Header, Clear, Button, More };
+enum class SlicerPart : quint8 { None, Header, Clear, Button, More, Thumb, BarAbove, BarBelow };
 struct SlicerHit {
     SlicerPart part = SlicerPart::None;
     int index = 0;   // for a button: its place among those shown (from 0)
 };
 SlicerHit slicerHit(const SlicerGeometry &geometry, const SlicerFace &face, const QPointF &at);
 
-// The line that says how many items are not drawn ("More items: 52", or "More items: 52 (3 chosen)" when some of them are chosen), and the sentence of a slicer that cannot be used here.
+// The line that says how many items are not drawn ("More items: 52", or "More items: 52 (3 chosen)" when some of them are chosen; in a picture that cannot scroll, a printed one, it says they are not
+// printed), and the sentence of a slicer that cannot be used here.
 QString slicerMoreText(const SlicerFace &face, const SlicerGeometry &geometry);
 QString slicerUnusableText(SlicerWhy why);
 
@@ -45,6 +49,10 @@ struct SlicerColors {
     QColor frame, face, ink, dim, edge, on, onInk, onDim, onDimInk, offDim, offDimInk, rule;
 };
 SlicerColors slicerColors(bool dark);
+
+// Where the thumb of the scroll bar is for the buttons scrolled to the row `row`, and the row a thumb whose top is at `top` (units from the slicer's top) means.
+QRectF slicerThumbAt(const SlicerGeometry &geometry, int row, qint64 totalRows);
+int slicerRowAtThumb(const SlicerGeometry &geometry, double top, qint64 totalRows);
 
 // Draws the slicer in `rect`; a slicer that cannot be used (face.unusable) is drawn with its caption and the sentence that says so.
 void paintSlicer(QPainter *painter, const QRectF &rect, const SlicerFace &face);

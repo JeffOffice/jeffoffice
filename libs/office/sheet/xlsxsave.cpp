@@ -2861,6 +2861,15 @@ bool saveXlsx(const Workbook &book, const SaveChanges &requested, QByteArray *ou
     }
     // (what the objects taken away relate to: the links of the drawing they alone used, and the parts nothing else relates to)
     std::vector<std::pair<QString, QStringList>> released;
+    // (the slicers a person deleted: their parts, and what only they used)
+    SlicerRemovalPlan slicerPlan;
+    if (!changes.removedSlicers.empty() && planSlicerRemovals(book, changes.removedSlicers, &slicerPlan)) {
+        for (const auto &[part, bytes] : slicerPlan.partsKept) {
+            const int index = entryOfPart(part);
+            if (index >= 0) replaced.insert(index, bytes);
+        }
+        for (const auto &r : slicerPlan.released) released.push_back(r);
+    }
     // (the hidden objects inside groups that stay are taken out first, in the part as it is now; the ids they named are let go of with the others unless what stays names them too)
     std::map<QString, QStringList> nestedIds;
     for (const QString &part : changes.removedNestedHidden) {
@@ -4306,7 +4315,8 @@ bool saveXlsx(const Workbook &book, const SaveChanges &requested, QByteArray *ou
         }
         filterNames.push_back(name);
     }
-    if (!newPivotCaches.empty() || changes.dropExternalLinks || changes.fullCalcOnLoad || moves || changes.sheetsChanged || !changes.printNames.empty() || !filterNames.empty() || !changes.nameChanges.empty() || changes.calcChanged || changes.updateLinks >= 0 || !newExternalRefs.empty() || changes.setWorkbookProtection || changes.setCustomViews) {
+    const bool slicersLeaveWorkbook = !slicerPlan.workbookEntries.isEmpty() || !slicerPlan.definedNames.isEmpty();
+    if (slicersLeaveWorkbook || !newPivotCaches.empty() || changes.dropExternalLinks || changes.fullCalcOnLoad || moves || changes.sheetsChanged || !changes.printNames.empty() || !filterNames.empty() || !changes.nameChanges.empty() || changes.calcChanged || changes.updateLinks >= 0 || !newExternalRefs.empty() || changes.setWorkbookProtection || changes.setCustomViews) {
         const int index = entryOfPart(book.mainPart());
         QByteArray xml, patched;
         if (index >= 0 && inflate(index, &xml)) {
@@ -4369,6 +4379,13 @@ bool saveXlsx(const Workbook &book, const SaveChanges &requested, QByteArray *ou
                 xml = patched;
                 changed = true;
             }
+            if (slicersLeaveWorkbook) {
+                patched = dropDefinedNames(dropExtensionEntries(xml, "slicerCache", slicerPlan.workbookEntries), slicerPlan.definedNames);
+                if (patched != xml) {
+                    xml = patched;
+                    changed = true;
+                }
+            }
             if (changed) replaced.insert(index, xml);
         }
     }
@@ -4389,6 +4406,22 @@ bool saveXlsx(const Workbook &book, const SaveChanges &requested, QByteArray *ou
             stripEntries.insert(index, sheet);
             sheetOfEntry.insert(index, sheet);
         }
+    }
+
+    // ---- the sheets whose lists of slicers lose an entry (written through the sheet's own writer, and the entries taken out of what it wrote)
+    QHash<int, QStringList> slicerEntries;   // entry -> the relationship ids
+    for (const auto &[sheet, ids] : slicerPlan.sheetEntries) {
+        if (sheet < 0 || sheet >= book.info().sheets.size()) continue;
+        const SheetEntry &se = book.info().sheets[sheet];
+        if (se.deleted || se.isNew || se.kind != SheetKind::Worksheet || se.part.isEmpty()) continue;
+        const int index = entryOfPart(se.part);
+        if (index < 0) continue;
+        if (replaced.contains(index)) {
+            replaced.insert(index, dropExtensionEntries(replaced.value(index), "slicer", ids));
+            continue;
+        }
+        slicerEntries.insert(index, ids);
+        sheetOfEntry.insert(index, sheet);
     }
 
     // ---- the fonts the text of parts names (rich runs, shapes, charts), renamed where they stand
@@ -4446,7 +4479,7 @@ bool saveXlsx(const Workbook &book, const SaveChanges &requested, QByteArray *ou
             // (a sheet that loses entries of deleted custom views is written to memory first, and those taken out)
             BufferSink whole;
             const bool renameText = !changes.fontTextRenames.isEmpty() && changes.richTextSheets.contains(sheet);
-            PartSink *target = stripEntries.contains(i) || renameText ? static_cast<PartSink *>(&whole) : static_cast<PartSink *>(&sink);
+            PartSink *target = stripEntries.contains(i) || renameText || slicerEntries.contains(i) ? static_cast<PartSink *>(&whole) : static_cast<PartSink *>(&sink);
             if (ok && mover && patch) {
                 // (the file's cells are put in the places the edits leave them, and then the cells that changed are put in)
                 BufferSink moved;
@@ -4463,6 +4496,7 @@ bool saveXlsx(const Workbook &book, const SaveChanges &requested, QByteArray *ou
                 if (stripEntries.contains(i)) ok = stripCustomSheetViews(whole.bytes, viewGuids, &stripped);
                 if (ok && renameText)
                     for (const auto &r : changes.fontTextRenames) stripped = renameFontsInText(stripped, r.first, r.second);
+                if (ok && slicerEntries.contains(i)) stripped = dropExtensionEntries(stripped, "slicer", slicerEntries.value(i));
                 if (ok) sink.write(stripped.constData(), stripped.size());
             }
             if (!ok) {

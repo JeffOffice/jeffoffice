@@ -1293,6 +1293,34 @@ void CrunchWindow::slicerClicked(int slicer, int item, bool extend)
     fillSlicers();
 }
 
+void CrunchWindow::slicerRunChosen(int slicer, const QVector<int> &places, bool extend)
+{
+    if (!m_session || !editingAllowed()) return;
+    pivotProblem(tr("Slicer"), m_session->clickSlicerRun(slicer, places, extend));
+    m_pivotShown = nullptr;
+    updatePivotTab();
+    updateTableLooks();
+    fillSlicers();
+}
+
+// F6 on the sheet goes from one slicer to the next (Shift+F6 back); after the last it lets go, to the cells. False if the sheet has no slicer to go to.
+bool CrunchWindow::slicerFocusNext(bool backwards)
+{
+    if (!m_objects || m_edit.active || m_saving) return false;
+    crunch::SheetSlicers *s = m_objects->slicers();
+    const int picked = m_objects->layer()->selectedId();
+    const bool onSlicer = picked >= 0 && crunch::isSlicerId(picked) && s->owns(m_sheet, picked);
+    const int next = s->neighbor(m_sheet, onSlicer ? picked : -1, backwards);
+    if (onSlicer) s->leave(m_sheet, picked);
+    if (next < 0) {
+        if (onSlicer) m_objects->layer()->select(-1);
+        return onSlicer;
+    }
+    m_objects->layer()->select(next);
+    s->enter(m_sheet, next);
+    return true;
+}
+
 void CrunchWindow::slicerCleared(int slicer)
 {
     if (!m_session) return;
@@ -1320,6 +1348,8 @@ void CrunchWindow::connectSlicers()
         showSlicers(true);
         fillSlicers();
     });
+    connect(s, &crunch::SheetSlicers::neighborWanted, this, [this](bool backwards) { slicerFocusNext(backwards); });
+    connect(s, &crunch::SheetSlicers::runClicked, this, [this](int slicer, const QVector<int> &places, bool extend) { slicerRunChosen(slicer, places, extend); });
     connect(s, &crunch::SheetSlicers::clearClicked, this, [this](int slicer) { slicerCleared(slicer); });
     m_slicerLooksStamp = m_session->pivotTablesStamp();
 }
