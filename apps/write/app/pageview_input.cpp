@@ -477,6 +477,7 @@ bool PageView::pasteSource(const PasteSource &src)
 
 void PageView::paste()
 {
+    if (pasteIntoFormField()) return;
     if (editsBlockedAtSelection()) return;
     if (m_shapeEditor) {
         m_shapeEditor->paste();
@@ -603,6 +604,7 @@ bool PageView::canPasteFrom(const PasteSource &from, PasteKind kind) const
 
 void PageView::pasteAs(PasteKind kind)
 {
+    if (pasteIntoFormField()) return;
     if (editsBlockedAtSelection()) return;
     const PasteSource src = source();
     if (!m_doc || !canPasteFrom(src, kind)) return;
@@ -1229,7 +1231,13 @@ void PageView::keyPressEvent(QKeyEvent *e)
 void PageView::inputMethodEvent(QInputMethodEvent *e)
 {
     m_pasteOffer->cancelTap();
-    if (!m_doc || editsBlockedAtSelection() || m_selectObjectsMode) return;
+    if (!m_doc || m_selectObjectsMode) return;
+    if (write::FormField f; !e->commitString().isEmpty() && formEntryField(&f)) {   // (what an input method commits in a text field is a fill of it, protected or not)
+        enterInFormField(f, 0, e->commitString());
+        e->accept();
+        return;
+    }
+    if (editsBlockedAtSelection()) return;
     if (!e->commitString().isEmpty()) insertText(e->commitString());
     e->accept();
 }
@@ -2195,23 +2203,60 @@ bool PageView::formKey(QKeyEvent *e)
     }
     // A text field: the key edits its result, held to the field's longest text and case.
     if (!editing) return m_formsOnly;
-    if (!m_formsOnly && m_doc->trackChanges()) return false;   // (a document that tracks its changes tracks what is typed in the field: the ordinary edit, which holds it to no longest text)
-    if (f.separate < 0 || f.end - f.separate - 1 != f.result.size()) return m_formsOnly;   // (a result with marks inside: not edited a letter at a time)
+    write::FormField entry;
+    if (!formEntryField(&entry)) return m_formsOnly;   // (a document that tracks its changes tracks what is typed in the field: the ordinary edit; a result with marks inside is not edited a letter at a time)
+    enterInFormField(entry, key, typed ? e->text() : QString());
+    return true;
+}
+
+// The text field the selection is in when what is typed, pasted, or committed is to be a fill of it: one that can be filled in, whose result is plain text (no marks inside). In a document that
+// tracks its changes and is not protected for forms the edit is the ordinary one, tracked (and held to no longest text).
+bool PageView::formEntryField(write::FormField *out) const
+{
+    if (!m_doc || m_shapeEditor || m_searchBlocks > 0 || (m_readOnly && !m_formsOnly)) return false;
+    QTextDocument *story = m_cursor.document();
+    if (!write::fieldsNearSelection(story, m_cursor).any) return false;
+    const write::FormField f = write::formFieldAtSelection(story, m_cursor.selectionStart(), m_cursor.selectionEnd());
+    if (!f.valid() || m_cursor.selectionEnd() > f.end || f.kind != write::FormKind::Text || !f.fillable()) return false;
+    if (!m_formsOnly && m_doc->trackChanges()) return false;
+    if (f.separate < 0 || f.end - f.separate - 1 != f.result.size()) return false;
+    *out = f;
+    return true;
+}
+
+// What the selection of a text field's result becomes with `typedIn` in its place (Backspace and Delete, with none, take the character beside the caret), held to the field's longest text and
+// case. Text from a paste or an input method is one paragraph: a line break in it is a space.
+void PageView::enterInFormField(const write::FormField &f, int key, const QString &typedIn)
+{
+    QTextDocument *story = m_cursor.document();
+    QString put = typedIn;
+    put.replace(QStringLiteral("\r\n"), QStringLiteral(" "));
+    for (const QChar br : {QChar(u'\n'), QChar(u'\r'), QChar(QChar::ParagraphSeparator), QChar(QChar::LineSeparator)}) put.replace(br, QLatin1Char(' '));
     const int start = f.separate + 1;
     int a = std::clamp(m_cursor.selectionStart(), start, f.end) - start, b = std::clamp(m_cursor.selectionEnd(), start, f.end) - start;
     QString text = f.result;
-    QString put;
-    if (typed) put = e->text();
-    else if (a == b && key == Qt::Key_Backspace && a > 0) --a;
-    else if (a == b && key == Qt::Key_Delete && b < text.size()) ++b;
+    if (put.isEmpty() && a == b && key == Qt::Key_Backspace && a > 0) --a;
+    else if (put.isEmpty() && a == b && key == Qt::Key_Delete && b < text.size()) ++b;
     text.replace(a, b - a, put);
     QString shown;
-    const bool done = write::fillFormText(*m_doc, story, f.begin, text, false, &shown);
-    counted(done);
+    if (write::fillFormText(*m_doc, story, f.begin, text, false, &shown) && m_formsOnly) {
+        ++m_formUndo;
+        m_formRedo = 0;
+    }
     const int caret = std::min<int>(a + int(put.size()), int(shown.size()));
     m_cursor.setPosition(start + caret);
     caretMoved();
     viewport()->update();
+}
+
+// Paste (the text of the clipboard) into a text field is a fill of it; false where the selection is in none.
+bool PageView::pasteIntoFormField()
+{
+    write::FormField f;
+    if (!formEntryField(&f)) return false;
+    const QMimeData *mime = QApplication::clipboard()->mimeData();
+    if (!mime || !mime->hasText() || mime->hasUrls()) return false;
+    enterInFormField(f, 0, mime->text());
     return true;
 }
 

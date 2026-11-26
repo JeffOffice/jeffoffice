@@ -16,6 +16,7 @@ namespace jp { class ShapeTextEdit; }
 #include "core/snapguides.h"
 #include "core/contentcontrolops.h"
 #include "core/editops.h"
+#include "core/formfieldops.h"
 #include "core/pictureops.h"
 #include "core/tableops.h"
 #include "core/pathops.h"
@@ -226,6 +227,9 @@ public:
     // drop-down, and, with the document protected for forms, Tab and Shift+Tab.
     bool clickInFormField(int position, const QPoint &globalPos, int clicks);
     bool formKey(QKeyEvent *e);
+    bool formEntryField(write::FormField *out) const;
+    void enterInFormField(const write::FormField &field, int key, const QString &typed);
+    bool pasteIntoFormField();
     // A click on the button at the end of the repeating section the caret is in adds an item; a picture put in the picture control at the place (a drop): false where there is none.
     bool clickOnAddItem(const QPoint &viewportPos);
     bool putInPictureControl(int at, const QByteArray &bytes, const QString &name);

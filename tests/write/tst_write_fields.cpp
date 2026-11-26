@@ -2135,6 +2135,58 @@ private Q_SLOTS:
         QCOMPARE(formFields(w->document()->story()).size(), 0);
         QCOMPARE(lines(*w->document())[0], QStringLiteral("pre R post"));
     }
+
+    void everyWayOfEnteringTextHoldsATextFieldToItsLongestTextAndFormat()
+    {
+        const QByteArray tx = "<w:textInput><w:maxLength w:val=\"4\"/><w:format w:val=\"UPPERCASE\"/></w:textInput>";
+        const QByteArray num = "<w:textInput><w:type w:val=\"number\"/></w:textInput>";
+        const QByteArray body = para(run("pre ") + formField("A", tx, "FORMTEXT", run("ab")) + run(" mid ") + formField("N", num, "FORMTEXT", run("1")) + run(" post"));
+        for (int protectedForForms = 0; protectedForForms < 2; ++protectedForForms) {
+            auto w = windowOn(body, protectedForForms ? kFormsProtection : QByteArray());
+            QVERIFY(w);
+            PageView *view = w->view();
+            WriteDoc *doc = w->document();
+            auto select = [&](int which) {
+                const FormField f = formFields(doc->story())[which];
+                caretAt(view, f.end, f.separate + 1);
+            };
+            auto commit = [&](const QString &text) {
+                QInputMethodEvent e;
+                e.setCommitString(text);
+                QApplication::sendEvent(view, &e);
+            };
+            auto result = [&](int which) { return formFields(doc->story())[which].result; };
+            // Paste is cut to the longest text and put in the field's case; in a protected document it works too.
+            QApplication::clipboard()->setText(QStringLiteral("wxyzuv"));
+            select(0);
+            view->paste();
+            QCOMPARE(result(0), QStringLiteral("WXYZ"));
+            // Line breaks in pasted text become spaces: the paragraph is not split.
+            QApplication::clipboard()->setText(QStringLiteral("a\nb\r\nc"));
+            select(0);
+            view->paste();
+            QCOMPARE(result(0), QStringLiteral("A B "));
+            QCOMPARE(int(doc->story()->blockCount()), 1);
+            // An input method's commit is held the same way.
+            select(0);
+            commit(QStringLiteral("mnopq"));
+            QCOMPARE(result(0), QStringLiteral("MNOP"));
+            // A number field keeps only what a number has, from a paste and from a commit.
+            QApplication::clipboard()->setText(QStringLiteral("a1b2"));
+            select(1);
+            view->paste();
+            QCOMPARE(result(1), QStringLiteral("12"));
+            select(1);
+            commit(QStringLiteral("x3y.5"));
+            QCOMPARE(result(1), QStringLiteral("3.5"));
+            QCOMPARE(lines(*doc)[0], QStringLiteral("pre MNOP mid 3.5 post"));
+            // Text outside a field is still the ordinary text (open here, held when protected).
+            caretAt(view, 1);
+            commit(QStringLiteral("Q"));
+            QCOMPARE(lines(*doc)[0], protectedForForms ? QStringLiteral("pre MNOP mid 3.5 post") : QStringLiteral("pQre MNOP mid 3.5 post"));
+            QApplication::clipboard()->clear();
+        }
+    }
 };
 
 QTEST_MAIN(FieldTests)
