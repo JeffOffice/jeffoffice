@@ -575,6 +575,22 @@ private Q_SLOTS:
         QCOMPARE(doc->toPlainText(), QStringLiteral("π r ≤ 3 ∫, ∈ \\alphabet Σ ∞."));
     }
 
+    // A math name is replaced only where its backslash starts a word: a path keeps what was typed.
+    void aMathNameTypedInJeffDeckLeavesPathsAlone()
+    {
+        const jptest::SettingGuard math(QStringLiteral("proof/ac/math"), false, false);
+        jp::autotext::Config on = jp::autoCorrectConfig(QStringLiteral("en-US"));
+        on.math = true;
+        jp::saveAutoCorrectConfig(on);
+        DeckWindow w;
+        w.show();
+        Editor *ed = w.editor();
+        QTextDocument *doc = editTitle(w, QString(), 0, 0);
+        for (const QChar c : QStringLiteral("C:\\temp\\pi \\\\srv\\int x\\alpha \\pi "))
+            ed->typeText(QString(c));
+        QCOMPARE(doc->toPlainText(), QStringLiteral("C:\\temp\\pi \\\\srv\\int x\\alpha \u03c0 "));
+    }
+
     void theAutoCorrectOptionsHaveTheMathSymbolSwitchAndList()
     {
         const jptest::SettingGuard math(QStringLiteral("proof/ac/math"), false, false);

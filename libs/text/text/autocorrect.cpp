@@ -230,7 +230,13 @@ std::optional<Fix> correctWord(const QString &text, int rel, bool smartQuotes, c
     if (config.math) {
         const QString typed = text.left(rel);
         const int slash = int(typed.lastIndexOf(QLatin1Char('\\')));
-        if (slash >= 0 && (slash == 0 || typed[slash - 1] != QLatin1Char('\\')) && typed.size() - slash <= 16) {
+        // The backslash must start a word (after the start, a space, or an opening bracket or quote), so a path or a word with a backslash in it is left alone.
+        auto startsWord = [&](int at) {
+            if (at == 0) return true;
+            const QChar before = typed[at - 1];
+            return before.isSpace() || QStringLiteral("([{<\"'\u2018\u201c\u00ab").contains(before);
+        };
+        if (slash >= 0 && startsWord(slash) && typed.size() - slash <= 16) {
             const QString name = typed.mid(slash);
             for (const auto &entry : mathSymbols())
                 if (entry.first == name) return Fix{slash, rel, entry.second, false, Fix::Kind::Replacement, entry.first};

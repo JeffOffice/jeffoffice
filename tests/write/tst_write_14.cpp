@@ -287,6 +287,38 @@ void WriteTests::stoppingAnAutoCorrectChangeKeepsTheWordAsTypedAndTheSettingThat
 }
 
 
+// A math name is a backslash and a name; where the backslash is part of a path or of a word it is not one.
+void WriteTests::aMathNameIsReplacedOnlyWhereItsBackslashStartsAWord()
+{
+    using namespace jp::autotext;
+    Config c = defaultConfig(QStringLiteral("en-US"));
+    c.math = true;
+    auto fixOf = [&](const QString &text) { return correctWord(text, int(text.size()), true, c); };
+    for (const QString &path : {QStringLiteral("C:\\temp\\pi"), QStringLiteral("\\\\srv\\int"), QStringLiteral("x\\alpha"), QStringLiteral("\\\\alpha")})
+        QVERIFY2(!fixOf(path), qPrintable(path));
+    const auto start = fixOf(QStringLiteral("\\alpha"));
+    QVERIFY(start);
+    QCOMPARE(start->from, 0);
+    QCOMPARE(start->with, QStringLiteral("\u03b1"));
+    QCOMPARE(fixOf(QStringLiteral("see \\pi"))->from, 4);
+    QCOMPARE(fixOf(QStringLiteral("(\\pi"))->from, 1);
+    QCOMPARE(fixOf(QStringLiteral("[\\pi"))->from, 1);
+    QCOMPARE(fixOf(QStringLiteral("\"\\pi"))->from, 1);
+}
+
+// The same rule when the words are typed in a JeffWrite document, with the switch on.
+void WriteTests::aMathNameTypedInJeffWriteLeavesPathsAlone()
+{
+    const SettingGuard math(QStringLiteral("proof/ac/math"), false, false);
+    autotext::Config on = autoCorrectConfig(QStringLiteral("en-US"));
+    on.math = true;
+    saveAutoCorrectConfig(on);
+    Typer t;
+    t.type(QStringLiteral("C:\\temp\\pi \\\\srv\\int x\\alpha \\pi "));
+    QCOMPARE(t.text(), QStringLiteral("C:\\temp\\pi \\\\srv\\int x\\alpha \u03c0 "));
+}
+
+
 namespace {
 // Counts the announcements an accessibility client would get (the update handler sees every event, whether or not a client is there).
 struct Said {
