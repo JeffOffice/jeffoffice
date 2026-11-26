@@ -345,6 +345,7 @@ public:
     }
 
 private:
+    void takeSlicersBefore(int sheet, int ordinal, std::vector<jp::grid::LayerObject> &slicers, size_t *next, std::vector<jp::grid::LayerObject> *into);
     struct Object {
         int id = 0;
         jp::office::sheet::DrawingObject meta;

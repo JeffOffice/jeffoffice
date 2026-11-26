@@ -1209,16 +1209,27 @@ void SheetObjects::show(int sheet)
     showNow(sheet);
 }
 
+// The slicers the file draws before the object whose place in the drawing is `ordinal` (one added here has none) go into the list now, so that what the file draws later is above them (none: all that are left).
+void SheetObjects::takeSlicersBefore(int sheet, int ordinal, std::vector<jp::grid::LayerObject> &slicers, size_t *next, std::vector<jp::grid::LayerObject> *into)
+{
+    while (*next < slicers.size() && (ordinal < 0 || m_slicers.ordinalOf(sheet, slicers[*next].id) < ordinal)) into->push_back(std::move(slicers[(*next)++]));
+}
+
 std::vector<jp::grid::LayerObject> SheetObjects::printObjects(int sheet)
 {
     std::vector<jp::grid::LayerObject> out;
     if (!m_book || sheet < 0 || size_t(sheet) >= m_sheets.size()) return out;
     Sheet &s = sheetState(sheet);
-    for (const std::shared_ptr<Object> &o : s.objects)
-        if (!o->deleted && o->meta.prints) out.push_back(layerObject(sheet, o));
+    std::vector<jp::grid::LayerObject> slicers = m_slicers.layerObjects(sheet, true);
+    size_t nextSlicer = 0;
+    for (const std::shared_ptr<Object> &o : s.objects) {
+        if (o->deleted || !o->meta.prints) continue;
+        takeSlicersBefore(sheet, o->meta.ordinal, slicers, &nextSlicer, &out);
+        out.push_back(layerObject(sheet, o));
+    }
     for (jp::grid::LayerObject &c : m_controls.layerObjects(sheet, true)) out.push_back(std::move(c));
     for (jp::grid::LayerObject &c : m_embeds.layerObjects(sheet)) out.push_back(std::move(c));
-    for (jp::grid::LayerObject &c : m_slicers.layerObjects(sheet, true)) out.push_back(std::move(c));
+    takeSlicersBefore(sheet, -1, slicers, &nextSlicer, &out);
     return out;
 }
 
@@ -1227,10 +1238,15 @@ void SheetObjects::showNow(int sheet)
     Sheet &s = sheetState(sheet);
     std::vector<LayerObject> objects;
     objects.reserve(s.objects.size());
-    for (const std::shared_ptr<Object> &o : s.objects) objects.push_back(layerObject(sheet, o));
+    std::vector<jp::grid::LayerObject> slicers = m_slicers.layerObjects(sheet);
+    size_t nextSlicer = 0;
+    for (const std::shared_ptr<Object> &o : s.objects) {
+        takeSlicersBefore(sheet, o->meta.ordinal, slicers, &nextSlicer, &objects);
+        objects.push_back(layerObject(sheet, o));
+    }
     for (jp::grid::LayerObject &c : m_controls.layerObjects(sheet)) objects.push_back(std::move(c));
     for (jp::grid::LayerObject &c : m_embeds.layerObjects(sheet)) objects.push_back(std::move(c));
-    for (jp::grid::LayerObject &c : m_slicers.layerObjects(sheet)) objects.push_back(std::move(c));
+    takeSlicersBefore(sheet, -1, slicers, &nextSlicer, &objects);
     m_shown = sheet;
     m_layer.setObjects(std::move(objects));
     for (const std::shared_ptr<Object> &o : s.objects)

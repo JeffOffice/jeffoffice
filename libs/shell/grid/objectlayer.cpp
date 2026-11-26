@@ -1136,6 +1136,7 @@ bool ObjectLayer::press(const QPoint &point, const GridLayout &layout, Qt::Keybo
         QSizeF units;
         if (m_selected >= 0) select(-1);
         if (!fractionAt(e, layout, point, &fraction, &units)) return false;
+        if (e.object.operateKeys && m_mirrored) fraction.setX(1 - fraction.x());   // (the picture is turned back on a mirrored sheet: its left is on the screen's left)
         return e.object.operateKeys ? e.object.operateKeys(fraction, units, modifiers) : e.object.operate(fraction, units);
     }
     if (hit >= 0) {
@@ -1273,6 +1274,7 @@ bool ObjectLayer::doubleClick(const QPoint &point, const GridLayout &layout)
         QPointF fraction;
         QSizeF units;
         if (!fractionAt(e, layout, point, &fraction, &units)) return false;
+        if (e.object.operateKeys && m_mirrored) fraction.setX(1 - fraction.x());
         return e.object.operateKeys ? e.object.operateKeys(fraction, units, Qt::NoModifier) : e.object.operate(fraction, units);
     }
     select(hit);

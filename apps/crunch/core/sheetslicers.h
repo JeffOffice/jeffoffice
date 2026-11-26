@@ -4,7 +4,7 @@
 // EditSession::slicerFace says it, and a click is told to the window, which makes it one step of Undo through the same path the Slicers pane uses (EditSession::clickSlicerItem). The slicer is
 // never kept here: it has no state of its own to save (its anchor is the drawing's, and the file's drawing part is left as it is).
 //
-// Not yet: moving, sizing, or deleting one, scrolling more buttons than fit, choosing several with Shift, or making one.
+// Not yet: moving, sizing, or deleting one, scrolling the buttons that do not fit (the last row says how many there are, and opens the Slicers pane), choosing several with Shift, or making one.
 //
 // Bounded: the slicers of a sheet are those of its drawing (at most kMaxDrawingAnchors with the other objects), and each draws and answers for at most kMaxSlicerButtons buttons.
 
@@ -27,7 +27,7 @@ class SheetSlicers : public QObject {
     Q_OBJECT
 public:
     // What a slicer looks like now (EditSession::slicerFace), and which slicer the drawing's name is (EditSession::slicerNamed).
-    using FaceSource = std::function<bool(int slicer, qint64 first, int most, SlicerFace *out)>;
+    using FaceSource = std::function<bool(int slicer, const QString &name, int sheet, qint64 first, int most, SlicerFace *out)>;
     using NameSource = std::function<int(const QString &name, int sheet)>;
     using EditsSource = std::function<const std::vector<jp::office::sheet::StructEdit> &()>;
 
@@ -46,6 +46,8 @@ public:
     std::optional<jp::grid::LayerObject> layerObjectOf(int sheet, int id);
     bool owns(int sheet, int id) const { return find(sheet, id) != nullptr; }
     int countOf(int sheet) const;
+    // The place of the slicer's element among the children of the drawing's root (the order the file draws in: an object whose own place is later is above the slicer).
+    int ordinalOf(int sheet, int id) const;
     // Whether the slicer is not shown (its cell was deleted).
     bool isGone(int sheet, int id) const;
     // Rows or columns were inserted or deleted (or that was undone): every listed slicer is where the edits put it.
@@ -64,6 +66,8 @@ public:
 Q_SIGNALS:
     // A click on the button of the item at `place`, with Ctrl held (`extend`) or not.
     void itemClicked(int slicer, int place, bool extend);
+    // A click on the line that says buttons are left out: the window shows the Slicers pane, which lists every item.
+    void moreClicked(int slicer);
     // A click on the clear-filter button.
     void clearClicked(int slicer);
     // A slicer came back or went (its cells were deleted, or that was undone), or moved.
@@ -76,6 +80,7 @@ private:
         int id = 0;
         QString name;
         jp::office::sheet::DrawingAnchor baseAnchor, anchor;
+        int ordinal = 0;
         bool hidden = false, prints = true, dropped = false;
         int slicer = -2;   // which slicer it is (-1 none, -2 not looked for yet)
     };

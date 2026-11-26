@@ -498,9 +498,10 @@ public:
     // Chooses the items (by place) of the slicer: every table it filters shows only them (all, when none is given), as one step of Undo.
     Outcome chooseSlicerItems(int slicer, const QSet<qint32> &chosen);
     // A slicer as the sheet draws it (core/slicerface.h): its caption and look, and its buttons from the `first`th (in the order it shows them: sorted as its part says, without the items with no
-    // data when it hides them). Only the `most` buttons asked for are made (a field has up to a million items). False for a slicer that is not one (a timeline), or filters no table that can be read.
+    // data when it hides them). Only the `most` buttons asked for are made (a field has up to a million items). False for a slicer that is not one (a timeline), or filters no table that can be read (then the
+    // face still has its caption, and `unusable` says why). With the name of a slicer of the sheet's drawing, its own caption, columns, and size are the face's (two slicers can read one cache).
     static constexpr int kMaxSlicerSorted = 20000;   // a slicer with more items than this shows them in the data's own order (sorting a million texts for each look is not done)
-    bool slicerFace(int slicer, qint64 first, int most, SlicerFace *out) const;
+    bool slicerFace(int slicer, qint64 first, int most, SlicerFace *out, const QString &viewName = QString(), int sheet = -1) const;
     // The place of the slicer the file's drawing calls `name` (the slicer parts of the sheet, then the others), among slicers() (-1 if there is none).
     int slicerNamed(const QString &name, int sheet) const;
     // A click on the button of the item at `place`: it alone is chosen, or with `extend` (Ctrl) it is added to the chosen or taken from them; a click on the only one chosen clears the filter. One step of

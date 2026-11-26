@@ -27,6 +27,7 @@ struct SlicerItem {
 
 struct SlicerCache {
     bool timeline = false;
+    bool onTable = false;                            // (a slicer) it reads a column of an Excel table, not a pivot table: it is read and kept, and filters nothing here
     QString part;                                    // (set by the workbook) the part it was read from
     QString name, sourceName;                        // the cache's name, and the field it filters
     struct Connection {

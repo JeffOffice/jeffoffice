@@ -39,6 +39,7 @@ void SheetSlicers::list(int sheet, const QVector<DrawingSlicer> &found)
         item->id = next++;
         item->name = d.name;
         item->baseAnchor = item->anchor = d.anchor;
+        item->ordinal = d.ordinal;
         item->hidden = d.hidden;
         item->prints = d.prints;
         s.items.push_back(item);
@@ -83,6 +84,12 @@ int SheetSlicers::countOf(int sheet) const
     return sheet < 0 || size_t(sheet) >= m_sheets.size() ? 0 : int(m_sheets[size_t(sheet)].items.size());
 }
 
+int SheetSlicers::ordinalOf(int sheet, int id) const
+{
+    const Item *i = find(sheet, id);
+    return i ? i->ordinal : 0;
+}
+
 bool SheetSlicers::isGone(int sheet, int id) const
 {
     const Item *i = find(sheet, id);
@@ -111,7 +118,12 @@ bool SheetSlicers::faceOf(int sheet, Item &item, SlicerFace *face)
 {
     ++m_looks;
     const int slicer = slicerOf(sheet, item);
-    return slicer >= 0 && m_faces && m_faces(slicer, 0, kMaxSlicerButtons, face);
+    if (slicer < 0 || !m_faces) {
+        *face = SlicerFace();
+        face->unusable = SlicerWhy::Missing;
+        return false;
+    }
+    return m_faces(slicer, item.name, sheet, 0, kMaxSlicerButtons, face);
 }
 
 bool SheetSlicers::press(int sheet, int id, const QPointF &at, const QSizeF &size, bool extend)
@@ -120,11 +132,13 @@ bool SheetSlicers::press(int sheet, int id, const QPointF &at, const QSizeF &siz
     if (!found) return false;
     Item &item = *found;
     SlicerFace face;
-    if (!faceOf(sheet, item, &face)) return true;   // (a slicer that can't be read takes the click and does nothing)
+    if (!faceOf(sheet, item, &face)) return false;   // (a slicer that can't be used does nothing with a click, and does not take it from the cell under it)
     const SlicerGeometry g = slicerGeometry(size, face);
     const SlicerHit hit = slicerHit(g, face, at);
     if (hit.part == SlicerPart::Button) {
         Q_EMIT itemClicked(item.slicer, face.buttons[size_t(hit.index)].place, extend);
+    } else if (hit.part == SlicerPart::More) {
+        Q_EMIT moreClicked(item.slicer);
     } else if (hit.part == SlicerPart::Clear && face.filtered) {
         Q_EMIT clearClicked(item.slicer);
     }
@@ -145,14 +159,13 @@ jp::grid::LayerObject SheetSlicers::layerObject(int sheet, const std::shared_ptr
         const std::shared_ptr<Item> i = weak.lock();
         if (!i || q.units.width() < 1 || q.units.height() < 1) return QImage();
         SlicerFace face;
-        const bool usable = faceOf(sheet, *i, &face);
-        if (!usable) face.caption = i->name;
+        if (!faceOf(sheet, *i, &face) && face.caption.isEmpty()) face.caption = i->name;
         QImage image(q.pixels, QImage::Format_ARGB32_Premultiplied);
         image.fill(Qt::transparent);
         QPainter p(&image);
         p.translate(q.inner.topLeft());
         p.scale(q.inner.width() / q.units.width(), q.inner.height() / q.units.height());
-        paintSlicer(&p, QRectF(QPointF(0, 0), q.units), face, usable);
+        paintSlicer(&p, QRectF(QPointF(0, 0), q.units), face);
         return image;
     };
     // (every click on a slicer is taken by it: it is not picked, so there is nothing yet to move or delete)

@@ -1285,7 +1285,7 @@ void CrunchWindow::fillSlicers()
 // A click on the button of an item, in the pane or on the sheet: the tables it filters show the items chosen (one step of Undo), and what shows them is made again.
 void CrunchWindow::slicerClicked(int slicer, int item, bool extend)
 {
-    if (!m_session) return;
+    if (!m_session || !editingAllowed()) return;   // (a workbook open for reading only is not filtered: the pane's button is off then)
     pivotProblem(tr("Slicer"), m_session->clickSlicerItem(slicer, item, extend));
     m_pivotShown = nullptr;
     updatePivotTab();
@@ -1299,6 +1299,7 @@ void CrunchWindow::slicerCleared(int slicer)
     QSet<qint32> shown;
     qint64 count = 0;
     if (!m_session->slicerChoice(slicer, &shown, &count) || shown.isEmpty() || qint64(shown.size()) >= count) return;   // (nothing is filtered: nothing to clear)
+    if (!editingAllowed()) return;
     pivotProblem(tr("Slicer"), m_session->chooseSlicerItems(slicer, {}));
     m_pivotShown = nullptr;
     updatePivotTab();
@@ -1311,10 +1312,14 @@ void CrunchWindow::connectSlicers()
 {
     if (!m_objects || !m_session) return;
     crunch::SheetSlicers *s = m_objects->slicers();
-    s->setSources([this](int slicer, qint64 first, int most, crunch::SlicerFace *face) { return m_session && m_session->slicerFace(slicer, first, most, face); },
+    s->setSources([this](int slicer, const QString &name, int sheet, qint64 first, int most, crunch::SlicerFace *face) { return m_session && m_session->slicerFace(slicer, first, most, face, name, sheet); },
                   [this](const QString &name, int sheet) { return m_session ? m_session->slicerNamed(name, sheet) : -1; });
     disconnect(s, nullptr, this, nullptr);
     connect(s, &crunch::SheetSlicers::itemClicked, this, [this](int slicer, int place, bool extend) { slicerClicked(slicer, place, extend); });
+    connect(s, &crunch::SheetSlicers::moreClicked, this, [this](int) {
+        showSlicers(true);
+        fillSlicers();
+    });
     connect(s, &crunch::SheetSlicers::clearClicked, this, [this](int slicer) { slicerCleared(slicer); });
     m_slicerLooksStamp = m_session->pivotTablesStamp();
 }

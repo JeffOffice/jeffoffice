@@ -43,6 +43,8 @@ bool readSlicerCache(const QByteArray &xml, SlicerCache *out)
                 c.tabId = a.value(QLatin1String("tabId")).toInt();
                 c.name = a.value(QLatin1String("name")).toString().left(255);
                 out->tables.append(c);
+            } else if (n == QLatin1String("tableSlicerCache") && !out->timeline) {
+                out->onTable = true;
             } else if (n == QLatin1String("tabular") && !out->timeline) {
                 out->pivotCacheId = a.hasAttribute(QLatin1String("pivotCacheId")) ? a.value(QLatin1String("pivotCacheId")).toInt() : -1;
                 out->sortOrder = a.value(QLatin1String("sortOrder")).toString();

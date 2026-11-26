@@ -114,7 +114,7 @@ quintptr EditSession::pivotTablesStamp() const
     return stamp;
 }
 
-bool EditSession::slicerFace(int slicer, qint64 first, int most, SlicerFace *out) const
+bool EditSession::slicerFace(int slicer, qint64 first, int most, SlicerFace *out, const QString &viewName, int sheet) const
 {
     *out = SlicerFace();
     if (!m_book || !m_book->book || slicer < 0 || most < 0) return false;
@@ -122,26 +122,44 @@ bool EditSession::slicerFace(int slicer, qint64 first, int most, SlicerFace *out
     const QVector<SlicerCache> caches = book.slicerCaches();
     if (slicer >= caches.size() || caches[slicer].timeline) return false;
     const SlicerCache &sc = caches[slicer];
+    out->caption = sc.sourceName;
+    // (the look the file gives this slicer: the one of the name, on its sheet first, else the first that reads the cache)
+    const SlicerView *look = nullptr;
+    QVector<SlicerView> kept;
+    auto pick = [&](int onlySheet, bool byName) {
+        for (int s = 0; s < book.info().sheets.size() && !look; ++s) {
+            if (onlySheet >= 0 && s != onlySheet) continue;
+            for (const SlicerView &v : book.slicerViews(s)) {
+                if (v.cache != sc.name || v.timeline != sc.timeline || (byName && v.name != viewName)) continue;
+                kept = {v};
+                look = &kept[0];
+                break;
+            }
+        }
+    };
+    if (!viewName.isEmpty()) {
+        if (sheet >= 0) pick(sheet, true);
+        if (!look) pick(-1, true);
+    }
+    if (!look) pick(-1, false);
+    if (look) {
+        if (!look->caption.isEmpty()) out->caption = look->caption;
+        out->style = look->style;
+        out->columns = std::max(1, look->columns);
+        out->rowHeight = look->rowHeight;
+        out->showCaption = look->showCaption;
+    }
     const auto targets = slicerTargets(book, sc);
-    if (targets.isEmpty()) return false;
+    if (targets.isEmpty()) {
+        out->unusable = sc.onTable ? SlicerWhy::Table : SlicerWhy::Missing;
+        return false;
+    }
     const PivotBook &pb = book.pivots();
     const PivotTableEntry &entry = pb.table(targets[0].first);
     const PivotCache &cache = *pb.cache(entry.cache).cache;
     const int field = targets[0].second;
     const QVector<PivotValue> &values = cache.fields[field].items;
     const qint64 n = values.size();
-    out->caption = sc.sourceName;
-    for (int s = 0; s < book.info().sheets.size(); ++s) {
-        const QVector<SlicerView> views = book.slicerViews(s);
-        if (const SlicerView *v = viewOf(views, sc)) {
-            if (!v->caption.isEmpty()) out->caption = v->caption;
-            out->style = v->style;
-            out->columns = std::max(1, v->columns);
-            out->rowHeight = v->rowHeight;
-            out->showCaption = v->showCaption;
-            break;
-        }
-    }
     // (the places of the buttons, in the order the part lists its items; the part may name a place twice or one the field does not have: each is shown once, and only the field's)
     struct Place {
         qint32 x;
@@ -167,6 +185,7 @@ bool EditSession::slicerFace(int slicer, qint64 first, int most, SlicerFace *out
     out->itemCount = qint64(places.size());
     const QSet<qint32> shown = pivotShownItems(*entry.table, cache, field);
     out->filtered = !(shown.isEmpty() || qint64(shown.size()) >= n);
+    for (const Place &pl : places) out->chosenCount += !out->filtered || shown.contains(pl.x) ? 1 : 0;
     for (qint64 i = std::max<qint64>(0, first); i < out->itemCount && i < first + most; ++i) {
         SlicerButton b;
         b.place = places[size_t(i)].x;
@@ -245,6 +264,9 @@ EditSession::Outcome EditSession::chooseSlicerItems(int slicer, const QSet<qint3
         if (pb.table(t.first).cache != firstCache) continue;
         QString problem;
         if (!pivotUsable(t.first, &problem)) return refuse(problem.isEmpty() ? tr("A pivot table this slicer filters can't be changed.") : problem);
+        // (a sheet that does not let a pivot table be changed refuses before the step is opened, so a refused click leaves no step of Undo)
+        const int sheet = pb.table(t.first).sheet;
+        if (!canEditSheet(sheet, &problem) || !allows(sheet, Allow::Pivot, &problem)) return refuse(problem);
         const PivotCacheEntry &ce = pb.cache(pb.table(t.first).cache);
         PivotTable changed = *pb.table(t.first).table;
         SlicerCache sc = caches[slicer];
