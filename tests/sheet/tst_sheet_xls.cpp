@@ -1883,7 +1883,7 @@ private Q_SLOTS:
         {
             QFile f(junk);
             QVERIFY(f.open(QIODevice::WriteOnly));
-            f.write("this is text, not a workbook");
+            f.write(QByteArray("these bytes are not a workbook, nor text \x00\x01\x02"));
         }
         Workbook none;
         QVERIFY(!none.openFile(junk, &why));
