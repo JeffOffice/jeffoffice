@@ -1873,7 +1873,7 @@
      "items": [
       {
        "status": "partly",
-       "text": "b4f524446fabc6ae78dcbbb448253e68d8530fb51eca9c1763c560ab93a59176"
+       "text": "8a98e4a6a75c516c8885aa881a5617c0672644a2212a6d4a606d3d75af24edd2"
       },
       {
        "status": "partly",
@@ -1897,7 +1897,7 @@
         },
         {
          "status": "partly",
-         "text": "d4b8fca32f156236b471800fa9a21d0936f36545a5f48a83d7243ba61be322b8"
+         "text": "8e16e91dea773a17f46cbe3ef0d9e35c7eae1be9f4b454cd5fc099385116d1c3"
         },
         {
          "hide_soon": true,
@@ -1942,8 +1942,9 @@
          "text": "5b4687aa720f811bed63a22a69b73bf8974ddd9f0d3a615e10d023dd9765872b"
         },
         {
-         "status": "partly",
-         "text": "06ad07e01d3481e4ad16612fb9fc36ab0c917191051409e323eb235a1988cea7"
+         "hide_soon": true,
+         "status": "done",
+         "text": "4a0177ff550f86ed0f8a60431bf5102726ae308d3098a3cb6a66c91e131316fc"
         },
         {
          "hide_soon": true,
@@ -2081,7 +2082,7 @@
         },
         {
          "status": "partly",
-         "text": "7aa4a1fb9d2d2518fe9cdc2bd3f154c31becd6ff37ba7f213d63a4161f198e97"
+         "text": "f583069d68a2eb19df52865d61a8719ed3e3d2b308fe0152001085d5cb3e04e5"
         },
         {
          "status": "todo",
@@ -2254,8 +2255,9 @@
          "text": "347c71a2690ae85067194b1e179ce73baa73c3dac512ff59c6c6c63b323497a9"
         },
         {
-         "status": "partly",
-         "text": "9e15845446292537b9c9ccc1565f8b7f83817935aee60f236ae4e8b2074449ac"
+         "hide_soon": true,
+         "status": "done",
+         "text": "248233f090f655e9ef06f468e8563ff64db7a82001bfcd3da85597a074044c8b"
         },
         {
          "status": "todo",
@@ -7142,7 +7144,7 @@
       },
       {
        "status": "partly",
-       "text": "67f1567c49bb1cd696b0ba198d4618fda3fcf77a06f59acedfb6e06326f631b1"
+       "text": "1928bbdd5cc68318095098dfcb96490d64362a01f1c8c5cca1d2791d17364448"
       },
       {
        "hide_soon": true,
@@ -8335,18 +8337,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "06ad07e01d3481e4ad16612fb9fc36ab0c917191051409e323eb235a1988cea7": {
-   "drop": false,
-   "en": "The error values `#NULL!`, `#DIV/0!`, `#VALUE!`, `#REF!`, `#NAME?`, `#NUM!`, `#N/A`, and `#SPILL!` are read, written as stored, shown, and passed through arithmetic and functions. `#GETTING_DATA`, `#CALC!`, `#FIELD!`, `#BLOCKED!`, and `#CONNECT!` are kept when a file holds them.",
-   "es": "Los valores de error `#NULL!`, `#DIV/0!`, `#VALUE!`, `#REF!`, `#NAME?`, `#NUM!`, `#N/A` y `#SPILL!` se leen, se escriben tal como están almacenados, se muestran y se transmiten por las operaciones aritméticas y las funciones. `#GETTING_DATA`, `#CALC!`, `#FIELD!`, `#BLOCKED!` y `#CONNECT!` se conservan cuando un documento los contiene.",
-   "fr": "Les valeurs d’erreur `#NULL!`, `#DIV/0!`, `#VALUE!`, `#REF!`, `#NAME?`, `#NUM!`, `#N/A` et `#SPILL!` sont lues, écrites telles qu’elles sont stockées, affichées et transmises par les opérations arithmétiques et les fonctions. `#GETTING_DATA`, `#CALC!`, `#FIELD!`, `#BLOCKED!` et `#CONNECT!` sont conservées lorsqu’un fichier les contient.",
-   "soon": {
-    "drop": false,
-    "en": "Error value `#UNKNOWN!`: read, show, and pass on",
-    "es": "Valor de error `#UNKNOWN!`: lectura, visualización y transmisión",
-    "fr": "Valeur d’erreur `#UNKNOWN!` : lecture, affichage et transmission"
    }
   },
   "06b2f098a5c34e77f4c49f26793f0ca5e519b0d471e5b725a9a22db7a1dddfda": {
@@ -9789,6 +9779,18 @@
     "fr": ""
    }
   },
+  "1928bbdd5cc68318095098dfcb96490d64362a01f1c8c5cca1d2791d17364448": {
+   "drop": false,
+   "en": "Fill in a file’s form fields in the body text, including table cells: type in text fields, tick check boxes, and choose drop-down entries. With Restrict Editing set to filling in forms, only the fields and the sections left out of the protection can be changed, and `Tab` and `Shift+Tab` move from field to field.",
+   "es": "Complete los campos de formulario de un documento en el cuerpo del texto, incluidas las celdas de tabla: escriba en los campos de texto, marque casillas de verificación y elija entradas de listas desplegables. Con Restringir edición configurado para rellenar formularios, solo se pueden cambiar los campos y las secciones excluidas de la protección, y `Tab` y `Shift+Tab` pasan de un campo a otro.",
+   "fr": "Remplissez les champs de formulaire d’un fichier dans le corps du texte, y compris dans les cellules de tableau : saisissez du texte dans les champs de texte, cochez des cases et choisissez des entrées de listes déroulantes. Avec la restriction de modification limitée au remplissage de formulaires, seuls les champs et les sections exclues de la protection peuvent être modifiés, et `Tab` et `Maj+Tab` passent d’un champ à l’autre.",
+   "soon": {
+    "drop": false,
+    "en": "Form fields: insert new fields, fill them in headers, footers, and text boxes",
+    "es": "Campos de formulario: insertar campos nuevos y rellenarlos en encabezados, pies de página y cuadros de texto",
+    "fr": "Champs de formulaire : insertion de nouveaux champs et remplissage dans les en-têtes, pieds de page et zones de texte"
+   }
+  },
   "1936cfdf05d7e92e6fb617caf8a21ae7a4acbded8765406edeed64f702f2c313": {
    "drop": true,
    "en": "",
@@ -10771,6 +10773,18 @@
     "en": "Data table, secondary axes, drop lines, and high-low lines in `.odt` charts",
     "es": "Tabla de datos, ejes secundarios, líneas de caída y líneas de máximos y mínimos en gráficos `.odt`",
     "fr": "Tableau de données, axes secondaires, lignes de projection et lignes haut-bas dans les graphiques `.odt`"
+   }
+  },
+  "248233f090f655e9ef06f468e8563ff64db7a82001bfcd3da85597a074044c8b": {
+   "drop": false,
+   "en": "Open a file with a `.xls` name that is not a spreadsheet or is damaged: the app tells by its content what it is. A spreadsheet, a web page, or text opens as what it is, with a web page’s tables as sheets and text lines as rows; anything else is refused with a message.",
+   "es": "Abra un documento con nombre `.xls` que no sea una hoja de cálculo o esté dañado: la aplicación determina por su contenido de qué se trata. Una hoja de cálculo, una página web o un texto se abre como lo que es, con las tablas de la página web como hojas y las líneas de texto como filas; cualquier otra cosa se rechaza con un mensaje.",
+   "fr": "Ouvrez un fichier dont le nom se termine par `.xls` mais qui n’est pas un tableur ou qui est endommagé : l’application détermine d’après son contenu de quoi il s’agit. Un tableur, une page web ou un texte s’ouvre comme ce qu’il est, avec les tableaux de la page web comme feuilles et les lignes de texte comme lignes ; tout le reste est refusé avec un message.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
    }
   },
   "24a0a957e798d9eb03e5e8b755eed12a2336170bafe5b0d42f3303944178c52b": {
@@ -13929,6 +13943,18 @@
     "fr": "Saisie de texte pour toutes les écritures : méthodes de saisie, touches mortes et sélecteurs d’emojis et de symboles"
    }
   },
+  "4a0177ff550f86ed0f8a60431bf5102726ae308d3098a3cb6a66c91e131316fc": {
+   "drop": false,
+   "en": "Use the error values `#NULL!`, `#DIV/0!`, `#VALUE!`, `#REF!`, `#NAME?`, `#NUM!`, `#N/A`, and `#SPILL!`: they are read and written as stored, shown as typed, and passed through arithmetic and functions. Error values such as `#GETTING_DATA`, `#CALC!`, `#FIELD!`, `#BLOCKED!`, `#UNKNOWN!`, and `#CONNECT!` are kept when a file holds them.",
+   "es": "Use los valores de error `#NULL!`, `#DIV/0!`, `#VALUE!`, `#REF!`, `#NAME?`, `#NUM!`, `#N/A` y `#SPILL!`: se leen y escriben tal como están almacenados, se muestran como se escribieron y se transmiten a través de operaciones aritméticas y funciones. Valores de error como `#GETTING_DATA`, `#CALC!`, `#FIELD!`, `#BLOCKED!`, `#UNKNOWN!` y `#CONNECT!` se conservan cuando un documento los contiene.",
+   "fr": "Utilisez les valeurs d’erreur `#NULL!`, `#DIV/0!`, `#VALUE!`, `#REF!`, `#NAME?`, `#NUM!`, `#N/A` et `#SPILL!` : elles sont lues et écrites telles qu’elles sont stockées, affichées comme saisies et transmises à travers les opérations arithmétiques et les fonctions. Les valeurs d’erreur comme `#GETTING_DATA`, `#CALC!`, `#FIELD!`, `#BLOCKED!`, `#UNKNOWN!` et `#CONNECT!` sont conservées quand un fichier les contient.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "4a0437f9e5f478dfaae359e9225c36870c54c25b0ab0c0e5416eed9de46b1404": {
    "drop": false,
    "en": "Show, hide, rename, and reorder ribbon tabs and groups, and add your own tabs and groups with any command. Add, remove, and reorder commands on the quick toolbar (up to 100), and place it below the ribbon. Reset One and Reset All restore the defaults.",
@@ -16173,18 +16199,6 @@
     "fr": ""
    }
   },
-  "67f1567c49bb1cd696b0ba198d4618fda3fcf77a06f59acedfb6e06326f631b1": {
-   "drop": false,
-   "en": "Form fields in a file show their box (checked or not), their default text, or the entry chosen.",
-   "es": "Los campos de formulario de un documento muestran su casilla (marcada o no), su texto predeterminado o la opción elegida.",
-   "fr": "Les champs de formulaire d’un fichier affichent leur case (cochée ou non), leur texte par défaut ou l’entrée choisie.",
-   "soon": {
-    "drop": false,
-    "en": "Form fields: insert and fill in",
-    "es": "Campos de formulario: insertar y rellenar",
-    "fr": "Champs de formulaire : insertion et remplissage"
-   }
-  },
   "68014af5b75ec65207e26b60d6a18cd8c52895efc72718f04a4cd78af8ad4b40": {
    "drop": false,
    "en": "Press `Shift+F1` to open Reveal Formatting, which shows the styles, font, size, color, alignment, indents, spacing, and language at the caret. The Style Inspector in the Styles pane shows the paragraph style, character style, and direct formatting, each with a button that removes it.",
@@ -17541,18 +17555,6 @@
     "fr": "Modification des diagrammes"
    }
   },
-  "7aa4a1fb9d2d2518fe9cdc2bd3f154c31becd6ff37ba7f213d63a4161f198e97": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": true,
-    "en": "",
-    "es": "",
-    "fr": ""
-   }
-  },
   "7ab6a4a8e0cbd75d2643c2731a2ab76626813c6d665cea15475e2143d8123e10": {
    "drop": true,
    "en": "",
@@ -18585,6 +18587,18 @@
     "fr": ""
    }
   },
+  "8a98e4a6a75c516c8885aa881a5617c0672644a2212a6d4a606d3d75af24edd2": {
+   "drop": false,
+   "en": "Right-click a cell, a row heading, a column heading, a sheet tab, a selected object, a chart, a table, or a pivot table to get a shortcut menu with the commands for it.",
+   "es": "Haga clic con el botón derecho en una celda, un encabezado de fila, un encabezado de columna, una pestaña de hoja, un objeto seleccionado, un gráfico, una tabla o una tabla dinámica para ver un menú contextual con sus comandos.",
+   "fr": "Faites un clic droit sur une cellule, un en-tête de ligne, un en-tête de colonne, un onglet de feuille, un objet sélectionné, un graphique, un tableau ou un tableau croisé dynamique pour afficher un menu contextuel avec ses commandes.",
+   "soon": {
+    "drop": false,
+    "en": "Chart part menus: axis, legend, series, and title",
+    "es": "Menús contextuales de las partes del gráfico: eje, leyenda, serie y título",
+    "fr": "Menus contextuels des éléments du graphique : axe, légende, série et titre"
+   }
+  },
   "8aee56e199d3df9f2e99b359fa8ffc95b3a1f00fd0c0b8195c4c7d66b5696ebe": {
    "drop": false,
    "en": "File > Export > Make an Email creates a ready-to-send `.eml` message with the workbook attached as a file or as a PDF. A workbook with a password stays locked, and the password is never in the message.",
@@ -18787,6 +18801,18 @@
     "en": "",
     "es": "",
     "fr": ""
+   }
+  },
+  "8e16e91dea773a17f46cbe3ef0d9e35c7eae1be9f4b454cd5fc099385116d1c3": {
+   "drop": false,
+   "en": "Volatile functions (`NOW`, `TODAY`, `RAND`, `RANDBETWEEN`, `OFFSET`, `INDIRECT`, `CELL`, and `INFO`) recalculate at every change, and anything that depends on them recalculates with them.",
+   "es": "Las funciones volátiles (`NOW`, `TODAY`, `RAND`, `RANDBETWEEN`, `OFFSET`, `INDIRECT`, `CELL` e `INFO`) se recalculan en cada cambio, y todo lo que depende de ellas se recalcula con ellas.",
+   "fr": "Les fonctions volatiles (`NOW`, `TODAY`, `RAND`, `RANDBETWEEN`, `OFFSET`, `INDIRECT`, `CELL` et `INFO`) se recalculent à chaque modification, et tout ce qui en dépend se recalcule avec elles.",
+   "soon": {
+    "drop": false,
+    "en": "Changed mark for a workbook that holds a volatile function",
+    "es": "Marca de modificado para un libro que contiene una función volátil",
+    "fr": "Marque de modification pour un classeur contenant une fonction volatile"
    }
   },
   "8e6792a8544ba1291503f34da971418b79034d765d1cd01e92af12c8a4d4737d": {
@@ -19939,18 +19965,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "9e15845446292537b9c9ccc1565f8b7f83817935aee60f236ae4e8b2074449ac": {
-   "drop": false,
-   "en": "A file that is not a spreadsheet, or is damaged, is told apart by its content and refused with a message. A web page saved as `.xls` opens as what it is, with its tables as the sheets.",
-   "es": "Un documento que no es una hoja de cálculo, o que está dañado, se distingue por su contenido y se rechaza con un mensaje. Una página web guardada como `.xls` se abre como lo que es, con sus tablas como hojas.",
-   "fr": "Un fichier qui n’est pas un tableur, ou qui est endommagé, est identifié par son contenu et refusé avec un message. Une page web enregistrée en `.xls` s’ouvre comme telle, ses tableaux devenant les feuilles.",
-   "soon": {
-    "drop": false,
-    "en": "Text saved as `.xls`: open as text",
-    "es": "Texto guardado como `.xls`: apertura como texto",
-    "fr": "Texte enregistré en `.xls` : ouverture comme texte"
    }
   },
   "9e46c4157614678a39254595e5841a1e5cf75b28be1c601ae4c1e3fc3faeb2f9": {
@@ -21427,18 +21441,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "b4f524446fabc6ae78dcbbb448253e68d8530fb51eca9c1763c560ab93a59176": {
-   "drop": false,
-   "en": "Right-click a cell (cut, copy, paste, insert, delete, clear, filter, sort, notes, links, Format Cells), a row heading, a column heading, a sheet tab, a selected object, or a chart to get a shortcut menu.",
-   "es": "Haga clic con el botón derecho en una celda (cortar, copiar, pegar, insertar, eliminar, borrar, filtrar, ordenar, notas, vínculos, Formato de celdas), un encabezado de fila, un encabezado de columna, una pestaña de hoja, un objeto seleccionado o un gráfico para abrir un menú contextual.",
-   "fr": "Faites un clic droit sur une cellule (couper, copier, coller, insérer, supprimer, effacer, filtrer, trier, notes, liens, Format de cellule), un en-tête de ligne, un en-tête de colonne, un onglet de feuille, un objet sélectionné ou un graphique pour ouvrir un menu contextuel.",
-   "soon": {
-    "drop": false,
-    "en": "Shortcut menus for a table and a pivot table",
-    "es": "Menús contextuales para una tabla y una tabla dinámica",
-    "fr": "Menus contextuels pour un tableau et un tableau croisé dynamique"
    }
   },
   "b51a9d8ea167a238d816c74f10e0c2b512341e1132f379d6bb83c31374961719": {
@@ -23743,18 +23745,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "d4b8fca32f156236b471800fa9a21d0936f36545a5f48a83d7243ba61be322b8": {
-   "drop": false,
-   "en": "Volatile functions (`NOW`, `TODAY`, `RAND`, `RANDBETWEEN`, `OFFSET`, `INDIRECT`, `CELL`, and `INFO`) are recalculated at every change, along with anything that depends on them.",
-   "es": "Las funciones volátiles (`NOW`, `TODAY`, `RAND`, `RANDBETWEEN`, `OFFSET`, `INDIRECT`, `CELL` e `INFO`) se recalculan en cada cambio, junto con todo lo que depende de ellas.",
-   "fr": "Les fonctions volatiles (`NOW`, `TODAY`, `RAND`, `RANDBETWEEN`, `OFFSET`, `INDIRECT`, `CELL` et `INFO`) sont recalculées à chaque modification, ainsi que tout ce qui en dépend.",
-   "soon": {
-    "drop": false,
-    "en": "Marking a workbook with a volatile function as changed",
-    "es": "Marcar como modificado un libro que contiene una función volátil",
-    "fr": "Marquage comme modifié d’un classeur contenant une fonction volatile"
    }
   },
   "d4c7bac5b475fee65512621f3327448cb4510158cc1cbc6a4ab3e8906c2713d7": {
@@ -26371,6 +26361,18 @@
     "en": "",
     "es": "",
     "fr": ""
+   }
+  },
+  "f583069d68a2eb19df52865d61a8719ed3e3d2b308fe0152001085d5cb3e04e5": {
+   "drop": false,
+   "en": "Work from the keyboard with shortcuts such as `Ctrl+Arrow`, `Ctrl+Shift+Arrow`, `Ctrl+Home`, `Ctrl+End`, `Ctrl+1` for Format Cells, `Ctrl+D`, `Ctrl+R`, `Ctrl+Z`, `F2`, `F4`, `F5`, `F7`, `F9`, and `Alt+=`. No two commands share one key.",
+   "es": "Trabaje con el teclado mediante atajos como `Ctrl+Flecha`, `Ctrl+Mayús+Flecha`, `Ctrl+Inicio`, `Ctrl+Fin`, `Ctrl+1` para Formato de celdas, `Ctrl+D`, `Ctrl+R`, `Ctrl+Z`, `F2`, `F4`, `F5`, `F7`, `F9` y `Alt+=`. Dos comandos no comparten una misma tecla.",
+   "fr": "Travaillez au clavier avec des raccourcis comme `Ctrl+Flèche`, `Ctrl+Maj+Flèche`, `Ctrl+Début`, `Ctrl+Fin`, `Ctrl+1` pour Format de cellule, `Ctrl+D`, `Ctrl+R`, `Ctrl+Z`, `F2`, `F4`, `F5`, `F7`, `F9` et `Alt+=`. Deux commandes ne partagent jamais la même touche.",
+   "soon": {
+    "drop": false,
+    "en": "Keyboard shortcuts: reassign in Options",
+    "es": "Atajos de teclado: reasignar en Opciones",
+    "fr": "Raccourcis clavier : réaffectation dans les Options"
    }
   },
   "f5c1d40ddcc1c823b1e0c89b31c426be81eb2e1552a6e8fbaebbb7c5c5130157": {
