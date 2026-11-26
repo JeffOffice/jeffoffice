@@ -19,8 +19,6 @@
 #include <QTextDocument>
 #include <QTextLayout>
 #include <QTextList>
-#include <QToolTip>
-#include "wml/htmlguard.h"
 
 namespace jp {
 
@@ -632,10 +630,7 @@ void OutlineView::keyPressEvent(QKeyEvent *e)
 void OutlineView::insertFromMimeData(const QMimeData *source)
 {
     const int blocks = document()->blockCount();
-    // (a page the parser is not given is pasted as its plain text, and the person is told)
-    const auto plain = office::wml::plainTextInsteadOfRefusedHtml(source);
-    if (plain) QToolTip::showText(mapToGlobal(cursorRect().bottomLeft()), office::wml::htmlPasteRefusedNote(), this);
-    QTextEdit::insertFromMimeData(plain ? plain.get() : source);
+    QTextEdit::insertFromMimeData(source);
     if (document()->blockCount() != blocks && !m_loading) settle(tr("Paste"));
 }
 

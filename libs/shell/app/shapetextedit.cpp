@@ -13,6 +13,7 @@
 #include <QTextDocument>
 #include <QTextList>
 #include <QToolTip>
+#include "app/plaintext.h"
 #include "wml/htmlguard.h"
 
 #include <QVector>
@@ -476,7 +477,7 @@ void ShapeTextEdit::insertFromMimeData(const QMimeData *source)
 {
     // (a page the parser is not given is pasted as its plain text, and the person is told)
     if (const auto plain = office::wml::plainTextInsteadOfRefusedHtml(source)) {
-        QToolTip::showText(mapToGlobal(cursorRect().bottomLeft()), office::wml::htmlPasteRefusedNote(), this);
+        QToolTip::showText(mapToGlobal(cursorRect().bottomLeft()), jp::plainToolTip(office::wml::htmlPasteRefusedNote()), this);
         QTextEdit::insertFromMimeData(plain.get());
         return;
     }

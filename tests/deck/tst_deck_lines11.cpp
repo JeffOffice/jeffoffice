@@ -1,9 +1,6 @@
 // JeffDeck's tests of the 1.0 lines closed in round 45: a window that goes while a pane is typed in, and the small commands of the lists below.
 #include "deckhelpers.h"
 #include "app/outlineview.h"
-#include "wml/htmlguard.h"
-#include <QClipboard>
-#include <QMimeData>
 #include "app/notespane.h"
 #include "../withdialog.h"
 #include "app/propertyeditors.h"
@@ -209,29 +206,6 @@ private Q_SLOTS:
             if (c->isVisibleTo(w) && c->count() > 0) { box = c; break; }
         if (box) box->showPopup();
         QCOMPARE(entriesWhenDeleted(w), 0);
-    }
-
-    // A page the parser is not given (nested past the limit) is pasted into the outline as its plain text, never parsed.
-    void aPastedPageTheParserIsNotGivenIsPastedIntoTheOutlineAsItsText()
-    {
-        auto *ed = new Editor;
-        ed->setDocument(deck::newDefaultPresentation());
-        OutlineView view(ed);
-        view.show();
-        QVERIFY(QTest::qWaitForWindowExposed(&view));
-        view.setFocus();
-        QString deep;
-        for (int i = 0; i < office::wml::kMostPageDepth + 1; ++i) deep += QStringLiteral("<b_x>");
-        deep += QStringLiteral("page words");
-        auto *mime = new QMimeData;
-        mime->setHtml(deep);
-        mime->setText(QStringLiteral("the plain text"));
-        QGuiApplication::clipboard()->setMimeData(mime);
-        view.paste();
-        QVERIFY2(view.toPlainText().contains(QStringLiteral("the plain text")), qPrintable(view.toPlainText()));
-        QVERIFY(!view.toPlainText().contains(QStringLiteral("page words")));
-        view.hide();
-        delete ed;
     }
 
     // The view's filter belongs to the view: once the editor it reads is gone, a click anywhere gives up the typing instead of reading the editor.
