@@ -2460,17 +2460,62 @@ private Q_SLOTS:
     }
 
     // ---- Repeat (F4) in a document protected for forms goes through the same checks, where it acts now
-    // The first command is one that formsAllows lets act in text left open (a test-only command of the table kind that makes the selection bold).
+    // ---- in text a forms-protected document leaves open, the commands that change only the selection work as in any document
+    void formattingCommandsWorkOnASelectionInOpenTextAndAreRefusedInClosedTextOrAcrossBoth()
+    {
+        const char *ids[] = {"fmt.bold", "style.heading2", "para.bullets", "fmt.alignCenter", "para.indentInc", "fmt.italic", "list.bulletNone"};
+        for (const char *id : ids) {
+            auto w = windowOn(kClosedThenOpen, kFormsProtection);
+            QVERIFY(w);
+            PageView *view = w->view();
+            WriteDoc *doc = w->document();
+            const QString all = doc->story()->toPlainText();
+            const int openAt = int(all.indexOf(QLatin1String("Open"))), closedAt = int(all.indexOf(QLatin1String("Closed")));
+            const QByteArray original = documentXml(doc->toDocx());
+            w->refreshForTest();
+            QAction *a = w->act(QString::fromLatin1(id));
+            QVERIFY2(a, id);
+            // Closed text, and a selection across both: nothing changes.
+            caretAt(view, closedAt + 6, closedAt);
+            a->trigger();
+            QCOMPARE(documentXml(doc->toDocx()), original);
+            caretAt(view, openAt + 4, closedAt + 2);
+            a->trigger();
+            QCOMPARE(documentXml(doc->toDocx()), original);
+            QVERIFY2(!doc->canUndo(), id);
+            // Open text: it works (list.bulletNone has nothing to take off, so it only must not be refused or change the closed text).
+            caretAt(view, openAt + 4, openAt);
+            a->trigger();
+            if (QByteArray(id) != "list.bulletNone") QVERIFY2(documentXml(doc->toDocx()) != original, id);
+            QVERIFY2(lines(*doc).first() == QStringLiteral("Closed text"), id);
+            if (QByteArray(id) == "fmt.bold") {
+                QTextCursor c(doc->story());
+                c.setPosition(openAt + 1);
+                QVERIFY(c.charFormat().fontWeight() >= QFont::DemiBold);
+            }
+        }
+        // The commands that change the document as a whole stay refused in open text.
+        auto w = windowOn(kClosedThenOpen, kFormsProtection);
+        QVERIFY(w);
+        const int openAt = int(w->document()->story()->toPlainText().indexOf(QLatin1String("Open")));
+        caretAt(w->view(), openAt + 4, openAt);
+        const QByteArray original = documentXml(w->document()->toDocx());
+        for (const char *id : {"review.acceptAll", "fields.update", "insert.header", "layout.sectionBreak.nextPage"}) {
+            if (QAction *a = w->act(QString::fromLatin1(id))) {
+                a->trigger();
+                QVERIFY2(documentXml(w->document()->toDocx()) == original, id);
+            }
+        }
+        QVERIFY(!w->document()->canUndo());
+    }
+
     void repeatOfACommandAndOfTypingWorksInAnOpenSectionAndChangesNothingInClosedText()
     {
         auto w = windowOn(kClosedThenOpen, kFormsProtection);
         QVERIFY(w);
         PageView *view = w->view();
         WriteDoc *doc = w->document();
-        QAction *format = w->addRepeatableCommandForTest(QStringLiteral("table.repeatTestBold"), [view, doc] {
-            QTextCursor c = view->cursor();
-            write::toggleBold(*doc, c);
-        });
+        QAction *format = w->act(QStringLiteral("fmt.bold"));
         auto boldAt = [&](int position) {
             QTextCursor c(doc->story());
             c.setPosition(position + 1);
@@ -2529,10 +2574,7 @@ private Q_SLOTS:
             w->setDocument(std::move(made), QString());
             PageView *view = w->view();
             WriteDoc *doc = w->document();
-            QAction *format = w->addRepeatableCommandForTest(QStringLiteral("table.repeatTestBold"), [view, doc] {
-                QTextCursor c = view->cursor();
-                write::toggleBold(*doc, c);
-            });
+            QAction *format = w->act(QStringLiteral("fmt.bold"));
             const int openAt = int(doc->story()->toPlainText().indexOf(QLatin1String("Open")));
             // Something to repeat, done while the document still allows it.
             if (kind == 2) w->setReadOnly(false);

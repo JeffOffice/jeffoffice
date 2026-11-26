@@ -41,13 +41,28 @@ bool WriteWindow::protectionAllows(const QString &id) const
     return m_protectKind == QLatin1String("comments") && allowedWithComments(id);
 }
 
-// Whether a command that a document protected for forms holds is let run: Undo, Redo, Cut, and the pastes (the view judges the place each changes), and the commands for pictures, shapes, tables, and
-// the like where the caret and the selection are in text the protection leaves out.
+// Whether a command that a document protected for forms holds is let run: Undo, Redo, Cut, and the pastes (the view judges the place each changes), Repeat (it checks the command it does again, where it
+// acts now), and every command that changes only the selection or the caret's place (formatting, paragraphs, styles applied to the selection, lists, indents, alignment, breaks, symbols, pictures,
+// shapes, tables, and the like), when the caret and the whole selection are in text the protection leaves out. Refused by their nature, since they change the document as a whole or text that is
+// closed: modifying, creating, or managing styles, the page setup and the headers and footers, the commands for the whole document (accept or reject all, update all fields, replace fonts, the
+// bibliography, the table of contents, the index), and any command whose target is not the selection (moving paragraphs, notes, comments, content controls, the painter that acts at a later click).
 bool WriteWindow::formsAllows(const QString &id) const
 {
     if (!formsHeld() || !m_view) return false;
     if (id == QLatin1String("edit.undo") || id == QLatin1String("edit.redo") || id == QLatin1String("edit.cut") || id.startsWith(QLatin1String("edit.paste"))) return true;
-    static const char *const prefixes[] = {"picture.", "shape.", "table.", "arrange.", "insert.picture", "insert.icons", "insert.table", "insert.ready.", "insert.textBox", "insert.shape"};
+    static const char *const refused[] = {"fmt.fontDialog", "fmt.stopHighlighting", "para.dialog", "style.inspector", "style.inspectorPane", "style.manage", "style.modify", "style.new", "style.pane",
+                                          "style.update", "list.define", "list.setValue", "outline.moveUp", "outline.moveDown", "outline.collapse", "outline.expand", "outline.close", "outline.level",
+                                          "outline.firstLineOnly", "outline.showFormatting", "insert.cover.", "insert.control.", "insert.header", "insert.footer", "insert.manageBlocks", "insert.saveBlock",
+                                          "insert.ready.save", "insert.textBox.save", "insert.object.page", "insert.object.range", "layout.sectionBreak"};
+    for (const char *prefix : refused)
+        if (id.startsWith(QLatin1String(prefix))) return false;
+    static const char *const prefixes[] = {"picture.", "shape.", "table.", "arrange.", "insert.picture", "insert.icons", "insert.table", "insert.ready.", "insert.textBox", "insert.shape",
+                                           "fmt.", "para.", "style.", "list.", "outline.", "fields.lock", "fields.unlock", "fields.unlink", "fields.toggleCode", "layout.columnBreak", "insert.pageBreak",
+                                           "insert.blankPage", "insert.special.", "insert.symbol", "insert.dateTime", "insert.hyperlink", "insert.removeHyperlink", "insert.bookmark", "insert.dropCap.",
+                                           "insert.textFromFile", "insert.equation", "insert.expandShortcut", "insert.convertTextToTable", "insert.barcode", "insert.field", "insert.object.chart",
+                                           "edit.replace", "edit.copyFormat", "edit.pasteFormat", "refs.crossReference", "review.language", "review.noProof", "symbol.insert:"};
+    // (edit.replace is not "edit.replaceFonts": that one changes the fonts of the whole document.)
+    if (id == QLatin1String("edit.replaceFonts")) return false;
     for (const char *prefix : prefixes)
         if (id.startsWith(QLatin1String(prefix))) return !m_view->editsBlockedAtSelection();
     return false;

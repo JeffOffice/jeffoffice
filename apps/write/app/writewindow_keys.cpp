@@ -108,15 +108,9 @@ QAction *WriteWindow::makeKeyCommand(const QString &id)
     a->setObjectName(id);
     a->setProperty(KeyMap::kGroupProperty, group);
     connect(a, &QAction::triggered, this, [this, id, fn] {
-        if (isReadOnly() && !commandAllowedReadOnly(id)) {
-            refuseReadOnlyChange();
-            return;
-        }
-        if (searchBlocked() && !commandAllowedReadOnly(id)) {
-            refuseSearchBlockedChange();
-            return;
-        }
-        fn();
+        bool openHere = false;   // (a document protected for forms: a key made for a style or a symbol acts in text the protection leaves out, as the commands do)
+        if (refuseCommand(id, &openHere)) return;
+        runWhereOpen(openHere, fn);
     });
     m_actions.insert(id, a);
     KeyMap::applyLater(this, a);
