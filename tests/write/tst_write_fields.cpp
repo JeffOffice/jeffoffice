@@ -33,6 +33,7 @@
 #include <QElapsedTimer>
 #include <QGuiApplication>
 #include <QInputMethodEvent>
+#include <QLineEdit>
 #include <QMimeData>
 #include <QPushButton>
 #include <QMenu>
