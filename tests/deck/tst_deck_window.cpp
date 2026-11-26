@@ -4616,6 +4616,8 @@ private Q_SLOTS:
         QTRY_VERIFY2(v->notesFit() < 1.0, "the printed page shrinks this note");
         QCOMPARE(box->displayScale(), v->zoom() * v->notesFit());
         QTRY_VERIFY2(box->document()->size().height() <= box->height() + 2, qPrintable(QString::number(box->document()->size().height()) + QStringLiteral(" in ") + QString::number(box->height())));
+        QVERIFY(box->takeTarget());   // (the box draws the words once it is the person's to edit)
+        QTRY_VERIFY(!box->isGhost());
         const QVector<InkLine> shown = inkLines(box->grab().toImage()), printed = inkLines(printedNotes(v, ed));
         // (the lines are too close to tell apart at this size: the shown and the printed notes end at the same place, near the foot of the place, and neither has gone past it)
         // (what is shown is the printed page's size step; the lines' own spacing is the text view's, so the two are not compared line by line here)
