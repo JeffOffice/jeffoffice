@@ -336,11 +336,11 @@
         },
         {
          "status": "partly",
-         "text": "2a1a0c0a1cec79b20ad25dd37972972002ae314cb0bbfefedfd159b72654d12a"
+         "text": "d17960f1bc3ead998fceaa5ef08df013196f9c6cbc65c31f694b1e0c826040c2"
         },
         {
          "status": "partly",
-         "text": "e78afe7a2babe8a8d9a86dc48a9e79c30b97ac1ce22593c21c5bc5452d90ef3e"
+         "text": "b26d49086652c0e695718cbb9788d4e99051087b8c85a85a40291e2bc3b05b5e"
         },
         {
          "hide_soon": true,
@@ -358,7 +358,7 @@
         },
         {
          "status": "partly",
-         "text": "5342981b939c13de0d328a703c5b3648cb98d9acb529e084a4e3cf1e974d7154"
+         "text": "a6e1b4d58bba4e761cc208fa041ff8e47e7afc05c8305ff19dc4d29d5457956f"
         },
         {
          "status": "partly",
@@ -545,7 +545,7 @@
         },
         {
          "status": "partly",
-         "text": "8ea58c23f4c2b735a382856963cd42afffeea76b83eb29da3d98c3a2408cdfea"
+         "text": "8faa6bb45407461b88ccaee854854c69f023c79be5558c6a1de0e29f141c9f0c"
         },
         {
          "hide_soon": true,
@@ -645,7 +645,7 @@
         },
         {
          "status": "partly",
-         "text": "2ffee8e791823f68e9cdb53ec03cf3ecbeb14f2f5d909301c0d2b9782e35acc8"
+         "text": "2dab1a2372bd4a44835768a35602c83a164e4443b91514034d8f8d413cab7b9b"
         },
         {
          "status": "partly",
@@ -966,8 +966,9 @@
        "heading": "06510de8cbfb441cff67419ae39798f5e63d093f33e0428a8375dc07e83612a1",
        "items": [
         {
-         "status": "partly",
-         "text": "41248743fd5073dbce5a8463ac14318d5d84e6aab0b9306efa95fd67e937a802"
+         "hide_soon": true,
+         "status": "done",
+         "text": "e74a44e56e693edc5eef5ee8824c939710b8818221e6cfbcc216106b07a4927d"
         },
         {
          "hide_soon": true,
@@ -995,8 +996,9 @@
          "text": "2568bdd32d185100fba1839b9f5688e13a13f4e6b7956a77d0825d86fa8f0140"
         },
         {
-         "status": "partly",
-         "text": "202678ede11dcdf2e8d30331b85b8c34535b9d022f82f48b0cbcf09f765c2589"
+         "hide_soon": true,
+         "status": "done",
+         "text": "2ec8c6c9244f25fd98961cecd8df27ff9f4c88577ad393f1171a90d00a32a1e5"
         },
         {
          "status": "partly",
@@ -2486,8 +2488,9 @@
          "text": "197874ebd9cb1373c72401e66235506ef7ed5fc485a10c81d56a2552499fbb76"
         },
         {
-         "status": "partly",
-         "text": "f5c27cdcfca3c68720292dd7dffd3b026f4e3a846dd321002003fbe6a98d58b8"
+         "hide_soon": true,
+         "status": "done",
+         "text": "965d04db3f9af0beaabce271b3061cb9e6008fe7381a4ad74f0845a0dc31a046"
         },
         {
          "hide_soon": true,
@@ -2515,8 +2518,9 @@
          "text": "912e1e6bf4677089f670f815b341fdf75dcfe831427d729e8edeece812086bb9"
         },
         {
-         "status": "partly",
-         "text": "b0ca06f0e0cbfe415dacf9fcd31093e882596c49ae470d932b682313d325807a"
+         "hide_soon": true,
+         "status": "done",
+         "text": "442df84388d30626643fff636d6a2992da75e8a086f1f75575c634f7f74501ce"
         },
         {
          "hide_soon": true,
@@ -2702,7 +2706,7 @@
         },
         {
          "status": "partly",
-         "text": "5e40a1f6da624b7ef37ed962daea459f5a1e99adde25d169425339478ef42b56"
+         "text": "265a4fc6914d5381719e6eb6065f6ccd67e1b5d43b2420dc136c373de01b91f7"
         },
         {
          "hide_soon": true,
@@ -2864,7 +2868,7 @@
         {
          "hide_soon": true,
          "status": "done",
-         "text": "6e2e7e41f2893a785171dc99621767e0e49e72ae2732402faba5c108ab16a4ec"
+         "text": "8a9741e4f2fdaac5572b99f8eb1251f8a545c1ad54d2f5724d9c2ac2ef2664af"
         },
         {
          "hide_soon": true,
@@ -3752,8 +3756,9 @@
        "heading": "bec6b31b2841516c6bb00a8315da999645395b93471d02f528675243c7072d5f",
        "items": [
         {
-         "status": "partly",
-         "text": "76a705448deafcc524d420f1f10f8a537aed6b35f8218c244cef86818c37f21c"
+         "hide_soon": true,
+         "status": "done",
+         "text": "d7a80ed5b470c5963508021e3c184456128a15fb9170063ebc9808358d0ccf3c"
         },
         {
          "hide_soon": true,
@@ -4028,8 +4033,9 @@
        "text": "206b00281e74753ec41ccd8df5d16d52002682bff04124f217c447aafa6672f8"
       },
       {
-       "status": "partly",
-       "text": "d334e0c2896159fb9c3dbbcd7ed3557f4e5c979eb7711379c63a88595a0e1788"
+       "hide_soon": true,
+       "status": "done",
+       "text": "abf752aae5ece59643098476273bc9e503b26f28113ab732508509544c8fb38f"
       },
       {
        "hide_soon": true,
@@ -5501,7 +5507,7 @@
       {
        "hide_soon": true,
        "status": "done",
-       "text": "fb48970b217a8a2d6e54fff009d229178284a3065cdf03e7309d01c1cbc9c2e7"
+       "text": "5bbeb5d450b40feb184b8e60336504fb3859a583ab545cc8e2f7183109517c28"
       },
       {
        "hide_soon": true,
@@ -5723,7 +5729,7 @@
      "items": [
       {
        "status": "partly",
-       "text": "59e42435723d6ece64b6b3cf0d26816ff73175344e8e10e60901d9d36072e474"
+       "text": "e88252bfdafe3b308195a0a69a19044ea3cef8dd278c4eb7e786002c0ed6ff8c"
       },
       {
        "hide_soon": true,
@@ -10385,18 +10391,6 @@
     "fr": ""
    }
   },
-  "202678ede11dcdf2e8d30331b85b8c34535b9d022f82f48b0cbcf09f765c2589": {
-   "drop": false,
-   "en": "Error Checking: step through formulas that give an error, inconsistent formulas, numbers stored as text, two-digit years, and formulas in unlocked cells. A green triangle marks each cell with a problem, `Ignore Error` is kept in the file, and each rule can be turned on or off under Options > Formulas.",
-   "es": "Revisión de errores: recorra las fórmulas que dan error, las fórmulas incoherentes, los números almacenados como texto, los años de dos dígitos y las fórmulas en celdas desbloqueadas. Un triángulo verde marca cada celda con un problema, `Ignore Error` se guarda en el documento y puede activar o desactivar cada regla en Opciones > Fórmulas.",
-   "fr": "Vérification des erreurs : parcourez les formules qui renvoient une erreur, les formules incohérentes, les nombres stockés sous forme de texte, les années à deux chiffres et les formules dans des cellules déverrouillées. Un triangle vert signale chaque cellule posant problème, `Ignore Error` est conservé dans le fichier et vous pouvez activer ou désactiver chaque règle sous Options > Formules.",
-   "soon": {
-    "drop": false,
-    "en": "Menu on the green triangle marker",
-    "es": "Menú en el marcador de triángulo verde",
-    "fr": "Menu sur le marqueur en triangle vert"
-   }
-  },
   "204ebea6183d0f25ba58448264e9988cd6e9410280b629a04f48fc71bc624a27": {
    "drop": false,
    "en": "Behind the scenes: the calculation engine",
@@ -11009,6 +11003,18 @@
     "fr": ""
    }
   },
+  "265a4fc6914d5381719e6eb6065f6ccd67e1b5d43b2420dc136c373de01b91f7": {
+   "drop": false,
+   "en": "AutoCorrect Options has the replacement list, exceptions lists, and capital-letter switches, and a Math Symbols tab that turns names such as `\\alpha`, `\\leq`, and `\\infty` into symbols as you type, when the switch is on.",
+   "es": "Las opciones de autocorrección incluyen la lista de reemplazos, las listas de excepciones y los interruptores de mayúsculas, además de una pestaña de símbolos matemáticos que convierte nombres como `\\alpha`, `\\leq` y `\\infty` en símbolos al escribir, cuando el interruptor está activado.",
+   "fr": "Les options de correction automatique comprennent la liste de remplacement, les listes d’exceptions et les options de majuscules, ainsi qu’un onglet Symboles mathématiques qui transforme des noms comme `\\alpha`, `\\leq` et `\\infty` en symboles pendant la saisie, lorsque l’option est activée.",
+   "soon": {
+    "drop": false,
+    "en": "Language for each text box: set",
+    "es": "Idioma para cada cuadro de texto: definir",
+    "fr": "Langue de chaque zone de texte : définir"
+   }
+  },
   "2674d689a62bf540ee5325ff78106b0fc5b384d87086ec0924b7ca0e5c5defb0": {
    "drop": false,
    "en": "A file that is not entirely readable opens with the rest and lists what it left out. A file that can't be read at all says why.",
@@ -11393,18 +11399,6 @@
     "fr": "Formules, graphiques et formes libres dans les fichiers `.odt`"
    }
   },
-  "2a1a0c0a1cec79b20ad25dd37972972002ae314cb0bbfefedfd159b72654d12a": {
-   "drop": false,
-   "en": "Set calculation to automatic, automatic except data tables, or manual, recalculate before saving, and set iterative calculation with a maximum number of iterations and a maximum change. These settings belong to the workbook, are saved with it, and are one step of Undo.",
-   "es": "Establezca el cálculo como automático, automático excepto las tablas de datos o manual, recalcule antes de guardar y configure el cálculo iterativo con un número máximo de iteraciones y un cambio máximo. Estos ajustes pertenecen al libro, se guardan con él y cuentan como un solo paso de Deshacer.",
-   "fr": "Définissez le calcul en automatique, automatique sauf les tables de données ou manuel, recalculez avant d’enregistrer et réglez le calcul itératif avec un nombre maximal d’itérations et une variation maximale. Ces paramètres appartiennent au classeur, sont enregistrés avec lui et forment une seule étape d’annulation.",
-   "soon": {
-    "drop": false,
-    "en": "R1C1 style, error-checking rules, and 1904 date system settings",
-    "es": "Ajustes del estilo R1C1, las reglas de comprobación de errores y el sistema de fechas 1904",
-    "fr": "Paramètres du style L1C1, des règles de vérification des erreurs et du système de dates 1904"
-   }
-  },
   "2a2527d3924c903603eaf65721dcd6112928664ccc7d044a748ebe1a69508d72": {
    "drop": false,
    "en": "Print mail merge and catalog merge jobs.",
@@ -11621,6 +11615,18 @@
     "fr": ""
    }
   },
+  "2dab1a2372bd4a44835768a35602c83a164e4443b91514034d8f8d413cab7b9b": {
+   "drop": false,
+   "en": "Find and Replace work in the sheet or the workbook, by rows or columns, in formulas, values, or notes, with match case, match entire cell, wildcards, and search by format. Go To takes a reference or name, and Go To Special selects blanks, constants, formulas, errors, current region, current array, last cell, visible cells, conditional formats, data validation, and row or column differences. Select Objects and the Selection Pane are available, and Select by Kind finds precedents and dependents of the selection.",
+   "es": "Buscar y reemplazar funciona en la hoja o en el libro, por filas o columnas, en fórmulas, valores o notas, con coincidencia de mayúsculas y minúsculas, coincidencia con toda la celda, comodines y búsqueda por formato. Ir a acepta una referencia o un nombre, e Ir a Especial selecciona celdas en blanco, constantes, fórmulas, errores, región actual, matriz actual, última celda, celdas visibles, formatos condicionales, validación de datos y diferencias de fila o columna. Están disponibles Seleccionar objetos y el panel de selección, y Seleccionar por tipo encuentra los precedentes y dependientes de la selección.",
+   "fr": "Rechercher et remplacer fonctionnent dans la feuille ou le classeur, par lignes ou par colonnes, dans les formules, les valeurs ou les notes, avec respect de la casse, cellule entière, caractères génériques et recherche par format. Atteindre accepte une référence ou un nom, et Atteindre spécial sélectionne les cellules vides, les constantes, les formules, les erreurs, la région active, la matrice active, la dernière cellule, les cellules visibles, les mises en forme conditionnelles, la validation des données et les différences de ligne ou de colonne. Sélectionner les objets et le volet Sélection sont disponibles, et Sélectionner par type trouve les antécédents et les dépendants de la sélection.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "2dc41131caef3eeece2632ea6a7a14dd72c57da771a512b8b6e1dc9032236b1a": {
    "drop": false,
    "en": "Change or remove a picture, swap pictures between picture frames, and arrange thumbnails.",
@@ -11729,6 +11735,18 @@
     "fr": ""
    }
   },
+  "2ec8c6c9244f25fd98961cecd8df27ff9f4c88577ad393f1171a90d00a32a1e5": {
+   "drop": false,
+   "en": "Error Checking steps through formulas that give an error, inconsistent formulas, formulas that leave out neighboring cells, formulas that read empty cells, numbers stored as text, two-digit years, and formulas in unlocked cells. A green triangle marks each cell with a problem and opens a menu with what is wrong, the fix, Ignore Error, and Error Checking. Ignore Error is kept in the file, and each rule can be turned on or off under Options > Formulas.",
+   "es": "La comprobación de errores recorre las fórmulas que dan error, las fórmulas incoherentes, las que omiten celdas contiguas, las que leen celdas vacías, los números almacenados como texto, los años de dos dígitos y las fórmulas en celdas desbloqueadas. Un triángulo verde marca cada celda con un problema y abre un menú con la descripción del problema, la corrección, Omitir error y Comprobación de errores. Omitir error se guarda en el archivo, y cada regla se puede activar o desactivar en Opciones > Fórmulas.",
+   "fr": "La vérification des erreurs parcourt les formules qui donnent une erreur, les formules incohérentes, celles qui omettent des cellules voisines, celles qui lisent des cellules vides, les nombres stockés sous forme de texte, les années à deux chiffres et les formules dans des cellules déverrouillées. Un triangle vert marque chaque cellule problématique et ouvre un menu indiquant le problème, la correction, Ignorer l’erreur et Vérification des erreurs. Ignorer l’erreur est conservé dans le fichier, et chaque règle peut être activée ou désactivée sous Options > Formules.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "2f07715f213d0289e0c616b63a584fd74c34729154c3b2861632c8c2a5ddc573": {
    "drop": false,
    "en": "Switch between Print Layout (pages as they print), Draft (one continuous column with a style area), and Outline, which has its own Outlining tab.",
@@ -11775,18 +11793,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "2ffee8e791823f68e9cdb53ec03cf3ecbeb14f2f5d909301c0d2b9782e35acc8": {
-   "drop": false,
-   "en": "Find, Find All, Replace, and Replace All in the sheet or the workbook, by rows or columns, in formulas, values, or notes, with match case, match entire cell, wildcards, and by format. Go To a reference, another sheet's reference, or a name, and Go To Special for blanks, constants, formulas, errors, current region, current array, row and column differences, last cell, visible cells, conditional formats, and data validation. Select Objects and the Selection Pane.",
-   "es": "Busque, busque todo, reemplace y reemplace todo en la hoja o en el libro, por filas o columnas, en fórmulas, valores o notas, con coincidencia de mayúsculas y minúsculas, de celda completa, caracteres comodín y por formato. Vaya a una referencia, a la referencia de otra hoja o a un nombre, y use Ir a Especial para celdas en blanco, constantes, fórmulas, errores, región actual, matriz actual, diferencias de fila y columna, última celda, celdas visibles, formatos condicionales y validación de datos. Seleccione objetos y use el panel de selección.",
-   "fr": "Recherchez, recherchez tout, remplacez et remplacez tout dans la feuille ou le classeur, par lignes ou colonnes, dans les formules, les valeurs ou les notes, avec respect de la casse, cellule entière, caractères génériques et par format. Atteignez une référence, la référence d’une autre feuille ou un nom, et utilisez Atteindre spécial pour les cellules vides, les constantes, les formules, les erreurs, la région active, la matrice active, les différences de ligne et de colonne, la dernière cellule, les cellules visibles, les mises en forme conditionnelles et la validation des données. Sélectionnez des objets et utilisez le volet de sélection.",
-   "soon": {
-    "drop": false,
-    "en": "Go To Special: precedents and dependents",
-    "es": "Ir a Especial: precedentes y dependientes",
-    "fr": "Atteindre spécial : antécédents et dépendants"
    }
   },
   "30237bc915206c02b514dbf7284511f47c2972373e9ddfbea7808f99fce0aa78": {
@@ -13133,18 +13139,6 @@
     "fr": ""
    }
   },
-  "41248743fd5073dbce5a8463ac14318d5d84e6aab0b9306efa95fd67e937a802": {
-   "drop": false,
-   "en": "Define names for cells, ranges, constants, or formulas, scoped to the workbook or one sheet. Create, change, and delete names, each as one step of Undo, with the rules checked as you type and Go To following them. A name typed in the Name Box that stands for nothing yet is created for the selected cells. Built-in names for print areas, print titles, and filters are kept as saved.",
-   "es": "Defina nombres para celdas, rangos, constantes o fórmulas, con ámbito de libro o de una hoja. Cree, cambie y elimine nombres, cada uno como un paso de Deshacer, con las reglas comprobadas mientras escribe e Ir a siguiéndolos. Un nombre escrito en el cuadro de nombres que aún no representa nada se crea para las celdas seleccionadas. Los nombres integrados de áreas de impresión, títulos de impresión y filtros se conservan como se guardaron.",
-   "fr": "Définissez des noms pour des cellules, des plages, des constantes ou des formules, avec pour portée le classeur ou une feuille. Créez, modifiez et supprimez des noms, chacun en une étape d’annulation, avec les règles vérifiées pendant la saisie et Atteindre qui les suit. Un nom saisi dans la zone Nom qui ne désigne encore rien est créé pour les cellules sélectionnées. Les noms intégrés pour les zones d’impression, les titres d’impression et les filtres sont conservés tels qu’enregistrés.",
-   "soon": {
-    "drop": false,
-    "en": "Formulas that use a name for a block of several sheets",
-    "es": "Fórmulas que usan un nombre para un bloque de varias hojas",
-    "fr": "Formules utilisant un nom pour un bloc de plusieurs feuilles"
-   }
-  },
   "414efa00510f17d5f3cba6f1f8876f9892ef2dcf017d5d928cf93fcea261e0b1": {
    "drop": false,
    "en": "Comments",
@@ -13318,6 +13312,18 @@
    "en": "Save (`Ctrl+S`) and Save As (`F12`) choose the kind by file ending (`.pptx`, `.potx`, `.ppsx`, `.odp`, `.otp`). A star in the title bar marks unsaved changes, Close asks first, and the old file is kept when the new one can't be written.",
    "es": "Guardar (`Ctrl+S`) y Guardar como (`F12`) eligen el tipo según la extensión (`.pptx`, `.potx`, `.ppsx`, `.odp`, `.otp`). Un asterisco en la barra de título indica cambios sin guardar, Cerrar pregunta antes y se conserva el archivo anterior si no se puede escribir el nuevo.",
    "fr": "Enregistrer (`Ctrl+S`) et Enregistrer sous (`F12`) choisissent le type selon l’extension (`.pptx`, `.potx`, `.ppsx`, `.odp`, `.otp`). Une étoile dans la barre de titre signale les modifications non enregistrées, Fermer demande confirmation d’abord, et l’ancien fichier est conservé si le nouveau ne peut pas être écrit.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
+  "442df84388d30626643fff636d6a2992da75e8a086f1f75575c634f7f74501ce": {
+   "drop": false,
+   "en": "Start from built-in templates: pitch, status update, lesson, photo album, report, training, minimal light, and minimal dark, each with its own theme and sample slides.",
+   "es": "Comience con plantillas integradas: presentación de propuesta, informe de estado, lección, álbum de fotos, informe, capacitación, minimalista claro y minimalista oscuro, cada una con su propio tema y diapositivas de ejemplo.",
+   "fr": "Démarrez avec des modèles intégrés : présentation de projet, point d’avancement, leçon, album photo, rapport, formation, minimaliste clair et minimaliste sombre, chacun avec son propre thème et des diapositives d’exemple.",
    "soon": {
     "drop": true,
     "en": "",
@@ -14537,18 +14543,6 @@
     "fr": ""
    }
   },
-  "5342981b939c13de0d328a703c5b3648cb98d9acb529e084a4e3cf1e974d7154": {
-   "drop": false,
-   "en": "Show a zero in cells with a zero value, kept with the sheet in `.xlsx`. Set the gridline color, the zoom a new workbook starts at, and the standard column width of the sheet in view in Options > Display. Other display options are ribbon commands.",
-   "es": "Muestre un cero en las celdas con valor cero, conservado con la hoja en `.xlsx`. Defina el color de las líneas de cuadrícula, el zoom con el que empieza un libro nuevo y el ancho de columna estándar de la hoja visible en Opciones > Pantalla. Las demás opciones de visualización son comandos de la cinta de opciones.",
-   "fr": "Affichez un zéro dans les cellules de valeur nulle, conservé avec la feuille dans `.xlsx`. Réglez la couleur du quadrillage, le zoom de départ d’un nouveau classeur et la largeur de colonne standard de la feuille affichée dans Options > Affichage. Les autres options d’affichage sont des commandes du ruban.",
-   "soon": {
-    "drop": false,
-    "en": "Gridline color kept with each sheet",
-    "es": "Color de las líneas de cuadrícula conservado con cada hoja",
-    "fr": "Couleur du quadrillage conservée avec chaque feuille"
-   }
-  },
   "53866ed0250fb4e810279811dd09ebb332d4392acb613260e320ece6362c5c92": {
    "drop": false,
    "en": "Fields",
@@ -14933,18 +14927,6 @@
     "fr": ""
    }
   },
-  "59e42435723d6ece64b6b3cf0d26816ff73175344e8e10e60901d9d36072e474": {
-   "drop": false,
-   "en": "Macros are never run, and linked pictures are not loaded until the person allows it.",
-   "es": "Las macros nunca se ejecutan, y las imágenes vinculadas no se cargan hasta que usted lo permita.",
-   "fr": "Les macros ne sont jamais exécutées, et les images liées ne sont pas chargées tant que vous ne l’autorisez pas.",
-   "soon": {
-    "drop": false,
-    "en": "Other links and remote content: held back until allowed",
-    "es": "Otros vínculos y contenido remoto: retenidos hasta que se permitan",
-    "fr": "Autres liens et contenu distant : bloqués tant qu’ils ne sont pas autorisés"
-   }
-  },
   "5a05b6bcc8f91fec67ad8488a9c00f4133c0ab5d4590e0766e3e9700056fa28c": {
    "drop": false,
    "en": "Apply cell styles from the gallery and add a style of your own with New Cell Style. Themed styles follow a theme change, and built-in styles also work in workbooks opened from text, older binary, or OpenDocument files.",
@@ -15130,6 +15112,18 @@
    "en": "",
    "es": "",
    "fr": "",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
+  "5bbeb5d450b40feb184b8e60336504fb3859a583ab545cc8e2f7183109517c28": {
+   "drop": false,
+   "en": "Wrap text around objects with None, Square, Tight, Through, or Top and Bottom, edit wrap points, and set wrap distances.",
+   "es": "Ajuste el texto alrededor de los objetos con Ninguno, Cuadrado, Estrecho, Através o Superior e inferior, edite los puntos de ajuste y defina las distancias de ajuste.",
+   "fr": "Habillez les objets de texte avec Aucun, Carré, Rapproché, Au travers ou Haut et bas, modifiez les points d’habillage et réglez les distances d’habillage.",
    "soon": {
     "drop": true,
     "en": "",
@@ -15327,18 +15321,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "5e40a1f6da624b7ef37ed962daea459f5a1e99adde25d169425339478ef42b56": {
-   "drop": false,
-   "en": "AutoCorrect Options window with the replacement list, the exceptions lists, and the capital-letter switches; text boxes follow them.",
-   "es": "Ventana de opciones de autocorrección con la lista de reemplazos, las listas de excepciones y los interruptores de mayúsculas; los cuadros de texto los siguen.",
-   "fr": "Fenêtre d’options de correction automatique avec la liste de remplacement, les listes d’exceptions et les options de majuscules ; les zones de texte les suivent.",
-   "soon": {
-    "drop": false,
-    "en": "AutoCorrect math symbols and a language for each text box",
-    "es": "Símbolos matemáticos de autocorrección y un idioma para cada cuadro de texto",
-    "fr": "Symboles mathématiques de correction automatique et une langue pour chaque zone de texte"
    }
   },
   "5e9957a5d07fe0a4835f015c77ca5d64911b3614dea42b7de476fdeb49b19fd7": {
@@ -16853,18 +16835,6 @@
     "fr": ""
    }
   },
-  "6e2e7e41f2893a785171dc99621767e0e49e72ae2732402faba5c108ab16a4ec": {
-   "drop": false,
-   "en": "Text effects (shadow, reflection, glow, and transform) are set from the Text Effects menu on the Shape Format tab, with text fill and outline in their own menus.",
-   "es": "Los efectos de texto (sombra, reflejo, resplandor y transformación) se establecen desde el menú Efectos de texto de la pestaña Formato de forma, con el relleno y el contorno del texto en sus propios menús.",
-   "fr": "Les effets de texte (ombre, reflet, lueur et transformation) se définissent depuis le menu Effets de texte de l’onglet Format de la forme, le remplissage et le contour du texte ayant leurs propres menus.",
-   "soon": {
-    "drop": true,
-    "en": "",
-    "es": "",
-    "fr": ""
-   }
-  },
   "6ed2a66ea9d67893c24253a9bde248ad628f20085a87487b71f6924a9ac65601": {
    "drop": false,
    "en": "Open the Navigation pane to see Headings, Pages, and Results. In Headings, click a heading to go to it, collapse sections, promote or demote headings, and drag a heading to move its section with a line showing where it lands. Pages shows thumbnails of the first 60 pages. Results lists where a word occurs with the words around it, as text, under each heading, or under each page.",
@@ -17283,18 +17253,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "76a705448deafcc524d420f1f10f8a537aed6b35f8218c244cef86818c37f21c": {
-   "drop": false,
-   "en": "Tables from a file show and save as made.",
-   "es": "Las tablas de un archivo se muestran y se guardan tal como se crearon.",
-   "fr": "Les tableaux d’un fichier s’affichent et s’enregistrent tels qu’ils ont été créés.",
-   "soon": {
-    "drop": false,
-    "en": "Table rows that grow with typing",
-    "es": "Filas de tabla que crecen al escribir",
-    "fr": "Lignes de tableau qui s’agrandissent à la saisie"
    }
   },
   "76b27e8ec3aad2a7aa7ae296982c4f62a8f09240102ed5dfd19aaa383cd407d5": {
@@ -18605,6 +18563,18 @@
     "fr": "Chronologie : clic pour filtrer et choix du niveau de temps"
    }
   },
+  "8a9741e4f2fdaac5572b99f8eb1251f8a545c1ad54d2f5724d9c2ac2ef2664af": {
+   "drop": false,
+   "en": "Text effects (shadow, reflection, glow, and transform) are set from the Text Effects menu on the Shape Format tab, with text fill and outline in their own menus.",
+   "es": "Los efectos de texto (sombra, reflexión, resplandor y transformación) se aplican desde el menú Efectos de texto en la pestaña Formato de forma, con el relleno y el contorno del texto en sus propios menús.",
+   "fr": "Les effets de texte (ombre, réflexion, lueur et transformation) se définissent depuis le menu Effets de texte de l’onglet Format de la forme, le remplissage et le contour du texte ayant leurs propres menus.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "8aee56e199d3df9f2e99b359fa8ffc95b3a1f00fd0c0b8195c4c7d66b5696ebe": {
    "drop": false,
    "en": "File > Export > Make an Email creates a ready-to-send `.eml` message with the workbook attached as a file or as a PDF. A workbook with a password stays locked, and the password is never in the message.",
@@ -18809,18 +18779,6 @@
     "fr": ""
    }
   },
-  "8ea58c23f4c2b735a382856963cd42afffeea76b83eb29da3d98c3a2408cdfea": {
-   "drop": false,
-   "en": "Apply conditional formatting rules to cells: Greater Than, Less Than, Between, Equal To, Text That Contains, A Date Occurring, Duplicate Values, and formula-based rules, plus data bars, color scales, and icon sets. Choose the look of a rule with a custom format (font, border, fill, and number format), manage rules (order, `Stop If True`, the cells each rule applies to, edit, and delete), and clear rules from the selected cells or the sheet.",
-   "es": "Aplique reglas de formato condicional a las celdas: Mayor que, Menor que, Entre, Igual a, Texto que contiene, Una fecha que ocurre, Valores duplicados y reglas basadas en fórmulas, además de barras de datos, escalas de color y conjuntos de iconos. Elija el aspecto de una regla con un formato personalizado (fuente, borde, relleno y formato de número), administre las reglas (orden, `Stop If True`, las celdas a las que se aplica cada regla, edición y eliminación) y borre las reglas de las celdas seleccionadas o de la hoja.",
-   "fr": "Appliquez des règles de mise en forme conditionnelle aux cellules : Supérieur à, Inférieur à, Entre, Égal à, Texte contenant, Une date se produisant, Valeurs en double et règles basées sur une formule, ainsi que des barres de données, des jeux de couleurs et des jeux d’icônes. Choisissez l’apparence d’une règle avec un format personnalisé (police, bordure, remplissage et format de nombre), gérez les règles (ordre, `Stop If True`, cellules concernées par chaque règle, modification et suppression) et effacez les règles des cellules sélectionnées ou de la feuille.",
-   "soon": {
-    "drop": false,
-    "en": "Clear conditional formatting rules from a table or pivot table",
-    "es": "Borrar reglas de formato condicional de una tabla o tabla dinámica",
-    "fr": "Effacement des règles de mise en forme conditionnelle d’un tableau ou d’un tableau croisé dynamique"
-   }
-  },
   "8ee4fd000fb6d2e4b1770bffa6575cd8dd58f6a29f459072bd9f560b19179ee9": {
    "drop": false,
    "en": "Make labels: a full page of one label or a single label, on one of twelve sheet sizes (letter and A4) or your own. A merge fills each label with the next recipient.",
@@ -18879,6 +18837,18 @@
     "en": "Stepping into a function that names another formula’s cell",
     "es": "Entrar paso a paso en una función que hace referencia a la celda de otra fórmula",
     "fr": "Exécution pas à pas d’une fonction qui désigne la cellule d’une autre formule"
+   }
+  },
+  "8faa6bb45407461b88ccaee854854c69f023c79be5558c6a1de0e29f141c9f0c": {
+   "drop": false,
+   "en": "Conditional Formatting offers Greater Than, Less Than, Between, Equal To, Text That Contains, A Date Occurring, and Duplicate Values, plus data bars, color scales, and icon sets. New Rule makes any kind, including a formula, with a custom format for font, fill, border, and number. Manage Rules lists, edits, reorders, and deletes rules, changes their cells, and sets Stop If True. Clear Rules works on the selection, the sheet, a table, or a pivot table.",
+   "es": "Formato condicional ofrece Mayor que, Menor que, Entre, Igual a, Texto que contiene, Una fecha que ocurre y Valores duplicados, además de barras de datos, escalas de color y conjuntos de iconos. Nueva regla crea cualquier tipo, incluida una fórmula, con un formato personalizado de fuente, relleno, borde y número. Administrar reglas muestra, edita, reordena y elimina reglas, cambia sus celdas y establece Detener si es verdadero. Borrar reglas funciona en la selección, la hoja, una tabla o una tabla dinámica.",
+   "fr": "La mise en forme conditionnelle propose Supérieur à, Inférieur à, Entre, Égal à, Le texte contient, Une date se produisant et Valeurs en double, ainsi que des barres de données, des nuances de couleurs et des jeux d’icônes. Nouvelle règle crée tout type de règle, y compris une formule, avec un format personnalisé pour la police, le remplissage, la bordure et le nombre. Gérer les règles affiche, modifie, réordonne et supprime les règles, change leurs cellules et définit Arrêter si vrai. Effacer les règles agit sur la sélection, la feuille, un tableau ou un tableau croisé dynamique.",
+   "soon": {
+    "drop": false,
+    "en": "Live preview of conditional formats on hover",
+    "es": "Vista previa en vivo de formatos condicionales al pasar el cursor",
+    "fr": "Aperçu en direct des mises en forme conditionnelles au survol"
    }
   },
   "903a2aefb3ca2b85b1485d03bc57752fe778ed51305515752d939fa726c0cb78": {
@@ -19402,6 +19372,18 @@
    "en": "Insert a cross-reference as a link to a heading, bookmark, footnote, endnote, numbered item, or caption, as its text, number, page, or above and below. `Ctrl`+click follows it.",
    "es": "Inserte una referencia cruzada como vínculo a un título, marcador, nota al pie, nota final, elemento numerado o título de ilustración, como su texto, número, página o arriba y abajo. `Ctrl`+clic la sigue.",
    "fr": "Insérez un renvoi sous forme de lien vers un titre, un signet, une note de bas de page, une note de fin, un élément numéroté ou une légende, avec son texte, son numéro, sa page ou au-dessus et en dessous. `Ctrl`+clic le suit.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
+  "965d04db3f9af0beaabce271b3061cb9e6008fe7381a4ad74f0845a0dc31a046": {
+   "drop": false,
+   "en": "Keep named local copies of a presentation, open one as a copy, compare it with the open presentation, restore it, or delete it from Info, without a cloud service.",
+   "es": "Conserve copias locales con nombre de una presentación, ábralas como copia, compárelas con la presentación abierta, restáurelas o elimínelas desde Información, sin un servicio en la nube.",
+   "fr": "Conservez des copies locales nommées d’une présentation, ouvrez-en une comme copie, comparez-la à la présentation ouverte, restaurez-la ou supprimez-la depuis Informations, sans service cloud.",
    "soon": {
     "drop": true,
     "en": "",
@@ -20429,6 +20411,18 @@
     "fr": ""
    }
   },
+  "a6e1b4d58bba4e761cc208fa041ff8e47e7afc05c8305ff19dc4d29d5457956f": {
+   "drop": false,
+   "en": "Options > Editing shows or hides zeros for the sheet in view, kept with the sheet in `.xlsx`. Options > Display sets the gridline color, the zoom a new workbook starts at, and the standard column width, and shows or hides the sheet tabs and scroll bars. Other display options are ribbon commands.",
+   "es": "Opciones > Edición muestra u oculta los ceros de la hoja activa, y se guarda con la hoja en `.xlsx`. Opciones > Mostrar define el color de las líneas de cuadrícula, el zoom inicial de un libro nuevo y el ancho de columna estándar, y muestra u oculta las pestañas de hoja y las barras de desplazamiento. Las demás opciones de visualización son comandos de la cinta de opciones.",
+   "fr": "Options > Édition affiche ou masque les zéros de la feuille active, conservé avec la feuille dans `.xlsx`. Options > Affichage définit la couleur du quadrillage, le zoom initial d’un nouveau classeur et la largeur de colonne standard, et affiche ou masque les onglets de feuille et les barres de défilement. Les autres options d’affichage sont des commandes du ruban.",
+   "soon": {
+    "drop": false,
+    "en": "Gridline color kept with each sheet and display choice for objects",
+    "es": "Color de las líneas de cuadrícula guardado con cada hoja y opción de visualización para objetos",
+    "fr": "Couleur du quadrillage conservée avec chaque feuille et choix d’affichage des objets"
+   }
+  },
   "a7079acfed29e6b5b7115962afb50f9dc6942d83e317298cc4565a952e975640": {
    "drop": false,
    "en": "Add a comment with `Ctrl+Alt+M` to the selected object or, with nothing selected, to a point on the page. A pane beside the page supports replies, editing, resolving and reopening, and deleting comments. Previous and Next go through every page, and Show Comments shows or hides the pane and the markers on the page.",
@@ -20813,6 +20807,18 @@
     "fr": "Texte RTF collé dans des cellules"
    }
   },
+  "abf752aae5ece59643098476273bc9e503b26f28113ab732508509544c8fb38f": {
+   "drop": false,
+   "en": "Tables show borders, fills, and text as the file defines them, using table styles from the theme, and rows grow to fit their text.",
+   "es": "Las tablas muestran bordes, rellenos y texto tal como los define el archivo, con estilos de tabla del tema, y las filas crecen para ajustarse a su texto.",
+   "fr": "Les tableaux affichent bordures, remplissages et texte tels que le fichier les définit, avec les styles de tableau du thème, et les lignes s’agrandissent pour contenir leur texte.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "ac0a70b726875b875409eeb32e2e6620f922e41e6e44240341ce8d14896ec32f": {
    "drop": false,
    "en": "Slicer and Timeline tabs",
@@ -21149,18 +21155,6 @@
     "fr": ""
    }
   },
-  "b0ca06f0e0cbfe415dacf9fcd31093e882596c49ae470d932b682313d325807a": {
-   "drop": false,
-   "en": "Start from built-in templates on the New page: pitch, status update, lesson, photo album, minimal light, and minimal dark. Each has its own theme and three to five sample slides.",
-   "es": "Comience con las plantillas integradas de la página Nuevo: presentación de propuesta, informe de estado, lección, álbum de fotos, minimalista claro y minimalista oscuro. Cada una tiene su propio tema y de tres a cinco diapositivas de ejemplo.",
-   "fr": "Commencez avec les modèles intégrés de la page Nouveau : présentation de projet, point d’avancement, leçon, album photo, minimaliste clair et minimaliste sombre. Chacun a son propre thème et de trois à cinq diapositives d’exemple.",
-   "soon": {
-    "drop": false,
-    "en": "Report and training deck templates",
-    "es": "Plantillas de informe y de presentación de formación",
-    "fr": "Modèles de rapport et de présentation de formation"
-   }
-  },
   "b119fd1b0dbe3d3fe36c2c3e0cad8916735b29a23802ffcc59312c1a48ee5e88": {
    "drop": false,
    "en": "Apply a ready-made combination of fill, outline, and effects to letters from a gallery of 12 text styles.",
@@ -21207,6 +21201,18 @@
     "en": "Conditional formats that read another workbook’s cells, and drawing icon sets with their own icons and rules that read another sheet in the 2010 extension form",
     "es": "Formatos condicionales que leen celdas de otro libro, y dibujo de conjuntos de iconos con iconos propios y de reglas que leen otra hoja en la forma de extensión de 2010",
     "fr": "Mises en forme conditionnelles lisant les cellules d’un autre classeur, et dessin des jeux d’icônes avec icônes personnalisées et des règles lisant une autre feuille dans la forme d’extension 2010"
+   }
+  },
+  "b26d49086652c0e695718cbb9788d4e99051087b8c85a85a40291e2bc3b05b5e": {
+   "drop": false,
+   "en": "File > Options > Display sets the gridline color, the zoom of a new workbook, and the standard column width, shows or hides the sheet tabs and scroll bars, and chooses how notes are shown (a mark with the note on hover, the mark only, or nothing). Gridlines, headings, formulas, outline symbols, and page breaks are View tab commands, and zeros are shown or hidden in Options > Editing.",
+   "es": "Archivo > Opciones > Mostrar permite definir el color de las líneas de cuadrícula, el zoom de un libro nuevo y el ancho de columna estándar, mostrar u ocultar las pestañas de hoja y las barras de desplazamiento, y elegir cómo se muestran las notas (una marca con la nota al pasar el cursor, solo la marca o nada). Las líneas de cuadrícula, los encabezados, las fórmulas, los símbolos de esquema y los saltos de página son comandos de la pestaña Vista, y los ceros se muestran u ocultan en Opciones > Edición.",
+   "fr": "Fichier > Options > Affichage permet de définir la couleur du quadrillage, le zoom d’un nouveau classeur et la largeur de colonne standard, d’afficher ou de masquer les onglets de feuille et les barres de défilement, et de choisir l’affichage des notes (un repère avec la note au survol, le repère seul ou rien). Le quadrillage, les en-têtes, les formules, les symboles du plan et les sauts de page sont des commandes de l’onglet Affichage, et les zéros s’affichent ou se masquent dans Options > Édition.",
+   "soon": {
+    "drop": false,
+    "en": "Display choice for objects",
+    "es": "Opción de visualización para objetos",
+    "fr": "Choix d’affichage des objets"
    }
   },
   "b27d39b7ed59ffa9eadb35f3751b7091d1ed1c6c0f2bde81a9cfacfb370fdcbe": {
@@ -23477,6 +23483,18 @@
     "fr": ""
    }
   },
+  "d17960f1bc3ead998fceaa5ef08df013196f9c6cbc65c31f694b1e0c826040c2": {
+   "drop": false,
+   "en": "File > Options > Formulas sets calculation (automatic, automatic except data tables, or manual), recalculation before saving, iterative calculation (maximum iterations and change), formula autocomplete, and error-checking rules, for the open workbook as one step of Undo.",
+   "es": "Archivo > Opciones > Fórmulas permite definir el cálculo (automático, automático excepto tablas de datos o manual), el recálculo antes de guardar, el cálculo iterativo (iteraciones máximas y cambio máximo), el autocompletado de fórmulas y las reglas de comprobación de errores, para el libro abierto y como un solo paso de Deshacer.",
+   "fr": "Fichier > Options > Formules permet de définir le calcul (automatique, automatique sauf tables de données ou manuel), le recalcul avant l’enregistrement, le calcul itératif (itérations maximales et écart maximal), la saisie semi-automatique des formules et les règles de vérification des erreurs, pour le classeur ouvert et en une seule étape d’annulation.",
+   "soon": {
+    "drop": false,
+    "en": "R1C1 style and the 1904 date system as a setting",
+    "es": "Estilo R1C1 y sistema de fechas 1904 como opción",
+    "fr": "Style L1C1 et système de dates 1904 comme paramètre"
+   }
+  },
   "d18a513608a155b3abe7f1d2ce4d598d7e68b93ceae8d7434b35571c5348a7de": {
    "drop": false,
    "en": "Tables across pages: rows split across pages or stay whole as the file says, and header rows repeat. Nested tables and tables in a column, a text box, or a header are laid out, and a table set at a place is laid out there.",
@@ -23602,18 +23620,6 @@
    "en": "Work in a window with a Pages list (drag to move a page; right-click to add, copy, delete, rename, or move), a status bar (page buttons, pointer position, selected size, view buttons, and zoom), and task panes on the right (Find and Replace, Design Checker, Mail Merge, Research, Graphics Manager, Online Pictures, Catalog Merge, and Help).",
    "es": "Trabaje en una ventana con una lista de páginas (arrastre para mover una página; haga clic con el botón derecho para agregar, copiar, eliminar, cambiar el nombre o mover), una barra de estado (botones de página, posición del puntero, tamaño de la selección, botones de vista y zoom) y paneles de tareas a la derecha (Buscar y reemplazar, Comprobador de diseño, Combinar correspondencia, Investigar, Administrador de gráficos, Imágenes en línea, Combinación de catálogos y Ayuda).",
    "fr": "Travaillez dans une fenêtre avec une liste de pages (faites glisser pour déplacer une page ; clic droit pour ajouter, copier, supprimer, renommer ou déplacer), une barre d’état (boutons de page, position du pointeur, taille de la sélection, boutons d’affichage et zoom) et des volets de tâches à droite (Rechercher et remplacer, Vérificateur de conception, Publipostage, Recherche, Gestionnaire de graphiques, Images en ligne, Fusion de catalogue et Aide).",
-   "soon": {
-    "drop": true,
-    "en": "",
-    "es": "",
-    "fr": ""
-   }
-  },
-  "d334e0c2896159fb9c3dbbcd7ed3557f4e5c979eb7711379c63a88595a0e1788": {
-   "drop": false,
-   "en": "Table borders, fills, and text are drawn from the file, and table styles are read, kept, and drawn from the theme.",
-   "es": "Los bordes, rellenos y texto de las tablas se dibujan desde el archivo, y los estilos de tabla se leen, se conservan y se dibujan desde el tema.",
-   "fr": "Les bordures, remplissages et textes des tableaux sont dessinés à partir du fichier, et les styles de tableau sont lus, conservés et dessinés à partir du thème.",
    "soon": {
     "drop": true,
     "en": "",
@@ -23950,6 +23956,18 @@
    "en": "Check spelling (`F7`) in the sheet or the selected cells, skipping formulas, numbers, and dates. Ignore, Ignore All, Change, Change All, and Add are available, and a red underline with right-click suggestions appears in the cell editor.",
    "es": "Revise la ortografía (`F7`) en la hoja o en las celdas seleccionadas, omitiendo fórmulas, números y fechas. Dispone de Omitir, Omitir todo, Cambiar, Cambiar todo y Agregar, y en el editor de celdas aparece un subrayado rojo con sugerencias al hacer clic derecho.",
    "fr": "Vérifiez l’orthographe (`F7`) dans la feuille ou les cellules sélectionnées, en ignorant les formules, nombres et dates. Ignorer, Ignorer tout, Modifier, Modifier tout et Ajouter sont disponibles, et un soulignement rouge avec suggestions au clic droit apparaît dans l’éditeur de cellule.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
+  "d7a80ed5b470c5963508021e3c184456128a15fb9170063ebc9808358d0ccf3c": {
+   "drop": false,
+   "en": "Tables from a file show and save as made, and rows grow to fit their text when a file opens and as you type in a cell.",
+   "es": "Las tablas de un archivo se muestran y se guardan tal como se crearon, y las filas crecen para ajustarse a su texto al abrir un archivo y al escribir en una celda.",
+   "fr": "Les tableaux d’un fichier s’affichent et s’enregistrent tels qu’ils ont été créés, et les lignes s’agrandissent pour contenir leur texte à l’ouverture d’un fichier et pendant la saisie dans une cellule.",
    "soon": {
     "drop": true,
     "en": "",
@@ -25217,6 +25235,18 @@
     "fr": ""
    }
   },
+  "e74a44e56e693edc5eef5ee8824c939710b8818221e6cfbcc216106b07a4927d": {
+   "drop": false,
+   "en": "Define names for a cell, a range, a constant, or a formula, scoped to the workbook or one sheet. Names can be changed and removed, are checked against naming rules as you type, and can span several sheets. The Name Box jumps to a name or creates one, and Go To follows names. Print areas, print titles, and filters are kept as saved.",
+   "es": "Defina nombres para una celda, un rango, una constante o una fórmula, con ámbito de libro o de una hoja. Los nombres se pueden cambiar y eliminar, se comprueban según las reglas de nombres al escribirlos y pueden abarcar varias hojas. El cuadro de nombres salta a un nombre o crea uno, e Ir a sigue los nombres. Las áreas de impresión, los títulos de impresión y los filtros se conservan tal como se guardaron.",
+   "fr": "Définissez des noms pour une cellule, une plage, une constante ou une formule, avec pour portée le classeur ou une feuille. Les noms peuvent être modifiés et supprimés, sont vérifiés selon les règles de nommage à la saisie et peuvent couvrir plusieurs feuilles. La zone Nom accède à un nom ou en crée un, et Atteindre suit les noms. Les zones d’impression, les titres d’impression et les filtres sont conservés tels qu’enregistrés.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "e77e56b4cd44514a6c8d0ebe0d8ea4171e3d30555a786a0b4c2e8636e7ece02d": {
    "drop": false,
    "en": "Behind the scenes: media playback",
@@ -25227,18 +25257,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "e78afe7a2babe8a8d9a86dc48a9e79c30b97ac1ce22593c21c5bc5452d90ef3e": {
-   "drop": false,
-   "en": "Set the gridline color, the zoom of a new workbook, and the standard column width.",
-   "es": "Establezca el color de las líneas de cuadrícula, el zoom de un libro nuevo y el ancho de columna estándar.",
-   "fr": "Définissez la couleur du quadrillage, le zoom d’un nouveau classeur et la largeur de colonne standard.",
-   "soon": {
-    "drop": false,
-    "en": "Show and hide sheet tabs and scroll bars, and display choices for notes and objects",
-    "es": "Mostrar y ocultar las pestañas de hoja y las barras de desplazamiento, y opciones de visualización de notas y objetos",
-    "fr": "Affichage et masquage des onglets de feuille et des barres de défilement, et choix d’affichage des notes et des objets"
    }
   },
   "e7f25d89adbc871bbaa528520cb7cd214da4af332f0f1af0daff609c507a4e01": {
@@ -25311,6 +25329,18 @@
     "en": "",
     "es": "",
     "fr": ""
+   }
+  },
+  "e88252bfdafe3b308195a0a69a19044ea3cef8dd278c4eb7e786002c0ed6ff8c": {
+   "drop": false,
+   "en": "Macros are never run, and a publication with pictures linked to web addresses, links on objects, or mouse-over links opens, draws, and exports without sending any request.",
+   "es": "Las macros nunca se ejecutan, y una publicación con imágenes vinculadas a direcciones web, vínculos en objetos o vínculos al pasar el cursor se abre, se dibuja y se exporta sin enviar ninguna solicitud.",
+   "fr": "Les macros ne sont jamais exécutées, et une publication contenant des images liées à des adresses web, des liens sur des objets ou des liens au survol s’ouvre, s’affiche et s’exporte sans envoyer de requête.",
+   "soon": {
+    "drop": false,
+    "en": "Safe handling of `.pub` files with links, mail merge sources, and links in embedded objects",
+    "es": "Tratamiento seguro de archivos `.pub` con vínculos, orígenes de combinación de correspondencia y vínculos en objetos incrustados",
+    "fr": "Gestion sûre des fichiers `.pub` avec liens, des sources de publipostage et des liens dans les objets incorporés"
    }
   },
   "e88b314978dfe2a2e8141bf015d98fd9a5de0698667637fe0f16366534ea9af4": {
@@ -26333,18 +26363,6 @@
     "fr": ""
    }
   },
-  "f5c27cdcfca3c68720292dd7dffd3b026f4e3a846dd321002003fbe6a98d58b8": {
-   "drop": false,
-   "en": "Keep named local copies of a presentation without a cloud service. Open a version as a copy, restore it, or delete it from the Info page. A version of a protected presentation is protected too.",
-   "es": "Conserve copias locales con nombre de una presentación sin un servicio en la nube. Abra una versión como copia, restáurela o elimínela desde la página Información. Una versión de una presentación protegida también está protegida.",
-   "fr": "Conservez des copies locales nommées d’une présentation, sans service cloud. Ouvrez une version comme copie, restaurez-la ou supprimez-la depuis la page Informations. Une version d’une présentation protégée est elle aussi protégée.",
-   "soon": {
-    "drop": false,
-    "en": "Version comparison",
-    "es": "Comparación de versiones",
-    "fr": "Comparaison de versions"
-   }
-  },
   "f5db565cb2f968cc7e82188b07dfb112e0c4de1dbf5b318f84613b111dbba9bd": {
    "drop": false,
    "en": "Use `OFFSET` and `INDIRECT`, which build a reference from numbers or text and recalculate on every change, along with `CHOOSE`, `ROW`, `COLUMN`, `ADDRESS`, and `TRANSPOSE`.",
@@ -26854,18 +26872,6 @@
    "en": "A workbook with unsaved changes keeps a background copy as an `.xlsx` file at the interval set in the Save options. The copy is removed when the workbook is saved or closed, and nothing is written for an unchanged or password-protected workbook. Copies left by a crash are offered at the next start and open as unsaved work.",
    "es": "Un libro con cambios sin guardar conserva una copia en segundo plano como archivo `.xlsx` en el intervalo definido en las opciones de Guardar. La copia se elimina al guardar o cerrar el libro, y no se escribe nada para un libro sin cambios o protegido con contraseña. Las copias que deja un fallo se ofrecen en el siguiente inicio y se abren como trabajo no guardado.",
    "fr": "Un classeur contenant des modifications non enregistrées conserve une copie en arrière-plan au format `.xlsx`, à l’intervalle défini dans les options d’enregistrement. La copie est supprimée lorsque le classeur est enregistré ou fermé, et rien n’est écrit pour un classeur inchangé ou protégé par mot de passe. Les copies laissées par un plantage sont proposées au démarrage suivant et s’ouvrent comme travail non enregistré.",
-   "soon": {
-    "drop": true,
-    "en": "",
-    "es": "",
-    "fr": ""
-   }
-  },
-  "fb48970b217a8a2d6e54fff009d229178284a3065cdf03e7309d01c1cbc9c2e7": {
-   "drop": false,
-   "en": "Wrap text around objects with None, Square, Tight, Through, or Top and Bottom, edit wrap points, and set wrap distances.",
-   "es": "Ajuste el texto alrededor de los objetos con Ninguno, Cuadrado, Estrecho, Através o Superior e inferior, edite los puntos de ajuste y defina las distancias de ajuste.",
-   "fr": "Habillez les objets de texte avec Aucun, Carré, Rapproché, Au travers ou Haut et bas, modifiez les points d’habillage et définissez les distances d’habillage.",
    "soon": {
     "drop": true,
     "en": "",
