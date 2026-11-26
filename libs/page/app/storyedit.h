@@ -67,6 +67,11 @@ public:
     // The bullets and numbers of the list items in view, drawn by the view (its document lays a list item's first line where the printed page puts the marker): see ListMarkers.
     ListMarkers *listMarkers() const { return m_markers; }
 
+    // A view that draws nothing of its words (and takes no wheel turns) while another place shows them, as the Notes Page view's box does until the person edits: it is still
+    // the view the mouse and keys reach, and it lays the words out and keeps the caret as ever.
+    void setGhost(bool ghost);
+    bool isGhost() const { return m_ghost; }
+
     // The bar of the commands the selection can take, shown by the words a mouse selection ends on (made when first asked for). `target` is the host's own commands.
     MiniToolbar *setMiniTarget(std::unique_ptr<MiniTarget> target);
     MiniToolbar *miniBar() const { return m_mini; }
@@ -87,6 +92,8 @@ protected:
     void focusInEvent(QFocusEvent *e) override;
     void resizeEvent(QResizeEvent *e) override;
     void showEvent(QShowEvent *e) override;
+    void paintEvent(QPaintEvent *e) override;
+    void wheelEvent(QWheelEvent *e) override;
     void hideEvent(QHideEvent *e) override;
     void focusOutEvent(QFocusEvent *e) override;
     // Where the host has no menu of its own: the editing commands.
@@ -112,6 +119,7 @@ private:
     qreal m_indent = 40;
     double m_scale = 1.0;
     bool m_yield = false;
+    bool m_ghost = false;
     QImage m_device;                   // (only its resolution: the layout sizes the words by it when the display scale is not 1)
     bool m_syncing = false;
     QVector<Mark> m_marks;

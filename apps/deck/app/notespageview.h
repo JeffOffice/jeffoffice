@@ -8,6 +8,7 @@
 // go, and the header, date, footer, and number). Each is dragged to move it and by its lower right corner to size it; each change is one undo step.
 
 #include "core/notesmaster.h"
+#include "render/renderer.h"
 
 #include <QAbstractScrollArea>
 #include <QColor>
@@ -51,6 +52,12 @@ public:
     // The size the printed page gives the notes so that they fit their place (1 when they do): the same steps and the same layout the printed page and its PDF use, asked for when
     // the page, the notes' place, or the notes' story changes and once typing pauses, never for each key. The box shows the notes at the zoom times this.
     double notesFit() const { return m_fit; }
+    // Whether the printed page cuts the notes off (they are longer than their place even at the smallest size it sets them): the page shows a mark under the box then, and the
+    // box, once it is the person's to edit, shows every word and scrolls.
+    bool notesCut() const { return m_cut; }
+    // The box is the person's to edit (it has the keyboard, or the Editor's caret is in its story): it draws the notes itself and scrolls. Until then the page draws them with the
+    // layout the printed page uses, so what is seen is what prints (the box's own text view lays words out a little differently: the printed page's line heights are its own).
+    bool boxIsEditing() const;
     // How many times that fit was asked for (for the tests of cost).
     static int fitRuns() { return s_fitRuns; }
     void commit();   // saves the notes typed
@@ -75,8 +82,11 @@ protected:
     void mouseReleaseEvent(QMouseEvent *e) override;
     void keyPressEvent(QKeyEvent *e) override;
     void wheelEvent(QWheelEvent *e) override;
+    bool eventFilter(QObject *watched, QEvent *e) override;
 
 private:
+    void syncBox();   // the box draws its words, and scrolls, only while it is the person's to edit
+    LayoutCache::FrameLayout printedNotes(int *slide = nullptr);   // the layout of the notes the printed page makes (null where there are none)
     struct Hit {
         int part = -1;   // NotesPart or HandoutPart as an int, -1 for none
         bool corner = false;
@@ -107,6 +117,8 @@ private:
     mutable int m_reads = 0;
     bool m_fitPending = false;
     double m_fit = 1;
+    bool m_cut = false;
+    double m_printHeight = 0;
     QTimer m_fitTimer;
     static inline int s_fitRuns = 0;
 };

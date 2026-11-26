@@ -1,6 +1,7 @@
 // JeffDeck's tests of the slide show: settings, custom shows, ink, and rehearsal.
 #include "app/listmarkers.h"
 #include "app/notespageview.h"
+#include <QScrollBar>
 #include <QTextEdit>
 #include <QScopeGuard>
 #include "deckhelpers.h"
@@ -1534,6 +1535,51 @@ private Q_SLOTS:
         QCOMPARE(markedNotes(ed->doc()->storyDoc(ed->doc()->pages[0]->notesStoryId)), QStringLiteral(">alpha [B]beta[/B] gamma<"));
         show->close();
         QTRY_VERIFY(!w.slideShow());
+    }
+
+    // A long note opens at its top in Presenter View, on every slide shown (it opened scrolled to its end), and the notes pane under the slide shows the top again after the show: the first
+    // line a person sees is the note's first, the caret is at its start, the box is not scrolled, and the note is longer than the box (or the test shows nothing).
+    void presenterViewOpensEveryLongNoteAtItsTop()
+    {
+        DeckWindow w;
+        Editor *ed = w.editor();
+        w.resize(1280, 800);
+        w.show();
+        w.newSlide();
+        w.newSlide();
+        for (int slide = 0; slide < 2; ++slide) {
+            QTextCursor c(ed->doc()->storyDoc(ed->doc()->pages[slide]->notesStoryId));
+            for (int i = 0; i < 41; ++i) {
+                if (i) c.insertBlock();
+                c.insertText(QStringLiteral("Slide %1 paragraph %2 of a long note").arg(slide).arg(i), QTextCharFormat());
+            }
+        }
+        ed->setCurrentPage(0);
+        w.notesPane()->reload();
+        ed->undoStack()->clear();
+        w.act("show.presenterView")->trigger();
+        SlideShow *show = w.slideShow();
+        QVERIFY(show);
+        PresenterView *pv = show->presenterView();
+        QVERIFY(pv);
+        auto *edit = pv->findChild<QTextEdit *>(QStringLiteral("notesText"));
+        QVERIFY(edit);
+        for (int slide = 0; slide < 2; ++slide) {
+            if (slide) show->goTo(slide);
+            QTRY_VERIFY(edit->document() == ed->doc()->storyDoc(ed->doc()->pages[slide]->notesStoryId));
+            const QString tag = QStringLiteral("slide %1").arg(slide);
+            QVERIFY2(edit->verticalScrollBar()->maximum() > 0, qPrintable(tag + QStringLiteral(": the note is longer than the box")));
+            QCOMPARE(edit->verticalScrollBar()->value(), 0);
+            QVERIFY2(edit->cursorForPosition(QPoint(4, 2)).blockNumber() == 0, qPrintable(tag + QStringLiteral(": the first line shown is not the note's first")));
+            QCOMPARE(edit->textCursor().position(), 0);
+        }
+        show->close();
+        QTRY_VERIFY(!w.slideShow());
+        // after the show the pane under the slide shows the top of the note, not its end
+        NotesPane *pane = w.notesPane();
+        QTRY_VERIFY(pane->document() == ed->doc()->storyDoc(ed->doc()->pages[ed->currentPage()]->notesStoryId));
+        QCOMPARE(pane->verticalScrollBar()->value(), 0);
+        QCOMPARE(pane->cursorForPosition(QPoint(4, 2)).blockNumber(), 0);
     }
 
     // A+ and A- change how big the notes are shown and nothing in the note: its words, formats, default font, and revision stay; the shown size follows.

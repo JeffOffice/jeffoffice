@@ -1,5 +1,7 @@
 #include "app/notesdisplay.h"
 
+#include "text/textprops.h"
+
 #include <QTextBlock>
 #include <QTextBoundaryFinder>
 #include <QTextCursor>
@@ -8,7 +10,7 @@
 
 namespace jp {
 
-std::unique_ptr<QTextDocument> notesDisplayCopy(const QTextDocument *story, int limit, double points, bool *cut)
+std::unique_ptr<QTextDocument> notesDisplayCopy(const QTextDocument *story, int limit, double points, bool *cut, const ColorScheme *colors)
 {
     auto out = std::make_unique<QTextDocument>();
     if (cut) *cut = false;
@@ -54,6 +56,26 @@ std::unique_ptr<QTextDocument> notesDisplayCopy(const QTextDocument *story, int 
         }
         c.endEditBlock();
     }
+    // Links, as the printed page draws them (the engine: the scheme's link color and an underline, unless the words name a color).
+    static const ColorScheme standard;
+    const QColor link = (colors ? *colors : standard).slot(Hyperlink);
+    QVector<QPair<int, int>> links;
+    for (QTextBlock b = out->begin(); b.isValid(); b = b.next())
+        for (QTextBlock::iterator it = b.begin(); !it.atEnd(); ++it) {
+            const QTextFragment f = it.fragment();
+            if (f.charFormat().isAnchor() && f.charFormat().stringProperty(tp::ColorRefP).isEmpty()) links.push_back({f.position(), f.length()});
+        }
+    QTextCursor c(out.get());
+    c.beginEditBlock();
+    for (const auto &l : std::as_const(links)) {
+        QTextCharFormat look;
+        look.setForeground(link);
+        look.setFontUnderline(true);
+        c.setPosition(l.first);
+        c.setPosition(l.first + l.second, QTextCursor::KeepAnchor);
+        c.mergeCharFormat(look);
+    }
+    c.endEditBlock();
     return out;
 }
 

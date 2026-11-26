@@ -3016,7 +3016,7 @@ void SlideShow::fillSpeakerNotes()
         return;
     }
     bool cut = false;
-    std::unique_ptr<QTextDocument> copy = notesDisplayCopy(story, kSpeakerNotesLimit, m_notesBox->font().pointSizeF(), &cut);
+    std::unique_ptr<QTextDocument> copy = notesDisplayCopy(story, kSpeakerNotesLimit, m_notesBox->font().pointSizeF(), &cut, document() ? &document()->colors : nullptr);
     if (cut) {
         QTextCursor end(copy.get());
         end.movePosition(QTextCursor::End);

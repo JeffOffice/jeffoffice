@@ -1,5 +1,6 @@
 #include "core/datafolder.h"
 #include "app/keymap.h"
+#include <QScrollBar>
 #include <QScopeGuard>
 // JeffDeck's tests of the window: ribbon, help, status bar, headers and footers, backgrounds, the slide menu, and find.
 #include "deckhelpers.h"
@@ -4335,6 +4336,259 @@ private Q_SLOTS:
             const int width = std::max(1, printed[i].right - printed[i].left);
             QVERIFY2(qAbs((shown[i].right - shown[i].left) - width) <= width / 4 + 6, qPrintable(QStringLiteral("line %1 is %2 wide and %3").arg(i).arg(shown[i].right - shown[i].left).arg(width)));
         }
+    }
+
+    // ---- Fixes after the review of the notes views (Nov 26): where a note opens, how a list is indented, how a link looks ----
+    // A note of `n` short paragraphs, "Paragraph 0" and on.
+    static void paragraphsNote(QTextCursor &c, int n)
+    {
+        for (int i = 0; i < n; ++i) {
+            if (i) c.insertBlock();
+            c.insertText(QStringLiteral("Paragraph %1 of a long note").arg(i), QTextCharFormat());
+        }
+    }
+    // The number of the paragraph at the top left of a view's viewport (what a person reads first).
+    static int firstShownParagraph(QTextEdit *e) { return e->cursorForPosition(QPoint(4, 2)).blockNumber(); }
+
+    // A long note opens at its top in the pane, the Notes Page box, and again after another slide was shown: the first line a person sees is the note's first, the caret is at its start,
+    // and the view is not scrolled (it used to open at the end).
+    void aLongNoteOpensAtItsTopInEveryView()
+    {
+        DeckWindow w;
+        Editor *ed = w.editor();
+        NotesPane *pane = notesWith(w, QStringLiteral("x"));
+        { QTextCursor c(notesStory(ed)); c.select(QTextCursor::Document); c.removeSelectedText(); paragraphsNote(c, 41); }
+        pane->reload();
+        QTRY_VERIFY(pane->document()->blockCount() == 41);
+        QVERIFY2(pane->verticalScrollBar()->maximum() > 0, "the note is longer than the pane (or the test shows nothing)");
+        // another slide, and back: the top again, not where the first one was left
+        w.newSlide();
+        ed->setCurrentPage(1);
+        QTRY_VERIFY(pane->document() != notesStory(ed));
+        ed->setCurrentPage(0);
+        QTRY_COMPARE(pane->document(), notesStory(ed));
+        QCOMPARE(pane->verticalScrollBar()->value(), 0);
+        QCOMPARE(firstShownParagraph(pane), 0);
+        pane->moveCursor(QTextCursor::End);   // (a person reads to the end: another slide and back still opens at the top)
+        QVERIFY(pane->verticalScrollBar()->value() > 0);
+        ed->setCurrentPage(1);
+        QTRY_VERIFY(pane->document() != notesStory(ed));
+        ed->setCurrentPage(0);
+        QTRY_COMPARE(pane->document(), notesStory(ed));
+        QCOMPARE(pane->verticalScrollBar()->value(), 0);
+        QCOMPARE(firstShownParagraph(pane), 0);
+        // the Notes Page box
+        w.act(QStringLiteral("view.notesPage"))->trigger();
+        NotesPane *box = w.notesPageView()->notesBox();
+        QTRY_VERIFY(box->isVisible() && box->document() == notesStory(ed));
+        QCOMPARE(box->verticalScrollBar()->value(), 0);
+        QCOMPARE(firstShownParagraph(box), 0);
+        QCOMPARE(box->textCursor().position(), 0);
+    }
+
+    // A paragraph indented by levels (the indent a list's levels use) is indented once by the zoom: its text starts as far right of the plain text as the story's indent width, times the
+    // zoom (it was times the zoom twice: 49 pixels at 100%, about 10 at 50%, 170 at 200%). (A left margin in points is laid out by the text view in pixels at any zoom: not covered.)
+    void aListIsIndentedOnceAtEveryZoom()
+    {
+        DeckWindow w;
+        NotesPane *pane = notesWith(w, QStringLiteral("x"));
+        {
+            QTextCursor c(notesStory(w.editor()));
+            c.select(QTextCursor::Document);
+            c.removeSelectedText();
+            c.insertText(QStringLiteral("Plain first"));
+            c.insertBlock();
+            QTextBlockFormat deep;
+            deep.setIndent(2);
+            c.setBlockFormat(deep);
+            c.insertText(QStringLiteral("Two levels in"));
+        }
+        pane->reload();
+        pane->setMinimumHeight(300);
+        auto indentAt = [&](double zoom) {
+            pane->setDisplayScale(zoom);
+            QTextCursor a(pane->document()), b(pane->document());
+            a.setPosition(0);
+            b.setPosition(pane->document()->lastBlock().position());
+            return double(pane->cursorRect(b).left() - pane->cursorRect(a).left());
+        };
+        const double at1 = indentAt(1.0);
+        QVERIFY2(at1 > 20, qPrintable(QString::number(at1)));
+        for (double zoom : {0.5, 2.0})
+            QVERIFY2(qAbs(indentAt(zoom) - at1 * zoom) <= 2.0 + zoom, qPrintable(QStringLiteral("at %1: %2 px, at 100%: %3 px").arg(zoom).arg(indentAt(zoom)).arg(at1)));
+        pane->setDisplayScale(1.0);
+    }
+
+    // Links are drawn as the printed page draws them (the pictures in both window themes are in the shots test): the scheme's link color and an underline. The words of a link are those color, the words beside it are not,
+    // and the page's own picture agrees.
+    void linksInTheNotesPaneAreDrawnAsLinks()
+    {
+        {
+            DeckWindow w;
+            NotesPane *pane = notesWith(w, QStringLiteral("x"));
+            QTextCursor c(notesStory(w.editor()));
+            c.select(QTextCursor::Document);
+            c.removeSelectedText();
+            QTextCharFormat link;
+            link.setAnchor(true);
+            link.setAnchorHref(QStringLiteral("https://example.com/"));
+            c.insertText(QStringLiteral("See "), QTextCharFormat());
+            c.insertText(QStringLiteral("the linked words"), link);
+            c.insertText(QStringLiteral(" and more"), QTextCharFormat());
+            pane->reload();
+            QTRY_VERIFY(pane->document()->size().height() > 1);
+            const QColor want = w.editor()->doc()->colors.slot(Hyperlink);
+            auto near = [&](const QColor &a) { return qAbs(a.red() - want.red()) + qAbs(a.green() - want.green()) + qAbs(a.blue() - want.blue()) < 90; };
+            auto count = [&](int from, int to) {
+                QTextCursor a(pane->document()), b(pane->document());
+                a.setPosition(from);
+                b.setPosition(to);
+                const QRect ra = pane->cursorRect(a), rb = pane->cursorRect(b);
+                const QImage img = pane->viewport()->grab().toImage();
+                int n = 0;
+                for (int y = ra.top(); y <= ra.bottom() + 2; ++y)
+                    for (int x = ra.left(); x < rb.left() && x < img.width(); ++x) n += near(img.pixelColor(x, y));
+                return n;
+            };
+            const QString tag = QStringLiteral("pane");
+            QVERIFY2(count(4, 20) > 40, qPrintable(tag + QStringLiteral(": the link is not in the link color")));
+            QVERIFY2(count(0, 4) == 0 && count(20, 29) == 0, qPrintable(tag + QStringLiteral(": words beside the link are")));
+            // an underline: a row of that color under the letters, across most of the link's width
+            QTextCursor a(pane->document()), b(pane->document());
+            a.setPosition(4);
+            b.setPosition(20);
+            const QRect ra = pane->cursorRect(a), rb = pane->cursorRect(b);
+            const QImage img = pane->viewport()->grab().toImage();
+            int best = 0;
+            for (int y = ra.top(); y <= ra.bottom() + 3; ++y) {
+                int n = 0;
+                for (int x = ra.left(); x < rb.left(); ++x) n += near(img.pixelColor(x, y));
+                best = std::max(best, n);
+            }
+            QVERIFY2(best >= (rb.left() - ra.left()) * 8 / 10, qPrintable(tag + QStringLiteral(": no underline (") + QString::number(best) + QLatin1Char(')')));
+        }
+    }
+
+    // The Notes Page box shows what prints: until the person edits, the page draws the notes with the printed page's own layout, so every line is where the printed page has it (within
+    // a pixel at 100%, for a short note and a long one), the last visible line is the printed page's last, and the box draws nothing of its own on top.
+    void theNotesPageShowsTheNotesAsTheyPrint()
+    {
+        for (int paragraphs : {6, 250}) {
+            DeckWindow w;
+            NotesPane *box = nullptr;
+            notesPageWith(w, &box, [&](QTextCursor &c) { paragraphsNote(c, paragraphs); });
+            NotesPageView *v = w.notesPageView();
+            Editor *ed = w.editor();
+            v->setZoom(v->fitZoom());   // (the whole page is in view)
+            QTRY_COMPARE(box->displayScale(), v->zoom() * v->notesFit());
+            const QString tag = QStringLiteral("%1 paragraphs").arg(paragraphs);
+            QVERIFY(!v->boxIsEditing());
+            QVERIFY2(box->isGhost(), "the box draws nothing while the page shows the notes");
+            QTRY_VERIFY(v->viewport()->width() > 300);
+            const QRect place = v->notesRect().toRect();
+            const QVector<InkLine> printed = inkLines(printedNotes(v, ed), 0), shown = inkLines(v->viewport()->grab().toImage().copy(place), 0);
+            QVERIFY2(printed.size() >= 5, qPrintable(tag));
+            QVERIFY2(shown.size() >= printed.size(), qPrintable(tag + QStringLiteral(": the page shows fewer lines than print")));
+            // (the page draws the bar that says the notes are cut over the printed lines' last row: only the lines above it are compared)
+            for (int i = 0; i < printed.size(); ++i) {
+                if (printed[i].bottom > place.height() - 6) break;
+                QVERIFY2(qAbs(shown[i].top - printed[i].top) <= 1 && qAbs(shown[i].left - printed[i].left) <= 1, qPrintable(tag + QStringLiteral(": line %1 is at %2 and prints at %3").arg(i).arg(shown[i].top).arg(printed[i].top)));
+            }
+            if (paragraphs == 6) QVERIFY2(!v->notesCut(), "a short note is not cut");
+            else {
+                QVERIFY2(v->notesCut(), "a note that cannot be set small enough is cut at the page's last line");
+                QVERIFY2(printed.size() < paragraphs, qPrintable(QStringLiteral("print shows %1 of %2 paragraphs").arg(printed.size()).arg(paragraphs)));
+                // the cut is visible: a bar of the highlight color under the box
+                const QImage page = v->viewport()->grab().toImage();
+                const QColor accent = v->palette().color(QPalette::Highlight);
+                int bar = 0;
+                for (int x = place.left() + 4; x < place.right() - 4; ++x) bar += page.pixelColor(x, place.bottom() - 1) == accent;
+                QVERIFY2(bar > place.width() / 2, qPrintable(QStringLiteral("bar pixels: %1").arg(bar)));
+                // the rest is reachable: the box, taken for editing, holds every paragraph and scrolls to the last
+                QVERIFY(box->takeTarget());
+                QTRY_VERIFY(v->boxIsEditing() && !box->isGhost());
+                QCOMPARE(box->document()->blockCount(), paragraphs);
+                QCOMPARE(box->verticalScrollBar()->value(), 0);
+                QVERIFY2(box->verticalScrollBar()->maximum() > 0, "the box scrolls");
+                box->verticalScrollBar()->setValue(box->verticalScrollBar()->maximum());
+                QVERIFY2(firstShownParagraph(box) > printed.size() / 2, "scrolled to later paragraphs");
+            }
+        }
+    }
+
+    // A click on a line of the notes the page shows puts the caret in that line's paragraph (where the printed words are, not where the box would have laid them), and hands the page's
+    // words over to the box.
+    void aClickOnTheNotesPutsTheCaretWhereThePrintedWordsAre()
+    {
+        DeckWindow w;
+        NotesPane *box = nullptr;
+        notesPageWith(w, &box, [&](QTextCursor &c) { paragraphsNote(c, 12); });
+        NotesPageView *v = w.notesPageView();
+        v->setZoom(v->fitZoom());
+        QTRY_COMPARE(box->displayScale(), v->zoom() * v->notesFit());
+        const QVector<InkLine> printed = inkLines(printedNotes(v, w.editor()), 0);
+        QVERIFY2(printed.size() >= 11, qPrintable(QString::number(printed.size())));
+        for (int line : {2, 9}) {
+            QWidget *vp = box->viewport();
+            const QPoint at(printed[line].left + (printed[line].right - printed[line].left) / 3, (printed[line].top + printed[line].bottom) / 2);
+            QTest::mouseClick(vp, Qt::LeftButton, Qt::NoModifier, at);
+            QTRY_VERIFY(v->boxIsEditing());
+            QCOMPARE(box->textCursor().blockNumber(), line);
+            QVERIFY(box->isTarget());
+            w.editor()->setCursor(QTextCursor());   // (the Editor's caret leaves the notes: the page shows them again)
+            box->clearFocus();
+            QTRY_VERIFY(!v->boxIsEditing() || box->isTarget());
+        }
+    }
+
+    // Pictures of the notes views in both window themes (JP_SHOT_DIR names the folder): the pane, the Notes Page as the page shows it and as the box shows it while edited, with a short note,
+    // a long note, and a note with a link and a list.
+    void picturesOfTheNotesViewsInBothThemes()
+    {
+        if (qEnvironmentVariableIsEmpty("JP_SHOT_DIR")) QSKIP("JP_SHOT_DIR names the folder for the pictures");
+        const QString dir = qEnvironmentVariable("JP_SHOT_DIR");
+        for (int theme : {1, 2})
+            for (int kind : {0, 1, 2}) {   // short with a link and a list, long (41), cut (250)
+                jp::applyUiTheme(theme);
+                const QString tag = QStringLiteral("%1-%2").arg(theme == 1 ? "light" : "dark", QString::number(kind));
+                DeckWindow w;
+                NotesPane *box = nullptr;
+                notesPageWith(w, &box, [&](QTextCursor &c) {
+                    if (kind == 0) {
+                        QTextCharFormat link;
+                        link.setAnchor(true);
+                        link.setAnchorHref(QStringLiteral("https://example.com/"));
+                        c.insertText(QStringLiteral("Open with "), QTextCharFormat());
+                        c.insertText(QStringLiteral("the linked words"), link);
+                        c.insertBlock();
+                        c.insertText(QStringLiteral("then the plan"), QTextCharFormat());
+                    } else {
+                        paragraphsNote(c, kind == 1 ? 41 : 250);
+                    }
+                });
+                if (kind == 0) {
+                    fillMixedListNote(notesStory(w.editor()));
+                    QTextCursor c(notesStory(w.editor()));
+                    c.movePosition(QTextCursor::End);
+                    c.insertBlock();
+                    QTextCharFormat link;
+                    link.setAnchor(true);
+                    link.setAnchorHref(QStringLiteral("https://example.com/"));
+                    c.insertText(QStringLiteral("a link"), link);
+                }
+                NotesPageView *v = w.notesPageView();
+                v->setZoom(v->fitZoom());
+                QTRY_COMPARE(box->displayScale(), v->zoom() * v->notesFit());
+                w.notesPane()->reload();
+                for (int i = 0; i < 6; ++i) QCoreApplication::processEvents();
+                v->viewport()->grab().save(dir + QStringLiteral("/page-idle-") + tag + QStringLiteral(".png"));
+                printedNotes(v, w.editor()).save(dir + QStringLiteral("/page-printed-") + tag + QStringLiteral(".png"));
+                w.notesPane()->grab().save(dir + QStringLiteral("/pane-") + tag + QStringLiteral(".png"));
+                box->takeTarget();
+                for (int i = 0; i < 6; ++i) QCoreApplication::processEvents();
+                v->viewport()->grab().save(dir + QStringLiteral("/page-editing-") + tag + QStringLiteral(".png"));
+            }
+        jp::applyUiTheme(1);
     }
 
     // A note longer than its place does what the printed page does (it is set a step smaller to fit, as the slides' text is; the page is never given another page): the box shows the

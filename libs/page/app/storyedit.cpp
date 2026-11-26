@@ -4,6 +4,7 @@
 #include "app/listmarkers.h"
 #include "app/minitoolbar.h"
 #include "app/spelling.h"
+#include "text/textprops.h"
 
 #include <QApplication>
 #include <QContextMenuEvent>
@@ -12,6 +13,8 @@
 #include <QKeyEvent>
 #include <QMenu>
 #include <QMouseEvent>
+#include <QPaintEvent>
+#include <QWheelEvent>
 #include <QPointer>
 #include <QScrollBar>
 #include <QTextBlock>
@@ -104,9 +107,13 @@ void StoryEdit::bind(const std::shared_ptr<Story> &story)
         c.setPosition(std::clamp(anchor, 0, last));
         c.setPosition(std::clamp(pos, 0, last), QTextCursor::KeepAnchor);
     } else {
-        c.movePosition(QTextCursor::End);
+        c.movePosition(QTextCursor::Start);   // (a story shown for the first time, or after another one: its words from the top)
     }
     setTextCursor(c);
+    if (!kept) {
+        verticalScrollBar()->setValue(0);
+        horizontalScrollBar()->setValue(0);
+    }
     m_syncing = false;
     markWords();
     m_markers->refresh();
@@ -141,10 +148,33 @@ void StoryEdit::applyScale()
         m_device.setDotsPerMeterX(int(std::lround(dpi / 0.0254)));
         m_device.setDotsPerMeterY(int(std::lround(dpi / 0.0254)));
         lay->setPaintDevice(&m_device);
-        d->setIndentWidth(m_indent * m_scale);
+        d->setIndentWidth(m_indent);   // (the layout scales an indent by the device's resolution itself: scaled here too, a list would be indented twice as much)
     }
     d->markContentsDirty(0, d->characterCount());
     m_markers->setScale(m_scale);
+}
+
+void StoryEdit::setGhost(bool ghost)
+{
+    if (m_ghost == ghost) return;
+    m_ghost = ghost;
+    m_markers->setShown(!ghost);
+    viewport()->update();
+}
+
+void StoryEdit::paintEvent(QPaintEvent *e)
+{
+    if (m_ghost) return;
+    QTextEdit::paintEvent(e);
+}
+
+void StoryEdit::wheelEvent(QWheelEvent *e)
+{
+    if (m_ghost) {
+        e->ignore();
+        return;
+    }
+    QTextEdit::wheelEvent(e);
 }
 
 void StoryEdit::setYielding(bool yield)
@@ -255,6 +285,21 @@ void StoryEdit::markWords()
         marks << x;
     };
     const int last = document()->characterCount() - 1;
+    // Links, as the printed page draws them: the scheme's link color and an underline, unless the words name a color of their own.
+    static const ColorScheme standard;
+    const QColor linkColor = (m_ed->doc() ? m_ed->doc()->colors : standard).slot(Hyperlink);
+    for (QTextBlock b = document()->findBlock(viewTop); b.isValid() && b.position() <= viewEnd; b = b.next())
+        for (QTextBlock::iterator it = b.begin(); !it.atEnd(); ++it) {
+            const QTextFragment f = it.fragment();
+            if (!f.charFormat().isAnchor() || !f.charFormat().stringProperty(tp::ColorRefP).isEmpty()) continue;
+            QTextEdit::ExtraSelection x;
+            x.cursor = QTextCursor(document());
+            x.cursor.setPosition(f.position());
+            x.cursor.setPosition(f.position() + f.length(), QTextCursor::KeepAnchor);
+            x.format.setForeground(linkColor);
+            x.format.setFontUnderline(true);
+            marks << x;
+        }
     const QVector<Mark> spelling = spellingMarks(viewTop, viewEnd);
     for (const Mark &m : spelling) add(m, last);
     for (const Mark &m : m_marks)

@@ -37,6 +37,8 @@ public:
     // The words, the document the view shows, its size, or its scrolling changed: the gutter and the markers follow. Cheap when nothing changed.
     void refresh();
 
+    // Whether the markers are drawn (the gutter stays as it is: the words are laid out the same).
+    void setShown(bool shown);
     // The gutter's width on each side of the text now, in pixels (0: no list item in view).
     int gutterLeft() const { return m_left; }
     int gutterRight() const { return m_right; }

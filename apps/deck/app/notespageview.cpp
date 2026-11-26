@@ -5,6 +5,7 @@
 #include "core/deck.h"
 #include "core/items.h"
 #include "render/renderer.h"
+#include "text/textengine.h"
 #include "core/printheaderfooter.h"
 #include "io/deckoutput.h"
 
@@ -25,6 +26,8 @@ namespace {
 constexpr double kAround = 24;   // pixels between the page and the view's edge
 constexpr double kCorner = 9;    // the corner handle, in pixels each way
 const QColor kInk(0x20, 0x20, 0x20);
+// The box until it is edited: nothing of its own over the page (the program's style sheet gives a text view a background and a frame).
+constexpr const char *kBoxClear = "QTextEdit { background: transparent; border: none; }";
 
 constexpr deck::NotesPart kNotesParts[] = {deck::NotesPart::SlideImage, deck::NotesPart::Body, deck::NotesPart::Header, deck::NotesPart::Date, deck::NotesPart::Footer, deck::NotesPart::Number};
 constexpr deck::HandoutPart kHandoutParts[] = {deck::HandoutPart::Area, deck::HandoutPart::Header, deck::HandoutPart::Date, deck::HandoutPart::Footer, deck::HandoutPart::Number};
@@ -69,6 +72,11 @@ NotesPageView::NotesPageView(Editor *ed, QWidget *parent) : QAbstractScrollArea(
     m_box->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
     m_box->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
     m_box->hide();
+    m_box->installEventFilter(this);
+    m_box->viewport()->installEventFilter(this);
+    m_box->setGhost(true);
+    m_box->setStyleSheet(QString::fromLatin1(kBoxClear));
+    connect(ed, &Editor::textCursorChanged, this, [this] { syncBox(); });
     m_fitTimer.setSingleShot(true);
     m_fitTimer.setInterval(300);
     connect(&m_fitTimer, &QTimer::timeout, this, [this] {
@@ -233,23 +241,77 @@ void NotesPageView::layoutBox()
 
 // What the printed page does when the notes are longer than their place (it sets them a step smaller, as the slides' text shrinks to fit) is shown in the box the same way: the
 // same layout of the same words, asked of the same cache.
-void NotesPageView::refit()
+LayoutCache::FrameLayout NotesPageView::printedNotes(int *slideOut)
 {
-    m_fit = 1;
     const Document *d = m_ed->doc();
     const int slide = m_ed->currentPage();
-    if (!d || m_mode != Mode::NotesPage || slide < 0 || slide >= d->pages.size() || !d->story(d->pages[slide]->notesStoryId)) return;
-    ++s_fitRuns;
+    if (slideOut) *slideOut = slide;
+    if (!d || m_mode != Mode::NotesPage || slide < 0 || slide >= d->pages.size() || !d->story(d->pages[slide]->notesStoryId)) return {};
     const deck::NotesPageGeometry g = deck::notesPageGeometry(notesNow(), paper(), d->pageSize());
     TextItem box;
     box.id = QStringLiteral("output-notes-") + d->pages[slide]->id;
     box.storyId = d->pages[slide]->notesStoryId;
     box.rect = QRectF(QPointF(0, 0), g.body.size());
+    m_printHeight = g.body.height();
     box.insets = QMarginsF(0, 0, 0, 0);
     box.autofit = TextItem::ShrinkOnOverflow;
     RenderOptions o;
     o.output = true;
-    m_fit = std::clamp(m_ed->cache().textFrame(*d, box, slide + 1, o).fitScale, 0.1, 1.0);
+    return m_ed->cache().textFrame(*d, box, slide + 1, o);
+}
+
+void NotesPageView::refit()
+{
+    m_fit = 1;
+    m_cut = false;
+    if (m_mode != Mode::NotesPage) return;
+    ++s_fitRuns;
+    const LayoutCache::FrameLayout fl = printedNotes();
+    if (!fl.layout) return;
+    m_fit = std::clamp(fl.fitScale, 0.1, 1.0);
+    // (cut: the layout says text is left over, or its lines go below the place: the printed page draws them clipped to it)
+    m_cut = fl.layout->overflow() || fl.layout->usedHeight(std::max(0, fl.frame)) > m_printHeight + 0.5;
+}
+
+bool NotesPageView::boxIsEditing() const { return m_mode == Mode::NotesPage && (m_box->hasFocus() || m_box->isTarget()); }
+
+void NotesPageView::syncBox()
+{
+    const bool edit = boxIsEditing();
+    if (edit == !m_box->isGhost()) return;
+    m_box->setGhost(!edit);
+    m_box->setStyleSheet(edit ? QString() : QString::fromLatin1(kBoxClear));
+    m_box->setVerticalScrollBarPolicy(edit ? Qt::ScrollBarAsNeeded : Qt::ScrollBarAlwaysOff);
+    viewport()->update();
+}
+
+// The notes are drawn by the page (as the printed page draws them) until the person edits: a press in the box then puts the caret where the printed words are under it, and the box
+// takes over.
+bool NotesPageView::eventFilter(QObject *watched, QEvent *e)
+{
+    if (watched == m_box || watched == m_box->viewport()) {
+        if (e->type() == QEvent::FocusIn || e->type() == QEvent::FocusOut) QTimer::singleShot(0, this, [this] { syncBox(); });
+        if (watched == m_box->viewport() && m_box->isGhost() && e->type() == QEvent::MouseButtonPress) {
+            auto *me = static_cast<QMouseEvent *>(e);
+            if (me->button() != Qt::LeftButton) return false;
+            const QPointF at = m_box->viewport()->mapTo(viewport(), me->position().toPoint());
+            m_box->setFocus(Qt::MouseFocusReason);
+            const LayoutCache::FrameLayout fl = printedNotes();
+            if (fl.layout) {
+                const QPointF local = (at - notesRect().topLeft()) / scale();
+                const int pos = fl.layout->hitTest(std::max(0, fl.frame), local);
+                if (pos >= 0 && pos < m_box->document()->characterCount()) {
+                    QTextCursor c(m_box->document());
+                    c.setPosition(pos);
+                    m_box->setTextCursor(c);
+                }
+            }
+            m_box->takeTarget();
+            syncBox();
+            return true;
+        }
+    }
+    return QAbstractScrollArea::eventFilter(watched, e);
 }
 
 void NotesPageView::commit() { m_box->commit(); }
@@ -292,13 +354,30 @@ void NotesPageView::paintEvent(QPaintEvent *)
     deck::OutputOptions o;
     o.layout = deck::PrintLayout::NotesPages;
     o.hiddenSlides = true;
-    o.skipNotesText = true;
+    o.skipNotesText = boxIsEditing();
     o.slides = {slide};
     p.save();
     p.translate(page.topLeft());
     p.scale(scale(), scale());
     deck::paintOutputPage(&p, *d, &m_ed->cache(), o, 0, paper());
     p.restore();
+    if (m_cut && !boxIsEditing()) {
+        // The printed page cuts the notes off here: a bar under the box says so (the rest is read, and edited, by clicking in the box).
+        const QRectF r = notesRect();
+        const QColor accent = palette().color(QPalette::Highlight);
+        p.setPen(Qt::NoPen);
+        p.setBrush(accent);
+        p.drawRect(QRectF(r.left(), r.bottom() - 2, r.width(), 3));
+        QFont f = p.font();
+        f.setPixelSize(std::clamp(int(std::lround(9 * scale())), 9, 16));
+        p.setFont(f);
+        const QString words = tr("The rest of the notes does not print");
+        const QRectF label(r.left(), r.bottom() - 4 - QFontMetricsF(f).height(), QFontMetricsF(f).horizontalAdvance(words) + 8, QFontMetricsF(f).height() + 2);
+        p.setBrush(accent);
+        p.drawRect(label);
+        p.setPen(palette().color(QPalette::HighlightedText));
+        p.drawText(label, Qt::AlignCenter, words);
+    }
 }
 
 void NotesPageView::paintMaster(QPainter &p)

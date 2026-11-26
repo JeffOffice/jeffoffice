@@ -203,6 +203,8 @@ void ListMarkers::run(bool margins)
 
 void ListMarkers::refresh() { run(true); }
 
+void ListMarkers::setShown(bool shown) { m_layer->setVisible(shown); }
+
 QVector<ListMarkers::Marker> ListMarkers::visibleMarkers() const
 {
     QVector<Marker> out;
