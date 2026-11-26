@@ -70,6 +70,8 @@ void WriteWindow::applyEditingDefaults()
 {
     m_view->setLinkNeedsCtrl(Settings::get().value(QStringLiteral("edit/ctrlClickLinks"), true).toBool());
     m_view->setDragTextOption(Settings::get().value(QStringLiteral("edit/dragText"), true).toBool());
+    m_view->setSelectWholeWordOption(Settings::get().value(QStringLiteral("edit/selectWholeWord"), true).toBool());
+    m_view->setSmartParagraphOption(Settings::get().value(QStringLiteral("edit/smartParagraph"), true).toBool());
     m_view->setTypingReplaces(Settings::get().value(QStringLiteral("edit/typingReplaces"), true).toBool());
     m_view->setInsertKeyOvertype(Settings::get().value(QStringLiteral("edit/insertKey"), false).toBool());
 }
@@ -81,6 +83,7 @@ QVector<OptionsPage> WriteWindow::optionsPages()
         MeasureSpin *styleArea = nullptr;
         QVector<QCheckBox *> always;   // one for each of the marks of displayMarkKinds()
         QComboBox *units = nullptr;
+        QCheckBox *wholeWord = nullptr, *smartParagraph = nullptr;
         PasteDefaultsSection *pasteDefaults = nullptr;
         QComboBox *pasteLists = nullptr, *pasteCells = nullptr;
         QCheckBox *ctrlLinks = nullptr, *dragText = nullptr, *replaces = nullptr, *insertKey = nullptr, *privacy = nullptr, *smart = nullptr, *embedFonts = nullptr;
@@ -182,6 +185,14 @@ QVector<OptionsPage> WriteWindow::optionsPages()
         f->dragText->setObjectName(QStringLiteral("dragText"));
         f->dragText->setChecked(Settings::get().value(QStringLiteral("edit/dragText"), true).toBool());
         form->addRow(f->dragText);
+        f->wholeWord = new QCheckBox(QCoreApplication::translate("Dialogs", "When selecting, automatically select the whole word"), page);
+        f->wholeWord->setObjectName(QStringLiteral("selectWholeWord"));
+        f->wholeWord->setChecked(Settings::get().value(QStringLiteral("edit/selectWholeWord"), true).toBool());
+        form->addRow(f->wholeWord);
+        f->smartParagraph = new QCheckBox(QCoreApplication::translate("Dialogs", "Use smart paragraph selection"), page);
+        f->smartParagraph->setObjectName(QStringLiteral("smartParagraphSelection"));
+        f->smartParagraph->setChecked(Settings::get().value(QStringLiteral("edit/smartParagraph"), true).toBool());
+        form->addRow(f->smartParagraph);
         f->replaces = new QCheckBox(QCoreApplication::translate("Dialogs", "Typing replaces the selected text"), page);
         f->replaces->setObjectName(QStringLiteral("typingReplaces"));
         f->replaces->setChecked(Settings::get().value(QStringLiteral("edit/typingReplaces"), true).toBool());
@@ -226,6 +237,8 @@ QVector<OptionsPage> WriteWindow::optionsPages()
         Settings::get().setValue(QStringLiteral("edit/ctrlClickLinks"), f->ctrlLinks->isChecked());
         Settings::get().setValue(QStringLiteral("edit/dragText"), f->dragText->isChecked());
         Settings::get().setValue(QStringLiteral("edit/typingReplaces"), f->replaces->isChecked());
+        Settings::get().setValue(QStringLiteral("edit/selectWholeWord"), f->wholeWord->isChecked());
+        Settings::get().setValue(QStringLiteral("edit/smartParagraph"), f->smartParagraph->isChecked());
         Settings::get().setValue(QStringLiteral("edit/insertKey"), f->insertKey->isChecked());
         applyEditingDefaults();
     }};

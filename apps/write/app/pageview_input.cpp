@@ -1259,6 +1259,7 @@ void PageView::mousePressEvent(QMouseEvent *e)
     } else {
         m_cursor.setPosition(at);
     }
+    m_pressAnchor = m_cursor.anchor();
     m_dragging = true;
     m_autoscroll.start();
     caretMoved();
@@ -1353,6 +1354,22 @@ void PageView::mouseMoveEvent(QMouseEvent *e)
         const int anchor = m_cursor.anchor() < m_cursor.position() ? m_cursor.selectionStart() : m_cursor.selectionEnd();
         Q_UNUSED(anchor);
         m_cursor.setPosition(at > m_cursor.anchor() ? w.selectionEnd() : w.selectionStart(), QTextCursor::KeepAnchor);
+    } else if (m_clicks == 1 && m_pressAnchor >= 0 && (m_selectWholeWord || m_smartParagraph)) {
+        QTextDocument *doc = m_cursor.document();
+        int lo = std::min(m_pressAnchor, at), hi = std::max(m_pressAnchor, at);
+        const auto wordChar = [doc](int p) { const QChar c = doc->characterAt(p); return c.isLetterOrNumber() || c == QLatin1Char('_'); };
+        bool several = false;
+        for (int p = lo; p < hi && !several; ++p) several = !wordChar(p);
+        if (m_selectWholeWord && several) {
+            while (lo > 0 && wordChar(lo - 1) && wordChar(lo)) --lo;
+            while (hi < doc->characterCount() - 1 && wordChar(hi - 1) && wordChar(hi)) ++hi;
+        }
+        if (m_smartParagraph && lo < hi) {
+            const QTextBlock first = doc->findBlock(lo), last = doc->findBlock(hi);
+            if (lo == first.position() && hi == last.position() + last.length() - 1 && last.next().isValid() && !inTable(first) && !inTable(last)) ++hi;
+        }
+        m_cursor.setPosition(at < m_pressAnchor ? hi : lo);
+        m_cursor.setPosition(at < m_pressAnchor ? lo : hi, QTextCursor::KeepAnchor);
     } else {
         m_cursor.setPosition(at, QTextCursor::KeepAnchor);
     }

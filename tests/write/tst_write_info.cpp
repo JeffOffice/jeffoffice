@@ -2477,6 +2477,67 @@ private Q_SLOTS:
         Settings::get().setValue(QStringLiteral("edit/insertKey"), false);
     }
 
+    // Options > Advanced: a drag over more than one word takes the whole words at both ends, and a drag over a whole paragraph takes its mark; each can be turned off.
+    void aDragSelectsWholeWordsAndASmartParagraphIncludesItsMark()
+    {
+        struct Restore {
+            ~Restore()
+            {
+                Settings::get().setValue(QStringLiteral("edit/selectWholeWord"), true);
+                Settings::get().setValue(QStringLiteral("edit/smartParagraph"), true);
+            }
+        } restore;
+        auto choose = [](WriteWindow &w, bool words, bool paragraph) {
+            QVector<OptionsPage> pages = w.optionsPages();
+            QList<QWidget *> built;
+            for (const OptionsPage &p : pages) built << p.build();
+            int found = 0;
+            for (QWidget *page : built) {
+                if (auto *b = page->findChild<QCheckBox *>(QStringLiteral("selectWholeWord"))) b->setChecked(words), ++found;
+                if (auto *b = page->findChild<QCheckBox *>(QStringLiteral("smartParagraphSelection"))) b->setChecked(paragraph), ++found;
+            }
+            for (const OptionsPage &p : pages)
+                if (p.apply) p.apply();
+            qDeleteAll(built);
+            return found == 2;
+        };
+        // The selection a real drag from a place a third of the way into the character at `from` to one a third of the way into the character at `to` leaves (`to` past the end of a line: its end).
+        auto drag = [&](bool words, bool paragraph, int from, int to) {
+            WriteWindow w;
+            w.resize(1100, 800);
+            w.show();
+            typeText(*w.document(), w.view()->cursor(), QStringLiteral("alpha beta gamma\ndelta epsilon"));
+            if (!choose(w, words, paragraph)) return QPair<int, int>(-1, -1);   // (both boxes are in Options > Advanced)
+            auto point = [&](int pos) {
+                QTextCursor c(w.document()->story());
+                c.setPosition(pos);
+                w.view()->setCursor(c);
+                QRect a, b;
+                if (!w.view()->caretRect(&a)) return QPoint();
+                c.setPosition(pos + 1);
+                w.view()->setCursor(c);
+                if (!w.view()->caretRect(&b) || b.center().y() != a.center().y()) return a.center() + QPoint(30, 0);   // (the end of a line)
+                return QPoint(a.center().x() + (b.center().x() - a.center().x()) / 3, a.center().y());
+            };
+            const QPoint start = point(from), end = point(to);
+            QTextCursor none(w.document()->story());
+            none.setPosition(0);
+            w.view()->setCursor(none);
+            QTest::mousePress(w.view()->viewport(), Qt::LeftButton, Qt::NoModifier, start);
+            QTest::mouseMove(w.view()->viewport(), end);
+            QTest::mouseRelease(w.view()->viewport(), Qt::LeftButton, Qt::NoModifier, end);
+            return QPair<int, int>(w.view()->cursor().anchor(), w.view()->cursor().position());
+        };
+        // "alpha beta gamma" is 0 to 16, the paragraph mark is 16, "delta epsilon" is 17 to 30.
+        QCOMPARE(drag(true, true, 2, 8), (QPair<int, int>(0, 10)));
+        QCOMPARE(drag(false, true, 2, 8), (QPair<int, int>(2, 8)));
+        QCOMPARE(drag(true, true, 8, 2), (QPair<int, int>(10, 0)));   // (backward)
+        QCOMPARE(drag(true, true, 1, 4), (QPair<int, int>(1, 4)));    // (inside one word: as dragged)
+        QCOMPARE(drag(true, true, 0, 16), (QPair<int, int>(0, 17)));  // (the whole paragraph: its mark too)
+        QCOMPARE(drag(true, false, 0, 16), (QPair<int, int>(0, 16)));
+        QCOMPARE(drag(true, true, 17, 30), (QPair<int, int>(17, 30)));   // (the last paragraph has no mark after it)
+    }
+
     // The Spike: Ctrl+F3 cuts onto it (adding), Ctrl+Shift+F3 pastes all of it as one step and empties it; bold stays.
     void theSpikeCollectsCutsAndPastesThemTogether()
     {

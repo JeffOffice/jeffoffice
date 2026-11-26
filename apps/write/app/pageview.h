@@ -469,6 +469,9 @@ public:
     void setLinkNeedsCtrl(bool on) { m_linkNeedsCtrl = on; }
     bool linkNeedsCtrl() const { return m_linkNeedsCtrl; }
     void setDragTextOption(bool on) { m_dragTextOption = on; }
+    // Options > Advanced: a drag that takes in more than one word goes to the whole of the words at both ends, and a drag from the start of a paragraph to the end of its words takes the paragraph mark too.
+    void setSelectWholeWordOption(bool on) { m_selectWholeWord = on; }
+    void setSmartParagraphOption(bool on) { m_smartParagraph = on; }
     // Options > Advanced: typing over a selection replaces it (true, the default) or puts the new letters after it; the Insert key turns overtype mode (each letter typed replaces the one after the caret) on and off when it is let to.
     void setTypingReplaces(bool on) { m_typingReplaces = on; }
     void setInsertKeyOvertype(bool on) { m_insertKeyOvertype = on; if (!on) m_overtype = false; }
@@ -683,6 +686,8 @@ private:
     TextDrag m_textDrag;
     bool m_textDragAllowed = true;
     bool m_linkNeedsCtrl = true, m_dragTextOption = true;
+    bool m_selectWholeWord = true, m_smartParagraph = true;
+    int m_pressAnchor = -1;   // where the press that began the drag was, for the selection the drag makes (the drag's own ends are moved to whole words)
     bool m_typingReplaces = true, m_insertKeyOvertype = false, m_overtype = false;
     PictureDrag m_pictureDrag;
     // Dragging the border at the right of a table's column, or at the foot of a row: the position of a cell of the column, its width when the drag began, and where the pointer began.
