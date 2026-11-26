@@ -2028,6 +2028,40 @@ private Q_SLOTS:
         QVERIFY(!menu());
     }
 
+    // The fix in the menu of the green triangle is refused as Error Checking's own fix is: on a protected sheet (the reason is told) and in a workbook open for reading only, the formula
+    // is not changed and there is no step of Undo; Ignore Error (no cell changes) is taken on a protected sheet, as in Error Checking's window, and refused when open for reading only.
+    void theTriangleMenuIsRefusedOnAProtectedSheetAndInAReadOnlyWorkbook()
+    {
+        const QString rows = QStringLiteral("<row r=\"1\"><c r=\"B1\"><f>SUM(A1:A2)</f><v>20</v></c></row><row r=\"2\"><c r=\"A2\"><v>20</v></c></row><row r=\"3\"><c r=\"A3\"><v>30</v></c></row>");
+        for (const bool readOnly : {false, true}) {
+            EditWindow e;
+            QVERIFY(e.open(buildXlsx({worksheet(rows, readOnly ? QString() : QStringLiteral("<sheetProtection sheet=\"1\"/>"))})));
+            QVERIFY(e.settle());
+            CrunchWindow &w = e.win.w;
+            QTRY_COMPARE(w.view()->errorCorners().size(), size_t(1));
+            if (readOnly) w.setReadOnly(true);
+            const int steps = w.undoStack()->count();
+            e.win.told.clear();
+            QTest::mouseClick(w.view()->viewport(), Qt::LeftButton, Qt::NoModifier, w.view()->cellRectAt(0, 1).topLeft() + QPoint(2, 2));
+            QMenu *menu = w.findChild<QMenu *>(QStringLiteral("errorMenu"));
+            QVERIFY(menu);
+            QAction *fix = menu->findChild<QAction *>(QStringLiteral("errorMenuFix")), *ignore = menu->findChild<QAction *>(QStringLiteral("errorMenuIgnore"));
+            QVERIFY(fix && ignore);
+            fix->trigger();
+            QVERIFY(e.settle());
+            QVERIFY(w.session()->calculation()->content(0, 0, 1).formula.contains(QLatin1String("A1:A2")));
+            QVERIFY(!w.session()->calculation()->content(0, 0, 1).formula.contains(QLatin1String("A1:A3")));
+            QCOMPARE(w.undoStack()->count(), steps);
+            if (!readOnly) QVERIFY2(e.win.told.join('|').contains(QLatin1String("protected")), qPrintable(e.win.told.join('|')));
+            // (Ignore Error changes no cell: on a protected sheet it is taken, as in Error Checking's own window; in a workbook open for reading only it is refused)
+            ignore->trigger();
+            QCOMPARE(w.undoStack()->count(), readOnly ? steps : steps + 1);
+            QCOMPARE(w.session()->ignoredErrorsOf(0).isEmpty(), readOnly);
+            menu->close();
+            if (readOnly) w.setReadOnly(false);
+        }
+    }
+
     // While a cell is being edited a click on a green triangle belongs to the edit: it points at the cell (a formula being typed) or ends the entry (plain text), and opens no menu.
     void aClickOnTheGreenTriangleWhileEditingOpensNoMenu()
     {

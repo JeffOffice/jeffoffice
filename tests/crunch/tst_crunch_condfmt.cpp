@@ -903,6 +903,60 @@ private Q_SLOTS:
         QVERIFY2(bad.isEmpty(), qPrintable(bad));
     }
 
+    // The four Clear Rules commands are off, and refuse when forced, on a sheet whose protection does not let cells be formatted and in a workbook that is open for reading only; with formatting allowed
+    // they are on (the table's command too) and clear.
+    void clearRulesIsRefusedOnAProtectedSheetAndInAReadOnlyWorkbook()
+    {
+        const QString table = QStringLiteral("<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\n<table xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\" id=\"1\" name=\"Plain\" displayName=\"Plain\" ref=\"A1:B4\" headerRowCount=\"0\">"
+                                             "<tableColumns count=\"2\"><tableColumn id=\"1\" name=\"Column1\"/><tableColumn id=\"2\" name=\"Column2\"/></tableColumns></table>");
+        const char *commands[] = {"cond.clearSelection", "cond.clearSheet", "cond.clearTable"};
+        auto open = [&](EditWindow &e, const QString &protection) {
+            QVERIFY(e.open(withTables(condBook(protection + nineRulesTail()), {table})));
+            QVERIFY(e.settle());
+            selectRange(e, QStringLiteral("A2:A3"));
+        };
+        // (formatting allowed: all three are on, so the refusals below are the protection's)
+        {
+            EditWindow e;
+            open(e, QStringLiteral("<sheetProtection sheet=\"1\" formatCells=\"0\"/>"));
+            for (const char *c : commands) QVERIFY2(e.win.w.act(QString::fromLatin1(c))->isEnabled(), c);
+        }
+        // a protected sheet: off, and a forced command is refused with the reason, and changes nothing
+        {
+            EditWindow e;
+            open(e, QStringLiteral("<sheetProtection sheet=\"1\"/>"));
+            const int rules = int(e.win.w.session()->condRules(0).size()), steps = e.win.w.undoStack()->count();
+            for (const char *c : commands) {
+                QAction *a = e.win.w.act(QString::fromLatin1(c));
+                QVERIFY2(!a->isEnabled(), c);
+                e.win.told.clear();
+                a->setEnabled(true);
+                a->trigger();
+                QVERIFY2(e.win.told.join('|').contains(QLatin1String("protected")), c);
+                QCOMPARE(int(e.win.w.session()->condRules(0).size()), rules);
+                QCOMPARE(e.win.w.undoStack()->count(), steps);
+            }
+            QVERIFY(!e.win.w.act(QStringLiteral("cond.clearPivot"))->isEnabled());
+        }
+        // a workbook open for reading only: off, and a forced command changes nothing
+        {
+            EditWindow e;
+            open(e, QString());
+            e.win.w.setReadOnly(true);
+            const int rules = int(e.win.w.session()->condRules(0).size()), steps = e.win.w.undoStack()->count();
+            for (const char *c : commands) {
+                QAction *a = e.win.w.act(QString::fromLatin1(c));
+                QVERIFY2(!a->isEnabled(), c);
+                a->setEnabled(true);
+                a->trigger();
+                QCOMPARE(int(e.win.w.session()->condRules(0).size()), rules);
+                QCOMPARE(e.win.w.undoStack()->count(), steps);
+            }
+            QVERIFY(!e.win.w.act(QStringLiteral("cond.clearPivot"))->isEnabled());
+            e.win.w.setReadOnly(false);
+        }
+    }
+
     // A sheet whose protection does not let cells be formatted gets no rule from the menus, the window of a new rule, or Manage Rules, and its Clear Rules choices are off; when the protection lets
     // cells be formatted, the same changes are made.
     void aProtectedSheetRefusesRulesThatTheProtectionDoesNotAllow()

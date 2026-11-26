@@ -198,6 +198,7 @@ void CrunchWindow::updateEditActions()
     updateSparklineTab();
     updateFormatState(false);
     updateInsertClipAction();
+    updateCondActions();   // (Clear Rules is off in a workbook open for reading only)
 }
 
 // Whether a cell can be changed now; if not, the person is told why (as a note in the status line while the workbook is still being opened, else in a message).
