@@ -391,6 +391,32 @@ private Q_SLOTS:
         }
     }
 
+    // The columns are drawn as given: close, high, low is a high-low-close chart of exactly those series in that order (nothing checks their order), the close's mark on the third.
+    void aStockChartIsMadeFromTheColumnsInTheOrderGiven()
+    {
+        QVector<ChartSeries> series = stockSeries(3);
+        const QStringList names = {"Close", "High", "Low"};
+        for (int i = 0; i < 3; ++i) series[i].name = names[i];
+        series[0].values = {5, 6, 7, 8};   // (a close below the high and above the low, or not: no value is looked at)
+        series[1].values = {9, 9, 9, 9};
+        series[2].values = {1, 1, 1, 1};
+        const Chart made = chartFromSeries(series, QVector<SeriesKind>(3, SeriesKind{ChartKind::StockHLC, false}), defaultTheme());
+        QCOMPARE(int(made.plots.size()), 1);
+        QVERIFY(made.plots[0].stock);
+        QCOMPARE(int(made.plots[0].series.size()), 3);
+        for (int i = 0; i < 3; ++i) {
+            QCOMPARE(made.plots[0].series[i].name, names[i]);
+            QCOMPARE(made.plots[0].series[i].values, series[i].values);
+        }
+        QVERIFY(made.plots[0].series[0].marker.symbol == ChartMarker::None && made.plots[0].series[1].marker.symbol == ChartMarker::None);
+        QVERIFY(made.plots[0].series[2].marker.symbol != ChartMarker::None);
+        // and a chart changed to the form keeps its series in the order they stand
+        Chart c = chartFromSeries(series, QVector<SeriesKind>(3, SeriesKind{ChartKind::LineMarkers, false}), defaultTheme());
+        QVERIFY(chartSetForm(c, ChartForm::StockHighLowClose, defaultTheme()));
+        const QVector<ChartSeries> now = chartAllSeries(c);
+        for (int i = 0; i < 3; ++i) QCOMPARE(now[i].name, names[i]);
+    }
+
     // The forms are told apart by the number and the order of the series: other series are refused with a sentence that names the order, and never made into something else.
     void aStockChartOfSeriesThatDoNotFitIsRefusedAndNeverDrawnAsAnother()
     {
