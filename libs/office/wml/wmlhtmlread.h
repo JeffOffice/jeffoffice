@@ -18,7 +18,7 @@ namespace jp::office::wml {
 constexpr int kMostHtmlBlocks = 200000;
 constexpr int kMostHtmlImages = 500;       // pictures read from one page
 constexpr int kMostHtmlLinks = 5000;       // links read from one page
-constexpr qint64 kMostHtmlImageBytes = qint64(32) << 20;   // one picture, and (four times) all of them
+constexpr qint64 kMostHtmlImageBytes = kMostGuardedPictureBytes;   // one picture, and (four times) all of them
 
 // Whether the bytes begin like a web page (after a byte order mark and blanks: a doctype, or an html, head, or body tag).
 bool looksLikeHtml(const QByteArray &bytes);

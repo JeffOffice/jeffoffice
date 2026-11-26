@@ -23,6 +23,7 @@ constexpr qint64 kMostHtmlText = 24 * 1024 * 1024;      // characters of words
 constexpr int kMostHtmlCells = 170000;                  // cells (td and th)
 constexpr int kMostHtmlRows = 100000;                   // rows (tr)
 constexpr qint64 kMostHtmlGrid = 200000;                // cells of the grids the tables ask for (each table's rows times its widest row)
+constexpr qint64 kMostGuardedPictureBytes = qint64(32) << 20; // one picture a page holds (the readers take no more)
 constexpr int kMostHtmlPictures = 2000;                 // pictures in the page (the readers read 500 of them)
 constexpr int kMostHtmlNesting = 100;                     // parts standing inside one another in the rewritten page (more are left out; their words stay)
 constexpr int kMostHtmlTableDepth = 20;                 // tables standing inside one another (more become their words)

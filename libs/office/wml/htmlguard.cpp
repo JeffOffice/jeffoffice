@@ -68,6 +68,55 @@ const std::unordered_map<std::string_view, At> &attributes()
 
 constexpr quint32 bit(At a) { return quint32(1) << a; }
 
+// How an address begins: with no scheme at all (a relative address or an in-page #name: `relative`), or with the scheme named (lower case; empty when it cannot be told, which is as bad as a scheme that is not
+// kept: a character that a part of a page can hide a colon behind, such as an entity, a backslash, or a control character, before the first slash).
+struct AddressStart {
+    bool relative = false;
+    QString scheme;
+};
+AddressStart addressStart(QStringView raw)
+{
+    const QStringView v = raw.trimmed();
+    AddressStart a;
+    for (qsizetype k = 0; k < v.size(); ++k) {
+        const ushort u = v[k].unicode();
+        if (u == '/' || u == '?' || u == '#') break;
+        if (u == ':') {
+            a.scheme = v.left(k).toString().toLower();
+            return a;
+        }
+        const bool ok = (u >= 'a' && u <= 'z') || (u >= 'A' && u <= 'Z') || (u >= '0' && u <= '9') || u == '+' || u == '.' || u == '-' || u == '_' || u == '%' || u == '~' || u == ',' || u == '(' || u == ')' || u == '@' || u == '=' || u == '$' || u == '!' || u == '\'' || u == '*' || u >= 0x80;
+        if (!ok) return a;   // (an entity, a backslash, a space, a control character: not told)
+    }
+    a.relative = true;
+    return a;
+}
+// A link address kept as written when it goes to the web, to a mail address, to a telephone, to a file server, to a part of this page, or to a page beside this one; any other (script:, file:, data:, and so on) is left out.
+bool linkAddressKept(QStringView raw)
+{
+    const AddressStart a = addressStart(raw);
+    if (a.relative) return true;
+    return a.scheme == QLatin1String("http") || a.scheme == QLatin1String("https") || a.scheme == QLatin1String("mailto") || a.scheme == QLatin1String("tel") || a.scheme == QLatin1String("ftp");
+}
+// A picture address kept: a picture the page holds (data:image, within the size the readers take), or a file beside the page (a relative address, or a file: address) that does not climb out of the page's folder. The
+// readers read nothing else (never the network), so no other address is kept.
+bool pictureAddressKept(QStringView raw, qint64 mostBytes)
+{
+    const QStringView v = raw.trimmed();
+    const AddressStart a = addressStart(v);
+    if (a.scheme == QLatin1String("data")) return v.startsWith(QLatin1String("data:image/"), Qt::CaseInsensitive) && v.size() <= mostBytes * 4 / 3 + 300;
+    if (!a.relative && a.scheme != QLatin1String("file")) return false;
+    if (a.relative && v.startsWith(QLatin1Char('/'))) return false;   // (a path from the root, or an address on another host: not beside the page)
+    // (no part of the path is ".." or goes in through a percent sign or a backslash)
+    if (v.contains(QLatin1Char('\\')) || v.contains(QLatin1String("%2e"), Qt::CaseInsensitive) || v.contains(QLatin1String("%5c"), Qt::CaseInsensitive) || v.contains(QLatin1String("%2f"), Qt::CaseInsensitive)) return false;
+    qsizetype pathEnd = 0;
+    while (pathEnd < v.size() && v[pathEnd] != QLatin1Char('?') && v[pathEnd] != QLatin1Char('#')) ++pathEnd;
+    const QStringView path = v.left(pathEnd);
+    for (const QStringView part : path.split(QLatin1Char('/')))
+        if (part == QLatin1String("..")) return false;
+    return true;
+}
+
 // The attributes each kind of part keeps.
 quint32 allowedAttributes(Cls c, bool picture)
 {
@@ -533,7 +582,7 @@ private:
             bool percent = false;
             switch (At(a)) {
             case AHref:
-                if (raw.size() <= 4096) {
+                if (raw.size() <= 4096 && linkAddressKept(raw)) {
                     out += QLatin1String(" href=\"");
                     putValue(raw);
                     out += QLatin1Char('"');
@@ -934,6 +983,8 @@ private:
             return;
         }
         if (name == "img") {
+            // (a picture whose address no reader takes is not written: there is nothing to show, and nothing is left to fetch)
+            if (!has(ASrc) || !pictureAddressKept(s.mid(vb[ASrc], ve[ASrc] - vb[ASrc]), kMostGuardedPictureBytes)) return;
             if (++counts.pictures > lim.pictures) {
                 fail(HtmlRefusal::TooManyParts);
                 return;

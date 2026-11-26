@@ -18,6 +18,7 @@
 #include <QTextBlock>
 #include <QTextCursor>
 #include <QTextDocument>
+#include <QTextDocumentFragment>
 #include <QTextFragment>
 #include <QTextList>
 #include <QTextTable>
@@ -3701,6 +3702,51 @@ private Q_SLOTS:
         // (the page's own wrappers are one each, with nothing of theirs but a direction)
         QVERIFY(g.html.startsWith(QLatin1String("<html><body>")) && g.html.endsWith(QLatin1String("</body></html>")));
         QCOMPARE(g.html.count(QLatin1String("<body")), 1);
+    }
+
+    // fails when off: yes, each scheme (the check of linkAddressKept taken out of htmlguard.cpp: the address is written as it stands)
+    void aLinkKeepsItsAddressOnlyForTheSchemesThatAreUsed()
+    {
+        auto hrefOf = [](const QString &address) {
+            const GuardedHtml g = guardHtml(QStringLiteral("<p>go <a href=\"") + address + QStringLiteral("\">the words</a></p>"));
+            if (!g.html.contains(QLatin1String(">the words</a>"))) return QStringLiteral("!words: ") + g.html;   // (the words always stay)
+            const qsizetype at = g.html.indexOf(QLatin1String("href=\""));
+            return at < 0 ? QString() : g.html.mid(at + 6, g.html.indexOf(QLatin1Char('"'), at + 6) - at - 6);
+        };
+        for (const QString &kept : {QStringLiteral("http://example.com/a?b=1"), QStringLiteral("https://example.com/"), QStringLiteral("mailto:me@example.com"), QStringLiteral("MAILTO:me@example.com"),
+                                    QStringLiteral("tel:+15551234"), QStringLiteral("ftp://example.com/f"), QStringLiteral("page.html"), QStringLiteral("../up/page.html#part"), QStringLiteral("#top"),
+                                    QStringLiteral("//example.com/x"), QStringLiteral("page.html?a=b:c"), QStringLiteral("/root/page.html")}) {
+            QCOMPARE(hrefOf(kept), kept);
+        }
+        for (const QString &left : {QStringLiteral("javascript:alert(1)"), QStringLiteral("JaVaScRiPt:alert(1)"), QStringLiteral("  javascript:alert(1)"), QStringLiteral("java\tscript:alert(1)"),
+                                    QStringLiteral("java&#115;cript:alert(1)"), QStringLiteral("&#106;avascript:alert(1)"), QStringLiteral("javascript&#58;alert(1)"), QStringLiteral("vbscript:msgbox(1)"),
+                                    QStringLiteral("file:///etc/passwd"), QStringLiteral("data:text/html,<b>x</b>"), QStringLiteral("data:text/html;base64,PGI+eDwvYj4="), QStringLiteral("ms-msdt:/id"),
+                                    QStringLiteral("\\\\host\\share"), QStringLiteral("x\x01:y")}) {
+            QVERIFY2(hrefOf(left).isEmpty(), qPrintable(left));
+        }
+        // (the anchor's own name stays, with or without an address)
+        QVERIFY(guardHtml(QStringLiteral("<a name=top href=\"javascript:x\">t</a>")).html.contains(QLatin1String("name=\"top\"")));
+    }
+    // fails when off: yes, each address (the check of pictureAddressKept taken out of htmlguard.cpp)
+    void aPictureKeepsItsSourceOnlyWhenAReaderCanUseIt()
+    {
+        auto kept = [](const QString &src) {
+            const GuardedHtml g = guardHtml(QStringLiteral("<p>a <img src=\"") + src + QStringLiteral("\" width=10> b</p>"));
+            if (g.counts.pictures != (g.html.contains(QLatin1String("<img")) ? 1 : 0)) return false;   // (a picture left out is not counted)
+            return g.html.contains(QLatin1String("<img src=\"") + src + QLatin1String("\""));
+        };
+        for (const QString &yes : {QStringLiteral("data:image/png;base64,iVBORw0KGgo="), QStringLiteral("DATA:image/gif;base64,R0lGOD"), QStringLiteral("a.png"), QStringLiteral("images/a.png?v=2"),
+                                   QStringLiteral("./a.png"), QStringLiteral("file:///home/me/page_files/a.png")})
+            QVERIFY2(kept(yes), qPrintable(yes));
+        for (const QString &no : {QStringLiteral("http://example.com/a.png"), QStringLiteral("https://example.com/a.png"), QStringLiteral("ftp://example.com/a.png"), QStringLiteral("//example.com/a.png"),
+                                  QStringLiteral("javascript:alert(1)"), QStringLiteral("data:text/html;base64,PGI+"), QStringLiteral("data:application/x-sh,x"), QStringLiteral("/etc/a.png"),
+                                  QStringLiteral("C:/a.png"), QStringLiteral("a\\b.png"), QStringLiteral("../a.png"), QStringLiteral("images/../../a.png"), QStringLiteral("file:///a/../b.png"),
+                                  QStringLiteral("%2e%2e/a.png"), QStringLiteral("&#104;ttp://x/a.png"), QStringLiteral("gopher://x/a.png")})
+            QVERIFY2(!kept(no), qPrintable(no));
+        // (a picture with no address has nothing to show)
+        QVERIFY(!guardHtml(QStringLiteral("<p>a <img width=10> b</p>")).html.contains(QLatin1String("<img")));
+        // (the words around a picture that is left out stay in their place)
+        QCOMPARE(QTextDocumentFragment::fromHtml(guardHtml(QStringLiteral("<p>a <img src=\"http://x/a.png\"> b</p>")).html).toPlainText().simplified(), QStringLiteral("a b"));
     }
 
     // A copied spreadsheet block: a style on every cell, as another program writes it to the clipboard.
