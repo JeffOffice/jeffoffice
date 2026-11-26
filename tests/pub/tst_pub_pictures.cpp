@@ -27,6 +27,13 @@
 #include <QThread>
 #include <atomic>
 #include <QRandomGenerator>
+#include <QHostAddress>
+#include <QNetworkAccessManager>
+#include <QNetworkProxy>
+#include <QNetworkReply>
+#include <QNetworkRequest>
+#include <QTcpServer>
+#include <QTcpSocket>
 
 class PubPictureTests : public QObject {
     Q_OBJECT
@@ -1972,6 +1979,79 @@ private Q_SLOTS:
             // (Update Link is still the person's own way to the file)
             QVERIFY(w.editor()->doc()->mayFollow(near));
         }
+    }
+
+    // Nothing else in a publication reaches out when it opens, is drawn, or is exported: a picture linked to a web address, links on objects and on a mouse-over, and a text box whose words are
+    // an address make no request (a loopback server stands for "outside", and a request of its own proves it would see one). A link is followed only when the person clicks it.
+    void aPublicationWithWebAddressesFetchesNothing()
+    {
+        QTcpServer server;
+        QVERIFY(server.listen(QHostAddress::LocalHost));
+        int requests = 0;
+        QObject::connect(&server, &QTcpServer::newConnection, &server, [&] {
+            while (QTcpSocket *s = server.nextPendingConnection()) {
+                ++requests;
+                s->close();
+                s->deleteLater();
+            }
+        });
+        const QString base = QStringLiteral("http://127.0.0.1:%1/").arg(server.serverPort());
+        auto settle = [] {
+            for (int i = 0; i < 40; ++i) QCoreApplication::processEvents(QEventLoop::AllEvents, 5);
+        };
+        // (the control: a request made on purpose is seen)
+        {
+            QNetworkAccessManager net;
+            net.setProxy(QNetworkProxy::NoProxy);
+            QNetworkReply *reply = net.get(QNetworkRequest(QUrl(base + QStringLiteral("control"))));
+            QTRY_VERIFY2(requests >= 1, qPrintable(reply->errorString()));
+            delete reply;
+            settle();
+        }
+        requests = 0;
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        const QString file = linkPicture(dir.filePath(QStringLiteral("photo.png")), QSize(200, 100), QColor(20, 120, 200));
+        const QString path = dir.filePath(QStringLiteral("web.jpub"));
+        {
+            jp::MainWindow w;
+            w.editor()->setDocument(jp::Document::blank(QSizeF(612, 792)));
+            w.insertFiles({file}, QPointF(-1, -1), jp::PictureInsert::EmbedAndLink);
+            jp::Document *d = w.editor()->doc();
+            for (auto it = d->images.begin(); it != d->images.end(); ++it)
+                if (it->linked) it->sourcePath = base + QStringLiteral("picture.png");
+            auto box = std::static_pointer_cast<jp::TextItem>(w.editor()->newTextBox(QRectF(72, 400, 300, 60), base + QStringLiteral("words")));
+            box->hyperlink = base + QStringLiteral("click");
+            box->hoverLink = base + QStringLiteral("hover");
+            w.editor()->addItem(box);
+            for (const auto &it : d->pages[0]->items) {
+                if (it->hyperlink.isEmpty()) it->hyperlink = base + QStringLiteral("object");
+                if (it->hoverLink.isEmpty()) it->hoverLink = base + QStringLiteral("over");
+            }
+            QVERIFY(w.saveTo(path));
+        }
+        struct Reset {
+            ~Reset() { jp::trust::setLinkedFiles(jp::trust::Choice::Yes); }
+        } reset;
+        for (const jp::trust::Choice choice : {jp::trust::Choice::Yes, jp::trust::Choice::Never}) {
+            jp::trust::setLinkedFiles(choice, QStringLiteral("jeffpub"));
+            for (jp::OpenHow how : {jp::OpenHow::Normal, jp::OpenHow::ReadOnly, jp::OpenHow::Copy}) {
+                jp::MainWindow w;
+                QVERIFY(w.openFile(path, how));
+                w.show();
+                settle();
+                const jp::Document *d = w.editor()->doc();
+                bool linked = false;
+                for (auto it = d->images.cbegin(); it != d->images.cend(); ++it) linked = linked || (it->linked && it->sourcePath.contains(QStringLiteral("picture.png")));
+                QVERIFY(linked);   // (the address is kept as it was, and not read)
+                bool links = false;
+                for (const auto &it : d->pages[0]->items) links = links || it->hyperlink == base + QStringLiteral("click");
+                QVERIFY(links);
+                QVERIFY(w.exportPdfTo(dir.filePath(QStringLiteral("out.pdf")), jp::MainWindow::PdfSettings()));
+                settle();
+            }
+        }
+        QCOMPARE(requests, 0);
     }
 
     // With "Never", a linked picture that keeps no copy is drawn from its preview, and PDF export and printing say so in the status bar.
