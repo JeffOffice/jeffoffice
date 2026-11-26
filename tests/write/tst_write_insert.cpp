@@ -77,6 +77,7 @@
 #include <QPushButton>
 #include <QSpinBox>
 #include <QRegularExpression>
+#include <QSet>
 #include <QTableWidget>
 #include <QTemporaryDir>
 #include <QTest>
@@ -1813,6 +1814,51 @@ private Q_SLOTS:
         QTextBlock after = win.w.document()->story()->findBlock(ff).next();
         QVERIFY(after.isValid());
         QCOMPARE(after.text(), QStringLiteral("Body text"));
+    }
+
+    // A saved block with a bookmark, put twice in the text and twice in a header: every bookmark of the saved file has a name of its own and a number of its own, across all the parts.
+    void aSavedBlocksBookmarksAreUniqueInEveryPartOfTheFile()
+    {
+        Win win({"Body text"});
+        win.w.show();
+        win.w.view()->paginateAll();
+        std::unique_ptr<WriteDoc> blank = WriteDoc::blank();
+        QTextCursor in(blank->story());
+        insertText(*blank, in, QStringLiteral("Head tail"));
+        QTextCursor span(blank->story());
+        span.setPosition(0);
+        span.setPosition(4, QTextCursor::KeepAnchor);
+        QString why;
+        QVERIFY2(addBookmark(*blank, span, QStringLiteral("mark1"), &why, false), qPrintable(why));
+        jp::BlockInfo info;
+        info.name = QStringLiteral("B");
+        info.format = QStringLiteral("docx");
+        const QByteArray bytes = blank->toDocx();
+        QVERIFY(win.w.insertSavedBlock(info, bytes));
+        QVERIFY(win.w.insertSavedBlock(info, bytes));
+        QVERIFY(win.w.view()->enterHeaderFooter(0, false, true));
+        win.w.refreshNow();
+        QVERIFY(win.w.insertSavedBlock(info, bytes));
+        QVERIFY(win.w.insertSavedBlock(info, bytes));
+        win.w.view()->leaveHeaderFooter();
+        office::Package pk;
+        QVERIFY(pk.read(win.w.document()->toDocx()));
+        QStringList names, ids;
+        static const QRegularExpression start(QStringLiteral("<w:bookmarkStart\\b([^>]*)>")), name(QStringLiteral("w:name=\"([^\"]*)\"")), id(QStringLiteral("w:id=\"([^\"]*)\""));
+        QSet<QString> partsWithMarks;
+        for (const QString &part : pk.partNames()) {
+            const QString xml = QString::fromUtf8(pk.part(part));
+            for (auto m = start.globalMatch(xml); m.hasNext();) {
+                const QString attrs = m.next().captured(1);
+                names << name.match(attrs).captured(1);
+                ids << id.match(attrs).captured(1);
+                partsWithMarks.insert(part);
+            }
+        }
+        QCOMPARE(names.size(), 4);
+        QVERIFY2(partsWithMarks.size() == 2, qPrintable(QStringList(partsWithMarks.begin(), partsWithMarks.end()).join(QLatin1Char(','))));
+        QCOMPARE(QSet<QString>(names.begin(), names.end()).size(), 4);
+        QCOMPARE(QSet<QString>(ids.begin(), ids.end()).size(), 4);
     }
 
     void aTableOfTheirOwnIsSavedAndPutInAgain()

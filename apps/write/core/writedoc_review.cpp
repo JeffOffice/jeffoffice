@@ -121,6 +121,13 @@ QVector<QTextDocument *> WriteDoc::sideStories() const
     return out;
 }
 
+QVector<QTextDocument *> WriteDoc::everySideStory()
+{
+    for (const Relationship &r : std::as_const(m_wml.mainRelationships))
+        if (!r.external && (r.type.endsWith(QLatin1String("/header")) || r.type.endsWith(QLatin1String("/footer")))) headerStory(r.id);
+    return sideStories();
+}
+
 QVector<QTextDocument *> WriteDoc::storiesWithChanges(bool every)
 {
     // (every story: the parts of headers and footers the file names are read now, if they were not)

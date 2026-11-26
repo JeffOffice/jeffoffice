@@ -63,39 +63,42 @@ QByteArray attributeValue(const QByteArray &raw, const char *name)
     return end < 0 ? QByteArray() : raw.mid(at + key.size(), end - at - key.size());
 }
 
-// The bookmarks that came with a block, from `from` to `to` in the text: each has a name no other bookmark of the document has (a name taken gets "_2", "_3", and so on after it, within the 40
+// The bookmarks that came with a block, from `from` to `to` in the story it went into (the text, or a header or a footer): each has a name no other bookmark of the document has (a name taken gets "_2", "_3", and so on after it, within the 40
 // characters a name may have), and numbers of their own, so that putting a block in twice is two bookmarks and never one that is two places.
-void giveBlockBookmarksNamesOfTheirOwn(WriteDoc &doc, int from, int to)
+void giveBlockBookmarksNamesOfTheirOwn(WriteDoc &doc, QTextDocument *target, int from, int to)
 {
     struct Mark {
         int at = 0;
         office::wml::Inline atom;
         QTextCharFormat format;
     };
-    QTextDocument *d = doc.story();
     QVector<Mark> pasted;
     QSet<QString> taken;
     long highest = 0;
     static const QRegularExpression idPattern(QStringLiteral("(w:id=\")[^\"]*(\")")), namePattern(QStringLiteral("(w:name=\")([^\"]*)(\")"));
-    for (QTextBlock b = d->begin(); b.isValid(); b = b.next())
-        for (QTextBlock::iterator it = b.begin(); !it.atEnd(); ++it) {
-            const QTextFragment f = it.fragment();
-            const QTextCharFormat cf = f.charFormat();
-            if (!cf.hasProperty(prop::Atom)) continue;
-            const QByteArray bytes = storedBytes(cf, prop::Atom);
-            if (!bytes.contains("bookmark")) continue;
-            const office::wml::Inline atom = unpackAtom(bytes);
-            const bool start = atom.tag == QLatin1String("bookmarkStart");
-            if (!start && atom.tag != QLatin1String("bookmarkEnd")) continue;
-            highest = std::max(highest, atom.key.toLong());
-            const QString text = f.text();
-            for (int k = 0; k < text.size(); ++k) {
-                const int at = f.position() + k;
-                if (text[k] != QChar::ObjectReplacementCharacter) continue;
-                if (at >= from && at < to) pasted.push_back({at, atom, cf});
-                else if (start) taken.insert(QString::fromUtf8(attributeValue(atom.raw, "name")).toLower());
+    // (Names and numbers are the whole file's: the text and every header, footer, and note have bookmarks that count.)
+    QVector<QTextDocument *> stories{doc.story()};
+    stories += doc.everySideStory();
+    for (QTextDocument *d : std::as_const(stories))
+        for (QTextBlock b = d->begin(); b.isValid(); b = b.next())
+            for (QTextBlock::iterator it = b.begin(); !it.atEnd(); ++it) {
+                const QTextFragment f = it.fragment();
+                const QTextCharFormat cf = f.charFormat();
+                if (!cf.hasProperty(prop::Atom)) continue;
+                const QByteArray bytes = storedBytes(cf, prop::Atom);
+                if (!bytes.contains("bookmark")) continue;
+                const office::wml::Inline atom = unpackAtom(bytes);
+                const bool start = atom.tag == QLatin1String("bookmarkStart");
+                if (!start && atom.tag != QLatin1String("bookmarkEnd")) continue;
+                highest = std::max(highest, atom.key.toLong());
+                const QString text = f.text();
+                for (int k = 0; k < text.size(); ++k) {
+                    const int at = f.position() + k;
+                    if (text[k] != QChar::ObjectReplacementCharacter) continue;
+                    if (d == target && at >= from && at < to) pasted.push_back({at, atom, cf});
+                    else if (start) taken.insert(QString::fromUtf8(attributeValue(atom.raw, "name")).toLower());
+                }
             }
-        }
     if (pasted.isEmpty()) return;
     QHash<QString, QString> nameOf, idOf;   // by the id the mark had
     for (const Mark &m : std::as_const(pasted)) {
@@ -120,7 +123,7 @@ void giveBlockBookmarksNamesOfTheirOwn(WriteDoc &doc, int from, int to)
         atom.raw = raw.toUtf8();
         QTextCharFormat nf = m.format;
         setStored(nf, prop::Atom, packAtom(atom));
-        QTextCursor t(d);
+        QTextCursor t(target);
         t.setPosition(m.at);
         t.setPosition(m.at + 1, QTextCursor::KeepAnchor);
         t.setCharFormat(nf);
@@ -244,7 +247,7 @@ bool insertBlock(WriteDoc &doc, QTextCursor &c, const QByteArray &block, BlockIn
     const int from = c.position();
     pasteClip(doc, c, clip);
     const int to = c.position();
-    if (story == doc.story() && to > from) giveBlockBookmarksNamesOfTheirOwn(doc, from, to);
+    if (to > from) giveBlockBookmarksNamesOfTheirOwn(doc, story, from, to);
     if (how == BlockInsert::Page) insertPageBreak(doc, c);
     c.endEditBlock();
     if (to <= from && story == doc.story()) return fail(QCoreApplication::translate("jp::write::Blocks", "The block could not be put in here."));
