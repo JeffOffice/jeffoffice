@@ -2389,7 +2389,9 @@ private Q_SLOTS:
             auto doc = make(false, 70);
             auto *t = static_cast<TextItem *>(doc->pages[0]->items[0].get());
             LayoutCache cache;
-            QCOMPARE(cache.textFrame(*doc, *t, 1, opt).layout->lineInfo(0).size(), 1);
+            const auto lines = cache.textFrame(*doc, *t, 1, opt).layout->lineInfo(0);
+            QCOMPARE(lines.size(), 1);
+            QVERIFY(lines.first().rect.bottom() <= 70);   // above the frame, where wrap puts it, not at the middle or foot
             QCOMPARE(jp::Renderer::wrapObstacles(*doc, *t).size(), 1);
         }
         {   // a word processor's box keeps its text pushed out
@@ -2397,6 +2399,41 @@ private Q_SLOTS:
             auto *t = static_cast<TextItem *>(doc->pages[0]->items[0].get());
             LayoutCache cache;
             QCOMPARE(cache.textFrame(*doc, *t, 1, opt).layout->lineInfo(0).size(), 0);
+        }
+        {   // a box between two others, vertically centered: its text is set at the top, not down on the box below
+            auto doc = make(false, 50);
+            auto *t = static_cast<TextItem *>(doc->pages[0]->items[0].get());
+            t->valign = VAlign::Middle;
+            t->rect.setHeight(70);
+            LayoutCache cache;
+            const auto lines = cache.textFrame(*doc, *t, 1, opt).layout->lineInfo(0);
+            QCOMPARE(lines.size(), 1);
+            QVERIFY(lines.first().rect.top() < 10);
+        }
+        {   // an autofit box keeps the wrap: with no room at any size it stays empty (the same box without autofit is drawn)
+            auto doc = make(false, 2);
+            auto *t = static_cast<TextItem *>(doc->pages[0]->items[0].get());
+            doc->pages[0]->items[1]->rect = QRectF(72, 80, 180, 88);   // over all of the box but its last point and a half: no room at any size
+            LayoutCache plain;
+            QCOMPARE(plain.textFrame(*doc, *t, 1, opt).layout->lineInfo(0).size(), 1);
+            t->autofit = TextItem::BestFit;
+            LayoutCache fitted;
+            const auto fl = fitted.textFrame(*doc, *t, 1, opt);
+            QCOMPARE(fl.layout->lineInfo(0).size(), 0);
+        }
+        {   // a linked box keeps the wrap: the first box of a chain stays empty and its text goes on in the next
+            auto doc = make(false, 10);
+            auto *t = static_cast<TextItem *>(doc->pages[0]->items[0].get());
+            auto next = std::make_shared<TextItem>();
+            next->id = QStringLiteral("next");
+            next->rect = QRectF(300, 92, 140, 80);
+            next->storyId = t->storyId;
+            t->nextId = next->id;
+            doc->pages[0]->items.push_back(next);
+            LayoutCache cache;
+            const auto fl = cache.textFrame(*doc, *t, 1, opt);
+            QCOMPARE(fl.layout->lineInfo(0).size(), 0);
+            QCOMPARE(fl.layout->lineInfo(1).size(), 1);
         }
     }
 

@@ -695,6 +695,7 @@ LayoutCache::FrameLayout LayoutCache::textFrame(const Document &doc, const TextI
             // (a word taller than the room above a frame set over the box's foot) where wrap alone would leave the box empty.
             if (!doc.wordText && chain.size() == 1 && !specs[0].obstacles.isEmpty() && lay->lineInfo(0).isEmpty() && !story->doc->toPlainText().trimmed().isEmpty()) {
                 specs[0].obstacles.clear();
+                specs[0].valign = VAlign::Top;   // (at the box's top, as a box under a covering object: the text of a box between two others must not sink onto the lower one)
                 lay->build(story->doc.get(), specs, env);
             }
         }
