@@ -1309,7 +1309,7 @@ void ChartPainter::drawBetweenSeries(const View &v, const Scale &scale)
             m_p->drawLine(at(catUnit(i), high, scale), at(catUnit(i), base, scale));
         }
         if (plot.hiLowLines && finite > 1) {
-            m_p->setPen(penFor(plot.hiLowLine, lineColor(), gray));
+            m_p->setPen(penFor(plot.hiLowLine, plot.stock ? QColor(Qt::black) : lineColor(), gray));   // (a stock chart's own look: thin black)
             m_p->drawLine(at(catUnit(i), high, scale), at(catUnit(i), low, scale));
         }
         if (plot.upDownBars && plot.series.size() > 1) {
@@ -1318,9 +1318,11 @@ void ChartPainter::drawBetweenSeries(const View &v, const Scale &scale)
             const double bar = 1.0 / (1.0 + plot.upDownGap / 100.0);
             const QRectF r = rectOf(catUnit(i) - bar / 2, catUnit(i) + bar / 2, first, last, scale);
             const bool up = last >= first;
-            const QColor fill = up ? (plot.upBarFill.isValid() ? plot.upBarFill : QColor(Qt::white)) : (plot.downBarFill.isValid() ? plot.downBarFill : QColor(Qt::black));
+            // (a stock chart's bars, when the file says nothing: a near-white box for a rise and a dark gray one for a fall, with a thin black edge)
+            const QColor upFill = plot.stock ? QColor(0xF9, 0xF9, 0xF9) : QColor(Qt::white), downFill = plot.stock ? QColor(0x3F, 0x3F, 0x3F) : QColor(Qt::black);
+            const QColor fill = up ? (plot.upBarFill.isValid() ? plot.upBarFill : upFill) : (plot.downBarFill.isValid() ? plot.downBarFill : downFill);
             m_p->setBrush(fill);
-            m_p->setPen(penFor(up ? plot.upBarLine : plot.downBarLine, lineColor(), gray));
+            m_p->setPen(penFor(up ? plot.upBarLine : plot.downBarLine, plot.stock ? QColor(Qt::black) : lineColor(), plot.stock ? 0.5 : gray));
             m_p->drawRect(r);
             m_p->setBrush(Qt::NoBrush);
         }
@@ -2417,10 +2419,79 @@ Pieces piecesOf(const ChartPlot &plot, const ChartSeries &s, const QString &blan
     return out;
 }
 
+// A stock chart on a date axis is drawn on a time scale, as the common programs draw it: one place for each day from the first date to the last, so a weekend
+// is an empty place with its label, and a missing day leaves a gap and not a neighbor. The categories are numbers in order, the same for every series; a chart
+// that is not one (or whose days would be more than a picture holds) is drawn with its categories evenly spaced, as every other chart is. True if `out` was made.
+bool onDateScale(const Chart &chart, Chart *out, QVector<bool> *absent)
+{
+    constexpr qsizetype kMostDays = 20000;
+    bool stock = false;
+    for (const ChartPlot &plot : chart.plots) stock = stock || plot.stock;
+    if (!stock) return false;
+    const ChartSeries *lead = nullptr;
+    for (const ChartPlot &plot : chart.plots)
+        for (const ChartSeries &s : plot.series) {
+            if (!lead) lead = &s;
+            if (s.categoryNumbers.isEmpty() || s.categoryNumbers != lead->categoryNumbers || !s.errorBars.isEmpty() || s.values.size() > s.categoryNumbers.size()) return false;
+        }
+    if (!lead) return false;
+    const ChartPlot *own = nullptr;
+    for (const ChartPlot &plot : chart.plots)
+        if (!plot.series.isEmpty() && !own) own = &plot;
+    // (the axis the first plot's categories are along; the second pair of a volume form is deleted, and has the same kind)
+    const ChartAxis *axis = own ? chart.axis(own->axisIds[0]) : nullptr;
+    if (!axis || axis->kind != ChartAxis::Date || (!axis->baseTimeUnit.isEmpty() && axis->baseTimeUnit != QLatin1String("days"))) return false;
+    const QVector<double> &days = lead->categoryNumbers;
+    for (qsizetype i = 0; i < days.size(); ++i)
+        if (!std::isfinite(days[i]) || std::fabs(days[i]) > 1e7 || days[i] != std::floor(days[i]) || (i > 0 && !(days[i] > days[i - 1]))) return false;
+    const double first = days.first();
+    const qsizetype count = qsizetype(days.last() - first) + 1;
+    if (count <= days.size() || count > kMostDays) return false;
+    const QString format = axis->formatLinked || axis->format.isEmpty() ? lead->categoryFormat : axis->format;
+    *out = chart;
+    *absent = QVector<bool>(count, true);
+    QStringList labels;
+    QVector<double> numbers;
+    for (qsizetype k = 0; k < count; ++k) {
+        labels << formatChartNumber(first + double(k), format).left(kChartMaxLabel);
+        numbers << first + double(k);
+    }
+    for (qsizetype i = 0; i < days.size(); ++i) (*absent)[qsizetype(days[i] - first)] = false;
+    for (ChartPlot &plot : out->plots)
+        for (ChartSeries &s : plot.series) {
+            QVector<double> values(count, kNaN);
+            for (qsizetype i = 0; i < s.values.size(); ++i) values[qsizetype(days[i] - first)] = s.values[i];
+            s.values = values;
+            s.categories = labels;
+            s.categoryNumbers = numbers;
+            QMap<int, QColor> colors;
+            for (auto it = s.pointColors.cbegin(); it != s.pointColors.cend(); ++it)
+                if (it.key() >= 0 && it.key() < days.size()) colors.insert(int(days[it.key()] - first), it.value());
+            s.pointColors = colors;
+        }
+    return true;
+}
+
 // The chart as it is drawn: every nth point of each series when the chart has more than a picture can show (the same n for all of them, so
 // that their points still line up), and numbers no scale is made of as blanks. `thinned` is told whether points were left out.
-Chart drawnChart(const Chart &chart, const Limits &limits, bool *thinned)
+Chart drawnChart(const Chart &given, const Limits &limits, bool *thinned)
 {
+    Chart onScale, filled;
+    QVector<bool> absent;
+    const Chart *source = onDateScale(given, &onScale, &absent) ? &onScale : &given;
+    // (a stock chart that shows empty cells as zero has them as zero where it has the cell: the scale and the lines and boxes are then made of them, and a day with no category is no cell)
+    bool stockPlot = false;
+    for (const ChartPlot &plot : source->plots) stockPlot = stockPlot || plot.stock;
+    if (stockPlot && source->blanksAs == QLatin1String("zero")) {
+        filled = *source;
+        filled.blanksAs = QStringLiteral("gap");
+        for (ChartPlot &plot : filled.plots)
+            for (ChartSeries &s : plot.series)
+                for (qsizetype i = 0; i < s.values.size(); ++i)
+                    if (std::isnan(s.values[i]) && !(i < absent.size() && absent[i])) s.values[i] = 0;
+        source = &filled;
+    }
+    const Chart &chart = *source;
     qsizetype most = 0, total = 0, shapes = 0, markers = 0;
     bool unusable = false;
     for (const ChartPlot &plot : chart.plots)

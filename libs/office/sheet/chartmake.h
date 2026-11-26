@@ -30,6 +30,7 @@ struct ChartPlan {
     CellRange data;                 // the cells the values are in (without the headers)
     bool truncated = false;         // the selection was larger than a chart reads
     int points = 0;                 // the points of each series
+    bool dates = false;             // the categories are dates (for a stock chart: it is spaced by the day)
 };
 
 constexpr int kMaxMadeSeries = 255;
