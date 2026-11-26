@@ -661,6 +661,23 @@ private Q_SLOTS:
         // a column a person picks as dates keeps the format it always had
         QCOMPARE(imported(dmy, {CsvColumn{CsvColumn::Kind::Date, QStringLiteral("DMY")}}).value(0), QStringLiteral("n:45425|yyyy-mm-dd"));
     }
+
+    // A cell of spaces: the guess and the import agree that it is text (the import keeps the spaces), so it is neither a value that spoils a column of numbers nor an empty cell in the guess only.
+    void aCellOfSpacesIsTextForTheGuessAndForTheImport()
+    {
+        LocaleScope locale(QLocale(QLocale::English, QLocale::UnitedStates));
+        const QByteArray file = "5,  ,007\n6,\t,8\n";
+        const CsvGuess g = usGuess(file);
+        QCOMPARE(kindOf(g, 0), QStringLiteral("as typed"));
+        QCOMPARE(kindOf(g, 1), QStringLiteral("as typed"));   // (nothing but spaces and a tab: nothing to protect)
+        QCOMPARE(kindOf(g, 2), QStringLiteral("text"));
+        const QStringList cells = imported(file, g.columns);
+        QCOMPARE(cells.value(1), QStringLiteral("i:  "));
+        QCOMPARE(cells.value(4), QStringLiteral("i:\t"));
+        QCOMPARE(cells, imported(file, {CsvColumn(), CsvColumn(), CsvColumn{CsvColumn::Kind::Text, QString()}}));
+        // spaces count as a value looked at (the import makes a cell of them), and an empty field does not
+        QCOMPARE(usGuess("  \n\n \n").fieldsLooked, qint64(2));
+    }
 };
 
 JP_TEST_CLASS(SheetCsvChoicesTests)
