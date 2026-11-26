@@ -29,13 +29,15 @@ The **Formulas** page sets how the open workbook works out its formulas: **Calcu
 
 ## Proofing options
 
-The **Proofing** page is shared by the JeffOffice apps. It decides whether spelling is checked as you type in a cell (turn off **Check spelling as you type** to get rid of the red wavy lines in every open window and the other apps; **Spelling** on the Review tab still works), whether words in capital letters and words with numbers are ignored when spelling is checked, whether AutoCorrect fixes words as you type, whether straight quote marks become curly ones, whether dashes, fractions, and ordinals are changed, and whether a web address becomes a link. See [Spelling](notes-links) and [Type in cells](edit-cells).
+The **Proofing** page is shared by the JeffOffice apps. It decides whether spelling is checked as you type in a cell (turn off **Check spelling as you type** to get rid of the red wavy lines in every open window and the other apps; **Spelling** on the Review tab still works), whether words in capital letters and words with numbers are ignored when spelling is checked, whether AutoCorrect fixes words as you type, whether straight quote marks become curly ones, whether dashes, fractions, and ordinals are changed, and whether a web address becomes a link. The **Math Symbols** tab of AutoCorrect Options is for JeffWrite, JeffDeck, and JeffPub: JeffCrunch does not turn a backslash and a name into a symbol in a cell. See [Spelling](notes-links) and [Type in cells](edit-cells).
 
 ## Display options
 
 - **Gridline colour** is the colour of the lines between cells on your screen. It is a choice for your screen only, not saved in the workbook.
 - **Zoom of a new workbook** is how large the sheets of a new workbook look, from 10% to 400%.
 - **Standard column width (this sheet)** is the width of every column of this sheet that has no width of its own. It is the same as **Default Width** on the Home tab.
+- **Show the sheet tabs** and **Show the scroll bars** hide or show the row of sheet tabs under the cells and the scroll bars at the right and bottom. They are choices for your screen only, kept for every workbook you open.
+- **Show a cell's note as** chooses what a cell with a note looks like: a small mark on the cell and the note when the pointer rests on it, the mark only, or nothing. A note you chose to show all the time (**Show Note**) stays on the sheet in every case.
 
 ## Customise
 

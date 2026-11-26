@@ -30,7 +30,7 @@ Nothing is changed, and you are told why, if a cell that would be changed is loc
 
 ## Go to
 
-Press **F5** (or **Ctrl+G**), or type in the Name box. You can give a cell such as B7, a range such as B3:D9, whole columns or rows (C:E, 4:9), a cell of another sheet (Sheet2!A1, or 'My sheet'!A1), or the name of a range.
+Press **F5** (or **Ctrl+G**), or type in the Name box. You can give a cell such as B7, a range such as B3:D9, whole columns or rows (C:E, 4:9), a cell of another sheet (Sheet2!A1, or 'My sheet'!A1), or the name of a range. A name that stands for the same cells on a block of sheets, such as Jan:Dec!B2, takes you to the first sheet of the block.
 
 ## Select by kind
 
@@ -40,6 +40,7 @@ Choose **Select by Kind** in the **Find** menu to select cells by what they are:
 - **The block around the cell with the cursor**, and **The last cell that is used**.
 - **The array formula the cursor is in** selects all the cells of that array formula.
 - **Cells that differ from the cursor cell in their row** and **in their column** find the cells that are not like the cell with the cursor. Select a block first, and put the cursor on the cell the others should match. In each row (or column) of the block, a cell is picked when it holds a different number or text, or when it holds a formula that is not the same once its cell names are moved over to where that cell is. A cell that has a formula is also picked when the cursor cell has none. If you select only one cell, JeffCrunch looks at the block around it.
+- **Cells that the formulas in the selection read** and **Cells with formulas that read the selection** select the cells on this sheet that the formulas of the selected cells use, or the cells whose formulas use the selected cells. With one cell selected, they start from that cell. Check **follow them through every level** to go on from each cell found (the cells those read, and so on); without it, only the first level is selected. They start from at most 1,000 of the selected cells, and the status bar says when a search stopped at a limit.
 - **Cells that show** (not in hidden rows or columns), **Cells with conditional formatting**, and **Cells with a rule for what may be entered** (all of them, or only those with the same rule as the cell with the cursor).
 
 The first block found is selected and any others are tinted; the tint goes away when you click a cell.

@@ -434,7 +434,7 @@
     </message>
     <message numerus="yes">
         <location line="-32"/>
-        <location line="+293"/>
+        <location line="+298"/>
         <source>%n cell(s)</source>
         <translation>
             <numerusform>%n cell</numerusform>
@@ -532,7 +532,7 @@
         </translation>
     </message>
     <message numerus="yes">
-        <location filename="../apps/crunch/app/crunchwindow_find.cpp" line="-396"/>
+        <location filename="../apps/crunch/app/crunchwindow_find.cpp" line="-401"/>
         <location line="+103"/>
         <source>%n place(s)</source>
         <translation>
@@ -549,7 +549,7 @@
         </translation>
     </message>
     <message numerus="yes">
-        <location filename="../apps/crunch/app/crunchwindow_edit.cpp" line="+736"/>
+        <location filename="../apps/crunch/app/crunchwindow_edit.cpp" line="+765"/>
         <source>Redid %1 of %n action(s)</source>
         <translation>
             <numerusform>Redid %1 of %n action</numerusform>
@@ -616,7 +616,7 @@
         </translation>
     </message>
     <message numerus="yes">
-        <location filename="../apps/deck/app/deckwindow_info.cpp" line="+316"/>
+        <location filename="../apps/deck/app/deckwindow_info.cpp" line="+318"/>
         <source>Author field on %n slide(s)</source>
         <translation>
             <numerusform>Author field on %n slide</numerusform>
@@ -955,7 +955,7 @@
         </translation>
     </message>
     <message numerus="yes">
-        <location filename="../apps/crunch/core/editpivot.cpp" line="+1288"/>
+        <location filename="../apps/crunch/core/editpivot.cpp" line="+1307"/>
         <source>%n pivot table(s) were not read again when the file opened: there is too much data. Use Refresh All.</source>
         <translation>
             <numerusform>%n pivot table was not read again when the file opened: there is too much data. Use Refresh All.</numerusform>

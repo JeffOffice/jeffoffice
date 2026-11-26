@@ -1029,7 +1029,32 @@
         <translation type="unfinished">Винятки</translation>
     </message>
     <message>
-        <location line="+152"/>
+        <location line="+3"/>
+        <source>Replace the names of math symbols as you type</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Type a backslash and one of these names, then a space or a mark, and the symbol takes its place. \alpha becomes α.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>Name</source>
+        <translation>Ім&apos;я</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Symbol</source>
+        <translation type="unfinished">Символ</translation>
+    </message>
+    <message>
+        <location line="+11"/>
+        <source>Math Symbols</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+155"/>
         <source>AutoCorrect Options</source>
         <translation type="unfinished">Параметри автовиправлення</translation>
     </message>
@@ -2504,7 +2529,7 @@ Back page story	4</source>
         <translation type="unfinished">%1 – акцент %2</translation>
     </message>
     <message>
-        <location filename="../apps/deck/core/decktemplates.cpp" line="+61"/>
+        <location filename="../apps/deck/core/decktemplates.cpp" line="+63"/>
         <location filename="../apps/deck/core/themes.cpp" line="+532"/>
         <source>Decoration</source>
         <translation type="unfinished">Оформлення</translation>
@@ -2714,7 +2739,7 @@ Back page story	4</source>
         <translation type="unfinished">Три малюнки</translation>
     </message>
     <message>
-        <location line="+148"/>
+        <location line="+154"/>
         <source>[Company name]</source>
         <translation type="unfinished">[Назва компанії]</translation>
     </message>
@@ -2971,6 +2996,172 @@ Back page story	4</source>
     </message>
     <message>
         <location line="+2"/>
+        <source>[Report title]</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>[Author]  |  [Date]</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Summary</source>
+        <translation>Підсумок</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>[The question this report answers]</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>[The answer, in one sentence]</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>[What you recommend]</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Findings</source>
+        <translation type="unfinished">Висновки</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>[First finding]</source>
+        <translation type="unfinished">[Перший висновок]</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <location line="+1"/>
+        <source>[The number or fact behind it]</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>[Second finding]</source>
+        <translation type="unfinished">[Другий висновок]</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Recommendations</source>
+        <translation type="unfinished">Рекомендації</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>[What to do first, and who does it]</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>[What to do next]</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>[How you will know it worked]</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Questions</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>[Where readers can find the details]</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>[Training title]</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>[Team or audience]  |  [Trainer]</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>What you will learn</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>[A skill people will have by the end]</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>[A second skill]</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>[How long this takes]</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>How it works</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Step 1: [what to do]</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Step 2: [what to do]</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>[A tip that saves time]</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>[A mistake to avoid]</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Practice</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>[A short exercise, and how long people have]</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Check what you learned</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>[A question with one right answer]</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>[A question that asks them to show it]</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>[Where to get help afterward]</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
         <source>[Presentation title]</source>
         <translation type="unfinished">[Назва презентації]</translation>
     </message>
@@ -3073,6 +3264,26 @@ Back page story	4</source>
         <location line="+0"/>
         <source>Pages with room for one, two, or three pictures, and a caption for each.</source>
         <translation type="unfinished">Сторінки з місцем для одного, двох або трьох малюнків і підписом до кожного.</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Report</source>
+        <translation type="unfinished">Звіт</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>A summary, the findings, and what you recommend, in a calm, serious design.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Training</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>What people will learn, how to do it, a practice exercise, and a short check.</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <location line="+1"/>
@@ -26408,12 +26619,12 @@ Source: %3</source>
     <name>jp::CrunchWindow</name>
     <message>
         <location filename="../apps/crunch/app/crunchwindow.cpp" line="+205"/>
-        <location filename="../apps/crunch/app/crunchwindow_edit.cpp" line="+212"/>
+        <location filename="../apps/crunch/app/crunchwindow_edit.cpp" line="+213"/>
         <source>The new workbook is getting ready. It can be changed in a moment.</source>
         <translation type="unfinished">Нова книга готується. Її можна буде змінити за мить.</translation>
     </message>
     <message>
-        <location line="+142"/>
+        <location line="+144"/>
         <location filename="../apps/crunch/app/crunchwindow_format.cpp" line="+888"/>
         <location filename="../apps/crunch/app/crunchwindow_windows.cpp" line="+108"/>
         <source>%1 (%2)</source>
@@ -26506,8 +26717,8 @@ Source: %3</source>
         <translation type="unfinished">Сума</translation>
     </message>
     <message>
-        <location line="-270"/>
-        <location line="+289"/>
+        <location line="-272"/>
+        <location line="+291"/>
         <location filename="../apps/crunch/app/crunchwindow_calc.cpp" line="+190"/>
         <location filename="../apps/crunch/app/crunchwindow_cells.cpp" line="+117"/>
         <location filename="../apps/crunch/app/crunchwindow_clip.cpp" line="+138"/>
@@ -26518,7 +26729,7 @@ Source: %3</source>
         <location line="+28"/>
         <location filename="../apps/crunch/app/crunchwindow_csv.cpp" line="+99"/>
         <location filename="../apps/crunch/app/crunchwindow_drawborder.cpp" line="+40"/>
-        <location filename="../apps/crunch/app/crunchwindow_edit.cpp" line="+354"/>
+        <location filename="../apps/crunch/app/crunchwindow_edit.cpp" line="+382"/>
         <location line="+57"/>
         <location filename="../apps/crunch/app/crunchwindow_file.cpp" line="+138"/>
         <location line="+223"/>
@@ -26599,7 +26810,7 @@ Source: %3</source>
     </message>
     <message>
         <location line="+7"/>
-        <location line="+631"/>
+        <location line="+655"/>
         <location filename="../apps/crunch/app/crunchwindow_copy.cpp" line="-218"/>
         <location line="+6"/>
         <location line="+14"/>
@@ -26631,7 +26842,7 @@ Source: %3</source>
         <translation type="unfinished">Зберегти</translation>
     </message>
     <message>
-        <location line="-630"/>
+        <location line="-654"/>
         <source>Save As…</source>
         <translation type="unfinished">Зберегти як…</translation>
     </message>
@@ -26660,7 +26871,7 @@ Source: %3</source>
     </message>
     <message>
         <location line="+1"/>
-        <location filename="../apps/crunch/app/crunchwindow_edit.cpp" line="-502"/>
+        <location filename="../apps/crunch/app/crunchwindow_edit.cpp" line="-531"/>
         <location line="+56"/>
         <source>Undo</source>
         <translation type="unfinished">Скасувати</translation>
@@ -26683,12 +26894,12 @@ Source: %3</source>
     </message>
     <message>
         <location line="+116"/>
-        <location line="+476"/>
+        <location line="+500"/>
         <source>Editing</source>
         <translation type="unfinished">Редагування</translation>
     </message>
     <message>
-        <location line="-471"/>
+        <location line="-495"/>
         <location line="+4"/>
         <source>After pressing Enter, move the selection</source>
         <translation>Після натискання Enter переміщувати вибір</translation>
@@ -26750,12 +26961,12 @@ Source: %3</source>
         <translation type="unfinished">Пропонувати завершити текст із комірок вище й нижче (автозавершення)</translation>
     </message>
     <message>
-        <location line="-531"/>
+        <location line="-533"/>
         <source>End</source>
         <translation type="unfinished">Кінець</translation>
     </message>
     <message>
-        <location line="+389"/>
+        <location line="+391"/>
         <location line="+2"/>
         <source>Repeat</source>
         <translation type="unfinished">Повторити</translation>
@@ -26857,12 +27068,12 @@ Source: %3</source>
     </message>
     <message>
         <location line="+19"/>
-        <location line="+418"/>
+        <location line="+442"/>
         <source>New Workbooks</source>
         <translation type="unfinished">Нові книги</translation>
     </message>
     <message>
-        <location line="-412"/>
+        <location line="-436"/>
         <location line="+2"/>
         <source>Font of a new workbook</source>
         <translation>Шрифт нової книги</translation>
@@ -26879,12 +27090,12 @@ Source: %3</source>
     </message>
     <message>
         <location line="+14"/>
-        <location line="+386"/>
+        <location line="+410"/>
         <source>Display</source>
         <translation type="unfinished">Відображення</translation>
     </message>
     <message>
-        <location line="-381"/>
+        <location line="-405"/>
         <location line="+8"/>
         <location line="+3"/>
         <source>Gridline color</source>
@@ -26902,19 +27113,49 @@ Source: %3</source>
         <translation type="unfinished">Стандартна ширина стовпця на цьому аркуші</translation>
     </message>
     <message>
+        <location line="+7"/>
+        <source>Show the sheet tabs</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>Show the scroll bars</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+7"/>
+        <source>A mark on the cell, and the note when the pointer rests on it</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>A mark on the cell only</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Nothing</source>
+        <translation type="unfinished">Нічого</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Show a cell&apos;s note as</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <location line="+21"/>
-        <location line="+339"/>
+        <location line="+341"/>
         <source>Privacy</source>
         <translation type="unfinished">Конфіденційність</translation>
     </message>
     <message>
-        <location line="-324"/>
-        <location line="+324"/>
+        <location line="-326"/>
+        <location line="+326"/>
         <source>Custom Lists</source>
         <translation type="unfinished">Користувацькі списки</translation>
     </message>
     <message>
-        <location line="-321"/>
+        <location line="-323"/>
         <source>A custom list is a row of words that Fill goes through, like the days of the week. Type one list on each line, with commas between the words. Type the first word in a cell and drag the fill handle to get the rest.</source>
         <translation type="unfinished">Користувацький список — це ряд слів, який використовує Заповнення, наприклад дні тижня. Вводьте кожен список в окремому рядку, слова відокремлюйте комами. Введіть перше слово в комірку та перетягніть маркер заповнення, щоб отримати решту.</translation>
     </message>
@@ -26939,7 +27180,7 @@ Source: %3</source>
         <translation type="unfinished">Поточний час</translation>
     </message>
     <message>
-        <location line="+9"/>
+        <location line="+11"/>
         <source>Gridlines</source>
         <translation type="unfinished">Сітка</translation>
     </message>
@@ -27337,7 +27578,7 @@ Source: %3</source>
         <translation type="unfinished"> або більше</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow.cpp" line="-739"/>
+        <location filename="../apps/crunch/app/crunchwindow.cpp" line="-763"/>
         <location filename="../apps/crunch/app/crunchwindow_calc.cpp" line="-160"/>
         <location filename="../apps/crunch/app/crunchwindow_format.cpp" line="+1028"/>
         <location filename="../apps/crunch/app/crunchwindow_page.cpp" line="+196"/>
@@ -27744,9 +27985,9 @@ Source: %3</source>
     <message>
         <location line="+88"/>
         <location line="+26"/>
-        <location filename="../apps/crunch/app/crunchwindow_edit.cpp" line="+47"/>
+        <location filename="../apps/crunch/app/crunchwindow_edit.cpp" line="+48"/>
         <location line="+31"/>
-        <location line="+269"/>
+        <location line="+297"/>
         <location filename="../apps/crunch/app/crunchwindow_function.cpp" line="+109"/>
         <location filename="../apps/crunch/app/crunchwindow_point.cpp" line="+239"/>
         <source>Edit</source>
@@ -28330,7 +28571,7 @@ Source: %3</source>
         <translation type="unfinished">По центру</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow_cond.cpp" line="+193"/>
+        <location filename="../apps/crunch/app/crunchwindow_cond.cpp" line="+195"/>
         <source>Value</source>
         <translation>Значення</translation>
     </message>
@@ -28447,7 +28688,7 @@ Source: %3</source>
         <translation type="unfinished">%1 скопійовано</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow.cpp" line="+695"/>
+        <location filename="../apps/crunch/app/crunchwindow.cpp" line="+719"/>
         <location filename="../apps/crunch/app/crunchwindow_charts.cpp" line="+30"/>
         <location line="+17"/>
         <location line="+12"/>
@@ -28518,14 +28759,14 @@ Source: %3</source>
         <translation type="unfinished">Значення</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow.cpp" line="-718"/>
+        <location filename="../apps/crunch/app/crunchwindow.cpp" line="-742"/>
         <location filename="../apps/crunch/app/crunchwindow_clip.cpp" line="-344"/>
         <location line="+300"/>
         <location line="+44"/>
         <location filename="../apps/crunch/app/crunchwindow_find.cpp" line="+53"/>
         <location filename="../apps/crunch/app/crunchwindow_pasteoffer.cpp" line="-24"/>
         <location line="+25"/>
-        <location filename="../apps/crunch/app/crunchwindow_tabs2.cpp" line="+124"/>
+        <location filename="../apps/crunch/app/crunchwindow_tabs2.cpp" line="+125"/>
         <source>Formulas</source>
         <translation type="unfinished">Формули</translation>
     </message>
@@ -29320,20 +29561,20 @@ Source: %3</source>
         <translation type="unfinished">Жирний темно-синій текст</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow_cond.cpp" line="-148"/>
-        <location line="+255"/>
+        <location filename="../apps/crunch/app/crunchwindow_cond.cpp" line="-150"/>
+        <location line="+257"/>
         <location line="+23"/>
         <source>&quot;%1&quot; is not a formula JeffCrunch can read.</source>
         <translation type="unfinished">«%1» не є формулою, яку JeffCrunch може прочитати.</translation>
     </message>
     <message>
-        <location line="-269"/>
-        <location line="+277"/>
+        <location line="-271"/>
+        <location line="+279"/>
         <source>&quot;%1&quot; is not a number the rule can use.</source>
         <translation type="unfinished">«%1» не є числом, яке може використати правило.</translation>
     </message>
     <message>
-        <location line="-246"/>
+        <location line="-248"/>
         <source>Greater Than…</source>
         <translation type="unfinished">Більше ніж…</translation>
     </message>
@@ -29428,6 +29669,16 @@ Source: %3</source>
         <translation type="unfinished">Очистити правила на цьому аркуші</translation>
     </message>
     <message>
+        <location line="+1"/>
+        <source>Clear Rules from This Table</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Clear Rules from This Pivot Table</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <location line="+10"/>
         <source>Gradient Fill</source>
         <translation type="unfinished">Градієнтна заливка</translation>
@@ -29444,12 +29695,12 @@ Source: %3</source>
         <location line="+48"/>
         <location line="+23"/>
         <location line="+30"/>
-        <location line="+33"/>
+        <location line="+51"/>
         <source>Conditional Formatting</source>
         <translation type="unfinished">Умовне форматування</translation>
     </message>
     <message>
-        <location line="-357"/>
+        <location line="-375"/>
         <source>From</source>
         <translation>Від</translation>
     </message>
@@ -29851,7 +30102,7 @@ The file that was there is as it was.</source>
         <translation type="unfinished">Видалити об&apos;єкт</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow_edit.cpp" line="-207"/>
+        <location filename="../apps/crunch/app/crunchwindow_edit.cpp" line="-236"/>
         <source>Undo %1</source>
         <translation type="unfinished">Скасувати %1</translation>
     </message>
@@ -29871,7 +30122,7 @@ The file that was there is as it was.</source>
         <translation type="unfinished">Повторити %1 (%2)</translation>
     </message>
     <message>
-        <location line="+30"/>
+        <location line="+31"/>
         <source>This workbook is open for reading only. Use Save a Copy to make a copy you can change.</source>
         <translation type="unfinished">Цю книгу відкрито лише для читання. Скористайтеся командою «Зберегти копію», щоб створити копію, яку можна змінювати.</translation>
     </message>
@@ -29882,18 +30133,18 @@ The file that was there is as it was.</source>
     </message>
     <message>
         <location line="+4"/>
-        <location line="+459"/>
+        <location line="+487"/>
         <location filename="../apps/crunch/app/crunchwindow_ops.cpp" line="+166"/>
         <source>A large change is still being made. It can be changed again when that is done.</source>
         <translation type="unfinished">Велику зміну ще виконують. Її можна знову змінити, коли це завершиться.</translation>
     </message>
     <message>
-        <location line="-455"/>
+        <location line="-483"/>
         <source>Finish the Function Arguments dialog first.</source>
         <translation type="unfinished">Спершу завершіть роботу з діалоговим вікном «Аргументи функції».</translation>
     </message>
     <message>
-        <location line="+267"/>
+        <location line="+295"/>
         <location line="+2"/>
         <source>Format Text</source>
         <translation type="unfinished">Форматувати текст</translation>
@@ -30371,7 +30622,7 @@ This file is protected with a password. Password:</source>
     </message>
     <message numerus="yes">
         <location line="-32"/>
-        <location line="+293"/>
+        <location line="+298"/>
         <source>%n cell(s)</source>
         <translation type="unfinished">
             <numerusform>%n комірка</numerusform>
@@ -30380,7 +30631,7 @@ This file is protected with a password. Password:</source>
         </translation>
     </message>
     <message>
-        <location line="-279"/>
+        <location line="-284"/>
         <source>Type the text to look for.</source>
         <translation type="unfinished">Введіть текст для пошуку.</translation>
     </message>
@@ -30428,14 +30679,14 @@ This file is protected with a password. Password:</source>
     </message>
     <message>
         <location line="+29"/>
-        <location line="+58"/>
+        <location line="+63"/>
         <location line="+9"/>
         <source>Select by Kind</source>
         <translation type="unfinished">Вибрати за типом</translation>
     </message>
     <message>
         <location filename="../apps/crunch/app/condpresets.cpp" line="-67"/>
-        <location filename="../apps/crunch/app/crunchwindow_find.cpp" line="-61"/>
+        <location filename="../apps/crunch/app/crunchwindow_find.cpp" line="-66"/>
         <source>Blank cells</source>
         <translation type="unfinished">Порожні комірки</translation>
     </message>
@@ -30490,6 +30741,16 @@ This file is protected with a password. Password:</source>
         <translation type="unfinished">Комірки з правилом перевірки даних</translation>
     </message>
     <message>
+        <location line="+1"/>
+        <source>Cells that the formulas in the selection read</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Cells with formulas that read the selection</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <location line="+9"/>
         <source>For constants and formulas, include</source>
         <translation type="unfinished">Для констант і формул включити</translation>
@@ -30525,7 +30786,12 @@ This file is protected with a password. Password:</source>
         <translation type="unfinished">Для правила перевірки даних: лише таке саме правило, як у комірки з курсором</translation>
     </message>
     <message>
-        <location line="+30"/>
+        <location line="+2"/>
+        <source>For cells that are read, or that read: follow them through every level, not only the first</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+31"/>
         <source>No cell matches.</source>
         <translation type="unfinished">Жодна комірка не відповідає умові.</translation>
     </message>
@@ -31439,12 +31705,13 @@ This file is protected with a password. Password:</source>
         <translation type="unfinished">Видалити примітки</translation>
     </message>
     <message>
-        <location line="+5"/>
+        <location filename="../apps/crunch/app/crunchwindow.cpp" line="+238"/>
+        <location filename="../apps/crunch/app/crunchwindow_info.cpp" line="+5"/>
         <source>Notes</source>
         <translation>Примітки</translation>
     </message>
     <message>
-        <location line="+0"/>
+        <location filename="../apps/crunch/app/crunchwindow_info.cpp" line="+0"/>
         <source>Notes that people left on cells, with their names.</source>
         <translation type="unfinished">Примітки, які користувачі залишили в комірках, разом з їхніми іменами.</translation>
     </message>
@@ -35853,11 +36120,12 @@ This file is protected with a password. Password:</source>
     </message>
     <message>
         <location line="+1"/>
+        <location line="+571"/>
         <source>Error Checking…</source>
         <translation type="unfinished">Перевірка помилок…</translation>
     </message>
     <message>
-        <location line="+1"/>
+        <location line="-570"/>
         <source>Watch Window</source>
         <translation type="unfinished">Вікно контрольного значення</translation>
     </message>
@@ -35868,14 +36136,14 @@ This file is protected with a password. Password:</source>
     </message>
     <message>
         <location line="+1"/>
-        <location line="+687"/>
+        <location line="+724"/>
         <location line="+3"/>
         <location line="+24"/>
         <source>Data Validation</source>
         <translation type="unfinished">Перевірка даних</translation>
     </message>
     <message>
-        <location line="-713"/>
+        <location line="-750"/>
         <location line="+2"/>
         <source>Circle Invalid Data</source>
         <translation type="unfinished">Позначити некоректні дані</translation>
@@ -35902,13 +36170,13 @@ This file is protected with a password. Password:</source>
     </message>
     <message>
         <location line="+1"/>
-        <location line="+895"/>
+        <location line="+932"/>
         <location line="+108"/>
         <source>Thesaurus</source>
         <translation type="unfinished">Тезаурус</translation>
     </message>
     <message>
-        <location line="-1002"/>
+        <location line="-1039"/>
         <source>Check Accessibility</source>
         <translation type="unfinished">Перевірити спеціальні можливості</translation>
     </message>
@@ -35940,12 +36208,12 @@ This file is protected with a password. Password:</source>
     </message>
     <message>
         <location line="+2"/>
-        <location line="+699"/>
+        <location line="+736"/>
         <source>Consolidate</source>
         <translation type="unfinished">Консолідація</translation>
     </message>
     <message>
-        <location line="-697"/>
+        <location line="-734"/>
         <location line="+188"/>
         <location line="+22"/>
         <location line="+16"/>
@@ -36098,13 +36366,14 @@ This file is protected with a password. Password:</source>
     </message>
     <message>
         <location line="+90"/>
+        <location line="+57"/>
         <source>Ignore Error</source>
         <translation type="unfinished">Пропустити помилку</translation>
     </message>
     <message>
-        <location line="+1"/>
+        <location line="-56"/>
         <location line="+22"/>
-        <location line="+13"/>
+        <location line="+50"/>
         <source>Error Checking</source>
         <translation type="unfinished">Перевірка помилок</translation>
     </message>
@@ -36160,7 +36429,7 @@ This file is protected with a password. Password:</source>
         <translation type="unfinished">(Немає пропозицій)</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow_find.cpp" line="-551"/>
+        <location filename="../apps/crunch/app/crunchwindow_find.cpp" line="-556"/>
         <location filename="../apps/crunch/app/crunchwindow_outline.cpp" line="+2"/>
         <location filename="../apps/crunch/app/crunchwindow_pagelayout.cpp" line="-67"/>
         <location filename="../apps/crunch/app/crunchwindow_tabs2.cpp" line="+16"/>
@@ -36453,7 +36722,7 @@ The file can&apos;t be read.</source>
     </message>
     <message>
         <location line="+14"/>
-        <location filename="../apps/crunch/app/crunchwindow_tabs2.cpp" line="-1006"/>
+        <location filename="../apps/crunch/app/crunchwindow_tabs2.cpp" line="-1043"/>
         <source>Forecast Sheet</source>
         <translation type="unfinished">Аркуш прогнозу</translation>
     </message>
@@ -37943,7 +38212,7 @@ The file can&apos;t be read.</source>
     <message>
         <location line="+1"/>
         <location line="+22"/>
-        <location filename="../apps/deck/app/deckwindow_info.cpp" line="+138"/>
+        <location filename="../apps/deck/app/deckwindow_info.cpp" line="+140"/>
         <location filename="../apps/deck/app/deckwindow_output.cpp" line="+1"/>
         <location line="+22"/>
         <source>Slides</source>
@@ -39235,11 +39504,13 @@ The file can&apos;t be read.</source>
         <location line="+2"/>
         <location line="+4"/>
         <location line="+251"/>
+        <location filename="../apps/deck/app/deckwindow_info.cpp" line="+385"/>
         <source>Compare</source>
         <translation type="unfinished">Порівняти</translation>
     </message>
     <message>
         <location line="-251"/>
+        <location filename="../apps/deck/app/deckwindow_info.cpp" line="+0"/>
         <source>The presentation can&apos;t be compared.</source>
         <translation type="unfinished">Презентацію не можна порівняти.</translation>
     </message>
@@ -40096,7 +40367,7 @@ The file can&apos;t be read.</source>
         <translation type="unfinished">Зворотний зв&apos;язок</translation>
     </message>
     <message>
-        <location filename="../apps/deck/app/deckwindow_info.cpp" line="-66"/>
+        <location filename="../apps/deck/app/deckwindow_info.cpp" line="-451"/>
         <source>Properties</source>
         <translation type="unfinished">Властивості</translation>
     </message>
@@ -40345,7 +40616,23 @@ The file can&apos;t be read.</source>
         <translation type="unfinished">Ви перейшли до «%1». Збережіть презентацію, щоб зберегти зміни.</translation>
     </message>
     <message>
-        <location line="+29"/>
+        <location line="+10"/>
+        <source>There is no saved presentation to compare.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>That version can&apos;t be opened.</source>
+        <translation type="unfinished">Цю версію не можна відкрити.</translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <location line="+3"/>
+        <source>The version can&apos;t be compared.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+34"/>
         <source>OpenDocument presentation (.odp)</source>
         <translation type="unfinished">Презентація OpenDocument (.odp)</translation>
     </message>
@@ -42192,7 +42479,7 @@ The file can&apos;t be read.</source>
         <translation type="unfinished">Зверху праворуч</translation>
     </message>
     <message>
-        <location filename="../apps/deck/app/deckwindow_info.cpp" line="-355"/>
+        <location filename="../apps/deck/app/deckwindow_info.cpp" line="-378"/>
         <location filename="../apps/deck/app/deckwindow_show.cpp" line="+10"/>
         <source>Objects</source>
         <translation type="unfinished">Об&apos;єкти</translation>
@@ -70117,7 +70404,7 @@ The password couldn&apos;t be put on the file.</source>
         <location line="+279"/>
         <location filename="../apps/crunch/core/editsize.cpp" line="+294"/>
         <location filename="../apps/crunch/core/editstruct.cpp" line="+227"/>
-        <location filename="../apps/crunch/core/edittables.cpp" line="+404"/>
+        <location filename="../apps/crunch/core/edittables.cpp" line="+410"/>
         <location line="+89"/>
         <location line="+127"/>
         <source>The workbook is busy. Try again in a moment.</source>
@@ -71064,7 +71351,7 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished">Переміщення комірок</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/core/editpivot.cpp" line="+81"/>
+        <location filename="../apps/crunch/core/editpivot.cpp" line="+100"/>
         <location line="+244"/>
         <location line="+661"/>
         <source>JeffCrunch can&apos;t read this pivot table.</source>
@@ -76953,7 +77240,7 @@ The password couldn&apos;t be put on the file.</source>
 <context>
     <name>jp::crunch::GoTo</name>
     <message>
-        <location filename="../apps/crunch/core/gotospecial.cpp" line="+102"/>
+        <location filename="../apps/crunch/core/gotospecial.cpp" line="+115"/>
         <source>Type a cell, a range such as B3:D9, or the name of a range.</source>
         <translation type="unfinished">Введіть комірку, діапазон, наприклад B3:D9, або назву діапазону.</translation>
     </message>
@@ -76993,7 +77280,17 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished">Комірка з курсором не входить до комірок, які слід переглянути.</translation>
     </message>
     <message>
-        <location line="+52"/>
+        <location line="+155"/>
+        <source>No formula in the selection reads a cell on this sheet.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>No formula on this sheet reads the selected cells.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+9"/>
         <source>The cell with the cursor has no rule for what may be entered, so there are no cells that have the same rule.</source>
         <translation type="unfinished">Для комірки з курсором не задано правила введення, тому немає комірок із таким самим правилом.</translation>
     </message>
@@ -85799,7 +86096,7 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished">Це текстове поле не може вмістити стільки слів (щонайбільше 50 000 літер у 2 000 абзацах), тому їх поки що не вставлено. Вилучіть частину тексту й натисніть Esc ще раз.</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/pageview_autofix.cpp" line="+46"/>
+        <location filename="../apps/write/app/pageview_autofix.cpp" line="+57"/>
         <location line="+1"/>
         <source>AutoCorrect Options</source>
         <translation type="unfinished">Параметри автозаміни</translation>
@@ -85830,12 +86127,17 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished">Скасувати автоматичне виправлення</translation>
     </message>
     <message>
-        <location line="+3"/>
+        <location line="+4"/>
+        <source>Stop Replacing Math Names</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
         <source>Stop Replacing &quot;%1&quot;</source>
         <translation type="unfinished">Припинити заміну «%1»</translation>
     </message>
     <message>
-        <location line="+2"/>
+        <location line="+3"/>
         <source>Keep &quot;%1&quot; As Typed</source>
         <translation type="unfinished">Залишити «%1» як введено</translation>
     </message>

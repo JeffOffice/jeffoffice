@@ -21,7 +21,7 @@ These check boxes control spelling and typing help. See [Check spelling and hyph
 - **Grammar settings** opens a list of the kinds of issues to look for: grammar, punctuation, capitalisation, mixed-up words, repetition, and style (which is off until you turn it on).
 - **Ignore words in UPPERCASE**
 - **Ignore words that contain numbers**
-- **Replace text as you type (AutoCorrect)** fixes common typing mistakes.
+- **Replace text as you type (AutoCorrect)** fixes common typing mistakes. In **AutoCorrect Options**, the **Math Symbols** tab has a switch, **Replace the names of math symbols as you type**, that is off until you turn it on. With it on, a backslash and a name, such as \alpha, becomes the symbol (α) when you type a space or a mark after it. The name must start a word, so a folder path such as C:\temp\pi stays as you typed it. The tab lists every name. JeffPub, JeffWrite, and JeffDeck change them; JeffCrunch does not change anything in a cell.
 - **Replace straight quotes with smart quotes** turns " and ' into curly quotes.
 - **AutoFormat as you type (dashes, fractions, ordinals, automatic lists)**
 - **Turn web addresses into links as you type** makes a web or email address a link when you press the spacebar after it. Undo takes back just the link.
