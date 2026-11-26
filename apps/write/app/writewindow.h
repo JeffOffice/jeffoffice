@@ -152,6 +152,8 @@ public:
     void fillContextMenu(QMenu &menu);
     // Brings the commands up to date with the selection at once (the window does it a moment after a change; a test does not wait for the moment).
     void refreshNow() { refreshUi(); }
+    // The copy of the document that holds only the selection, as the last print or preview of the selection made it (for a test of what it shows).
+    write::WriteDoc *selectionCopyForTest() const { return m_selectionDoc.get(); }
     write::WriteDoc *document() const { return m_doc.get(); }
     // The one question for a change made by a pane or a view of its own: may the text be edited now (not held for reading only, and no search under way that holds it as it is)?
     bool mayEdit() const { return !isReadOnly() && !searchBlocked(); }

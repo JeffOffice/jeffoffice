@@ -997,6 +997,53 @@ private Q_SLOTS:
         QCOMPARE(shown(), stale);
     }
 
+    // Update fields before printing, for a print of the selection alone (a print, not only a PDF export): the pages that go out show the worked-out result, though the preview built its copy of the selection first.
+    void updateFieldsBeforePrintingReachesAPrintOfTheSelection()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        const QVariant prior = Settings::get().value(QStringLiteral("print/updateFields"), false);
+        const auto restore = qScopeGuard([prior] { Settings::get().setValue(QStringLiteral("print/updateFields"), prior); });
+        Settings::get().setValue(QStringLiteral("print/updateFields"), true);
+        WriteWindow w;
+        Quiet quiet(w);
+        typeText(*w.document(), w.view()->cursor(), QStringLiteral("one two "));
+        QTextCursor end(w.document()->story());
+        end.movePosition(QTextCursor::End);
+        QVERIFY(insertField(*w.document(), end, QStringLiteral("NUMWORDS")));
+        end.movePosition(QTextCursor::End);
+        insertText(*w.document(), end, QStringLiteral(" end"));
+        QTextCursor start(w.document()->story());
+        start.setPosition(0);
+        insertText(*w.document(), start, QStringLiteral("alpha beta gamma delta "));   // (the count the field shows is stale now)
+        auto shown = [&] {
+            const StoryScan scan = scanStory(w.document()->story(), false);
+            for (const FieldPlace &f : scan.fields)
+                if (f.name == QLatin1String("NUMWORDS")) return f.display;
+            return QString();
+        };
+        const QString stale = shown();
+        QTextCursor all(w.document()->story());
+        all.select(QTextCursor::Document);
+        w.view()->setCursor(all);
+        WriteOutputOptions o;
+        o.toFile = true;
+        o.range = WriteOutputOptions::Range::Selection;
+        QVERIFY(!w.outputPages(o).isEmpty());   // (the preview's copy of the selection, made before anything is updated)
+        w.setSavePathChooser([&](const QString &, const QString &) { return dir.filePath(QStringLiteral("s.pdf")); });
+        QVERIFY(w.printOutput(o));
+        QVERIFY2(shown() != stale, qPrintable(shown()));
+        // (what went to the printer was drawn from the copy that holds the selection: it has the worked-out result)
+        write::WriteDoc *copy = w.selectionCopyForTest();
+        QVERIFY(copy);
+        office::Package pkg;
+        QVERIFY(pkg.read(copy->toDocx()));
+        const QByteArray xml = pkg.part(QStringLiteral("/word/document.xml"));
+        QVERIFY(xml.contains("NUMWORDS"));
+        QVERIFY2(xml.contains(">" + shown().toUtf8() + "<"), xml.constData());
+        QVERIFY2(!xml.contains(">" + stale.toUtf8() + "<"), xml.constData());
+    }
+
     // Field shading (Options > Display): never, always, or only the field the caret is in; on the screen only: a PDF is drawn with none.
     void fieldShadingShowsOnTheScreenAsTheOptionSaysAndNeverInAPdf()
     {
