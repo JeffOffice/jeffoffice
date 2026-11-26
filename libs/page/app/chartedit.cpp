@@ -25,7 +25,7 @@ QString insertChart(Editor *ed, office::sheet::ChartForm form)
     const QSizeF page = ed->surfaceSize();
     const double w = std::min(360.0, page.width() * 0.8), h = std::min(216.0, page.height() * 0.8);
     const QRectF rect((page.width() - w) / 2, (page.height() - h) / 2, w, h);
-    auto chart = makeChartObject(*ed->doc(), form, office::sheet::sampleChartData(), rect);
+    auto chart = makeChartObject(*ed->doc(), form, office::sheet::sampleChartData(form), rect);
     if (!chart) return QString();
     ed->beginChange(QCoreApplication::translate("jp::ChartDialogs", "Insert Chart"));
     ed->surfaceItems().push_back(chart);

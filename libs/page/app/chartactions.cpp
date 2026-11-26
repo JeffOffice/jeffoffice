@@ -37,6 +37,10 @@ const ChartName kChartNames[] = {
     {ChartForm::Radar, "radar", QT_TRANSLATE_NOOP("jp::ChartActions", "Radar"), "radar"},
     {ChartForm::RadarMarkers, "radarMarkers", QT_TRANSLATE_NOOP("jp::ChartActions", "Radar with Markers"), "radar"},
     {ChartForm::RadarFilled, "radarFilled", QT_TRANSLATE_NOOP("jp::ChartActions", "Filled Radar"), "radar"},
+    {ChartForm::StockHighLowClose, "stockHighLowClose", QT_TRANSLATE_NOOP("jp::ChartActions", "High-Low-Close"), "chart-candlestick"},
+    {ChartForm::StockOpenHighLowClose, "stockOpenHighLowClose", QT_TRANSLATE_NOOP("jp::ChartActions", "Open-High-Low-Close"), "chart-candlestick"},
+    {ChartForm::StockVolumeHighLowClose, "stockVolumeHighLowClose", QT_TRANSLATE_NOOP("jp::ChartActions", "Volume-High-Low-Close"), "chart-candlestick"},
+    {ChartForm::StockVolumeOpenHighLowClose, "stockVolumeOpenHighLowClose", QT_TRANSLATE_NOOP("jp::ChartActions", "Volume-Open-High-Low-Close"), "chart-candlestick"},
 };
 
 struct LegendName {
@@ -146,7 +150,12 @@ void ChartActions::create()
             const PictureItem *chart = selectedChart(m_ed);
             if (!chart) return;
             const office::Theme theme = chartThemeOfPicture(*m_ed->doc(), *chart);
-            change(changeLabel, [form, theme](office::Chart &c) { return chartSetForm(c, form, theme); });
+            QString problem;   // (a stock form needs its series in a number and an order: a chart of other series is told so, not changed)
+            change(changeLabel, [form, theme, &problem](office::Chart &c) {
+                problem = chartFormProblem(c, form);
+                return problem.isEmpty() && chartSetForm(c, form, theme);
+            });
+            if (!problem.isEmpty() && m_hooks.notice) m_hooks.notice(problem);
         }, true);
     }
     mk(QStringLiteral("chart.editData"), QCoreApplication::translate("jp::ChartActions", "Edit Data…"), "table-2", [this] { editData(); });

@@ -399,6 +399,19 @@ bool ChartDesign::setSeriesShown(int entry, bool shown)
         for (const ChartSeries &s : plot.series)
             if (at++ == entry) already = !s.filtered;
     if (already == shown) return false;
+    {
+        int seen = 0;
+        for (const ChartPlot &plot : now.plots) {
+            seen += int(plot.series.size());
+            if (seen > entry) {
+                if (plot.stock && !shown) {
+                    m_host->chartNotice(tr("Chart Filters"), tr("The series of a stock chart can't be left out: the kind is made of all of them, in their order."), false);
+                    return false;
+                }
+                break;
+            }
+        }
+    }
     if (!shown && drawn <= 1) {
         m_host->chartNotice(tr("Chart Filters"), tr("A chart needs at least one series. Check another series first."), false);
         return false;
