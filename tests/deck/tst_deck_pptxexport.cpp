@@ -2053,7 +2053,7 @@ private Q_SLOTS:
     // that are kept are what notesText gives.
     void hostileFormattedNotesAreReadWithinLimits()
     {
-        auto notesOf = [](const QString &body) {
+        auto notesOf = [](const QString &body, QString *message = nullptr) {
             Parts p = samplePptx();
             QString xml = QString::fromUtf8(p.data["/ppt/notesSlides/notesSlide1.xml"].xml);
             const qsizetype from = xml.indexOf(QStringLiteral("<a:p>")), to = xml.lastIndexOf(QStringLiteral("</a:p>")) + 6;
@@ -2061,17 +2061,24 @@ private Q_SLOTS:
             p.data["/ppt/notesSlides/notesSlide1.xml"].xml = xml.toUtf8();
             QString err;
             auto d = deck::importPresentation(pack(p), &err);
+            if (message) *message = err;
             return d ? deck::notesText(*d, *d->pages[0]) : QStringLiteral("NO PRESENTATION: ") + err;
         };
+        const QString cutMessage = QStringLiteral("Some text is longer than a text box is read to, so the rest of it is left out.");
+        QString said;
         QString runs = QStringLiteral("<a:p>");
         for (int i = 0; i < 30000; ++i) runs += QStringLiteral("<a:r><a:rPr lang=\"en-US\"%1/><a:t>a</a:t></a:r>").arg(i % 2 ? QStringLiteral(" b=\"1\"") : QString());
         runs += QStringLiteral("</a:p>");
-        QCOMPARE(notesOf(runs).size(), 20000);
+        QCOMPARE(notesOf(runs, &said).size(), 20000);
+        QVERIFY2(said.contains(cutMessage), qPrintable(said));
         QString paragraphs;
         for (int i = 0; i < 15000; ++i) paragraphs += QStringLiteral("<a:p><a:r><a:rPr lang=\"en-US\" b=\"1\"/><a:t>x</a:t></a:r></a:p>");
-        QCOMPARE(notesOf(paragraphs).count(QLatin1Char('\n')), 9999);
+        QCOMPARE(notesOf(paragraphs, &said).count(QLatin1Char('\n')), 9999);
+        QVERIFY2(said.contains(cutMessage), qPrintable(said));
         const QString big = QStringLiteral("<a:p><a:r><a:rPr lang=\"en-US\" i=\"1\"/><a:t>") + QString(3000000, QLatin1Char('m')) + QStringLiteral("</a:t></a:r></a:p>");
-        QCOMPARE(notesOf(big).size(), 2000000);
+        QCOMPARE(notesOf(big, &said).size(), 2000000);
+        QVERIFY2(said.contains(cutMessage), qPrintable(said));
+        QVERIFY2(notesOf(QStringLiteral("<a:p><a:r><a:t>short</a:t></a:r></a:p>"), &said) == QStringLiteral("short") && !said.contains(cutMessage), "a short note says nothing");
     }
 
     // Reset Layout on a handout master a file had puts the standard's places back for good: what the file had is let go, so saving and opening again reads the standard's places.
