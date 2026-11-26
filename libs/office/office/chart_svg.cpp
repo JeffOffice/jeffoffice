@@ -2,6 +2,7 @@
 #include "office/chart_trend.h"
 
 #include <QBuffer>
+#include <type_traits>
 #include <QCoreApplication>
 #include <QFont>
 #include <QFontMetricsF>
@@ -216,6 +217,7 @@ struct Entry {
     ChartMarker::Symbol marker = ChartMarker::None;
     QColor markerFill;
     double width = 2.25;
+    bool box = false;             // its key is a high-low line through a box (what a stock chart draws for a series with no line or markers of its own)
 };
 
 class ChartPainter {
@@ -236,6 +238,7 @@ private:
     void drawText(const QString &text, const QFont &font, const QColor &color, const QPointF &anchor, double ha, double va, double angle = 0);
     QPen penFor(const ChartLine &line, const QColor &fallback, double fallbackWidth) const;
     QColor lineColor() const;
+    bool darkStock() const;
 
     // ---- the pieces of a chart
     QVector<Entry> legendEntries() const;
@@ -349,7 +352,17 @@ QColor ChartPainter::colorOf(const ChartFont &own) const
 {
     if (own.color.isValid()) return own.color;
     if (m_chart.font.color.isValid()) return m_chart.font.color;
-    return m_chart.textColor.isValid() ? m_chart.textColor : QColor(Qt::black);
+    const QColor text = m_chart.textColor.isValid() ? m_chart.textColor : QColor(Qt::black);
+    return darkStock() && text.lightnessF() < 0.5 ? QColor(Qt::white) : text;
+}
+
+// Whether this is a stock chart on a dark fill of its own: its text and the lines and boxes it draws when the file gives none are then light, not black.
+bool ChartPainter::darkStock() const
+{
+    if (!m_chart.background.isValid() || m_chart.background.lightnessF() >= 0.45) return false;
+    for (const ChartPlot &plot : m_chart.plots)
+        if (plot.stock) return true;
+    return false;
 }
 
 double ChartPainter::widthOf(const QFont &f, const QString &text) const
@@ -592,6 +605,7 @@ QVector<Entry> ChartPainter::legendEntries() const
                 if (symbol == ChartMarker::Auto) symbol = plot.markers || plot.type == ChartType::Scatter ? autoSymbols[index % 8] : ChartMarker::None;
                 e.marker = symbol;
                 e.markerFill = s.marker.fill.isValid() ? s.marker.fill : s.color;
+                e.box = plot.stock && !e.line && e.marker == ChartMarker::None;
             }
             out << e;
             ++index;
@@ -647,6 +661,14 @@ void ChartPainter::drawKey(const Entry &e, const QRectF &key)
         drawMarker(key.center(), e.marker, std::min(7.0, key.height()), e.markerFill, e.color, false, false);
     } else if (e.marker != ChartMarker::None) {
         drawMarker(key.center(), e.marker, std::min(7.0, key.height()), e.markerFill, e.color, false, false);
+    } else if (e.box) {
+        const QColor ink = darkStock() ? QColor(Qt::white) : QColor(Qt::black);
+        m_p->setPen(QPen(ink, 0.75));
+        m_p->drawLine(QPointF(key.center().x(), key.top()), QPointF(key.center().x(), key.bottom()));
+        m_p->setBrush(darkStock() ? QColor(0x3F, 0x3F, 0x3F) : QColor(0xF9, 0xF9, 0xF9));
+        m_p->drawRect(key.adjusted(1.5, 1.5, -1.5, -1.5));
+        m_p->setBrush(Qt::NoBrush);
+        m_p->setPen(Qt::NoPen);
     } else {
         m_p->fillRect(key, e.color);
     }
@@ -1309,7 +1331,7 @@ void ChartPainter::drawBetweenSeries(const View &v, const Scale &scale)
             m_p->drawLine(at(catUnit(i), high, scale), at(catUnit(i), base, scale));
         }
         if (plot.hiLowLines && finite > 1) {
-            m_p->setPen(penFor(plot.hiLowLine, plot.stock ? QColor(Qt::black) : lineColor(), gray));   // (a stock chart's own look: thin black)
+            m_p->setPen(penFor(plot.hiLowLine, plot.stock ? QColor(darkStock() ? Qt::white : Qt::black) : lineColor(), gray));   // (a stock chart's own look: thin black, or white on a dark fill)
             m_p->drawLine(at(catUnit(i), high, scale), at(catUnit(i), low, scale));
         }
         if (plot.upDownBars && plot.series.size() > 1) {
@@ -1322,7 +1344,7 @@ void ChartPainter::drawBetweenSeries(const View &v, const Scale &scale)
             const QColor upFill = plot.stock ? QColor(0xF9, 0xF9, 0xF9) : QColor(Qt::white), downFill = plot.stock ? QColor(0x3F, 0x3F, 0x3F) : QColor(Qt::black);
             const QColor fill = up ? (plot.upBarFill.isValid() ? plot.upBarFill : upFill) : (plot.downBarFill.isValid() ? plot.downBarFill : downFill);
             m_p->setBrush(fill);
-            m_p->setPen(penFor(up ? plot.upBarLine : plot.downBarLine, plot.stock ? QColor(Qt::black) : lineColor(), plot.stock ? 0.5 : gray));
+            m_p->setPen(penFor(up ? plot.upBarLine : plot.downBarLine, plot.stock ? QColor(darkStock() ? Qt::white : Qt::black) : lineColor(), plot.stock ? 0.5 : gray));
             m_p->drawRect(r);
             m_p->setBrush(Qt::NoBrush);
         }
@@ -2344,26 +2366,72 @@ QVector<Pick> thinPicks(const Chart &chart, const ChartPlot &plot)
 }
 
 // The points of the series of a line plot with high-low lines, thinned by buckets: see thinPicks. `values` are the series' values, usable only.
-QVector<QVector<double>> bucketedBetween(const QVector<QVector<double>> &values, int stride)
+// `starts` are the places (among the categories) the drawn points stand for. When one series holds both the highest and the lowest value of a bucket, the
+// buckets are twice as long and one that has such a series is drawn as two points, cut between the two values, so that each is kept (and no series
+// has more points than before).
+struct BucketsBetween {
+    QVector<QVector<double>> values;
+    QVector<qsizetype> starts;
+    bool regular = true;   // (every stride-th: nothing was cut)
+};
+
+BucketsBetween bucketedBetween(const QVector<QVector<double>> &values, int stride)
 {
-    QVector<QVector<double>> out(values.size());
-    qsizetype most = 0;
-    for (const QVector<double> &v : values) most = std::max(most, v.size());
-    for (qsizetype i = 0; i < most; i += stride) {
+    struct Extremes {
         int top = -1, bottom = -1;
         double high = -std::numeric_limits<double>::infinity(), low = std::numeric_limits<double>::infinity();
+        qsizetype highAt = 0, lowAt = 0;
+    };
+    auto look = [&](qsizetype from, qsizetype to) {
+        Extremes e;
         for (int k = 0; k < values.size(); ++k)
-            for (qsizetype j = i; j < std::min<qsizetype>(i + stride, values[k].size()); ++j) {
+            for (qsizetype j = from; j < std::min<qsizetype>(to, values[k].size()); ++j) {
                 const double x = values[k][j];
                 if (!std::isfinite(x)) continue;
-                if (x > high) high = x, top = k;
-                if (x < low) low = x, bottom = k;
+                if (x > e.high) e.high = x, e.top = k, e.highAt = j;
+                if (x < e.low) e.low = x, e.bottom = k, e.lowAt = j;
             }
-        if (top >= 0 && top == bottom && values.size() > 1) bottom = (top + 1) % int(values.size());   // (one series holds both: another keeps the smallest it has)
+        return e;
+    };
+    // (the points of the series over [from, to), the one that holds the largest keeping it, the one that holds the smallest keeping that)
+    auto piece = [&](BucketsBetween &out, qsizetype from, qsizetype to, int top, int bottom) {
         for (int k = 0; k < values.size(); ++k) {
-            const QVector<double> own = values[k].mid(i, stride);
+            const QVector<double> own = values[k].mid(from, to - from);
             const QVector<double> one = bucketed(own, std::max<int>(1, int(own.size())), k == top ? Pick::Largest : k == bottom ? Pick::Smallest : Pick::Last);
-            out[k] << (one.isEmpty() ? kNaN : one[0]);
+            out.values[k] << (one.isEmpty() ? kNaN : one[0]);
+        }
+        out.starts << from;
+    };
+    qsizetype most = 0;
+    for (const QVector<double> &v : values) most = std::max(most, v.size());
+    bool both = false;
+    for (qsizetype i = 0; i < most && !both; i += stride) {
+        const Extremes e = look(i, i + stride);
+        both = e.top >= 0 && e.top == e.bottom && e.high > e.low;
+    }
+    BucketsBetween out;
+    out.values = QVector<QVector<double>>(values.size());
+    if (!both) {
+        for (qsizetype i = 0; i < most; i += stride) {
+            Extremes e = look(i, i + stride);
+            if (e.top >= 0 && e.top == e.bottom && values.size() > 1) e.bottom = (e.top + 1) % int(values.size());
+            piece(out, i, std::min(most, i + stride), e.top, e.bottom);
+        }
+        return out;
+    }
+    out.regular = false;
+    const qsizetype width = 2 * qsizetype(stride), windows = std::max<qsizetype>(1, most / width);
+    for (qsizetype w = 0; w < windows; ++w) {
+        const qsizetype from = w * width, to = w == windows - 1 ? most : from + width;
+        Extremes e = look(from, to);
+        if (e.top >= 0 && e.top == e.bottom && e.high > e.low) {
+            const qsizetype second = std::max(e.highAt, e.lowAt);
+            const bool highFirst = e.highAt < e.lowAt;
+            piece(out, from, second, highFirst ? e.top : -1, highFirst ? -1 : e.top);
+            piece(out, second, to, highFirst ? -1 : e.top, highFirst ? e.top : -1);
+        } else {
+            if (e.top >= 0 && e.top == e.bottom && values.size() > 1) e.bottom = (e.top + 1) % int(values.size());
+            piece(out, from, to, e.top, e.bottom);
         }
     }
     return out;
@@ -2522,21 +2590,30 @@ Chart drawnChart(const Chart &given, const Limits &limits, bool *thinned)
         // (a stock plot, and a line plot with high-low lines, are thinned by buckets, so that no high or low is lost)
         const QVector<Pick> picks = stride > 1 ? thinPicks(chart, plot) : QVector<Pick>();
         const bool between = stride > 1 && picks.isEmpty() && plot.type == ChartType::Line && plot.hiLowLines && plot.series.size() > 1;
-        QVector<QVector<double>> bucketsOf;
+        BucketsBetween bucketsOf;
         if (between) {
             QVector<QVector<double>> all;
             for (const ChartSeries &s : plot.series) all << usable(s.values);
             bucketsOf = bucketedBetween(all, stride);
         }
+        // (the categories, the places on a scale, and the colors of the points kept: every stride-th, or the starts of the buckets drawn)
+        auto at = [&](const auto &list) {
+            if (!between || bucketsOf.regular) return everyNth(list, stride);
+            std::decay_t<decltype(list)> kept;
+            for (const qsizetype i : bucketsOf.starts)
+                if (i < list.size()) kept << list[i];
+            return kept;
+        };
         for (int k = 0; k < plot.series.size(); ++k) {
             ChartSeries &s = plot.series[k];
-            s.values = !picks.isEmpty() ? bucketed(usable(s.values), stride, picks[k]) : between ? bucketsOf[k] : usable(everyNth(s.values, stride));
-            s.xValues = usable(everyNth(s.xValues, stride));
-            s.categories = everyNth(s.categories, stride);
+            s.values = !picks.isEmpty() ? bucketed(usable(s.values), stride, picks[k]) : between ? bucketsOf.values[k] : usable(everyNth(s.values, stride));
+            s.xValues = usable(at(s.xValues));
+            s.categories = at(s.categories);
             if (stride > 1) {
                 QMap<int, QColor> colors;
                 for (auto it = s.pointColors.cbegin(); it != s.pointColors.cend(); ++it)
-                    if (it.key() % stride == 0) colors.insert(it.key() / stride, it.value());
+                    if ((!between || bucketsOf.regular) && it.key() % stride == 0) colors.insert(it.key() / stride, it.value());
+                    else if (between && !bucketsOf.regular && bucketsOf.starts.contains(it.key())) colors.insert(int(bucketsOf.starts.indexOf(it.key())), it.value());
                 s.pointColors = colors;
             }
         }
