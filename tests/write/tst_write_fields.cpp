@@ -34,6 +34,7 @@
 #include <QGuiApplication>
 #include <QInputMethodEvent>
 #include <QMimeData>
+#include <QPushButton>
 #include <QMenu>
 #include <QSignalSpy>
 #include <QMouseEvent>
