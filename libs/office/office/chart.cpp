@@ -913,6 +913,7 @@ bool Reader::readPlot(const QDomElement &e)
     const QString base = threeD ? name.left(name.size() - 7) : name.left(name.size() - 5);   // "bar" of barChart and bar3DChart
     if (base == QLatin1String("bar")) plot.type = ChartType::Bar;
     else if (base == QLatin1String("line")) plot.type = ChartType::Line;
+    else if (base == QLatin1String("stock") && !threeD) plot.type = ChartType::Line, plot.stock = true;   // (a stock chart is a line plot of its own look; one that fits no form is made Other below)
     else if (base == QLatin1String("area")) plot.type = ChartType::Area;
     else if (base == QLatin1String("pie") || base == QLatin1String("ofPie")) plot.type = ChartType::Pie;
     else if (base == QLatin1String("doughnut")) plot.type = ChartType::Doughnut;
@@ -929,7 +930,7 @@ bool Reader::readPlot(const QDomElement &e)
     plot.varyColors = flagOf(cChild(e, "varyColors"), plot.type == ChartType::Pie || plot.type == ChartType::Doughnut);
     plot.gapWidth = int(std::clamp<qint64>(parseInt(valOf(cChild(e, "gapWidth")), 150), 0, 500));
     plot.overlap = int(std::clamp<qint64>(parseInt(valOf(cChild(e, "overlap")), plot.grouping == ChartGrouping::Stacked || plot.grouping == ChartGrouping::PercentStacked ? 100 : 0), -100, 100));
-    plot.markers = flagOf(cChild(e, "marker"), true);
+    plot.markers = flagOf(cChild(e, "marker"), !plot.stock);
     QString radarStyle;
     if (plot.type == ChartType::Radar) {
         const QString style = valOf(cChild(e, "radarStyle"), QStringLiteral("standard"));
@@ -1215,6 +1216,14 @@ bool Reader::read(const QDomElement &root, QString *error)
             else if ((name == QLatin1String("catAx") || name == QLatin1String("valAx") || name == QLatin1String("dateAx") || name == QLatin1String("serAx")) && c.axes.size() < kMaxAxes)
                 c.axes << readAxis(e);
         }
+        // a stock plot that fits none of the four forms is drawn the way a kind not drawn yet is (columns of its values), and its part kept as it is
+        if (chartStockForm(c) == ChartStockForm::None)
+            for (ChartPlot &p : c.plots)
+                if (p.stock) {
+                    p.stock = false;
+                    p.type = ChartType::Other;
+                    p.hiLowLines = p.upDownBars = false;
+                }
         // a radar beside another plot is not drawn as a radar (the spokes have no place beside axes): the chart is drawn the way a kind not drawn yet is, and its part kept as it is
         bool anyOther = false;
         for (const ChartPlot &p : c.plots) anyOther = anyOther || p.type != ChartType::Radar;
@@ -1402,6 +1411,30 @@ const ChartAxis *Chart::axis(qint64 id) const
 QString formatChartNumber(double value, const QString &formatCode)
 {
     return formatNumber(value, formatCode);
+}
+
+ChartStockForm chartStockForm(const Chart &c)
+{
+    const ChartPlot *stock = nullptr;
+    int stocks = 0;
+    for (const ChartPlot &p : c.plots)
+        if (p.stock) stock = &p, ++stocks;
+    if (stocks != 1) return ChartStockForm::None;
+    auto drawn = [](const ChartPlot &p) {
+        int n = 0;
+        for (const ChartSeries &s : p.series) n += !s.filtered;
+        return n;
+    };
+    const int n = drawn(*stock);
+    if (n != 3 && n != 4) return ChartStockForm::None;
+    if (c.plots.size() == 1) return n == 3 ? ChartStockForm::HighLowClose : ChartStockForm::OpenHighLowClose;
+    if (c.plots.size() != 2) return ChartStockForm::None;
+    // the volume: one series of columns on the first pair of axes, the prices against another pair of value axes
+    const ChartPlot &volume = *(stock == &c.plots[0] ? &c.plots[1] : &c.plots[0]);
+    if (volume.type != ChartType::Bar || volume.horizontal || drawn(volume) != 1 || volume.axisIds[1] == stock->axisIds[1]) return ChartStockForm::None;
+    const ChartAxis *own = c.axis(volume.axisIds[1]), *prices = c.axis(stock->axisIds[1]);
+    if (!own || !prices || own->kind != ChartAxis::Value || prices->kind != ChartAxis::Value) return ChartStockForm::None;
+    return n == 3 ? ChartStockForm::VolumeHighLowClose : ChartStockForm::VolumeOpenHighLowClose;
 }
 
 bool readChart(const QByteArray &chartPartXml, const Theme &theme, const ColorMap &colors, Chart *out, QString *error)

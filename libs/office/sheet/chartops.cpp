@@ -33,6 +33,10 @@ ChartKind kindOfForm(ChartForm form)
     case ChartForm::Radar: return K::Radar;
     case ChartForm::RadarMarkers: return K::RadarMarkers;
     case ChartForm::RadarFilled: return K::RadarFilled;
+    case ChartForm::StockHighLowClose: return K::StockHLC;
+    case ChartForm::StockOpenHighLowClose: return K::StockOHLC;
+    case ChartForm::StockVolumeHighLowClose: return K::StockVHLC;
+    case ChartForm::StockVolumeOpenHighLowClose: return K::StockVOHLC;
     }
     return K::Column;
 }
@@ -59,6 +63,10 @@ ChartForm formOfKind(ChartKind kind)
     case K::Radar: return ChartForm::Radar;
     case K::RadarMarkers: return ChartForm::RadarMarkers;
     case K::RadarFilled: return ChartForm::RadarFilled;
+    case K::StockHLC: return ChartForm::StockHighLowClose;
+    case K::StockOHLC: return ChartForm::StockOpenHighLowClose;
+    case K::StockVHLC: return ChartForm::StockVolumeHighLowClose;
+    case K::StockVOHLC: return ChartForm::StockVolumeOpenHighLowClose;
     default: return ChartForm::Column;
     }
 }
@@ -100,7 +108,8 @@ const QVector<ChartForm> &chartForms()
 {
     static const QVector<ChartForm> forms = {ChartForm::Column, ChartForm::ColumnStacked, ChartForm::ColumnPercent, ChartForm::Bar, ChartForm::BarStacked, ChartForm::Line, ChartForm::LineMarkers,
                                              ChartForm::Pie, ChartForm::Doughnut, ChartForm::Area, ChartForm::AreaStacked, ChartForm::Scatter,
-                                             ChartForm::Radar, ChartForm::RadarMarkers, ChartForm::RadarFilled};
+                                             ChartForm::Radar, ChartForm::RadarMarkers, ChartForm::RadarFilled,
+                                             ChartForm::StockHighLowClose, ChartForm::StockOpenHighLowClose, ChartForm::StockVolumeHighLowClose, ChartForm::StockVolumeOpenHighLowClose};
     return forms;
 }
 
@@ -110,6 +119,22 @@ ChartData sampleChartData()
     d.categories = {QCoreApplication::translate("jp::write::Pictures", "Category 1"), QCoreApplication::translate("jp::write::Pictures", "Category 2"), QCoreApplication::translate("jp::write::Pictures", "Category 3")};
     d.seriesNames = {QCoreApplication::translate("jp::write::Pictures", "Series 1"), QCoreApplication::translate("jp::write::Pictures", "Series 2")};
     d.values = {{4.3, 2.5, 3.5}, {2.4, 4.4, 1.8}};
+    return d;
+}
+
+ChartData sampleChartData(ChartForm form)
+{
+    ChartData d = sampleChartData();
+    if (form != ChartForm::StockHighLowClose && form != ChartForm::StockOpenHighLowClose && form != ChartForm::StockVolumeHighLowClose && form != ChartForm::StockVolumeOpenHighLowClose) return d;
+    const bool volume = form == ChartForm::StockVolumeHighLowClose || form == ChartForm::StockVolumeOpenHighLowClose;
+    const bool open = form == ChartForm::StockOpenHighLowClose || form == ChartForm::StockVolumeOpenHighLowClose;
+    d.categories = {QCoreApplication::translate("jp::write::Pictures", "Day 1"), QCoreApplication::translate("jp::write::Pictures", "Day 2"), QCoreApplication::translate("jp::write::Pictures", "Day 3"), QCoreApplication::translate("jp::write::Pictures", "Day 4")};
+    d.seriesNames.clear();
+    d.values.clear();
+    if (volume) d.seriesNames << QCoreApplication::translate("jp::write::Pictures", "Volume"), d.values << QVector<double>{5300, 7100, 4600, 6200};
+    if (open) d.seriesNames << QCoreApplication::translate("jp::write::Pictures", "Open"), d.values << QVector<double>{44, 45, 48, 47};
+    d.seriesNames << QCoreApplication::translate("jp::write::Pictures", "High") << QCoreApplication::translate("jp::write::Pictures", "Low") << QCoreApplication::translate("jp::write::Pictures", "Close");
+    d.values << QVector<double>{46, 49, 50, 49} << QVector<double>{43, 44, 46, 45} << QVector<double>{45, 48, 47, 48};
     return d;
 }
 
@@ -223,11 +248,13 @@ ChartInfo chartInfoOf(const Chart &made, const QByteArray &part, const QByteArra
     return info;
 }
 
+QString chartFormProblem(const Chart &chart, ChartForm form) { return stockProblem(kindOfForm(form), int(chartAllSeries(chart).size())); }
+
 bool chartSetForm(Chart &chart, ChartForm form, const Theme &theme)
 {
-    if (formOfKind(kindOfChart(chart)) == form && chart.plots.size() == 1) return false;
+    if (formOfKind(kindOfChart(chart)) == form && (chart.plots.size() == 1 || chartStockForm(chart) != ChartStockForm::None)) return false;
     QVector<ChartSeries> series = chartAllSeries(chart);
-    if (series.isEmpty()) return false;
+    if (series.isEmpty() || !chartFormProblem(chart, form).isEmpty()) return false;
     // (A scatter's x numbers are the categories of a chart of another kind.)
     for (ChartSeries &s : series)
         if (s.categories.isEmpty())
@@ -358,6 +385,7 @@ bool chartSetData(Chart &chart, const ChartData &data, const Theme &theme)
     for (const ChartSeries &s : old)
         if (!s.valueRef.isEmpty() || !s.categoryRef.isEmpty() || !s.nameRef.isEmpty()) return false;
     const ChartKind kind = kindOfChart(chart);
+    if (chartStockForm(chart) != ChartStockForm::None && data.values.size() != old.size()) return false;   // (a stock chart's series are fixed in number and order)
     QVector<ChartSeries> series = seriesOfData(data, kind == ChartKind::Scatter || kind == ChartKind::ScatterLines || kind == ChartKind::ScatterSmooth);
     // The look of the series that were there stays with them (their colors, lines, and markers).
     for (int i = 0; i < series.size() && i < old.size(); ++i) {

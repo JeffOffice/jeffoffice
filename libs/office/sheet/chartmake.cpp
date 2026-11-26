@@ -285,13 +285,68 @@ ChartPlot plotOf(ChartKind kind)
     case ChartKind::Radar: p.type = ChartType::Radar; p.grouping = ChartGrouping::Standard; p.markers = false; break;
     case ChartKind::RadarMarkers: p.type = ChartType::Radar; p.grouping = ChartGrouping::Standard; p.markers = true; break;
     case ChartKind::RadarFilled: p.type = ChartType::Radar; p.grouping = ChartGrouping::Standard; p.filled = true; break;
+    case ChartKind::StockHLC:
+    case ChartKind::StockVHLC:
+    case ChartKind::StockOHLC:
+    case ChartKind::StockVOHLC: {
+        p.type = ChartType::Line;
+        p.stock = true;
+        p.grouping = ChartGrouping::Standard;
+        p.markers = false;
+        p.hiLowLines = true;
+        p.hiLowLine.set = true;
+        p.hiLowLine.color = QColor(0x40, 0x40, 0x40);
+        p.hiLowLine.width = 1;
+        p.upDownBars = kind == ChartKind::StockOHLC || kind == ChartKind::StockVOHLC;
+        if (p.upDownBars) {
+            // a rise is hollow and a fall is filled
+            p.upBarFill = QColor(Qt::white);
+            p.downBarFill = QColor(0x40, 0x40, 0x40);
+            p.upBarLine.set = p.downBarLine.set = true;
+            p.upBarLine.color = p.downBarLine.color = QColor(0x40, 0x40, 0x40);
+            p.upBarLine.width = p.downBarLine.width = 0.75;
+        }
+        break;
+    }
     }
     return p;
 }
 
+// The series of a chart told in their kinds, as the stock forms need them: a stock kind on every series (the form chosen) or a column first and stock kinds after it (a stock chart as it is), the forms
+// fitting the number of series. What fits is laid out for chartFromSeries (the volume a column, the prices stock on the second axes, their kind by their number); what does not is made lines.
+QVector<SeriesKind> resolveStock(const QVector<SeriesKind> &in, int count)
+{
+    QVector<SeriesKind> out;
+    bool any = false;
+    for (int i = 0; i < count; ++i) {
+        out << in.value(i, SeriesKind{ChartKind::Column, false});
+        any = any || isStockKind(out.last().kind);
+    }
+    if (!any) return out;
+    const ChartKind lead = out[0].kind;
+    const bool volume = lead == ChartKind::StockVHLC || lead == ChartKind::StockVOHLC || !isStockKind(lead);
+    const int first = volume ? 1 : 0, prices = count - first;
+    bool fits = prices == 3 || prices == 4;
+    if (volume && !isStockKind(lead)) fits = fits && lead == ChartKind::Column && !out[0].secondary;
+    for (int i = first; i < count && fits; ++i) fits = isStockKind(out[i].kind);
+    if (fits) {
+        const ChartKind declared = out[first].kind;
+        const bool oneOfFour = declared == ChartKind::StockHLC || declared == ChartKind::StockVHLC;
+        fits = oneOfFour == (prices == 3);
+    }
+    for (int i = 0; i < count; ++i) {
+        if (!fits) {
+            if (isStockKind(out[i].kind)) out[i] = SeriesKind{ChartKind::Line, false};
+            continue;
+        }
+        out[i] = i < first ? SeriesKind{ChartKind::Column, false} : SeriesKind{prices == 3 ? ChartKind::StockHLC : ChartKind::StockOHLC, volume};
+    }
+    return out;
+}
+
 bool samePlot(const ChartPlot &a, const ChartPlot &b)
 {
-    return a.type == b.type && a.grouping == b.grouping && a.horizontal == b.horizontal && a.markers == b.markers && a.lines == b.lines && a.smooth == b.smooth && a.filled == b.filled;
+    return a.type == b.type && a.grouping == b.grouping && a.horizontal == b.horizontal && a.markers == b.markers && a.lines == b.lines && a.smooth == b.smooth && a.filled == b.filled && a.stock == b.stock && a.upDownBars == b.upDownBars;
 }
 
 int rankOf(ChartType t)
@@ -307,8 +362,9 @@ int rankOf(ChartType t)
 
 } // namespace
 
-Chart chartFromSeries(const QVector<ChartSeries> &series, const QVector<SeriesKind> &kinds, const jp::office::Theme &theme, const Chart *like)
+Chart chartFromSeries(const QVector<ChartSeries> &series, const QVector<SeriesKind> &kindsAsked, const jp::office::Theme &theme, const Chart *like)
 {
+    const QVector<SeriesKind> kinds = resolveStock(kindsAsked, std::min(int(series.size()), kMaxMadeSeries));
     Chart c = jp::office::blankChart(theme);
     c.background = QColor(Qt::white);
     c.border.set = true;
@@ -331,6 +387,11 @@ Chart chartFromSeries(const QVector<ChartSeries> &series, const QVector<SeriesKi
     const bool onlyPie = count > 0 && kinds.value(0).kind != ChartKind::Combo && (plotOf(kinds.value(0).kind).type == ChartType::Pie || plotOf(kinds.value(0).kind).type == ChartType::Doughnut);
     // (a radar holds only radar, all of one look: the first series' kind)
     const bool onlyRadar = count > 0 && kinds.value(0).kind != ChartKind::Combo && plotOf(kinds.value(0).kind).type == ChartType::Radar;
+    bool stockLike = false, newVolume = false;   // the chart this one is made from has a stock plot, and this one is a volume form
+    if (like)
+        for (const ChartPlot &lp : like->plots) stockLike = stockLike || lp.stock;
+    for (const SeriesKind &k : kinds) newVolume = newVolume || (k.kind == ChartKind::StockHLC || k.kind == ChartKind::StockOHLC);
+    newVolume = newVolume && kinds.value(0).kind == ChartKind::Column;
     bool anyOther = false, anyHorizontal = false;
     for (int i = 0; i < count; ++i) {
         const ChartPlot p = plotOf(kinds.value(i).kind);
@@ -366,7 +427,21 @@ Chart chartFromSeries(const QVector<ChartSeries> &series, const QVector<SeriesKi
             s.colorFromFile = true;
         }
         if (p.type == ChartType::Scatter) s.smooth = p.lines && p.smooth;
-        if ((p.type == ChartType::Line || p.type == ChartType::Radar) && !p.markers) s.marker.symbol = ChartMarker::None;
+        if (p.stock) {
+            // a stock chart's series are not joined; the close has a mark where there are no bars (the high and low have none)
+            const int price = i - (kinds.value(0).kind == ChartKind::Column ? 1 : 0), prices = p.upDownBars ? 4 : 3;
+            s.outline = ChartLine();
+            s.outline.set = s.outline.none = true;
+            s.marker = ChartMarker();
+            s.marker.size = 7;
+            s.marker.symbol = !p.upDownBars && price == prices - 1 ? ChartMarker::Dash : ChartMarker::None;
+            s.smooth = false;
+        } else if (like && stockLike) {
+            s.outline = ChartLine();   // (what a stock chart's series said of their lines and marks belongs to it)
+            s.marker = ChartMarker();
+        }
+        if (p.stock) {
+        } else if ((p.type == ChartType::Line || p.type == ChartType::Radar) && !p.markers) s.marker.symbol = ChartMarker::None;
         else if (s.marker.symbol == ChartMarker::None) s.marker.symbol = ChartMarker::Auto;
         groups[at].plot.series << s;
     }
@@ -462,7 +537,9 @@ Chart chartFromSeries(const QVector<ChartSeries> &series, const QVector<SeriesKi
                 a.deleted = source->deleted;
                 a.font = source->font;
                 a.line = source->line;
-                if (isVal && source->kind == ChartAxis::Value && a.kind == ChartAxis::Value) {
+                // (the scale of the prices is not the volume's: a chart changed to or from a volume form takes the new kind's own)
+                const bool likeVolume = stockLike && like->plots.size() > 1;
+                if (isVal && source->kind == ChartAxis::Value && a.kind == ChartAxis::Value && !likeVolume && !newVolume) {
                     a.autoMin = source->autoMin;
                     a.autoMax = source->autoMax;
                     a.min = source->min;
@@ -512,7 +589,14 @@ ChartKind kindOfPlot(const ChartPlot &p)
     case ChartType::Other:
         if (p.horizontal) return percent ? ChartKind::BarPercent : stacked ? ChartKind::BarStacked : ChartKind::Bar;
         return percent ? ChartKind::ColumnPercent : stacked ? ChartKind::ColumnStacked : ChartKind::Column;
-    case ChartType::Line: return stacked ? ChartKind::LineStacked : p.markers ? ChartKind::LineMarkers : ChartKind::Line;
+    case ChartType::Line: {
+        if (p.stock) {
+            int drawn = 0;
+            for (const ChartSeries &s : p.series) drawn += !s.filtered;
+            return drawn == 4 ? ChartKind::StockOHLC : ChartKind::StockHLC;
+        }
+        return stacked ? ChartKind::LineStacked : p.markers ? ChartKind::LineMarkers : ChartKind::Line;
+    }
     case ChartType::Area: return stacked || percent ? ChartKind::AreaStacked : ChartKind::Area;
     case ChartType::Pie: return ChartKind::Pie;
     case ChartType::Doughnut: return ChartKind::Doughnut;
@@ -530,6 +614,11 @@ ChartKind kindOfPlot(const ChartPlot &p)
 ChartKind kindOfChart(const Chart &chart)
 {
     if (chart.plots.isEmpty()) return ChartKind::Column;
+    switch (chartStockForm(chart)) {
+    case ChartStockForm::VolumeHighLowClose: return ChartKind::StockVHLC;
+    case ChartStockForm::VolumeOpenHighLowClose: return ChartKind::StockVOHLC;
+    default: break;
+    }
     if (chart.plots.size() > 1) return ChartKind::Combo;
     return kindOfPlot(chart.plots.first());
 }
@@ -572,6 +661,28 @@ QVector<ChartKind> recommendChartKinds(const ChartCells &cells, int sheet, const
     if (n >= 2 && points <= 12 && !dates) add(ChartKind::ColumnPercent);
     if (!labels || n == 1) add(ChartKind::Line);
     return out;
+}
+
+bool isStockKind(ChartKind kind) { return kind == ChartKind::StockHLC || kind == ChartKind::StockOHLC || kind == ChartKind::StockVHLC || kind == ChartKind::StockVOHLC; }
+
+QString stockProblem(ChartKind kind, int seriesCount)
+{
+    switch (kind) {
+    case ChartKind::StockHLC:
+        if (seriesCount == 3) break;
+        return QCoreApplication::translate("jp::ChartKinds", "A high-low-close chart needs exactly three series, in this order: high, low, and close. Select the cells again, with one column or row for each, in that order.");
+    case ChartKind::StockOHLC:
+        if (seriesCount == 4) break;
+        return QCoreApplication::translate("jp::ChartKinds", "An open-high-low-close chart needs exactly four series, in this order: open, high, low, and close. Select the cells again, with one column or row for each, in that order.");
+    case ChartKind::StockVHLC:
+        if (seriesCount == 4) break;
+        return QCoreApplication::translate("jp::ChartKinds", "A volume-high-low-close chart needs exactly four series, in this order: volume, high, low, and close. Select the cells again, with one column or row for each, in that order.");
+    case ChartKind::StockVOHLC:
+        if (seriesCount == 5) break;
+        return QCoreApplication::translate("jp::ChartKinds", "A volume-open-high-low-close chart needs exactly five series, in this order: volume, open, high, low, and close. Select the cells again, with one column or row for each, in that order.");
+    default: break;
+    }
+    return QString();
 }
 
 } // namespace jp::office::sheet

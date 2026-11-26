@@ -1198,6 +1198,382 @@ private Q_SLOTS:
         Q_UNUSED(lines);
     }
 
+    // (With CHART_KINDS_DIR set, the pictures of the kinds that stock must not change, and of the stock forms, are kept as SVG files, to be compared before and after a change to the drawing.)
+    void chartSvgUnchangedKindsShots()
+    {
+        const QString dir = qEnvironmentVariable("CHART_KINDS_DIR");
+        if (dir.isEmpty()) QSKIP("CHART_KINDS_DIR is not set");
+        const QStringList cats = {"a", "b", "c", "d"};
+        const QString two = chartSeries(0, QStringLiteral("A"), cats, {3, 5, 4, 6}) + chartSeries(1, QStringLiteral("B"), cats, {2, 4, 6, 3});
+        const QString axes = QStringLiteral("<c:axId val=\"111\"/><c:axId val=\"222\"/>");
+        const QString bars = QStringLiteral("<c:barChart><c:barDir val=\"%1\"/><c:grouping val=\"clustered\"/>");
+        const QMap<QString, QString> kinds = {
+            {QStringLiteral("column"), bars.arg(QStringLiteral("col")) + two + axes + QStringLiteral("</c:barChart>") + chartAxes()},
+            {QStringLiteral("bar"), bars.arg(QStringLiteral("bar")) + two + axes + QStringLiteral("</c:barChart>") + chartAxes()},
+            {QStringLiteral("line"), QStringLiteral("<c:lineChart><c:grouping val=\"standard\"/>") + two + QStringLiteral("<c:marker val=\"1\"/>") + axes + QStringLiteral("</c:lineChart>") + chartAxes()},
+            {QStringLiteral("lineHiLow"), QStringLiteral("<c:lineChart><c:grouping val=\"standard\"/>") + two + QStringLiteral("<c:hiLowLines/><c:upDownBars><c:gapWidth val=\"150\"/><c:upBars/><c:downBars/></c:upDownBars>")
+                                              + QStringLiteral("<c:marker val=\"1\"/>") + axes + QStringLiteral("</c:lineChart>") + chartAxes()},
+            {QStringLiteral("area"), QStringLiteral("<c:areaChart><c:grouping val=\"standard\"/>") + two + axes + QStringLiteral("</c:areaChart>") + chartAxes()},
+            {QStringLiteral("pie"), QStringLiteral("<c:pieChart><c:varyColors val=\"1\"/>") + chartSeries(0, QStringLiteral("A"), cats, {3, 5, 4, 6}) + QStringLiteral("<c:firstSliceAng val=\"0\"/></c:pieChart>")},
+            {QStringLiteral("doughnut"), QStringLiteral("<c:doughnutChart><c:varyColors val=\"1\"/>") + chartSeries(0, QStringLiteral("A"), cats, {3, 5, 4, 6}) + QStringLiteral("<c:holeSize val=\"50\"/></c:doughnutChart>")},
+            {QStringLiteral("scatter"), QStringLiteral("<c:scatterChart><c:scatterStyle val=\"lineMarker\"/>") + chartSeries(0, QStringLiteral("A"), cats, {3, 5, 4, 6}) + axes + QStringLiteral("</c:scatterChart>") + chartAxes()},
+            {QStringLiteral("radar"), QStringLiteral("<c:radarChart><c:radarStyle val=\"marker\"/>") + two + axes + QStringLiteral("</c:radarChart>") + radarAxes()},
+            {QStringLiteral("stockOneSeries"), QStringLiteral("<c:stockChart>") + chartSeries(0, QStringLiteral("A"), cats, {3, 5, 4, 6}) + axes + QStringLiteral("</c:stockChart>") + chartAxes()},
+            {QStringLiteral("stockFormHLC"), stockPlot({{9, 8, 7, 6}, {1, 4, 2, 3}, {5, 7, 3, 5}}, false) + stockAxes(10)},
+            {QStringLiteral("stockFormVHLC"), volumePlot({100, 50, 150, 200}) + stockPlot({{9, 8, 7, 6}, {1, 4, 2, 3}, {5, 7, 3, 5}}, false, QStringLiteral("<c:axId val=\"333\"/><c:axId val=\"444\"/>"), 1) + stockAxes(200) + stockAxes(10, true)},
+            {QStringLiteral("stockTwoSeries"), QStringLiteral("<c:stockChart>") + two + axes + QStringLiteral("</c:stockChart>") + chartAxes()},
+        };
+        for (auto it = kinds.cbegin(); it != kinds.cend(); ++it) {
+            Chart c;
+            QString err;
+            QVERIFY2(readChart(chartPart(it.value()), defaultTheme(), ColorMap(), &c, &err), qPrintable(it.key() + err));
+            QFile f(QStringLiteral("%1/%2.svg").arg(dir, it.key()));
+            QVERIFY(f.open(QIODevice::WriteOnly));
+            f.write(chartSvg(c, QSizeF(400, 300)));
+        }
+    }
+
+    // ---- stock charts: the four forms (high-low-close; open-high-low-close; with the volume before them), told apart by how many series there are and the column plot of the volume
+
+private:
+    static QString stockLook() { return QStringLiteral("<c:spPr><a:ln w=\"19050\"><a:noFill/></a:ln></c:spPr>"); }
+    // the close's mark: a dash, in blue
+    static QString closeMark()
+    {
+        return QStringLiteral("<c:marker><c:symbol val=\"dash\"/><c:size val=\"9\"/><c:spPr><a:solidFill><a:srgbClr val=\"0000FF\"/></a:solidFill><a:ln><a:solidFill><a:srgbClr val=\"0000FF\"/></a:solidFill></a:ln></c:spPr></c:marker>");
+    }
+    static QString noMark() { return QStringLiteral("<c:marker><c:symbol val=\"none\"/></c:marker>"); }
+    // A stock plot of the price series (high, low, close, or open first), the high-low lines red and 1 point wide, the up bars hollow with a blue edge and the down bars green.
+    static QString stockPlot(const QVector<QVector<double>> &prices, bool bars, const QString &axes = QStringLiteral("<c:axId val=\"111\"/><c:axId val=\"222\"/>"), int firstIndex = 0, const QStringList &cats = {"a", "b", "c", "d"})
+    {
+        QString out = QStringLiteral("<c:stockChart>");
+        for (int i = 0; i < prices.size(); ++i) out += chartSeries(firstIndex + i, QStringLiteral("P%1").arg(i), cats, prices[i], stockLook(), i == prices.size() - 1 && !bars ? closeMark() : noMark());
+        out += QStringLiteral("<c:hiLowLines><c:spPr><a:ln w=\"12700\"><a:solidFill><a:srgbClr val=\"FF0000\"/></a:solidFill></a:ln></c:spPr></c:hiLowLines>");
+        if (bars)
+            out += QStringLiteral("<c:upDownBars><c:gapWidth val=\"150\"/><c:upBars><c:spPr><a:solidFill><a:srgbClr val=\"FFFFFF\"/></a:solidFill><a:ln w=\"12700\"><a:solidFill><a:srgbClr val=\"0000FF\"/></a:solidFill></a:ln></c:spPr></c:upBars>"
+                                  "<c:downBars><c:spPr><a:solidFill><a:srgbClr val=\"00AA00\"/></a:solidFill><a:ln><a:noFill/></a:ln></c:spPr></c:downBars></c:upDownBars>");
+        return out + axes + QStringLiteral("</c:stockChart>");
+    }
+    // The axes: categories and a value axis 0 to `max` (id pair 111/222, or 333/444 for the second pair, which is on the right and has no categories shown).
+    static QString stockAxes(double max, bool second = false)
+    {
+        const QString cat = second ? QStringLiteral("333") : QStringLiteral("111"), val = second ? QStringLiteral("444") : QStringLiteral("222");
+        return QStringLiteral("<c:catAx><c:axId val=\"%1\"/><c:scaling><c:orientation val=\"minMax\"/></c:scaling><c:delete val=\"%3\"/><c:axPos val=\"b\"/><c:numFmt formatCode=\"General\" sourceLinked=\"1\"/>"
+                              "<c:majorTickMark val=\"none\"/><c:minorTickMark val=\"none\"/><c:tickLblPos val=\"nextTo\"/><c:crossAx val=\"%2\"/><c:crosses val=\"autoZero\"/><c:auto val=\"1\"/><c:lblAlgn val=\"ctr\"/><c:lblOffset val=\"100\"/></c:catAx>")
+                   .arg(cat, val, second ? QStringLiteral("1") : QStringLiteral("0"))
+               + QStringLiteral("<c:valAx><c:axId val=\"%1\"/><c:scaling><c:orientation val=\"minMax\"/><c:max val=\"%3\"/><c:min val=\"0\"/></c:scaling><c:delete val=\"0\"/><c:axPos val=\"%4\"/><c:numFmt formatCode=\"General\" sourceLinked=\"1\"/>"
+                                "<c:majorTickMark val=\"out\"/><c:minorTickMark val=\"none\"/><c:tickLblPos val=\"nextTo\"/><c:crossAx val=\"%2\"/><c:crosses val=\"%5\"/><c:crossBetween val=\"between\"/></c:valAx>")
+                     .arg(val, cat).arg(max).arg(second ? QStringLiteral("r") : QStringLiteral("l"), second ? QStringLiteral("max") : QStringLiteral("autoZero"));
+    }
+    static QString volumePlot(const QVector<double> &volume, const QStringList &cats = {"a", "b", "c", "d"})
+    {
+        return QStringLiteral("<c:barChart><c:barDir val=\"col\"/><c:grouping val=\"clustered\"/><c:varyColors val=\"0\"/>")
+               + chartSeries(0, QStringLiteral("Volume"), cats, volume, QStringLiteral("<c:spPr><a:solidFill><a:srgbClr val=\"00FF00\"/></a:solidFill></c:spPr>"), QString(), QString())
+               + QStringLiteral("<c:gapWidth val=\"150\"/><c:axId val=\"111\"/><c:axId val=\"222\"/></c:barChart>");
+    }
+    // The vertical runs of a color in a picture: for each group of neighboring columns that hold the color, its columns and the top and bottom of the color there, from the left.
+    struct Run {
+        int left, right, top, bottom;
+        double middle() const { return (top + bottom) / 2.0; }
+    };
+    static QVector<Run> colorColumns(const QImage &img, const QColor &color, int xFrom = 0, int xTo = -1)
+    {
+        QVector<Run> out;
+        const int last = xTo < 0 ? img.width() - 1 : std::min(xTo, img.width() - 1);
+        for (int x = std::max(0, xFrom); x <= last; ++x) {
+            int top = -1, bottom = -1;
+            for (int y = 0; y < img.height(); ++y)
+                if (isColor(img.pixel(x, y), color, 40)) {
+                    if (top < 0) top = y;
+                    bottom = y;
+                }
+            if (top < 0) continue;
+            if (!out.isEmpty() && out.last().right >= x - 2) {
+                Run &r = out.last();
+                r.right = x;
+                r.top = std::min(r.top, top);
+                r.bottom = std::max(r.bottom, bottom);
+            } else {
+                out << Run{x, x, top, bottom};
+            }
+        }
+        return out;
+    }
+    // The picture row of a value on a scale known from one run whose top and bottom are a high and a low value.
+    struct RowScale {
+        double y0 = 0, perUnit = 0;   // the row of value 0, and rows for one unit up
+        double rowOf(double v) const { return y0 - perUnit * v; }
+    };
+    static RowScale scaleFrom(const Run &a, double aHigh, double aLow)
+    {
+        RowScale s;
+        s.perUnit = (a.bottom - a.top) / (aHigh - aLow);
+        s.y0 = a.bottom + s.perUnit * aLow;
+        return s;
+    }
+
+private Q_SLOTS:
+    // The four forms are read as stock charts: one plot of hi-low lines (and up-down bars when it has an open), the volume's columns before it against the first axes and the prices against a second pair.
+    void chartReadsTheFourStockForms()
+    {
+        const QVector<double> h{9, 8, 7, 6}, l{1, 4, 2, 3}, cl{5, 7, 3, 5}, op{3, 7, 2, 5};
+        struct Case {
+            QString body;
+            ChartStockForm form;
+            int plots;
+            bool bars;
+        };
+        const QString second = QStringLiteral("<c:axId val=\"333\"/><c:axId val=\"444\"/>");
+        const QVector<Case> cases = {
+            {stockPlot({h, l, cl}, false) + stockAxes(10), ChartStockForm::HighLowClose, 1, false},
+            {stockPlot({op, h, l, cl}, true) + stockAxes(10), ChartStockForm::OpenHighLowClose, 1, true},
+            {volumePlot({100, 50, 150, 100}) + stockPlot({h, l, cl}, false, second, 1) + stockAxes(200) + stockAxes(10, true), ChartStockForm::VolumeHighLowClose, 2, false},
+            {volumePlot({100, 50, 150, 100}) + stockPlot({op, h, l, cl}, true, second, 1) + stockAxes(200) + stockAxes(10, true), ChartStockForm::VolumeOpenHighLowClose, 2, true},
+        };
+        for (const Case &k : cases) {
+            Chart c;
+            QString err;
+            QVERIFY2(readChart(chartPart(k.body), defaultTheme(), ColorMap(), &c, &err), qPrintable(err));
+            QCOMPARE(int(chartStockForm(c)), int(k.form));
+            QCOMPARE(int(c.plots.size()), k.plots);
+            const ChartPlot &stock = c.plots.last();
+            QVERIFY(stock.stock && stock.type == ChartType::Line && stock.hiLowLines);
+            QCOMPARE(stock.upDownBars, k.bars);
+            QCOMPARE(int(stock.series.last().marker.symbol), int(k.bars ? ChartMarker::None : ChartMarker::Dash));
+            QVERIFY(stock.series.first().outline.none);
+            if (k.plots == 2) QCOMPARE(int(c.plots[0].type), int(ChartType::Bar));
+        }
+        // series that fit none of the forms (two prices, five) are what a kind not drawn yet is: columns, and the part is kept
+        for (const QVector<QVector<double>> &prices : {QVector<QVector<double>>{h, l}, QVector<QVector<double>>{op, h, l, cl, h}}) {
+            const QByteArray part = chartPart(stockPlot(prices, false) + stockAxes(10));
+            Chart c;
+            QString err;
+            QVERIFY2(readChart(part, defaultTheme(), ColorMap(), &c, &err), qPrintable(err));
+            QCOMPARE(int(chartStockForm(c)), int(ChartStockForm::None));
+            QCOMPARE(int(c.plots[0].type), int(ChartType::Other));
+            QVERIFY(!c.plots[0].stock);
+            QVERIFY(!chartIsFullyModeled(part));
+        }
+        // a stock plot beside a line plot, or a volume on the same axes as the prices, is not a form either
+        const QString line = QStringLiteral("<c:lineChart><c:grouping val=\"standard\"/>") + chartSeries(9, QStringLiteral("L"), {"a", "b", "c", "d"}, {1, 2, 3, 4}) + QStringLiteral("<c:axId val=\"111\"/><c:axId val=\"222\"/></c:lineChart>");
+        const QStringList odd = {line + stockPlot({h, l, cl}, false) + stockAxes(10), volumePlot({1, 2, 3, 4}) + stockPlot({h, l, cl}, false, QStringLiteral("<c:axId val=\"111\"/><c:axId val=\"222\"/>"), 1) + stockAxes(10)};
+        for (const QString &body : odd) {
+            Chart c;
+            QString err;
+            QVERIFY2(readChart(chartPart(body), defaultTheme(), ColorMap(), &c, &err), qPrintable(err));
+            QCOMPARE(int(chartStockForm(c)), int(ChartStockForm::None));
+            for (const ChartPlot &p : c.plots) QVERIFY(!p.stock);
+            QVERIFY(!chartIsFullyModeled(chartPart(body)));
+        }
+    }
+
+    // High-low-close: a red line for each category from its high to its low, the close marked in blue at the close's place, and no line through the series; every place read from the scale.
+    void chartSvgDrawsHighLowCloseWhereTheNumbersAre()
+    {
+        const QVector<double> h{9, 8, 7, 6}, l{1, 4, 2, 3}, cl{5, 7, 3, 5};
+        Chart c;
+        QString err;
+        QVERIFY2(readChart(chartPart(stockPlot({h, l, cl}, false) + stockAxes(10)), defaultTheme(), ColorMap(), &c, &err), qPrintable(err));
+        const QImage img = renderChart(c, QSizeF(400, 300), 2);
+        const QVector<Run> red = colorColumns(img, Qt::red);
+        QCOMPARE(int(red.size()), 4);
+        const RowScale s = scaleFrom(red[0], h[0], l[0]);
+        QVERIFY(s.perUnit > 10);
+        for (int i = 0; i < 4; ++i) {
+            QVERIFY2(std::abs(red[i].top - s.rowOf(h[i])) <= 3 && std::abs(red[i].bottom - s.rowOf(l[i])) <= 3, qPrintable(QStringLiteral("line %1: %2 to %3, wanted %4 to %5").arg(i).arg(red[i].top).arg(red[i].bottom).arg(s.rowOf(h[i])).arg(s.rowOf(l[i]))));
+            // the close's mark sits across its line at the close's row
+            const QVector<Run> blue = colorColumns(img, QColor(0, 0, 0xFF), red[i].left - 12, red[i].right + 12);
+            QCOMPARE(int(blue.size()), 1);
+            QVERIFY2(std::abs(blue[0].middle() - s.rowOf(cl[i])) <= 3, qPrintable(QStringLiteral("close %1: %2, wanted %3").arg(i).arg(blue[0].middle()).arg(s.rowOf(cl[i]))));
+            QVERIFY(blue[0].right - blue[0].left > red[i].right - red[i].left + 6);
+        }
+        // nothing joins the series (their lines are none): the colors a series would be drawn in are nowhere
+        for (const QColor &series : {defaultTheme().colors[Theme::Accent1], defaultTheme().colors[Theme::Accent2], defaultTheme().colors[Theme::Accent3]}) QCOMPARE(colorArea(img, series), 0.0);
+    }
+
+    // Open-high-low-close: the bar between the open and the close, hollow with the file's edge for a rise and filled for a fall, over the high-low line, at the rows the numbers give.
+    void chartSvgDrawsUpAndDownBarsBetweenOpenAndClose()
+    {
+        const QVector<double> op{3, 7, 2, 5}, h{9, 8, 7, 6}, l{1, 4, 1, 2}, cl{6, 4, 5, 3};
+        Chart c;
+        QString err;
+        QVERIFY2(readChart(chartPart(stockPlot({op, h, l, cl}, true) + stockAxes(10)), defaultTheme(), ColorMap(), &c, &err), qPrintable(err));
+        const QImage img = renderChart(c, QSizeF(400, 300), 2);
+        const QVector<Run> red = colorColumns(img, Qt::red);
+        QCOMPARE(int(red.size()), 4);
+        const RowScale s = scaleFrom(red[0], h[0], l[0]);
+        // the falls (categories 2 and 4) are filled green, from the open down to the close
+        const QVector<Run> green = colorColumns(img, QColor(0, 0xAA, 0));
+        QCOMPARE(int(green.size()), 2);
+        const int falls[] = {1, 3};
+        for (int k = 0; k < 2; ++k) {
+            QVERIFY2(std::abs(green[k].top - s.rowOf(op[falls[k]])) <= 3 && std::abs(green[k].bottom - s.rowOf(cl[falls[k]])) <= 3, qPrintable(QStringLiteral("fall %1: %2 to %3").arg(k).arg(green[k].top).arg(green[k].bottom)));
+            QVERIFY(green[k].left > red[falls[k]].left - 40 && green[k].right < red[falls[k]].right + 40);   // (on its category's line)
+        }
+        // the rises (1 and 3) are hollow with a blue edge from the close up to the open: the edge spans them, the inside is white
+        const QVector<Run> blue = colorColumns(img, QColor(0, 0, 0xFF));
+        QCOMPARE(int(blue.size()), 2);
+        const int rises[] = {0, 2};
+        for (int k = 0; k < 2; ++k) {
+            QVERIFY2(std::abs(blue[k].top - s.rowOf(cl[rises[k]])) <= 3 && std::abs(blue[k].bottom - s.rowOf(op[rises[k]])) <= 3, qPrintable(QStringLiteral("rise %1: %2 to %3").arg(k).arg(blue[k].top).arg(blue[k].bottom)));
+            const int inside = int(std::lround((blue[k].left + blue[k].right) / 2.0 + (blue[k].right - blue[k].left) / 4.0));
+            QVERIFY(isColor(img.pixel(inside, int(std::lround(blue[k].middle()))), Qt::white, 10));
+        }
+    }
+
+    // The volume forms: the volume as columns read on the first (left) axis, the prices on the second axis on the right, each on its own scale.
+    void chartSvgDrawsTheVolumeOnTheFirstAxisAndThePricesOnTheSecond()
+    {
+        const QVector<double> h{9, 8, 7, 6}, l{1, 4, 2, 3}, cl{5, 7, 3, 5}, volume{100, 50, 150, 200};
+        Chart c;
+        QString err;
+        const QString body = volumePlot(volume) + stockPlot({h, l, cl}, false, QStringLiteral("<c:axId val=\"333\"/><c:axId val=\"444\"/>"), 1) + stockAxes(200) + stockAxes(10, true);
+        QVERIFY2(readChart(chartPart(body), defaultTheme(), ColorMap(), &c, &err), qPrintable(err));
+        const QImage img = renderChart(c, QSizeF(400, 300), 2);
+        const QVector<Run> red = colorColumns(img, Qt::red);
+        QCOMPARE(int(red.size()), 4);
+        const RowScale prices = scaleFrom(red[0], h[0], l[0]);   // (rows of the right axis, 0 to 10)
+        const QVector<Run> columns = colorColumns(img, QColor(0, 0xFF, 0));
+        QCOMPARE(int(columns.size()), 4);
+        for (int i = 0; i < 4; ++i) {
+            // a volume of 100 on the axis to 200 is half of the plot's height, which is 5 on the price axis to 10: the column's top is where a price of volume / 20 would be
+            QVERIFY2(std::abs(columns[i].top - prices.rowOf(volume[i] / 20)) <= 3, qPrintable(QStringLiteral("column %1 top %2, wanted %3").arg(i).arg(columns[i].top).arg(prices.rowOf(volume[i] / 20))));
+            QVERIFY2(std::abs(columns[i].bottom - prices.rowOf(0)) <= 3, qPrintable(QString::number(columns[i].bottom)));
+            QVERIFY(columns[i].right < red[i].left + 60 && columns[i].left > red[i].left - 60);   // (the prices stand on their category)
+        }
+        // the first axis' numbers are the volume's, on the left, and the second axis' the prices', on the right
+        const QString svg = QString::fromUtf8(chartSvg(c, QSizeF(400, 300)));
+        // (a text is placed by the group's transform and its own x)
+        auto placeOf = [&](const char *word) {
+            const QRegularExpression at(QStringLiteral("matrix\\(1,0,0,1,([0-9.]+),[0-9.]+\\)\"(?:(?!</g>).)*?x=\"(-?[0-9.]+)\"(?:(?!</g>).)*?>%1</text>").arg(QLatin1String(word)), QRegularExpression::DotMatchesEverythingOption);
+            const QRegularExpressionMatch m = at.match(svg);
+            return m.hasMatch() ? m.captured(1).toDouble() + m.captured(2).toDouble() : -1000.0;
+        };
+        const double left = placeOf("200"), right = placeOf("10");
+        QVERIFY2(left > -100 && left < 100 && right > 300, qPrintable(QStringLiteral("%1, %2").arg(left).arg(right)));
+    }
+
+    // An empty cell is shown as the chart says: left out (the line spans what is there), or as zero (the line runs down to it).
+    void aStockChartDrawsAnEmptyCellAsTheChartSays()
+    {
+        const double none = std::nan("");
+        const QVector<double> h{8, 9, 7, 6}, l{2, none, 3, 3}, cl{5, 6, 4, 5};
+        for (const QString &mode : {QStringLiteral("gap"), QStringLiteral("span"), QStringLiteral("zero")}) {
+            QByteArray part = chartPart(stockPlot({h, l, cl}, false) + stockAxes(10));
+            part.replace("<c:dispBlanksAs val=\"gap\"/>", QByteArray("<c:dispBlanksAs val=\"") + mode.toLatin1() + "\"/>");
+            Chart c;
+            QString err;
+            QVERIFY2(readChart(part, defaultTheme(), ColorMap(), &c, &err), qPrintable(err));
+            QCOMPARE(c.blanksAs, mode);
+            const QImage img = renderChart(c, QSizeF(400, 300), 2);
+            const QVector<Run> red = colorColumns(img, Qt::red);
+            QCOMPARE(int(red.size()), 4);
+            const RowScale s = scaleFrom(red[0], h[0], l[0]);
+            // category 2: its low is empty; left out, the line runs from the high to the close (6); as zero, down to the axis
+            const double wantedLow = mode == QLatin1String("zero") ? 0 : 6;
+            QVERIFY2(std::abs(red[1].top - s.rowOf(9)) <= 3 && std::abs(red[1].bottom - s.rowOf(wantedLow)) <= 3, qPrintable(mode + QStringLiteral(": %1 to %2, wanted %3").arg(red[1].top).arg(red[1].bottom).arg(s.rowOf(wantedLow))));
+            // the others are as ever
+            QVERIFY(std::abs(red[2].bottom - s.rowOf(3)) <= 3);
+        }
+    }
+
+    // A chart with more categories than a picture can show is drawn from every nth, in a bounded number of lines and bars.
+    void aStockChartOfManyCategoriesIsDrawnCoarserWithinItsLimit()
+    {
+        QStringList cats;
+        QVector<double> op, h, l, cl;
+        for (int i = 0; i < 10000; ++i) {
+            cats << QString::number(i);
+            op << 3 + i % 3;
+            h << 8;
+            l << 1;
+            cl << 4 + i % 2;
+        }
+        Chart c;
+        QString err;
+        QVERIFY2(readChart(chartPart(stockPlot({op, h, l, cl}, true, QStringLiteral("<c:axId val=\"111\"/><c:axId val=\"222\"/>"), 0, cats) + stockAxes(10)), defaultTheme(), ColorMap(), &c, &err), qPrintable(err));
+        QCOMPARE(int(chartStockForm(c)), int(ChartStockForm::OpenHighLowClose));
+        QCOMPARE(c.plots[0].series[0].values.size(), qsizetype(10000));
+        bool coarser = false;
+        const QString svg = QString::fromUtf8(chartSvg(c, QSizeF(400, 300), &coarser));
+        QVERIFY(coarser);
+        // counted: the high-low lines are red, one for each category drawn (10,000 were read; a stride of 27 leaves 371)
+        int lines = 0;
+        for (const QRegularExpressionMatch &m : QRegularExpression(QStringLiteral("<g [^>]*stroke=\"#ff0000\"[^>]*>(.*?)</g>"), QRegularExpression::DotMatchesEverythingOption).globalMatch(svg)) lines += int(m.captured(1).count(QStringLiteral("<polyline")));
+        QVERIFY2(lines > 100 && lines <= 400 && svg.count(QLatin1Char('<')) < 6000, qPrintable(QStringLiteral("%1 lines, %2 tags").arg(lines).arg(svg.count(QLatin1Char('<')))));
+    }
+
+    // A stock plot whose series a filter leaves fitting no form is drawn as columns and never as stock.
+    void aStockChartWithASeriesFilteredOutIsDrawnAsColumns()
+    {
+        const QVector<double> h{9, 8, 7, 6}, l{1, 4, 2, 3}, cl{5, 7, 3, 5};
+        Chart c;
+        QString err;
+        QVERIFY2(readChart(chartPart(stockPlot({h, l, cl}, false) + stockAxes(10)), defaultTheme(), ColorMap(), &c, &err), qPrintable(err));
+        const QImage whole = renderChart(c, QSizeF(400, 300), 2);
+        QVERIFY(!colorColumns(whole, Qt::red).isEmpty());
+        c.plots[0].series[1].filtered = true;
+        const QImage cut = renderChart(c, QSizeF(400, 300), 2);
+        QVERIFY(colorColumns(cut, Qt::red).isEmpty());   // (no high-low lines: not a stock chart now)
+    }
+
+    // A stock part as a program writes it (the series' lines none, the close's mark, the hi-low and up-down looks) is the model's to write: kept byte for byte when unedited, written the same when it is.
+    void aStockPartIsFullyModeledAndWrittenBackTheSame()
+    {
+        const QVector<double> h{9, 8, 7, 6}, l{1, 4, 2, 3}, cl{5, 7, 3, 5}, op{3, 7, 2, 5}, volume{100, 50, 150, 200};
+        const QStringList bodies = {stockPlot({h, l, cl}, false) + stockAxes(10), stockPlot({op, h, l, cl}, true) + stockAxes(10),
+                                    volumePlot(volume) + stockPlot({h, l, cl}, false, QStringLiteral("<c:axId val=\"333\"/><c:axId val=\"444\"/>"), 1) + stockAxes(200) + stockAxes(10, true)};
+        for (const QString &body : bodies) {
+            const QByteArray part = chartPart(body);
+            QString why;
+            QVERIFY2(chartIsFullyModeled(part, &why), qPrintable(why));
+            Chart c;
+            QString err;
+            QVERIFY2(readChart(part, defaultTheme(), ColorMap(), &c, &err), qPrintable(err));
+            const QByteArray written = writeChartPart(c);
+            QVERIFY(written.contains("<c:stockChart>") && !written.contains("<c:lineChart>"));
+            // (schema order: the series, the lines, the bars, then the axes; no grouping, varied colors, or marker flag of a line plot)
+            const qsizetype start = written.indexOf("<c:stockChart>"), end = written.indexOf("</c:stockChart>");
+            const QByteArray inside = written.mid(start, end - start);
+            QVERIFY(!inside.contains("<c:grouping") && !inside.contains("<c:varyColors") && !inside.contains("<c:marker val"));
+            QVERIFY(inside.indexOf("<c:hiLowLines>") > inside.lastIndexOf("</c:ser>") && inside.indexOf("<c:axId") > inside.indexOf("<c:hiLowLines>"));
+            Chart again;
+            QVERIFY2(readChart(written, defaultTheme(), ColorMap(), &again, &err), qPrintable(err));
+            QCOMPARE(int(chartStockForm(again)), int(chartStockForm(c)));
+            QCOMPARE(chartSvg(again, QSizeF(400, 300)), chartSvg(c, QSizeF(400, 300)));
+            QCOMPARE(writeChartPart(again), written);
+        }
+        // a hidden series (the extension's list of filtered series inside the stock plot) is not something this writes: the part is kept
+        QString hidden = bodies[0];
+        QString ser = chartSeries(7, QStringLiteral("Hidden"), {"a", "b", "c", "d"}, {1, 2, 3, 4});
+        ser.replace(QStringLiteral("c:ser"), QStringLiteral("c15:ser"));
+        hidden.replace(QStringLiteral("<c:axId val=\"111\"/><c:axId val=\"222\"/></c:stockChart>"),
+                       QStringLiteral("<c:axId val=\"111\"/><c:axId val=\"222\"/><c:extLst><c:ext uri=\"{02D57815-91ED-43cb-92C2-25804820EDAC}\" xmlns:c15=\"http://schemas.microsoft.com/office/drawing/2012/chart\"><c15:filteredLineSeries>")
+                           + ser + QStringLiteral("</c15:filteredLineSeries></c:ext></c:extLst></c:stockChart>"));
+        const QByteArray part = chartPart(hidden);
+        QString why;
+        QVERIFY(!chartIsFullyModeled(part, &why));
+        QVERIFY2(why.contains(QStringLiteral("hidden series")), qPrintable(why));
+    }
+
+    // A stock chart with a date axis (c:dateAx) is read, drawn with its categories along the bottom, and written back with the date axis.
+    void aStockChartOnADateAxisIsReadAndWrittenBack()
+    {
+        const QVector<double> h{9, 8, 7, 6}, l{1, 4, 2, 3}, cl{5, 7, 3, 5};
+        QString axes = stockAxes(10);
+        axes.replace(QStringLiteral("<c:catAx>"), QStringLiteral("<c:dateAx>")).replace(QStringLiteral("</c:catAx>"), QStringLiteral("</c:dateAx>")).remove(QStringLiteral("<c:lblAlgn val=\"ctr\"/>"));
+        const QByteArray part = chartPart(stockPlot({h, l, cl}, false, QStringLiteral("<c:axId val=\"111\"/><c:axId val=\"222\"/>"), 0, {"45000", "45001", "45002", "45005"}) + axes);
+        Chart c;
+        QString err;
+        QVERIFY2(readChart(part, defaultTheme(), ColorMap(), &c, &err), qPrintable(err));
+        QCOMPARE(int(chartStockForm(c)), int(ChartStockForm::HighLowClose));
+        QCOMPARE(int(c.axes[0].kind), int(ChartAxis::Date));
+        QVERIFY(QString::fromUtf8(chartSvg(c, QSizeF(400, 300))).contains(QStringLiteral(">45005<")));
+        QString why;
+        QVERIFY2(chartIsFullyModeled(part, &why), qPrintable(why));
+        QVERIFY(writeChartPart(c).contains("<c:dateAx>"));
+    }
+
     void chartSvgScalesTheAxisToTheValues()
     {
         // The largest value, 16.1, gets an axis to 18 in steps of 2, from 0.

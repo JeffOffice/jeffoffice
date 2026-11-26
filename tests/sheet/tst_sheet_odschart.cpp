@@ -284,6 +284,89 @@ private Q_SLOTS:
         }
     }
 
+    // A stock chart is a stock chart in the open-document form (high-low-close, and open-high-low-close with its bars) and is read back as one; a stock chart of another program is read by its class.
+    void aStockChartSurvivesSaveAsOds()
+    {
+        for (const int count : {3, 4}) {
+            QVector<SeriesSpec> series = twoSeries();
+            while (series.size() < count) {
+                SeriesSpec more = series[0];
+                more.name = QStringLiteral("Third%1").arg(series.size());
+                more.nameRef = QStringLiteral("Sheet1!$%1$1").arg(QChar(char('B' + int(series.size()))));
+                more.valRef = QStringLiteral("Sheet1!$%1$2:$%1$4").arg(QChar(char('B' + int(series.size()))));
+                series << more;
+            }
+            QByteArray part = chartPart(QStringLiteral("stockChart"), series, QStringLiteral("Prices"));
+            part.replace("<c:axId val=\"111\"/><c:axId val=\"222\"/></c:stockChart>",
+                         QByteArray("<c:hiLowLines/>") + (count == 4 ? "<c:upDownBars><c:gapWidth val=\"150\"/></c:upDownBars>" : "") + "<c:axId val=\"111\"/><c:axId val=\"222\"/></c:stockChart>");
+            Saved s;
+            QString why;
+            QVERIFY2(saveAsOds(sheetWithChart(twoCell(1, 5, 6, 20, chartFrame(2, QStringLiteral("rId1"), QStringLiteral("Sales"))), part), &s, &why), qPrintable(why));
+            QVERIFY(s.parts.value(QStringLiteral("Object 1/content.xml")).contains("chart:class=\"chart:stock\""));
+            Back b;
+            QVERIFY2(readBack(s.ods, &b, &why), qPrintable(why));
+            QCOMPARE(b.charts.size(), 1);
+            QCOMPARE(int(chartStockForm(b.charts[0])), int(count == 4 ? ChartStockForm::OpenHighLowClose : ChartStockForm::HighLowClose));
+            QVERIFY(b.charts[0].plots[0].stock && b.charts[0].plots[0].hiLowLines);
+            QCOMPARE(b.charts[0].plots[0].upDownBars, count == 4);
+            QCOMPARE(int(b.charts[0].plots[0].series.size()), count);
+        }
+        // by its class alone, in a chart of another program
+        const QString plot = QStringLiteral("<chart:axis chart:dimension=\"x\" chart:name=\"primary-x\"/><chart:axis chart:dimension=\"y\" chart:name=\"primary-y\"/>"
+                                            "<chart:series chart:values-cell-range-address=\"local-table.B1:local-table.B3\" chart:class=\"chart:stock\"/>"
+                                            "<chart:series chart:values-cell-range-address=\"local-table.C1:local-table.C3\" chart:class=\"chart:stock\"/>"
+                                            "<chart:series chart:values-cell-range-address=\"local-table.D1:local-table.D3\" chart:class=\"chart:stock\"/>");
+        const QString cell = QStringLiteral("<table:table-cell office:value-type=\"float\" office:value=\"%1\"><text:p>%1</text:p></table:table-cell>");
+        QString rows;
+        for (int r = 0; r < 3; ++r) rows += QStringLiteral("<table:table-row><table:table-cell office:value-type=\"string\"><text:p>c%1</text:p></table:table-cell>%2%3%4</table:table-row>").arg(r).arg(cell.arg(3 - r), cell.arg(1 + r), cell.arg(2));
+        const QString table = QStringLiteral("<table:table table:name=\"local-table\"><table:table-rows>") + rows + QStringLiteral("</table:table-rows></table:table>");
+        const QByteArray doc = miniChart(QStringLiteral("chart:stock"), plot, QString(), table);
+        jp::office::sheet::ods::StyleStore store;
+        QString why;
+        QVERIFY2(jp::office::sheet::odschart::parseStyles(doc, Limits(), &store, &why), qPrintable(why));
+        Chart back;
+        QVERIFY2(jp::office::sheet::odschart::chartFromOdf(doc, store, nullptr, &back, &why, nullptr), qPrintable(why));
+        QCOMPARE(int(chartStockForm(back)), int(ChartStockForm::HighLowClose));
+        QCOMPARE(back.plots[0].series[0].values, (QVector<double>{3, 2, 1}));
+        // two series fit no form: the columns of their values, as before
+        QString two = plot;
+        two.remove(two.indexOf(QStringLiteral("<chart:series chart:values-cell-range-address=\"local-table.D1")), 1000);
+        const QByteArray fewer = miniChart(QStringLiteral("chart:stock"), two, QString(), table);
+        QVERIFY2(jp::office::sheet::odschart::chartFromOdf(fewer, store, nullptr, &back, &why, nullptr), qPrintable(why));
+        QCOMPARE(int(chartStockForm(back)), int(ChartStockForm::None));
+        QCOMPARE(int(back.plots[0].type), int(ChartType::Other));
+    }
+
+    // The volume forms keep their volume on a second axis that this format has no place for: saved, the chart is told so and opens as columns of its values, never half drawn as stock.
+    void aStockChartWithVolumeInAnOdsIsDrawnAsColumns()
+    {
+        QVector<jp::office::ChartSeries> series;
+        for (int i = 0; i < 4; ++i) {
+            jp::office::ChartSeries x;
+            x.name = QStringLiteral("S%1").arg(i);
+            x.nameRef = QStringLiteral("Sheet1!$%1$1").arg(QChar('B' + i));
+            x.categoryRef = QStringLiteral("Sheet1!$A$2:$A$4");
+            x.valueRef = QStringLiteral("Sheet1!$%1$2:$%1$4").arg(QChar('B' + i));
+            x.categories = {"Q1", "Q2", "Q3"};
+            x.values = {1.0 + i, 2.0 + i, 3.0 + i};
+            series << x;
+        }
+        const jp::office::Chart made = jp::office::sheet::chartFromSeries(series, QVector<jp::office::sheet::SeriesKind>(4, {jp::office::sheet::ChartKind::StockVHLC, false}), jp::office::defaultTheme());
+        QCOMPARE(int(chartStockForm(made)), int(ChartStockForm::VolumeHighLowClose));
+        Saved s;
+        QString why;
+        QVERIFY2(saveAsOds(sheetWithChart(twoCell(1, 5, 6, 20, chartFrame(2, QStringLiteral("rId1"), QStringLiteral("Sales"))), writeChartPart(made)), &s, &why), qPrintable(why));
+        Back b;
+        QVERIFY2(readBack(s.ods, &b, &why), qPrintable(why));
+        QCOMPARE(b.charts.size(), 1);
+        for (const ChartPlot &p : b.charts[0].plots) QVERIFY(!p.stock);
+        QCOMPARE(int(chartStockForm(b.charts[0])), int(ChartStockForm::None));
+        int total = 0;
+        for (const ChartPlot &p : b.charts[0].plots) total += int(p.series.size());
+        QCOMPARE(total, 4);
+        QVERIFY2(s.report.notKept.join(QLatin1Char('|')).contains(QStringLiteral("secondary axes")), qPrintable(s.report.notKept.join(QLatin1Char('|'))));
+    }
+
     // A chart with a look: stacked horizontal bars, a series color and outline, titles on its axes, a scale with a least and greatest value, a number format, data labels, and a legend at the bottom.
     void aChartKeepsItsLookThroughAnOds()
     {

@@ -186,6 +186,7 @@ QString Reader::drawChart(const QString &part, const QSizeF &size)
         if (c == QLatin1String("chart:ring")) return office::ChartType::Doughnut;
         if (c == QLatin1String("chart:scatter")) return office::ChartType::Scatter;
         if (c == QLatin1String("chart:radar") || c == QLatin1String("chart:filled-radar")) return office::ChartType::Radar;
+        if (c == QLatin1String("chart:stock")) return office::ChartType::Line;   // (a stock chart is a line plot of its own look; one that fits no form is made Other below)
         return office::ChartType::Other;
     };
     const bool stacked = plotBag.get(Graphic, "chart:stacked") == QLatin1String("true"), percent = plotBag.get(Graphic, "chart:percentage") == QLatin1String("true");
@@ -326,6 +327,12 @@ QString Reader::drawChart(const QString &part, const QSizeF &size)
                 const QString symbol = plotBag.get(Graphic, "chart:symbol-type").isEmpty() ? b.get(Graphic, "chart:symbol-type") : plotBag.get(Graphic, "chart:symbol-type");
                 plot.markers = !symbol.isEmpty() && symbol != QLatin1String("none");
             }
+            if (seriesClass == QLatin1String("chart:stock")) {
+                plot.stock = true;
+                plot.grouping = office::ChartGrouping::Standard;
+                plot.markers = false;
+                plot.hiLowLines = true;
+            }
             plot.horizontal = horizontal && type == office::ChartType::Bar;
             plot.axisIds[0] = 1;
             plot.axisIds[1] = 2;
@@ -350,6 +357,16 @@ QString Reader::drawChart(const QString &part, const QSizeF &size)
         chart.axes[0].kind = office::ChartAxis::Value;
         chart.axes[0].between = false;
     }
+    // a stock plot that fits no form (this format's volume sits on a second axis that is not read here, among them) is drawn as the kinds not drawn yet are
+    if (office::chartStockForm(chart) == office::ChartStockForm::None)
+        for (office::ChartPlot &plot : chart.plots)
+            if (plot.stock) {
+                plot.stock = false;
+                plot.type = office::ChartType::Other;
+                plot.hiLowLines = false;
+            } 
+    for (office::ChartPlot &plot : chart.plots)
+        if (plot.stock) plot.upDownBars = plot.series.size() == 4;
 
     // The title, the legend, and the areas behind the plot.
     if (const QDomElement title = kid(chartEl, "chart:title"); !title.isNull()) {

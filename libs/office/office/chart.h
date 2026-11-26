@@ -38,7 +38,7 @@ enum class ChartType {
     Area,
     Scatter,
     Radar,      // each category a spoke from the middle, each series a closed shape through its values (ChartPlot::filled: filled)
-    Other       // a kind not drawn yet (stock, surface, bubble): drawn as columns of its values
+    Other       // a kind not drawn yet (surface, bubble, and a stock chart that fits none of the four forms): drawn as columns of its values
 };
 
 enum class ChartGrouping { Clustered, Stacked, PercentStacked, Standard };
@@ -188,6 +188,7 @@ struct ChartPlot {
     bool varyColors = false;        // each point, not each series, takes a color
     bool markers = true;            // a line chart's markers (c:marker); a radar's too (its style "marker")
     bool filled = false;            // radar: the shape of each series is filled (the style "filled")
+    bool stock = false;             // a line plot that is a stock chart (c:stockChart): high-low lines, up-down bars, and a mark for the close, no lines through the series; see chartStockForm
     int firstSliceAngle = 0;        // pie: degrees clockwise from twelve o'clock
     int holeSize = 50;              // doughnut: percent of the diameter
     bool lines = true;              // scatter: the points are joined (else markers only)
@@ -337,6 +338,12 @@ struct Chart {
     // The axis with the id, or null.
     const ChartAxis *axis(qint64 id) const;
 };
+
+// The four forms of stock chart, told apart by how many series the stock plot has and, for the volume forms, the column plot of one series on the first axes before it: high, low, close
+// (3 series); open, high, low, close (4); volume, high, low, close; volume, open, high, low, close. None for a chart that has no stock plot or whose stock plots fit no form (one stock plot of
+// three or four series, alone or with one plot of columns of one series against another pair of value axes).
+enum class ChartStockForm { None, HighLowClose, OpenHighLowClose, VolumeHighLowClose, VolumeOpenHighLowClose };
+ChartStockForm chartStockForm(const Chart &chart);
 
 // Reads a chart part (c:chartSpace). `theme` and `colors` say what the
 // theme's colors and the slide's color names stand for. False, with a

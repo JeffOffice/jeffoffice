@@ -15,7 +15,8 @@
 namespace jp::office::sheet {
 
 // The kinds of chart Insert offers (and a chart's kind, as nearly as these say it).
-enum class ChartForm { Column, ColumnStacked, ColumnPercent, Bar, BarStacked, Line, LineMarkers, Pie, Doughnut, Area, AreaStacked, Scatter, Radar, RadarMarkers, RadarFilled };
+enum class ChartForm { Column, ColumnStacked, ColumnPercent, Bar, BarStacked, Line, LineMarkers, Pie, Doughnut, Area, AreaStacked, Scatter, Radar, RadarMarkers, RadarFilled,
+                     StockHighLowClose, StockOpenHighLowClose, StockVolumeHighLowClose, StockVolumeOpenHighLowClose };
 const QVector<ChartForm> &chartForms();
 // What a chart plots: the words under the points (or a scatter's x numbers), the name of each series, and the numbers (a list for each series, a number for each category).
 struct ChartData {
@@ -28,8 +29,9 @@ constexpr int kMostChartCategories = 200, kMostChartSeries = 24;
 // chart part kept for one, and the most the parts of one file come to.
 constexpr int kMostChartsInFile = 300;
 constexpr qint64 kMostChartPartBytes = jp::kMaxChartPartBytes, kMostChartBytesInFile = 16 << 20;
-// Three categories and two series, to begin with.
+// Three categories and two series, to begin with; the stock forms begin with the prices of four days, in the series their order asks for.
 ChartData sampleChartData();
+ChartData sampleChartData(ChartForm form);
 // Whether the data can be a chart: some of each, no more than the most, a number for each category of each series, and numbers that are numbers.
 bool chartDataIsUsable(const ChartData &data);
 enum class ChartAxisKind { Category, Value };
@@ -69,6 +71,8 @@ QVector<ChartSeries> chartAllSeries(const Chart &chart);
 
 // One change each; true when the chart changed (false for no difference, or a chart the change does not suit: a pie has no axes). The look the chart had is kept.
 bool chartSetForm(Chart &chart, ChartForm form, const Theme &theme);
+// Why the chart cannot be made of that kind, in a sentence; empty when it can. A stock form needs its series in a number and an order (stockProblem names them), so a chart of other series is refused, never changed.
+QString chartFormProblem(const Chart &chart, ChartForm form);
 bool chartSetTitle(Chart &chart, bool shown, const QString &text);
 // `legendPosition` is "r", "l", "t", or "b"; empty takes the legend off.
 bool chartSetLegend(Chart &chart, const QString &legendPosition);

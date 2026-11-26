@@ -36,7 +36,7 @@ struct RawGroup {
     quint16 kind = 0;    // the record that says what is drawn (0x1017 bar, ...), 0 for none yet
     int parent = 0;
     bool varied = false;
-    bool is3d = false, bubbles = false, dropLines = false, hiLowLines = false;
+    bool is3d = false, bubbles = false, dropLines = false, hiLowLines = false, upDownBars = false;
     int overlap = 0, gap = 150, grbit = 0, start = 0, donut = 0;
 };
 
@@ -538,6 +538,9 @@ XlsChartRead readXlsChart(const QByteArray &d, qsizetype from, qsizetype to, con
             }
             break;
         }
+        case 0x103C:   // Dropbar: the up-down bars of a line group
+            if (curGroup >= 0) groups[curGroup].upDownBars = true;
+            break;
         case 0x1045: {   // SerToCrt: the group a series is in
             const int g = b.u16();
             if (curSeries >= 0 && !b.bad()) series[curSeries].group = g;
@@ -652,6 +655,7 @@ XlsChartRead readXlsChart(const QByteArray &d, qsizetype from, qsizetype to, con
     }
     // the series, each in its group
     QVector<bool> markerSeen(c.plots.size(), false), markerOn(c.plots.size(), false), lineOn(c.plots.size(), false), smoothOn(c.plots.size(), false);
+    QVector<int> unjoined(c.plots.size(), 0);   // the series of each plot that say they have no line
     for (const RawSeries &r : series) {
         const int gi = r.group;
         const int pi = gi >= 0 && gi < planOf.size() ? planOf[gi] : -1;   // (a series of a group that is not there, or past the limit, is left out)
@@ -689,6 +693,7 @@ XlsChartRead readXlsChart(const QByteArray &d, qsizetype from, qsizetype to, con
             if (r.marker != 0) markerOn[pi] = true;
         }
         if (r.lineSet && !r.lineNone) lineOn[pi] = true;
+        if (r.lineSet && r.lineNone) ++unjoined[pi];
         if (r.smooth) smoothOn[pi] = true;
         s.labels.value = r.showValue;
         s.labels.percent = r.showPercent;
@@ -696,8 +701,17 @@ XlsChartRead readXlsChart(const QByteArray &d, qsizetype from, qsizetype to, con
         s.labels.series = r.showSeries;
         p.series.append(s);
     }
+    // the up-down bars of the group each plot is (told of a stock chart below)
+    QVector<bool> barsOf(c.plots.size(), false);
+    for (int gi = 0; gi < groups.size(); ++gi)
+        if (planOf[gi] >= 0 && planOf[gi] < barsOf.size()) barsOf[planOf[gi]] = groups[gi].upDownBars;
     for (int pi = 0; pi < c.plots.size(); ++pi) {
         ChartPlot &p = c.plots[pi];
+        // a line group of three or four series that are not joined and have high-low lines is a stock chart (the old format has no record of its own for it)
+        if (p.type == ChartType::Line && p.hiLowLines && unjoined[pi] == p.series.size() && (p.series.size() == 3 || p.series.size() == 4)) {
+            p.stock = true;
+            p.upDownBars = p.series.size() == 4 && barsOf[pi];
+        }
         if (p.type == ChartType::Line) p.markers = !markerSeen[pi] || markerOn[pi];
         if (p.type == ChartType::Radar) p.markers = markerSeen[pi] && markerOn[pi];
         if (p.type == ChartType::Scatter) {
@@ -741,6 +755,15 @@ XlsChartRead readXlsChart(const QByteArray &d, qsizetype from, qsizetype to, con
                 val.crosses = QStringLiteral("max");
             }
             c.axes << cat << val;
+        }
+    }
+    // a stock group that fits no form (its volume against a second pair of axes is the only other plot a form has) is the line group it was drawn as
+    {
+        const bool fits = chartStockForm(c) != ChartStockForm::None;
+        for (ChartPlot &p : c.plots) {
+            if (!p.stock) continue;
+            if (fits) p.markers = false;
+            else p.stock = p.upDownBars = false;
         }
     }
     if (titleSet) {

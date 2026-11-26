@@ -301,6 +301,34 @@ private Q_SLOTS:
         QVERIFY(val->majorGridlines);
     }
 
+    // The old format has no record for a stock chart: a line group of three or four series that are not joined and have high-low lines is one (the up-down bars of the fourth form are a record of the group); a line group
+    // that joins its series, or has no high-low lines, is the line chart it was.
+    void aLineGroupOfUnjoinedSeriesWithHighLowLinesIsAStockChart()
+    {
+        const QByteArray noLine = rec(0x1006, W().u16(0xFFFF).u16(0).u16(0).u16(0)) + begin() + rec(0x1007, W().u32(0).u16(5).u16(0).u16(0)) + end();
+        const QByteArray lines = rec(0x101C, W().u16(1)), bars = rec(0x103C, W().u16(150).u16(0));
+        struct Case {
+            int series;
+            bool hiLow, bars, joined, stock, drawnBars;
+        };
+        const Case cases[] = {{3, true, false, false, true, false}, {4, true, true, false, true, true}, {4, true, false, false, true, false}, {3, false, false, false, false, false}, {3, true, false, true, false, false},
+                              {2, true, false, false, false, false}};
+        for (const Case &k : cases) {
+            QByteArray s;
+            for (int i = 0; i < k.series; ++i) s += series(0, named(0, 1 + i % 2), 1 + i % 2, k.joined ? QByteArray() : noLine);
+            const QByteArray body = chartBody(s, columnParents(group(lineKind() + (k.hiLow ? lines : QByteArray()) + (k.bars ? bars : QByteArray()))));
+            Workbook wb;
+            QString why;
+            QVector<Chart> charts;
+            QVERIFY2(readCharts(bookWith(body), &wb, 0, &charts, &why), qPrintable(why));
+            QCOMPARE(charts.size(), 1);
+            QCOMPARE(charts[0].plots[0].stock, k.stock);
+            QCOMPARE(charts[0].plots[0].upDownBars, k.drawnBars);
+            QVERIFY(charts[0].plots[0].type == ChartType::Line);
+            QCOMPARE(int(charts[0].plots[0].series.size()), k.series);
+        }
+    }
+
     // A chart of a kind the model does not draw (surfaces, bubbles) is left out, and said to be.
     void whatTheModelCannotHoldIsSkipped()
     {

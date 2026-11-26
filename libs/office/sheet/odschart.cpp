@@ -451,7 +451,11 @@ private:
         default: return QStringLiteral("chart:bar");
         }
     }
-    static QString classOfPlot(const ChartPlot &p) { return p.type == ChartType::Radar && p.filled ? QStringLiteral("chart:filled-radar") : classOf(p.type); }
+    static QString classOfPlot(const ChartPlot &p)
+    {
+        if (p.stock) return QStringLiteral("chart:stock");
+        return p.type == ChartType::Radar && p.filled ? QStringLiteral("chart:filled-radar") : classOf(p.type);
+    }
     // a series drawn as a line (a radar's too, unless it is filled)
     static bool isLineLike(const ChartPlot &p) { return p.type == ChartType::Line || p.type == ChartType::Scatter || (p.type == ChartType::Radar && !p.filled); }
 
@@ -478,6 +482,7 @@ private:
         if (p.grouping == jp::office::ChartGrouping::PercentStacked) s.chart += QStringLiteral(" chart:percentage=\"true\"");
         if (p.type == ChartType::Bar) s.chart += QStringLiteral(" chart:gap-width=\"%1\" chart:overlap=\"%2\"").arg(p.gapWidth).arg(p.overlap);
         if (p.type == ChartType::Pie || p.type == ChartType::Doughnut) s.chart += QStringLiteral(" chart:angle-offset=\"%1\"").arg(((90 - p.firstSliceAngle) % 360 + 360) % 360);   // (counter-clockwise from three o'clock; the model counts clockwise from twelve)
+        if (p.stock) s.chart += QStringLiteral(" chart:japanese-candle-stick=\"%1\"").arg(p.upDownBars ? QStringLiteral("true") : QStringLiteral("false"));
         if (isLineLike(p) || p.type == ChartType::Radar) {
             s.chart += QStringLiteral(" chart:symbol-type=\"%1\"").arg(p.markers ? QStringLiteral("automatic") : QStringLiteral("none"));
             if (p.type == ChartType::Scatter) s.chart += QStringLiteral(" chart:lines=\"%1\"").arg(p.lines ? QStringLiteral("true") : QStringLiteral("false"));
@@ -848,12 +853,14 @@ public:
                 if (!sc.isEmpty()) typeOf(sc, &st, &el);
                 m_filledRadar = (sc.isEmpty() ? cls : sc) == QLatin1String("chart:filled-radar");
                 ChartSeries s = seriesOf(n, k, st, palette, categoriesAddress, &cutPoints, &total);
-                const int key = int(st) * 2 + (st == ChartType::Radar && m_filledRadar ? 1 : 0);
+                const bool stock = st == ChartType::Line && el == QLatin1String("stockChart");
+                const int key = int(st) * 2 + (st == ChartType::Radar && m_filledRadar ? 1 : 0) + (stock ? 100 : 0);
                 if (!plotOfType.contains(key)) {
                     ChartPlot p;
                     p.type = st;
                     p.element = st == ChartType::Other ? el : QString();
                     p.filled = st == ChartType::Radar && m_filledRadar;
+                    p.stock = stock;
                     p.axisIds[0] = 111;
                     p.axisIds[1] = 222;
                     p.varyColors = st == ChartType::Pie || st == ChartType::Doughnut;
@@ -887,6 +894,12 @@ public:
                 p.markers = said.isEmpty() ? any : said != QLatin1String("none");
             }
             if (p.type == ChartType::Scatter) p.lines = plotProps.value(QStringLiteral("chart:chart:lines")) != QLatin1String("false");
+            if (p.stock) {
+                p.grouping = jp::office::ChartGrouping::Standard;
+                p.markers = false;
+                p.hiLowLines = true;
+                p.upDownBars = p.series.size() == 4;
+            }
         }
         c.plots = plots;
         // the axes of the model
@@ -907,6 +920,14 @@ public:
             if (!ay.majorGridlines && !yNode) ay.majorGridlines = false;
             c.axes = {ax, ay};
         }
+        // a stock chart that fits no form (its volume, drawn here against a second axis this format does not model, among them) is drawn as the kinds not drawn yet are
+        if (chartStockForm(c) == jp::office::ChartStockForm::None)
+            for (ChartPlot &p : c.plots)
+                if (p.stock) {
+                    p.stock = false;
+                    p.type = ChartType::Other;
+                    p.hiLowLines = p.upDownBars = false;
+                }
         *out = c;
         return true;
     }
@@ -968,9 +989,12 @@ private:
         else if (cls == QLatin1String("chart:ring")) *type = ChartType::Doughnut;
         else if (cls == QLatin1String("chart:scatter")) *type = ChartType::Scatter;
         else if (cls == QLatin1String("chart:radar") || cls == QLatin1String("chart:filled-radar")) *type = ChartType::Radar;
-        else if (cls == QLatin1String("chart:stock") || cls == QLatin1String("chart:bubble") || cls == QLatin1String("chart:gantt")) {
+        else if (cls == QLatin1String("chart:stock")) {
+            *type = ChartType::Line;   // (a stock chart is a line plot of its own look; the chart is made Other below when its series fit no form)
+            *element = QStringLiteral("stockChart");
+        } else if (cls == QLatin1String("chart:bubble") || cls == QLatin1String("chart:gantt")) {
             *type = ChartType::Other;
-            *element = cls == QLatin1String("chart:stock") ? QStringLiteral("stockChart") : QStringLiteral("bubbleChart");
+            *element = QStringLiteral("bubbleChart");
         } else if (cls.isEmpty()) {
             *type = ChartType::Bar;
         } else {
