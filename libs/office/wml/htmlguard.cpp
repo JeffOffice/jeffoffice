@@ -1,6 +1,7 @@
 #include "wml/htmlguard.h"
 
 #include <QCoreApplication>
+#include <QHash>
 #include <QMimeData>
 
 #include <algorithm>
@@ -52,9 +53,9 @@ bool isRawText(std::string_view name)
 }
 
 // The attributes that are kept (written under these names).
-enum At : quint8 { AHref, AName, ASrc, AWidth, AHeight, AAlt, AColspan, ARowspan, ABgcolor, ABorder, ACellpadding, ACellspacing, AAlign, AValign, AColor, ASize, AFace, AStart, AType, AValue, ADir, AStyle, ANowrap, AContent, AtCount };
+enum At : quint8 { AHref, AName, ASrc, AWidth, AHeight, AAlt, AColspan, ARowspan, ABgcolor, ABorder, ACellpadding, ACellspacing, AAlign, AValign, AColor, ASize, AFace, AStart, AType, AValue, ADir, AStyle, ANowrap, AContent, AClass, AtCount };
 
-const char *const kAtName[AtCount] = {"href", "name", "src", "width", "height", "alt", "colspan", "rowspan", "bgcolor", "border", "cellpadding", "cellspacing", "align", "valign", "color", "size", "face", "start", "type", "value", "dir", "style", "nowrap", "content"};
+const char *const kAtName[AtCount] = {"href", "name", "src", "width", "height", "alt", "colspan", "rowspan", "bgcolor", "border", "cellpadding", "cellspacing", "align", "valign", "color", "size", "face", "start", "type", "value", "dir", "style", "nowrap", "content", "class"};
 
 const std::unordered_map<std::string_view, At> &attributes()
 {
@@ -456,8 +457,9 @@ private:
         if (name == "white-space") return is("normal");
         return false;
     }
-    // A style attribute reduced to the properties that are kept.
-    void putStyle(QStringView raw, bool keepSpacesToo = false)
+    // A style reduced to the properties that are kept (at most kMostStyleDeclarations of them). `contextual`: a declaration that says what the part has anyway is left out (a style sheet's rule
+    // is read for no part, so it says all it says).
+    QString reduceStyle(QStringView raw, bool contextual) const
     {
         // (the few entities a style says its quotes with are read first: the ";" of one is not the end of a declaration)
         QString read;
@@ -548,11 +550,18 @@ private:
             if (!good) continue;
             const QString lower = clean.toLower();
             if (lower.contains(QLatin1String("url(")) || lower.contains(QLatin1String("expression")) || lower.contains(QLatin1String("image-set"))) continue;
-            if (isDefault(std::string_view(name, size_t(nameView.size())), lower)) continue;
+            if (contextual && isDefault(std::string_view(name, size_t(nameView.size())), lower)) continue;
             if (!kept.isEmpty()) kept += QLatin1Char(';');
             kept += QString::fromLatin1(name, int(nameView.size())) + QLatin1Char(':') + clean;
             ++count;
         }
+        return kept;
+    }
+    // A style attribute written, reduced to the properties that are kept; `rules` is what the page's style sheet says of the part (reduced already, and said before the part's own style, which wins).
+    void putStyle(QStringView raw, bool keepSpacesToo = false, const QString &rules = QString())
+    {
+        QString kept = reduceStyle(raw, true);
+        if (!rules.isEmpty()) kept = kept.isEmpty() ? rules : rules + QLatin1Char(';') + kept;
         if (keepSpacesToo) kept = kept.isEmpty() ? QStringLiteral("white-space:pre-wrap") : QStringLiteral("white-space:pre-wrap;") + kept;
         if (kept.isEmpty()) return;
         // (the parser takes about 5 microseconds for a style and 0.15 for each of its characters: a page keeps the styles of its first parts, up to a limit)
@@ -561,20 +570,217 @@ private:
             return;
         }
         ++counts.styles;
+        if (!rules.isEmpty()) ++counts.sheetApplied;
         counts.styleChars += kept.size();
         out += QLatin1String(" style=\"");
         out += kept;
         out += QLatin1Char('"');
     }
+    // ---------------------------------------------------------------- the page's own style sheets
+    // A style sheet is read by a small reader of its own, bounded by its characters and its rules: it knows only a part's name (td), a class (.a), and both (td.a), and the properties a style keeps. Every
+    // other selector (a descendant, an id, an attribute, a pseudo-class), every at-rule, and every url() is left out, so a sheet can say nothing that a style attribute cannot, and it costs no more than
+    // its text. What a rule says is reduced once, when it is read, and written on each part it names (before the part's own style, which wins).
+    QHash<QString, QString> sheetTag, sheetClass, sheetTagClass;
+    qint64 sheetChars = 0;
+    int sheetRules = 0;
+    qsizetype skipComment(QStringView css, qsizetype k) const
+    {
+        if (css.mid(k, 2) != QLatin1String("/*")) return k;
+        const qsizetype e = css.indexOf(QLatin1String("*/"), k + 2);
+        return e < 0 ? css.size() : e + 2;
+    }
+    // The end of a block that starts at css[k] == '{': past its "}", or -1 when it never ends. (Strings and comments are skipped; the depth is a count, never a call.)
+    qsizetype blockEnd(QStringView css, qsizetype k) const
+    {
+        int depth = 0;
+        QChar quote;
+        while (k < css.size()) {
+            const qsizetype c = skipComment(css, k);
+            if (c != k) {
+                k = c;
+                continue;
+            }
+            const QChar ch = css[k++];
+            if (!quote.isNull()) {
+                if (ch == quote) quote = QChar();
+                else if (ch == QLatin1Char('\\') && k < css.size()) ++k;
+            } else if (ch == QLatin1Char('"') || ch == QLatin1Char('\'')) {
+                quote = ch;
+            } else if (ch == QLatin1Char('{')) {
+                ++depth;
+            } else if (ch == QLatin1Char('}') && --depth == 0) {
+                return k;
+            }
+        }
+        return -1;
+    }
+    static bool nameOk(QStringView v, int most, bool tag)
+    {
+        if (v.isEmpty() || v.size() > most) return false;
+        for (QChar c : v) {
+            const ushort u = c.unicode();
+            if (!((u >= 'a' && u <= 'z') || (u >= 'A' && u <= 'Z') || (u >= '0' && u <= '9') || (!tag && (u == '_' || u == '-')))) return false;
+        }
+        return !(v[0].unicode() >= '0' && v[0].unicode() <= '9') && !(v[0] == QLatin1Char('-') && v.size() == 1);
+    }
+    void addRule(const QString &key, QHash<QString, QString> &into, const QString &style)
+    {
+        QString &slot = into[key];
+        if (slot.size() + style.size() + 1 > kMostStyleChars) return;
+        slot += slot.isEmpty() ? style : QLatin1Char(';') + style;
+    }
+    // The text of one style element.
+    void readSheet(QStringView css)
+    {
+        readRules(css);
+        counts.sheetRules = sheetRules;
+    }
+    void readRules(QStringView css)
+    {
+        const qint64 room = lim.sheetChars - sheetChars;
+        if (room <= 0) return;
+        if (css.size() > room) css = css.left(room);
+        sheetChars += css.size();
+        counts.sheetChars += css.size();
+        qsizetype k = 0;
+        const qsizetype end = css.size();
+        while (k < end && sheetRules < lim.sheetRules) {
+            if (isBlankChar(css[k].unicode())) {
+                ++k;
+                continue;
+            }
+            if (css.mid(k, 4) == QLatin1String("<!--")) {
+                k += 4;
+                continue;
+            }
+            if (css.mid(k, 3) == QLatin1String("-->")) {
+                k += 3;
+                continue;
+            }
+            const qsizetype c = skipComment(css, k);
+            if (c != k) {
+                k = c;
+                continue;
+            }
+            if (css[k] == QLatin1Char('@')) {
+                // (an at-rule ends at its ";" or after its block)
+                while (k < end && css[k] != QLatin1Char(';') && css[k] != QLatin1Char('{')) {
+                    const qsizetype cc = skipComment(css, k);
+                    k = cc != k ? cc : k + 1;
+                }
+                if (k < end && css[k] == QLatin1Char('{')) {
+                    const qsizetype e = blockEnd(css, k);
+                    if (e < 0) return;
+                    k = e;
+                } else {
+                    ++k;
+                }
+                continue;
+            }
+            // the selectors, to the "{"
+            const qsizetype pre = k;
+            bool plain = true;
+            while (k < end && css[k] != QLatin1Char('{') && css[k] != QLatin1Char('}')) {
+                const qsizetype cc = skipComment(css, k);
+                if (cc != k) {
+                    plain = false;      // (a comment inside the selectors: the rule is left out)
+                    k = cc;
+                } else {
+                    ++k;
+                }
+            }
+            if (k >= end) return;
+            if (css[k] == QLatin1Char('}')) {
+                ++k;
+                continue;
+            }
+            const QStringView selectors = css.mid(pre, k - pre);
+            const qsizetype close = blockEnd(css, k);
+            if (close < 0) return;      // (a rule that never ends is not a rule)
+            const QStringView body = css.mid(k + 1, close - k - 2);
+            k = close;
+            if (!plain || selectors.size() > 1024) continue;
+            // (the comments of the declarations are cut out, over the first characters only: the rest is not read)
+            QString bodyText;
+            bodyText.reserve(std::min<qsizetype>(body.size(), 4 * kMostStyleChars));
+            for (qsizetype b = 0; b < body.size() && bodyText.size() < 4 * kMostStyleChars;) {
+                const qsizetype cc = skipComment(body, b);
+                if (cc != b) {
+                    b = cc;
+                    continue;
+                }
+                bodyText += body[b++];
+            }
+            const QString style = reduceStyle(bodyText, false);
+            if (style.isEmpty()) continue;
+            for (const QStringView part : selectors.split(QLatin1Char(','))) {
+                if (sheetRules >= lim.sheetRules) break;
+                const QStringView sel = part.trimmed();
+                const qsizetype dot = sel.indexOf(QLatin1Char('.'));
+                if (dot < 0) {
+                    if (!nameOk(sel, 12, true)) continue;
+                    ++sheetRules;
+                    addRule(sel.toString().toLower(), sheetTag, style);
+                } else {
+                    const QStringView tag = sel.left(dot), cls = sel.mid(dot + 1);
+                    if ((!tag.isEmpty() && !nameOk(tag, 12, true)) || !nameOk(cls, 64, false)) continue;
+                    ++sheetRules;
+                    if (tag.isEmpty()) addRule(cls.toString(), sheetClass, style);
+                    else addRule(tag.toString().toLower() + QLatin1Char('.') + cls.toString(), sheetTagClass, style);
+                }
+            }
+        }
+    }
+    // What the sheets say of a part with this name and class attribute: the rules of its name, then of each of its classes, then of its name and a class (a later one wins).
+    QString ruleStyle(std::string_view tag, QStringView classes) const
+    {
+        if (sheetTag.isEmpty() && sheetClass.isEmpty() && sheetTagClass.isEmpty()) return QString();
+        const QString name = QString::fromLatin1(tag.data(), qsizetype(tag.size()));
+        QString r = sheetTag.value(name);
+        QStringView names[8];
+        int count = 0;
+        const QStringView all = classes.left(256);
+        for (qsizetype b = 0; b < all.size() && count < 8;) {
+            while (b < all.size() && isBlankChar(all[b].unicode())) ++b;
+            qsizetype e = b;
+            while (e < all.size() && !isBlankChar(all[e].unicode())) ++e;
+            if (e > b) names[count++] = all.mid(b, e - b);
+            b = e;
+        }
+        auto add = [&](const QString &style) {
+            if (style.isEmpty()) return;
+            if (!r.isEmpty()) r += QLatin1Char(';');
+            r += style;
+        };
+        for (int c = 0; c < count; ++c) add(sheetClass.value(names[c].toString()));
+        for (int c = 0; c < count; ++c) add(sheetTagClass.value(name + QLatin1Char('.') + names[c].toString()));
+        if (r.size() > kMostStyleChars) {
+            // (the last ones, whole)
+            const qsizetype cut = r.indexOf(QLatin1Char(';'), r.size() - kMostStyleChars);
+            r = cut < 0 ? QString() : r.mid(cut + 1);
+        }
+        return r;
+    }
+    QStringView classOf() const { return has(AClass) ? s.mid(vb[AClass], std::min<qsizetype>(ve[AClass] - vb[AClass], 256)) : QStringView(); }
+
     // Writes the kept attributes of a part. A span is written as three digits and set when the table ends.
+    std::string_view srcName;    // the name the tag being read has in the page (empty between tags)
+    const char *writingOut = "";    // the name the part being written is written under
     bool writingTable = false;   // the attributes being written are a table's own (its style then answers to its own border attribute, not to the table it stands in)
     void putAttributes(Cls c, bool picture, bool emitSpans, int row)
     {
         Site site;
         site.row = row;
+        bool styleWritten = false;
         writingTable = c == CTable;
+        // (what the page's style sheets say of this part: only for the part that the tag being read is, and not for a part written for it, such as the row of a cell that has none)
+        QString rules;
+        if (sheetRules > 0 && !picture && !srcName.empty() && (allowedAttributes(c, false) & bit(AStyle))) {
+            const auto me = sources().find(srcName);
+            if (me != sources().end() && std::strcmp(me->second.out, writingOut) == 0) rules = ruleStyle(srcName, classOf());
+        }
         const quint32 allowed = allowedAttributes(c, picture) & seen;
-        if (!allowed) return;
+        if (!allowed && rules.isEmpty()) return;
         for (int a = 0; a < AtCount; ++a) {
             if (!(allowed & (quint32(1) << a))) continue;
             const QStringView raw = s.mid(vb[a], ve[a] - vb[a]);
@@ -639,18 +845,21 @@ private:
                 out += QLatin1String(" nowrap=\"nowrap\"");
                 break;
             case AStyle:
-                putStyle(raw);
+                putStyle(raw, false, rules);
+                styleWritten = true;
                 break;
             default:
                 break;
             }
         }
+        if (!styleWritten && !rules.isEmpty()) putStyle(QStringView(), false, rules);
         if (site.colAt >= 0 || site.rowAt >= 0) sites.push_back(site);
     }
     void openTag(const char *name, Cls c, bool picture = false, bool emitSpans = false, int row = 0)
     {
         out += QLatin1Char('<');
         out += QLatin1String(name);
+        writingOut = name;
         putAttributes(c, picture, emitSpans, row);
         out += QLatin1Char('>');
         part();
@@ -729,19 +938,23 @@ private:
         }
         // (a text editor writes the look of the words that have no look of their own on the body; and a page that says its spaces are kept has that said on the body)
         const bool body = name[0] == 'b';
-        if (has(AStyle) || (body && wrapBody)) putStyle(has(AStyle) ? s.mid(vb[AStyle], ve[AStyle] - vb[AStyle]) : QStringView(), body && wrapBody);
+        const QString rules = body ? ruleStyle("body", classOf()) : QString();
+        if (has(AStyle) || !rules.isEmpty() || (body && wrapBody)) putStyle(has(AStyle) ? s.mid(vb[AStyle], ve[AStyle] - vb[AStyle]) : QStringView(), body && wrapBody, rules);
         out += QLatin1Char('>');
         part();
     }
+    qsizetype rawEnd = 0;   // where the content of the part skipRaw went over ends
     void skipRaw(const char *name, int len)
     {
         // to the end tag of the part (or the end of the page)
+        rawEnd = n;
         while (i < n) {
             if (s[i] == QLatin1Char('<') && i + 1 < n && s[i + 1] == QLatin1Char('/') && i + 2 + len <= n) {
                 bool same = true;
                 for (int k = 0; k < len && same; ++k) same = lowerAscii(s[i + 2 + k].unicode()) == name[k];
                 const qsizetype after = i + 2 + len;
                 if (same && (after >= n || isBlankChar(s[after].unicode()) || s[after] == QLatin1Char('>') || s[after] == QLatin1Char('/'))) {
+                    rawEnd = i;
                     i = after;
                     while (i < n && s[i] != QLatin1Char('>')) ++i;
                     if (i < n) ++i;
@@ -828,10 +1041,15 @@ private:
         readAttributes();
         if (len > 12) return;
         if (isRawText(name)) {
+            const qsizetype contentStart = i;
+            const bool sheet = name == "style" && (!has(AType) || s.mid(vb[AType], ve[AType] - vb[AType]).trimmed().compare(QLatin1String("text/css"), Qt::CaseInsensitive) == 0);
             skipRaw(buf, len);
+            if (sheet) readSheet(s.mid(contentStart, rawEnd - contentStart));
             return;
         }
+        srcName = name;
         startTag(name);
+        srcName = std::string_view();
     }
 
     // ---------------------------------------------------------------- words

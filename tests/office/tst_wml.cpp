@@ -3697,7 +3697,7 @@ private Q_SLOTS:
             QVERIFY2(!g.html.contains(QLatin1String(gone)), gone);
         for (const char *stays : {"Name", "Send", "Words", "abbr", "marked", "custom", "svg text"})
             QVERIFY2(g.html.contains(QLatin1String(stays)), stays);
-        QVERIFY(g.html.contains(QLatin1String("<p>")));
+        QVERIFY(g.html.contains(QLatin1String("<p style=\"color:red\">")));   // (the page's style sheet is not kept as a part: what it says of the paragraph is written on it)
         QVERIFY2(!g.html.contains(QLatin1Char('\n')), "markup written without a newline");
         // (the page's own wrappers are one each, with nothing of theirs but a direction)
         QVERIFY(g.html.startsWith(QLatin1String("<html><body>")) && g.html.endsWith(QLatin1String("</body></html>")));
@@ -3747,6 +3747,115 @@ private Q_SLOTS:
         QVERIFY(!guardHtml(QStringLiteral("<p>a <img width=10> b</p>")).html.contains(QLatin1String("<img")));
         // (the words around a picture that is left out stay in their place)
         QCOMPARE(QTextDocumentFragment::fromHtml(guardHtml(QStringLiteral("<p>a <img src=\"http://x/a.png\"> b</p>")).html).toPlainText().simplified(), QStringLiteral("a b"));
+    }
+
+    // A page's own style sheet with simple rules (a part's name, a class, both) formats the page as the parser formats it without the guard.
+    // fails when off: yes (the sheet reader of htmlguard.cpp taken out: the page opens with none of its looks)
+    void aPagesSimpleStyleSheetFormatsItAsTheParserDoes_data()
+    {
+        QTest::addColumn<QString>("page");
+        QTest::addColumn<QString>("must");   // a look the page must have, so that the page is not the same by having none
+        QTest::newRow("a name") << QStringLiteral("<html><head><style type=\"text/css\">p{color:#0000ff} h1{font-weight:bold;text-align:center}</style></head><body><p>blue</p><h1>Head</h1></body></html>") << QStringLiteral("color=1");
+        QTest::newRow("a class") << QStringLiteral("<style>.k{color:red;font-style:italic}</style><p>plain</p><p class=k>red</p><p class=\"a k\">both</p>") << QStringLiteral("italic=2");
+        QTest::newRow("a name and a class") << QStringLiteral("<style>td.a{background:#ffff00;font-weight:bold} td{font-size:12pt}</style><table><tr><td class=a>x</td><td>y</td><td class=b>z</td></tr></table>") << QStringLiteral("cell backgrounds=1");
+        QTest::newRow("several names") << QStringLiteral("<style>td,th{font-family:Arial;font-size:11pt} th{font-weight:bold}</style><table><tr><th>h</th><td>d</td></tr></table>") << QStringLiteral("font family=2");
+        QTest::newRow("the part's own style wins") << QStringLiteral("<style>p{color:#ff0000;background:#00ff00}</style><p style=\"color:#0000ff\">own</p>") << QStringLiteral("text background=1");
+        QTest::newRow("comments and rules left out") << QStringLiteral("<style>/* a comment */ p{color:#0000ff} @media print { p{color:#00ff00} } /* p{color:red} */ b{font-style:italic}</style><p>x <b>y</b></p>") << QStringLiteral("italic=1");
+        QTest::newRow("a body") << QStringLiteral("<html><head><style>body{font-family:Georgia;color:#333333}</style></head><body><p>text</p></body></html>") << QStringLiteral("font family=1");
+    }
+    void aPagesSimpleStyleSheetFormatsItAsTheParserDoes()
+    {
+        QFETCH(QString, page);
+        QFETCH(QString, must);
+        sameLook(page, "a style sheet");
+        QVERIFY2(lookText(lookOf(guardHtml(page).html)).contains(must), qPrintable(must + QStringLiteral(" in ") + lookText(lookOf(guardHtml(page).html))));
+        QVERIFY(guardHtml(page).counts.sheetApplied > 0);
+    }
+    // A copied spreadsheet whose cells say their look with a class (the sheet is in a comment, with other properties too): the fills, bold headers, and alignment of every cell stay.
+    // fails when off: yes (the sheet reader taken out)
+    void aClassStyledSpreadsheetKeepsItsFillsAndHeaders()
+    {
+        QString page = QStringLiteral("<html><head><style><!--\ntable{mso-displayed-decimal-separator:\".\"}\ntd{padding-top:1px;mso-number-format:General;vertical-align:bottom}\n.xl65{background:#FFFF00}\n.xl66{font-weight:700;text-align:center}\n.xl67{color:#FF0000;text-align:right}\n--></style></head><body><!--StartFragment--><table border=0 cellpadding=0 cellspacing=0>");
+        for (int r = 0; r < 20; ++r) {
+            page += QStringLiteral("<tr>");
+            for (int c = 0; c < 5; ++c) page += QStringLiteral("<td class=%1>%2</td>").arg(r == 0 ? "xl66" : (c == 0 ? "xl65" : "xl67")).arg(r * 5 + c);
+            page += QStringLiteral("</tr>");
+        }
+        page += QStringLiteral("</table><!--EndFragment--></body></html>");
+        const GuardedHtml g = guardHtml(page);
+        QCOMPARE(int(g.refusal), int(HtmlRefusal::None));
+        QCOMPARE(g.html.count(QLatin1String("background:#FFFF00")), 19);
+        QCOMPARE(g.html.count(QLatin1String("font-weight:700;text-align:center")), 5);
+        QCOMPARE(g.html.count(QLatin1String("color:#FF0000;text-align:right")), 19 * 4);
+        QVERIFY(!g.html.contains(QLatin1String("mso-")));
+        const Look l = lookOf(g.html);
+        QCOMPARE(l.n.value(QStringLiteral("cell backgrounds")), 19);
+        QCOMPARE(l.n.value(QStringLiteral("bold")), 5);
+        QCOMPARE(l.n.value(QStringLiteral("aligned")), 5 + 19 * 4);
+        QCOMPARE(l.n.value(QStringLiteral("color")), 19 * 4);
+    }
+    // fails when off: yes, each (the bound taken out of readSheet)
+    void aHostileStyleSheetIsBoundedAndSaysNothingMore()
+    {
+        auto guarded = [](const QString &sheet, const QString &body = QStringLiteral("<p class=a>x</p>")) { return guardHtml(QStringLiteral("<style>") + sheet + QStringLiteral("</style>") + body); };
+        // 100,000 rules: only the first few thousand are kept, and the page's own characters of style are no more than the limit
+        QString many;
+        for (int i = 0; i < 100000; ++i) many += QStringLiteral("p.a%1{color:red}\n").arg(i);
+        GuardedHtml g = guarded(many);
+        QCOMPARE(int(g.refusal), int(HtmlRefusal::None));
+        QCOMPARE(g.counts.sheetRules, kMostHtmlSheetRules);
+        QVERIFY(g.counts.sheetChars <= kMostHtmlSheetChars);
+        QCOMPARE(int(guarded(many).counts.sheetRules), kMostHtmlSheetRules);
+        // a sheet of a megabyte of one selector list, or of one very long selector: nothing kept, and no time for the page
+        g = guarded(QString(1 << 20, QLatin1Char('a')) + QStringLiteral("{color:red}"));
+        QCOMPARE(g.counts.sheetRules, 0);
+        QCOMPARE(g.counts.sheetChars, qint64(kMostHtmlSheetChars));
+        QString list;
+        for (int i = 0; i < 200000; ++i) list += QStringLiteral("p,");
+        g = guarded(list + QStringLiteral("p{color:red}"));
+        QCOMPARE(g.counts.sheetRules, 0);   // (the list is over its length: the rule is left out)
+        // a rule that never ends is no rule, and ends the sheet
+        g = guarded(QStringLiteral("p{color:red"), QStringLiteral("<p>x</p>"));
+        QCOMPARE(g.counts.sheetRules, 0);
+        QVERIFY(g.html.contains(QLatin1String("<p>x</p>")));
+        g = guarded(QStringLiteral("b{font-style:italic} p{color:red; b{color:blue}"), QStringLiteral("<p>x<b>y</b></p>"));
+        QCOMPARE(g.counts.sheetRules, 1);
+        QVERIFY(!g.html.contains(QLatin1String("color:red")));
+        // comments: one in a selector or never closed leaves its rule out; one in a declaration is cut out
+        g = guarded(QStringLiteral("p/*{*/{color:red} /* never closed p{color:blue}"), QStringLiteral("<p>x</p>"));
+        QCOMPARE(g.counts.sheetRules, 0);
+        g = guarded(QStringLiteral("p{color:/* ; background:url(x) */red}"), QStringLiteral("<p>x</p>"));
+        QVERIFY2(g.html.contains(QLatin1String("<p style=\"color:red\">")), qPrintable(g.html));
+        // an end tag inside a string ends the sheet there (as for a page's own parser); what follows is a page's own markup, and its script is left out
+        g = guarded(QStringLiteral("p{content:\""), QStringLiteral("</style><script>alert(1)</script><p>x</p>\"}"));
+        QVERIFY2(!g.html.contains(QLatin1String("alert")) && !g.html.contains(QLatin1String("<script")), qPrintable(g.html));
+        // nothing a style attribute may not say: no address, no script, no other rule
+        g = guarded(QStringLiteral("@import url(http://x/a.css); p{background:url(javascript:alert(1));color:red;behavior:url(x.htc);width:expression(alert(1))} td{background-image:url(x)} a:hover{color:blue} p#x{color:blue} p p{color:blue} p[x]{color:blue} *{color:blue}"),
+                    QStringLiteral("<p>x</p><td>y</td>"));
+        QVERIFY2(g.html.contains(QLatin1String("<p style=\"color:red\">")), qPrintable(g.html));
+        QVERIFY2(!g.html.contains(QLatin1String("url")) && !g.html.contains(QLatin1String("alert")) && !g.html.contains(QLatin1String("blue")) && !g.html.contains(QLatin1String("behavior")), qPrintable(g.html));
+        QCOMPARE(g.counts.sheetRules, 1);
+        // a rule of many declarations is held to the declarations a style keeps, and a name's rules to the characters of one style
+        QString decls;
+        for (int i = 0; i < 100; ++i) decls += QStringLiteral("margin-top:%1px;").arg(i);
+        g = guarded(QStringLiteral("p{") + decls + QStringLiteral("}"), QStringLiteral("<p>x</p>"));
+        QCOMPARE(g.html.count(QLatin1String("margin-top")), kMostStyleDeclarations);
+        // style sheets in many elements: the characters read are all of them, never more than the limit
+        QString repeated;
+        for (int i = 0; i < 200; ++i) repeated += QStringLiteral("<style>") + QString(2000, QLatin1Char(' ')) + QStringLiteral("p{color:red}</style>");
+        g = guardHtml(repeated + QStringLiteral("<p>x</p>"));
+        QCOMPARE(g.counts.sheetRules, 200);
+        QVERIFY(g.counts.sheetChars <= kMostHtmlSheetChars);
+        g = guardHtml(repeated + repeated + QStringLiteral("<p>x</p>"));   // (twice that: the characters stop at the limit)
+        QCOMPARE(g.counts.sheetChars, qint64(kMostHtmlSheetChars));
+        QVERIFY(g.counts.sheetRules < 400);
+        // a sheet with limits turned down: the rules are the limit, the characters are the limit
+        HtmlLimits few;
+        few.sheetRules = 3;
+        QCOMPARE(guardHtml(QStringLiteral("<style>a{color:red}b{color:red}i{color:red}u{color:red}s{color:red}</style><p>x</p>"), few).counts.sheetRules, 3);
+        few = HtmlLimits();
+        few.sheetChars = 20;
+        QCOMPARE(guardHtml(QStringLiteral("<style>a{color:red}b{color:red}i{color:red}u{color:red}s{color:red}</style><p>x</p>"), few).counts.sheetRules, 1);   // (the text is cut at 20 characters: one rule, and half of the next)
     }
 
     // A copied spreadsheet block: a style on every cell, as another program writes it to the clipboard.

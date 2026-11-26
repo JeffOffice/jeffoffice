@@ -34,6 +34,8 @@ constexpr qint64 kMostHtmlSpanCovered = 100000;         // cells that the spanni
 constexpr int kMostHtmlStyles = 200000;                 // style attributes in the page (more are left out)
 constexpr qint64 kMostHtmlStyleChars = 16 * 1024 * 1024; // characters of style attributes in the page (more are left out; a copied spreadsheet of 100,000 styled cells has 10 million, a price list of 160,000 has 16.3 million)
 constexpr int kMostHtmlOpen = 4096;                     // parts of the given page open at once (more are left out; their words stay)
+constexpr int kMostHtmlSheetChars = 512 * 1024;         // characters of the page's style sheets that are read (a page of a word processor has about 20,000, a copied spreadsheet about 3,000)
+constexpr int kMostHtmlSheetRules = 5000;               // selectors of the page's style sheets that are kept (the same pages have about 300)
 constexpr int kMostStyleChars = 1024;                   // characters of a style attribute that are read
 constexpr int kMostStyleDeclarations = 16;              // style properties kept for one part
 
@@ -57,6 +59,8 @@ struct HtmlLimits {
     int styles = kMostHtmlStyles;
     qint64 styleChars = kMostHtmlStyleChars;
     int open = kMostHtmlOpen;
+    int sheetChars = kMostHtmlSheetChars;
+    int sheetRules = kMostHtmlSheetRules;
 };
 
 // What the guard found and did (the tests count it).
@@ -73,6 +77,9 @@ struct HtmlCounts {
     int spanCells = 0;      // cells that span (columns or rows) in what was written
     qint64 spanCovered = 0; // cells those cover
     qint64 styles = 0, styleChars = 0;      // style attributes written, and their characters
+    qint64 sheetChars = 0;  // characters of style sheets read
+    int sheetRules = 0;     // selectors kept from them
+    qint64 sheetApplied = 0;    // styles written that hold something a style sheet said
     int stylesLeftOut = 0;  // style attributes left out because the page held too many
 };
 
