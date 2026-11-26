@@ -1085,6 +1085,10 @@ bool CrunchWindow::copyObject(bool cut)
     const int id = pickedObject();
     if (id < 0 || !m_session || !m_objects) return false;
     if (crunch::isEmbedId(id)) return copyEmbed(id, cut);
+    if (crunch::isSlicerId(id)) {
+        setStatus(tr("A slicer can't be cut or copied yet."));
+        return false;
+    }
     const ObjectKind kind = m_objects->kindOf(m_sheet, id);
     if (cut && !editingAllowed()) return false;
     crunch::ObjectClip clip;

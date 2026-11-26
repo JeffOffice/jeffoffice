@@ -3152,6 +3152,7 @@ private Q_SLOTS:
         readZip(f.readAll(), none);
         QVERIFY(!none.contains(QStringLiteral("xl/slicerCaches/slicerCache1.xml")));
         QVERIFY(!none.contains(QStringLiteral("xl/slicers/slicer1.xml")));
+        QVERIFY(!none.value(QStringLiteral("xl/drawings/drawing1.xml")).contains("AlternateContent"));   // (the second frame is found by its place after the first was taken out)
     }
 
     // A workbook open for reading only, and a protected sheet that does not let objects be changed, refuse a move and a delete: no step, the slicer stays where it is, the notice says why.
@@ -3314,15 +3315,15 @@ private Q_SLOTS:
             QVERIFY(slicers.press(0, id, g.button(2).center(), size, Qt::ShiftModifier | Qt::ControlModifier));
             QVERIFY(extended);
             if (total > crunch::kMaxSlicerRange) {
-                // a run that long is cut where the bound says: the engine is asked for no more
-                asked.clear();
-                slicers.wheeled(0, id, -1000, size);
+                // a run of thousands of items (from the first, to a button scrolled to far down) is cut where the bound says: the engine is asked for no more, and only that many are chosen
                 QVERIFY(slicers.press(0, id, g.button(0).center(), size, Qt::NoModifier));
+                QVERIFY(slicers.wheeled(0, id, -3000, size));   // (nine thousand rows down)
+                QVERIFY(slicers.scrollRowOf(0, id) > crunch::kMaxSlicerRange);
                 asked.clear();
-                const int rows = slicers.scrollRowOf(0, id);
-                Q_UNUSED(rows);
+                run.clear();
                 QVERIFY(slicers.press(0, id, g.button(1).center(), size, Qt::ShiftModifier));
-                for (const qint64 most : asked) QVERIFY2(most <= crunch::kMaxSlicerRange, qPrintable(QString::number(most)));
+                QCOMPARE(run.size(), int(crunch::kMaxSlicerRange));
+                for (const qint64 most : asked) QVERIFY2(most <= crunch::kMaxSlicerRange || most == crunch::kMaxSlicerButtons, qPrintable(QString::number(most)));
             }
         }
     }
