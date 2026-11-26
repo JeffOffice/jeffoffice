@@ -74,6 +74,12 @@ void WriteWindow::createHeaderFooterActions()
         m_view->setFocus(Qt::OtherFocusReason);
         m_view->viewport()->update();
     });
+    mk("hf.field", tr("Field…"), "braces", QKeySequence(), [this] {
+        if (!m_doc || !m_view->inHeaderFooter()) return;
+        write::fieldDialog(this, m_doc.get(), m_view);
+        m_view->setFocus(Qt::OtherFocusReason);
+        m_view->viewport()->update();
+    });
     mk("hf.previousSection", tr("Previous Section"), "chevron-up", QKeySequence(), [this] {
         if (m_doc && m_view->enterNeighborSection(-1)) m_view->setFocus(Qt::OtherFocusReason);
     });

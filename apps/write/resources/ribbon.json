@@ -1686,6 +1686,19 @@
             }
           ]
         },
+            {
+              "small": "hf.field",
+              "keytip": "FL"
+            },
+            {
+              "small": {
+                "id": "ribbon.headerBlocks",
+                "text": "Saved Blocks",
+                "icon": "package-plus"
+              },
+              "keytip": "QB",
+              "menu": "@headerBlocks"
+            },
         {
           "name": "Insert",
           "keytip": "ZI",

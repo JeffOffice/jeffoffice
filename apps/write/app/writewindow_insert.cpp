@@ -63,13 +63,15 @@ QImage blockPreviewImage(const jp::BlockEntry &e, const QSize &size, qreal dpr)
 bool WriteWindow::insertSavedBlock(const jp::BlockInfo &info, const QByteArray &data)
 {
     if (!m_doc || refuseIfReadOnly()) return false;
-    if (m_view->inHeaderFooter() || m_view->inNote()) {
-        statusBar()->showMessage(tr("A saved block can be put in the text of the document, not in a header, a footer, or a note."), 6000);
+    if (m_view->inNote()) {
+        statusBar()->showMessage(tr("A saved block can be put in the text of the document, or in a header or a footer, not in a note."), 6000);
         return false;
     }
     QTextCursor c = m_view->cursor();
     QString why;
-    if (!write::insertBlock(*m_doc, c, data, info.insertAs, &why)) {
+    // (A header or a footer takes no page break: a block set on a page of its own goes in as a paragraph of its own.)
+    const jp::BlockInsert how = m_view->inHeaderFooter() && info.insertAs == jp::BlockInsert::Page ? jp::BlockInsert::Paragraph : info.insertAs;
+    if (!write::insertBlock(*m_doc, c, data, how, &why)) {
         statusBar()->showMessage(why, 6000);
         return false;
     }
@@ -273,6 +275,11 @@ void WriteWindow::insertRibbonParts(RibbonParts &parts)
         return jp::blocksMenu(owner, jp::kBlocksGallery, QStringLiteral("docx"), blockPreviewImage,
                               [this](const jp::BlockInfo &info, const QByteArray &data) { insertSavedBlock(info, data); },
                               {act("insert.saveBlock"), act("insert.manageBlocks"), act("insert.expandShortcut")});
+    };
+    // Saved blocks go in at the caret in the header or footer as they do in the text (a block set on a page of its own goes in as a paragraph of its own).
+    parts.menus[QStringLiteral("headerBlocks")] = [this](QWidget *owner) {
+        return jp::blocksMenu(owner, jp::kBlocksGallery, QStringLiteral("docx"), blockPreviewImage, [this](const jp::BlockInfo &info, const QByteArray &data) { insertSavedBlock(info, data); },
+                              {act("insert.saveBlock"), act("insert.manageBlocks")});
     };
     // Symbol: the symbols used lately to click, then More Symbols.
     parts.menus[QStringLiteral("symbolMenu")] = [this](QWidget *owner) {

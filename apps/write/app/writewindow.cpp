@@ -719,7 +719,7 @@ void WriteWindow::refreshUi()
     {
         const bool editing = m_view->inHeaderFooter();
         const write::PageView::HeaderFooterEdit &e = m_view->headerFooterEdit();
-        for (const char *id : {"hf.close", "hf.pageNumber", "hf.pageNumberFormat", "hf.alignmentTab", "hf.dateTime", "hf.removeHeader", "hf.removeFooter", "hf.differentFirst", "hf.differentOddEven", "hf.showDocumentText"}) act(QString::fromLatin1(id))->setEnabled(editing);
+        for (const char *id : {"hf.close", "hf.pageNumber", "hf.pageNumberFormat", "hf.alignmentTab", "hf.dateTime", "hf.field", "hf.removeHeader", "hf.removeFooter", "hf.differentFirst", "hf.differentOddEven", "hf.showDocumentText"}) act(QString::fromLatin1(id))->setEnabled(editing);
         if (m_pageNumbersDoc != m_doc.get() || m_pageNumbersEpoch != m_doc->headerEpoch()) {
             m_pageNumbersMarked = write::hasPageNumbers(*m_doc);
             m_pageNumbersDoc = m_doc.get();

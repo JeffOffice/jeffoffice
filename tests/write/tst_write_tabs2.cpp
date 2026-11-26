@@ -1,6 +1,8 @@
 // Tests of what the Layout, References, Review, and View tabs, the outline, and the right-click menus add.
 
 #include "../isolatesettings.h"
+#include "../withdialog.h"
+#include "io/blocklibrary.h"
 #include "app/help.h"
 #include "app/writeoutlineview.h"
 #include "app/pagepaint.h"
@@ -1610,6 +1612,46 @@ private Q_SLOTS:
         QCOMPARE(story->toPlainText().count(QChar::ObjectReplacementCharacter), 1);
     }
 
+    // The Header & Footer tab inserts fields (Field…) and saved blocks at the caret in the header, as the text has them; a block set on a page of its own goes in as a paragraph.
+    void theHeaderTabInsertsAFieldAndASavedBlock()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        WriteWindow w;
+        w.setNotifier([](const QString &, const QString &) {});
+        w.resize(1100, 800);
+        w.show();
+        QVERIFY2(w.ribbonErrors().isEmpty(), qPrintable(w.ribbonErrors()));
+        QVERIFY(w.act("hf.field"));
+        QVERIFY(!w.act("hf.field")->isEnabled());
+        w.view()->paginateAll();
+        QVERIFY(w.view()->enterHeaderFooter(0, false, true));
+        w.refreshNow();
+        QVERIFY(w.act("hf.field")->isEnabled());
+        QTextDocument *story = w.view()->headerFooterEdit().story;
+        QVERIFY(story);
+        // Field…: a field of the list, in the header
+        withDialog([&] { w.act("hf.field")->trigger(); }, QStringLiteral("fieldDialog"), [&](QDialog *d) { d->findChild<QLineEdit *>(QStringLiteral("fieldCode"))->setText(QStringLiteral("NUMWORDS")); });
+        QVERIFY(w.document()->toDocx().size() > 0);
+        office::Package pkg;
+        pkg.read(w.document()->toDocx());
+        bool inHeader = false;
+        for (const QString &name : pkg.partNames())
+            if (name.contains(QLatin1String("header")) && pkg.part(name).contains("NUMWORDS")) inHeader = true;
+        QVERIFY2(inHeader, "the field is in the header part of the saved file");
+        // A saved block: its words in the header; "on a page of its own" is a paragraph of its own there
+        std::unique_ptr<WriteDoc> blank = WriteDoc::blank();
+        QTextCursor in(blank->story());
+        insertText(*blank, in, QStringLiteral("Block words"));
+        jp::BlockInfo info;
+        info.name = QStringLiteral("B");
+        info.format = QStringLiteral("docx");
+        info.insertAs = jp::BlockInsert::Page;
+        QVERIFY(w.insertSavedBlock(info, blank->toDocx()));
+        QVERIFY2(story->toPlainText().contains(QStringLiteral("Block words")), qPrintable(story->toPlainText()));
+        QVERIFY(!story->toPlainText().contains(QChar(0x000C)));
+    }
+
     // ---------------------------------------------------------------- Tables
     void textWrapsRoundATableThatTheTablePropertiesSetAtAPlace()
     {
@@ -1679,48 +1721,6 @@ private Q_SLOTS:
         QVERIFY(!doc->canUndo());
     }
 
-    void theTablePropertiesDialogHasAWrapTextAroundChoice()
-    {
-        const QByteArray table = "<w:tbl><w:tblPr><w:tblW w:w=\"3000\" w:type=\"dxa\"/></w:tblPr><w:tblGrid><w:gridCol w:w=\"3000\"/></w:tblGrid><w:tr><w:tc><w:p><w:r><w:t>a1</w:t></w:r></w:p></w:tc></w:tr></w:tbl><w:p/>";
-        QString err;
-        auto doc = WriteDoc::fromDocx(makeDocx(table, QByteArray()), &err);
-        QVERIFY(doc);
-        QTextCursor c(doc->story());
-        c.setPosition(doc->story()->toPlainText().indexOf(QLatin1String("a1")) + 1);
-        bool found = false;
-        QTimer::singleShot(0, [&found] {
-            auto *dlg = qobject_cast<QDialog *>(QApplication::activeModalWidget());
-            if (!dlg) return;
-            if (auto *around = dlg->findChild<QCheckBox *>(QStringLiteral("wrapAround"))) {
-                found = true;
-                around->setChecked(true);
-            }
-            dlg->accept();
-        });
-        tablePropertiesDialog(nullptr, doc.get(), &c);
-        QVERIFY(found);
-        QVERIFY(tablePropsAt(*doc, c).wrapAround);
-    }
-
-    // ---------------------------------------------------------------- Paper sizes
-    void envelopeSizesAreOnTheSizeMenuAndInPageSetup()
-    {
-        WriteWindow w;
-        w.setNotifier([](const QString &, const QString &) {});
-        w.show();
-        QVERIFY2(w.ribbonErrors().isEmpty(), qPrintable(w.ribbonErrors()));
-        const QList<std::pair<QString, QSizeF>> envelopes = {{QStringLiteral("envelope10"), QSizeF(297, 684)}, {QStringLiteral("envelopeMonarch"), QSizeF(279, 540)},
-                                                              {QStringLiteral("envelopeDL"), QSizeF(311.81, 623.62)}, {QStringLiteral("envelopeC5"), QSizeF(459.21, 649.13)}};
-        for (const auto &e : envelopes) {
-            QVERIFY2(w.act(QStringLiteral("layout.size.") + e.first), qPrintable(e.first));
-            w.act(QStringLiteral("layout.size.") + e.first)->trigger();
-            const QSizeF paper = w.document()->flow().section(0).paper;   // (kept to a twentieth of a point)
-            QVERIFY2(std::abs(paper.width() - e.second.width()) < 0.1 && std::abs(paper.height() - e.second.height()) < 0.1, qPrintable(e.first));
-            QTRY_VERIFY(w.act(QStringLiteral("layout.size.") + e.first)->isChecked());
-        }
-        // Page Setup names the paper the same way.
-        QString found;
-        QTimer::singleShot(0, [&found] {
     // Delete Cells, Shift Up: the words of the cells under the ones that go move up in their columns and the last cells are empty; one step; refused where a cell down the column is joined with others.
     void deleteCellsShiftUpMovesTheWordsOfTheColumnUpAndLeavesTheLastCellsEmpty()
     {
@@ -1782,6 +1782,48 @@ private Q_SLOTS:
         QVERIFY(!joined->canUndo());
     }
 
+    void theTablePropertiesDialogHasAWrapTextAroundChoice()
+    {
+        const QByteArray table = "<w:tbl><w:tblPr><w:tblW w:w=\"3000\" w:type=\"dxa\"/></w:tblPr><w:tblGrid><w:gridCol w:w=\"3000\"/></w:tblGrid><w:tr><w:tc><w:p><w:r><w:t>a1</w:t></w:r></w:p></w:tc></w:tr></w:tbl><w:p/>";
+        QString err;
+        auto doc = WriteDoc::fromDocx(makeDocx(table, QByteArray()), &err);
+        QVERIFY(doc);
+        QTextCursor c(doc->story());
+        c.setPosition(doc->story()->toPlainText().indexOf(QLatin1String("a1")) + 1);
+        bool found = false;
+        QTimer::singleShot(0, [&found] {
+            auto *dlg = qobject_cast<QDialog *>(QApplication::activeModalWidget());
+            if (!dlg) return;
+            if (auto *around = dlg->findChild<QCheckBox *>(QStringLiteral("wrapAround"))) {
+                found = true;
+                around->setChecked(true);
+            }
+            dlg->accept();
+        });
+        tablePropertiesDialog(nullptr, doc.get(), &c);
+        QVERIFY(found);
+        QVERIFY(tablePropsAt(*doc, c).wrapAround);
+    }
+
+    // ---------------------------------------------------------------- Paper sizes
+    void envelopeSizesAreOnTheSizeMenuAndInPageSetup()
+    {
+        WriteWindow w;
+        w.setNotifier([](const QString &, const QString &) {});
+        w.show();
+        QVERIFY2(w.ribbonErrors().isEmpty(), qPrintable(w.ribbonErrors()));
+        const QList<std::pair<QString, QSizeF>> envelopes = {{QStringLiteral("envelope10"), QSizeF(297, 684)}, {QStringLiteral("envelopeMonarch"), QSizeF(279, 540)},
+                                                              {QStringLiteral("envelopeDL"), QSizeF(311.81, 623.62)}, {QStringLiteral("envelopeC5"), QSizeF(459.21, 649.13)}};
+        for (const auto &e : envelopes) {
+            QVERIFY2(w.act(QStringLiteral("layout.size.") + e.first), qPrintable(e.first));
+            w.act(QStringLiteral("layout.size.") + e.first)->trigger();
+            const QSizeF paper = w.document()->flow().section(0).paper;   // (kept to a twentieth of a point)
+            QVERIFY2(std::abs(paper.width() - e.second.width()) < 0.1 && std::abs(paper.height() - e.second.height()) < 0.1, qPrintable(e.first));
+            QTRY_VERIFY(w.act(QStringLiteral("layout.size.") + e.first)->isChecked());
+        }
+        // Page Setup names the paper the same way.
+        QString found;
+        QTimer::singleShot(0, [&found] {
             auto *dlg = qobject_cast<QDialog *>(QApplication::activeModalWidget());
             if (!dlg) return;
             auto *size = dlg->findChild<QComboBox *>(QStringLiteral("paperSize"));
