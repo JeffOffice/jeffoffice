@@ -443,6 +443,7 @@ public:
     QVector<write::DocVersion> versions() const;
     bool saveVersion(const QString &name);
     bool restoreVersion(const QString &file);
+    bool compareWithVersion(const QString &file, QString *error = nullptr);   // Review > Compare against a kept version
     void versionHistory();
     // Automatic recovery: writes a .pptx copy of unsaved work (the timer does, at the
     // interval Options sets), and offers the copies a run that crashed left.

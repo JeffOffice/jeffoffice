@@ -34,9 +34,11 @@
 #include <QApplication>
 #include <QDateTime>
 #include <algorithm>
+#include <QFile>
 #include <QFileInfo>
 #include <QLocale>
 #include <QStatusBar>
+#include <QTemporaryDir>
 
 namespace jp {
 
@@ -486,6 +488,25 @@ bool DeckWindow::restoreVersion(const QString &file)
     return true;
 }
 
+bool DeckWindow::compareWithVersion(const QString &file, QString *error)
+{
+    auto fail = [&](const QString &why) {
+        if (error) *error = why;
+        return false;
+    };
+    if (!m_ed->doc() || m_ed->filePath().isEmpty()) return fail(tr("There is no saved presentation to compare."));
+    QByteArray zip;
+    if (!m_versions.open(write::VersionStore(m_ed->filePath(), QStringLiteral(".pptx")).read(file), m_fileProtected ? m_filePassword : QString(), &zip) || zip.isEmpty()) return fail(tr("That version can't be opened."));
+    // (the compare reads a file: the version is put in a folder that goes with this call)
+    QTemporaryDir dir;
+    if (!dir.isValid()) return fail(tr("The version can't be compared."));
+    const QString path = dir.filePath(QStringLiteral("version.pptx"));
+    QFile f(path);
+    if (!f.open(QIODevice::WriteOnly) || f.write(zip) != zip.size()) return fail(tr("The version can't be compared."));
+    f.close();
+    return compareWith(path, error);
+}
+
 void DeckWindow::versionHistory()
 {
     if (!m_ed->doc()) return;
@@ -499,6 +520,10 @@ void DeckWindow::versionHistory()
         return true;
     };
     host.openCopy = [this](const QString &copy) { openFile(copy, OpenHow::Copy); };
+    host.compare = [this](const QString &file) {
+        QString why;
+        if (!compareWithVersion(file, &why)) notice(tr("Compare"), why.isEmpty() ? tr("The presentation can't be compared.") : why, true);
+    };
     host.restore = [this](const QString &file) { return restoreVersion(file); };
     showVersionHistory(this, host);
     if (m_fileScreen && m_fileScreen->isVisible()) showFileScreen(QStringLiteral("info"));

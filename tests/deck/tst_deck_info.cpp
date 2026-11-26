@@ -18,6 +18,7 @@
 #include "office/packageprops.h"
 
 #include "core/comments.h"
+#include "core/deckcompare.h"
 #include "core/lossnotes.h"
 #include "core/transition.h"
 #include "core/animation.h"
@@ -34,6 +35,8 @@
 #include <QScrollBar>
 #include <QDirIterator>
 #include <QListWidget>
+#include <QPushButton>
+#include <QTimer>
 #include <QCheckBox>
 #include <QTemporaryDir>
 #include <QLayout>
@@ -447,6 +450,58 @@ private Q_SLOTS:
         QVERIFY(w.isPasswordProtected());
         QVERIFY(w.save());
         verifyProtected(path, QStringLiteral("hunter2"));
+    }
+
+    // Version History's Compare button compares a kept version with the open presentation: the changes are listed for Accept and Reject (also for a protected presentation).
+    void aKeptVersionCanBeComparedFromVersionHistory()
+    {
+        QTemporaryDir dir;
+        DeckWindow w;
+        Quiet quiet(w);
+        w.editor()->setDocument(sample());
+        const QString path = dir.filePath(QStringLiteral("c.pptx"));
+        QVERIFY(w.saveTo(path));
+        QVERIFY(w.saveVersion(QStringLiteral("First")));
+        QString why;
+        QVERIFY2(w.compareWithVersion(w.versions().first().file, &why), qPrintable(why));
+        QVERIFY(w.comparison());
+        const int same = int(w.comparison()->changes.size());   // (what a presentation made again from its file already differs by)
+        w.editor()->change(QStringLiteral("x"), [&] { QTextCursor(w.editor()->doc()->storyDoc(w.editor()->doc()->pages[0]->notesStoryId)).insertText(QStringLiteral(" and goodbye")); });
+        QVERIFY2(w.compareWithVersion(w.versions().first().file, &why), qPrintable(why));
+        QVERIFY(w.comparison()->changes.size() > same);
+        QVERIFY(!w.compareWithVersion(QStringLiteral("nothing.pptx"), &why));
+        QVERIFY(!why.isEmpty());
+        // the Compare button of the box does the same
+        const int before = w.comparison()->changes.size();
+        w.newSlide();   // (one more difference)
+        int ticks = 0;
+        bool clicked = false;
+        QTimer press;
+        press.setInterval(20);
+        QObject::connect(&press, &QTimer::timeout, &w, [&] {
+            ++ticks;
+            for (QWidget *top : QApplication::topLevelWidgets()) {
+                if (top->objectName() != QLatin1String("versionDialog") || !top->isVisible()) continue;
+                for (QPushButton *b : top->findChildren<QPushButton *>())
+                    if (ticks > 500 || b->text() == QLatin1String("Compare")) {
+                        clicked = b->text() == QLatin1String("Compare");
+                        if (clicked) b->click();
+                        else static_cast<QDialog *>(top)->reject();
+                        press.stop();
+                        return;
+                    }
+            }
+        });
+        press.start();
+        w.versionHistory();
+        press.stop();
+        QVERIFY(clicked);
+        QVERIFY2(w.comparison()->changes.size() > before, qPrintable(QString::number(w.comparison()->changes.size())));
+        // a protected presentation's kept versions are opened with its password
+        protect(w, QStringLiteral("hunter2"));
+        QVERIFY(w.saveTo(path));
+        QVERIFY2(w.compareWithVersion(w.versions().first().file, &why), qPrintable(why));
+        w.editor()->markSaved();
     }
 
     // A password put on, changed, or taken off is put on every kept version when the file is saved with it, so none is left in the clear and Go Back still works.
