@@ -2040,6 +2040,12 @@ private Q_SLOTS:
         NotesPane *box = nullptr;
         notesPageWith(w, &box, [](QTextCursor &) {});
         fillMixedListNote(notesStory(w.editor()));
+        {
+            QTextCursor more(notesStory(w.editor()));   // (a note too long for the page to draw while it is edited: the box draws it then, and its markers)
+            more.movePosition(QTextCursor::End);
+            more.insertBlock(QTextBlockFormat(), QTextCharFormat());
+            more.insertText(QString(4100, QLatin1Char(' ')));   // (spaces: many letters, no room taken)
+        }
         NotesPageView *v = w.notesPageView();
         v->reload();
         const QStringList printed = printedMarkerTexts(w.editor());
@@ -2051,6 +2057,7 @@ private Q_SLOTS:
             // (the box shows as much of the note as fits; the markers it shows are the first of the printed page's, in order)
             QTRY_VERIFY(markerTexts(box).size() >= 3);
             QTRY_VERIFY(markersInside(box));
+            box->moveCursor(QTextCursor::Start);
             QVERIFY(box->takeTarget());   // (the page draws the notes until the box is the person's to edit)
             QTRY_VERIFY(!box->isGhost());
             const QStringList shown = markerTexts(box);
@@ -2060,7 +2067,7 @@ private Q_SLOTS:
                 QVERIFY2(m.rect.right() < textStart(box, m.blockPos), qPrintable(m.text));
             }
             const ListMarkers::Marker first = box->listMarkers()->visibleMarkers().first();
-            QVERIFY2(inkIn(box->grab().toImage(), first.rect, groundOf(box->viewport())) >= 2, "drawn");
+            QVERIFY2(inkIn(v->viewport()->grab().toImage().copy(box->geometry()), first.rect, QColor(Qt::white)) >= 2, "drawn");   // (as the person sees it: over the page)
             heights << first.rect.height();
             gutters << box->listMarkers()->gutterLeft();
         }
