@@ -153,6 +153,7 @@ public:
     bool hasStrays() const { return m_strayCount.load(std::memory_order_acquire) > 0; }
     void releaseStrays();
     qint64 straysReleased() const { return m_straysReleased; }
+    qint64 letGoDeferred() const { return m_letGoDeferred.load(std::memory_order_relaxed); }   // (cells of a spill that letGoOfSpill left in the store, told empty, for a thread that has the worker held to take; for tests)
     qint64 strayChecks() const { return m_strayChecks; }   // (what a test counts: the work of telling a waiting cell from one that is in the way)
     // Whether this calculation keeps the cells a formula spills into as blocks of an index (set from spillIndexDefault() when the workbook is loaded) and not as cells of the store.
     bool spillIndexOn() const { return m_spillIndex; }
@@ -379,6 +380,9 @@ public:
     // `withNodes` false leaves out what is read of the formula's node (the result a kept formula stores, the formula held in ids): the window's thread asks it so for what it shows (the formula bar), since the nodes are the worker's
     // while it works and are read by no other thread; `stored`, `hasStored`, `hasHeld`, and the fields of the held formula are not given then.
     CellContent content(int sheet, quint32 row, quint32 col, bool withNodes = true) const;
+    // The sheet's list of ranges is appended to by the worker (a formula's first spill) and read from the window's thread only for the range of a legacy array or data table cell, content's one read of it:
+    // both go through this lock, and nothing else does (a cell that is not one of those takes none: no cost to a paint). A test counts the takes of the window's reads (rangesLockTakes).
+    qint64 rangesLockTakes() const { return m_rangesLockTakes.load(std::memory_order_relaxed); }
     qint64 contentNodeReads() const { return m_contentNodeReads.load(std::memory_order_relaxed); }   // (the times content looked at a node: what a test counts)
     // Changes whenever an edit could change what a text of a formula names (rows, columns, cells, sheets inserted, deleted, moved, renamed): what a copy made before is checked against.
     quint64 structStamp() const { return m_structStamp; }
@@ -1150,9 +1154,12 @@ private:
     std::vector<Stray> m_strays;               // (the worker adds, a thread with the worker held back takes)
     std::atomic<qint64> m_strayCount{0};
     qint64 m_straysReleased = 0;
+    std::atomic<qint64> m_letGoDeferred{0};
     qint64 m_strayChecks = 0;                  // (the places of the list looked at to say if a cell of another's block waits to be taken: one for each such cell)
     mutable std::atomic<qint64> m_goneWalked{0};
     mutable std::atomic<qint64> m_contentNodeReads{0};
+    mutable std::mutex m_rangesLock;               // (see rangesLockTakes)
+    mutable std::atomic<qint64> m_rangesLockTakes{0};
     mutable std::atomic<qint64> m_valuesTaken{0};
     std::atomic<qint64> m_evaluations{0};
     mutable std::atomic<qint64> m_placeLookups{0};

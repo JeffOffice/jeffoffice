@@ -158,6 +158,9 @@ public:
     bool isWorkerOrNone() const;   // whether the calling thread is the worker, or no worker serves
     bool heldHere() const;   // whether the calling thread has the worker held (a second hold on one thread would wait for the first for ever)
     void check(const char *what) const;   // one flag test when strict mode is off
+    // A thread that has the worker held asks to hold it again (it would wait for the first hold for ever): in strict mode the program ends, naming it (a test's handler counts it instead); in a release nothing
+    // is said and the caller is refused, as when no worker serves.
+    void reentered(const char *what) const;
 
 private:
     void checkNow(const char *what) const;

@@ -40,6 +40,13 @@ void MutationGuard::check(const char *what) const
     if (g_strict.load(std::memory_order_relaxed)) checkNow(what);
 }
 
+void MutationGuard::reentered(const char *what) const
+{
+    if (!g_strict.load(std::memory_order_relaxed)) return;
+    if (const auto handler = g_handler.load()) return handler(what);
+    qFatal("%s called by a thread that has the calculation worker held back already (it would wait for its own hold for ever)", what);
+}
+
 bool MutationGuard::isWorkerOrNone() const
 {
     const quintptr worker = m_worker.load(std::memory_order_acquire);

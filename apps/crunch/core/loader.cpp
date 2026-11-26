@@ -284,6 +284,10 @@ std::unique_ptr<WorkbookLoader::Hold> WorkbookLoader::hold()
         --m_state->refuse;
         return nullptr;
     }
+    if (m_result->calc->mutationGuard().heldHere()) {   // (a second hold on one thread would wait for the first for ever)
+        m_result->calc->mutationGuard().reentered("WorkbookLoader::hold");
+        return nullptr;
+    }
     return std::unique_ptr<Hold>(new Hold(m_state, m_result->calc.get()));
 }
 

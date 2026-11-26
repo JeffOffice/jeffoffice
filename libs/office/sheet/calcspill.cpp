@@ -522,6 +522,7 @@ void Calculation::letGoOfSpill(int sheet, qint32 formula)
             m_strays.push_back(st);
             m_strayPlaces.insert(StrayPlace{sheet, rowId, colId});
             m_strayCount.store(qint64(m_strays.size()), std::memory_order_release);
+            m_letGoDeferred.fetch_add(1, std::memory_order_relaxed);
             tellGone(sheet, rowId, colId);
             continue;
         }
@@ -714,7 +715,10 @@ Value Calculation::applySpill(Node &n, quint32 id, const Value &v)
             s.ranges[slot] = now;
         } else {
             slot = qint32(s.ranges.size());
-            s.ranges.append(now);
+            {
+                const std::lock_guard<std::mutex> lock(m_rangesLock);   // (the window reads the list for a legacy array cell: see rangesLockTakes)
+                s.ranges.append(now);
+            }
             s.formulas[formula].range = slot;
         }
         // what read a cell the block gained or lost is worked out again (the formula's own cell is not among them: it is being worked out)

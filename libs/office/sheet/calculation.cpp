@@ -3639,7 +3639,15 @@ Calculation::CellContent Calculation::content(int sheet, quint32 row, quint32 co
         if ((c->flags & (ArrayFormula | DataTable)) && c->formula >= 0) {
             const qint32 range = s.formulas[c->formula].range;
             if (c->flags & DataTable) out.dataTable = true;
-            else if (range >= 0 && range < s.ranges.size() && s.ranges[range].valid) out.arrayRange = s.ranges[range];
+            else if (range >= 0) {
+                // (the worker appends to the sheet's ranges as a formula first spills: the list is read with the lock the append takes, a thread that has the worker held back needs none but takes it too)
+                std::unique_lock<std::mutex> lock(m_rangesLock, std::defer_lock);
+                if (m_guard.workerServes()) {
+                    lock.lock();
+                    m_rangesLockTakes.fetch_add(1, std::memory_order_relaxed);
+                }
+                if (range < s.ranges.size() && s.ranges[range].valid) out.arrayRange = s.ranges[range];
+            }
         } else if (out.dynamic) {
             out.arrayRange = spillBlock(sheet, row, col);   // (the block it fills now: what a file says of a formula that spills)
         }

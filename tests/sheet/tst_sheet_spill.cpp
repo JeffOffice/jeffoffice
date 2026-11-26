@@ -1061,6 +1061,7 @@ private Q_SLOTS:
         worker.join();
         QVERIFY(done);
         QVERIFY(b.calc->hasStrays());
+        QCOMPARE(b.calc->letGoDeferred(), qint64(3));   // (counted: each of the three cells was left for the hold, none taken by the worker)
         QCOMPARE(b.calc->straysReleased(), qint64(0));
         for (quint32 col = 1; col <= 3; ++col) QVERIFY(realAt(cells, 0, col));   // (still in the store: the window may be reading it)
         guard.enter();

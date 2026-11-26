@@ -2,7 +2,9 @@
 
 #include <QThread>
 #include "../cardchecks.h"
+#include "core/invalidcells.h"
 #include "core/sortspec.h"
+#include "core/workbookstats.h"
 #include "core/workthread.h"
 #include <algorithm>
 #include <mutex>
@@ -1415,6 +1417,121 @@ void CrunchEditTests::theCopyAndEditEntryPointsReadNodesOnlyUnderTheHold()
     }
 }
 
+// The sheet's list of ranges grows when a formula first spills (the worker appends to it) while the window reads the range of a legacy array cell (Calculation::content): the append and that read take one
+// lock, and no other read does (a cell that is not a legacy array takes none, so a paint pays nothing). Counted rounds, no waiting. Fails when the lock is taken out of either side: the thread checker
+// reports the pair (content, applySpill) and the memory checker the freed list; the counts fail when the read stops taking it or an ordinary cell starts to.
+void CrunchEditTests::aLegacyArrayCellIsReadBesideTheWorkerThatAppendsRanges()
+{
+    SpillIndexSwitch on(true);
+    EditWindow e;
+    QVERIFY(e.openBlank());
+    EditSession *s = e.win.w.session();
+    e.select(QStringLiteral("A5"));
+    e.enter(QStringLiteral("4"));
+    QVERIFY(s->typeArray(0, 0, 0, 1, 0, QStringLiteral("=A5*{1;2}")).ok);
+    QVERIFY(e.settle());
+    const Calculation *calc = s->calculation();
+    QVERIFY(calc->content(0, 0, 0, false).arrayRange.valid);
+    const int formulas = 150, reads = 40;
+    qint64 whole = 0, torn = 0, taken = calc->rangesLockTakes();
+    for (int f = 0; f < formulas; ++f) {
+        e.select(QStringLiteral("%1%2").arg(QChar('C' + f % 20)).arg(1 + 3 * (f / 20)));
+        e.enter(QStringLiteral("=SEQUENCE(2)"));   // (each is a first spill: the list of ranges grows)
+        for (int r = 0; r < reads; ++r) {
+            const Calculation::CellContent c = calc->content(0, 0, 0, false);
+            if (c.arrayRange.valid && c.arrayRange.row1 == 0 && c.arrayRange.row2 == 1 && c.arrayRange.col1 == 0 && c.arrayRange.col2 == 0) ++whole;
+            else ++torn;
+            (void)calc->content(0, 4, 0, false);   // (an ordinary cell, and a formula that is not an array)
+            (void)calc->content(0, 2, 2, false);
+        }
+    }
+    QVERIFY(e.settle());
+    QCOMPARE(torn, qint64(0));
+    QCOMPARE(whole, qint64(formulas) * reads);
+    QVERIFY(calc->rangesLockTakes() - taken >= qint64(formulas) * reads);   // (a take for each read of the array cell; the window's own reads of it add a few)
+    const qint64 now = calc->rangesLockTakes();
+    for (int i = 0; i < 1000; ++i) {
+        (void)calc->content(0, 4, 0, false);   // (an ordinary cell, and a formula that is not an array: none takes it)
+        (void)calc->content(0, 2, 2, false);
+    }
+    QCOMPARE(calc->rangesLockTakes(), now);
+}
+
+// A second hold taken by the thread that has the worker held back would wait for the first for ever: it is named (strict mode) and refused, and the first hold is still good. Fails when the guard in
+// WorkbookLoader::hold is taken out (the second hold never returns).
+void CrunchEditTests::aSecondHoldOnOneThreadIsNamedAndRefused()
+{
+    using jp::office::sheet::MutationGuard;
+    EditWindow e;
+    QVERIFY(e.openBlank());
+    e.select(QStringLiteral("A1"));
+    e.enter(QStringLiteral("3"));
+    QVERIFY(e.settle());
+    auto &loader = e.win.w.workbookLoader();
+    {
+        const std::lock_guard<std::mutex> lock(g_violationLock);
+        g_violations.clear();
+    }
+    MutationGuard::setViolationHandler(recordViolation);
+    auto first = loader.hold();
+    QVERIFY(first);
+    QVERIFY(loader.holdingHere());
+    const qint64 taken = loader.holdsTaken();
+    auto second = loader.hold();
+    MutationGuard::setViolationHandler(nullptr);
+    QVERIFY(!second);
+    QCOMPARE(loader.holdsTaken(), taken);
+    std::vector<std::string> seen;
+    {
+        const std::lock_guard<std::mutex> lock(g_violationLock);
+        seen = g_violations;
+    }
+    QCOMPARE(seen.size(), size_t(1));
+    QCOMPARE(seen[0], std::string("WorkbookLoader::hold"));
+    QVERIFY(first->calculation());
+    first.reset();
+    QVERIFY(!loader.holdingHere());
+    QVERIFY(loader.hold());   // (and a hold is given again once the first is let go)
+}
+
+// The readers of cells the window runs while a calculation may (what the cell shows and its text, the formula bar's text, the statistics, the cells that break a validation rule, and the grid's own reads) are
+// run over a block that the worker makes grow and shrink: each is of the safe path (the store's reads and the published blocks, content without nodes). Counted rounds, no waiting. The thread checker and
+// the memory checker are what fail it when one of them reads what the worker writes (the nodes, the sheet's ranges, a cell that is being made).
+void CrunchEditTests::everyShowOnlyReaderIsSafeBesideTheWorkerThatGrowsAndShrinksABlock()
+{
+    SpillIndexSwitch on(true);
+    EditWindow e;
+    QVERIFY(e.openBlank());
+    EditSession *s = e.win.w.session();
+    e.select(QStringLiteral("A1"));
+    e.enter(QStringLiteral("3"));
+    e.select(QStringLiteral("B1"));
+    e.enter(QStringLiteral("=SEQUENCE(A1)"));
+    QVERIFY(e.settle());
+    const Calculation *calc = s->calculation();
+    qint64 reads = 0;
+    for (int round = 0; round < 30; ++round) {
+        e.select(QStringLiteral("A1"));
+        e.enter(QString::number(round % 2 ? 900 : 3));
+        for (int pass = 0; pass < 4; ++pass) {
+            for (quint32 r = 0; r < 950; r += 11) {
+                reads += s->displayText(0, r, 1).size() + s->editText(0, r, 1).size();
+                const auto cell = e.view()->sheet().cellAt(r, 1);
+                if (cell) reads += e.view()->sheet().textOf(r, 1, *cell).size() + int(e.view()->sheet().valueOf(r, 1, *cell).isEmpty());
+                (void)calc->content(0, r, 1, false);
+                (void)calc->isSpillMember(0, r, 1);
+            }
+            reads += jp::crunch::workbookStatistics(*s).cells;
+            reads += qint64(jp::crunch::invalidCells(*calc, 0).size());
+            quint32 rows = 0, cols = 0;
+            e.view()->sheet().usedExtent(&rows, &cols);
+            reads += rows + cols;
+        }
+    }
+    QVERIFY(e.settle());
+    QVERIFY(reads > 0);
+}
+
 // The window reads the cells of a block while the worker makes it grow and shrink (the path of the nightly memory-checker finding of Nov 26: a read of the store in updateFormatState beside the worker's
 // insert of member cells). With the index on the worker makes no cell for the block, so the reads see no freed memory; the checked build (asancheck.sh) is what fails with the index off. Counted work: every
 // round makes a change and reads the whole block range at once.
@@ -1738,6 +1855,25 @@ void CrunchEditTests::aFilledCellOnAProtectedSheetHidesTheFormulaThatFillsIt()
         else QVERIFY2(!bar.contains(QLatin1String("SEQUENCE")), qPrintable(bar));
         QCOMPARE(e.win.w.session()->editText(0, 1, 0).contains(QLatin1String("SEQUENCE")), c.shown);
     }
+}
+
+// A window's own edit of the formula of a loaded spill (the worker is held back by it) takes the cells the block filled from the store at once: nothing is left as a stray for a later hold, and no cell is
+// counted as let go of for later. Fails when the deferral is made without regard to the hold (the cells wait as strays, counted).
+void CrunchEditTests::aWindowEditThatLetsGoOfASpillLeavesNothingForLater()
+{
+    SpillIndexSwitch on(true);
+    EditWindow e;
+    QVERIFY(e.open(spillBook(0, 0, false)));
+    QVERIFY(e.settle());
+    const Calculation *calc = e.win.w.session()->calculation();
+    const qint64 before = calc->letGoDeferred();
+    e.select(QStringLiteral("A1"));
+    e.enter(QStringLiteral("7"));
+    QVERIFY(e.settle());
+    QCOMPARE(calc->letGoDeferred(), before);
+    QVERIFY(!calc->hasStrays());
+    QVERIFY(!calc->isSpillMember(0, 1, 0));
+    QVERIFY(!calc->sheet(0).cells.find(1, 0) || calc->sheet(0).cells.find(1, 0)->type == jp::office::sheet::CellType::Empty);
 }
 
 // Entering the formula of a filled cell from the formula bar, as it was shown, changes nothing.

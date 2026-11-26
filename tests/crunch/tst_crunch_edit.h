@@ -180,6 +180,10 @@ private Q_SLOTS:
     void theWindowsQuestionsAboutACellReadNoNodeOfTheWorker();
     void aWindowReadOfANodeWithoutTheHoldIsNamedByStrictMode();
     void theCopyAndEditEntryPointsReadNodesOnlyUnderTheHold();
+    void aLegacyArrayCellIsReadBesideTheWorkerThatAppendsRanges();
+    void aSecondHoldOnOneThreadIsNamedAndRefused();
+    void everyShowOnlyReaderIsSafeBesideTheWorkerThatGrowsAndShrinksABlock();
+    void aWindowEditThatLetsGoOfASpillLeavesNothingForLater();
     void aWindowReadingABlockWhileTheWorkerGrowsAndShrinksItReadsNoFreedCell();
     void aWindowReadingABlockWhileTheWorkerMakesCellsOfItIsFoundByTheCheckedBuild();
     void aBlockOfASliceIsNotReadUntilItsBatchIsTaken();
