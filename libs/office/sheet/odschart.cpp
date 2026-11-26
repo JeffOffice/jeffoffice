@@ -478,12 +478,12 @@ private:
         if (p.grouping == jp::office::ChartGrouping::PercentStacked) s.chart += QStringLiteral(" chart:percentage=\"true\"");
         if (p.type == ChartType::Bar) s.chart += QStringLiteral(" chart:gap-width=\"%1\" chart:overlap=\"%2\"").arg(p.gapWidth).arg(p.overlap);
         if (p.type == ChartType::Pie || p.type == ChartType::Doughnut) s.chart += QStringLiteral(" chart:angle-offset=\"%1\"").arg(((90 - p.firstSliceAngle) % 360 + 360) % 360);   // (counter-clockwise from three o'clock; the model counts clockwise from twelve)
-        if (isLineLike(p)) {
+        if (isLineLike(p) || p.type == ChartType::Radar) {
             s.chart += QStringLiteral(" chart:symbol-type=\"%1\"").arg(p.markers ? QStringLiteral("automatic") : QStringLiteral("none"));
             if (p.type == ChartType::Scatter) s.chart += QStringLiteral(" chart:lines=\"%1\"").arg(p.lines ? QStringLiteral("true") : QStringLiteral("false"));
         }
         s.chart += QStringLiteral(" chart:include-hidden-cells=\"%1\"").arg(m_c.plotVisibleOnly ? QStringLiteral("false") : QStringLiteral("true"));
-        s.chart += QStringLiteral(" chart:treat-empty-cells=\"%1\"").arg(m_c.blanksAs == QLatin1String("zero") ? QStringLiteral("use-zero") : m_c.blanksAs == QLatin1String("span") ? QStringLiteral("continue") : QStringLiteral("leave-gap"));
+        s.chart += QStringLiteral(" chart:treat-empty-cells=\"%1\"").arg(m_c.blanksAs == QLatin1String("zero") ? QStringLiteral("use-zero") : m_c.blanksAs == QLatin1String("span") ? QStringLiteral("ignore") : QStringLiteral("leave-gap"));
         return s;
     }
 
@@ -819,7 +819,7 @@ public:
                 c.plotH = double(h) / double(height);
             }
             const QString blanks = plotProps.value(QStringLiteral("chart:chart:treat-empty-cells"));
-            c.blanksAs = blanks == QLatin1String("use-zero") ? QStringLiteral("zero") : blanks == QLatin1String("continue") ? QStringLiteral("span") : QStringLiteral("gap");
+            c.blanksAs = blanks == QLatin1String("use-zero") ? QStringLiteral("zero") : blanks == QLatin1String("continue") || blanks == QLatin1String("ignore") ? QStringLiteral("span") : QStringLiteral("gap");
             c.plotVisibleOnly = plotProps.value(QStringLiteral("chart:chart:include-hidden-cells")) != QLatin1String("true");
         }
         readTable(root);
@@ -879,6 +879,13 @@ public:
             const int angle = plotProps.value(QStringLiteral("chart:chart:angle-offset")).toInt(&ok);
             if (ok) p.firstSliceAngle = ((90 - angle) % 360 + 360) % 360;
             p.markers = plotProps.value(QStringLiteral("chart:chart:symbol-type")) != QLatin1String("none");
+            if (p.type == ChartType::Radar) {
+                // markers are off unless a symbol is said: on the plot, or on a series
+                bool any = false;
+                for (const ChartSeries &s : std::as_const(p.series)) any = any || s.marker.symbol != ChartMarker::None;
+                const QString said = plotProps.value(QStringLiteral("chart:chart:symbol-type"));
+                p.markers = said.isEmpty() ? any : said != QLatin1String("none");
+            }
             if (p.type == ChartType::Scatter) p.lines = plotProps.value(QStringLiteral("chart:chart:lines")) != QLatin1String("false");
         }
         c.plots = plots;
@@ -1269,7 +1276,7 @@ private:
             s.outline = line;
         }
         const QString symbol = p.value(QStringLiteral("chart:chart:symbol-type"));
-        if (symbol == QLatin1String("none")) s.marker.symbol = ChartMarker::None;
+        if (symbol == QLatin1String("none") || (type == ChartType::Radar && symbol.isEmpty())) s.marker.symbol = ChartMarker::None;
         else if (symbol == QLatin1String("named-symbol")) {
             static const QHash<QString, ChartMarker::Symbol> names = {{"circle", ChartMarker::Circle}, {"diamond", ChartMarker::Diamond}, {"square", ChartMarker::Square}, {"arrow-up", ChartMarker::Triangle},
                                                                       {"x", ChartMarker::X}, {"plus", ChartMarker::Plus}, {"star", ChartMarker::Star}, {"horizontal-bar", ChartMarker::Dash}};

@@ -6,7 +6,7 @@ A **chart** turns numbers into a picture, such as columns, a line, or slices of 
 ## Put a chart in
 
 1. Put the caret where the chart should go.
-2. Click **Insert > Chart**, and pick a kind: column, stacked column, 100% stacked column, bar, stacked bar, line, line with markers, pie, doughnut, area, stacked area, or scatter.
+2. Click **Insert > Chart**, and pick a kind: column, stacked column, 100% stacked column, bar, stacked bar, line, line with markers, pie, doughnut, area, stacked area, scatter, radar, radar with markers, or filled radar.
 
 A **stacked** chart piles the series on top of each other. A **100% stacked** chart makes each stack the same height, so you see shares. A **scatter** chart puts each point where its two numbers say.
 

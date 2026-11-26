@@ -687,6 +687,30 @@ private Q_SLOTS:
         QVERIFY2(texts.contains(QStringLiteral("80")) && texts.contains(QStringLiteral("90")) && !texts.contains(QStringLiteral("4.5")), qPrintable(texts.join(QLatin1Char('|'))));
     }
 
+    // A radar chart has markers only when the file says so on its series: "none" and nothing are the same picture, "automatic" has the markers.
+    void odpRadarHasMarkersOnlyWhenTheFileSaysSo()
+    {
+        const auto picture = [](const QString &symbol) {
+            const QString style = QStringLiteral("<style:style style:name=\"s1\" style:family=\"chart\"><style:chart-properties%1/><style:graphic-properties svg:stroke-color=\"#336699\"/></style:style>")
+                                      .arg(symbol.isEmpty() ? QString() : QStringLiteral(" chart:symbol-type=\"%1\"").arg(symbol));
+            QString rows;
+            for (const char *name : {"a", "b", "c", "d"})
+                rows += QStringLiteral("<table:table-row><table:table-cell office:value-type=\"string\"><text:p>%1</text:p></table:table-cell><table:table-cell office:value-type=\"float\" office:value=\"%2\"/></table:table-row>")
+                            .arg(QLatin1String(name)).arg(1 + rows.size() % 5);
+            const QString content = QStringLiteral("<?xml version=\"1.0\"?><office:document-content") + odptest::kNs + QStringLiteral("><office:automatic-styles>") + style + QStringLiteral("</office:automatic-styles><office:body><office:chart>"
+                "<chart:chart chart:class=\"chart:radar\"><chart:plot-area><chart:axis chart:dimension=\"x\" chart:name=\"primary-x\"/><chart:axis chart:dimension=\"y\" chart:name=\"primary-y\"/>"
+                "<chart:series chart:values-cell-range-address=\"local-table.$B$1:.$B$4\" chart:class=\"chart:radar\" chart:style-name=\"s1\"/>"
+                "</chart:plot-area><table:table table:name=\"local-table\"><table:table-rows>") + rows + QStringLiteral("</table:table-rows></table:table></chart:chart></office:chart></office:body></office:document-content>");
+            QString err;
+            const auto d = deck::importOdp(odptest::chartDeck(content.toUtf8(), {QSizeF(300, 200)}), &err);
+            return d ? chartPictures(*d).value(0) : QByteArray();
+        };
+        const QByteArray none = picture(QStringLiteral("none")), nothing = picture(QString()), automatic = picture(QStringLiteral("automatic"));
+        QVERIFY(!none.isEmpty());
+        QVERIFY(none == nothing);
+        QVERIFY(none != automatic);
+    }
+
     // A series that has no color of its own takes the next of the palette, as a slice of a pie does; it isn't black.
     void odpChartSeriesWithoutColorTakeThePalette()
     {

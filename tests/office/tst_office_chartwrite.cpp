@@ -573,7 +573,6 @@ private Q_SLOTS:
             b.majorGridlines = true;
             c.axes << a << b;
             p.series << seriesOf(QStringLiteral("S"), QString(), QStringLiteral("Sheet1!$A$2:$A$4"), QStringLiteral("Sheet1!$B$2:$B$4"), {"a", "b", "c"}, {1, 2, 3}, QColor("#112233"));
-            if (!look.filled && !look.markers) p.series[0].marker.symbol = ChartMarker::None;
             c.plots << p;
             const QByteArray part = writeChartPart(c);
             QVERIFY2(part.contains(QByteArray("<c:radarChart><c:radarStyle val=\"") + look.style + "\"/>"), look.style);

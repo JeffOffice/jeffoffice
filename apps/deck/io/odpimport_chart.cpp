@@ -279,7 +279,8 @@ QString Reader::drawChart(const QString &part, const QSizeF &size)
             series.outline.width = std::clamp(w, 0.75, 100.0);
             if (!series.outline.color.isValid()) series.outline.color = parseColor(b.get(Graphic, "svg:stroke-color"));
         }
-        if (b.get(Graphic, "chart:symbol-type") == QLatin1String("none")) series.marker.symbol = office::ChartMarker::None;
+        if (b.get(Graphic, "chart:symbol-type") == QLatin1String("none") || (type == office::ChartType::Radar && b.get(Graphic, "chart:symbol-type").isEmpty() && plotBag.get(Graphic, "chart:symbol-type").isEmpty()))
+            series.marker.symbol = office::ChartMarker::None;
         if (b.get(Graphic, "chart:data-label-number") == QLatin1String("value") || b.get(Graphic, "chart:data-label-number") == QLatin1String("percentage")) {
             series.labels.value = b.get(Graphic, "chart:data-label-number") == QLatin1String("value");
             series.labels.percent = !series.labels.value;
@@ -321,7 +322,9 @@ QString Reader::drawChart(const QString &part, const QSizeF &size)
             if ((type == office::ChartType::Area || type == office::ChartType::Radar) && !stacked && !percent) plot.grouping = office::ChartGrouping::Standard;
             if (type == office::ChartType::Radar) {
                 plot.filled = filledRadar;
-                plot.markers = plotBag.get(Graphic, "chart:symbol-type") != QLatin1String("none");
+                // (markers are off unless a symbol is said, on the plot or on its first series)
+                const QString symbol = plotBag.get(Graphic, "chart:symbol-type").isEmpty() ? b.get(Graphic, "chart:symbol-type") : plotBag.get(Graphic, "chart:symbol-type");
+                plot.markers = !symbol.isEmpty() && symbol != QLatin1String("none");
             }
             plot.horizontal = horizontal && type == office::ChartType::Bar;
             plot.axisIds[0] = 1;

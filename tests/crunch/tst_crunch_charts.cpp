@@ -358,7 +358,7 @@ private Q_SLOTS:
     // a copy saved as .ods has it as a radar of its class and opens as one; saved again with nothing changed, its part is as it was.
     void aNewRadarChartIsSavedAndReopensInBothFormats()
     {
-        const struct { ChartKind kind; const char *style; const char *odfClass; bool filled, markers; } looks[] = {{ChartKind::Radar, "standard", "chart:radar", false, false},
+        const struct { ChartKind kind; const char *style; const char *odfClass; bool filled, markers; } looks[] = {{ChartKind::Radar, "marker", "chart:radar", false, false},
                                                                                                                 {ChartKind::RadarMarkers, "marker", "chart:radar", false, true},
                                                                                                                 {ChartKind::RadarFilled, "filled", "chart:filled-radar", true, false}};
         for (const auto &look : looks) {
@@ -371,6 +371,7 @@ private Q_SLOTS:
             const QMap<QString, QByteArray> parts = partsOf(e.path);
             const QByteArray part = parts.value(QStringLiteral("xl/charts/chart1.xml"));
             QVERIFY2(part.contains(QByteArray("<c:radarChart><c:radarStyle val=\"") + look.style + "\"/>"), look.style);
+            QCOMPARE(part.contains("<c:symbol val=\"none\"/>"), look.kind == ChartKind::Radar);   // (the plain radar is told from the one with markers by its series' symbol)
             QVERIFY(!part.contains("c:barChart"));
             const QVector<SavedChart> charts = savedCharts(e.path);
             QCOMPARE(charts.size(), 1);
@@ -410,6 +411,48 @@ private Q_SLOTS:
             QTRY_VERIFY(q->shownSheet() == 0 && q->layer()->count() == 1);
             QCOMPARE(int(q->chartNow(0, 0).type()), int(ChartType::Radar));
             QCOMPARE(q->chartNow(0, 0).plots[0].filled, look.filled);
+        }
+    }
+
+    // A radar chart that came in a file and is not touched is saved byte for byte as it came, through the window's own save, whichever way it is built: the three styles, a hidden series, a point with a
+    // marker of its own, a radar beside columns, and one beside another radar.
+    void aRadarPartFromAFileIsSavedAsItCame()
+    {
+        const QVector<SeriesSpec> series = {SeriesSpec{QStringLiteral("Sheet1!$B$1"), QStringLiteral("Sheet1!$A$2:$A$4"), QStringLiteral("Sheet1!$B$2:$B$4"), QStringLiteral("East"), {"Q1", "Q2", "Q3"}, {10, 20, 30}, QString()},
+                                            SeriesSpec{QStringLiteral("Sheet1!$C$1"), QStringLiteral("Sheet1!$A$2:$A$4"), QStringLiteral("Sheet1!$C$2:$C$4"), QStringLiteral("West"), {"Q1", "Q2", "Q3"}, {5, 10, 15}, QString()}};
+        const QString radar = QString::fromUtf8(chartPart(QStringLiteral("radarChart"), series));
+        auto between = [](const QString &text, const char *from, const char *to) {
+            const int a = int(text.indexOf(QLatin1String(from)));
+            return text.mid(a, int(text.indexOf(QLatin1String(to), a)) + int(qstrlen(to)) - a);
+        };
+        const QString radarPlot = between(radar, "<c:radarChart>", "</c:radarChart>");
+        QMap<QString, QString> parts;
+        parts[QStringLiteral("marker")] = radar;
+        QString standard = radar;
+        parts[QStringLiteral("standard")] = standard.replace(QStringLiteral("radarStyle val=\"marker\""), QStringLiteral("radarStyle val=\"standard\""));
+        QString filled = radar;
+        parts[QStringLiteral("filled")] = filled.replace(QStringLiteral("radarStyle val=\"marker\""), QStringLiteral("radarStyle val=\"filled\""));
+        QString dPt = radar;
+        parts[QStringLiteral("point marker")] = dPt.replace(QStringLiteral("<c:cat>"), QStringLiteral("<c:dPt><c:idx val=\"1\"/><c:marker><c:symbol val=\"square\"/><c:size val=\"9\"/></c:marker><c:bubble3D val=\"0\"/></c:dPt><c:cat>"));
+        QString hidden = radar;   // the second series left out by a filter, in the extension after the axes
+        const QString second = between(radar, "<c:ser><c:idx val=\"1\"/>", "</c:ser>");
+        hidden.remove(second);
+        parts[QStringLiteral("hidden series")] = hidden.replace(QStringLiteral("<c:axId val=\"111\"/><c:axId val=\"222\"/></c:radarChart>"),
+                                                                 QStringLiteral("<c:axId val=\"111\"/><c:axId val=\"222\"/><c:extLst><c:ext uri=\"{02D57815-91ED-43cb-92C2-25804820EDAC}\" xmlns:c15=\"http://schemas.microsoft.com/office/drawing/2012/chart\">"
+                                                                                "<c15:filteredRadarSeries>%1</c15:filteredRadarSeries></c:ext></c:extLst></c:radarChart>").arg(QString(second).replace(QStringLiteral("<c:ser>"), QStringLiteral("<c15:ser>")).replace(QStringLiteral("</c:ser>"), QStringLiteral("</c15:ser>"))));
+        QString beside = QString::fromUtf8(chartPart(QStringLiteral("barChart"), series));
+        parts[QStringLiteral("beside columns")] = beside.replace(QStringLiteral("</c:barChart>"), QStringLiteral("</c:barChart>") + QString(radarPlot).replace(QStringLiteral("222"), QStringLiteral("444")).replace(QStringLiteral("111"), QStringLiteral("333")));
+        QString twin = radar;
+        parts[QStringLiteral("second radar")] = twin.replace(QStringLiteral("</c:radarChart>"), QStringLiteral("</c:radarChart>") + QString(radarPlot).replace(QStringLiteral("222"), QStringLiteral("444")).replace(QStringLiteral("111"), QStringLiteral("333")));
+        for (auto it = parts.cbegin(); it != parts.cend(); ++it) {
+            EditWindow e;
+            QVERIFY2(e.open(bookWithAChart(QStringLiteral("radarChart"), it.value().toUtf8())), qPrintable(it.key()));
+            QVERIFY(e.settle());
+            e.select(QStringLiteral("E5"));
+            e.enter(QStringLiteral("7"));
+            QVERIFY(e.settle());
+            QVERIFY(save(e));
+            QVERIFY2(partsOf(e.path).value(QStringLiteral("xl/charts/chart1.xml")) == it.value().toUtf8(), qPrintable(it.key()));
         }
     }
 

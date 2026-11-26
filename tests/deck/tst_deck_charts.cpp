@@ -98,10 +98,11 @@ private Q_SLOTS:
         QCOMPARE(selectedChartInfo(ed).form, office::sheet::ChartForm::Column);
         QCOMPARE(selectedChart(ed)->chartXml, first);
         // The radar kinds are offered as the others are: the chart part is a radar chart, its style the look chosen, and it is drawn.
-        for (const auto &look : {std::make_pair("chart.type.radar", "standard"), std::make_pair("chart.type.radarMarkers", "marker"), std::make_pair("chart.type.radarFilled", "filled")}) {
+        for (const auto &look : {std::make_pair("chart.type.radar", "marker"), std::make_pair("chart.type.radarMarkers", "marker"), std::make_pair("chart.type.radarFilled", "filled")}) {
             QVERIFY(w.act(QString::fromLatin1(look.first))->isEnabled());
             w.act(QString::fromLatin1(look.first))->trigger();
             QVERIFY(selectedChart(ed)->chartXml.contains(QByteArray("<c:radarChart><c:radarStyle val=\"") + look.second + "\"/>"));
+            QCOMPARE(selectedChart(ed)->chartXml.contains("<c:symbol val=\"none\"/>"), QByteArray(look.first) == QByteArray("chart.type.radar"));
             QVERIFY(ed->doc()->images.value(selectedChart(ed)->imageId).bytes.contains("<svg"));
             ed->undo();
             QCOMPARE(selectedChart(ed)->chartXml, first);

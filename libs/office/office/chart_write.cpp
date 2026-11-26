@@ -496,7 +496,12 @@ private:
         } else {
             shapeProps(s.noFill ? QColor() : s.color, s.noFill, s.outline, QColor(), 0, false, &s.kept);
         }
-        if (stroked) marker(s.marker, s.color, true);
+        if (stroked) {
+            // (a plain radar's series each say the symbol is none: that is what tells it from the one with markers, which both are the style "marker")
+            ChartMarker m = s.marker;
+            if (plot.type == ChartType::Radar && !plot.markers && m.symbol == ChartMarker::Auto) m.symbol = ChartMarker::None;
+            marker(m, s.color, true);
+        }
         if (plot.type == ChartType::Pie || plot.type == ChartType::Doughnut) {
             if (s.explosion > 0) val("c:explosion", QString::number(int(std::lround(s.explosion))));
         } else if (plot.type == ChartType::Bar) {

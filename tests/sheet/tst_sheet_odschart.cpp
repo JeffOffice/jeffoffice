@@ -225,6 +225,9 @@ private Q_SLOTS:
             const QByteArray object = s.parts.value(QStringLiteral("Object 1/content.xml"));
             QVERIFY2(object.contains(QByteArray("chart:class=\"") + look.cls + "\""), look.style);
             QCOMPARE(object.contains("chart:filled-radar"), look.filled);
+            // the symbols are said for every look: none for the plain and the filled, automatic for the one with markers
+            QCOMPARE(object.contains("chart:symbol-type=\"automatic\""), look.markers);
+            QVERIFY2(object.contains("chart:symbol-type=\"none\"") == !look.markers, look.style);
             Back b;
             QVERIFY2(readBack(s.ods, &b, &why), qPrintable(why));
             QCOMPARE(b.charts.size(), 1);
@@ -255,6 +258,29 @@ private Q_SLOTS:
             QCOMPARE(int(back.plots[0].type), int(ChartType::Radar));
             QCOMPARE(back.plots[0].filled, QLatin1String(cls) == QLatin1String("chart:filled-radar"));
             QCOMPARE(back.plots[0].series[0].values, (QVector<double>{3, 1, 2}));
+        }
+    }
+
+    // A radar of another program has markers only when it says so (the plain and the filled say "none", the one with markers says "automatic"; one that says nothing has none), and "ignore" is
+    // the setting that joins the points across empty cells.
+    void aRadarChartOfAnotherProgramHasMarkersOnlyWhenItSaysSo()
+    {
+        const struct { const char *symbol; bool markers; } cases[] = {{"none", false}, {"automatic", true}, {"", false}};
+        for (const auto &c : cases) {
+            const QString symbol = *c.symbol ? QStringLiteral(" chart:symbol-type=\"%1\"").arg(QLatin1String(c.symbol)) : QString();
+            const QString styles = QStringLiteral("<style:style style:name=\"s1\" style:family=\"chart\"><style:chart-properties%1/></style:style>"
+                                                  "<style:style style:name=\"p1\" style:family=\"chart\"><style:chart-properties chart:treat-empty-cells=\"ignore\"/></style:style>").arg(symbol);
+            const QString plot = QStringLiteral("<chart:axis chart:dimension=\"x\" chart:name=\"primary-x\"/><chart:axis chart:dimension=\"y\" chart:name=\"primary-y\"/>"
+                                                "<chart:series chart:values-cell-range-address=\"local-table.B1:local-table.B3\" chart:class=\"chart:radar\" chart:style-name=\"s1\"/>");
+            const QByteArray doc = miniChart(QStringLiteral("chart:radar"), plot, styles);
+            jp::office::sheet::ods::StyleStore store;
+            QString why;
+            QVERIFY2(jp::office::sheet::odschart::parseStyles(doc, Limits(), &store, &why), qPrintable(why));
+            Chart back;
+            QVERIFY2(jp::office::sheet::odschart::chartFromOdf(doc, store, nullptr, &back, &why, nullptr), qPrintable(why));
+            QCOMPARE(int(back.plots.size()), 1);
+            QCOMPARE(back.plots[0].markers, c.markers);
+            QCOMPARE(back.blanksAs, QStringLiteral("span"));
         }
     }
 
