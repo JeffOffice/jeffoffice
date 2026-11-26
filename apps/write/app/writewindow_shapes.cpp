@@ -383,6 +383,10 @@ const ChartName kChartNames[] = {
     {write::ChartForm::Radar, "radar", QT_TRANSLATE_NOOP("jp::WriteWindow", "Radar"), "radar"},
     {write::ChartForm::RadarMarkers, "radarMarkers", QT_TRANSLATE_NOOP("jp::WriteWindow", "Radar with Markers"), "radar"},
     {write::ChartForm::RadarFilled, "radarFilled", QT_TRANSLATE_NOOP("jp::WriteWindow", "Filled Radar"), "radar"},
+    {write::ChartForm::StockHighLowClose, "stockHighLowClose", QT_TRANSLATE_NOOP("jp::WriteWindow", "High-Low-Close"), "chart-candlestick"},
+    {write::ChartForm::StockOpenHighLowClose, "stockOpenHighLowClose", QT_TRANSLATE_NOOP("jp::WriteWindow", "Open-High-Low-Close"), "chart-candlestick"},
+    {write::ChartForm::StockVolumeHighLowClose, "stockVolumeHighLowClose", QT_TRANSLATE_NOOP("jp::WriteWindow", "Volume-High-Low-Close"), "chart-candlestick"},
+    {write::ChartForm::StockVolumeOpenHighLowClose, "stockVolumeOpenHighLowClose", QT_TRANSLATE_NOOP("jp::WriteWindow", "Volume-Open-High-Low-Close"), "chart-candlestick"},
 };
 
 } // namespace

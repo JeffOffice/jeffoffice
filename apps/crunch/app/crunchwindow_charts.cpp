@@ -78,6 +78,10 @@ const KindAction kKindActions[] = {
     {"chart.radar.plain", QT_TRANSLATE_NOOP("jp::CrunchWindow", "Radar"), "radar", ChartKind::Radar},
     {"chart.radar.markers", QT_TRANSLATE_NOOP("jp::CrunchWindow", "Radar with markers"), "radar", ChartKind::RadarMarkers},
     {"chart.radar.filled", QT_TRANSLATE_NOOP("jp::CrunchWindow", "Filled radar"), "radar", ChartKind::RadarFilled},
+    {"chart.stock.hlc", QT_TRANSLATE_NOOP("jp::CrunchWindow", "High-low-close"), "chart-candlestick", ChartKind::StockHLC},
+    {"chart.stock.ohlc", QT_TRANSLATE_NOOP("jp::CrunchWindow", "Open-high-low-close"), "chart-candlestick", ChartKind::StockOHLC},
+    {"chart.stock.vhlc", QT_TRANSLATE_NOOP("jp::CrunchWindow", "Volume-high-low-close"), "chart-candlestick", ChartKind::StockVHLC},
+    {"chart.stock.vohlc", QT_TRANSLATE_NOOP("jp::CrunchWindow", "Volume-open-high-low-close"), "chart-candlestick", ChartKind::StockVOHLC},
 };
 
 struct GroupAction {
@@ -93,6 +97,7 @@ const GroupAction kGroupActions[] = {
     {"chart.area", QT_TRANSLATE_NOOP("jp::CrunchWindow", "Area"), "chart-area", ChartKind::Area},                {"chart.scatter", QT_TRANSLATE_NOOP("jp::CrunchWindow", "Scatter"), "chart-scatter", ChartKind::Scatter},
     {"chart.combo", QT_TRANSLATE_NOOP("jp::CrunchWindow", "Combo"), "chart-no-axes-combined", ChartKind::Combo},
     {"chart.radar", QT_TRANSLATE_NOOP("jp::CrunchWindow", "Radar"), "radar", ChartKind::Radar},
+    {"chart.stock", QT_TRANSLATE_NOOP("jp::CrunchWindow", "Stock"), "chart-candlestick", ChartKind::StockHLC},
 };
 
 } // namespace
@@ -195,7 +200,7 @@ bool CrunchWindow::chartPlanFor(ChartKind kind, int inRows, ChartPlan *plan, boo
 QImage CrunchWindow::chartPreviewImage(ChartKind kind, int inRows, const QSize &pixels)
 {
     ChartPlan plan;
-    if (!chartPlanFor(kind, inRows, &plan, true)) return QImage();
+    if (!chartPlanFor(kind, inRows, &plan, true) || !jp::office::sheet::stockProblem(kind, int(plan.series.size())).isEmpty()) return QImage();
     Chart chart = makeChart(kind, plan, m_objects->theme(), plan.points);
     if (m_objects->cells()) applyChartCells(&chart, m_sheet, *m_objects->cells());
     return chartPicture(chart, pixels);
@@ -238,6 +243,10 @@ bool CrunchWindow::insertChart(ChartKind kind, int inRows)
     }
     if (!chartPlanFor(kind, inRows, &plan)) {
         notice(tr("New Chart"), tr("Select the cells that hold the numbers to chart. If the first row has names and the first column has labels, select those too."), false);
+        return false;
+    }
+    if (const QString problem = jp::office::sheet::stockProblem(kind, int(plan.series.size())); !problem.isEmpty()) {
+        notice(tr("New Chart"), problem);   // (a stock chart's series are told apart by their number and order: other cells are refused, never drawn as something else)
         return false;
     }
     const Chart chart = makeChart(kind, plan, m_objects->theme(), plan.points);

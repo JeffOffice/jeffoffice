@@ -54,6 +54,10 @@ const QVector<ChartKindEntry> &chartKindEntries()
         {ChartKind::Radar, QT_TRANSLATE_NOOP("jp::ChartKinds", "Radar")},
         {ChartKind::RadarMarkers, QT_TRANSLATE_NOOP("jp::ChartKinds", "Radar with markers")},
         {ChartKind::RadarFilled, QT_TRANSLATE_NOOP("jp::ChartKinds", "Filled radar")},
+        {ChartKind::StockHLC, QT_TRANSLATE_NOOP("jp::ChartKinds", "High-low-close")},
+        {ChartKind::StockOHLC, QT_TRANSLATE_NOOP("jp::ChartKinds", "Open-high-low-close")},
+        {ChartKind::StockVHLC, QT_TRANSLATE_NOOP("jp::ChartKinds", "Volume-high-low-close")},
+        {ChartKind::StockVOHLC, QT_TRANSLATE_NOOP("jp::ChartKinds", "Volume-open-high-low-close")},
     };
     return entries;
 }
@@ -788,14 +792,33 @@ ChangeChartTypeDialog::ChangeChartTypeDialog(const QStringList &seriesNames, con
     row->addLayout(right, 1);
     outer->addLayout(row, 1);
     auto *buttons = new jp::ButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, this);
-    connect(buttons, &QDialogButtonBox::accepted, this, &QDialog::accept);
+    connect(buttons, &QDialogButtonBox::accepted, this, [this] {
+        // a stock kind needs its series in a number and an order: a chart of other series is told so, not changed
+        const QListWidgetItem *item = m_list->currentItem();
+        const QString why = item && item->data(Qt::UserRole).toInt() >= 0 ? jp::office::sheet::stockProblem(ChartKind(item->data(Qt::UserRole).toInt()), int(m_names.size())) : QString();
+        if (!why.isEmpty()) {
+            jp::plainWarning(this, windowTitle(), why);
+            return;
+        }
+        accept();
+    });
     connect(buttons, &QDialogButtonBox::rejected, this, &QDialog::reject);
     outer->addWidget(buttons);
     connect(m_list, &QListWidget::currentRowChanged, this, [this] { refresh(); });
     // what the chart is now: one kind for all, or a combination
     bool same = !now.isEmpty();
     for (const SeriesKind &k : now) same = same && k.kind == now.first().kind && !k.secondary;
-    if (same) chooseKind(now.first().kind);
+    // (a stock chart is one kind: with a volume, a column first and the prices after it)
+    ChartKind stock = now.isEmpty() ? ChartKind::Column : now.first().kind;
+    bool isStock = !now.isEmpty() && jp::office::sheet::isStockKind(stock);
+    for (const SeriesKind &k : now) isStock = isStock && (jp::office::sheet::isStockKind(k.kind) || k.kind == ChartKind::Column);
+    if (now.size() > 1 && now.first().kind == ChartKind::Column && jp::office::sheet::isStockKind(now.value(1).kind)) {
+        stock = now.value(1).kind == ChartKind::StockOHLC ? ChartKind::StockVOHLC : ChartKind::StockVHLC;
+        isStock = true;
+        for (int i = 1; i < now.size(); ++i) isStock = isStock && jp::office::sheet::isStockKind(now[i].kind);
+    }
+    if (isStock) chooseKind(stock);
+    else if (same) chooseKind(now.first().kind);
     else chooseCombination(now);
     resize(640, 460);
 }

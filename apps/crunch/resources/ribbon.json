@@ -193,7 +193,8 @@
             {"small": "chart.scatter", "keytip": "CS", "split": true, "menu": ["chart.scatter.points", "chart.scatter.joined", "chart.scatter.smooth"]},
             {"column": true},
             {"small": "chart.combo", "keytip": "CO"},
-            {"small": "chart.radar", "keytip": "CK", "split": true, "menu": ["chart.radar.plain", "chart.radar.markers", "chart.radar.filled"]}
+            {"small": "chart.radar", "keytip": "CK", "split": true, "menu": ["chart.radar.plain", "chart.radar.markers", "chart.radar.filled"]},
+            {"small": "chart.stock", "keytip": "CH", "split": true, "menu": ["chart.stock.hlc", "chart.stock.ohlc", "chart.stock.vhlc", "chart.stock.vohlc"]}
           ]
         },
         {
