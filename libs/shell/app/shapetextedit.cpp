@@ -12,6 +12,8 @@
 #include <QTextCursor>
 #include <QTextDocument>
 #include <QTextList>
+#include <QToolTip>
+#include "wml/htmlguard.h"
 
 #include <QVector>
 #include <algorithm>
@@ -472,6 +474,12 @@ void ShapeTextEdit::marksChanged()
 
 void ShapeTextEdit::insertFromMimeData(const QMimeData *source)
 {
+    // (a page the parser is not given is pasted as its plain text, and the person is told)
+    if (const auto plain = office::wml::plainTextInsteadOfRefusedHtml(source)) {
+        QToolTip::showText(mapToGlobal(cursorRect().bottomLeft()), office::wml::htmlPasteRefusedNote(), this);
+        QTextEdit::insertFromMimeData(plain.get());
+        return;
+    }
     // (Paste into an empty paragraph brings the pasted paragraph's alignment with it: Qt keeps the paragraph's own.)
     const QTextCursor at = textCursor();
     const bool intoEmpty = at.block().text().isEmpty() || (at.hasSelection() && at.selectionStart() <= at.block().position() && at.selectionEnd() >= at.block().position() + at.block().length() - 1);

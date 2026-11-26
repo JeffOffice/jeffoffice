@@ -2209,16 +2209,19 @@ PastedTableResult Editor::pasteHtmlTable(const QMimeData *md, bool overSelected,
 // middle of the page. One step. False, with a word of why, when the clipboard holds no cells. Only a command of its own does this: Paste itself pastes the clipboard as it is.
 bool Editor::pasteCells(const QMimeData *md)
 {
-    if (md && md->hasHtml()) {
+    // (a page the parser is not given: its text is read as cells, if it has them, and the person is told)
+    const bool refused = md && md->hasHtml() && office::wml::htmlRefusal(md->html()) != office::wml::HtmlRefusal::None;
+    if (md && md->hasHtml() && !refused) {
         const PastedTableResult res = pasteHtmlTable(md, true, true);
         if (res == PastedTableResult::Ok) return true;
         if (res == PastedTableResult::TooBig) return false;   // (said; and not tried again as text cells)
     }
-    const auto cells = md ? office::wml::clipTable(md->hasHtml() ? md->html() : QString(), md->hasText() ? md->text() : QString()) : std::nullopt;
+    const auto cells = md ? office::wml::clipTable(md->hasHtml() && !refused ? md->html() : QString(), md->hasText() ? md->text() : QString()) : std::nullopt;
     if (!cells || cells->rows.isEmpty()) {
-        Q_EMIT status(tr("The clipboard has no spreadsheet cells to paste."));
+        Q_EMIT status(refused ? office::wml::htmlPasteRefusedNote(false) : tr("The clipboard has no spreadsheet cells to paste."));
         return false;
     }
+    if (refused) Q_EMIT status(office::wml::htmlPasteRefusedNote());
     if (isEditingText()) endTextEdit();
     auto put = [this](TableItem *t, int r, int c, const QString &text) {
         TableCell &cell = t->cell(r, c);
@@ -2275,6 +2278,13 @@ void Editor::paste(bool textOnly)
 {
     const QMimeData *md = QApplication::clipboard()->mimeData();
     if (!md) return;
+    // A page the parser is not given (too deep or too much work) is pasted as its plain text, and the person is told.
+    const bool refused = !textOnly && md->hasHtml() && !md->hasFormat("application/x-jeffpub-text") && !md->hasFormat(kItemsMime) && office::wml::htmlRefusal(md->html()) != office::wml::HtmlRefusal::None;
+    if (refused) {
+        textOnly = true;
+        Q_EMIT status(office::wml::htmlPasteRefusedNote());
+    }
+    const auto plain = [&] { return md->hasText() ? md->text() : refused ? office::wml::htmlPlainText(md->html()) : QString(); };
     // A table of HTML (cells from JeffCrunch, a table from a document or a page) is a table, or fills the cells from the one being typed in; one too big for that is pasted as its text.
     // (Notes hold no tables and no pictures: a page's table goes in as its words.)
     if (editingStoryOnly() && !textOnly && md->hasHtml() && !md->hasFormat("application/x-jeffpub-text") && md->html().contains(QLatin1String("<table"), Qt::CaseInsensitive)) textOnly = true;
@@ -2295,8 +2305,8 @@ void Editor::paste(bool textOnly)
             m_doc->adoptText(m_cursor.document(), from, m_cursor.position());
         } else if (!textOnly && md->hasHtml()) {
             m_cursor.insertFragment(QTextDocumentFragment::fromHtml(md->html()));
-        } else if (md->hasText()) {
-            m_cursor.insertText(md->text());
+        } else if (md->hasText() || refused) {
+            m_cursor.insertText(plain());
         }
         if (editingStoryOnly()) dropPicturesIn(m_cursor.document(), from0, m_cursor.position());
         endChange();
@@ -2333,7 +2343,7 @@ void Editor::paste(bool textOnly)
         auto t = std::static_pointer_cast<TextItem>(newTextBox(QRectF(ps.width() * 0.2, ps.height() * 0.3, ps.width() * 0.6, ps.height() * 0.25)));
         QTextCursor c(m_doc->storyDoc(t->storyId));
         if (!textOnly && md->hasHtml()) c.insertFragment(QTextDocumentFragment::fromHtml(md->html()));
-        else c.insertText(md->text());
+        else c.insertText(plain());
         surfaceItems().push_back(t);
         m_sel = QStringList{t->id};
         endChange();

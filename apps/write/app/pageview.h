@@ -879,7 +879,7 @@ private:
     };
     // What was read of a clipboard or a drop (each form once, when a paste asks: the RTF read into a clip, the HTML made safe and held to its size, and the words).
     struct Fetched {
-        bool rtfDone = false, htmlDone = false, textDone = false;
+        bool rtfDone = false, htmlDone = false, textDone = false, htmlRefused = false;   // (a page the parser is not given: pasted as its text)
         QByteArray rtfBytes;
         std::optional<Clip> clip;
         QString html, text;
@@ -898,7 +898,8 @@ private:
     const std::optional<office::wml::ClipTable> &cellsOf(const PasteSource &from) const;
     // The formatted text (RTF) another program put on the clipboard or in a drop, read once; none when there is none or it can't be read.
     const std::optional<Clip> &rtfOf(const PasteSource &from) const;
-    const QString &htmlOf(const PasteSource &from) const;   // empty when there is none or it is over the size limit
+    const QString &htmlOf(const PasteSource &from) const;   // empty when there is none, it is over the size limit, or it is refused
+    bool htmlRefusedOf(const PasteSource &from) const;
     const QString &textOf(const PasteSource &from) const;
     // What puts the source in, by the order: this program's own copy, spreadsheet cells as their words, RTF, HTML, the words; empty when there is nothing usable.
     std::function<void()> putOf(const PasteSource &from);

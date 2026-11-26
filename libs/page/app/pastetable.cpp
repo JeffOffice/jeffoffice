@@ -1,4 +1,5 @@
 #include "app/pastetable.h"
+#include "wml/htmlguard.h"
 
 #include "core/document.h"
 #include "text/textprops.h"
@@ -347,7 +348,7 @@ PastedTableResult readPastedTable(const QString &html, PastedTable *out)
     *out = PastedTable();
     if (html.isEmpty() || !html.contains(QLatin1String("<table"), Qt::CaseInsensitive)) return PastedTableResult::NotATable;
     // (one look at the tags, before any parse: a page that asks the parser for a huge grid is refused whatever it is)
-    if (html.size() > kMostPasteScanChars) return PastedTableResult::TooBig;
+    if (html.size() > kMostPasteScanChars || office::wml::htmlRefusal(html) != office::wml::HtmlRefusal::None) return PastedTableResult::TooBig;
     const Scan scan = scanTags(html);
     // A page that asks the parser for a huge grid is refused whatever it is (the one guard that every page has).
     if (scan.hostile || scan.area() > kMostWorkArea) return PastedTableResult::TooBig;

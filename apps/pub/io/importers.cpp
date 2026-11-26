@@ -1,4 +1,5 @@
 #include "io/importers.h"
+#include "wml/htmlguard.h"
 #include "app/uistyle.h"
 #include "app/mergefiles.h"
 #include "app/printpage.h"
@@ -379,6 +380,10 @@ bool loadTextFileInto(QTextDocument *doc, const QString &path, QString *problem,
         docxHtml = docxToHtml(package, &left, &cut);
         readerLeftOut = readerLeftOut || cut;
         unreadable = docxHtml.isEmpty();
+        if (const auto refused = office::wml::htmlRefusal(docxHtml); refused != office::wml::HtmlRefusal::None) {
+            if (problem) *problem = QCoreApplication::translate("Importers", "\"%1\" couldn't be read, so nothing was inserted.\n%2").arg(name, office::wml::htmlRefusalText(refused));
+            return false;
+        }
         fragment = QTextDocumentFragment::fromHtml(docxHtml);
         if (!unreadable && fragment.toPlainText().trimmed().isEmpty()) {
             if (problem) *problem = QCoreApplication::translate("Importers", "No text was found in \"%1\", so nothing was inserted.").arg(name);
@@ -396,6 +401,10 @@ bool loadTextFileInto(QTextDocument *doc, const QString &path, QString *problem,
     if (packaged) {
         c.insertFragment(fragment);
     } else if (suffix == "html" || suffix == "htm") {
+        if (const auto refused = office::wml::htmlRefusal(data); refused != office::wml::HtmlRefusal::None) {
+            if (problem) *problem = QCoreApplication::translate("Importers", "\"%1\" couldn't be read, so nothing was inserted.\n%2").arg(name, office::wml::htmlRefusalText(refused));
+            return false;
+        }
         c.insertFragment(QTextDocumentFragment::fromHtml(QString::fromUtf8(data)));
     } else if (suffix == "md") {
         QTextDocument tmp;

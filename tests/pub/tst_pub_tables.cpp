@@ -9,6 +9,7 @@
 #include "wml/wmlhtmlread.h"
 #include <QClipboard>
 #include <QMimeData>
+#include "wml/htmlguard.h"
 
 class PubTableTests : public QObject {
     Q_OBJECT
@@ -112,6 +113,51 @@ private Q_SLOTS:
         w.act(QStringLiteral("edit.pasteCells"))->trigger();
         QCOMPARE(tables().size(), 1);
         QVERIFY(said.contains(QStringLiteral("nothing was pasted")));
+    }
+
+    // A page the parser is not given (it nests past the limit, or is too much work) is pasted as its plain text with a word of why, never parsed, and never "no spreadsheet cells": by Ctrl+V, in a
+    // text being typed, and by the Paste Cells command (whose cells come from the text, when it has them).
+    void aPastedPageTheParserIsNotGivenIsPastedAsItsText()
+    {
+        QString deep;
+        for (int i = 0; i < jp::office::wml::kMostPageDepth + 1; ++i) deep += QStringLiteral("<b_x>");
+        deep += QStringLiteral("page words");
+        auto setClip = [&](const QString &html, const QString &text) {
+            auto *mime = new QMimeData;
+            mime->setHtml(html);
+            if (!text.isEmpty()) mime->setText(text);
+            QGuiApplication::clipboard()->setMimeData(mime);
+        };
+        jp::MainWindow w;
+        jp::Editor *ed = w.editor();
+        QStringList said;
+        QObject::connect(ed, &jp::Editor::status, &w, [&said](const QString &t) { said << t; });
+        auto boxText = [&]() -> QString {
+            QString out;
+            for (const auto &it : ed->doc()->pages[0]->items)
+                if (auto *t = dynamic_cast<jp::TextItem *>(it.get())) out += ed->doc()->storyDoc(t->storyId)->toPlainText();
+            return out;
+        };
+        setClip(deep, QStringLiteral("the plain text"));
+        ed->paste();
+        QCOMPARE(boxText(), QStringLiteral("the plain text"));
+        QVERIFY2(said.join(QLatin1Char(' ')).contains(QLatin1String("plain text was pasted")), qPrintable(said.join(QLatin1Char(' '))));
+        ed->undo();
+        said.clear();
+        setClip(deep, QString());
+        ed->paste();
+        QCOMPARE(boxText(), QStringLiteral("page words"));
+        ed->undo();
+        // Paste Cells: the text of a refused page is read as cells when it has them, else the person is told nothing was pasted and why.
+        said.clear();
+        setClip(deep, QStringLiteral("a\tb\nc\td\n"));
+        w.act(QStringLiteral("edit.pasteCells"))->trigger();
+        QVERIFY2(said.join(QLatin1Char(' ')).contains(QLatin1String("plain text was pasted")), qPrintable(said.join(QLatin1Char(' '))));
+        said.clear();
+        setClip(deep, QString());
+        w.act(QStringLiteral("edit.pasteCells"))->trigger();
+        QVERIFY2(said.join(QLatin1Char(' ')).contains(QLatin1String("nothing was pasted")), qPrintable(said.join(QLatin1Char(' '))));
+        QVERIFY(!said.join(QLatin1Char(' ')).contains(QLatin1String("no spreadsheet cells")));
     }
 
     // The HTML a JeffCrunch copy puts on the clipboard (the same styles as CrunchWindow::htmlOfClip writes; the Crunch test pastes a real copy), and one from another program with a merged cell.

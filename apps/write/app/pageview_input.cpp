@@ -22,6 +22,7 @@
 #include "core/tableops.h"
 #include "core/textboxops.h"
 #include "core/writeprops.h"
+#include "wml/htmlguard.h"
 
 #include <QApplication>
 #include <QClipboard>
@@ -385,19 +386,34 @@ const QString &PageView::htmlOf(const PasteSource &from) const
     if (!f.htmlDone) {
         f.htmlDone = true;
         // (a mime object can't say how big a format is without reading it: the size is checked on the one read, before anything is converted or parsed)
-        if (from.mime->data(QStringLiteral("text/html")).size() <= kMostPastedHtml) f.html = safeClipHtml(from.mime->html());
+        if (from.mime->data(QStringLiteral("text/html")).size() <= kMostPastedHtml) {
+            f.html = safeClipHtml(from.mime->html());
+            if (office::wml::htmlRefusal(f.html) != office::wml::HtmlRefusal::None) {
+                f.html.clear();
+                f.htmlRefused = true;
+            }
+        }
     }
     return f.html;
+}
+
+bool PageView::htmlRefusedOf(const PasteSource &from) const
+{
+    if (!from.mime || !from.fetched || !from.mime->hasHtml()) return false;
+    htmlOf(from);
+    return from.fetched->htmlRefused;
 }
 
 const QString &PageView::textOf(const PasteSource &from) const
 {
     static const QString none;
-    if (!from.mime || !from.fetched || !from.mime->hasText()) return none;
+    if (!from.mime || !from.fetched) return none;
+    // (a page that is refused has no text of its own to offer: the words of its markup stand for it)
+    if (!from.mime->hasText() && !htmlRefusedOf(from)) return none;
     Fetched &f = *from.fetched;
     if (!f.textDone) {
         f.textDone = true;
-        f.text = from.mime->text();
+        f.text = from.mime->hasText() ? from.mime->text() : office::wml::htmlPlainText(from.mime->html());
     }
     return f.text;
 }
@@ -428,7 +444,7 @@ std::function<void()> PageView::putOf(const PasteSource &src)
             return [self, fragment] { pasteFragment(*self->m_doc, self->m_cursor, fragment); };
         }
     }
-    if (mime->hasText()) {
+    if (mime->hasText() || htmlRefusedOf(src)) {
         const QString text = textOf(src);
         return [self, text] { pasteText(*self->m_doc, self->m_cursor, text); };
     }
@@ -442,6 +458,7 @@ bool PageView::pasteSource(const PasteSource &src)
     const bool startedInTable = inTable(m_cursor.block());
     const std::function<void()> put = putOf(src);
     if (!put) return false;
+    if (htmlRefusedOf(src)) Q_EMIT notice(office::wml::htmlPasteRefusedNote());
     const bool ours = src.ours();
     runPaste(smartCutPaste() && (!ours || src.clipWhole), put, pasteFrom);
     notePaste(pasteFrom, pasteSelectionEnd, src, startedInTable);
@@ -584,6 +601,12 @@ void PageView::pasteAs(PasteKind kind)
     const bool startedInTable = inTable(m_cursor.block());
     const QMimeData *mime = src.mime.get();
     const bool ours = src.ours();
+    // A page the parser is not given is pasted as its text, whatever way was asked for.
+    const bool refused = !ours && !rtfOf(src) && htmlRefusedOf(src);
+    if (refused) {
+        if (kind == PasteKind::Merge || kind == PasteKind::Html) kind = PasteKind::TextOnly;
+        Q_EMIT notice(office::wml::htmlPasteRefusedNote());
+    }
     auto put = [this, ours, pasteFrom, &src](const std::function<void()> &what) { runPaste(smartCutPaste() && (!ours || src.clipWhole), what, pasteFrom); };
     switch (kind) {
     case PasteKind::Keep:
@@ -595,7 +618,7 @@ void PageView::pasteAs(PasteKind kind)
         break;
     }
     case PasteKind::TextOnly: {
-        const QString text = ours ? plainTextOf(src.clip.fragment) : (mime->hasText() ? textOf(src) : rtfOf(src) ? plainTextOf(rtfOf(src)->fragment) : QTextDocumentFragment::fromHtml(htmlOf(src)).toPlainText());
+        const QString text = ours ? plainTextOf(src.clip.fragment) : ((mime->hasText() || refused) ? textOf(src) : rtfOf(src) ? plainTextOf(rtfOf(src)->fragment) : QTextDocumentFragment::fromHtml(htmlOf(src)).toPlainText());
         put([&] { pasteText(*m_doc, m_cursor, text); });
         break;
     }

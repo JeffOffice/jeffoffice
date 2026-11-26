@@ -1,4 +1,5 @@
 #include "app/objects.h"
+#include "wml/htmlguard.h"
 
 #include "io/zip.h"
 #include "office/chart.h"
@@ -194,7 +195,9 @@ bool layOutPages(const QByteArray &docx, QTextDocument *doc)
     if (!office::wml::readDocx(docx, &words, &error)) return false;
     office::wml::HtmlOptions options;
     options.singleFile = true;
-    doc->setHtml(QString::fromUtf8(office::wml::documentToHtml(words, options)));
+    const QString html = QString::fromUtf8(office::wml::documentToHtml(words, options));
+    if (office::wml::htmlRefusal(html) != office::wml::HtmlRefusal::None) return false;   // (a document that is lists or tables on a scale no page has: not laid out)
+    doc->setHtml(html);
     doc->setDocumentMargin(54);
     doc->setPageSize(QSizeF(kPageWidth, kPageHeight));
     return true;

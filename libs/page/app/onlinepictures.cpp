@@ -1,4 +1,5 @@
 #include "app/onlinepictures.h"
+#include "wml/htmlguard.h"
 #include "core/version.h"
 
 #include "core/appinfo.h"
@@ -46,7 +47,12 @@ void clean(Picture *p)
     p->creator = withoutControls(p->creator);
     p->license = withoutControls(p->license);
 }
-QString plain(const QString &html) { return QTextDocumentFragment::fromHtml(html).toPlainText().simplified(); }
+// (a field of a library's answer: a page the parser is not given is read as its words)
+QString plain(const QString &html)
+{
+    if (office::wml::htmlRefusal(html) != office::wml::HtmlRefusal::None) return office::wml::htmlPlainText(html);
+    return QTextDocumentFragment::fromHtml(html).toPlainText().simplified();
+}
 
 // An address from a library: none, or one that starts https and names a host
 // (never a file on this computer, a program, or data in the address itself).

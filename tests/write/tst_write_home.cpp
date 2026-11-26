@@ -72,6 +72,7 @@
 #include <thread>
 #include <QElapsedTimer>
 #include <QSignalSpy>
+#include "wml/htmlguard.h"
 #include <QLabel>
 #include <QMenu>
 #include <QLineEdit>
@@ -2926,6 +2927,46 @@ private Q_SLOTS:
     }
 
     // Every limit is looked at before anything is changed: a choice that does not fit leaves the document as it was.
+    // A page the parser is not given (it nests past the limit, or is too much work) is pasted as its plain text, the person is told, and the page is never parsed; each way of pasting does the same.
+    void aPastedPageTheParserIsNotGivenIsPastedAsItsText()
+    {
+        QString deep;
+        for (int i = 0; i < office::wml::kMostPageDepth + 1; ++i) deep += QStringLiteral("<b_x>");
+        deep += QStringLiteral("page words");
+        const auto paste = [&](const QString &html, const QString &text, const std::function<void(WriteWindow &)> &how, QStringList *notes) {
+            WriteWindow w;
+            w.setNotifier([](const QString &, const QString &) {});
+            w.show();
+            w.setDocument(open(makeDocx(para(QByteArray()))), QString());
+            auto *mime = new QMimeData;
+            mime->setHtml(html);
+            if (!text.isEmpty()) mime->setText(text);
+            QApplication::clipboard()->setMimeData(mime);
+            QSignalSpy spy(w.view(), &PageView::notice);
+            how(w);
+            for (const auto &args : spy) *notes << args.at(0).toString();
+            return w.document()->story()->toPlainText();
+        };
+        const std::function<void(WriteWindow &)> plainPaste = [](WriteWindow &w) { w.view()->paste(); };
+        for (const auto kind : {PageView::PasteKind::Keep, PageView::PasteKind::Merge, PageView::PasteKind::Html, PageView::PasteKind::TextOnly}) {
+            QStringList notes;
+            const QString got = paste(deep, QStringLiteral("the plain text"), [&](WriteWindow &w) { w.view()->pasteAs(kind); }, &notes);
+            QVERIFY2(got.startsWith(QStringLiteral("the plain text")), qPrintable(got.left(60)));
+            QVERIFY(notes.join(QLatin1Char(' ')).contains(QLatin1String("plain text was pasted")));
+        }
+        // (a page with no plain text of its own is pasted as its words)
+        QStringList notes;
+        QVERIFY(paste(deep, QString(), plainPaste, &notes).startsWith(QStringLiteral("page words")));
+        QVERIFY(notes.join(QLatin1Char(' ')).contains(QLatin1String("plain text was pasted")));
+        // (spreadsheet cells in the text of a refused page are still cells, and never "no cells": the page is not what makes a table)
+        notes.clear();
+        QVERIFY(paste(deep, QStringLiteral("a\tb\nc\td\n"), plainPaste, &notes).startsWith(QStringLiteral("a\tb")));
+        // (a page that is fine is pasted as a page, with no note)
+        notes.clear();
+        QVERIFY(paste(QStringLiteral("<p>fine <b>page</b></p>"), QStringLiteral("fine page"), plainPaste, &notes).startsWith(QStringLiteral("fine page")));
+        QVERIFY(notes.isEmpty());
+    }
+
     void aPasteOfCellsThatDoesNotFitChangesNothing()
     {
         WriteWindow w;
