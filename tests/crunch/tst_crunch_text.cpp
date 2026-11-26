@@ -414,14 +414,43 @@ private Q_SLOTS:
         TextImportDialog dialog(guessing("id,day\n1,05/06/2024\n2,01/02/2024\n"));
         QCOMPARE(kindIndex(dialog, 1), 1);
         const QString note = dialog.findChild<QLabel *>(QStringLiteral("textImportNote"))->text();
-        QVERIFY2(note.contains(QStringLiteral("more than one order")) && note.contains(QStringLiteral(": B.")), qPrintable(note));
+        QVERIFY2(note.contains(QStringLiteral("not for certain")) && note.contains(QStringLiteral(": B.")), qPrintable(note));
         dialog.findChild<QComboBox *>(QStringLiteral("columnKind1"))->setCurrentIndex(3);
         QTRY_COMPARE(dialog.choices().columns.value(1).dateOrder, QStringLiteral("DMY"));
-        QTRY_VERIFY(!dialog.findChild<QLabel *>(QStringLiteral("textImportNote"))->text().contains(QStringLiteral("more than one order")));
+        QTRY_VERIFY(!dialog.findChild<QLabel *>(QStringLiteral("textImportNote"))->text().contains(QStringLiteral("not for certain")));
         QCOMPARE(kindIndex(dialog, 1), 3);
         // a date that proves its order is proposed in it, with no question
         TextImportDialog proven(guessing("id,day\n1,05/13/2024\n2,01/02/2024\n"));
         QCOMPARE(kindIndex(proven, 1), 2);
+    }
+
+    // A column of version numbers is left as typed (main keeps it as text), the note offers the date choice, and the file comes in exactly as in a window that does not guess.
+    void versionNumbersAreLeftAsTypedAndNeverBecomeDates()
+    {
+        const QByteArray file = "ver,n\n1.13.2,1\n1.2.3,2\n2.1.4,3\n";
+        TextImportDialog dialog(guessing(file));
+        QCOMPARE(kindIndex(dialog, 0), 0);
+        const QString note = dialog.findChild<QLabel *>(QStringLiteral("textImportNote"))->text();
+        QVERIFY2(note.contains(QStringLiteral("not for certain")) && note.contains(QStringLiteral(": A.")), qPrintable(note));
+        // opened through the preview and opened where nobody is asked: the same cells
+        QStringList asked, plain;
+        for (const bool ask : {true, false}) {
+            EditWindow e;
+            e.win.w.setPromptForText(ask);
+            e.win.w.anchorHooks().textImportAsker = [](TextImportRequest *r) {
+                TextImportDialog d(*r);
+                r->choices = d.choices();
+                return true;
+            };
+            QVERIFY(e.open(file, QStringLiteral("g.csv")));
+            for (const QString &ref : {QStringLiteral("A2"), QStringLiteral("A3"), QStringLiteral("A4")}) (ask ? asked : plain) << e.shownAt(ref);
+        }
+        QCOMPARE(asked, plain);
+        QCOMPARE(asked, (QStringList{QStringLiteral("1.13.2"), QStringLiteral("1.2.3"), QStringLiteral("2.1.4")}));
+        // dates with a four-digit year are dates, in the order they prove
+        TextImportDialog dates(guessing("d\n13.05.2024\n01.02.2024\n"));
+        QCOMPARE(kindIndex(dates, 0), 3);
+        QVERIFY(!dates.findChild<QLabel *>(QStringLiteral("textImportNote"))->text().contains(QStringLiteral("not for certain")));
     }
 
     // A kind the person set stays through every later change (separator, marks, names), and a column they did not set is guessed again from the new split.
@@ -457,7 +486,7 @@ private Q_SLOTS:
     void theMarksChosenDecideWhichColumnsAreNumbers()
     {
         TextImportDialog dialog(guessing("amount;n\n\"1.234,50\";1\n\"2.000,00\";2\n"));
-        QCOMPARE(kindIndex(dialog, 0), 1);   // (the language's own marks are the point and comma: 1.234,50 is not a number in them)
+        QCOMPARE(kindIndex(dialog, 0), 0);   // (the language's own marks are the point and comma: 1.234,50 is no number in them, and as typed keeps it as the text it is)
         auto *decimal = dialog.findChild<QComboBox *>(QStringLiteral("textImportDecimal"));
         auto *thousands = dialog.findChild<QComboBox *>(QStringLiteral("textImportThousands"));
         decimal->setCurrentIndex(decimal->findData(int(',')));

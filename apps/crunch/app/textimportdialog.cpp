@@ -371,7 +371,7 @@ void TextImportDialog::refresh()
     if (bounded) notes << tr("The preview shows the first %1 rows of the file. The whole file is opened.").arg(rows.size());
     if (m_request.guessKinds) {
         notes << tr("What each column holds is guessed from its first %1 rows. Change any column above before you open the file.").arg(kCsvGuessRows);
-        if (!m_unclearDates.isEmpty()) notes << tr("Columns that could be dates in more than one order are kept as text until you choose an order: %1.").arg(m_unclearDates.join(QStringLiteral(", ")));
+        if (!m_unclearDates.isEmpty()) notes << tr("Columns that could be dates, but not for certain, are not read as dates until you choose an order: %1.").arg(m_unclearDates.join(QStringLiteral(", ")));
         if (m_columnsCut) notes << tr("The columns after the first %1 are brought in as text.").arg(kCsvPreviewColumns);
     }
     m_note->setText(notes.join(QLatin1Char('\n')));

@@ -441,10 +441,10 @@ private Q_SLOTS:
         CsvImport english;
         english.decimalMark = QLatin1Char('.');
         english.thousandsMark = QLatin1Char(',');
-        QCOMPARE(kindOf(guess("\"1.234,5\"\n12\n", false, english), 0), QStringLiteral("text"));
+        QCOMPARE(kindOf(guess("\"1.234,5\"\n12\n", false, english), 0), QStringLiteral("number"));   // (as typed keeps 1.234,5 as the text it is: left as typed)
         QCOMPARE(kindOf(guess("\"1,234.5\"\n12\n", false, english), 0), QStringLiteral("number"));
         // a minus sign after the number counts only when the import says so
-        QCOMPARE(kindOf(guess("5-\n", false), 0), QStringLiteral("text"));
+        QCOMPARE(kindOf(guess("5-\n", false), 0), QStringLiteral("number"));   // (a text for as typed: left as typed)
         CsvImport trailing;
         trailing.trailingMinus = true;
         QCOMPARE(kindOf(guess("5-\n", false, trailing), 0), QStringLiteral("number"));
@@ -508,6 +508,74 @@ private Q_SLOTS:
         QCOMPARE(kindOf(one, 0), QStringLiteral("text"));
         // a binary file has nothing to guess
         QVERIFY(guess(QByteArray("ab\0cd", 5), false).columns.isEmpty());
+    }
+
+    // ---- what the guess may do to a column: leave it as typed (what a window that does not guess does), protect it as text, or make it dates of the one order the data proves
+
+    // Every cell of the file as the reader makes it (what it is and how it is shown), with the columns read as `cols` (none: as typed).
+    static QStringList imported(const QByteArray &file, const QVector<CsvColumn> &cols = QVector<CsvColumn>(), bool formulas = false)
+    {
+        QStringList out;
+        auto c = choices();
+        c->separators = QStringLiteral(",");
+        c->columns = cols;
+        c->readFormulas = formulas;
+        Workbook wb;
+        if (!openWith(file, c, &wb)) return QStringList() << QStringLiteral("not opened");
+        const Sheet s = read(wb);
+        for (quint32 r = 0; r < s.extentRows; ++r)
+            for (quint32 col = 0; col < s.extentCols; ++col) {
+                const QString ref = columnName(col) + QString::number(r + 1);
+                QString what = shown(wb, s, ref);
+                if (const auto cell = at(s, ref); cell && cell->type == CellType::Number) what += QLatin1Char('|') + wb.styles().formatCode(cell->style, QLocale::c());
+                out << what;
+            }
+        return out;
+    }
+    // Whether as typed keeps every value of the one column file as text (so that leaving the column as typed is what main does).
+    static bool mainKeepsText(const QByteArray &oneColumn)
+    {
+        for (const QString &cell : imported(oneColumn))
+            if (!cell.startsWith(QLatin1String("i:")) && !cell.startsWith(QLatin1String("s:"))) return false;
+        return true;
+    }
+    static CsvGuess usGuess(const QByteArray &file, bool formulas = false)
+    {
+        CsvImport c;
+        c.readFormulas = formulas;
+        return guess(file, false, c);
+    }
+
+    void versionAndSectionNumbersAreNeverMadeIntoDates()
+    {
+        LocaleScope locale(QLocale(QLocale::English, QLocale::UnitedStates));
+        const QByteArray versions[] = {"1.13.2\n1.2.3\n2.1.4\n", "10.2.1\n3.2.1\n", "13.05.24\n01.02.03\n", "1/2/3\n4/5/6\n", "1.2.3.4\n5.6.7.8\n", "192.168.1.1\n10.0.0.1\n", "1.2.3\n1.2.3.4\n"};
+        for (const QByteArray &file : versions) {
+            const CsvGuess g = usGuess(file);
+            // as typed when main keeps these as text, text when it would turn them into dates: never a date, and the import is never worse than main's
+            QVERIFY2(kindOf(g, 0) == (mainKeepsText(file) ? QStringLiteral("number") : QStringLiteral("text")), file.constData());
+            if (mainKeepsText(file)) QCOMPARE(imported(file, g.columns), imported(file));
+        }
+        // a column that could be dates with two-digit years says so (the note offers the choice); four dotted numbers and the like are no dates
+        QVERIFY(usGuess("1.13.2\n1.2.3\n2.1.4\n").dateOrderUnclear.value(0));
+        QVERIFY(usGuess("13.05.24\n01.02.03\n").dateOrderUnclear.value(0));
+        QVERIFY(!usGuess("1.2.3.4\n5.6.7.8\n").dateOrderUnclear.value(0));
+        QVERIFY(!usGuess("192.168.1.1\n").dateOrderUnclear.value(0));
+        QVERIFY(!usGuess("1.13.2\nabc\n").dateOrderUnclear.value(0));
+    }
+
+    void aDateColumnNeedsAFourDigitYearInEveryValue()
+    {
+        LocaleScope locale(QLocale(QLocale::English, QLocale::UnitedStates));
+        QCOMPARE(kindOf(usGuess("13.05.2024\n01.02.2024\n"), 0), QStringLiteral("date DMY"));
+        QCOMPARE(kindOf(usGuess("2024-05-13\n2023-01-02\n"), 0), QStringLiteral("date YMD"));
+        QCOMPARE(kindOf(usGuess("05/13/2024\n"), 0), QStringLiteral("date MDY"));
+        // one value without a four-digit year, and it is no date column
+        QVERIFY(kindOf(usGuess("13.05.2024\n13.05.24\n"), 0) != QStringLiteral("date DMY"));
+        QVERIFY(kindOf(usGuess("13.05.2024\n1.2.3\n"), 0) != QStringLiteral("date DMY"));
+        QVERIFY(kindOf(usGuess("2024-05-13\n24-05-13\n"), 0) != QStringLiteral("date YMD"));
+        // a column of such dates is not offered a choice of order when its values are not all alike
+        QVERIFY(!usGuess("13.05.2024\n13.05.24\n").dateOrderUnclear.value(0));
     }
 };
 
