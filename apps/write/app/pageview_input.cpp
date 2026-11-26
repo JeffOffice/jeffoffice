@@ -1235,7 +1235,7 @@ void PageView::inputMethodEvent(QInputMethodEvent *e)
     m_pasteOffer->cancelTap();
     if (!m_doc || m_selectObjectsMode) return;
     if (write::FormField f; !e->commitString().isEmpty() && formEntryField(&f)) {   // (what an input method commits in a text field is a fill of it, protected or not)
-        enterInFormField(f, 0, e->commitString());
+        enterInFormField(f, -1, e->commitString());
         e->accept();
         return;
     }
@@ -2276,8 +2276,12 @@ void PageView::enterInFormField(const write::FormField &f, int key, const QStrin
     else if (put.isEmpty() && a == b && key == Qt::Key_Delete && b < text.size()) ++b;
     text.replace(a, b - a, put);
     QString shown;
-    const bool done = write::fillFormText(*m_doc, story, f.begin, text, false, &shown);
-    if (done && m_formsOnly) {
+    // (A key that goes on from the last one typed in this field, with nothing done since, is part of that key's step.)
+    const int kind = put.isEmpty() ? key : key < 0 ? -1 : 0;   // (a paste or a commit, with no key: -1, and it is a step of its own)
+    const bool joins = kind >= 0 && !m_cursor.hasSelection() && !m_formEntry.isNull() && m_formEntry.document() == story && m_formEntry.position() == f.begin + 1 && m_formTyped.kind == kind &&
+                       m_formTyped.caret == m_cursor.position() && m_formTyped.undo == story->availableUndoSteps() && m_formTyped.revision == story->revision();
+    const bool done = write::fillFormText(*m_doc, story, f.begin, text, false, &shown, joins);
+    if (done && m_formsOnly && !joins) {
         ++m_formUndo;
         m_formRedo = 0;
     }
@@ -2288,6 +2292,7 @@ void PageView::enterInFormField(const write::FormField &f, int key, const QStrin
     }
     const int caret = std::min<int>(a + int(put.size()), int(shown.size()));
     m_cursor.setPosition(start + caret);
+    if (done) m_formTyped = {kind, m_cursor.position(), story->availableUndoSteps(), story->revision()};
     caretMoved();
     viewport()->update();
 }
@@ -2299,7 +2304,7 @@ bool PageView::pasteIntoFormField()
     if (!formEntryField(&f)) return false;
     const QMimeData *mime = QApplication::clipboard()->mimeData();
     if (!mime || !mime->hasText() || mime->hasUrls()) return false;
-    enterInFormField(f, 0, mime->text());
+    enterInFormField(f, -1, mime->text());
     return true;
 }
 

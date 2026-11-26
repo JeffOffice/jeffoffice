@@ -65,8 +65,9 @@ QString enteredFormText(const FormField &field, const QString &typed);
 QString finishedFormText(const FormField &field, const QString &typed, bool *ok = nullptr);
 
 // Fills a text field in: its result becomes `text` as entered (enteredFormText), and, with `leaving`, as finished (finishedFormText); `*shown` gets what it came to. One step. False
-// (nothing changed) where the field can't be filled, or the text is what it holds already. The references to its bookmark are updated.
-bool fillFormText(WriteDoc &doc, QTextDocument *story, int begin, const QString &text, bool leaving = false, QString *shown = nullptr);
+// (nothing changed) where the field can't be filled, or the text is what it holds already. The references to its bookmark are updated. With `joinPrevious` the fill is part of the step of the
+// history before it (what a run of keys typed in one field is: one step, as in ordinary text); the caller says when that is the step of the last key.
+bool fillFormText(WriteDoc &doc, QTextDocument *story, int begin, const QString &text, bool leaving = false, QString *shown = nullptr, bool joinPrevious = false);
 // Ticks or clears a check box. One step. False where it can't, or it is so already.
 bool setFormChecked(WriteDoc &doc, QTextDocument *story, int begin, bool checked);
 // Chooses the entry of a drop-down. One step. False where it can't, or the entry is chosen already.

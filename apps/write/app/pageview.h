@@ -589,6 +589,9 @@ protected:
     bool m_readOnly = false;
     int m_searchBlocks = 0;
     bool m_formsOnly = false;
+    struct FormTyped {
+        int kind = -1, caret = -1, undo = 0, revision = 0;   // the key typed in the field last (0: a letter), where the caret was left, and the story's history and revision then
+    } m_formTyped;
     QTextCursor m_formEntry;   // inside the begin mark of the text field typed in last, until it is finished
     int m_formUndo = 0, m_formRedo = 0;   // the fills made in a document protected for forms that Undo can take back, and Redo do again
     void contextMenuEvent(QContextMenuEvent *e) override;

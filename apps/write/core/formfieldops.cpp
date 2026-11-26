@@ -396,7 +396,7 @@ QTextCharFormat resultLook(QTextDocument *story, const FormField &f)
 
 FormField formFieldBeginningAt(QTextDocument *story, int begin) { return fieldBeginningAt(story, begin); }
 
-bool fillFormText(WriteDoc &doc, QTextDocument *story, int begin, const QString &text, bool leaving, QString *shown)
+bool fillFormText(WriteDoc &doc, QTextDocument *story, int begin, const QString &text, bool leaving, QString *shown, bool joinPrevious)
 {
     StoryScan scan;
     const FormField f = fieldBeginningAt(story, begin, &scan);
@@ -409,7 +409,8 @@ bool fillFormText(WriteDoc &doc, QTextDocument *story, int begin, const QString 
     EditScope scope(doc, story);
     const QTextCharFormat look = resultLook(story, f);
     QTextCursor edit(story);
-    edit.beginEditBlock();
+    if (joinPrevious) edit.joinPreviousEditBlock();
+    else edit.beginEditBlock();
     QTextCursor c(story);
     c.setPosition(f.separate + 1);
     c.setPosition(f.end, QTextCursor::KeepAnchor);

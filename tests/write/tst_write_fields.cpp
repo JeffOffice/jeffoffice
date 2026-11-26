@@ -2282,6 +2282,48 @@ private Q_SLOTS:
             QCOMPARE(result(), QStringLiteral("5.00"));
         }
     }
+
+    void typingInAFieldIsOneStepOfUndoLikeOrdinaryTyping()
+    {
+        const QByteArray tx = "<w:textInput><w:maxLength w:val=\"12\"/></w:textInput>";
+        const QByteArray body = para(run("pre ") + formField("A", tx, "FORMTEXT", run("ab")) + run(" post"));
+        for (int protectedForForms = 0; protectedForForms < 2; ++protectedForForms) {
+            auto w = windowOn(body, protectedForForms ? kFormsProtection : QByteArray());
+            QVERIFY(w);
+            PageView *view = w->view();
+            WriteDoc *doc = w->document();
+            auto result = [&] { return formFields(doc->story())[0].result; };
+            auto select = [&] {
+                const FormField f = formFields(doc->story())[0];
+                caretAt(view, f.end, f.separate + 1);
+            };
+            select();
+            QTest::keyClicks(view, "123");
+            QCOMPARE(result(), QStringLiteral("123"));
+            view->undo();   // (the three letters are one step, as in ordinary text)
+            QCOMPARE(result(), QStringLiteral("ab"));
+            view->redo();
+            QCOMPARE(result(), QStringLiteral("123"));
+            // Backspaces in a row are one step; typing after them is another.
+            caretAt(view, formFields(doc->story())[0].end);
+            QTest::keyClick(view, Qt::Key_Backspace);
+            QTest::keyClick(view, Qt::Key_Backspace);
+            QCOMPARE(result(), QStringLiteral("1"));
+            view->undo();
+            QCOMPARE(result(), QStringLiteral("123"));
+            // Typing that goes on after the caret was put elsewhere and back is a step of its own.
+            caretAt(view, formFields(doc->story())[0].end);
+            QTest::keyClicks(view, "45");
+            caretAt(view, 1);
+            caretAt(view, formFields(doc->story())[0].end);
+            QTest::keyClicks(view, "67");
+            QCOMPARE(result(), QStringLiteral("1234567"));
+            view->undo();
+            QCOMPARE(result(), QStringLiteral("12345"));
+            view->undo();
+            QCOMPARE(result(), QStringLiteral("123"));
+        }
+    }
 };
 
 QTEST_MAIN(FieldTests)
