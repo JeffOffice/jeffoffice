@@ -2343,8 +2343,61 @@ private Q_SLOTS:
         LayoutCache cache;
         RenderOptions opt;
         QCOMPARE(cache.textFrame(*doc, *name, 1, opt).layout->lineInfo(0).size(), 1);
+        // A taller box: 4 points into its text area the line goes down (one pushed out of a box altogether is drawn, see aBoxWhoseTextWrapPushedOutIsDrawn).
+        name->rect.setHeight(60);
+        const double touching = cache.textFrame(*doc, *name, 1, opt).layout->lineInfo(0).first().rect.y();
         above->rect.moveTop(84);   // now 4 points into the name's text area
-        QCOMPARE(cache.textFrame(*doc, *name, 1, opt).layout->lineInfo(0).size(), 0);
+        const auto pushed = cache.textFrame(*doc, *name, 1, opt).layout->lineInfo(0);
+        QCOMPARE(pushed.size(), 1);
+        QVERIFY(pushed.first().rect.y() > touching + 1);
+    }
+
+    // A text box all of whose lines the objects in front push out is set as if nothing were in front: Publisher's pictures draw the text (a big word in
+    // a box whose foot a frame is set over). A box with a line that fits above the object keeps the wrap, and a word processor's box is left as it was.
+    void aBoxWhoseTextWrapPushedOutIsDrawn()
+    {
+        auto make = [](bool word, double frameTop) {
+            auto doc = Document::blank(QSizeF(612, 792));
+            doc->wordText = word;
+            auto t = std::make_shared<TextItem>();
+            t->id = QStringLiteral("box");
+            t->rect = QRectF(92, 92, 140, 80);
+            t->storyId = doc->createStory(QStringLiteral("Hi"));
+            QTextCursor c(doc->storyDoc(t->storyId));
+            c.select(QTextCursor::Document);
+            QTextCharFormat f;
+            f.setFontPointSize(30);
+            c.mergeCharFormat(f);
+            doc->pages[0]->items.push_back(t);
+            auto frame = std::make_shared<ShapeItem>();
+            frame->id = QStringLiteral("frame");
+            frame->shape = QStringLiteral("rect");
+            frame->fill = Fill::none();
+            frame->rect = QRectF(72, 92 + frameTop, 180, 300);   // over the box's foot, not all of it
+            doc->pages[0]->items.push_back(frame);
+            return doc;
+        };
+        RenderOptions opt;
+        {   // the frame starts 10 points down: no line of 30-point text fits above it
+            auto doc = make(false, 10);
+            auto *t = static_cast<TextItem *>(doc->pages[0]->items[0].get());
+            QCOMPARE(jp::Renderer::wrapObstacles(*doc, *t).size(), 1);
+            LayoutCache cache;
+            QCOMPARE(cache.textFrame(*doc, *t, 1, opt).layout->lineInfo(0).size(), 1);
+        }
+        {   // 70 points down: a line fits above it, the wrap stays (the line is where it was)
+            auto doc = make(false, 70);
+            auto *t = static_cast<TextItem *>(doc->pages[0]->items[0].get());
+            LayoutCache cache;
+            QCOMPARE(cache.textFrame(*doc, *t, 1, opt).layout->lineInfo(0).size(), 1);
+            QCOMPARE(jp::Renderer::wrapObstacles(*doc, *t).size(), 1);
+        }
+        {   // a word processor's box keeps its text pushed out
+            auto doc = make(true, 10);
+            auto *t = static_cast<TextItem *>(doc->pages[0]->items[0].get());
+            LayoutCache cache;
+            QCOMPARE(cache.textFrame(*doc, *t, 1, opt).layout->lineInfo(0).size(), 0);
+        }
     }
 
     // An object over a whole text box never pushes its text aside, whatever

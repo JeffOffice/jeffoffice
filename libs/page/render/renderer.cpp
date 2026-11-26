@@ -691,6 +691,12 @@ LayoutCache::FrameLayout LayoutCache::textFrame(const Document &doc, const TextI
             }
         } else {
             lay->build(story->doc.get(), specs, env);
+            // A box whose every line the objects in front pushed out is set as if there were none: Publisher's pictures show the text of such a box
+            // (a word taller than the room above a frame set over the box's foot) where wrap alone would leave the box empty.
+            if (!doc.wordText && chain.size() == 1 && !specs[0].obstacles.isEmpty() && lay->lineInfo(0).isEmpty() && !story->doc->toPlainText().trimmed().isEmpty()) {
+                specs[0].obstacles.clear();
+                lay->build(story->doc.get(), specs, env);
+            }
         }
         e.sig = sig;
         e.layout = lay;
