@@ -1807,6 +1807,7 @@ private Q_SLOTS:
     void stoppingAnAutoCorrectChangeKeepsTheWordAsTypedAndTheSettingThatMadeIt();
     void aMathNameIsReplacedOnlyWhereItsBackslashStartsAWord();
     void aMathNameTypedInJeffWriteLeavesPathsAlone();
+    void stoppingAMathNameTurnsTheSwitchOffAndAnEntryOfYoursKeepsItsOwnWay();
     void theAutoCorrectOptionsMenuIsACommandInTheKeyboardMapWithItsConflictCheck();
     void theAutoCorrectOptionsButtonIsSaidWhenItAppearsAndTheCommandOpensItsMenu();
     void theChoicesThatStopAKindOfChangeEverywhereSaySo();

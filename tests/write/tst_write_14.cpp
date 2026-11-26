@@ -319,6 +319,45 @@ void WriteTests::aMathNameTypedInJeffWriteLeavesPathsAlone()
 }
 
 
+// After a math name is replaced the menu says what stopping does: the whole math switch goes off. An entry of the person's own that starts with a backslash is stopped like any entry.
+void WriteTests::stoppingAMathNameTurnsTheSwitchOffAndAnEntryOfYoursKeepsItsOwnWay()
+{
+    const SettingGuard math(QStringLiteral("proof/ac/math"), false, false);
+    const SettingGuard replace(QStringLiteral("proof/ac/replace/en"), QVariant(), QVariant());
+    autotext::Config on = autoCorrectConfig(QStringLiteral("en-US"));
+    on.math = true;
+    on.replacements.append({QStringLiteral("\\foo"), QStringLiteral("bar")});
+    saveAutoCorrectConfig(on);
+    {
+        Typer t;
+        t.type(QStringLiteral("Say \\alpha "));
+        QCOMPARE(t.text(), QStringLiteral("Say \u03b1 "));
+        QAction *stop = autoFixAction(t.view, "autoFixStop");
+        QVERIFY(stop);
+        QCOMPARE(stop->text(), QStringLiteral("Stop Replacing Math Names"));
+        stop->trigger();
+        QCOMPARE(t.text(), QStringLiteral("Say \\alpha "));
+        QVERIFY(!autoCorrectConfig(QStringLiteral("en-US")).math);
+    }
+    saveAutoCorrectConfig(on);
+    {
+        Typer t;
+        t.type(QStringLiteral("Say \\foo "));
+        QCOMPARE(t.text(), QStringLiteral("Say bar "));
+        QAction *stop = autoFixAction(t.view, "autoFixStop");
+        QVERIFY(stop);
+        QVERIFY(stop->text().contains(QStringLiteral("\\foo")));
+        stop->trigger();
+        QCOMPARE(t.text(), QStringLiteral("Say \\foo "));
+        const autotext::Config after = autoCorrectConfig(QStringLiteral("en-US"));
+        QVERIFY(after.math);   // (the math switch is not touched by an entry of yours)
+        bool listed = false;
+        for (const auto &entry : after.replacements) listed = listed || entry.first == QLatin1String("\\foo");
+        QVERIFY(!listed);
+    }
+}
+
+
 namespace {
 // Counts the announcements an accessibility client would get (the update handler sees every event, whether or not a client is there).
 struct Said {

@@ -19,6 +19,17 @@
 
 namespace jp::write {
 
+namespace {
+// A replacement that came from the math switch (the name is on its list and the switch is on), not from an entry of the person's own.
+bool isMathName(const QString &language, const QString &entry)
+{
+    if (!entry.startsWith(QLatin1Char('\\')) || !autoCorrectConfig(language).math) return false;
+    for (const auto &name : autotext::mathSymbols())
+        if (name.first == entry) return true;
+    return false;
+}
+} // namespace
+
 bool PageView::autoFixAvailable() const
 {
     return m_doc && m_autoFix.valid && m_autoFixStory && m_autoFixStory == m_doc->story() && m_cursor.document() == m_doc->story() && !m_cursor.hasSelection() &&
@@ -123,7 +134,10 @@ void PageView::fillAutoFixMenu()
     add(QCoreApplication::translate("jp::write::PageView", "Undo Automatic Correction"), "autoFixUndo", [this] { undoAutoFix(); });
     QString stop;
     switch (m_autoFix.kind) {
-    case autotext::Fix::Kind::Replacement: stop = QCoreApplication::translate("jp::write::PageView", "Stop Replacing \"%1\"").arg(word(m_autoFix.entry)); break;
+    case autotext::Fix::Kind::Replacement:
+        if (isMathName(m_autoFix.language, m_autoFix.entry)) stop = QCoreApplication::translate("jp::write::PageView", "Stop Replacing Math Names");
+        else stop = QCoreApplication::translate("jp::write::PageView", "Stop Replacing \"%1\"").arg(word(m_autoFix.entry));
+        break;
     case autotext::Fix::Kind::TwoInitials:
     case autotext::Fix::Kind::CapsLock: stop = QCoreApplication::translate("jp::write::PageView", "Keep \"%1\" As Typed").arg(word(m_autoFix.typed)); break;
     case autotext::Fix::Kind::Day: stop = QCoreApplication::translate("jp::write::PageView", "Stop Capitalizing Names of Days Everywhere"); break;
@@ -154,7 +168,7 @@ bool PageView::stopAutoFix()
     case autotext::Fix::Kind::Replacement:
         for (int i = int(config.replacements.size()) - 1; i >= 0; --i)
             if (config.replacements[i].first == fix.entry) config.replacements.removeAt(i);
-        if (fix.entry.startsWith(QLatin1Char('\\'))) config.math = false;   // (a math symbol's name is not in the list: its switch goes off)
+        if (isMathName(fix.language, fix.entry)) config.math = false;   // (a math symbol's name is not in the list: its switch goes off)
         break;
     case autotext::Fix::Kind::TwoInitials:
     case autotext::Fix::Kind::CapsLock:
