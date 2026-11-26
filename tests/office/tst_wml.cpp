@@ -4027,7 +4027,7 @@ private Q_SLOTS:
         QTest::newRow("scripts") << QStringLiteral("<script>a</script><style>b</style>") << QString();
         QTest::newRow("long styles") << QStringLiteral("<span style=\"color:red;margin:1px;padding:2px;font-size:9pt;border:1px solid red\">x</span>") << QString();
         QTest::newRow("spans") << QStringLiteral("<tr><td colspan=999 rowspan=999>a") << QStringLiteral("<table>");
-        QTest::newRow("pictures") << QStringLiteral("<p><img src=a>") << QString();
+        QTest::newRow("pictures") << QStringLiteral("<p><img src=\"data:image/png;base64,iVBORw0KGgo=\">") << QString();
         QTest::newRow("preformatted lines") << QStringLiteral("a\n") << QStringLiteral("<pre>");
     }
     // fails when off: no (it holds the guard to one pass; a pass that went over the page again for each part would fail it, as the version that looked up the stack for each end tag did when it was tried by hand)
@@ -4071,7 +4071,7 @@ private Q_SLOTS:
             if (limit == QLatin1String("cells")) return repeatedText(QStringLiteral("<td>"), n, QStringLiteral("<table><tr>"));
             if (limit == QLatin1String("rows")) return repeatedText(QStringLiteral("<tr>"), n, QStringLiteral("<table>"));
             if (limit == QLatin1String("grid")) return repeatedText(QStringLiteral("<tr><td>a<td>b<td>c<td>d"), n, QStringLiteral("<table>"));
-            return repeatedText(QStringLiteral("<p><img src=a>"), n);
+            return repeatedText(QStringLiteral("<p><img src=\"data:image/png;base64,iVBORw0KGgo=\">"), n);
         };
         auto limits = [&](int n) {
             HtmlLimits l;
@@ -4420,7 +4420,7 @@ private Q_SLOTS:
         QString h = QStringLiteral("<html><body><h1>Wiki</h1>");
         for (int k = 0; k < paragraphs; ++k) {
             for (int j = 0; j < 5; ++j) h += QStringLiteral("<a href=\"/wiki/Page_%1_%2\" title=\"t\">Link %2</a> ").arg(k).arg(j);
-            if (k % 3 == 0 && k < 900) h += QStringLiteral("<img src=\"img%1.png\" width=100 height=80> ").arg(k);
+            if (k % 3 == 0 && k < 900) h += QStringLiteral("<img src=\"data:image/png;base64,iVBORw0KGgo=\" width=100 height=80> ");
             h += QStringLiteral("<p>trailing words.</p>");
         }
         return h + QStringLiteral("</body></html>");
