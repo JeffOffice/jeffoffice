@@ -442,6 +442,8 @@ Chart chartFromSeries(const QVector<ChartSeries> &series, const QVector<SeriesKi
             const ChartPlot &lp = like->plots.isEmpty() ? ChartPlot() : like->plots.first();
             const ChartAxis *oldCat = like->axis(lp.axisIds[0]), *oldVal = like->axis(lp.axisIds[1]);
             const bool oldHorizontal = lp.horizontal;
+            // (the spokes and rings of a radar are not the gridlines of the other kinds: a chart changed to or from radar takes the new kind's own)
+            const bool keepGridlines = (lp.type == ChartType::Radar) == (first == ChartType::Radar);
             for (ChartAxis &a : c.axes) {
                 const bool isCat = a.id == kCatId, isVal = a.id == kValId;
                 if (!isCat && !isVal) continue;
@@ -452,9 +454,11 @@ Chart chartFromSeries(const QVector<ChartSeries> &series, const QVector<SeriesKi
                 const ChartAxis *source = sameSide ? old : (isCat ? oldVal : oldCat);
                 if (!source) continue;
                 a.title = source->title;
-                a.majorGridlines = source->majorGridlines;
-                a.minorGridlines = source->minorGridlines;
-                a.gridline = source->gridline;
+                if (keepGridlines) {
+                    a.majorGridlines = source->majorGridlines;
+                    a.minorGridlines = source->minorGridlines;
+                    a.gridline = source->gridline;
+                }
                 a.deleted = source->deleted;
                 a.font = source->font;
                 a.line = source->line;

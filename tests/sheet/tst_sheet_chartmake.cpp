@@ -323,6 +323,35 @@ private Q_SLOTS:
         for (const ChartPlot &p : columnsFirst.plots) QVERIFY(p.type != ChartType::Radar);
     }
 
+    // A chart changed between radar and another kind takes the new kind's own gridlines: the spokes are not left behind as upright lines, and a column is not left without them.
+    void aChartChangedToOrFromRadarTakesTheNewKindsGridlines()
+    {
+        const Cells f = regional();
+        const ChartPlan plan = planChart(f, 0, QStringLiteral("Sheet1"), range(QStringLiteral("A1:C4")), ChartKind::Radar);
+        const Chart radar = makeChart(ChartKind::Radar, plan, defaultTheme());
+        const QVector<ChartSeries> series = radar.plots[0].series;
+        const ChartKind others[] = {ChartKind::Column, ChartKind::Bar, ChartKind::Line};
+        for (const ChartKind kind : others) {
+            const QVector<SeriesKind> kinds(series.size(), SeriesKind{kind, false});
+            const Chart changed = chartFromSeries(series, kinds, defaultTheme(), &radar);
+            const Chart fresh = makeChart(kind, plan, defaultTheme());
+            QCOMPARE(changed.axis(changed.plots[0].axisIds[0])->majorGridlines, fresh.axis(fresh.plots[0].axisIds[0])->majorGridlines);
+            QCOMPARE(changed.axis(changed.plots[0].axisIds[1])->majorGridlines, fresh.axis(fresh.plots[0].axisIds[1])->majorGridlines);
+            QCOMPARE(chartSvg(changed, QSizeF(400, 300)), chartSvg(fresh, QSizeF(400, 300)));
+            // and back: the spokes and rings are there again
+            const QVector<SeriesKind> back(series.size(), SeriesKind{ChartKind::Radar, false});
+            const Chart again = chartFromSeries(changed.plots[0].series, back, defaultTheme(), &changed);
+            QVERIFY(again.axis(again.plots[0].axisIds[0])->majorGridlines);
+            QVERIFY(again.axis(again.plots[0].axisIds[1])->majorGridlines);
+            QCOMPARE(chartSvg(again, QSizeF(400, 300)), chartSvg(radar, QSizeF(400, 300)));
+        }
+        // a column that has its gridlines turned off keeps them off through a change to a line
+        Chart column = makeChart(ChartKind::Column, plan, defaultTheme());
+        column.axes[1].majorGridlines = false;
+        const QVector<SeriesKind> asLine(series.size(), SeriesKind{ChartKind::Line, false});
+        QVERIFY(!chartFromSeries(column.plots[0].series, asLine, defaultTheme(), &column).axes[1].majorGridlines);
+    }
+
     void aSelectionOfAnySizeMakesALimitedChart()
     {
         Cells f;
