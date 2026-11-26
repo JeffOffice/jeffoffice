@@ -1345,8 +1345,15 @@ private Q_SLOTS:
             QVERIFY(s->setSheetProtection(0, on, QStringLiteral("Protect")).ok);
             QVERIFY(e.settle());
             QCOMPARE(pivotEntriesOn(e), viewOnly);
+            // the same outside a pivot table: Refresh, Value Field Settings, and Options follow the same rule there
+            e.select(QStringLiteral("A1"));
+            QVERIFY(e.settle());
+            QCOMPARE(pivotEntriesOn(e), viewOnly);
             on.allowPivot = true;
             QVERIFY(s->setSheetProtection(0, on, QStringLiteral("Protect")).ok);
+            QVERIFY(e.settle());
+            QCOMPARE(pivotEntriesOn(e), QStringList({QStringLiteral("pivot.fieldList"), QStringLiteral("pivot.options"), QStringLiteral("pivot.refresh"), QStringLiteral("pivot.valueSettings")}));
+            e.select(QStringLiteral("F5"));
             QVERIFY(e.settle());
             QCOMPARE(pivotEntriesOn(e), all);
         }

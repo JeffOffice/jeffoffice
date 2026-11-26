@@ -1416,7 +1416,7 @@ const std::vector<const char *> &CrunchWindow::pivotSelectionActions()
     return ids;
 }
 
-// The commands of the Pivot Table menu that work in the whole of a workbook, and are turned off by updatePivotFieldActions alone only inside a pivot table that can't be changed.
+// The commands of the Pivot Table menu that work in the whole of a workbook: updatePivotFieldActions alone turns them off, in a pivot table or outside one, when the sheet can't be changed.
 const std::vector<const char *> &CrunchWindow::pivotGuardedActions()
 {
     static const std::vector<const char *> ids = {"pivot.refresh", "pivot.valueSettings", "pivot.options"};
@@ -1434,7 +1434,7 @@ void CrunchWindow::updatePivotFieldActions()
     for (const char *id : pivotSelectionActions())
         if (QAction *a = act(QString::fromLatin1(id))) a->setEnabled(mayChange);
     for (const char *id : pivotGuardedActions())
-        if (QAction *a = act(QString::fromLatin1(id))) a->setEnabled(open && (!inTable || mayChange));
+        if (QAction *a = act(QString::fromLatin1(id))) a->setEnabled(open && m_session->canEditSheet(m_sheet) && m_session->allows(m_sheet, Allow::Pivot));
     {
         bool filtered = false;
         if (mayChange) {
