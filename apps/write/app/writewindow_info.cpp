@@ -66,6 +66,11 @@ QWidget *WriteWindow::buildInfoPage(QWidget *parent)
         hideFileScreen();
         showObjects();
     }});
+    if (inCompatibilityMode())
+        h.extraCards.push_back({QStringLiteral("infoConvert"), QStringLiteral("refresh-cw"), tr("Convert"), tr("This document uses the layout rules of an older program. Convert it to use the newest rules."), [this] {
+            hideFileScreen();
+            convertCompatibility();
+        }});
     h.thumbnail = [this] { return m_view->pageImage(0, 240); };
     return jp::buildInfoPage(parent, h);
 }

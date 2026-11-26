@@ -1,5 +1,5 @@
 # Info: properties, passwords, and Inspect
-<!-- keywords: check accessibility, info, properties, title, author, subject, keywords, categories, comments, company, manager, custom properties, docproperty, mark as final, final, read-only, password, encrypt, protect, open password, inspect document, personal information, hidden text, custom xml, check compatibility, version history, versions, keep a version, go back, restore, compare versions, show in folder, copy path, folder, path -->
+<!-- keywords: check accessibility, info, properties, title, author, subject, keywords, categories, comments, company, manager, custom properties, docproperty, mark as final, final, read-only, password, encrypt, protect, open password, inspect document, personal information, hidden text, custom xml, check compatibility, convert, compatibility mode, version history, versions, keep a version, go back, restore, compare versions, show in folder, copy path, folder, path -->
 
 Click **File > Info** to see the facts about your document, and to protect it before you share it. Press **Esc** to go back to your document.
 
@@ -57,6 +57,10 @@ Click **Inspect Document** before you send a document to someone. It lists what 
 Click **Remove All** next to a kind to take it out. You can undo what changes the text with **Ctrl+Z**. Links taken out of comments and other kept parts, and custom XML data, can't be undone. Save the document afterward to keep the clean copy.
 
 **Remove personal information from this file when saving**, under the cards, does it every time you save, for any file, without changing the document you have open. It is the same box as in **Options**, and the same in every JeffOffice app.
+
+## Convert
+
+A file made in an older program's way (a .docx, .doc, or .rtf file) shows **[Compatibility Mode]** after its name in the title bar. That means the document is laid out by the older program's rules. Open **File > Info** and click **Convert** to use the newest rules instead. Lines and pages may break in other places afterward, so it asks first, and it can't be undone with Ctrl+Z. The next time you save a .docx file, it says it is in the newest mode. Choices the file sets one by one, such as hyphenation and facing pages, stay as they are. A document that is already in the newest mode has no **Convert** button.
 
 ## Check Compatibility
 

@@ -45,6 +45,7 @@
 #include "core/textexport.h"
 #include "core/writedoc.h"
 #include "office/officecrypt.h"
+#include "wml/wml.h"
 #include "office/package.h"
 #include "office/packageprops.h"
 #include "text/textprops.h"
@@ -781,6 +782,79 @@ private Q_SLOTS:
         QVERIFY(!box->isChecked());
         box->setChecked(true);
         QVERIFY(Settings::get().value(QStringLiteral("privacy/removeOnSave")).toBool());
+    }
+
+    // A file in an older compatibility mode says so in its title, offers Convert on the Info page, and after Convert takes the newest rules, says so in its settings, and the title is plain.
+    void aFileInAnOlderModeSaysSoAndConvertTakesTheNewestRules()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        auto settingsOf = [](int mode) {
+            return QByteArray("<?xml version=\"1.0\"?><w:settings ") + kNs + "><w:compat><w:suppressTopSpacingWP/><w:compatSetting w:name=\"compatibilityMode\" w:uri=\"http://schemas.microsoft.com/office/word\" w:val=\"" +
+                   QByteArray::number(mode) + "\"/></w:compat></w:settings>";
+        };
+        auto fileIn = [&](const QString &name, int mode) {
+            const QByteArray bytes = makeDocx("<w:p><w:r><w:t>Words</w:t></w:r></w:p>", {Extra{QStringLiteral("/word/settings.xml"), kWord + QStringLiteral("settings+xml"), settingsOf(mode), kRel + QStringLiteral("settings")}});
+            QFile f(dir.filePath(name));
+            return f.open(QIODevice::WriteOnly) && f.write(bytes) == bytes.size() ? dir.filePath(name) : QString();
+        };
+        // the newest mode: nothing said, no card
+        {
+            WriteWindow w;
+            w.setNotifier([](const QString &, const QString &) {});
+            QVERIFY(w.openFile(fileIn(QStringLiteral("new.docx"), 15)));
+            QVERIFY(!w.windowTitle().contains(QLatin1String("Compatibility Mode")));
+            std::unique_ptr<QWidget> page(w.buildInfoPage(nullptr));
+            QVERIFY(!page->findChild<QWidget *>(QStringLiteral("infoConvert")));
+        }
+        WriteWindow w;
+        w.setNotifier([](const QString &, const QString &) {});
+        QVERIFY(w.openFile(fileIn(QStringLiteral("old.docx"), 11)));
+        QVERIFY2(w.windowTitle().contains(QLatin1String("[Compatibility Mode]")), qPrintable(w.windowTitle()));
+        QVERIFY(w.document()->flow().env.wordWholePointLines);
+        {
+            std::unique_ptr<QWidget> page(w.buildInfoPage(nullptr));
+            QVERIFY(page->findChild<QWidget *>(QStringLiteral("infoConvert")));
+        }
+        w.convertCompatibility(false);
+        QVERIFY(!w.windowTitle().contains(QLatin1String("Compatibility Mode")));
+        QVERIFY(!w.document()->flow().env.wordWholePointLines);
+        QVERIFY(w.isModified());
+        QVERIFY(saveInto(w, dir, QStringLiteral("converted.docx")));
+        QFile f(dir.filePath(QStringLiteral("converted.docx")));
+        QVERIFY(f.open(QIODevice::ReadOnly));
+        QString err;
+        const auto saved = WriteDoc::fromDocx(f.readAll(), &err, nullptr);
+        QVERIFY(saved);
+        const QByteArray settings = saved->partData(QStringLiteral("/word/settings.xml"));
+        QVERIFY2(settings.contains("w:val=\"15\"") && !settings.contains("w:val=\"11\""), settings.constData());
+        QVERIFY(settings.contains("suppressTopSpacingWP"));   // the options a file sets one by one are the file's
+        QCOMPARE(saved->compatMode(), 15);
+        // a file saved as it was keeps its mode
+        WriteWindow o;
+        o.setNotifier([](const QString &, const QString &) {});
+        QVERIFY(o.openFile(fileIn(QStringLiteral("old2.docx"), 11)));
+        typeText(*o.document(), o.view()->cursor(), QStringLiteral("x"));
+        QVERIFY(saveInto(o, dir, QStringLiteral("kept.docx")));
+        QFile k(dir.filePath(QStringLiteral("kept.docx")));
+        QVERIFY(k.open(QIODevice::ReadOnly));
+        const auto kept = WriteDoc::fromDocx(k.readAll(), &err, nullptr);
+        QVERIFY(kept);
+        QCOMPARE(kept->compatMode(), 11);
+    }
+
+    // The settings with the mode put in: changed where it is, added to a group, a group made, a whole part made.
+    void theCompatibilityModeOfTheSettingsIsPutIn()
+    {
+        const QByteArray open = QByteArray("<?xml version=\"1.0\"?><w:settings ") + kNs;
+        const QByteArray set = "<w:compatSetting w:name=\"compatibilityMode\" w:uri=\"http://schemas.microsoft.com/office/word\" w:val=\"15\"/>";
+        QCOMPARE(office::wml::settingsWithCompatibilityMode(open + "><w:compat>" + set.left(set.size() - 5) + "11\"/></w:compat></w:settings>", 15), open + "><w:compat>" + set + "</w:compat></w:settings>");
+        QCOMPARE(office::wml::settingsWithCompatibilityMode(open + "><w:compat><w:noLeading/></w:compat></w:settings>", 15), open + "><w:compat><w:noLeading/>" + set + "</w:compat></w:settings>");
+        QCOMPARE(office::wml::settingsWithCompatibilityMode(open + "><w:compat/></w:settings>", 15), open + "><w:compat>" + set + "</w:compat></w:settings>");
+        QCOMPARE(office::wml::settingsWithCompatibilityMode(open + "><w:zoom/><w:rsids/></w:settings>", 15), open + "><w:zoom/><w:compat>" + set + "</w:compat><w:rsids/></w:settings>");
+        QCOMPARE(office::wml::settingsWithCompatibilityMode(open + "/>", 15), open + "><w:compat>" + set + "</w:compat></w:settings>");
+        const QByteArray made = office::wml::settingsWithCompatibilityMode(QByteArray(), 15);
+        QVERIFY(made.contains("w:val=\"15\"") && made.contains("<w:settings"));
     }
 
     void propertiesSurviveASaveAndReopen()

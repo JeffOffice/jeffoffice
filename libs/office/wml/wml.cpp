@@ -462,6 +462,63 @@ QByteArray settingsWithDoNotHyphenateCaps(const QByteArray &settings, bool on)
     return settingsWithFlag(settings, "doNotHyphenateCaps", on, afterAutoHyphenationFrom("doNotHyphenateCaps"));
 }
 
+QByteArray settingsWithCompatibilityMode(const QByteArray &settings, int mode)
+{
+    mode = std::clamp(mode, 8, 99);
+    const QByteArray value = QByteArray::number(mode);
+    QString text = QString::fromUtf8(settings);
+    // The setting is one element of the compat group: its value is changed where it is.
+    static const QRegularExpression own(QStringLiteral("<((?:[\\w.-]+:)?)compatSetting\\b[^>]*?\\bname=\"compatibilityMode\"[^>]*?/>"));
+    const QRegularExpressionMatch found = own.match(text);
+    if (found.hasMatch()) {
+        static const QRegularExpression val(QStringLiteral("(\\bval=\")[^\"]*(\")"));
+        QString element = found.captured(0);
+        element.replace(val, QStringLiteral("\\1%1\\2").arg(mode));
+        text.replace(found.capturedStart(), found.capturedLength(), element);
+        return text.toUtf8();
+    }
+    const QRegularExpressionMatch root = QRegularExpression(QStringLiteral("<((?:[\\w.-]+:)?)settings\\b[^>]*?(/?)>")).match(text);
+    if (!root.hasMatch()) {
+        if (!settings.trimmed().isEmpty()) return settings;
+        return QByteArray("<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?><w:settings xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\"><w:compat><w:compatSetting w:name=\"compatibilityMode\" w:uri=\"http://schemas.microsoft.com/office/word\" w:val=\"") + value + "\"/></w:compat></w:settings>";
+    }
+    const QString prefix = root.captured(1);
+    const QString setting = QStringLiteral("<%1compatSetting %1name=\"compatibilityMode\" %1uri=\"http://schemas.microsoft.com/office/word\" %1val=\"%2\"/>").arg(prefix, QString::number(mode));
+    // A compat group that is there takes it in at its end.
+    const QRegularExpressionMatch group = QRegularExpression(QStringLiteral("<%1compat\\b[^>]*?(/?)>").arg(QRegularExpression::escape(prefix))).match(text);
+    if (group.hasMatch()) {
+        if (group.captured(1) == QLatin1String("/")) {
+            QString open = group.captured(0);
+            open.chop(2);
+            text.replace(group.capturedStart(), group.capturedLength(), open + QLatin1Char('>') + setting + QStringLiteral("</%1compat>").arg(prefix));
+        } else {
+            const qsizetype close = text.indexOf(QStringLiteral("</%1compat>").arg(prefix), group.capturedEnd());
+            if (close < 0) return settings;
+            text.insert(close, setting);
+        }
+        return text.toUtf8();
+    }
+    // Else the group is made, before the elements the schema puts after it.
+    static const QStringList later = {"docVars", "rsids", "mathPr", "attachedSchema", "themeFontLang", "clrSchemeMapping", "doNotIncludeSubdocsInStats", "doNotAutoCompressPictures", "forceUpgrade",
+                                      "captions", "readModeInkLockDown", "smartTagType", "schemaLibrary", "shapeDefaults", "doNotEmbedSmartTags", "decimalSymbol", "listSeparator"};
+    const QString made = QStringLiteral("<%1compat>%2</%1compat>").arg(prefix, setting);
+    if (root.captured(2) == QLatin1String("/")) {
+        QString open = root.captured(0);
+        open.chop(2);
+        text.replace(root.capturedStart(), root.capturedLength(), open + QLatin1Char('>') + made + QStringLiteral("</%1settings>").arg(prefix));
+        return text.toUtf8();
+    }
+    qsizetype at = -1;
+    for (const QString &name : later) {
+        const qsizetype k = text.indexOf(QStringLiteral("<%1%2").arg(prefix, name), root.capturedEnd());
+        if (k >= 0 && (at < 0 || k < at)) at = k;
+    }
+    if (at < 0) at = text.lastIndexOf(QStringLiteral("</%1settings>").arg(prefix));
+    if (at < 0) return settings;
+    text.insert(at, made);
+    return text.toUtf8();
+}
+
 QByteArray settingsWithTrackRevisions(const QByteArray &settings, bool on)
 {
     // The elements the schema puts after it: the rest of the track settings, the protection, and everything from the default tab stop on.

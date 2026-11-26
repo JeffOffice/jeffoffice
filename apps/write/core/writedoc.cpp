@@ -462,6 +462,7 @@ void WriteDoc::build(office::wml::Document &&doc)
     m_last = m_wml.lastSection;
     m_last.oddEvenHeaders = m_wml.evenAndOddHeaders;
     m_oddEvenAtOpen = m_wml.evenAndOddHeaders;
+    m_compatAtOpen = m_wml.compatMode;
     m_stylesCountAtOpen = m_wml.styles.styles.size();
     m_stylesModifiedAtOpen = m_wml.styles.modified;
     setUpEnvironment();

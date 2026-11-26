@@ -345,7 +345,26 @@ void WriteWindow::updateTitle()
     // A document that came from an old binary file shows its whole name, so its kind is plain until it is saved as a .docx.
     const QString ending = QFileInfo(m_path).suffix().toLower();
     const QString shown = ending == QLatin1String("doc") || ending == QLatin1String("dot") || ending == QLatin1String("rtf") ? QFileInfo(m_path).fileName() : displayName();
-    setWindowTitle(QStringLiteral("%1%2%4 - %3").arg(shown, isModified() ? QStringLiteral("*") : QString(), appInfo().name, isReadOnly() ? (m_readOnlyByProtection ? tr(" (Protected)") : tr(" (Read-Only)")) : QString()));
+    setWindowTitle(QStringLiteral("%1%5%2%4 - %3").arg(shown, isModified() ? QStringLiteral("*") : QString(), appInfo().name, isReadOnly() ? (m_readOnlyByProtection ? tr(" (Protected)") : tr(" (Read-Only)")) : QString(), inCompatibilityMode() ? tr(" [Compatibility Mode]") : QString()));
+}
+
+// Whether the file is in an older program's layout rules, as its kind of file says: an .odt or a text file has none.
+bool WriteWindow::inCompatibilityMode() const
+{
+    if (!m_doc || !m_doc->inCompatibilityMode()) return false;
+    const QString ending = QFileInfo(m_path).suffix().toLower();
+    return ending.isEmpty() || ending == QLatin1String("docx") || ending == QLatin1String("docm") || ending == QLatin1String("dotx") || ending == QLatin1String("dotm") || ending == QLatin1String("doc") ||
+           ending == QLatin1String("dot") || ending == QLatin1String("rtf");
+}
+
+// Convert: takes the newest layout rules on. The pages may change, and it can't be undone, so the person is asked first (`ask` false is for a test).
+void WriteWindow::convertCompatibility(bool ask)
+{
+    if (!inCompatibilityMode() || refuseIfReadOnly()) return;
+    if (ask && jp::plainQuestion(this, tr("Convert"), tr("The document will use the newest layout rules. Lines and pages may break in other places, and this can't be undone. Convert it?"), QMessageBox::Yes | QMessageBox::No, QMessageBox::No) != QMessageBox::Yes) return;
+    m_doc->convertToCurrentMode();
+    updateTitle();
+    statusBar()->showMessage(tr("The document now uses the newest layout rules."), 6000);
 }
 
 // ---- commands

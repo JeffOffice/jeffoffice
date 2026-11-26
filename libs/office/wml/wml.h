@@ -530,6 +530,8 @@ QByteArray settingsWithAutoHyphenation(const QByteArray &settings, bool on);
 // The hyphenation zone (w:hyphenationZone, twentieths of a point; 360, the usual, takes the element away) and the limit of lines in a row that end in a hyphen (w:consecutiveHyphenLimit; 0 takes it away).
 QByteArray settingsWithHyphenationZone(const QByteArray &settings, int twips);
 QByteArray settingsWithConsecutiveHyphenLimit(const QByteArray &settings, int limit);
+// The compatibility mode of the settings (the compatibilityMode setting of the w:compat group, 8 to 99), changed where it is or put in the group; the group is made when there is none.
+QByteArray settingsWithCompatibilityMode(const QByteArray &settings, int mode);
 // The distance of the default tab stops (w:defaultTabStop, twentieths of a point), in the place the schema gives it.
 QByteArray settingsWithDefaultTabStop(const QByteArray &settings, int twips);
 // Words in capitals left whole (w:doNotHyphenateCaps).

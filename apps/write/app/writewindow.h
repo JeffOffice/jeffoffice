@@ -207,6 +207,8 @@ public:
     // Opens the object at the position in its own app; the edit's saves come back as one step each.
     bool editObjectAt(int position);
     void showObjects();
+    bool inCompatibilityMode() const;
+    void convertCompatibility(bool ask = true);
     // What asks the person before a link is followed that needs it (tests stand in for the message box): the question; true to go on.
     void setLinkAsker(const std::function<bool(const QString &)> &asker) { m_linkAsker = asker; }
     // What asks for a field's new code when it is edited (tests stand in for the box): the field's code now; the new code, empty for none.

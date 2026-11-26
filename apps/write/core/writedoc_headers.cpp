@@ -558,6 +558,18 @@ void WriteDoc::setHyphenateCaps(bool on)
     setSectionProps(sectionCount() - 1, last);
 }
 
+bool WriteDoc::convertToCurrentMode()
+{
+    if (!inCompatibilityMode()) return false;
+    m_wml.compatMode = 15;
+    m_flow->markFollowsBreak = true;
+    m_flow->env.wordWholePointLines = false;
+    setModified(true);
+    if (m_pager) m_pager->invalidateFrom(0);
+    Q_EMIT sectionsChanged();
+    return true;
+}
+
 void WriteDoc::setDifferentOddEven(bool on)
 {
     ++m_headerEpoch;
@@ -805,6 +817,7 @@ void WriteDoc::writeHeaderParts(office::wml::Document *out)
             out->settingsName = kept.name;
         }
     };
+    if (m_wml.compatMode != m_compatAtOpen) changeSetting([mode = m_wml.compatMode](const QByteArray &settings, bool) { return settingsWithCompatibilityMode(settings, mode); }, true);
     if (m_wml.evenAndOddHeaders != m_oddEvenAtOpen) changeSetting(settingsWithEvenAndOddHeaders, m_wml.evenAndOddHeaders);
     if (m_flow->mirrorMargins != m_mirrorAtOpen) changeSetting(settingsWithMirrorMargins, m_flow->mirrorMargins);
     if (m_bookFold != m_bookFoldAtOpen) changeSetting(settingsWithBookFoldPrinting, m_bookFold);
