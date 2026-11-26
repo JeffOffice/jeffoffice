@@ -7,7 +7,10 @@
 #include "app/settings.h"
 
 #include <QContextMenuEvent>
+#include <QDropEvent>
 #include <QKeyEvent>
+#include <QMimeData>
+#include <QMouseEvent>
 #include <QMenu>
 #include <QPointer>
 #include <QTextBlock>
@@ -43,8 +46,9 @@ void NotesPane::reload()
     const int i = m_ed->currentPage();
     if (!d || i < 0 || i >= d->pages.size()) return;
     const Page &slide = *d->pages[i];
-    const QString text = deck::notesText(*d, slide);
-    if (slide.id == m_pageId && (m_typed || text == toPlainText())) return;
+    const QTextDocument *story = d->storyDoc(slide.notesStoryId);
+    const QString text = story ? storyTextKeepingBreaks(story) : QString();   // (a line break stays one, not a new paragraph)
+    if (slide.id == m_pageId && (m_typed || text == storyTextKeepingBreaks(document()))) return;
     m_idle.stop();
     m_typed = false;
     m_loading = true;
@@ -64,10 +68,12 @@ void NotesPane::commit()
     const int i = d->pageIndexOf(m_pageId);
     if (i < 0) return;
     Page &slide = *d->pages[i];
-    if (deck::notesText(*d, slide) == toPlainText()) return;
+    const QString typed = storyTextKeepingBreaks(document());
+    if (const QTextDocument *was = d->storyDoc(slide.notesStoryId); was && storyTextKeepingBreaks(was) == typed) return;
+    if (!d->storyDoc(slide.notesStoryId) && typed.isEmpty()) return;
     m_ed->beginChange(tr("Notes"));
     if (slide.notesStoryId.isEmpty() || !d->storyDoc(slide.notesStoryId)) slide.notesStoryId = d->createStory();
-    replaceStoryText(d->storyDoc(slide.notesStoryId), toPlainText());   // (formatting the text had from a file stays outside what was typed)
+    replaceStoryText(d->storyDoc(slide.notesStoryId), typed);   // (formatting the text had from a file stays outside what was typed)
     m_ed->endChange();
 }
 
@@ -124,6 +130,7 @@ bool NotesPane::addGrammarSuggestions(QMenu &menu, int position)
 
 void NotesPane::contextMenuEvent(QContextMenuEvent *e)
 {
+    if (m_typed) commit();
     QMenu menu(this);
     addGrammarSuggestions(menu, cursorForPosition(e->pos()).position());
     QMenu *standard = createStandardContextMenu(e->pos());
@@ -132,10 +139,34 @@ void NotesPane::contextMenuEvent(QContextMenuEvent *e)
     menu.exec(e->globalPos());
 }
 
+// One commit covers one contiguous change: typing and deleting go on in the place being edited, and anything else (the caret moved elsewhere by a key or a click, a
+// paste, a cut, a drop, a menu, or a selection about to be replaced) saves what was typed first, so the next edit is a change of its own and the formatting between
+// the two is never part of a replacement.
 void NotesPane::keyPressEvent(QKeyEvent *e)
 {
     if (!isReadOnly() && !e->text().isEmpty()) Q_EMIT typingStarted();
+    const int key = e->key();
+    const bool typing = (!e->text().isEmpty() && !(e->modifiers() & (Qt::ControlModifier | Qt::MetaModifier))) || key == Qt::Key_Backspace || key == Qt::Key_Delete;
+    if (m_typed && (!typing || textCursor().hasSelection())) commit();
     QPlainTextEdit::keyPressEvent(e);
+}
+
+void NotesPane::mousePressEvent(QMouseEvent *e)
+{
+    if (m_typed) commit();
+    QPlainTextEdit::mousePressEvent(e);
+}
+
+void NotesPane::insertFromMimeData(const QMimeData *source)
+{
+    if (m_typed) commit();
+    QPlainTextEdit::insertFromMimeData(source);
+}
+
+void NotesPane::dropEvent(QDropEvent *e)
+{
+    if (m_typed) commit();
+    QPlainTextEdit::dropEvent(e);
 }
 
 void NotesPane::focusInEvent(QFocusEvent *e)

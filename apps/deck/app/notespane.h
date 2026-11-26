@@ -33,6 +33,9 @@ Q_SIGNALS:
 
 protected:
     void keyPressEvent(QKeyEvent *e) override;
+    void mousePressEvent(QMouseEvent *e) override;
+    void insertFromMimeData(const QMimeData *source) override;
+    void dropEvent(QDropEvent *e) override;
     void focusInEvent(QFocusEvent *e) override;
     void focusOutEvent(QFocusEvent *e) override;
     void contextMenuEvent(QContextMenuEvent *e) override;
