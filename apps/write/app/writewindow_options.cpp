@@ -70,8 +70,8 @@ void WriteWindow::applyEditingDefaults()
 {
     m_view->setLinkNeedsCtrl(Settings::get().value(QStringLiteral("edit/ctrlClickLinks"), true).toBool());
     m_view->setDragTextOption(Settings::get().value(QStringLiteral("edit/dragText"), true).toBool());
-    m_view->setSelectWholeWordOption(Settings::get().value(QStringLiteral("edit/selectWholeWord"), true).toBool());
-    m_view->setSmartParagraphOption(Settings::get().value(QStringLiteral("edit/smartParagraph"), true).toBool());
+    m_view->setSelectWholeWordOption(Settings::get().value(QStringLiteral("edit/selectWholeWord"), write::PageView::kSelectWholeWordDefault).toBool());
+    m_view->setSmartParagraphOption(Settings::get().value(QStringLiteral("edit/smartParagraph"), write::PageView::kSmartParagraphDefault).toBool());
     m_view->setTypingReplaces(Settings::get().value(QStringLiteral("edit/typingReplaces"), true).toBool());
     m_view->setInsertKeyOvertype(Settings::get().value(QStringLiteral("edit/insertKey"), false).toBool());
 }
@@ -187,11 +187,11 @@ QVector<OptionsPage> WriteWindow::optionsPages()
         form->addRow(f->dragText);
         f->wholeWord = new QCheckBox(QCoreApplication::translate("Dialogs", "When selecting, automatically select the whole word"), page);
         f->wholeWord->setObjectName(QStringLiteral("selectWholeWord"));
-        f->wholeWord->setChecked(Settings::get().value(QStringLiteral("edit/selectWholeWord"), true).toBool());
+        f->wholeWord->setChecked(Settings::get().value(QStringLiteral("edit/selectWholeWord"), write::PageView::kSelectWholeWordDefault).toBool());
         form->addRow(f->wholeWord);
         f->smartParagraph = new QCheckBox(QCoreApplication::translate("Dialogs", "Use smart paragraph selection"), page);
         f->smartParagraph->setObjectName(QStringLiteral("smartParagraphSelection"));
-        f->smartParagraph->setChecked(Settings::get().value(QStringLiteral("edit/smartParagraph"), true).toBool());
+        f->smartParagraph->setChecked(Settings::get().value(QStringLiteral("edit/smartParagraph"), write::PageView::kSmartParagraphDefault).toBool());
         form->addRow(f->smartParagraph);
         f->replaces = new QCheckBox(QCoreApplication::translate("Dialogs", "Typing replaces the selected text"), page);
         f->replaces->setObjectName(QStringLiteral("typingReplaces"));
