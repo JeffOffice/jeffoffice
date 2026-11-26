@@ -2654,6 +2654,79 @@ private Q_SLOTS:
         }
     }
 
+    // Set Default Paste for lists (Continue List, New List, Merge List) run where the caret can be: in body text away from a list, in a list, in a table cell (plain and a list item), in a header, and in a note.
+    // Each paste is one step of Undo, brings both copied items in once, and touches no other story; where the caret is not beside a list of the body (a header, a note, plain text), the choice is not used and the items
+    // come as they are.
+    void theListChoicesOfSetDefaultPasteWorkWhereTheCaretIs()
+    {
+        struct Restore {
+            ~Restore()
+            {
+                jp::Settings::get().remove(QStringLiteral("edit/pasteDefaultLists"));
+                QApplication::clipboard()->clear();
+            }
+        } restore;
+        const QByteArray table = "<w:tbl><w:tblPr><w:tblW w:w=\"0\" w:type=\"auto\"/></w:tblPr><w:tblGrid><w:gridCol w:w=\"3000\"/></w:tblGrid><w:tr><w:tc><w:tcPr><w:tcW w:w=\"3000\" w:type=\"dxa\"/></w:tcPr>"
+                                 "<w:p><w:r><w:t>cell</w:t></w:r></w:p></w:tc></w:tr></w:tbl>";
+        // Blocks: 0 cell, 1 A1, 2 A2 (a list), 3 blank, 4 gap, 5 B1, 6 B2 (a list), 7 tail. B1 and B2 are copied.
+        const QStringList contexts{QStringLiteral("body"), QStringLiteral("list"), QStringLiteral("cell"), QStringLiteral("cellList"), QStringLiteral("header"), QStringLiteral("note")};
+        for (const int choice : {int(ListPaste::Continue), int(ListPaste::New), int(ListPaste::Merge)})
+            for (const QString &where : contexts) {
+                const QByteArray what = (QString::number(choice) + where).toLatin1();
+                jp::Settings::get().setValue(QStringLiteral("edit/pasteDefaultLists"), choice);
+                WriteWindow w;
+                w.setNotifier([](const QString &, const QString &) {});
+                w.resize(900, 700);
+                w.show();
+                w.setDocument(open(makeDocx(table + para(run("A1")) + para(run("A2")) + para(QByteArray()) + para(run("gap")) + para(run("B1")) + para(run("B2")) + para(run("tail")))), QString());
+                w.view()->paginateAll();
+                QTextDocument *s = w.document()->story();
+                auto block = [&](int n) { return s->findBlockByNumber(n); };
+                auto range = [&](int a, int b) {
+                    QTextCursor c(s);
+                    c.setPosition(block(a).position());
+                    c.setPosition(block(b).position() + block(b).length() - 1, QTextCursor::KeepAnchor);
+                    return c;
+                };
+                for (const auto &pair : {std::pair<int, int>(1, 2), std::pair<int, int>(5, 6)}) {
+                    QTextCursor c = range(pair.first, pair.second);
+                    toggleList(*w.document(), c, true);
+                }
+                if (where == QLatin1String("cellList")) {
+                    QTextCursor c = range(0, 0);
+                    toggleList(*w.document(), c, true);
+                }
+                w.view()->setCursor(range(5, 6));
+                w.view()->copy();
+                const int caretBlock = where == QLatin1String("body") ? 4 : where == QLatin1String("list") ? 2 : where == QLatin1String("cell") || where == QLatin1String("cellList") ? 0 : 3;
+                QTextCursor at(s);
+                at.setPosition(block(caretBlock).position() + block(caretBlock).length() - 1);
+                w.view()->setCursor(at);
+                if (where == QLatin1String("header")) {
+                    QVERIFY2(w.view()->enterHeaderFooter(0, false, true), what.constData());
+                } else if (where == QLatin1String("note")) {
+                    QTextCursor c(s);
+                    c.setPosition(block(7).position() + 2);
+                    QVERIFY2(insertFootnote(*w.document(), c), what.constData());
+                    QVERIFY2(w.view()->enterFootnote(w.document()->citedFootnotes().last()), what.constData());
+                }
+                QTextDocument *target = w.view()->cursor().document();
+                const QString before = target->toPlainText(), body = s->toPlainText();
+                w.act(QStringLiteral("edit.paste"))->trigger();
+                const QString after = target->toPlainText();
+                QVERIFY2(after.count(QLatin1String("B1")) == before.count(QLatin1String("B1")) + 1 && after.count(QLatin1String("B2")) == before.count(QLatin1String("B2")) + 1, what.constData());
+                QVERIFY2(after.count(QLatin1String("A1")) == before.count(QLatin1String("A1")) && after.count(QLatin1String("tail")) == before.count(QLatin1String("tail")), what.constData());
+                if (target != s) QVERIFY2(s->toPlainText() == body, what.constData());
+                if (where == QLatin1String("list") && choice != int(ListPaste::Merge)) {
+                    // (the first pasted item is block 3, under A2: in A's list for Continue, in a list of its own for New)
+                    const int a = block(1).blockFormat().intProperty(prop::NumId), pasted = block(3).blockFormat().intProperty(prop::NumId);
+                    QVERIFY2((pasted == a) == (choice == int(ListPaste::Continue)), what.constData());
+                }
+                w.view()->undo();
+                QVERIFY2(target->toPlainText() == before, what.constData());
+            }
+    }
+
     // The clipboard holds spreadsheet cells as an HTML table and as tab-separated lines.
     static void putCells(const QStringList &rows)
     {
