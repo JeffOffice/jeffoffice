@@ -703,6 +703,10 @@ struct HandBoldHooks {
 HandBoldHooks &handBoldHooks();
 void drawHandBoldForTest(QPainter *p, const QTextLine &line, const QTextCharFormat &cf);   // (as a picture draws the Courier stand-in's light stroke)
 
+// The text of a list item's marker: its own bullet character, or its list's (a bullet character, or the disc, circle, or square of its style), or its number as the list counts it
+// (continued across the items of the list, with the list's start, prefix, and suffix). Empty for a paragraph that is in no list. The text of a page's markers and of a notes view's.
+QString listMarkerText(const QTextBlock &b);
+
 // A picture bullet's picture is read from a file, so it is held to what a bullet can use: no more than kMostBulletPicturePixels as the file declares
 // (width times height), decoded once and kept at most kBulletPictureSide pixels a side, and the kept ones together at most kMostBulletPictureCachePixels.
 constexpr qint64 kMostBulletPicturePixels = 4'000'000, kMostBulletPictureCachePixels = 2'000'000;

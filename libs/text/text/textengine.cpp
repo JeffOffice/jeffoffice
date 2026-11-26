@@ -183,6 +183,20 @@ QDateTime fieldNow() { return g_fieldClock.isValid() ? g_fieldClock : QDateTime:
 
 void setFieldClock(const QDateTime &moment) { g_fieldClock = moment; }
 
+QString listMarkerText(const QTextBlock &b)
+{
+    QTextList *list = b.textList();
+    if (!list) return QString();
+    const QTextListFormat lf = list->format();
+    QString custom = b.blockFormat().stringProperty(tp::BulletChar);
+    if (custom.isEmpty()) custom = lf.stringProperty(tp::BulletChar);
+    if (!custom.isEmpty()) return custom;
+    if (lf.style() == QTextListFormat::ListDisc) return QStringLiteral("•");
+    if (lf.style() == QTextListFormat::ListCircle) return QStringLiteral("◦");
+    if (lf.style() == QTextListFormat::ListSquare) return QStringLiteral("▪");
+    return list->itemText(b);
+}
+
 QString pageNumberText(int n, const QString &style)
 {
     if (style == "roman" || style == "ROMAN") { const QString r = toRoman(n); return style == "roman" ? r.toLower() : r; }
@@ -4396,11 +4410,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
             B->markerSkipsIndent = env.wordNoNumberIndentStop && !lf.boolProperty(tp::LegacyNumber);
             QString custom = bf.stringProperty(tp::BulletChar);
             if (custom.isEmpty()) custom = lf.stringProperty(tp::BulletChar);
-            if (!custom.isEmpty()) B->marker = custom;
-            else if (lf.style() == QTextListFormat::ListDisc) B->marker = QStringLiteral("•");
-            else if (lf.style() == QTextListFormat::ListCircle) B->marker = QStringLiteral("◦");
-            else if (lf.style() == QTextListFormat::ListSquare) B->marker = QStringLiteral("▪");
-            else B->marker = list->itemText(b);
+            B->marker = listMarkerText(b);
             // (A word processor's number is of its paragraph's mark, not of the text that happens to come first.)
             // (A level that says its color is automatic has a number of the automatic color, not the mark's.)
             QTextCharFormat markFormat = b.charFormat();
