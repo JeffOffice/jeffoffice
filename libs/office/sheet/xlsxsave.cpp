@@ -2861,6 +2861,7 @@ bool saveXlsx(const Workbook &book, const SaveChanges &requested, QByteArray *ou
     }
     // (what the objects taken away relate to: the links of the drawing they alone used, and the parts nothing else relates to)
     std::vector<std::pair<QString, QStringList>> released;
+    std::map<int, QString> emptiedDrawings;   // sheet -> the id of its link to a drawing that nothing is left in
     // (the slicers a person deleted: their parts, and what only they used)
     SlicerRemovalPlan slicerPlan;
     if (!changes.removedSlicers.empty() && planSlicerRemovals(book, changes.removedSlicers, &slicerPlan)) {
@@ -2898,6 +2899,27 @@ bool saveXlsx(const Workbook &book, const SaveChanges &requested, QByteArray *ou
             // the ids the drawing still names are kept
             for (const QString &id : namedRelationships(now)) ids.removeAll(id);
             if (!ids.isEmpty()) released.emplace_back(part, ids);
+            // a drawing with nothing left in it goes (its part, its type, and the sheet's link and drawing element), unless a sheet other than the one that names it relates to it or the sheet is given objects now
+            if (drawingHasNoChildren(now)) {
+                int owner = -1, links = 0;
+                QString linkId;
+                for (int sheet = 0; sheet < book.info().sheets.size(); ++sheet) {
+                    const SheetEntry &se = book.info().sheets[sheet];
+                    if (se.part.isEmpty()) continue;
+                    for (const Relationship &r : package.relationshipsOfType(se.part, QStringLiteral("/drawing")))
+                        if (!r.external && r.target.compare(part, Qt::CaseInsensitive) == 0) {
+                            owner = sheet;
+                            linkId = r.id;
+                            ++links;
+                        }
+                }
+                const auto given = changes.addedObjects.find(owner);
+                if (links == 1 && book.info().sheets[owner].kind == SheetKind::Worksheet && !book.info().sheets[owner].deleted && !book.info().sheets[owner].isNew
+                    && (given == changes.addedObjects.end() || given->second.objects.empty())) {
+                    released.emplace_back(book.info().sheets[owner].part, QStringList{linkId});
+                    emptiedDrawings[owner] = linkId;
+                }
+            }
         }
     }
     for (const auto &[part, named] : nestedIds) {
@@ -4410,6 +4432,18 @@ bool saveXlsx(const Workbook &book, const SaveChanges &requested, QByteArray *ou
 
     // ---- the sheets whose lists of slicers lose an entry (written through the sheet's own writer, and the entries taken out of what it wrote)
     QHash<int, QStringList> slicerEntries;   // entry -> the relationship ids
+    QHash<int, QString> drawingLinks;        // entry -> the id of the link to a drawing taken away (the sheet's drawing element goes)
+    for (const auto &[sheet, id] : emptiedDrawings) {
+        if (sheet < 0 || sheet >= book.info().sheets.size()) continue;
+        const int index = entryOfPart(book.info().sheets[sheet].part);
+        if (index < 0) continue;
+        if (replaced.contains(index)) {
+            replaced.insert(index, dropDrawingElement(replaced.value(index), id));
+            continue;
+        }
+        drawingLinks.insert(index, id);
+        sheetOfEntry.insert(index, sheet);
+    }
     for (const auto &[sheet, ids] : slicerPlan.sheetEntries) {
         if (sheet < 0 || sheet >= book.info().sheets.size()) continue;
         const SheetEntry &se = book.info().sheets[sheet];
@@ -4479,7 +4513,7 @@ bool saveXlsx(const Workbook &book, const SaveChanges &requested, QByteArray *ou
             // (a sheet that loses entries of deleted custom views is written to memory first, and those taken out)
             BufferSink whole;
             const bool renameText = !changes.fontTextRenames.isEmpty() && changes.richTextSheets.contains(sheet);
-            PartSink *target = stripEntries.contains(i) || renameText || slicerEntries.contains(i) ? static_cast<PartSink *>(&whole) : static_cast<PartSink *>(&sink);
+            PartSink *target = stripEntries.contains(i) || renameText || slicerEntries.contains(i) || drawingLinks.contains(i) ? static_cast<PartSink *>(&whole) : static_cast<PartSink *>(&sink);
             if (ok && mover && patch) {
                 // (the file's cells are put in the places the edits leave them, and then the cells that changed are put in)
                 BufferSink moved;
@@ -4497,6 +4531,7 @@ bool saveXlsx(const Workbook &book, const SaveChanges &requested, QByteArray *ou
                 if (ok && renameText)
                     for (const auto &r : changes.fontTextRenames) stripped = renameFontsInText(stripped, r.first, r.second);
                 if (ok && slicerEntries.contains(i)) stripped = dropExtensionEntries(stripped, "slicer", slicerEntries.value(i));
+                if (ok && drawingLinks.contains(i)) stripped = dropDrawingElement(stripped, drawingLinks.value(i));
                 if (ok) sink.write(stripped.constData(), stripped.size());
             }
             if (!ok) {

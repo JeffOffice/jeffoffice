@@ -127,6 +127,38 @@ bool removeDrawingObjects(const QByteArray &xml, const std::vector<int> &ordinal
     return true;
 }
 
+bool drawingHasNoChildren(const QByteArray &xml)
+{
+    std::vector<std::pair<qsizetype, qsizetype>> children;
+    return childrenOfRoot(xml, &children) && children.empty();
+}
+
+QByteArray dropDrawingElement(const QByteArray &xml, const QString &relId)
+{
+    Tag t;
+    qsizetype pos = 0;
+    int depth = 0;
+    while (xmlscan::nextTag(xml, pos, &t)) {
+        pos = t.end;
+        if (t.closing) {
+            --depth;
+            continue;
+        }
+        if (depth == 1 && t.local == "drawing") {
+            const QString open = QString::fromUtf8(xml.mid(t.start, t.end - t.start));
+            static const QRegularExpression idRe(QStringLiteral("\\s[A-Za-z_][\\w.-]*:id\\s*=\\s*(?:\"([^\"]*)\"|'([^']*)')"));
+            const QRegularExpressionMatch m = idRe.match(open);
+            if (m.hasMatch() && xmlscan::unescape(m.captured(m.capturedStart(1) >= 0 ? 1 : 2).toUtf8()) == relId) {
+                const qsizetype end = t.selfClosing ? t.end : elementEnd(xml, t);
+                if (end < 0) return xml;
+                return xml.left(t.start) + xml.mid(end);
+            }
+        }
+        if (!t.selfClosing) ++depth;
+    }
+    return xml;
+}
+
 HiddenInDrawing hiddenObjectsOf(const QByteArray &xml, int maxTags)
 {
     static const QSet<QByteArray> objects = {"sp", "pic", "grpSp", "cxnSp", "graphicFrame", "contentPart"};

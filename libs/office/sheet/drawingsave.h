@@ -20,6 +20,11 @@ namespace jp::office::sheet {
 // was taken out.
 bool removeDrawingObjects(const QByteArray &xml, const std::vector<int> &ordinals, QByteArray *out, bool *changed, QStringList *relIds = nullptr);
 
+// Whether the part's root has no child at all (everything in it was taken out): such a drawing is not kept. A child the program does not know of is a child.
+bool drawingHasNoChildren(const QByteArray &xml);
+// The sheet part without its `drawing` element that names the relationship `relId`; as it is if there is none.
+QByteArray dropDrawingElement(const QByteArray &xml, const QString &relId);
+
 // The most tags hiddenObjectsOf looks at in one drawing part (the rest of the part is not looked at, and the answer says so).
 constexpr int kMaxHiddenScanTags = 4000000;
 
