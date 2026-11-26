@@ -187,6 +187,21 @@ CellRange chartBlockOf(const ChartCells &cells, int sheet, const CellRange &sele
     return r;
 }
 
+namespace {
+
+// How many series a stock kind is made of.
+int stockSeriesCount(ChartKind kind)
+{
+    switch (kind) {
+    case ChartKind::StockHLC: return 3;
+    case ChartKind::StockOHLC:
+    case ChartKind::StockVHLC: return 4;
+    default: return 5;
+    }
+}
+
+} // namespace
+
 ChartPlan planChart(const ChartCells &cells, int sheet, const QString &sheetName, const CellRange &selection, ChartKind kind, int inRowsAsked)
 {
     ChartPlan none;
@@ -232,6 +247,20 @@ ChartPlan planChart(const ChartCells &cells, int sheet, const QString &sheetName
             }
             headerColumn = words + dates > 0 && numbers == 0;
             if (scatter && m >= 2) headerColumn = true;
+            // a stock chart's first column is its days when they are numbers that rise (1, 2, 3, or 45000, 45001) and the other columns are as many as the form has series
+            if (isStockKind(kind) && !headerColumn && words == 0 && dates == 0 && numbers >= 2 && int(m) - 1 == stockSeriesCount(kind)) {
+                bool rising = true;
+                double last = 0;
+                bool first = true;
+                for (quint32 row = r.row1 + (headerRow ? 1 : 0); row <= r.row2 && row < r.row1 + 4096 && rising; ++row) {
+                    const jp::calc::Value v = cells.value(sheet, row, r.col1);
+                    if (!v.isNumber()) continue;
+                    rising = first || v.number() > last;
+                    last = v.number();
+                    first = false;
+                }
+                headerColumn = rising;
+            }
         }
         // one row of words and numbers ("Total 4 5 6"): the words are the series' name
         if (n == 1 && m >= 2) headerRow = false;
@@ -240,7 +269,7 @@ ChartPlan planChart(const ChartCells &cells, int sheet, const QString &sheetName
     // which way the series run
     const quint32 dataRows = n - (headerRow ? 1 : 0), dataCols = m - (headerColumn ? 1 : 0);
     bool inRows = inRowsAsked >= 0 ? inRowsAsked == 1 : dataCols > dataRows;
-    if (scatter) inRows = inRowsAsked == 1;
+    if (scatter || isStockKind(kind)) inRows = inRowsAsked == 1;   // (a stock chart's series are its columns, whatever the shape of the cells)
     ChartPlan plan = planChartFrom(sheetName, r, headerRow, headerColumn, inRows, kind);
     plan.truncated = plan.truncated || truncated;
     return plan;
