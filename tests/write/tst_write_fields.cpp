@@ -2528,6 +2528,36 @@ private Q_SLOTS:
         // Text outside both is still held, and the window is still read only.
         QVERIFY(w->isReadOnly());
     }
+
+    void updatingFieldsNeverChangesWhatAPersonTypedInAFormField()
+    {
+        const QByteArray tx = "<w:textInput><w:maxLength w:val=\"20\"/></w:textInput>";
+        const QByteArray body = para(run("Page ") + field("PAGE", "9") + run(" ") + bookmark(1, "Name1", formField("A", tx, "FORMTEXT", run("typed by a person"))) + run(" ") + field("REF Name1", "old")) +
+                                para(formField("B", "<w:textInput><w:type w:val=\"calculated\"/></w:textInput>", "FORMTEXT", run("stored result")));
+        for (int protectedForForms = 0; protectedForForms < 2; ++protectedForForms) {
+            auto w = windowOn(body, protectedForForms ? kFormsProtection : QByteArray());
+            QVERIFY(w);
+            WriteDoc *doc = w->document();
+            // A person fills the first field in (through the keys), then every kind of update runs.
+            const FormField f = formFields(doc->story())[0];
+            caretAt(w->view(), f.end, f.separate + 1);
+            QTest::keyClicks(w->view(), "Mary Smith");
+            QCOMPARE(formFields(doc->story())[0].result, QStringLiteral("Mary Smith"));
+            updateFields(*doc);   // (what F9 over the whole text, an update before printing, and one on open all call)
+            w->act("fields.update")->trigger();
+            QCOMPARE(formFields(doc->story())[0].result, QStringLiteral("Mary Smith"));
+            QCOMPARE(formFields(doc->story())[1].result, QStringLiteral("stored result"));
+            QVERIFY(lines(*doc)[0].contains(QLatin1String("Mary Smith Mary Smith")));   // (the reference to the field follows it)
+            QVERIFY(!lines(*doc)[0].contains(QLatin1String("typed by a person")));
+        }
+        // The update on open, and the one before a print, leave a file's results as they are.
+        auto opened = open(makeDocx(body));
+        QVERIFY(opened);
+        QCOMPARE(formFields(opened->story())[0].result, QStringLiteral("typed by a person"));
+        updateFields(*opened);
+        QCOMPARE(formFields(opened->story())[0].result, QStringLiteral("typed by a person"));
+        QCOMPARE(formFields(opened->story())[1].result, QStringLiteral("stored result"));
+    }
 };
 
 QTEST_MAIN(FieldTests)
