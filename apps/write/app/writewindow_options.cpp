@@ -82,6 +82,7 @@ QVector<OptionsPage> WriteWindow::optionsPages()
         QVector<QCheckBox *> always;   // one for each of the marks of displayMarkKinds()
         QComboBox *units = nullptr;
         PasteDefaultsSection *pasteDefaults = nullptr;
+        QComboBox *pasteLists = nullptr, *pasteCells = nullptr;
         QCheckBox *ctrlLinks = nullptr, *dragText = nullptr, *replaces = nullptr, *insertKey = nullptr, *privacy = nullptr, *smart = nullptr, *embedFonts = nullptr;
     };
     auto f = std::make_shared<Fields>();
@@ -196,11 +197,31 @@ QVector<OptionsPage> WriteWindow::optionsPages()
         form->addRow(new QLabel(QCoreApplication::translate("Dialogs", "What Paste does, by where the content came from"), page));
         f->pasteDefaults = new PasteDefaultsSection(write::PageView::pasteDefaultRows(), page);
         form->addRow(f->pasteDefaults);
+        // (A list item pasted beside a list, and spreadsheet cells: the choices the Paste Options button offers, as the default of Paste.)
+        f->pasteLists = new QComboBox(page);
+        f->pasteLists->setObjectName(QStringLiteral("pasteDefaultLists"));
+        f->pasteLists->addItem(QCoreApplication::translate("jp::write::PageView", "As they come"), -1);
+        for (const auto &choice : {std::pair<const char *, int>(QT_TRANSLATE_NOOP("jp::write::PageView", "Continue List"), int(write::ListPaste::Continue)), {QT_TRANSLATE_NOOP("jp::write::PageView", "New List"), int(write::ListPaste::New)},
+                                   {QT_TRANSLATE_NOOP("jp::write::PageView", "Merge List"), int(write::ListPaste::Merge)}})
+            f->pasteLists->addItem(QCoreApplication::translate("jp::write::PageView", choice.first), choice.second);
+        f->pasteLists->setCurrentIndex(std::max(0, f->pasteLists->findData(Settings::get().value(QStringLiteral("edit/pasteDefaultLists"), -1).toInt())));
+        form->addRow(QCoreApplication::translate("jp::write::PageView", "Pasting list items next to a list"), f->pasteLists);
+        f->pasteCells = new QComboBox(page);
+        f->pasteCells->setObjectName(QStringLiteral("pasteDefaultCells"));
+        f->pasteCells->addItem(QCoreApplication::translate("jp::write::PageView", "As words"), -1);
+        for (const auto &choice : {std::pair<const char *, int>(QT_TRANSLATE_NOOP("jp::write::PageView", "Table"), int(write::TablePaste::NewTable)), {QT_TRANSLATE_NOOP("jp::write::PageView", "Nest Table"), int(write::TablePaste::Nest)},
+                                   {QT_TRANSLATE_NOOP("jp::write::PageView", "Merge Table"), int(write::TablePaste::Merge)}, {QT_TRANSLATE_NOOP("jp::write::PageView", "Insert as New Rows"), int(write::TablePaste::NewRows)},
+                                   {QT_TRANSLATE_NOOP("jp::write::PageView", "Overwrite Cells"), int(write::TablePaste::Overwrite)}})
+            f->pasteCells->addItem(QCoreApplication::translate("jp::write::PageView", choice.first), choice.second);
+        f->pasteCells->setCurrentIndex(std::max(0, f->pasteCells->findData(Settings::get().value(QStringLiteral("edit/pasteDefaultCells"), -1).toInt())));
+        form->addRow(QCoreApplication::translate("jp::write::PageView", "Pasting spreadsheet cells"), f->pasteCells);
         return page;
     }, [this, f] {
         Settings::get().setUnit(static_cast<Unit>(f->units->currentData().toInt()));
         Settings::get().setValue(QStringLiteral("edit/smartCutPaste"), f->smart->isChecked());
         f->pasteDefaults->apply();
+        Settings::get().setValue(QStringLiteral("edit/pasteDefaultLists"), f->pasteLists->currentData().toInt());
+        Settings::get().setValue(QStringLiteral("edit/pasteDefaultCells"), f->pasteCells->currentData().toInt());
         m_ruler->update();   // (the ruler's marks are in the unit chosen)
         Settings::get().setValue(QStringLiteral("edit/ctrlClickLinks"), f->ctrlLinks->isChecked());
         Settings::get().setValue(QStringLiteral("edit/dragText"), f->dragText->isChecked());

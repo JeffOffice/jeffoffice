@@ -2563,6 +2563,97 @@ private Q_SLOTS:
         }
     }
 
+    // Options > Advanced sets what Paste does with list items beside a list and with spreadsheet cells (Set Default Paste for lists and tables).
+    void setDefaultPasteForListsAndTablesIsChosenInOptionsAndPasteDoesIt()
+    {
+        struct Restore {
+            ~Restore()
+            {
+                jp::Settings::get().remove(QStringLiteral("edit/pasteDefaultLists"));
+                jp::Settings::get().remove(QStringLiteral("edit/pasteDefaultCells"));
+            }
+        } restore;
+        auto choose = [](WriteWindow &w, const char *combo, int data) {
+            QVector<OptionsPage> pages = w.optionsPages();
+            QList<QWidget *> built;
+            for (const OptionsPage &p : pages) built << p.build();
+            bool found = false;
+            for (QWidget *page : built)
+                if (auto *b = page->findChild<QComboBox *>(QString::fromLatin1(combo))) {
+                    const int at = b->findData(data);
+                    found = at >= 0;
+                    b->setCurrentIndex(at);
+                }
+            for (const OptionsPage &p : pages)
+                if (p.apply) p.apply();
+            qDeleteAll(built);
+            return found;
+        };
+        auto listOutcome = [](WriteWindow &w) {
+            QTextDocument *s = w.document()->story();
+            const QTextBlock b = s->findBlockByNumber(3);
+            return QPair<int, int>(b.textList() == s->findBlockByNumber(1).textList() ? 1 : 0, b.textList() ? b.textList()->format().start() : -1);
+        };
+        // Lists: as they come (nothing set), Continue, and New, by Ctrl+V's own action.
+        {
+            WriteWindow w;
+            windowWithTwoLists(w);
+            QVERIFY(choose(w, "pasteDefaultLists", -1));
+            w.act(QStringLiteral("edit.paste"))->trigger();
+            QCOMPARE(w.document()->story()->toPlainText(), QStringLiteral("A1\nA2\n\nB1\nB2\n\ngap\nB1\nB2\ntail"));
+            QCOMPARE(listOutcome(w).first, 0);   // (as they came: the items are not those of the list beside them)
+        }
+        {
+            WriteWindow w;
+            windowWithTwoLists(w);
+            QVERIFY(choose(w, "pasteDefaultLists", int(ListPaste::Continue)));
+            w.act(QStringLiteral("edit.paste"))->trigger();
+            QCOMPARE(listOutcome(w).first, 1);
+            QVERIFY(w.document()->undo());
+            QCOMPARE(w.document()->story()->toPlainText(), QStringLiteral("A1\nA2\n\ngap\nB1\nB2\ntail"));
+        }
+        {
+            WriteWindow w;
+            windowWithTwoLists(w);
+            QVERIFY(choose(w, "pasteDefaultLists", int(ListPaste::New)));
+            w.act(QStringLiteral("edit.paste"))->trigger();
+            QCOMPARE(listOutcome(w), (QPair<int, int>(0, 1)));
+        }
+        // Cells: as words (nothing set), a table, and a choice that does not fit where the caret is (nest, with the caret outside a table) goes as words.
+        auto cellsWindow = [](WriteWindow &w) {
+            w.setNotifier([](const QString &, const QString &) {});
+            w.show();
+            w.setDocument(open(makeDocx(para(run("before")) + para(QByteArray()))), QString());
+            putCells({QStringLiteral("a|b"), QStringLiteral("c|d")});
+            QTextCursor c(w.document()->story());
+            c.setPosition(w.document()->story()->findBlockByNumber(1).position());
+            w.view()->setCursor(c);
+        };
+        {
+            WriteWindow w;
+            cellsWindow(w);
+            w.act(QStringLiteral("edit.paste"))->trigger();
+            QCOMPARE(cellTexts(w), QStringList());
+        }
+        {
+            WriteWindow w;
+            cellsWindow(w);
+            QVERIFY(choose(w, "pasteDefaultCells", int(TablePaste::NewTable)));
+            w.act(QStringLiteral("edit.paste"))->trigger();
+            QCOMPARE(cellTexts(w), (QStringList{QStringLiteral("a"), QStringLiteral("b"), QStringLiteral("c"), QStringLiteral("d")}));
+            QVERIFY(w.document()->undo());
+            QCOMPARE(cellTexts(w), QStringList());
+        }
+        {
+            WriteWindow w;
+            cellsWindow(w);
+            QVERIFY(choose(w, "pasteDefaultCells", int(TablePaste::Nest)));
+            w.act(QStringLiteral("edit.paste"))->trigger();
+            QCOMPARE(cellTexts(w), QStringList());
+            QVERIFY(w.document()->story()->toPlainText().contains(QLatin1String("a")));
+        }
+    }
+
     // The clipboard holds spreadsheet cells as an HTML table and as tab-separated lines.
     static void putCells(const QStringList &rows)
     {

@@ -149,8 +149,39 @@ void PageView::pasteDefault()
     const QVector<PasteDefaultRow> rows = pasteDefaultRows();
     const PasteDefaultRow *row = PasteDefaultsSection::rowFor(rows, pasteOriginOf(QApplication::clipboard()->mimeData(), m_originId));
     const PasteKind kind = row ? PasteKind(PasteDefaultsSection::value(*row)) : PasteKind::Keep;
-    if (kind == PasteKind::Keep || m_shapeEditor || !m_doc || !canPaste(kind)) paste();
-    else pasteAs(kind);
+    if (kind != PasteKind::Keep && !m_shapeEditor && m_doc && canPaste(kind)) {
+        pasteAs(kind);
+        return;
+    }
+    // Keep Source Formatting: list items and spreadsheet cells go as the other settings say, where they fit.
+    if (!m_shapeEditor && m_doc) {
+        const std::optional<TablePaste> cells = pasteDefaultCells();
+        if (cells && clipboardMayHaveCells() && clipboardHasCells() && canPasteCellsAs(*cells)) {
+            pasteCellsAs(*cells);
+            return;
+        }
+        if (const std::optional<ListPaste> lists = pasteDefaultLists()) {
+            if (caretBesideList()) {
+                pasteListAs(*lists);
+                return;
+            }
+        }
+    }
+    paste();
+}
+
+std::optional<ListPaste> PageView::pasteDefaultLists()
+{
+    const int v = Settings::get().value(QStringLiteral("edit/pasteDefaultLists"), -1).toInt();
+    if (v < int(ListPaste::Continue) || v > int(ListPaste::Merge)) return std::nullopt;
+    return ListPaste(v);
+}
+
+std::optional<TablePaste> PageView::pasteDefaultCells()
+{
+    const int v = Settings::get().value(QStringLiteral("edit/pasteDefaultCells"), -1).toInt();
+    if (v < int(TablePaste::NewTable) || v > int(TablePaste::Overwrite)) return std::nullopt;
+    return TablePaste(v);
 }
 
 // Smart cut and paste (Options > Advanced): on unless turned off.

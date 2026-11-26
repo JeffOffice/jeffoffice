@@ -225,6 +225,10 @@ public:
     // Paste in the form Set Default Paste says for where the clipboard's content came from (this document, another, or another program); Keep Source Formatting, Merge Formatting, or Keep Text Only.
     void pasteDefault();
     static QVector<PasteDefaultRow> pasteDefaultRows();
+    // Set Default Paste for list items beside a list (edit/pasteDefaultLists: -1, as they come, or a ListPaste) and for spreadsheet cells (edit/pasteDefaultCells: -1, as words, or a TablePaste);
+    // Paste (Ctrl+V and the ribbon) does what is set when the clipboard holds that, the choice fits where the caret is, and the form set for where it came from is Keep Source Formatting.
+    static std::optional<ListPaste> pasteDefaultLists();
+    static std::optional<TablePaste> pasteDefaultCells();
     // The Spike: Ctrl+F3 cuts the selection onto it (each cut is added after the ones before), Ctrl+Shift+F3 pastes everything on it, in order, as one step, and empties it. It is kept
     // while the program runs, and is the same for every window. (Formatting stays, as it does for a cut.)
     void cutToSpike();
