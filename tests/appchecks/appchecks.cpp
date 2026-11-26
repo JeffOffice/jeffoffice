@@ -166,6 +166,7 @@ void Watch::begin()
     saved.clear();
     beforeWrite.clear();
     asked = false;
+    shown.clear();
     offered.clear();
     notices.clear();
     said.clear();
@@ -179,6 +180,7 @@ bool Watch::eventFilter(QObject *o, QEvent *e)
     if (!w->isWindow()) return false;
     auto *dialog = qobject_cast<QDialog *>(w);
     auto *menu = qobject_cast<QMenu *>(w);
+    if (!dialog && !menu && w->windowType() == Qt::Popup && !known.contains(w) && !shown.contains(w)) shown.append(w);
     if (!dialog && !menu && !w->isModal()) return false;
     QString words;
     if (auto *box = qobject_cast<QMessageBox *>(w)) words = box->text() + QLatin1Char(' ') + box->informativeText();
@@ -715,6 +717,7 @@ Outcome observe(Adapter &app, jp::AppWindow *w, const QAction *skip, Watch &watc
     const bool markBefore = skip && skip->isChecked();
     const QString statusBefore = w->statusBar() ? w->statusBar()->currentMessage() : QString();
     watch.begin();
+    watch.known = before;
     doIt();
     drain();
     QPointer<jp::AppWindow> guard(w);
@@ -740,6 +743,8 @@ Outcome observe(Adapter &app, jp::AppWindow *w, const QAction *skip, Watch &watc
         }
         for (QWidget *top : QApplication::topLevelWidgets())
             if (!before.contains(top) && top->isVisible()) return QStringLiteral("opened a window");
+        // (a pop-up that was shown and is gone again, closed by the system or by the program itself, was opened all the same)
+        if (!watch.shown.isEmpty()) return QStringLiteral("opened a window");
         if (wasVisible && (!guard || !guard->isVisible())) return QStringLiteral("closed the window");
         if (clipboardState() != clip) return QStringLiteral("changed the clipboard");
         if (const QString now = app.docState(guard.data()); now != doc) {
@@ -799,7 +804,7 @@ Outcome observe(Adapter &app, jp::AppWindow *w, const QAction *skip, Watch &watc
     out.warnings = watch.warnings;
     out.dialogs = watch.dialogs;
     out.offered = watch.offered;
-    out.windows = watch.closeNewWindows(before);
+    out.windows = std::max(watch.closeNewWindows(before), int(watch.shown.size()));
     drain();
     return out;
 }

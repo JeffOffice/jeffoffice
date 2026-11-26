@@ -892,6 +892,32 @@ private Q_SLOTS:
         box->~QFrame();
     }
 
+    // A box that a command opens and that is gone again by the time the check looks (the system closes a pop-up when the program stops being the active one, as on a busy Mac) was opened: the
+    // window is told of it when it is shown, not by what is still on the screen afterward (Nov 26: Meta+Q of Quick Analysis "did nothing" on the Mac build machine, and not on a rerun).
+    void aBoxShownAndGoneAgainIsSeen()
+    {
+        std::unique_ptr<AppWindow> w(m_app.launch());
+        QVERIFY(w);
+        Watch watch;
+        QPointer<QFrame> box;
+        const Outcome o = observe(m_app, w.get(), nullptr, watch, [&] {
+            box = new QFrame(nullptr, Qt::Popup);
+            box->show();
+            box->hide();
+            delete box.data();
+        });
+        QVERIFY(!box);
+        QCOMPARE(o.how, QStringLiteral("opened a window"));
+        QCOMPARE(o.windows, 1);
+        // (and a pop-up that was there before the command, shown again by it, is not a new one)
+        QFrame old(nullptr, Qt::Popup);
+        old.show();
+        old.hide();
+        const Outcome again = observe(m_app, w.get(), nullptr, watch, [&] { old.show(); old.hide(); }, true);
+        QVERIFY(again.how.isEmpty());
+        QCOMPARE(again.windows, 0);
+    }
+
     // ---- 3. every command
     void everyCommandOnABlankDocument()
     {

@@ -39,6 +39,9 @@ public:
     int closeNewWindows(const QList<QWidget *> &keep);
     // (the windows as they were, each held so that a window deleted since is not taken for a new one that has its address)
     int closeNewWindows(const QList<QPointer<QWidget>> &keep);
+    // The pop-ups (boxes the program builds for itself, not menus or dialogs) that were shown since begin() and are not among `known`, each once, even if one is gone again by now.
+    QList<QPointer<QWidget>> shown;
+    QList<QPointer<QWidget>> known;
     // Dialogs and menus that opened, by class and text ("QMessageBox: Do you want to save...").
     QStringList dialogs;
     QStringList warnings;
