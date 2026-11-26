@@ -102,6 +102,8 @@ public:
     bool closed() const { return m_closed; }
     // For the tests: how many times a change or a text edit was asked for (begun or refused), over all editors.
     static int changeEntries() { return s_entries; }
+    static int snapshotCount() { return s_snapshots; }   // whole-presentation snapshots taken (a step's start and end): typing keeps this to two for a run of keys
+    bool typing() const { return m_typing; }              // keys typed that are not yet closed as one undo step
     void markSaved() { m_undo.setClean(); }
     void markUnsaved() { m_undo.resetClean(); }   // a recovered copy: unsaved until saved
 
@@ -163,6 +165,17 @@ public:
         int half = 0;                  // 1: the second half of a cell divided by a diagonal
     };
     bool isEditingText() const { return !m_text.storyId.isEmpty(); }
+    // Words that belong to no object on the page, edited in a view of their own (the speaker notes under the slide): the same text commands, caret, and undo steps as a text
+    // box, with nothing selected on the page. beginStoryEdit puts the caret in the story (at `pos`, or the end); the view shows the story's own document and keeps the caret and
+    // selection of `cursor()` the same as its own. Ends as any text edit does (endTextEdit, a page selection, another page, a master view).
+    bool editingStoryOnly() const { return isEditingText() && m_text.itemId.isEmpty(); }
+    void beginStoryEdit(const QString &storyId, int pos = -1);
+    // Backspace, Delete, Enter, Tab in a list, and the letters: what a key does to the words being edited (false when the key is none of these, or no text is being edited).
+    bool handleEditKey(const QKeyEvent *e);
+    static void dropPicturesIn(QTextDocument *story, int from, int to);
+    // In the notes under the slide, words replaced across paragraphs (Select All and type, a cut, a paste over them) leave one paragraph that has the look of the first, as in a
+    // replacement of the whole text: the caret's selection, if it spans paragraphs, is made to end in a paragraph of the first one's look, just before the words go.
+    void keepFirstParagraphLook(QTextCursor &c) const;   // objects set in the text, taken out of [from, to)
     // Overtype: each letter typed takes the place of the one after the caret, as far as the paragraph goes. The Insert key turns it on and off when Options > Use the Insert key
     // to control overtype mode is on (the one setting, edit/insertKey, which JeffWrite uses too); `handleInsertKey` is false when it is not that key, or the setting is off.
     bool overtype() const { return m_overtype; }
@@ -614,6 +627,7 @@ private:
     bool m_readOnly = false;
     bool m_closed = false;
     static inline int s_entries = 0;
+    static inline int s_snapshots = 0;
     int m_changeDepth = 0;
     QByteArray m_before;
     QStringList m_selBefore;

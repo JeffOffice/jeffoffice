@@ -1,0 +1,321 @@
+#include "app/storyedit.h"
+
+#include "app/editor.h"
+#include "app/minitoolbar.h"
+
+#include <QApplication>
+#include <QContextMenuEvent>
+#include <QFocusEvent>
+#include <QInputMethodEvent>
+#include <QKeyEvent>
+#include <QMenu>
+#include <QMouseEvent>
+#include <QPointer>
+#include <QScrollBar>
+#include <QTextBlock>
+#include <QTextDocument>
+#include <algorithm>
+
+namespace jp {
+
+StoryEdit::StoryEdit(Editor *ed, QWidget *parent) : QTextEdit(parent), m_ed(ed)
+{
+    m_none = new QTextDocument(this);
+    setDocument(m_none);
+    setAcceptRichText(true);
+    setAcceptDrops(false);
+    setUndoRedoEnabled(false);   // (the presentation's one undo history keeps the steps)
+    setTabChangesFocus(false);
+    connect(this, &QTextEdit::cursorPositionChanged, this, &StoryEdit::followView);
+    connect(this, &QTextEdit::selectionChanged, this, &StoryEdit::followView);
+    connect(this, &QTextEdit::textChanged, this, &StoryEdit::markWords);
+    connect(ed, &Editor::textCursorChanged, this, &StoryEdit::followEditor);
+    connect(ed, &Editor::viewChanged, this, &StoryEdit::markWords);
+}
+
+StoryEdit::~StoryEdit()
+{
+    // (the story, and the document the editor still has, are let go before this view's own document goes)
+    if (m_story) {
+        setDocument(m_none);
+        if (m_story->doc) {
+            m_story->doc->setDocumentLayout(nullptr);
+            m_story->doc->setPageSize(m_page);
+            m_story->doc->setDefaultTextOption(m_option);
+        }
+    }
+}
+
+void StoryEdit::setStory(const QString &storyId)
+{
+    m_id = storyId;
+    std::shared_ptr<Story> found;
+    if (Document *d = m_ed->doc(); d && !storyId.isEmpty()) found = d->stories.value(storyId);
+    if (found.get() == m_story.get()) return;
+    bind(found);
+}
+
+void StoryEdit::bind(const std::shared_ptr<Story> &story)
+{
+    const QTextCursor was = textCursor();
+    const bool kept = m_story && story && story->id == m_story->id;   // (the same words in a document that replaced the old: an undo)
+    const int anchor = was.anchor(), pos = was.position();
+    std::shared_ptr<Story> old = m_story;
+    const QSizeF oldPage = m_page;
+    const QTextOption oldOption = m_option;
+    m_syncing = true;
+    m_story = story;
+    QTextDocument *d = story ? story->doc.get() : m_none;
+    if (story) {
+        m_page = d->pageSize();
+        m_option = d->defaultTextOption();
+    }
+    setDocument(d);
+    d->setUndoRedoEnabled(false);
+    if (old && old->doc) {
+        // (the old document gets back what it had: no layout, and its own sizes)
+        old->doc->setDocumentLayout(nullptr);
+        old->doc->setPageSize(oldPage);
+        old->doc->setDefaultTextOption(oldOption);
+    }
+    QTextCursor c(d);
+    const int last = std::max(0, d->characterCount() - 1);
+    if (kept) {
+        c.setPosition(std::clamp(anchor, 0, last));
+        c.setPosition(std::clamp(pos, 0, last), QTextCursor::KeepAnchor);
+    } else {
+        c.movePosition(QTextCursor::End);
+    }
+    setTextCursor(c);
+    m_syncing = false;
+    markWords();
+    if (isTarget()) followEditor();
+    Q_EMIT storyShown();
+}
+
+bool StoryEdit::isTarget() const
+{
+    return m_story && m_ed->editingStoryOnly() && m_ed->textTarget().storyId == m_id && m_ed->cursor().document() == m_story->doc.get();
+}
+
+bool StoryEdit::takeTarget()
+{
+    if (isReadOnly() || m_ed->readOnly() || m_ed->closed()) return false;
+    if (!m_story) {
+        const QString made = makeStory();
+        if (made.isEmpty()) return false;
+        setStory(made);
+        if (!m_story) return false;
+    }
+    if (isTarget()) return true;
+    const QTextCursor c = textCursor();
+    m_syncing = true;
+    m_ed->beginStoryEdit(m_id, c.position());
+    m_syncing = false;
+    if (!isTarget()) return false;
+    m_ed->setCursor(c);   // (with its selection)
+    return true;
+}
+
+void StoryEdit::flushTyping() { m_ed->flushTyping(); }
+bool StoryEdit::hasTyping() const { return isTarget() && m_ed->typing(); }
+
+void StoryEdit::followView()
+{
+    if (m_syncing || !isTarget()) return;
+    m_syncing = true;
+    m_ed->setCursor(textCursor());
+    m_syncing = false;
+    markWords();   // (the word with the caret is the one being typed: its mark waits)
+}
+
+void StoryEdit::followEditor()
+{
+    if (m_syncing || !isTarget()) return;
+    const QTextCursor &c = m_ed->cursor();
+    const QTextCursor mine = textCursor();
+    if (c.position() != mine.position() || c.anchor() != mine.anchor()) {
+        m_syncing = true;
+        setTextCursor(c);
+        m_syncing = false;
+    }
+    ensureCursorVisible();
+    markWords();
+}
+
+void StoryEdit::setExtraMarks(const QVector<Mark> &marks)
+{
+    m_marks = marks;
+    markWords();
+}
+
+QVector<StoryEdit::Mark> StoryEdit::spellingMarks() const
+{
+    QVector<Mark> out;
+    if (!m_story) return out;
+    const bool typing = isTarget() && !m_ed->cursor().hasSelection();
+    const int at = typing ? m_ed->cursor().position() : -1;
+    for (const auto &m : m_ed->misspelledIn(m_id)) {
+        if (at >= m.first && at <= m.second) continue;   // (the word still being typed is not flagged)
+        out.push_back(Mark{m.first, m.second, QColor(220, 40, 40), QTextCharFormat::SpellCheckUnderline});
+    }
+    return out;
+}
+
+void StoryEdit::markWords()
+{
+    if (m_syncing) return;
+    QList<QTextEdit::ExtraSelection> marks;
+    QVector<Mark> all = spellingMarks();
+    all += m_marks;
+    const int last = document()->characterCount() - 1;
+    for (const Mark &m : all) {
+        if (m.start < 0 || m.end > last || m.end <= m.start) continue;
+        QTextEdit::ExtraSelection x;
+        x.cursor = QTextCursor(document());
+        x.cursor.setPosition(m.start);
+        x.cursor.setPosition(m.end, QTextCursor::KeepAnchor);
+        x.format.setUnderlineStyle(m.style);
+        x.format.setUnderlineColor(m.color);
+        marks << x;
+    }
+    setExtraSelections(marks);
+}
+
+// What the keys do: the ones that move the caret or the selection are the view's own; the ones that change the words go through the Editor (so they are steps of the
+// presentation's undo history, with AutoCorrect, and read the same settings as a text box); the rest are left for the window's shortcuts.
+void StoryEdit::keyPressEvent(QKeyEvent *e)
+{
+    if (isReadOnly() || m_ed->readOnly()) {
+        const int k = e->key();
+        if (k == Qt::Key_Left || k == Qt::Key_Right || k == Qt::Key_Up || k == Qt::Key_Down || k == Qt::Key_Home || k == Qt::Key_End || k == Qt::Key_PageUp || k == Qt::Key_PageDown ||
+            e->matches(QKeySequence::SelectAll) || e->matches(QKeySequence::Copy))
+            QTextEdit::keyPressEvent(e);
+        else
+            e->ignore();
+        return;
+    }
+    if (!e->text().isEmpty()) Q_EMIT typingStarted();
+    const int k = e->key();
+    const bool moves = k == Qt::Key_Left || k == Qt::Key_Right || k == Qt::Key_Up || k == Qt::Key_Down || k == Qt::Key_Home || k == Qt::Key_End || k == Qt::Key_PageUp ||
+                       k == Qt::Key_PageDown || e->matches(QKeySequence::SelectAll);
+    if (!takeTarget()) {
+        e->ignore();
+        return;
+    }
+    if (moves) {
+        m_ed->flushTyping();   // (the caret moves on: what was typed is a step, and the next change is another)
+        QTextEdit::keyPressEvent(e);
+        return;
+    }
+    if (m_ed->handleEditKey(e)) {
+        e->accept();
+        return;
+    }
+    e->ignore();
+}
+
+bool StoryEdit::event(QEvent *e)
+{
+
+    // The window's own shortcuts (Cut, Copy, Paste, Undo, Redo) are the commands of the whole presentation: this view does not take them for itself.
+    if (e->type() == QEvent::ShortcutOverride && !isReadOnly() && !m_ed->readOnly()) {
+        auto *k = static_cast<QKeyEvent *>(e);
+        if (k->matches(QKeySequence::Undo) || k->matches(QKeySequence::Redo) || k->matches(QKeySequence::Cut) || k->matches(QKeySequence::Copy) || k->matches(QKeySequence::Paste)) {
+            e->ignore();
+            return true;
+        }
+    }
+    return QTextEdit::event(e);
+}
+
+// The mouse reaches the view through its viewport: a press takes the caret for the notes (and closes the typing before it), and a release that ends a selection shows the bar.
+bool StoryEdit::viewportEvent(QEvent *e)
+{
+    const bool press = e->type() == QEvent::MouseButtonPress || e->type() == QEvent::MouseButtonDblClick, release = e->type() == QEvent::MouseButtonRelease;
+    if (press) {
+        if (m_mini) m_mini->hide();
+        m_ed->flushTyping();
+        if (!isReadOnly() && !m_ed->readOnly() && m_story) takeTarget();
+    }
+    const bool done = QTextEdit::viewportEvent(e);
+    if (release && m_mini && static_cast<QMouseEvent *>(e)->button() == Qt::LeftButton && textCursor().hasSelection() && !isReadOnly() && !m_ed->readOnly()) {
+        QTextCursor a(document()), b(document());
+        a.setPosition(textCursor().selectionStart());
+        b.setPosition(textCursor().selectionEnd());
+        QWidget *host = m_mini->parentWidget();
+        auto rectOf = [&](const QTextCursor &c) {
+            const QRect r = cursorRect(c);
+            return QRect(viewport()->mapTo(host, r.topLeft()), r.size());
+        };
+        m_mini->showBeside(rectOf(a), rectOf(b));
+    }
+    return done;
+}
+
+MiniToolbar *StoryEdit::setMiniTarget(std::unique_ptr<MiniTarget> target)
+{
+    if (m_mini) return m_mini;
+    QWidget *host = window();
+    m_mini = new MiniToolbar(host, std::move(target));
+    m_mini->hideOnTypingAndScrolling(this);
+    connect(m_ed, &Editor::pageChanged, m_mini, &QWidget::hide);
+    connect(m_ed, &Editor::documentReplaced, m_mini, &QWidget::hide);
+    return m_mini;
+}
+
+void StoryEdit::inputMethodEvent(QInputMethodEvent *e)
+{
+    if (isReadOnly() || m_ed->readOnly()) {
+        e->ignore();
+        return;
+    }
+    if (!e->commitString().isEmpty() && takeTarget()) {
+        Q_EMIT typingStarted();
+        m_ed->commitText(e->commitString());
+        e->accept();
+        return;
+    }
+    QTextEdit::inputMethodEvent(e);
+}
+
+// (pasting and dropping go through the Editor's own paste, from the window's command; the view's own way would put in what the Editor does not know of)
+void StoryEdit::insertFromMimeData(const QMimeData *) {}
+bool StoryEdit::canInsertFromMimeData(const QMimeData *) const { return false; }
+void StoryEdit::dropEvent(QDropEvent *e) { e->ignore(); }
+
+void StoryEdit::focusInEvent(QFocusEvent *e)
+{
+    Q_EMIT typingStarted();
+    QTextEdit::focusInEvent(e);
+    if (e->reason() != Qt::PopupFocusReason) takeTarget();
+}
+
+void StoryEdit::focusOutEvent(QFocusEvent *e)
+{
+    m_ed->flushTyping();   // (what was typed is one step, saved when the caret leaves)
+    QTextEdit::focusOutEvent(e);
+}
+
+void StoryEdit::contextMenuEvent(QContextMenuEvent *e)
+{
+    m_ed->flushTyping();
+    QMenu menu(this);
+    const QTextCursor at = cursorForPosition(e->pos());
+    if (!isReadOnly() && !m_ed->readOnly() && m_story) {
+        // A right-click in a word that is not in the selection puts the caret there (as in a text box), so the menu is of that word.
+        if (!textCursor().hasSelection() || at.position() < textCursor().selectionStart() || at.position() > textCursor().selectionEnd()) {
+            setTextCursor(at);
+            takeTarget();
+        }
+    }
+    fillMenu(menu, at.position());
+    if (menu.isEmpty()) {
+        QMenu *standard = createStandardContextMenu(e->pos());
+        standard->setParent(&menu);
+        menu.addActions(standard->actions());
+    }
+    menu.exec(e->globalPos());
+}
+
+} // namespace jp

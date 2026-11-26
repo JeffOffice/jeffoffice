@@ -657,6 +657,29 @@ void Editor::beginTextEdit(const QString &itemId, int pos, int row, int col, int
     Q_EMIT changed();
 }
 
+void Editor::beginStoryEdit(const QString &storyId, int pos)
+{
+    ++s_entries;
+    if (m_closed || m_readOnly) return;
+    QTextDocument *sd = m_doc->storyDoc(storyId);
+    if (!sd) return;
+    if (m_text.storyId == storyId && m_text.itemId.isEmpty() && m_cursor.document() == sd) return;   // (already there: the caret stays)
+    flushTyping();
+    leaveCrop();
+    m_block = CellBlock();
+    m_text = TextTarget{QString(), storyId, -1, -1, 0};
+    m_cursor = QTextCursor(sd);
+    if (pos >= 0) m_cursor.setPosition(std::clamp(pos, 0, sd->characterCount() - 1));
+    else m_cursor.movePosition(QTextCursor::End);
+    desiredX = -1;
+    if (!m_sel.isEmpty()) {
+        m_sel.clear();
+        Q_EMIT selectionChanged();
+    }
+    Q_EMIT textCursorChanged();
+    Q_EMIT changed();
+}
+
 void Editor::endTextEdit()
 {
     if (!isEditingText()) return;
@@ -703,6 +726,7 @@ void Editor::flushTyping()
 // ---------- undo ----------
 QByteArray Editor::snapshot() const
 {
+    ++s_snapshots;
     return qCompress(QJsonDocument(m_doc->toJson()).toJson(QJsonDocument::Compact), 1);
 }
 
@@ -1997,6 +2021,7 @@ void Editor::cut()
     if (isEditingText()) {
         if (!m_cursor.hasSelection()) return;
         beginChange(tr("Cut"));
+        keepFirstParagraphLook(m_cursor);
         m_cursor.removeSelectedText();
         endChange();
         textEdited();
@@ -2196,18 +2221,35 @@ bool Editor::pasteCells(const QMimeData *md)
     return true;
 }
 
+// Pictures (and any object set in the text) in [from, to) of a story are taken out: speaker notes hold words only.
+void Editor::dropPicturesIn(QTextDocument *story, int from, int to)
+{
+    for (int pos = std::min(to, story->characterCount() - 1) - 1; pos >= from && pos >= 0; --pos) {
+        if (story->characterAt(pos) != QChar::ObjectReplacementCharacter) continue;
+        QTextCursor c(story);
+        c.setPosition(pos);
+        c.setPosition(pos + 1, QTextCursor::KeepAnchor);
+        const QTextCharFormat cf = c.charFormat();
+        if (cf.isImageFormat() || !cf.stringProperty(tp::InlineObject).isEmpty()) c.removeSelectedText();
+    }
+}
+
 void Editor::paste(bool textOnly)
 {
     const QMimeData *md = QApplication::clipboard()->mimeData();
     if (!md) return;
     // A table of HTML (cells from JeffCrunch, a table from a document or a page) is a table, or fills the cells from the one being typed in; one too big for that is pasted as its text.
-    if (!textOnly && md->hasHtml() && !md->hasFormat("application/x-jeffpub-text") && !md->hasFormat(kItemsMime) && !(md->hasImage() && !isEditingText())) {
+    // (Notes hold no tables and no pictures: a page's table goes in as its words.)
+    if (editingStoryOnly() && !textOnly && md->hasHtml() && !md->hasFormat("application/x-jeffpub-text") && md->html().contains(QLatin1String("<table"), Qt::CaseInsensitive)) textOnly = true;
+    if (!editingStoryOnly() && !textOnly && md->hasHtml() && !md->hasFormat("application/x-jeffpub-text") && !md->hasFormat(kItemsMime) && !(md->hasImage() && !isEditingText())) {
         const PastedTableResult res = pasteHtmlTable(md);
         if (res == PastedTableResult::Ok) return;
         if (res == PastedTableResult::TooBig) textOnly = true;
     }
     if (isEditingText()) {
         beginChange(tr("Paste"));
+        const int from0 = m_cursor.selectionStart();
+        keepFirstParagraphLook(m_cursor);
         if (!textOnly && md->hasFormat("application/x-jeffpub-text")) {
             QTextDocument tmp;
             storyFromJson(&tmp, QJsonDocument::fromJson(md->data("application/x-jeffpub-text")).object());
@@ -2219,6 +2261,7 @@ void Editor::paste(bool textOnly)
         } else if (md->hasText()) {
             m_cursor.insertText(md->text());
         }
+        if (editingStoryOnly()) dropPicturesIn(m_cursor.document(), from0, m_cursor.position());
         endChange();
         textEdited();
         return;

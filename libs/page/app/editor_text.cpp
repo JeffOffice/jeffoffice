@@ -934,6 +934,7 @@ void Editor::insertText(const QString &t)
         beginChange(tr("Typing"));
         m_typing = true;
     }
+    keepFirstParagraphLook(m_cursor);
     m_cursor.insertText(t);
     textEdited();
 }
@@ -1023,6 +1024,115 @@ void Editor::autoLinkWord()
     plain.setAnchor(false);
     plain.setAnchorHref(QString());
     m_cursor.setCharFormat(plain);
+}
+
+// The keys that change the words of the text being edited, whatever is showing it (a text box on the canvas, the notes pane): Backspace, Delete, Enter, Tab in a list,
+// and the letters. Not the keys that move the caret, which each view does by its own lines. False when the key is none of these.
+void Editor::keepFirstParagraphLook(QTextCursor &c) const
+{
+    if (!editingStoryOnly() || !c.hasSelection()) return;
+    const QTextBlock first = c.document()->findBlock(c.selectionStart()), last = c.document()->findBlock(c.selectionEnd());
+    if (first == last) return;
+    QTextCursor at(last);
+    at.setBlockFormat(first.blockFormat());
+    at.setBlockCharFormat(first.charFormat());
+}
+
+bool Editor::handleEditKey(const QKeyEvent *e)
+{
+    if (!isEditingText()) return false;
+    const bool shift = e->modifiers() & Qt::ShiftModifier;
+    const bool ctrl = e->modifiers() & Qt::ControlModifier;
+    switch (e->key()) {
+    case Qt::Key_Backspace:
+        editText([&](QTextCursor &c) {
+            if (c.hasSelection()) { keepFirstParagraphLook(c); c.removeSelectedText(); }
+            else if (ctrl) { c.movePosition(QTextCursor::PreviousWord, QTextCursor::KeepAnchor); c.removeSelectedText(); }
+            else {
+                // Backspace at the start of a list item removes the bullet first.
+                if (c.atBlockStart() && c.block().textList()) {
+                    QTextBlock b = c.block();
+                    b.textList()->remove(b);
+                    QTextBlockFormat bf = b.blockFormat();
+                    bf.setTextIndent(0);
+                    tp::addDirectDiff(bf, b.blockFormat());
+                    c.setBlockFormat(bf);
+                } else c.deletePreviousChar();
+            }
+        });
+        return true;
+    case Qt::Key_Delete:
+        editText([&](QTextCursor &c) {
+            if (c.hasSelection()) { keepFirstParagraphLook(c); c.removeSelectedText(); }
+            else if (ctrl) { c.movePosition(QTextCursor::NextWord, QTextCursor::KeepAnchor); c.removeSelectedText(); }
+            else c.deleteChar();
+        });
+        return true;
+    case Qt::Key_Return:
+    case Qt::Key_Enter:
+        autoLinkWord();
+        autoCorrectWord();   // a word ends here too
+        autoFormatWord();
+        editText([&](QTextCursor &c) {
+            if (shift) { c.insertText(QString(QChar::LineSeparator)); return; }
+            // An empty list item ends the list.
+            if (c.block().textList() && c.block().text().isEmpty()) {
+                QTextBlock b = c.block();
+                b.textList()->remove(b);
+                QTextBlockFormat bf = b.blockFormat();
+                bf.setTextIndent(0);
+                bf.setLeftMargin(std::max(0.0, bf.leftMargin() - 18));
+                tp::addDirectDiff(bf, b.blockFormat());
+                c.setBlockFormat(bf);
+                return;
+            }
+            const QString style = c.blockFormat().stringProperty(tp::StyleName);
+            const TextStyle *ts = doc()->style(style);
+            const bool atEnd = c.atBlockEnd();
+            QTextBlockFormat nbf = c.blockFormat();
+            nbf.clearProperty(tp::DropCapLines);
+            nbf.clearProperty(tp::StartInNextBox);
+            QTextCharFormat ncf = c.charFormat();
+            if (ts && atEnd && !ts->next.isEmpty() && ts->next != style) {
+                if (doc()->style(ts->next)) {
+                    // The next style as the style gives it (with what its bases set), over what this paragraph's own style gave it. What was set by hand stays.
+                    const TextStyle was = doc()->resolvedStyle(style), nx = doc()->resolvedStyle(ts->next);
+                    const QSet<int> direct = tp::directOf(nbf);
+                    const QMap<int, QVariant> wasBlk = was.blk.properties(), nxBlk = nx.blk.properties();
+                    for (auto k = wasBlk.cbegin(); k != wasBlk.cend(); ++k)
+                        if (!direct.contains(k.key()) && !tp::isBookkeeping(k.key())) nbf.clearProperty(k.key());
+                    for (auto k = nxBlk.cbegin(); k != nxBlk.cend(); ++k)
+                        if (!direct.contains(k.key()) && !tp::isBookkeeping(k.key())) nbf.setProperty(k.key(), k.value());
+                    nbf.setProperty(tp::StyleName, nx.name);
+                    ncf = nx.chr;
+                }
+            }
+            c.insertBlock(nbf, ncf);
+            c.setCharFormat(ncf);
+        });
+        return true;
+    case Qt::Key_Tab:
+    case Qt::Key_Backtab:
+        {
+            // Tab at the start of a list item (and Shift+Tab anywhere in one) moves it a level in or out, as a step of its own.
+            const QTextCursor cur = cursor();
+            const bool back = e->key() == Qt::Key_Backtab || shift;
+            if (!cur.hasSelection() && cur.block().textList() && (cur.atBlockStart() || back)) {
+                if (changeListLevelHook) changeListLevelHook(back ? -1 : 1);
+                else changeIndent(back ? -1 : 1);
+                return true;
+            }
+        }
+        insertText(QStringLiteral("\t"));
+        return true;
+    default: break;
+    }
+    const QString text = e->text();
+    if (!text.isEmpty() && !ctrl && (text[0].isPrint() || text[0] == QChar(0x00A0))) {
+        typeText(text);
+        return true;
+    }
+    return false;
 }
 
 void Editor::typeText(const QString &t)

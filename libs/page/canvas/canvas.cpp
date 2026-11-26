@@ -2860,71 +2860,10 @@ void Canvas::handleTextKey(QKeyEvent *e)
         m_ed->endTextEdit();
         return;
     case Qt::Key_Backspace:
-        m_ed->editText([&](QTextCursor &c) {
-            if (c.hasSelection()) c.removeSelectedText();
-            else if (ctrl) { c.movePosition(QTextCursor::PreviousWord, QTextCursor::KeepAnchor); c.removeSelectedText(); }
-            else {
-                // Backspace at the start of a list item removes the bullet first.
-                if (c.atBlockStart() && c.block().textList()) {
-                    QTextBlock b = c.block();
-                    b.textList()->remove(b);
-                    QTextBlockFormat bf = b.blockFormat();
-                    bf.setTextIndent(0);
-                    tp::addDirectDiff(bf, b.blockFormat());
-                    c.setBlockFormat(bf);
-                } else c.deletePreviousChar();
-            }
-        });
-        return;
     case Qt::Key_Delete:
-        m_ed->editText([&](QTextCursor &c) {
-            if (c.hasSelection()) c.removeSelectedText();
-            else if (ctrl) { c.movePosition(QTextCursor::NextWord, QTextCursor::KeepAnchor); c.removeSelectedText(); }
-            else c.deleteChar();
-        });
-        return;
     case Qt::Key_Return:
     case Qt::Key_Enter:
-        m_ed->autoLinkWord();
-        m_ed->autoCorrectWord();   // a word ends here too
-        m_ed->autoFormatWord();
-        m_ed->editText([&](QTextCursor &c) {
-            if (shift) { c.insertText(QString(QChar::LineSeparator)); return; }
-            // An empty list item ends the list.
-            if (c.block().textList() && c.block().text().isEmpty()) {
-                QTextBlock b = c.block();
-                b.textList()->remove(b);
-                QTextBlockFormat bf = b.blockFormat();
-                bf.setTextIndent(0);
-                bf.setLeftMargin(std::max(0.0, bf.leftMargin() - 18));
-                tp::addDirectDiff(bf, b.blockFormat());
-                c.setBlockFormat(bf);
-                return;
-            }
-            const QString style = c.blockFormat().stringProperty(tp::StyleName);
-            const TextStyle *ts = m_ed->doc()->style(style);
-            const bool atEnd = c.atBlockEnd();
-            QTextBlockFormat nbf = c.blockFormat();
-            nbf.clearProperty(tp::DropCapLines);
-            nbf.clearProperty(tp::StartInNextBox);
-            QTextCharFormat ncf = c.charFormat();
-            if (ts && atEnd && !ts->next.isEmpty() && ts->next != style) {
-                if (m_ed->doc()->style(ts->next)) {
-                    // The next style as the style gives it (with what its bases set), over what this paragraph's own style gave it. What was set by hand stays.
-                    const TextStyle was = m_ed->doc()->resolvedStyle(style), nx = m_ed->doc()->resolvedStyle(ts->next);
-                    const QSet<int> direct = tp::directOf(nbf);
-                    const QMap<int, QVariant> wasBlk = was.blk.properties(), nxBlk = nx.blk.properties();
-                    for (auto k = wasBlk.cbegin(); k != wasBlk.cend(); ++k)
-                        if (!direct.contains(k.key()) && !tp::isBookkeeping(k.key())) nbf.clearProperty(k.key());
-                    for (auto k = nxBlk.cbegin(); k != nxBlk.cend(); ++k)
-                        if (!direct.contains(k.key()) && !tp::isBookkeeping(k.key())) nbf.setProperty(k.key(), k.value());
-                    nbf.setProperty(tp::StyleName, nx.name);
-                    ncf = nx.chr;
-                }
-            }
-            c.insertBlock(nbf, ncf);
-            c.setCharFormat(ncf);
-        });
+        m_ed->handleEditKey(e);
         return;
     case Qt::Key_Tab:
     case Qt::Key_Backtab:
@@ -2978,17 +2917,7 @@ void Canvas::handleTextKey(QKeyEvent *e)
             m_ed->setCursor(cur);
             return;
         }
-        {
-            // Tab at the start of a list item (and Shift+Tab anywhere in one) moves it a level in or out, as a step of its own.
-            const QTextCursor cur = m_ed->cursor();
-            const bool back = e->key() == Qt::Key_Backtab || shift;
-            if (!cur.hasSelection() && cur.block().textList() && (cur.atBlockStart() || back)) {
-                if (m_ed->changeListLevelHook) m_ed->changeListLevelHook(back ? -1 : 1);
-                else m_ed->changeIndent(back ? -1 : 1);
-                return;
-            }
-        }
-        m_ed->insertText(QStringLiteral("\t"));
+        m_ed->handleEditKey(e);
         return;
     case Qt::Key_A:
         if (ctrl) {
@@ -3000,12 +2929,7 @@ void Canvas::handleTextKey(QKeyEvent *e)
         break;
     default: break;
     }
-    const QString text = e->text();
-    if (!text.isEmpty() && !ctrl && (text[0].isPrint() || text[0] == QChar(0x00A0))) {
-        m_ed->typeText(text);
-        return;
-    }
-    e->ignore();
+    if (!m_ed->handleEditKey(e)) e->ignore();
 }
 
 void Canvas::keyPressEvent(QKeyEvent *e)
@@ -3141,6 +3065,7 @@ QVariant Canvas::inputMethodQuery(Qt::InputMethodQuery q) const
 void Canvas::focusInEvent(QFocusEvent *e)
 {
     QAbstractScrollArea::focusInEvent(e);
+    if (m_ed->editingStoryOnly()) m_ed->endTextEdit();   // (the notes under the slide give up the caret to the page)
     if (m_ed->isEditingText()) m_caretTimer.start();
     announceFocus();   // the selected object, not just "Page"
 }
