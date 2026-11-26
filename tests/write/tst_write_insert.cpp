@@ -11,6 +11,9 @@
 #include "app/settings.h"
 #include "app/theme.h"
 #include "app/textdialogs.h"
+#include "io/blocklibrary.h"
+#include <QTemporaryDir>
+#include <QLineEdit>
 #include "app/writefindpane.h"
 #include "core/items.h"
 #include "flow/paginator.h"
@@ -1714,6 +1717,149 @@ private Q_SLOTS:
         QTRY_COMPARE(win.w.view()->pageCount(), 1);
         win.w.document()->undo();
         QVERIFY(shown().startsWith(QStringLiteral("Document Title")));
+    }
+
+    // The person's own cover page, table, and text box: saved from the selection to the gallery of its kind, listed there, and put in again (a cover page as the document's cover).
+    void aCoverPageOfTheirOwnIsSavedAndPutInAsTheCover()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        jp::BlockLibrary::setSharedPath(dir.filePath(QStringLiteral("own.jblocks")));
+        const auto reset = qScopeGuard([] { jp::BlockLibrary::setSharedPath(QString()); });
+        Win win({"Body text"});
+        auto shown = [&] { return win.text().remove(QChar::ObjectReplacementCharacter); };
+        // with no cover and nothing selected, nothing is saved
+        win.w.act("insert.cover.save")->trigger();
+        QVERIFY(jp::BlockLibrary::shared().list(jp::kCoverPagesGallery).isEmpty());
+        win.w.act("insert.cover.classic")->trigger();
+        QTRY_COMPARE(win.w.view()->pageCount(), 2);
+        QTextCursor none(win.w.document()->story());
+        none.setPosition(1);
+        win.w.view()->setCursor(none);
+        withDialog([&] { win.w.act("insert.cover.save")->trigger(); }, QStringLiteral("saveBlockBox"), [&](QDialog *d) {
+            auto *gallery = d->findChild<QComboBox *>(QStringLiteral("blockGalleryChoice"));
+            QCOMPARE(gallery->count(), 1);   // (its own gallery, not a choice)
+            d->findChild<QLineEdit *>(QStringLiteral("blockName"))->setText(QStringLiteral("My cover"));
+        });
+        const QVector<jp::BlockInfo> saved = jp::BlockLibrary::shared().list(jp::kCoverPagesGallery);
+        QCOMPARE(saved.size(), 1);
+        QCOMPARE(saved.first().name, QStringLiteral("My cover"));
+        QCOMPARE(int(saved.first().insertAs), int(jp::BlockInsert::Page));
+        QVERIFY(jp::BlockLibrary::shared().list(jp::kBlocksGallery).isEmpty());
+        // it is put in as the cover, taking the place of the one there is
+        QTRY_VERIFY(win.w.act("insert.cover.remove")->isEnabled());
+        win.w.act("insert.cover.remove")->trigger();
+        QCOMPARE(shown(), QStringLiteral("Body text"));
+        const QByteArray data = jp::BlockLibrary::shared().data(saved.first().id);
+        QVERIFY(win.w.insertOwnBlock(saved.first(), data));
+        QVERIFY(write::hasCoverPage(*win.w.document()));
+        QTRY_COMPARE(win.w.view()->pageCount(), 2);
+        QVERIFY(shown().startsWith(QStringLiteral("Document Title\nSubtitle\n")));
+        QVERIFY(shown().endsWith(QStringLiteral("Body text")));
+        QVERIFY(win.w.insertOwnBlock(saved.first(), data));
+        QCOMPARE(shown().count(QStringLiteral("Document Title")), 1);   // (one cover to a document)
+        auto again = open(win.w.document()->toDocx());
+        QVERIFY(again && write::hasCoverPage(*again));
+        QTRY_VERIFY(win.w.act("insert.cover.remove")->isEnabled());
+        win.w.act("insert.cover.remove")->trigger();
+        QCOMPARE(shown(), QStringLiteral("Body text"));
+        QVERIFY(win.w.document()->undo());
+        QVERIFY(write::hasCoverPage(*win.w.document()));
+    }
+
+    void aTableOfTheirOwnIsSavedAndPutInAgain()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        jp::BlockLibrary::setSharedPath(dir.filePath(QStringLiteral("own.jblocks")));
+        const auto reset = qScopeGuard([] { jp::BlockLibrary::setSharedPath(QString()); });
+        Win win({"Before", "After"});
+        WriteDoc &doc = *win.w.document();
+        auto tables = [&] { return documentXml(doc.toDocx()).count("<w:tbl>"); };
+        // words alone are no table
+        QTextCursor words(doc.story());
+        words.setPosition(1);
+        words.setPosition(4, QTextCursor::KeepAnchor);
+        win.w.view()->setCursor(words);
+        win.w.act("insert.ready.save")->trigger();
+        QVERIFY(jp::BlockLibrary::shared().list(jp::kTablesGallery).isEmpty());
+        QTextCursor c(doc.story());
+        c.setPosition(2);
+        QVERIFY(insertReadyTable(doc, c, ReadyTable::List));
+        QCOMPARE(tables(), 1);
+        QTextCursor in(doc.story());
+        in.setPosition(doc.story()->toPlainText().indexOf(QStringLiteral("Item")) + 1);
+        win.w.view()->setCursor(in);
+        selectInTable(doc, in, TableUnit::Table);
+        win.w.view()->setCursor(in);
+        withDialog([&] { win.w.act("insert.ready.save")->trigger(); }, QStringLiteral("saveBlockBox"), [&](QDialog *d) {
+            QCOMPARE(d->findChild<QComboBox *>(QStringLiteral("blockGalleryChoice"))->count(), 1);
+            d->findChild<QLineEdit *>(QStringLiteral("blockName"))->setText(QStringLiteral("My list"));
+        });
+        const QVector<jp::BlockInfo> saved = jp::BlockLibrary::shared().list(jp::kTablesGallery);
+        QCOMPARE(saved.size(), 1);
+        QVERIFY(jp::BlockLibrary::shared().list(jp::kBlocksGallery).isEmpty());
+        QTextCursor end(doc.story());
+        end.movePosition(QTextCursor::End);
+        win.w.view()->setCursor(end);
+        QVERIFY(win.w.insertOwnBlock(saved.first(), jp::BlockLibrary::shared().data(saved.first().id)));
+        QCOMPARE(tables(), 2);
+        QVERIFY(doc.undo());
+        QCOMPARE(tables(), 1);
+    }
+
+    void aTextBoxOfTheirOwnIsSavedAndPutInAgain()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        jp::BlockLibrary::setSharedPath(dir.filePath(QStringLiteral("own.jblocks")));
+        const auto reset = qScopeGuard([] { jp::BlockLibrary::setSharedPath(QString()); });
+        Win win({"Before", "After"});
+        WriteDoc &doc = *win.w.document();
+        auto boxes = [&] {
+            int n = 0;
+            for (const flow::FloatingObject &o : doc.flow().objects) n += o.story ? 1 : 0;
+            return n;
+        };
+        // text that is no text box is not saved to the gallery
+        QTextCursor words(doc.story());
+        words.setPosition(1);
+        words.setPosition(4, QTextCursor::KeepAnchor);
+        win.w.view()->setCursor(words);
+        win.w.act("insert.textBox.save")->trigger();
+        QVERIFY(jp::BlockLibrary::shared().list(jp::kTextBoxesGallery).isEmpty());
+        QTextCursor c(doc.story());
+        c.setPosition(2);
+        QCOMPARE(insertTextBox(doc, c, textBoxDesigns().first()), PictureResult::Ok);
+        QCOMPARE(boxes(), 1);
+        int at = -1;
+        for (int i = 0; i + 1 < doc.story()->characterCount() && at < 0; ++i)
+            if (isDrawnObjectAt(doc.story(), i)) at = i;
+        QVERIFY(at >= 0);
+        QTextCursor caret(doc.story());
+        caret.setPosition(1);
+        win.w.view()->setCursor(caret);
+        win.w.view()->selectPicture(at);
+        withDialog([&] { win.w.act("insert.textBox.save")->trigger(); }, QStringLiteral("saveBlockBox"), [&](QDialog *d) {
+            QCOMPARE(d->findChild<QComboBox *>(QStringLiteral("blockGalleryChoice"))->count(), 1);
+            d->findChild<QLineEdit *>(QStringLiteral("blockName"))->setText(QStringLiteral("My box"));
+        });
+        const QVector<jp::BlockInfo> saved = jp::BlockLibrary::shared().list(jp::kTextBoxesGallery);
+        QCOMPARE(saved.size(), 1);
+        QTextCursor end(doc.story());
+        end.movePosition(QTextCursor::End);
+        win.w.view()->setCursor(end);
+        QVERIFY(win.w.insertOwnBlock(saved.first(), jp::BlockLibrary::shared().data(saved.first().id)));
+        QCOMPARE(boxes(), 2);
+        auto again = open(doc.toDocx());
+        QVERIFY(again);
+        int saved2 = 0;
+        for (const flow::FloatingObject &o : again->flow().objects) saved2 += o.story ? 1 : 0;
+        QCOMPARE(saved2, 2);
+        QVERIFY(doc.undo());
+        int marks = 0;   // (the records of an object that went with Undo are kept for Redo: the marks in the text are what is left)
+        for (int i = 0; i + 1 < doc.story()->characterCount(); ++i) marks += isDrawnObjectAt(doc.story(), i) ? 1 : 0;
+        QCOMPARE(marks, 1);
     }
 
     // ---------------------------------------------------------------- review round: links

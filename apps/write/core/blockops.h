@@ -20,6 +20,9 @@ QByteArray blockFromSelection(const WriteDoc &doc, const QTextCursor &selection,
 
 // The first words of the selection, for the name box of the box that saves it.
 QString suggestedBlockName(const QTextCursor &selection);
+// What the selection has in it, for the galleries of the person's own tables and text boxes: a table (a paragraph in a cell), and a text box (a drawn object that holds text).
+bool selectionHoldsTable(const QTextCursor &selection);
+bool selectionHoldsTextBox(const QTextCursor &selection);
 
 // Puts the block where the caret is (in place of a selection), as one step that undoes: `how` says whether it goes in as it is, in a paragraph of its own, or on a page of its own. The styles
 // it uses that the document lacks are added (a style the document has under the same name is never changed; the block's paragraphs take the document's), and the fields in it are updated.

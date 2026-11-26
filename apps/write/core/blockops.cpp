@@ -174,6 +174,28 @@ QString suggestedBlockName(const QTextCursor &selection)
     return BlockLibrary::cleanName(text);
 }
 
+bool selectionHoldsTable(const QTextCursor &selection)
+{
+    if (!selection.hasSelection()) return false;
+    bool table = false, note = false;
+    whatIsIn(selection.document(), selection.selectionStart(), selection.selectionEnd(), &table, &note);
+    return table;
+}
+
+bool selectionHoldsTextBox(const QTextCursor &selection)
+{
+    if (!selection.hasSelection()) return false;
+    QTextDocument *d = selection.document();
+    for (QTextBlock b = d->findBlock(selection.selectionStart()); b.isValid() && b.position() < selection.selectionEnd(); b = b.next())
+        for (QTextBlock::iterator it = b.begin(); !it.atEnd(); ++it) {
+            const QTextCharFormat cf = it.fragment().charFormat();
+            const int at = it.fragment().position();
+            if (!cf.hasProperty(prop::Atom) || at < selection.selectionStart() || at >= selection.selectionEnd()) continue;
+            if (storedBytes(cf, prop::Atom).contains("txbxContent")) return true;
+        }
+    return false;
+}
+
 bool insertBlock(WriteDoc &doc, QTextCursor &c, const QByteArray &block, BlockInsert how, QString *problem)
 {
     auto fail = [&](const QString &why) {

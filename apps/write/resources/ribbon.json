@@ -406,13 +406,7 @@
                 "icon": "book-open"
               },
               "keytip": "CP",
-              "menu": [
-                "insert.cover.classic",
-                "insert.cover.band",
-                "insert.cover.plain",
-                "-",
-                "insert.cover.remove"
-              ]
+              "menu": "@coverPages"
             },
             {
               "large": "insert.blankPage",
@@ -479,17 +473,7 @@
                 "icon": "text-cursor-input"
               },
               "keytip": "TB",
-              "menu": [
-                "insert.textBox.draw",
-                "-",
-                "insert.textBox.simple",
-                "insert.textBox.plain",
-                "-",
-                "insert.textBox.sidebar",
-                "insert.textBox.quote",
-                "insert.textBox.band",
-                "insert.textBox.note"
-              ]
+              "menu": "@textBoxes"
             },
             {
               "widget": "textArtButton",
@@ -1686,19 +1670,6 @@
             }
           ]
         },
-            {
-              "small": "hf.field",
-              "keytip": "FL"
-            },
-            {
-              "small": {
-                "id": "ribbon.headerBlocks",
-                "text": "Saved Blocks",
-                "icon": "package-plus"
-              },
-              "keytip": "QB",
-              "menu": "@headerBlocks"
-            },
         {
           "name": "Insert",
           "keytip": "ZI",
@@ -1714,6 +1685,19 @@
             {
               "small": "hf.dateTime",
               "keytip": "DT"
+            },
+            {
+              "small": "hf.field",
+              "keytip": "FL"
+            },
+            {
+              "small": {
+                "id": "ribbon.headerBlocks",
+                "text": "Saved Blocks",
+                "icon": "package-plus"
+              },
+              "keytip": "QB",
+              "menu": "@headerBlocks"
             },
             {
               "small": "hf.alignmentTab",

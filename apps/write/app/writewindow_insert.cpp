@@ -101,6 +101,74 @@ void WriteWindow::saveSelectionAsBlock()
     m_view->setFocus(Qt::OtherFocusReason);
 }
 
+// A cover page, a table, or a text box saved from the document: what is selected (a text box selected as an object is taken by the mark of it in the text; with a cover page and no selection, the
+// cover page the document has) goes to the gallery of its kind, under the name the person gives.
+bool WriteWindow::saveToOwnGallery(const QString &gallery)
+{
+    if (!m_doc) return false;
+    QTextCursor sel = m_view->cursor();
+    const bool cover = gallery == jp::kCoverPagesGallery, table = gallery == jp::kTablesGallery;
+    if (!table && !cover && !sel.hasSelection()) {
+        const int object = m_view->selectedPicture();
+        if (object >= 0) {
+            sel.setPosition(object);
+            sel.setPosition(object + 1, QTextCursor::KeepAnchor);
+        }
+    }
+    if (cover && !sel.hasSelection() && !write::selectCoverPage(*m_doc, &sel)) {
+        statusBar()->showMessage(tr("Select the cover page first, with its page break."), 6000);
+        return false;
+    }
+    if (table && !write::selectionHoldsTable(sel)) {
+        statusBar()->showMessage(tr("Select a table first."), 6000);
+        return false;
+    }
+    if (gallery == jp::kTextBoxesGallery && !write::selectionHoldsTextBox(sel)) {
+        statusBar()->showMessage(tr("Select a text box first."), 6000);
+        return false;
+    }
+    QString why;
+    QStringList leftOut;
+    const QByteArray bytes = write::blockFromSelection(*m_doc, sel, &why, &leftOut);
+    if (bytes.isEmpty()) {
+        statusBar()->showMessage(why, 6000);
+        return false;
+    }
+    if (!leftOut.isEmpty() && plainQuestion(this, tr("Save as a Block"), leftOut.join(QLatin1Char(' ')) + QStringLiteral("\n\n") + tr("Save the block anyway?")) != QMessageBox::Yes) return false;
+    jp::BlockInfo info;
+    info.name = write::suggestedBlockName(sel);
+    info.gallery = gallery;
+    info.format = QStringLiteral("docx");
+    info.insertAs = cover ? jp::BlockInsert::Page : jp::BlockInsert::Content;
+    if (!jp::saveBlockBox(this, &info)) return false;
+    const bool saved = jp::saveBlock(this, info, bytes);
+    if (saved) statusBar()->showMessage(tr("Saved \"%1\" to %2.").arg(info.name, jp::blockGalleryName(info.gallery)), 5000);
+    m_view->setFocus(Qt::OtherFocusReason);
+    return saved;
+}
+
+bool WriteWindow::insertOwnBlock(const jp::BlockInfo &info, const QByteArray &data)
+{
+    if (info.gallery != jp::kCoverPagesGallery) return insertSavedBlock(info, data);
+    if (!m_doc || refuseIfReadOnly()) return false;
+    QString why;
+    m_view->leaveHeaderFooter();
+    m_view->leaveNote();
+    const bool ok = write::insertCoverPageBlock(*m_doc, data, &why);
+    if (!ok) statusBar()->showMessage(why, 8000);
+    m_view->setFocus(Qt::OtherFocusReason);
+    return ok;
+}
+
+// The list of the person's own blocks of one gallery, a submenu under the built-in designs, with the command that saves one.
+QMenu *WriteWindow::ownBlocksMenu(QWidget *owner, const QString &gallery, const QString &title, QAction *save)
+{
+    QMenu *menu = jp::blocksMenu(owner, gallery, QStringLiteral("docx"), blockPreviewImage, [this](const jp::BlockInfo &info, const QByteArray &data) { insertOwnBlock(info, data); },
+                                 {save, act("insert.manageBlocks")});
+    menu->setTitle(title);
+    return menu;
+}
+
 // F3: the Text Shortcut typed before the caret becomes its block.
 void WriteWindow::expandTextShortcut()
 {
@@ -228,6 +296,9 @@ void WriteWindow::createInsertActions()
         m_view->setFocus(Qt::OtherFocusReason);
     });
     mk("insert.saveBlock", tr("Save Selection as a Block…"), "package-plus", QKeySequence(), [this] { saveSelectionAsBlock(); });
+    mk("insert.cover.save", tr("Save Selection to Cover Page Gallery…"), "package-plus", QKeySequence(), [this] { saveToOwnGallery(jp::kCoverPagesGallery); });
+    mk("insert.ready.save", tr("Save Selection to Table Gallery…"), "package-plus", QKeySequence(), [this] { saveToOwnGallery(jp::kTablesGallery); });
+    mk("insert.textBox.save", tr("Save Selection to Text Box Gallery…"), "package-plus", QKeySequence(), [this] { saveToOwnGallery(jp::kTextBoxesGallery); });
     mk("insert.manageBlocks", tr("Manage Saved Blocks…"), "package-open", QKeySequence(), [this] {
         jp::manageBlocksBox(this, QStringLiteral("docx"), blockPreviewImage);
         m_view->setFocus(Qt::OtherFocusReason);
@@ -281,6 +352,27 @@ void WriteWindow::insertRibbonParts(RibbonParts &parts)
         return jp::blocksMenu(owner, jp::kBlocksGallery, QStringLiteral("docx"), blockPreviewImage, [this](const jp::BlockInfo &info, const QByteArray &data) { insertSavedBlock(info, data); },
                               {act("insert.saveBlock"), act("insert.manageBlocks")});
     };
+    // The built-in cover pages and text boxes, then the person's own.
+    parts.menus[QStringLiteral("coverPages")] = [this](QWidget *owner) {
+        auto *m = new QMenu(owner);
+        for (const char *id : {"insert.cover.classic", "insert.cover.band", "insert.cover.plain"}) m->addAction(act(QString::fromLatin1(id)));
+        m->addSeparator();
+        m->addMenu(ownBlocksMenu(m, jp::kCoverPagesGallery, tr("Your Cover Pages"), act("insert.cover.save")));
+        m->addSeparator();
+        m->addAction(act("insert.cover.remove"));
+        return m;
+    };
+    parts.menus[QStringLiteral("textBoxes")] = [this](QWidget *owner) {
+        auto *m = new QMenu(owner);
+        m->addAction(act("insert.textBox.draw"));
+        m->addSeparator();
+        for (const char *id : {"insert.textBox.simple", "insert.textBox.plain"}) m->addAction(act(QString::fromLatin1(id)));
+        m->addSeparator();
+        for (const char *id : {"insert.textBox.sidebar", "insert.textBox.quote", "insert.textBox.band", "insert.textBox.note"}) m->addAction(act(QString::fromLatin1(id)));
+        m->addSeparator();
+        m->addMenu(ownBlocksMenu(m, jp::kTextBoxesGallery, tr("Your Text Boxes"), act("insert.textBox.save")));
+        return m;
+    };
     // Symbol: the symbols used lately to click, then More Symbols.
     parts.menus[QStringLiteral("symbolMenu")] = [this](QWidget *owner) {
         auto *sm = new QMenu(owner);
@@ -327,6 +419,7 @@ void WriteWindow::refreshInsertUi()
     // A header, a footer, or a note has no pages to break (nor a blank page); the characters go in any text.
     const bool pages = m_doc && !m_view->inHeaderFooter() && !m_view->inNote();
     for (const char *id : {"insert.cover.classic", "insert.cover.band", "insert.cover.plain"}) act(QString::fromLatin1(id))->setEnabled(m_doc != nullptr);
+    act("insert.cover.save")->setEnabled(m_doc != nullptr);
     act("insert.cover.remove")->setEnabled(m_doc && write::hasCoverPage(*m_doc));
     {
         const bool inText = m_doc && !m_view->inHeaderFooter() && !m_view->inNote();

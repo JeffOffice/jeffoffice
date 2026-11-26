@@ -27,7 +27,14 @@ constexpr int kIdRole = Qt::UserRole;
 const QSize kCell(150, 104);
 } // namespace
 
-QString blockGalleryName(const QString &gallery) { return gallery == kShortcutsGallery ? QCoreApplication::translate("jp::Blocks", "Text Shortcuts") : QCoreApplication::translate("jp::Blocks", "Saved Blocks"); }
+QString blockGalleryName(const QString &gallery)
+{
+    if (gallery == kShortcutsGallery) return QCoreApplication::translate("jp::Blocks", "Text Shortcuts");
+    if (gallery == kCoverPagesGallery) return QCoreApplication::translate("jp::Blocks", "Cover Pages");
+    if (gallery == kTablesGallery) return QCoreApplication::translate("jp::Blocks", "Tables");
+    if (gallery == kTextBoxesGallery) return QCoreApplication::translate("jp::Blocks", "Text Boxes");
+    return QCoreApplication::translate("jp::Blocks", "Saved Blocks");
+}
 
 // Draws a block when its cell is first painted: the picture the app gives, over the block's name.
 class BlockGalleryList::Delegate : public QStyledItemDelegate {
@@ -201,10 +208,16 @@ bool saveBlockBox(QWidget *parent, BlockInfo *info, bool editing)
     auto *gallery = new QComboBox(&dlg);
     gallery->setObjectName(QStringLiteral("blockGalleryChoice"));
     gallery->setAccessibleName(QCoreApplication::translate("jp::Blocks", "Gallery"));
-    gallery->addItem(blockGalleryName(kBlocksGallery), kBlocksGallery);
-    gallery->addItem(blockGalleryName(kShortcutsGallery), kShortcutsGallery);
-    gallery->setCurrentIndex(info->gallery == kShortcutsGallery ? 1 : 0);
-    gallery->setEnabled(!editing);
+    const bool ownGallery = info->gallery == kCoverPagesGallery || info->gallery == kTablesGallery || info->gallery == kTextBoxesGallery;
+    if (ownGallery) {
+        // (A cover page, a table, or a text box is saved to its own gallery, which is not a choice.)
+        gallery->addItem(blockGalleryName(info->gallery), info->gallery);
+    } else {
+        gallery->addItem(blockGalleryName(kBlocksGallery), kBlocksGallery);
+        gallery->addItem(blockGalleryName(kShortcutsGallery), kShortcutsGallery);
+        gallery->setCurrentIndex(info->gallery == kShortcutsGallery ? 1 : 0);
+    }
+    gallery->setEnabled(!editing && !ownGallery);
     form->addRow(QCoreApplication::translate("jp::Blocks", "Gallery"), gallery);
     auto *category = new QLineEdit(info->category, &dlg);
     category->setObjectName(QStringLiteral("blockCategory"));
@@ -269,6 +282,9 @@ void manageBlocksBox(QWidget *parent, const QString &format, const BlockPreview 
     which->setAccessibleName(QCoreApplication::translate("jp::Blocks", "Gallery"));
     which->addItem(blockGalleryName(kBlocksGallery), kBlocksGallery);
     which->addItem(blockGalleryName(kShortcutsGallery), kShortcutsGallery);
+    which->addItem(blockGalleryName(kCoverPagesGallery), kCoverPagesGallery);
+    which->addItem(blockGalleryName(kTablesGallery), kTablesGallery);
+    which->addItem(blockGalleryName(kTextBoxesGallery), kTextBoxesGallery);
     column->addWidget(which);
     auto *gal = new BlockGalleryList(kBlocksGallery, format, preview, &dlg);
     column->addWidget(gal);

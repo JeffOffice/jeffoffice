@@ -63,7 +63,7 @@ JO_COMMON_EXPORT bool saveBlock(QWidget *parent, const BlockInfo &info, const QB
 // The box that lists the library for the person to rename, change, delete (until the box closes, a delete can be taken back), export, and import.
 JO_COMMON_EXPORT void manageBlocksBox(QWidget *parent, const QString &format, const BlockPreview &preview);
 
-// The names of the two galleries, as the person reads them.
+// The names of the galleries, as the person reads them.
 JO_COMMON_EXPORT QString blockGalleryName(const QString &gallery);
 
 } // namespace jp

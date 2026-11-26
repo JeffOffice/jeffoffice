@@ -22,6 +22,11 @@ enum class CoverDesign { Classic, Band, Plain };
 bool hasCoverPage(WriteDoc &doc);
 bool insertCoverPage(WriteDoc &doc, CoverDesign design, QString *problem = nullptr);
 bool removeCoverPage(WriteDoc &doc);
+// A cover page of the person's own (a block saved to the gallery of cover pages): put on a page of its own at the start of the text and made the document's cover, as one step that undoes. It
+// takes the place of a cover the document has. False, with `problem`, where it can't go (before a table at the very start) or the block can't be read.
+bool insertCoverPageBlock(WriteDoc &doc, const QByteArray &block, QString *problem = nullptr);
+// Selects the cover page the document has (its text and the break after it); false where it has none.
+bool selectCoverPage(WriteDoc &doc, QTextCursor *selection);
 
 // The most a file inserted as text may be (bytes).
 constexpr qint64 kMostInsertedFile = qint64(64) << 20;

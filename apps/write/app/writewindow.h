@@ -129,6 +129,8 @@ class WriteWindow : public AppWindow, private ChartDesignHost {
 public:
     // Saved blocks: puts a block of the library in at the caret as one step (the gallery's pick), and tells what went wrong in the status bar.
     bool insertSavedBlock(const jp::BlockInfo &info, const QByteArray &data);
+    // The pick of the person's own cover pages, tables, and text boxes: a cover page becomes the document's cover (one step), the others go in as saved blocks.
+    bool insertOwnBlock(const jp::BlockInfo &info, const QByteArray &data);
     explicit WriteWindow(QWidget *parent = nullptr);
     ~WriteWindow() override;
 
@@ -363,9 +365,9 @@ public:
     QStringList optionsPageTitles() const override;
     void hideFileScreen();
     bool printOutput(const WriteOutputOptions &options);
+    void updateFieldsBeforePrinting();
     bool exportPdf();
     // The margins of the document as the Print page has them: the id of the preset every section has ("normal", "narrow", "moderate", "wide", or "mirrored"; empty for the same other
-    void updateFieldsBeforePrinting();
     // margins in every section; "different" when the sections differ), the margins of the cursor's section in points (the gutter on the left), and the Print page's choice: a preset gives all
     // four margins of every section its numbers, keeps each section's gutter, and sets the document's mirror margins (on for Mirrored, off for the others), as one step; "custom" opens Page
     // Setup; "different" is not a choice and does nothing. False when nothing was changed.
@@ -581,6 +583,9 @@ private:
     void refreshLayoutUi();
     void insertRibbonParts(RibbonParts &parts);
     void saveSelectionAsBlock();
+    // The person's own cover page, table, or text box: saved from the selection to the gallery of its kind (jp::kCoverPagesGallery and the others), and put in from that gallery's list.
+    bool saveToOwnGallery(const QString &gallery);
+    QMenu *ownBlocksMenu(QWidget *owner, const QString &gallery, const QString &title, QAction *save);
     void expandTextShortcut();
     void refreshInsertUi();
     void createStyleActions();

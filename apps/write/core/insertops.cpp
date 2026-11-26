@@ -1,5 +1,6 @@
 #include "core/insertops.h"
 
+#include "core/blockops.h"
 #include "core/editops.h"
 #include "core/fieldops.h"
 #include "core/refops.h"
@@ -125,6 +126,35 @@ bool insertCoverPage(WriteDoc &doc, CoverDesign design, QString *problem)
     all.setPosition(0);
     all.setPosition(story->findBlockByNumber(3).position() + story->findBlockByNumber(3).length() - 1, QTextCursor::KeepAnchor);
     return addBookmark(doc, all, kCoverMark, problem, true);
+}
+
+bool insertCoverPageBlock(WriteDoc &doc, const QByteArray &block, QString *problem)
+{
+    QTextDocument *story = doc.story();
+    if (inTable(story->begin())) {
+        if (problem) *problem = QCoreApplication::translate("jp::write::CoverPage", "A cover page can't go before a table at the very start of the document. Put a paragraph before the table first.");
+        return false;
+    }
+    const WriteDoc::StepGroup group(doc);
+    removeCoverPage(doc);
+    QTextCursor c(story);
+    c.setPosition(0);
+    // (In paragraphs of its own at the start; a cover saved with the break that ends its page has it, and one saved without gets one, so that what follows goes to the next page.)
+    if (!insertBlock(doc, c, block, BlockInsert::Paragraph, problem)) return false;
+    if (story->characterAt(std::max(0, c.position() - 1)) != flow::kPageBreak) insertPageBreak(doc, c);
+    QTextCursor all(story);
+    all.setPosition(0);
+    all.setPosition(std::max(1, story->findBlock(std::max(0, c.position() - 1)).position() + story->findBlock(std::max(0, c.position() - 1)).length() - 1), QTextCursor::KeepAnchor);
+    return addBookmark(doc, all, kCoverMark, problem, true);
+}
+
+bool selectCoverPage(WriteDoc &doc, QTextCursor *selection)
+{
+    const BookmarkSpan s = coverSpan(doc);
+    if (s.start < 0 || s.end <= s.start) return false;
+    selection->setPosition(s.start);
+    selection->setPosition(s.end, QTextCursor::KeepAnchor);
+    return true;
 }
 
 bool insertTextFromFile(WriteDoc &doc, QTextCursor &c, const QByteArray &bytes, QString *problem)

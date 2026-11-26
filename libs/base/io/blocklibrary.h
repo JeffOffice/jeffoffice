@@ -33,7 +33,7 @@ enum class BlockInsert { Content = 0, Paragraph = 1, Page = 2 };   // where a bl
 struct BlockInfo {
     QString id;             // 32 lowercase hex digits, made when the entry is added
     QString name;
-    QString gallery;        // kBlocksGallery or kShortcutsGallery (any other is kept and not shown)
+    QString gallery;        // kBlocksGallery, kShortcutsGallery, or the gallery of covers, tables, or text boxes (any other is kept and not shown)
     QString category;
     QString description;
     QString format;         // what the bytes are: "docx" for a word-processing file
@@ -50,6 +50,10 @@ struct BlockEntry {
 
 static const QString kBlocksGallery = QStringLiteral("saved");
 static const QString kShortcutsGallery = QStringLiteral("shortcuts");
+// The galleries of a person's own cover pages, tables, and text boxes: listed under the commands that put in the built-in ones.
+static const QString kCoverPagesGallery = QStringLiteral("coverpages");
+static const QString kTablesGallery = QStringLiteral("tables");
+static const QString kTextBoxesGallery = QStringLiteral("textboxes");
 
 class JO_COMMON_EXPORT BlockLibrary {
 public:

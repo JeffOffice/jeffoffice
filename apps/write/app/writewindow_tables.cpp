@@ -17,6 +17,7 @@
 
 #include <QAction>
 #include <QMenu>
+#include "app/blockgallery.h"
 #include <QPainter>
 #include <QPixmap>
 #include <QStatusBar>
@@ -126,8 +127,8 @@ void WriteWindow::createTableActions()
     cmd(QStringLiteral("table.insertLeft"), tr("Insert Left"), "between-horizontal-start", [](write::WriteDoc &d, QTextCursor &c) { write::insertTableColumn(d, c, false); });
     cmd(QStringLiteral("table.insertRight"), tr("Insert Right"), "between-horizontal-end", [](write::WriteDoc &d, QTextCursor &c) { write::insertTableColumn(d, c, true); });
     cmd(QStringLiteral("table.deleteCells"), tr("Delete Cells, Shift Left"), "grid-2x2-x", [](write::WriteDoc &d, QTextCursor &c) { write::deleteTableCellsShiftLeft(d, c); });
-    cmd(QStringLiteral("table.deleteRows"), tr("Delete Rows"), "grid-2x2-x", [](write::WriteDoc &d, QTextCursor &c) { write::deleteTableRows(d, c); });
     cmd(QStringLiteral("table.deleteCellsUp"), tr("Delete Cells, Shift Up"), "grid-2x2-x", [](write::WriteDoc &d, QTextCursor &c) { write::deleteTableCellsShiftUp(d, c); });
+    cmd(QStringLiteral("table.deleteRows"), tr("Delete Rows"), "grid-2x2-x", [](write::WriteDoc &d, QTextCursor &c) { write::deleteTableRows(d, c); });
     cmd(QStringLiteral("table.deleteColumns"), tr("Delete Columns"), "table-columns-split", [](write::WriteDoc &d, QTextCursor &c) { write::deleteTableColumns(d, c); });
     cmd(QStringLiteral("table.deleteTable"), tr("Delete Table"), "trash-2", [](write::WriteDoc &d, QTextCursor &c) { write::deleteTable(d, c); });
     mk("table.moveUp", tr("Move Table Up"), "arrow-up", QKeySequence(), [this] { tableCommand([](write::WriteDoc &d, QTextCursor &c) { write::moveTableByParagraph(d, c, true); }); });
@@ -342,6 +343,8 @@ void WriteWindow::tableRibbonParts(RibbonParts &parts)
         m->addAction(act("table.draw"));
         auto *readyMenu = m->addMenu(tr("Ready-Made Tables"));
         for (const char *id : {"insert.ready.calendar", "insert.ready.matrix", "insert.ready.list", "insert.ready.schedule"}) readyMenu->addAction(act(QString::fromLatin1(id)));
+        readyMenu->addSeparator();
+        readyMenu->addMenu(ownBlocksMenu(readyMenu, jp::kTablesGallery, tr("Your Tables"), act("insert.ready.save")));
         connect(grid, &TableGrid::picked, this, [this, m](int rows, int cols) {
             m->close();
             write::NewTable table;
@@ -521,10 +524,10 @@ void WriteWindow::refreshTableUi()
     {
         QTextCursor probe = m_view->cursor();
         act("table.deleteCells")->setEnabled(in && write::deleteTableCellsShiftLeft(*m_doc, probe, false));   // (a cell with others left in its row, not joined down)
+        act("table.deleteCellsUp")->setEnabled(in && write::deleteTableCellsShiftUp(*m_doc, probe, false));   // (cells in the same columns down to the end of the table, none joined down)
     }
     act("table.direction.across")->setEnabled(in && write::hasTurnedText(*m_doc, m_view->cursor()));   // (nothing to put back where the text runs across)
     act("table.splitTable")->setEnabled(in && write::canSplitTable(*m_doc, m_view->cursor()));   // (a table is cut above the caret's row: not the first, and not through a cell joined down)
-        act("table.deleteCellsUp")->setEnabled(in && write::deleteTableCellsShiftUp(*m_doc, probe, false));   // (cells in the same columns down to the end of the table, none joined down)
     act("table.gridlines")->setEnabled(in || act("table.gridlines")->isChecked());   // (it shows the edges of the cells of tables: nothing to show elsewhere, except to turn it off)
     m_ribbon->setContextVisible(QStringLiteral("Table Tools"), in, false);
     if (!in) return;
