@@ -232,10 +232,7 @@ public:
         if (m_report) {
             m_report->notKept = m_features.result();
             if (m_formulasAsValues > 0) m_report->notKept << QCoreApplication::translate("Sheet", "%1 formulas the format cannot hold (they keep the value they came to)").arg(m_formulasAsValues);
-            if (m_unknownErrors > 0) {
-                const int unknown = int(std::min<qint64>(m_unknownErrors, INT_MAX));
-                m_report->notKept << QCoreApplication::translate("Sheet", "%n cell(s) with the error #UNKNOWN!, which the old format has no code for (they show #N/A)", nullptr, unknown);
-            }
+            if (m_unknownErrors > 0) m_report->notKept << QCoreApplication::translate("Sheet", "Cells with the error #UNKNOWN! (%1), which the old format has no code for; they show #N/A").arg(m_unknownErrors);
             m_report->formulas = m_formulas;
             m_report->formulasAsValues = m_formulasAsValues;
             m_report->cells = m_cellsWritten;

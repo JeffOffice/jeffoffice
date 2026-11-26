@@ -453,7 +453,7 @@ private Q_SLOTS:
         for (const QString &line : c.xlsReport.notKept)
             if (line.contains(QLatin1String("#UNKNOWN!"))) lines << line;
         QCOMPARE(lines.size(), 1);
-        QVERIFY2(lines[0].startsWith(QLatin1String("2 cell")), qPrintable(lines[0]));
+        QVERIFY2(lines[0].contains(QLatin1String("(2)")), qPrintable(lines[0]));
         // (none of them: nothing is listed)
         Copies fine;
         QVERIFY2(fine.make(simple(row(1, err(QStringLiteral("A1"), QStringLiteral("#DIV/0!")))), false), qPrintable(fine.why));
