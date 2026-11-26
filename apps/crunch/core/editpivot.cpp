@@ -1000,7 +1000,7 @@ EditSession::Outcome EditSession::showPivotDetail(int sheet, quint32 row, quint3
         out.problem = m;
         return out;
     };
-    if (!canEdit(&why)) return refuse(why);
+    if (!canEdit(&why) || !canEditSheet(sheet, &why) || !allows(sheet, Allow::Pivot, &why)) return refuse(why);   // (as Refresh and the other commands of a pivot table are refused)
     PivotBook::View view;
     if (!m_book->book->pivots().viewAt(sheet, row, col, &view) || !view.where.valid || !view.table || !view.cache || !view.grid) return refuse(tr("JeffCrunch can't read this pivot table."));
     const int gr = int(row - view.where.row1), gc = int(col - view.where.col1);
@@ -1029,9 +1029,15 @@ EditSession::Outcome EditSession::showPivotDetail(int sheet, quint32 row, quint3
             if (!se.deleted && se.name.compare(name, Qt::CaseInsensitive) == 0) taken = true;
         if (!taken) break;
     }
+    // (the sheet and its cells are one step of Undo: asked first whether a sheet can be put in, so that a refusal leaves no step)
+    if (!canChangeSheetList(true, &why)) return refuse(why);
     int target = -1;
+    m_undo.beginMacro(tr("Show Details"));
     const Outcome inserted = insertSheet(int(sheets.size()), name, &target);
-    if (!inserted.ok) return inserted;
+    if (!inserted.ok) {
+        m_undo.endMacro();
+        return inserted;
+    }
     Step step;
     auto put = [&](quint32 r, quint32 c, const Value &v, bool text, const QString &format) {
         CellChange cc;
@@ -1066,6 +1072,8 @@ EditSession::Outcome EditSession::showPivotDetail(int sheet, quint32 row, quint3
             }
         }
     out = pushTableStep(std::move(step), tr("Show Details"));
+    finishFills();   // (a step of many cells is put in a slice at a time: all of them are in before the macro ends)
+    m_undo.endMacro();
     if (out.ok && made) *made = target;
     return out;
 }

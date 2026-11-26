@@ -1362,6 +1362,41 @@ private Q_SLOTS:
         }
     }
 
+    // Show Details on a sheet that does not allow pivot tables is refused (and leaves no step); where it is allowed it is one step of Undo, the new sheet and its cells together.
+    void showDetailsIsOneStepAndKeepsTheProtection()
+    {
+        EditWindow e;
+        QVERIFY(e.open(pivotWorkbook()));
+        QVERIFY(e.settle());
+        crunch::EditSession *s = e.win.w.session();
+        e.select(QStringLiteral("F5"));
+        QVERIFY(e.settle());
+        jp::office::sheet::SheetProtection on;
+        on.enabled = true;
+        QVERIFY(s->setSheetProtection(0, on, QStringLiteral("Protect")).ok);
+        const int sheets = int(s->workbook()->info().sheets.size());
+        int steps = s->undoStack()->count();
+        int made = -1;
+        const auto refused = s->showPivotDetail(0, rowOf(QStringLiteral("F5")), colOf(QStringLiteral("F5")), &made);
+        QVERIFY(!refused.ok);
+        QVERIFY2(refused.problem.contains(QLatin1String("pivot")), qPrintable(refused.problem));
+        QCOMPARE(s->undoStack()->count(), steps);
+        QCOMPARE(int(s->workbook()->info().sheets.size()), sheets);
+        on.allowPivot = true;
+        QVERIFY(s->setSheetProtection(0, on, QStringLiteral("Protect")).ok);
+        QVERIFY(e.settle());
+        steps = s->undoStack()->count();
+        e.win.w.act(QStringLiteral("pivot.showDetail"))->trigger();
+        QVERIFY(e.settle());
+        QCOMPARE(s->undoStack()->count(), steps + 1);
+        QCOMPARE(int(s->workbook()->info().sheets.size()), sheets + 1);
+        s->undoStack()->undo();
+        QVERIFY(e.settle());
+        QCOMPARE(s->undoStack()->count(), steps + 1);
+        QCOMPARE(s->undoStack()->index(), steps);
+        QVERIFY(s->workbook()->info().sheets.back().deleted || int(s->workbook()->info().sheets.size()) == sheets);
+    }
+
     // The commands of the pivot table tab work on the table the cursor is in: Refresh, Change Data Source (the cells asked for), and Clear; the tab shows only inside a table.
     void theTabsCommandsWorkOnTheTableTheCursorIsIn()
     {
