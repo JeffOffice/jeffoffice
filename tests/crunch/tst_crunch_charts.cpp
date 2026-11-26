@@ -4707,7 +4707,8 @@ private Q_SLOTS:
             QVERIFY(dialog);
             auto *d = static_cast<InsertChartDialog *>(dialog.get());
             d->setRowsAndColumns(true);
-            for (const ChartKindEntry &k : chartKindEntries()) d->selectKind(k.kind);
+            for (const ChartKindEntry &k : chartKindEntries())
+                if (!jp::office::sheet::isStockKind(k.kind)) d->selectKind(k.kind);   // (a stock kind's picture is blank for cells whose series do not fit its order)
             QVERIFY(!d->previewShown().isNull());
             const qint64 read = cells->reads() - before;
             QVERIFY2(read < 510 * int(chartKindEntries().size()), qPrintable(QString::number(read)));   // (the block of the selection is looked for once, and each kind is drawn from it, about 490 reads for each of the 20 kinds: found again for each kind and the swap it would be read several times over)

@@ -674,6 +674,10 @@ private Q_SLOTS:
              }, false},
         };
         m_app.quiet = {
+            {QStringLiteral("chart.type.stockHighLowClose"), QStringLiteral("it needs the chart's series in the order the form asks for (the sample chart has two), and says so in a message when they are not; the chart and chart-maker tests run it with series that fit")},
+            {QStringLiteral("chart.type.stockOpenHighLowClose"), QStringLiteral("it needs the chart's series in the order the form asks for (the sample chart has two), and says so in a message when they are not; the chart and chart-maker tests run it with series that fit")},
+            {QStringLiteral("chart.type.stockVolumeHighLowClose"), QStringLiteral("it needs the chart's series in the order the form asks for (the sample chart has two), and says so in a message when they are not; the chart and chart-maker tests run it with series that fit")},
+            {QStringLiteral("chart.type.stockVolumeOpenHighLowClose"), QStringLiteral("it needs the chart's series in the order the form asks for (the sample chart has two), and says so in a message when they are not; the chart and chart-maker tests run it with series that fit")},
             {QStringLiteral("review.autoCorrectOptions"), QStringLiteral("it opens the menu of the AutoCorrect Options button, which is there only after AutoCorrect changed a word as it was typed, and there is none; theAutoCorrectOptionsButtonIsSaidWhenItAppearsAndTheCommandOpensItsMenu types one and runs it")},
             {QStringLiteral("file.shrinkOnePage"), QStringLiteral("a document of one page has no page to take off, and it says so; shrinkByOnePageTakesOffAPageInOneStep and shrinkByOnePageRefusesForTheTrueReasonAndChangesNothing try it")},
             {QStringLiteral("win.cascade"), QStringLiteral("it places the open windows, and there is one")},

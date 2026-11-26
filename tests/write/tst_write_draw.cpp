@@ -10606,8 +10606,9 @@ private Q_SLOTS:
             const ChartInfo chart = chartAt(*doc, 7);
             QVERIFY(chart.valid);
             QCOMPARE(chart.form, form);
-            QCOMPARE(chart.data.categories.size(), 3);
-            QCOMPARE(chart.data.values.size(), 2);
+            const ChartData sample = sampleChartData(form);   // (a stock form begins with its prices, in the series its order asks for)
+            QCOMPARE(chart.data.categories.size(), sample.categories.size());
+            QCOMPARE(chart.data.values.size(), sample.values.size());
             QVERIFY(chart.dataEditable);
             // The pages draw it as a picture.
             QVERIFY(pictureOfPage(*doc));
