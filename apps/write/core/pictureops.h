@@ -381,7 +381,8 @@ bool setTextBoxText(WriteDoc &doc, int position, const QStringList &paragraphs);
 // that undoes (false when the words are as they were, or are past the limits).
 // (`tooBig`, if given, says a box refused for holding more paragraphs than the editor takes; `refused`, a story that is not put in for want of room or for a reason the document gave: the person is told.)
 // `whole`: every paragraph is in the story, the deleted ones too (for settling the box's tracked changes).
-std::unique_ptr<QTextDocument> textBoxStory(WriteDoc &doc, int position, bool *tooBig = nullptr, bool whole = false);
+// `in`: the story the box's object is in, when it is not the text (a note, or another box's words).
+std::unique_ptr<QTextDocument> textBoxStory(WriteDoc &doc, int position, bool *tooBig = nullptr, bool whole = false, const QTextDocument *in = nullptr);
 // `changed`, if given, says for each paragraph of the story whether its words were changed: the paragraphs that were not stay as the file wrote them (their bookmarks, revision marks, and content
 // controls), when the box has as many paragraphs as the story.
 bool setTextBoxStory(WriteDoc &doc, int position, QTextDocument *story, bool *refused = nullptr, const QVector<bool> *changed = nullptr);

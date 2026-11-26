@@ -1107,6 +1107,7 @@ private Q_SLOTS:
     void changeAllGoesOnFromTheRightPlaceWhenTheWordsBeforeItChangeLength();
     void theSpellingPaneStartsInTheFooterWhereTheCaretIsAndGoesRoundInOrder();
     void theSpellingPaneStartsInAHeaderOrANoteWhereTheCaretIs();
+    void wordCountCountsNestedBoxesAndBoxesInNotesButNotInHeaders();
     void ignoreAllAndAddToDictionaryWorkInTheStoriesBesidesTheText();
     void aHeaderTakesNoSectionBreakPageBreakOrNote();
     void theBreakCommandsAreGrayedWhileAHeaderIsEdited();

@@ -69,6 +69,27 @@ static int linesBetween(WriteDoc &doc, int from, int to)
     return n;
 }
 
+// The words of the text boxes and shapes in `story` (the text, a note, or the words of a box, whose own boxes are looked at too, down to kMostBoxDepth), added to `s`; `*counted` is the boxes read so far in
+// all, and no more than kMostCountedBoxes are read.
+static void addBoxesOf(WriteDoc &doc, const QTextDocument *story, WordStats &s, int *counted, int depth)
+{
+    for (QTextBlock b = story->begin(); b.isValid() && *counted < kMostCountedBoxes; b = b.next())
+        for (QTextBlock::iterator it = b.begin(); !it.atEnd() && *counted < kMostCountedBoxes; ++it) {
+            const QTextFragment f = it.fragment();
+            if (!f.charFormat().hasProperty(prop::Atom) || f.charFormat().hasProperty(prop::TrackedDeleted) || f.charFormat().boolProperty(tp::HiddenText)) continue;
+            for (int i = 0; i < int(f.length()) && *counted < kMostCountedBoxes; ++i) {
+                if (!isDrawnObjectAt(story, f.position() + i)) continue;
+                const PictureInfo info = pictureAt(doc, story, f.position() + i);
+                if (!info.valid || !info.editable || (info.kind != DrawnKind::Shape && info.kind != DrawnKind::TextBox)) continue;
+                ++*counted;
+                const std::unique_ptr<QTextDocument> words = textBoxStory(doc, f.position() + i, nullptr, false, story);
+                if (!words) continue;
+                addTo(s, words.get(), 0, words->characterCount(), true);
+                if (depth < kMostBoxDepth) addBoxesOf(doc, words.get(), s, counted, depth + 1);
+            }
+        }
+}
+
 WordStats countWords(WriteDoc &doc, const QTextCursor &selection, bool notes, bool boxes)
 {
     WordStats s;
@@ -80,26 +101,14 @@ WordStats countWords(WriteDoc &doc, const QTextCursor &selection, bool notes, bo
     }
     addTo(s, doc.story(), 0, doc.story()->characterCount(), notes);
     s.lines = linesBetween(doc, 0, doc.story()->characterCount());
+    int counted = 0;
+    if (boxes) addBoxesOf(doc, doc.story(), s, &counted, 0);
     if (notes)
         for (const int id : doc.citedFootnotes())
-            if (const QTextDocument *note = doc.editableFootnote(id)) addTo(s, note, 0, note->characterCount(), true);
-    if (boxes) {
-        QTextDocument *body = doc.story();
-        int counted = 0;
-        for (QTextBlock b = body->begin(); b.isValid() && counted < kMostCountedBoxes; b = b.next())
-            for (QTextBlock::iterator it = b.begin(); !it.atEnd() && counted < kMostCountedBoxes; ++it) {
-                const QTextFragment f = it.fragment();
-                if (!f.charFormat().hasProperty(prop::Atom) || f.charFormat().hasProperty(prop::TrackedDeleted) || f.charFormat().boolProperty(tp::HiddenText)) continue;
-                for (int i = 0; i < int(f.length()) && counted < kMostCountedBoxes; ++i) {
-                    if (!isDrawnObjectAt(body, f.position() + i)) continue;
-                    const PictureInfo info = pictureAt(doc, body, f.position() + i);
-                    if (!info.valid || !info.editable || (info.kind != DrawnKind::Shape && info.kind != DrawnKind::TextBox)) continue;
-                    ++counted;
-                    const std::unique_ptr<QTextDocument> words = textBoxStory(doc, f.position() + i);
-                    if (words) addTo(s, words.get(), 0, words->characterCount(), true);
-                }
+            if (const QTextDocument *note = doc.editableFootnote(id)) {
+                addTo(s, note, 0, note->characterCount(), true);
+                if (boxes) addBoxesOf(doc, note, s, &counted, 0);
             }
-    }
     return s;
 }
 

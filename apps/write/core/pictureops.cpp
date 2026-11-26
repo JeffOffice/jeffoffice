@@ -1966,7 +1966,22 @@ BoxContent boxContentOf(const QByteArray &graphic)
         b.simple = true;
         return b;
     }
-    const qsizetype close = graphic.indexOf("</w:txbxContent>", gt);
+    // The box's own closing tag: one that closes a box inside it (a text box in a text box) is not it.
+    qsizetype close = -1, at = gt + 1, nextOpen = -2;
+    for (int depth = 1; depth > 0;) {
+        const qsizetype end = graphic.indexOf("</w:txbxContent>", at);
+        if (end < 0) break;
+        if (nextOpen != -1 && nextOpen < at) nextOpen = graphic.indexOf("<w:txbxContent", at);
+        if (nextOpen >= 0 && nextOpen < end) {
+            const qsizetype innerGt = graphic.indexOf('>', nextOpen);
+            if (innerGt < 0) break;
+            if (graphic[innerGt - 1] != '/') ++depth;
+            at = innerGt + 1;
+        } else {
+            if (--depth == 0) close = end;
+            at = end + 16;
+        }
+    }
     if (close < 0) return b;
     b.begin = open;
     b.end = close + 16;
@@ -2745,10 +2760,10 @@ bool setTextBoxText(WriteDoc &doc, int position, const QStringList &paragraphs)
     });
 }
 
-std::unique_ptr<QTextDocument> textBoxStory(WriteDoc &doc, int position, bool *tooBig, bool whole)
+std::unique_ptr<QTextDocument> textBoxStory(WriteDoc &doc, int position, bool *tooBig, bool whole, const QTextDocument *in)
 {
     if (tooBig) *tooBig = false;
-    const QTextDocument *story = doc.story();
+    const QTextDocument *story = in ? in : doc.story();
     if (!story || position < 0 || position + 1 > story->characterCount() - 1) return nullptr;
     Inline atom;
     if (!drawingAtomOf(formatAfter(story, position), &atom)) return nullptr;

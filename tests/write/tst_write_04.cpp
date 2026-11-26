@@ -1,4 +1,5 @@
 #include "tst_write.h"
+#include "core/proofops.h"
 #include "app/shapetextedit.h"
 
 
@@ -1034,6 +1035,54 @@ void WriteTests::theSpellingPaneStartsInAHeaderOrANoteWhereTheCaretIs()
         QCOMPARE(seen, inNote ? (QStringList{QStringLiteral("zznote"), QStringLiteral("zzhead"), QStringLiteral("zzfoot"), QStringLiteral("zzbody"), QStringLiteral("zzcell")})
                               : (QStringList{QStringLiteral("zzhead"), QStringLiteral("zzfoot"), QStringLiteral("zzbody"), QStringLiteral("zzcell"), QStringLiteral("zznote")}));
     }
+}
+
+
+// Word Count with text boxes: a box inside a box is counted with the box that holds it; a box in a note is counted when the count takes the notes in, and not when it leaves them out; a box in a
+// header or footer is not counted (the dialog has no choice for them: its numbers are those of the text and the notes); and no more than kMostCountedBoxes boxes are read in all, nested ones included.
+void WriteTests::wordCountCountsNestedBoxesAndBoxesInNotesButNotInHeaders()
+{
+    auto box = [](const QByteArray &inner) {
+        return QByteArray("<w:r><w:drawing xmlns:wp=\"http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing\" xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\" "
+                          "xmlns:wps=\"http://schemas.microsoft.com/office/word/2010/wordprocessingShape\"><wp:anchor distT=\"0\" distB=\"0\" distL=\"0\" distR=\"0\" simplePos=\"0\" relativeHeight=\"1\" behindDoc=\"0\" "
+                          "locked=\"0\" layoutInCell=\"1\" allowOverlap=\"1\"><wp:simplePos x=\"0\" y=\"0\"/><wp:positionH relativeFrom=\"page\"><wp:posOffset>914400</wp:posOffset></wp:positionH>"
+                          "<wp:positionV relativeFrom=\"page\"><wp:posOffset>228600</wp:posOffset></wp:positionV><wp:extent cx=\"2270000\" cy=\"854000\"/><wp:effectExtent l=\"0\" t=\"0\" r=\"0\" b=\"0\"/>"
+                          "<wp:wrapNone/><wp:docPr id=\"7\" name=\"Box\"/><wp:cNvGraphicFramePr/><a:graphic><a:graphicData uri=\"http://schemas.microsoft.com/office/word/2010/wordprocessingShape\"><wps:wsp>"
+                          "<wps:cNvSpPr txBox=\"1\"/><wps:spPr><a:xfrm><a:off x=\"0\" y=\"0\"/><a:ext cx=\"2270000\" cy=\"854000\"/></a:xfrm><a:prstGeom prst=\"rect\"><a:avLst/></a:prstGeom></wps:spPr>"
+                          "<wps:txbx><w:txbxContent>") + inner + "</w:txbxContent></wps:txbx><wps:bodyPr/></wps:wsp></a:graphicData></a:graphic></wp:anchor></w:drawing></w:r>";
+    };
+    auto para = [](const QByteArray &runs) { return "<w:p>" + runs + "</w:p>"; };
+    auto counted = [&](const QByteArray &docx, bool notes, bool boxes) {
+        WriteWindow w;
+        w.setNotifier([](const QString &, const QString &) {});
+        w.show();
+        w.setDocument(open(docx), QString());
+        const QTextCursor none(w.document()->story());
+        return countWords(*w.document(), none, notes, boxes).words;
+    };
+    // A box holding words and a box: the words of both are counted (2 in the text, 2 and 3 in the boxes).
+    const QByteArray nested = "<w:p><w:r><w:t>two words</w:t></w:r></w:p>" + para(box(para("<w:r><w:t>outer one</w:t></w:r>") + para(box(para("<w:r><w:t>inner here two</w:t></w:r>")))));
+    QCOMPARE(counted(makeDocx(nested), false, false), 2);
+    QCOMPARE(counted(makeDocx(nested), false, true), 2 + 2 + 3);
+    // A box that holds only a box adds the words of the one inside it.
+    QCOMPARE(counted(makeDocx("<w:p><w:r><w:t>two words</w:t></w:r></w:p>" + para(box(para(box(para("<w:r><w:t>only inner</w:t></w:r>")))))), false, true), 2 + 2);
+    // Three deep.
+    QCOMPARE(counted(makeDocx(para(box(para("<w:r><w:t>a b</w:t></w:r>") + para(box(para("<w:r><w:t>c d e</w:t></w:r>") + para(box(para("<w:r><w:t>f</w:t></w:r>")))))))), false, true), 2 + 3 + 1);
+    // A box in a note: counted with the notes, left out without them. A box in a header or footer: not counted either way.
+    const QByteArray sect = sectionNaming({{QStringLiteral("default"), QStringLiteral("rIdheader1")}, {QStringLiteral("f-default"), QStringLiteral("rIdfooter1")}});
+    const QMap<QString, QByteArray> parts{{QStringLiteral("/word/header1.xml"), headerPart("hdr", {box(para("<w:r><w:t>head box words</w:t></w:r>"))})},
+                                          {QStringLiteral("/word/footer1.xml"), headerPart("ftr", {box(para("<w:r><w:t>foot box words</w:t></w:r>"))})},
+                                          {QStringLiteral("/word/footnotes.xml"), footnotesPart({{2, plainRun(" note") + box(para("<w:r><w:t>note box has five words</w:t></w:r>"))}})}};
+    const QByteArray withNote = makeDocxWithParts(citing("body", 2), sect, parts, QByteArray(), noteStyles());
+    const int body = counted(withNote, false, false);
+    QVERIFY(body > 0);
+    QCOMPARE(counted(withNote, true, false), body + 1);                   // (the note's own word; the box's words are not asked for)
+    QCOMPARE(counted(withNote, false, true), body);                       // (no notes: the box in the note is left out)
+    QCOMPARE(counted(withNote, true, true), body + 1 + 5);
+    // No more than kMostCountedBoxes are read in all: a box and the one inside it each count against the same limit (1100 pairs are 2200 boxes, each with one word).
+    QByteArray pairs = "<w:r><w:t>x</w:t></w:r>";
+    for (int i = 0; i < 1100; ++i) pairs += box(para("<w:r><w:t>a</w:t></w:r>") + para(box(para("<w:r><w:t>b</w:t></w:r>"))));
+    QCOMPARE(counted(makeDocx(para(pairs)), false, true), 1 + kMostCountedBoxes);
 }
 
 

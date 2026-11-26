@@ -17,8 +17,10 @@ struct WordStats {
 };
 // The count of the text (or, with a selection, of what is selected). Hidden text and text a tracked change deleted are not counted, and a picture, a field's code, or a bookmark is no letter.
 // `notes`: also the words of the footnotes and endnotes (without it the endnotes the pages set after the text are left out too). A paragraph is counted when it has any text.
-// `boxes`: also the words of the text boxes and shapes of the text (of the whole document: a selection counts what is selected), the first kMostCountedBoxes of them.
+// `boxes`: also the words of the text boxes and shapes of the text, of the notes when `notes` is on, and of the boxes inside boxes (of the whole document: a selection counts what is selected), the first
+// kMostCountedBoxes of them in all. The boxes of headers and footers are not counted: the count has no choice for them.
 constexpr int kMostCountedBoxes = 2000;
+constexpr int kMostBoxDepth = 8;   // (boxes in boxes in boxes: no deeper than this are read)
 WordStats countWords(WriteDoc &doc, const QTextCursor &selection, bool notes, bool boxes = false);
 // The count of one story's text (or of the range [from, to) of it; to < 0 is the end).
 WordStats countWordsIn(const QTextDocument *story, int from = 0, int to = -1, bool withEndnotes = true);
