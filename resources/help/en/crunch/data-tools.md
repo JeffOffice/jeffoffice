@@ -7,13 +7,19 @@ The **Data** tab has the tools that work on a list of values: getting text from 
 
 **From Text/CSV** opens a text file (.csv, .tsv, or .txt). It is the same as **Open Text File** on the File tab. JeffCrunch asks how the file is split into columns and what each column holds, then shows it as a new workbook. The same window opens when you open a text file or use **Paste Text Import**.
 
-The window guesses what each column holds from the first 200 rows of the file and shows the guess in the box above the column. Change any column before you open the file. A kind you change is never replaced by a later guess, even if you then change the separator. These are the rules of the guess:
+The window guesses what each column holds from the first 200 rows of the file and shows the guess in the box above the column. Change any column before you open the file. A kind you change is never replaced by a later guess, even if you then change the separator. A guess does only three things to a column: it leaves the column **As typed**, which is how a file is read where nothing is guessed; it makes the column **Text** to protect it; or it makes the column dates in one order that the values prove. These are the rules:
 
-- A column is **As typed** (numbers) only when every value in it is a number in the decimal and thousands marks you chose.
-- A column is a date only when every value reads as a date in one order and no other (month, day, year; day, month, year; or year, month, day). When both month first and day first fit every value, such as 05/06/2024, the column is kept as **Text**, the window lists it, and you pick the order from its box.
-- A column is **Text** when a value has a zero in front of more digits, a plus sign in front, more than 15 digits, or an exponent such as 1E5, when its values are a mix of kinds, and when it has no values. Codes and account numbers are never changed that way.
+- A column stays **As typed** when As typed reads its values right: numbers, true and false, times, dates written with month names, signed numbers such as -5 and +3, words, and version numbers such as 1.13.2. Changing these would only make them worse.
+- A column is a **date** only when every value in it has a four-digit year (or is a full date such as 2024-05-13) and reads as a date in one order and no other (month, day, year; day, month, year; or year, month, day). Its dates are shown as dates you type are shown. When more than one order fits every value, such as 05/06/2024, the column is kept as **Text**, the window lists it, and you pick the order from its box.
+- Values with three numbers and no four-digit year, such as 1.13.2 or 13.05.24, are never made into dates by the guess. If As typed would keep them as text, the column stays As typed; if As typed would turn them into dates, the column is **Text**. Either way the window lists a column that could be dates with two-digit years, so you can pick an order.
+- A column is **Text** when a value has a zero in front of more digits or has more than 15 digits, when a plus sign comes before seven or more digits (a phone number), or when an exponent such as 1E5 sits beside other values.
+- A value that begins with an equals sign is left to the **Read formulas** box. When the box is ticked, the column stays As typed so the value is read as a formula. When it is not ticked, the column is **Text**.
 - Tick **The first row has column names** and the first row is not used for the guess. The window ticks it when the first row is text over numbers or dates.
 - The columns after the first 100 are brought in as text.
+
+Only the first 200 rows are looked at, so a value further down can be a surprise. In a date column, a value further down that is not a date in the chosen order comes in as text, never as a wrong date. In a Text column, every value comes in as written. In an As typed column, a value further down is read the way As typed reads it anywhere else.
+
+**Paste Text Import** enters the text as if you had typed it, in your own decimal and thousands marks, so its window has no boxes for those marks and the guess reads the text the same way the paste does. The window for a file has them.
 
 ## From File
 
