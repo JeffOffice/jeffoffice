@@ -232,7 +232,9 @@ QAction *WriteWindow::mk(const QString &id, const QString &text, const QString &
         if (m_view && id != QLatin1String("edit.selectObjects") && id != QLatin1String("edit.selectAll")) m_view->setSelectObjectsMode(false);
         const quint64 document = m_repeat->document();
         if (m_doc) m_doc->setStepName(label);
+        const QPointer<WriteWindow> self(this);   // (a command may close the window)
         fn();
+        if (!self) return;
         if (m_doc) m_doc->setStepName(QString());
         if (m_doc && repeatableCommand(id)) {
             recordRepeat(label, [this, id, fn, label] {
