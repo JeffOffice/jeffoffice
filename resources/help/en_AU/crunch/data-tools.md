@@ -5,7 +5,15 @@ The **Data** tab has the tools that work on a list of values: getting text from 
 
 ## From Text/CSV
 
-**From Text/CSV** opens a text file (.csv, .tsv, or .txt). It is the same as **Open Text File** on the File tab. JeffCrunch asks how the file is split into columns and what kind of text it holds, then shows it as a new workbook.
+**From Text/CSV** opens a text file (.csv, .tsv, or .txt). It is the same as **Open Text File** on the File tab. JeffCrunch asks how the file is split into columns and what each column holds, then shows it as a new workbook. The same window opens when you open a text file or use **Paste Text Import**.
+
+The window guesses what each column holds from the first 200 rows of the file and shows the guess in the box above the column. Change any column before you open the file. A kind you change is never replaced by a later guess, even if you then change the separator. These are the rules of the guess:
+
+- A column is **As typed** (numbers) only when every value in it is a number in the decimal and thousands marks you chose.
+- A column is a date only when every value reads as a date in one order and no other (month, day, year; day, month, year; or year, month, day). When both month first and day first fit every value, such as 05/06/2024, the column is kept as **Text**, the window lists it, and you pick the order from its box.
+- A column is **Text** when a value has a zero in front of more digits, a plus sign in front, more than 15 digits, or an exponent such as 1E5, when its values are a mix of kinds, and when it has no values. Codes and account numbers are never changed that way.
+- Tick **The first row has column names** and the first row is not used for the guess. The window ticks it when the first row is text over numbers or dates.
+- The columns after the first 100 are brought in as text.
 
 ## From File
 
