@@ -7408,8 +7408,9 @@
          "text": "4ae1d15e5d6fcbfbb2ab7aad429f10beb86f91ddbcc2600e84cb35064f15e6e4"
         },
         {
-         "status": "partly",
-         "text": "9d83b43d94b2a9b81519fc02b1769f7ec1fbd426e2b733e856a1c84f665f6f28"
+         "hide_soon": true,
+         "status": "done",
+         "text": "f4887cd1ef3f9d457490ce2915ceef0e0bfba93c3af07767851bbb965019082b"
         },
         {
          "hide_soon": true,
@@ -19916,18 +19917,6 @@
     "fr": ""
    }
   },
-  "9d83b43d94b2a9b81519fc02b1769f7ec1fbd426e2b733e856a1c84f665f6f28": {
-   "drop": false,
-   "en": "Undo and Redo work, with typing and each command as one step.",
-   "es": "Deshacer y Rehacer funcionan, y la escritura y cada comando cuentan como un paso.",
-   "fr": "Annuler et Rétablir fonctionnent, la saisie et chaque commande comptant pour une étape.",
-   "soon": {
-    "drop": false,
-    "en": "Undo history list and Repeat",
-    "es": "Lista del historial de deshacer y Repetir",
-    "fr": "Liste de l’historique d’annulation et Répéter"
-   }
-  },
   "9db480cbd18cdfea3ad2fc9103b349e19764bda55493d22c8026f86655f05a10": {
    "drop": false,
    "en": "A bar appears when a workbook uses fonts this computer lacks. A dialog lists each missing font with what stands in for it and the sheets it is on, lets you choose your own stand-in for display and PDF, and offers Replace in Document.",
@@ -26317,6 +26306,18 @@
    "en": "Export an EPUB e-book with a chapter for each Heading 1, contents from Heading 1-3, footnotes and endnotes at the end of each chapter, and pictures and tables in place. Choose the title and author, and whether the first picture is the cover.",
    "es": "Exporte un libro electrónico EPUB con un capítulo por cada Título 1, contenido a partir de Título 1-3, notas al pie y notas finales al final de cada capítulo, e imágenes y tablas en su lugar. Elija el título y el autor, y si la primera imagen es la portada.",
    "fr": "Exportez un livre numérique EPUB avec un chapitre par Titre 1, une table des matières issue des Titres 1 à 3, des notes de bas de page et de fin à la fin de chaque chapitre, et les images et tableaux à leur place. Choisissez le titre et l’auteur, et si la première image sert de couverture.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
+  "f4887cd1ef3f9d457490ce2915ceef0e0bfba93c3af07767851bbb965019082b": {
+   "drop": false,
+   "en": "Undo and Redo with a history list that names each step, and Repeat the last command with `F4` or `Ctrl+Y`. Repeat is one new step and is not available in a read-only or protected document.",
+   "es": "Deshaga y rehaga cambios con una lista de historial que nombra cada paso, y repita el último comando con `F4` o `Ctrl+Y`. Repetir es un paso nuevo y no está disponible en un documento de solo lectura o protegido.",
+   "fr": "Annulez et rétablissez des modifications avec une liste d’historique qui nomme chaque étape, et répétez la dernière commande avec `F4` ou `Ctrl+Y`. La répétition constitue une nouvelle étape et n’est pas disponible dans un document en lecture seule ou protégé.",
    "soon": {
     "drop": true,
     "en": "",
