@@ -2731,18 +2731,31 @@ bool holdsMacroProject(const std::function<bool(const QString &)> &hasStream)
     return false;
 }
 
-// What a file that is not a workbook of either kind says it is, from its first bytes, in words for the person: a page of the web or an XML spreadsheet saved with the name of a
-// workbook; empty if it says neither.
-QString plainKindOfText(const QByteArray &bytes)
+// The first bytes of a text as UTF-8 (a text in UTF-16, which a byte order mark says, is read as the letters it holds, so that it is told apart as the same text in UTF-8 is).
+QByteArray readableHead(const QByteArray &head)
 {
-    QByteArray head = bytes.left(1024);
+    const bool little = head.startsWith("\xFF\xFE"), big = head.startsWith("\xFE\xFF");
+    if (!little && !big) return head;
+    QString text;
+    for (qsizetype at = 2; at + 1 < head.size(); at += 2) {
+        const quint8 a = quint8(head[at]), b = quint8(head[at + 1]);
+        text += QChar(little ? quint16(a | (b << 8)) : quint16((a << 8) | b));
+    }
+    return text.toUtf8();
+}
+
+// What a file that is not a workbook of either kind says it is, from its first bytes, in words for the person: a page of the web or an XML spreadsheet saved with the name of a
+// workbook (`ending` is the ending of the name it has, without the dot); empty if it says neither.
+QString plainKindOfText(const QByteArray &bytes, const QString &ending = QStringLiteral("xls"))
+{
+    QByteArray head = readableHead(bytes.left(1024));
     if (head.startsWith("\xEF\xBB\xBF")) head.remove(0, 3);
     head = head.trimmed().toLower();
     if (head.isEmpty() || head[0] != '<') return QString();
     if (head.startsWith("<html") || head.startsWith("<!doctype html") || head.contains("<html"))
-        return QCoreApplication::translate("Sheet", "This file is a web page that was saved with an .xls name. This program can't open that kind of file yet.");
+        return QCoreApplication::translate("Sheet", "This file is a web page that was saved with an .%1 name. This program can't open that kind of file yet.").arg(ending);
     if (head.contains("<workbook") && head.contains("spreadsheet"))
-        return QCoreApplication::translate("Sheet", "This file is a spreadsheet written as plain text and saved with an .xls name. This program can't open that kind of file yet.");
+        return QCoreApplication::translate("Sheet", "This file is a spreadsheet written as plain text and saved with an .%1 name. This program can't open that kind of file yet.").arg(ending);
     return QString();
 }
 
@@ -2966,14 +2979,16 @@ bool Workbook::openFileWith(const QString &path, QString *error, const Limits &l
         }
         // (a web page, or text, saved with an .xls name is opened as what it is: its tables are the sheets, or its lines are the rows; a spreadsheet written as XML is told apart and refused)
         if (QFileInfo(path).suffix().compare(QLatin1String("xls"), Qt::CaseInsensitive) == 0) {
-            const bool page = wml::looksLikeHtml(head) || head.left(1024).toLower().contains("<html");
+            const QByteArray readable = readableHead(head);
+            const bool page = wml::looksLikeHtml(readable) || readable.left(1024).toLower().contains("<html");
             if (page || (plainKindOfText(head).isEmpty() && looksLikePlainText(head))) {
                 QByteArray text;
                 if (!readWholeFile(path, &text, error, limits.fileBytes)) return false;
-                return page ? openHtml(text, path, error, limits) : openDelimited(text, path, error, limits);
+                return page ? openHtml(readableHead(text), path, error, limits) : openDelimited(text, path, error, limits);
             }
         }
-        const QString kind = plainKindOfText(head);
+        const QString ending = QFileInfo(path).suffix().toLower();
+        const QString kind = plainKindOfText(head, ending.isEmpty() ? QStringLiteral("xls") : ending);
         if (!kind.isEmpty()) {
             if (error) *error = kind;
             return false;

@@ -1451,6 +1451,44 @@ private Q_SLOTS:
         QVERIFY(open("name,qty\nApples,3\n", &named, QStringLiteral("h.xlsx")) != QLatin1String("opened"));
     }
 
+    // The refusal names the ending the file really has (a web page named .xlsx or .xlsb is not "saved with an .xls name"), and a spreadsheet written as XML is refused alike in UTF-8 and in
+    // UTF-16 (either byte order); a web page in UTF-16 opens as a page, as one in UTF-8 does.
+    void aRefusedTextNamesItsEndingAndAnyLetterSizeIsAlike()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        auto open = [&](const QByteArray &bytes, const QString &name) {
+            const QString path = dir.filePath(name);
+            QFile f(path);
+            f.open(QIODevice::WriteOnly | QIODevice::Truncate);
+            f.write(bytes);
+            f.close();
+            Workbook wb;
+            QString why;
+            return wb.openFile(path, &why) ? QStringLiteral("opened") : why;
+        };
+        auto utf16 = [](const QString &text, bool little) {
+            QByteArray out = little ? QByteArray("\xFF\xFE", 2) : QByteArray("\xFE\xFF", 2);
+            for (const QChar c : text) {
+                out += char(little ? c.unicode() & 0xFF : c.unicode() >> 8);
+                out += char(little ? c.unicode() >> 8 : c.unicode() & 0xFF);
+            }
+            return out;
+        };
+        const QString page = QStringLiteral("<html><body><table><tr><td>a</td></tr></table></body></html>");
+        for (const QString &ending : {QStringLiteral("xlsx"), QStringLiteral("xlsb")}) {
+            const QString why = open(page.toUtf8(), QStringLiteral("p.") + ending);
+            QVERIFY2(why.contains(QLatin1String("web page")) && why.contains(QStringLiteral(".%1 name").arg(ending)) && !why.contains(QLatin1String(".xls name")), qPrintable(why));
+        }
+        const QString book = QStringLiteral("<?xml version=\"1.0\"?>\n<?mso-application progid=\"Excel.Sheet\"?>\n<Workbook xmlns=\"urn:schemas-x:office:spreadsheet\"><Worksheet/></Workbook>");
+        const QString inUtf8 = open(book.toUtf8(), QStringLiteral("x8.xls"));
+        QVERIFY2(inUtf8.contains(QLatin1String("written as plain text")), qPrintable(inUtf8));
+        QCOMPARE(open(utf16(book, true), QStringLiteral("xl.xls")), inUtf8);
+        QCOMPARE(open(utf16(book, false), QStringLiteral("xb.xls")), inUtf8);
+        QCOMPARE(open(utf16(page, true), QStringLiteral("pl.xls")), QStringLiteral("opened"));
+        QCOMPARE(open(utf16(page, false), QStringLiteral("pb.xls")), QStringLiteral("opened"));
+    }
+
     // A web page too deep or too large for its parser is refused in words that say so (not "no table"), under any of the page names, before the parser runs.
     void aHostileWebPageIsRefusedInWordsThatSayWhatIsWrong()
     {
