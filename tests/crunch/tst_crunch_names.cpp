@@ -383,6 +383,27 @@ private Q_SLOTS:
         QVERIFY(f.workbookXml().contains(kKeep.toUtf8()));
     }
 
+    // A name written for a block of several sheets (Sheet1:Sheet3!A1) is worked out where a formula uses it, and the formula follows the cells it stands for when one of them changes.
+    void aNameForABlockOfSeveralSheetsIsWorkedOutAndFollowsItsCells()
+    {
+        const QByteArray one = worksheet(row(1, cell(QStringLiteral("A1"), QStringLiteral("1")) + formula(QStringLiteral("B1"), QStringLiteral("SUM(Block)")) + formula(QStringLiteral("C1"), QStringLiteral("SUM(Column)"))) + row(2, cell(QStringLiteral("A2"), QStringLiteral("10"))));
+        const QByteArray two = worksheet(row(1, cell(QStringLiteral("A1"), QStringLiteral("2"))) + row(2, cell(QStringLiteral("A2"), QStringLiteral("20"))));
+        const QByteArray three = worksheet(row(1, cell(QStringLiteral("A1"), QStringLiteral("3"))) + row(2, cell(QStringLiteral("A2"), QStringLiteral("30"))));
+        EditWindow e;
+        QVERIFY(e.open(buildXlsx({one, two, three}, QByteArray(), QString(), QString(), QByteArray(), QStringList(),
+                                 QStringLiteral("<definedName name=\"Block\">Sheet1:Sheet3!$A$1</definedName><definedName name=\"Column\">Sheet1:Sheet3!$A$1:$A$2</definedName>"))));
+        crunch::EditSession *s = e.win.w.session();
+        QVERIFY(e.settle());
+        QCOMPARE(s->valueAt(0, 0, 1).number(), 6.0);
+        QCOMPARE(s->valueAt(0, 0, 2).number(), 66.0);
+        // (a cell on the middle sheet changes: the formulas on the first sheet follow)
+        e.select(QStringLiteral("A1"));
+        QVERIFY(s->type(1, 0, 0, QStringLiteral("5"), false).ok);
+        QVERIFY(e.settle());
+        QCOMPARE(s->valueAt(0, 0, 1).number(), 9.0);
+        QCOMPARE(s->valueAt(0, 0, 2).number(), 69.0);
+    }
+
     void aRenamedNameIsWrittenInTheRulesAndOtherNamesOfTheFileToo()
     {
         const QString rows = row(1, cell(QStringLiteral("A1"), QStringLiteral("5")) + cell(QStringLiteral("C1"), QStringLiteral("9")) + formula(QStringLiteral("D1"), QStringLiteral("Rate+1")));
