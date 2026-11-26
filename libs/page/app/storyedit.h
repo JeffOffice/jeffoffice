@@ -10,6 +10,8 @@
 
 #include <QTextEdit>
 #include <QTextOption>
+#include <array>
+#include <limits>
 #include <memory>
 
 namespace jp {
@@ -42,10 +44,14 @@ public:
         int start = 0, end = 0;
         QColor color;
         QTextCharFormat::UnderlineStyle style = QTextCharFormat::WaveUnderline;
+        bool operator==(const Mark &o) const { return start == o.start && end == o.end && color == o.color && style == o.style; }
     };
     void setExtraMarks(const QVector<Mark> &marks);
-    // Words of the story marked as misspelled by the Editor (the word being typed is left out), as marks.
-    QVector<Mark> spellingMarks() const;
+    // Words of the story marked as misspelled by the Editor (the word being typed is left out), as marks, for the ones that start from `from` to `to`.
+    QVector<Mark> spellingMarks(int from = 0, int to = std::numeric_limits<int>::max()) const;
+    // Counted work (for the tests): how many times the marks were made anew, and how many were made.
+    static int markRuns() { return s_markRuns; }
+    static int marksBuilt() { return s_marksBuilt; }
 
     // The bar of the commands the selection can take, shown by the words a mouse selection ends on (made when first asked for). `target` is the host's own commands.
     MiniToolbar *setMiniTarget(std::unique_ptr<MiniTarget> target);
@@ -65,6 +71,9 @@ protected:
     bool canInsertFromMimeData(const QMimeData *source) const override;
     void dropEvent(QDropEvent *e) override;
     void focusInEvent(QFocusEvent *e) override;
+    void resizeEvent(QResizeEvent *e) override;
+    void showEvent(QShowEvent *e) override;
+    void hideEvent(QHideEvent *e) override;
     void focusOutEvent(QFocusEvent *e) override;
     // Where the host has no menu of its own: the editing commands.
     void contextMenuEvent(QContextMenuEvent *e) override;
@@ -86,6 +95,10 @@ private:
     QTextOption m_option;
     bool m_syncing = false;
     QVector<Mark> m_marks;
+    int m_markVersion = 0;
+    std::array<qint64, 9> m_markKey = {};
+    static inline int s_markRuns = 0;
+    static inline int s_marksBuilt = 0;
     MiniToolbar *m_mini = nullptr;
     std::unique_ptr<MiniTarget> m_miniTarget;
 };

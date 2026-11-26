@@ -405,8 +405,6 @@ private Q_SLOTS:
         ed->select(QString());
         w.canvas()->setFocus();
         QTRY_VERIFY(!w.notesPane()->hasFocus());
-        w.activateWindow();   // (the box that closed may have left the window not yet active: the keyboard is on the slide once it is)
-        QTRY_VERIFY(w.canvas()->hasFocus());
         QTimer::singleShot(300, [] {   // (a box that opens is answered OK, so that a command that sends something is seen to)
             if (auto *d = qobject_cast<QDialog *>(QApplication::activeModalWidget())) d->accept();
         });

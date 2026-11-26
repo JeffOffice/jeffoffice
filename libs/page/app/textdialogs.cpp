@@ -640,6 +640,10 @@ void pasteSpecialDialog(QWidget *p, Editor *ed)
     if (!dlg.exec()) return;
     const int i = list->currentRow();
     if (i == 1) { ed->paste(true); return; }
+    if (i >= 2 && ed->editingStoryOnly()) {   // (the notes under a slide hold words only: no picture and no table; the words of the clipboard go in)
+        if (i == 3 || i == 2) ed->paste(true);
+        return;
+    }
     if (i == 2) {
         const QMimeData *md = QApplication::clipboard()->mimeData();
         if (md && md->hasImage()) {

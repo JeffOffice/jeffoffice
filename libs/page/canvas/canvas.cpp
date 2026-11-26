@@ -1549,6 +1549,7 @@ void Canvas::applyFormatPainter(const QString &id)
 void Canvas::mousePressEvent(QMouseEvent *e)
 {
     if (commentPress(e)) return;
+    if (m_ed->editingStoryOnly()) m_ed->endTextEdit();   // (a click on the slide ends the notes' hold on the commands, with or without a focus event)
     setFocus();
     m_pressView = e->position();
     m_pressPage = toPage(e->position());

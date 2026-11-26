@@ -2,6 +2,7 @@
 
 #include "app/editor.h"
 #include "app/minitoolbar.h"
+#include "app/spelling.h"
 
 #include <QApplication>
 #include <QContextMenuEvent>
@@ -15,6 +16,7 @@
 #include <QTextBlock>
 #include <QTextDocument>
 #include <algorithm>
+#include <array>
 
 namespace jp {
 
@@ -31,6 +33,7 @@ StoryEdit::StoryEdit(Editor *ed, QWidget *parent) : QTextEdit(parent), m_ed(ed)
     connect(this, &QTextEdit::textChanged, this, &StoryEdit::markWords);
     connect(ed, &Editor::textCursorChanged, this, &StoryEdit::followEditor);
     connect(ed, &Editor::viewChanged, this, &StoryEdit::markWords);
+    connect(verticalScrollBar(), &QScrollBar::valueChanged, this, &StoryEdit::markWords);
 }
 
 StoryEdit::~StoryEdit()
@@ -50,7 +53,8 @@ void StoryEdit::setStory(const QString &storyId)
 {
     m_id = storyId;
     std::shared_ptr<Story> found;
-    if (Document *d = m_ed->doc(); d && !storyId.isEmpty()) found = d->stories.value(storyId);
+    // Only a view that is shown has the story's document: the document has one layout and one width, and a hidden view that kept it would give its own to the one shown.
+    if (Document *d = m_ed->doc(); d && !storyId.isEmpty() && isVisibleTo(window())) found = d->stories.value(storyId);
     if (found.get() == m_story.get()) return;
     bind(found);
 }
@@ -145,32 +149,45 @@ void StoryEdit::followEditor()
 
 void StoryEdit::setExtraMarks(const QVector<Mark> &marks)
 {
+    if (marks == m_marks) return;
     m_marks = marks;
+    ++m_markVersion;
     markWords();
 }
 
-QVector<StoryEdit::Mark> StoryEdit::spellingMarks() const
+QVector<StoryEdit::Mark> StoryEdit::spellingMarks(int from, int to) const
 {
     QVector<Mark> out;
     if (!m_story) return out;
     const bool typing = isTarget() && !m_ed->cursor().hasSelection();
     const int at = typing ? m_ed->cursor().position() : -1;
-    for (const auto &m : m_ed->misspelledIn(m_id)) {
-        if (at >= m.first && at <= m.second) continue;   // (the word still being typed is not flagged)
-        out.push_back(Mark{m.first, m.second, QColor(220, 40, 40), QTextCharFormat::SpellCheckUnderline});
+    const QVector<QPair<int, int>> all = m_ed->misspelledIn(m_id);   // (in order)
+    auto it = std::lower_bound(all.cbegin(), all.cend(), from, [](const QPair<int, int> &m, int f) { return m.second < f; });
+    for (; it != all.cend() && it->first <= to; ++it) {
+        if (at >= it->first && at <= it->second) continue;   // (the word still being typed is not flagged)
+        out.push_back(Mark{it->first, it->second, QColor(220, 40, 40), QTextCharFormat::SpellCheckUnderline});
     }
     return out;
 }
 
+// The marks of the words in view (and a screenful above and below): the work of a key does not grow with the length of the story. It is done once for a state (a key that
+// moves the caret, changes the words, and ends a step asks for it several times).
 void StoryEdit::markWords()
 {
     if (m_syncing) return;
+    const int margin = 400;
+    const int viewTop = cursorForPosition(QPoint(0, -margin)).block().position();
+    const QTextBlock lastBlock = cursorForPosition(QPoint(viewport()->width(), std::max(viewport()->height(), margin) + margin)).block();
+    const int viewEnd = lastBlock.position() + lastBlock.length();
+    const bool typing = isTarget() && !m_ed->cursor().hasSelection();
+    const std::array<qint64, 9> key = {qint64(reinterpret_cast<quintptr>(document())), qint64(document()->revision()), m_story ? qint64(m_story->serial) : -1, qint64(m_markVersion),
+                                       qint64(typing ? m_ed->cursor().position() : -1), qint64(viewTop), qint64(viewEnd), qint64(m_ed->view.spelling), qint64(spellingRevision())};
+    if (key == m_markKey) return;
+    m_markKey = key;
+    ++s_markRuns;
     QList<QTextEdit::ExtraSelection> marks;
-    QVector<Mark> all = spellingMarks();
-    all += m_marks;
-    const int last = document()->characterCount() - 1;
-    for (const Mark &m : all) {
-        if (m.start < 0 || m.end > last || m.end <= m.start) continue;
+    auto add = [&](const Mark &m, int last) {
+        if (m.start < 0 || m.end > last || m.end <= m.start) return;
         QTextEdit::ExtraSelection x;
         x.cursor = QTextCursor(document());
         x.cursor.setPosition(m.start);
@@ -178,7 +195,13 @@ void StoryEdit::markWords()
         x.format.setUnderlineStyle(m.style);
         x.format.setUnderlineColor(m.color);
         marks << x;
-    }
+    };
+    const int last = document()->characterCount() - 1;
+    const QVector<Mark> spelling = spellingMarks(viewTop, viewEnd);
+    for (const Mark &m : spelling) add(m, last);
+    for (const Mark &m : m_marks)
+        if (m.end >= viewTop && m.start <= viewEnd) add(m, last);
+    s_marksBuilt += int(marks.size());
     setExtraSelections(marks);
 }
 
@@ -283,6 +306,24 @@ void StoryEdit::inputMethodEvent(QInputMethodEvent *e)
 void StoryEdit::insertFromMimeData(const QMimeData *) {}
 bool StoryEdit::canInsertFromMimeData(const QMimeData *) const { return false; }
 void StoryEdit::dropEvent(QDropEvent *e) { e->ignore(); }
+
+void StoryEdit::showEvent(QShowEvent *e)
+{
+    QTextEdit::showEvent(e);
+    setStory(m_id);   // (the story's document takes this view's width)
+}
+
+void StoryEdit::hideEvent(QHideEvent *e)
+{
+    QTextEdit::hideEvent(e);
+    if (!isVisibleTo(window())) bind(nullptr);   // (the document is let go, with the sizes it had)
+}
+
+void StoryEdit::resizeEvent(QResizeEvent *e)
+{
+    QTextEdit::resizeEvent(e);
+    markWords();
+}
 
 void StoryEdit::focusInEvent(QFocusEvent *e)
 {

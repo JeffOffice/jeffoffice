@@ -2007,6 +2007,223 @@ private Q_SLOTS:
         QCOMPARE(notesStory(ed)->toPlainText(), QStringLiteral("alpha zz gamma"));   // (the selected word is replaced)
     }
 
+    // The window becoming read-only with the caret in the notes (and a word typed a moment before) ends the notes edit: the next ribbon command cannot crash.
+    void aWindowThatBecomesReadOnlyEndsAnEditInTheNotes()
+    {
+        DeckWindow w;
+        NotesPane *pane = notesWith(w, QStringLiteral("alpha beta gamma"));
+        Editor *ed = w.editor();
+        QTest::mouseDClick(pane->viewport(), Qt::LeftButton, Qt::NoModifier, inNotes(pane, 6));
+        QVERIFY(ed->editingStoryOnly());
+        w.setReadOnly(true);
+        QVERIFY(!ed->isEditingText());
+        ed->typeText(QStringLiteral("zz"));
+        ed->toggleBold();
+        w.act(QStringLiteral("fmt.bold"))->trigger();
+        QCOMPARE(notesStory(ed)->toPlainText(), QStringLiteral("alpha beta gamma"));
+        w.setReadOnly(false);
+    }
+
+    // A click on the slide ends the notes' hold on the commands without any focus event (the window may not be the active one): the ribbon and Translate act on the slide.
+    void aClickOnTheSlideEndsTheNotesHoldOnTheCommands()
+    {
+        DeckWindow w;
+        NotesPane *pane = notesWith(w, QStringLiteral("alpha beta gamma"));
+        Editor *ed = w.editor();
+        QTest::mouseDClick(pane->viewport(), Qt::LeftButton, Qt::NoModifier, inNotes(pane, 6));
+        QVERIFY(ed->editingStoryOnly());
+        QTest::mouseClick(w.canvas()->viewport(), Qt::LeftButton, Qt::NoModifier, QPoint(5, 5));
+        QVERIFY(!ed->editingStoryOnly());
+        // The same for a selection made by the program on the slide, and for none.
+        QTest::mouseDClick(pane->viewport(), Qt::LeftButton, Qt::NoModifier, inNotes(pane, 6));
+        QVERIFY(ed->editingStoryOnly());
+        ed->select(QString());
+        QVERIFY(!ed->editingStoryOnly());
+    }
+
+    // Each text command of the ribbon and the editor acts on the words selected in the notes, and none of them reaches the box that is on the slide.
+    void textCommandsInTheNotesNeverReachTheSlide()
+    {
+        DeckWindow w;
+        NotesPane *pane = notesWith(w, QStringLiteral("alpha beta gamma"));
+        Editor *ed = w.editor();
+        auto box = std::static_pointer_cast<TextItem>(ed->newTextBox(QRectF(72, 72, 400, 100), QStringLiteral("slide words")));
+        ed->addItem(box);
+        ed->undoStack()->clear();
+        auto slide = [&] {
+            QByteArray out;
+            for (const ItemPtr &it : ed->doc()->pages[0]->items) {
+                out += QJsonDocument(it->toJson()).toJson(QJsonDocument::Compact);
+                if (it->type() == ItemType::Text) out += marked(ed->doc()->storyDoc(static_cast<TextItem *>(it.get())->storyId)).toUtf8();
+            }
+            return out;
+        };
+        const QByteArray before = slide();
+        ed->select(box->id);   // (the slide's box is the selection, until the notes are clicked)
+        QTest::mouseDClick(pane->viewport(), Qt::LeftButton, Qt::NoModifier, inNotes(pane, 6));
+        QCOMPARE(pane->textCursor().selectedText(), QStringLiteral("beta"));
+        auto at = [&] {
+            QTextCursor c(notesStory(ed));
+            c.setPosition(7);
+            return c.charFormat();
+        };
+        run(w, QStringLiteral("fmt.underline"));
+        QVERIFY(at().fontUnderline());
+        QCOMPARE(slide(), before);
+        run(w, QStringLiteral("para.numbers"));
+        QVERIFY(notesStory(ed)->firstBlock().textList());
+        QCOMPARE(slide(), before);
+        run(w, QStringLiteral("para.indentInc"));
+        const double deeper = notesStory(ed)->firstBlock().blockFormat().leftMargin() + notesStory(ed)->firstBlock().blockFormat().indent();
+        run(w, QStringLiteral("para.indentDec"));
+        QVERIFY(notesStory(ed)->firstBlock().blockFormat().leftMargin() + notesStory(ed)->firstBlock().blockFormat().indent() < deeper);
+        QCOMPARE(slide(), before);
+        ed->setFontFamily(QStringLiteral("Courier New"));
+        QVERIFY(at().fontFamilies().toStringList().value(0) == QLatin1String("Courier New"));
+        ed->setFontSize(33);
+        QCOMPARE(at().fontPointSize(), 33.0);
+        ed->setTextColor(ColorRef::rgb(QColor(200, 10, 10)));
+        QCOMPARE(at().stringProperty(tp::ColorRefP), ColorRef::rgb(QColor(200, 10, 10)).toString());
+        QCOMPARE(slide(), before);
+        withDialog([&] { w.act(QStringLiteral("insert.link"))->trigger(); }, QStringLiteral("linkDialog"), [&](QDialog *dlg) {
+            dlg->findChild<QLineEdit *>(QStringLiteral("linkAddress"))->setText(QStringLiteral("https://example.com/a"));
+        });
+        QCOMPARE(at().anchorHref(), QStringLiteral("https://example.com/a"));
+        QCOMPARE(slide(), before);
+    }
+
+    // A huge paste into the notes is the same work as into a text box (one step, every character), and a picture or a table offered by the clipboard puts no object in the notes.
+    void aHugePasteGoesIntoTheNotesAsIntoATextBoxAndNoObjectDoes()
+    {
+        DeckWindow w;
+        NotesPane *pane = notesWith(w, QString());
+        Editor *ed = w.editor();
+        auto *big = new QMimeData;
+        big->setText(QString(300000, QLatin1Char('x')));
+        QApplication::clipboard()->setMimeData(big);
+        QTest::mouseClick(pane->viewport(), Qt::LeftButton, Qt::NoModifier, QPoint(5, 5));
+        QVERIFY(ed->editingStoryOnly());
+        w.act(QStringLiteral("edit.paste"))->trigger();
+        const int inNotesLength = notesStory(ed)->characterCount();
+        QCOMPARE(ed->undoStack()->count(), 1);
+        auto box = std::static_pointer_cast<TextItem>(ed->newTextBox(QRectF(72, 72, 400, 100), QString()));
+        ed->addItem(box);
+        ed->beginTextEdit(box->id, 0);
+        w.act(QStringLiteral("edit.paste"))->trigger();
+        QCOMPARE(inNotesLength, ed->doc()->storyDoc(box->storyId)->characterCount());
+        ed->endTextEdit();
+        // A picture and a table: the notes keep words only.
+        QImage img(40, 30, QImage::Format_ARGB32);
+        img.fill(Qt::red);
+        auto *rich = new QMimeData;
+        rich->setImageData(img);
+        rich->setHtml(QStringLiteral("<table><tr><td>cell</td></tr></table>"));
+        QApplication::clipboard()->setMimeData(rich);
+        auto objects = [&] { return int(ed->doc()->pages[0]->items.size()); };
+        const int items = objects();
+        QTest::mouseClick(pane->viewport(), Qt::LeftButton, Qt::NoModifier, QPoint(5, 5));
+        QVERIFY(ed->editingStoryOnly());
+        for (const int row : {0, 1, 2}) {
+            QTest::mouseClick(pane->viewport(), Qt::LeftButton, Qt::NoModifier, QPoint(5, 5));   // (the box that opens takes the caret away)
+            QVERIFY(ed->editingStoryOnly());
+            withDialog([&w] { w.act(QStringLiteral("edit.pasteSpecial"))->trigger(); }, QStringLiteral("pasteSpecialDialog"), [row](QDialog *d) {
+                auto *list = d->findChild<QListWidget *>(QStringLiteral("pasteSpecialList"));
+                if (list && row < list->count()) list->setCurrentRow(row);
+            });
+            QVERIFY2(objects() == items, qPrintable(QStringLiteral("row %1 added %2, editing=%3").arg(row).arg(objects() - items).arg(ed->editingStoryOnly())));
+            QVERIFY2(!notesStory(ed)->toPlainText().contains(QChar::ObjectReplacementCharacter), "no picture in the notes");
+        }
+        w.act(QStringLiteral("edit.paste"))->trigger();
+        QCOMPARE(objects(), items);
+        QApplication::clipboard()->clear();
+    }
+
+    // The right-click menu in the notes offers the editing commands, Paste Options, and the text commands.
+    void theRightClickMenuInTheNotesHasTheEditingCommands()
+    {
+        DeckWindow w;
+        NotesPane *pane = notesWith(w, QStringLiteral("alpha beta gamma"));
+        QStringList seen;
+        int tries = 0;
+        QTimer poll;
+        poll.setInterval(20);
+        connect(&poll, &QTimer::timeout, &poll, [&] {
+            if (auto *menu = qobject_cast<QMenu *>(QApplication::activePopupWidget())) {
+                for (QAction *a : menu->actions()) seen << a->text();
+                menu->close();
+                poll.stop();
+            } else if (++tries > 400) {
+                poll.stop();
+                if (auto *any = QApplication::activePopupWidget()) any->close();
+            }
+        });
+        poll.start();
+        QContextMenuEvent ev(QContextMenuEvent::Mouse, inNotes(pane, 6), pane->viewport()->mapToGlobal(inNotes(pane, 6)));
+        QApplication::sendEvent(pane->viewport(), &ev);
+        QVERIFY2(!seen.isEmpty(), "the menu opened");
+        for (const QString &want : {QStringLiteral("Cut"), QStringLiteral("Copy"), QStringLiteral("Paste"), QStringLiteral("Paste Options"), QStringLiteral("Numbering")})
+            QVERIFY2(std::any_of(seen.cbegin(), seen.cend(), [&](const QString &t) { return QString(t).remove(QLatin1Char('&')).startsWith(want); }), qPrintable(want + QStringLiteral(" in ") + seen.join(QLatin1Char('|'))));
+    }
+
+    // Normal view, Notes Page view, an edit, and Normal view again: each view that is shown lays the notes out at its own width (the hidden one does not hold the document), and
+    // the other way round.
+    void theViewThatIsShownLaysTheNotesOutAtItsOwnWidth()
+    {
+        DeckWindow w;
+        NotesPane *pane = notesWith(w, QStringLiteral("alpha beta gamma delta epsilon zeta eta theta iota kappa"));
+        Editor *ed = w.editor();
+        auto widthOf = [&](QTextEdit *e) { return int(std::lround(e->viewport()->width() - 2 * e->document()->documentMargin())); };
+        QTRY_COMPARE(int(std::lround(notesStory(ed)->textWidth())), widthOf(pane));
+        w.act(QStringLiteral("view.notesPage"))->trigger();
+        NotesPane *box = w.notesPageView()->notesBox();
+        QTRY_VERIFY(box->isVisible());
+        QTRY_COMPARE(int(std::lround(notesStory(ed)->textWidth())), widthOf(box));
+        QVERIFY(box->storyId() == pane->storyId() && !box->storyId().isEmpty());
+        QVERIFY2(pane->document() != notesStory(ed), "the pane that is out of sight does not hold the document");
+        box->setFocus();
+        QTest::keyClicks(box, QStringLiteral(" more"));
+        w.act(QStringLiteral("view.normal"))->trigger();
+        QTRY_VERIFY(pane->isVisible());
+        QVERIFY(pane->document() == notesStory(ed) && box->document() != notesStory(ed));
+        QTRY_COMPARE(int(std::lround(notesStory(ed)->textWidth())), widthOf(pane));
+        QVERIFY(widthOf(pane) != widthOf(box));
+        w.act(QStringLiteral("view.notesPage"))->trigger();
+        QTRY_COMPARE(int(std::lround(notesStory(ed)->textWidth())), widthOf(box));
+        w.act(QStringLiteral("view.normal"))->trigger();
+    }
+
+    // The work of a key in the notes does not grow with the length of the notes: the paragraphs checked for spelling, the marks made, and the sweeps of the commands.
+    void theWorkOfAKeyInALongNoteDoesNotGrowWithTheNote()
+    {
+        auto perKey = [&](int paragraphs) -> QList<int> {
+            DeckWindow w;
+            QStringList lines;
+            for (int i = 0; i < paragraphs; ++i) lines << QStringLiteral("line %1 has wrongg words here").arg(i);
+            NotesPane *pane = notesWith(w, lines.join(QLatin1Char('\n')));
+            Editor *ed = w.editor();
+            ed->view.spelling = true;
+            QTest::mouseClick(pane->viewport(), Qt::LeftButton, Qt::NoModifier, QPoint(5, 5));
+            if (!ed->editingStoryOnly()) return {};
+            QTest::keyClicks(pane, QStringLiteral("a"));   // (the first key: the story's paragraphs are all checked once)
+            for (int i = 0; i < 6; ++i) QCoreApplication::processEvents();
+            const int blocks0 = Editor::spellBlocksChecked(), runs0 = StoryEdit::markRuns(), built0 = StoryEdit::marksBuilt(), sweeps0 = DeckWindow::actionSweeps();
+            const int keys = 10;
+            for (int i = 0; i < keys; ++i) {
+                QTest::keyClicks(pane, QStringLiteral("b"));
+                for (int k = 0; k < 6; ++k) QCoreApplication::processEvents();
+            }
+            return QList<int>{Editor::spellBlocksChecked() - blocks0, StoryEdit::markRuns() - runs0, StoryEdit::marksBuilt() - built0, DeckWindow::actionSweeps() - sweeps0};
+        };
+        const QList<int> small = perKey(20), large = perKey(5000);
+        QVERIFY2(small.size() == 4 && large.size() == 4, "ran");
+        // Typing in one paragraph checks that one paragraph (at most two with the one the caret was in), makes the marks once for the key, and sweeps the commands not at all.
+        QVERIFY2(large[0] <= 10 * 2, qPrintable(QString::number(large[0])));
+        QVERIFY2(large[1] <= 10 * 3, qPrintable(QString::number(large[1])));
+        QVERIFY2(large[2] <= small[2] + 10 * 6 * 2 && large[2] < 400, qPrintable(QString::number(large[2])));   // (the marks of the words in view, not of 5,000 paragraphs)
+        QVERIFY2(large[3] == 0, qPrintable(QString::number(large[3])));
+        QVERIFY2(large[0] <= small[0] + 2, "paragraphs checked do not grow with the note");
+    }
+
     // While the caret is in the notes, the commands that make no sense there (the pictures, shapes, and tables of Insert, text art, shadow, and the frame's text direction
     // and columns) are off, and come back when the caret goes back to the slide.
     void commandsThatMakeNoSenseInTheNotesAreOff()

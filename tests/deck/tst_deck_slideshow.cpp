@@ -1457,6 +1457,32 @@ private Q_SLOTS:
         QTRY_VERIFY(!w.slideShow());
     }
 
+    // Words typed in the notes pane and not yet closed into a step are closed when the show starts: they are one step of Undo of their own, the pane holds no typing, and
+    // the show's notes hold the words.
+    void startingTheShowClosesTheWordsTypedInThePane()
+    {
+        DeckWindow w;
+        Editor *ed = w.editor();
+        w.newSlide();
+        ed->setCurrentPage(0);
+        QTest::keyClicks(w.notesPane(), QStringLiteral("Spoken words"));
+        QVERIFY(w.notesPane()->hasTyping());
+        const int steps = ed->undoStack()->count();
+        w.act("show.presenterView")->trigger();
+        SlideShow *show = w.slideShow();
+        QVERIFY(show && show->presenterView());
+        QVERIFY(!w.notesPane()->hasTyping());
+        QCOMPARE(ed->undoStack()->count(), steps + 1);
+        QPlainTextEdit *edit = show->presenterView()->findChild<QPlainTextEdit *>(QStringLiteral("notesText"));
+        QVERIFY(edit);
+        QTRY_COMPARE(edit->toPlainText(), QStringLiteral("Spoken words"));
+        QCOMPARE(deck::notesText(*ed->doc(), *ed->doc()->pages[0]), QStringLiteral("Spoken words"));
+        show->close();
+        QTRY_VERIFY(!w.slideShow());
+        ed->undo();
+        QCOMPARE(deck::notesText(*ed->doc(), *ed->doc()->pages[0]), QString());
+    }
+
     // With the notes box holding the keyboard, Page Down and Page Up still move the show; letters and arrows stay in the text; a click on Next
     // gives the keyboard back to the show.
     void presenterViewNotesKeepTheShowsPageKeys()

@@ -189,6 +189,8 @@ void DeckWindow::setView(View view)
     else if (view == View::NotesPage || notesMasters) m_notesPage->setFocus();
     else if (was != View::Normal) m_canvas->setFocus(Qt::OtherFocusReason);
     refreshNotesMasterActions();
+    m_notesPage->reload();   // (only the pane that is shown has the notes' document; the other lets it go)
+    m_notes->reload();
     refreshUi();
 }
 

@@ -34,6 +34,7 @@
 #include "text/textprops.h"
 
 #include <QAction>
+#include <array>
 #include <QApplication>
 #include <QClipboard>
 #include <QCloseEvent>
@@ -434,9 +435,20 @@ void DeckWindow::refreshUi()
     for (const char *id : {"fmt.bold", "fmt.italic", "fmt.underline", "fmt.strike", "fmt.shadow", "fmt.grow", "fmt.shrink", "fmt.clear", "para.bullets", "para.numbers",
                            "fmt.alignLeft", "fmt.alignCenter", "fmt.alignRight", "fmt.justify", "para.indentDec", "para.indentInc"})
         act(id)->setEnabled(textish);
-    for (QAction *a : m_actions)
-        if (a->objectName().startsWith(QLatin1String("ls.")) || a->objectName().startsWith(QLatin1String("case.")) || a->objectName().startsWith(QLatin1String("spacing.")))
-            a->setEnabled(textish);
+    // The commands that follow only a few states are gone through when one of those changes, not on every key.
+    const Item *one0 = editing ? d->item(ed->textTarget().itemId) : ed->single();
+    const bool box0 = one0 && (one0->type() == ItemType::Text || one0->type() == ItemType::Shape);
+    const std::array<int, 5> sweepKey = {int(textish), int(box0), int(ed->editingStoryOnly()), int(m_view), int(reinterpret_cast<quintptr>(d) & 0x7fffffff)};
+    const bool sweep = sweepKey != m_sweepKey || m_actions.size() != m_sweepCount;
+    if (sweep) {
+        m_sweepKey = sweepKey;
+        m_sweepCount = int(m_actions.size());
+        ++s_actionSweeps;
+    }
+    if (sweep)
+        for (QAction *a : m_actions)
+            if (a->objectName().startsWith(QLatin1String("ls.")) || a->objectName().startsWith(QLatin1String("case.")) || a->objectName().startsWith(QLatin1String("spacing.")))
+                a->setEnabled(textish);
     act("fmt.bold")->setChecked(cf.fontWeight() >= QFont::DemiBold);
     act("fmt.italic")->setChecked(cf.fontItalic());
     act("fmt.underline")->setChecked(cf.underlineStyle() != QTextCharFormat::NoUnderline);
@@ -456,9 +468,10 @@ void DeckWindow::refreshUi()
     // Text Direction, Align Text, and Columns read the box being typed in or the selected one.
     Item *one = editing ? d->item(ed->textTarget().itemId) : ed->single();
     const bool box = one && (one->type() == ItemType::Text || one->type() == ItemType::Shape);
-    for (QAction *a : m_actions)
-        if (a->objectName().startsWith(QLatin1String("valign.")) || a->objectName().startsWith(QLatin1String("cols.")) || a->objectName().startsWith(QLatin1String("tb.dir")))
-            a->setEnabled(box);
+    if (sweep)
+        for (QAction *a : m_actions)
+            if (a->objectName().startsWith(QLatin1String("valign.")) || a->objectName().startsWith(QLatin1String("cols.")) || a->objectName().startsWith(QLatin1String("tb.dir")))
+                a->setEnabled(box);
     if (auto *t = dynamic_cast<TextItem *>(one)) {
         act("tb.dirHorizontal")->setChecked(!t->vertical);
         act("tb.dirVertical")->setChecked(t->vertical && !t->turnedBack);
@@ -493,18 +506,25 @@ void DeckWindow::refreshUi()
         static const QSet<QString> wordsOnly = {QStringLiteral("insert.link"), QStringLiteral("insert.symbol"), QStringLiteral("insert.dateTime"), QStringLiteral("insert.slideNumberField"),
                                                 QStringLiteral("insert.fieldTitle"), QStringLiteral("insert.fieldAuthor"), QStringLiteral("insert.fieldFileName"), QStringLiteral("insert.fieldSlideCount")};
         const bool inNotes = ed->editingStoryOnly();
-        for (QAction *a : m_actions) {
-            const QString n = a->objectName();
-            const bool off = inNotes && ((n.startsWith(QLatin1String("insert.")) && !wordsOnly.contains(n)) || n == QLatin1String("fmt.shadow") || n.startsWith(QLatin1String("tbl.")) ||
-                                         n.startsWith(QLatin1String("pic.")) || n.startsWith(QLatin1String("shape.")));
-            if (off) {
+        if (sweep) {
+            m_notesTargets.clear();
+            for (QAction *a : m_actions) {
+                const QString n = a->objectName();
+                if ((n.startsWith(QLatin1String("insert.")) && !wordsOnly.contains(n)) || n == QLatin1String("fmt.shadow") || n.startsWith(QLatin1String("tbl.")) || n.startsWith(QLatin1String("pic.")) ||
+                    n.startsWith(QLatin1String("shape.")))
+                    m_notesTargets << a;
+            }
+        }
+        if (inNotes) {
+            for (QAction *a : m_notesTargets)
                 if (a->isEnabled()) {
                     a->setEnabled(false);
-                    m_notesOff.insert(n);
+                    m_notesOff.insert(a->objectName());
                 }
-            } else if (m_notesOff.remove(n)) {
-                a->setEnabled(true);
-            }
+        } else if (!m_notesOff.isEmpty()) {
+            for (const QString &n : std::as_const(m_notesOff))
+                if (QAction *a = m_actions.value(n)) a->setEnabled(true);
+            m_notesOff.clear();
         }
     }
     // The view, and the slide size, which the canvas fits again when it changed.

@@ -3,6 +3,7 @@
 // edited with its notes below, and the status bar.
 
 #include "app/appwindow.h"
+#include <array>
 #include "app/compatdialog.h"
 #include "app/lossywarning.h"
 #include "app/missingfonts.h"
@@ -115,6 +116,7 @@ public:
     SlidesPane *slidesPane() const { return m_slides; }
     // Brings the commands up to date with the selection at once (the window does it a moment after a change; a test does not wait for the moment).
     void refreshNow() { refreshUi(); }
+    static int actionSweeps() { return s_actionSweeps; }   // times refreshUi() went through every command (for the tests)
     NotesPane *notesPane() const { return m_notes; }
     CommentsPane *commentsPane() const { return m_comments; }
     SlideShow *slideShow() const { return m_show; }
@@ -657,6 +659,10 @@ private:
     Ribbon *m_ribbon = nullptr;
     SlidesPane *m_slides = nullptr;
     NotesPane *m_notes = nullptr;
+    std::array<int, 5> m_sweepKey = {-1, -1, -1, -1, -1};   // what the sweeps over all the commands in refreshUi() were last made for
+    int m_sweepCount = 0;
+    static inline int s_actionSweeps = 0;
+    QList<QAction *> m_notesTargets;   // the commands the notes turn off
     QSet<QString> m_notesOff;   // the commands turned off while the caret is in the notes (turned on again when it leaves)
     CommentsPane *m_comments = nullptr;
     DeckFileScreen *m_fileScreen = nullptr;
