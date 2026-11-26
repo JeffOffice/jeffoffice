@@ -2927,11 +2927,11 @@ private Q_SLOTS:
     }
 
     // Every limit is looked at before anything is changed: a choice that does not fit leaves the document as it was.
-    // A page the parser is not given (it nests past the limit, or is too much work) is pasted as its plain text, the person is told, and the page is never parsed; each way of pasting does the same.
+    // A page the parser is not given (it holds more parts than a page may) is pasted as its plain text, the person is told, and the page is never parsed; each way of pasting does the same.
     void aPastedPageTheParserIsNotGivenIsPastedAsItsText()
     {
         QString deep;
-        for (int i = 0; i < office::wml::kMostPageDepth + 1; ++i) deep += QStringLiteral("<b_x>");
+        for (int i = 0; i < office::wml::kMostHtmlParts + 1; ++i) deep += QStringLiteral("<br>");
         deep += QStringLiteral("page words");
         const auto paste = [&](const QString &html, const QString &text, const std::function<void(WriteWindow &)> &how, QStringList *notes) {
             WriteWindow w;

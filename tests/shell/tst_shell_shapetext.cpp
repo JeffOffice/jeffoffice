@@ -49,7 +49,7 @@ private Q_SLOTS:
         e.begin(story(), QRect(20, 20, 200, 100), ShapeTextLook());
         e.selectAll();
         QString deep;
-        for (int i = 0; i < office::wml::kMostPageDepth + 1; ++i) deep += QStringLiteral("<b_x>");
+        for (int i = 0; i < office::wml::kMostHtmlParts + 1; ++i) deep += QStringLiteral("<br>");
         deep += QStringLiteral("page words");
         auto *mime = new QMimeData;
         mime->setHtml(deep);

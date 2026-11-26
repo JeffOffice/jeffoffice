@@ -115,12 +115,12 @@ private Q_SLOTS:
         QVERIFY(said.contains(QStringLiteral("nothing was pasted")));
     }
 
-    // A page the parser is not given (it nests past the limit, or is too much work) is pasted as its plain text with a word of why, never parsed, and never "no spreadsheet cells": by Ctrl+V, in a
+    // A page the parser is not given (it holds more parts than a page may) is pasted as its plain text with a word of why, never parsed, and never "no spreadsheet cells": by Ctrl+V, in a
     // text being typed, and by the Paste Cells command (whose cells come from the text, when it has them).
     void aPastedPageTheParserIsNotGivenIsPastedAsItsText()
     {
         QString deep;
-        for (int i = 0; i < jp::office::wml::kMostPageDepth + 1; ++i) deep += QStringLiteral("<b_x>");
+        for (int i = 0; i < jp::office::wml::kMostHtmlParts + 1; ++i) deep += QStringLiteral("<br>");
         deep += QStringLiteral("page words");
         auto setClip = [&](const QString &html, const QString &text) {
             auto *mime = new QMimeData;
@@ -384,7 +384,7 @@ private Q_SLOTS:
             QVERIFY2(boldWord(QStringLiteral("Bolded")), qPrintable(html));   // (the rich text, not the plain words)
             ed->undo();
         }
-        // A page that asks the parser for a huge grid is its plain words, with a word of why.
+        // A page that asks for a huge grid is its plain words, with a word of why.
         QString said;
         QObject::connect(ed, &jp::Editor::status, &w, [&said](const QString &t) { said = t; });
         setHtml(QStringLiteral("<p>hello</p>") + QStringLiteral("<table><tr><td colspan=\"5000\">x</td></tr>").repeated(1) + QStringLiteral("<tr><td colspan=\"5000\">x</td></tr>").repeated(400) + QStringLiteral("</table>"), QStringLiteral("hello"));
@@ -393,7 +393,7 @@ private Q_SLOTS:
         ed->paste();
         QCOMPARE(count(&b1), 0);
         QCOMPARE(b1, b0 + 1);
-        QVERIFY2(said.contains(QStringLiteral("plain text was pasted")), qPrintable(said));   // (the page guard says it first: a grid that size is more work than a page may ask for)
+        QVERIFY2(said.contains(QStringLiteral("too big to paste as a table")), qPrintable(said));   // (the guard cuts each span to the cells its table has, so the page is fine for the parser: the table's own limit says it)
         QVERIFY(!boldWord(QStringLiteral("hello")));
     }
 

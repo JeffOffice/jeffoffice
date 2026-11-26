@@ -15,6 +15,14 @@
 #include "core/fonts.h"
 
 #include <QBuffer>
+#include <QTextBlock>
+#include <QTextCursor>
+#include <QTextDocument>
+#include <QTextFragment>
+#include <QTextList>
+#include <QTextTable>
+#include <QMap>
+#include <functional>
 #include <QMimeData>
 #include <QCoreApplication>
 #include <QFile>
@@ -88,6 +96,70 @@ int count(const QByteArray &hay, const QByteArray &needle)
     return n;
 }
 
+} // namespace
+
+namespace {
+// What a page is made of once the page's parser has read it: its words and how many of each look it has.
+struct Look {
+    QString text;
+    QMap<QString, int> n;
+    bool operator==(const Look &o) const { return text == o.text && n == o.n; }
+};
+Look lookOf(const QString &html)
+{
+    QTextDocument d;
+    d.setUndoRedoEnabled(false);
+    d.setHtml(html);
+    Look l;
+    l.text = d.toPlainText();
+    for (QTextBlock b = d.begin(); b.isValid(); b = b.next()) {
+        ++l.n[QStringLiteral("blocks")];
+        if (b.blockFormat().hasProperty(QTextFormat::LayoutDirection)) ++l.n[QStringLiteral("directed")];
+        if (b.blockFormat().layoutDirection() == Qt::RightToLeft) ++l.n[QStringLiteral("right to left")];
+        if (b.textList()) ++l.n[QStringLiteral("list items")];
+        if (b.blockFormat().alignment() & (Qt::AlignRight | Qt::AlignHCenter)) ++l.n[QStringLiteral("aligned")];
+        for (auto it = b.begin(); !it.atEnd(); ++it) {
+            const QTextCharFormat c = it.fragment().charFormat();
+            if (c.fontWeight() >= QFont::Bold) ++l.n[QStringLiteral("bold")];
+            if (c.fontItalic()) ++l.n[QStringLiteral("italic")];
+            if (c.fontUnderline()) ++l.n[QStringLiteral("underline")];
+            if (c.fontStrikeOut()) ++l.n[QStringLiteral("strike")];
+            if (c.foreground().style() != Qt::NoBrush) ++l.n[QStringLiteral("color")];
+            if (c.background().style() != Qt::NoBrush) ++l.n[QStringLiteral("text background")];
+            if (!c.fontFamilies().toStringList().isEmpty()) ++l.n[QStringLiteral("font family")];
+            if (c.fontPointSize() > 0) ++l.n[QStringLiteral("font size")];
+            if (c.isAnchor()) ++l.n[QStringLiteral("link")];
+            if (c.isImageFormat()) ++l.n[QStringLiteral("picture")];
+            if (c.verticalAlignment() != QTextCharFormat::AlignNormal) ++l.n[QStringLiteral("sub or super")];
+        }
+    }
+    std::function<void(QTextFrame *)> walk = [&](QTextFrame *f) {
+        for (auto it = f->begin(); !it.atEnd(); ++it) {
+            auto *table = qobject_cast<QTextTable *>(it.currentFrame());
+            if (!table) continue;
+            ++l.n[QStringLiteral("tables")];
+            l.n[QStringLiteral("table cells")] += table->rows() * table->columns();
+            if (table->format().border() > 0) ++l.n[QStringLiteral("bordered tables")];
+            for (int r = 0; r < table->rows(); ++r)
+                for (int c = 0; c < table->columns(); ++c) {
+                    const QTextTableCell cell = table->cellAt(r, c);
+                    if (cell.row() != r || cell.column() != c) continue;
+                    if (cell.rowSpan() > 1) ++l.n[QStringLiteral("row spans")];
+                    if (cell.columnSpan() > 1) ++l.n[QStringLiteral("column spans")];
+                    if (cell.format().background().style() != Qt::NoBrush) ++l.n[QStringLiteral("cell backgrounds")];
+                }
+            walk(table);
+        }
+    };
+    walk(d.rootFrame());
+    return l;
+}
+QString lookText(const Look &l)
+{
+    QString s;
+    for (auto it = l.n.begin(); it != l.n.end(); ++it) s += it.key() + QLatin1Char('=') + QString::number(it.value()) + QLatin1Char(' ');
+    return s;
+}
 } // namespace
 
 class WmlTests : public QObject {
@@ -2073,7 +2145,7 @@ private Q_SLOTS:
         Document e;
         QVERIFY2(readDocx(htmlPackage(nest + "<w:p/>", htmlStyles(), htmlNumbering()), &e, &err), qPrintable(err));
         const QString deep = QString::fromUtf8(documentToHtml(e, HtmlOptions()));
-        QVERIFY(deep.count(QLatin1String("<table")) <= kMostPageDepth);
+        QVERIFY(deep.count(QLatin1String("<table")) <= kMostHtmlDepth);
         QVERIFY(!deep.contains(QLatin1String("deep")));
     }
 
@@ -3547,255 +3619,578 @@ private Q_SLOTS:
         QCOMPARE(t->rows[0][0].size(), kMostClipCellChars);
     }
 
-    // ---- a hostile page: the page's parser takes time that grows with the square of the depth, so depth and size are refused before it runs
-    static QByteArray nestedTables(int n)
+    // ---- a web page from outside is rewritten into a small form before the page's parser sees it (htmlguard.cpp)
+    static QString repeatedText(const QString &unit, qint64 n, const QString &before = QString(), const QString &after = QString())
     {
-        QByteArray h = "<html><body>";
-        for (int i = 0; i < n; ++i) h += "<table><tr><td>";
-        h += "x";
-        for (int i = 0; i < n; ++i) h += "</td></tr></table>";
-        return h + "</body></html>";
-    }
-    static QByteArray nestedParts(const QByteArray &open, const QByteArray &close, int n)
-    {
-        QByteArray h = "<html><body><table><tr><td>a</td></tr></table>";
-        for (int i = 0; i < n; ++i) h += open;
-        h += "x";
-        for (int i = 0; i < n; ++i) h += close;
-        return h + "</body></html>";
-    }
-    void tablesNestedPastTheLimitAreRefusedBeforeTheyAreParsed()
-    {
-        bool many = false;
-        QString why;
-        const auto ok = readHtmlTables(nestedTables(kMostHtmlTableDepth), &many, &why);
-        QCOMPARE(ok.size(), 1);
-        QVERIFY2(why.isEmpty(), qPrintable(why));
-        why.clear();
-        const QByteArray deep = nestedTables(kMostHtmlTableDepth + 1);
-        QVERIFY(readHtmlTables(deep, &many, &why).isEmpty());
-        QVERIFY2(why.contains(QLatin1String("too deeply")), qPrintable(why));
-        // (the writer's reader and the clipboard's refuse it the same way)
-        Document d;
-        why.clear();
-        QVERIFY(!readHtml(deep, &d, &why));
-        QVERIFY2(why.contains(QLatin1String("too deeply")), qPrintable(why));
-        QVERIFY(!clipTable(QString::fromUtf8(deep), QString()));
-    }
-    void partsNestedPastTheLimitAreRefused()
-    {
-        for (const auto &kind : {std::pair<QByteArray, QByteArray>("<div>", "</div>"), {"<ul><li>", "</li></ul>"}, {"<b>", "</b>"}}) {
-            const int per = kind.first == "<ul><li>" ? 2 : 1;
-            QString why;
-            QVERIFY(!readHtmlTables(nestedParts(kind.first, kind.second, kMostPageDepth / per + 1), nullptr, &why).size());
-            QVERIFY2(why.contains(QLatin1String("too deeply")), kind.first.constData());
-            why.clear();
-            QCOMPARE(readHtmlTables(nestedParts(kind.first, kind.second, (kMostPageDepth - 10) / per - 5), nullptr, &why).size(), 1);
-        }
-    }
-    void aPageSlackWithClosingTagsIsNotCountedDeeperThanItIs()
-    {
-        // (paragraphs, list items, rows, and cells left open are closed by the next of their kind: a few thousand of each is a flat page)
-        QByteArray h = "<html><body><ul>";
-        for (int i = 0; i < 2 * kMostPageDepth; ++i) h += "<li>item";
-        h += "</ul><table>";
-        for (int r = 0; r < 2 * kMostPageDepth; ++r) h += "<tr><td><p>a<td><p>b";
-        h += "</table></body></html>";
-        QString why;
-        const auto t = readHtmlTables(h, nullptr, &why);
-        QVERIFY2(why.isEmpty(), qPrintable(why));
-        QCOMPARE(t.size(), 1);
-        QCOMPARE(t[0].rows.size(), 2 * kMostPageDepth);
-        // (and a comment is not parts)
-        QByteArray s = "<html><body><!-- ";
-        for (int i = 0; i < 2 * kMostPageDepth; ++i) s += "<table>";
-        s += " --><table><tr><td>a</td></tr></table></body></html>";
-        QCOMPARE(readHtmlTables(s, nullptr, &why).size(), 1);
-        // (what a script or a style holds is NOT text to the page's parser: a "<" in it starts a part, so the scan counts it; a page of such scripts is refused by its depth)
-        QByteArray scripts = "<html><body><script>";
-        for (int i = 0; i < 2 * kMostPageDepth; ++i) scripts += "<div><table>";
-        scripts += "</script></body></html>";
-        QVERIFY(!readHtmlTables(scripts, nullptr, &why).size());
-        QVERIFY2(why.contains(QLatin1String("too deeply")), qPrintable(why));
-    }
-    // ---- the work the page's parser would do is counted (htmlguard.cpp), whatever a page is made of
-    static QByteArray repeated(const QByteArray &unit, int n, const QByteArray &before = QByteArray(), const QByteArray &after = QByteArray())
-    {
-        QByteArray h = before;
-        h.reserve(int(before.size() + after.size() + qint64(unit.size()) * n));
-        for (int i = 0; i < n; ++i) h += unit;
+        QString h = before;
+        h.reserve(int(before.size() + after.size() + unit.size() * n));
+        for (qint64 i = 0; i < n; ++i) h += unit;
         return h + after;
     }
-    void partsOfAnyNameNestAndAreCountedAsParts_data()
+    // The parser reads the guarded page as it reads the page, down to every look counted above.
+    void sameLook(const QString &page, const char *what)
     {
-        QTest::addColumn<QByteArray>("unit");
-        QTest::newRow("name with an underscore") << QByteArray("<b_x>");
-        QTest::newRow("a blank after the angle") << QByteArray("< div>");
-        QTest::newRow("a long name") << QByteArray("<aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa>");
-        QTest::newRow("an unknown name") << QByteArray("<foo>");
-        QTest::newRow("a question mark") << QByteArray("<?x>");
-        QTest::newRow("a name the page calls empty elsewhere") << QByteArray("<input>");
-        QTest::newRow("a link") << QByteArray("<link>");
-        QTest::newRow("a part in a script") << QByteArray("<script><b>");
-        QTest::newRow("capitals") << QByteArray("<DIV>");
-        QTest::newRow("an attribute with a quoted angle") << QByteArray("<div x=\"a>b\">");
+        const GuardedHtml g = guardHtml(page);
+        QVERIFY2(g.refusal == HtmlRefusal::None, what);
+        Look a = lookOf(page), b = lookOf(g.html);
+        // (the space that ends a line is not seen: the guard does not write one before a part that starts a line)
+        static const QRegularExpression endOfLine(QStringLiteral(" +(\n|$)"));
+        a.text.replace(endOfLine, QStringLiteral("\\1"));
+        b.text.replace(endOfLine, QStringLiteral("\\1"));
+        QVERIFY2(a.text == b.text, qPrintable(QString::fromLatin1(what) + QStringLiteral(": the words differ: [") + a.text.left(200) + QStringLiteral("] and [") + b.text.left(200) + QLatin1Char(']')));
+        QVERIFY2(a.n == b.n, qPrintable(QString::fromLatin1(what) + QStringLiteral(": ") + lookText(a) + QStringLiteral("and ") + lookText(b)));
     }
-    void partsOfAnyNameNestAndAreCountedAsParts()
+
+    void theGuardedPageIsReadAsThePageIsRead_data()
     {
-        QFETCH(QByteArray, unit);
-        const int per = unit == "<script><b>" ? 2 : 1;
-        const HtmlScan deep = scanHtml(repeated(unit, kMostPageDepth / per + 1));
-        QCOMPARE(deep.refusal, HtmlRefusal::TooDeep);
-        const HtmlScan ok = scanHtml(repeated(unit, (kMostPageDepth - 10) / per));
-        QCOMPARE(ok.refusal, HtmlRefusal::None);
-        QVERIFY(ok.deepest > kMostPageDepth / 2);
-        QString why;
-        QVERIFY(readHtmlTables(repeated(unit, kMostPageDepth / per + 1), nullptr, &why).isEmpty());
-        QVERIFY2(why.contains(QLatin1String("too deeply")), qPrintable(why));
+        QTest::addColumn<QString>("page");
+        QTest::newRow("words and breaks") << QStringLiteral("<p>One <b>bold</b>, <i>italic</i>, <u>underlined</u>, <s>struck</s>, x<sub>2</sub>, and y<sup>3</sup>.<br>Next line &amp; more &nbsp;&lt;done&gt;</p><p>Two</p>");
+        QTest::newRow("headings and alignment") << QStringLiteral("<h1>Title</h1><h3 align=center>Centered</h3><p align=right>Right</p><div>Plain div</div><blockquote>Quoted</blockquote><center>Centered text</center>");
+        QTest::newRow("fonts and colors") << QStringLiteral("<p><font color=red size=5 face=Arial>big red</font> <span style=\"color:#00f;font-family:'Times New Roman',serif;font-size:14pt;font-weight:bold\">blue</span> <span style=\"background:#ff0\">marked</span></p>");
+        QTest::newRow("links") << QStringLiteral("<p>See <a href=\"https://example.com/a?b=1&amp;c=2\">this page</a> and <a name=top>an anchor</a>.</p>");
+        QTest::newRow("lists") << QStringLiteral("<ul><li>one<li>two<ul><li>nested a<li>nested b</ul><li>three</ul><ol start=4><li>four<li>five</ol><dl><dt>Term<dd>Meaning</dl>");
+        QTest::newRow("a table") << QStringLiteral("<table border=1 width=\"80%\" cellpadding=3><tr><th>Name<th>Value<tr><td bgcolor=#ccc>a<td align=right>1<tr><td colspan=2 style=\"background:#ff0;font-weight:bold\">total</table><p>after</p>");
+        QTest::newRow("spans") << QStringLiteral("<table><tr><td rowspan=2>a<td>b<td>c<tr><td colspan=2>d</table>");
+        QTest::newRow("a picture") << QStringLiteral("<p>Text <img src=\"data:image/png;base64,iVBORw0KGgo=\" width=20 height=10> more</p>");
+        QTest::newRow("preformatted") << QStringLiteral("<p>Code:</p><pre>first\n    indented &amp; spaced\nlast</pre><p>after</p>");
+        QTest::newRow("a browser page") << QStringLiteral("<!DOCTYPE html><html><head><title>T</title><script>var a='<b>';</script></head><body class=x><div><p class=y>Hello <span>there</span></p></div></body></html>");
+        QTest::newRow("a page of the html kind") << QStringLiteral("<html><body><p>Hello <b>world</b></p><ul><li>one</li></ul></body></html>");
+        QTest::newRow("a page that says its direction") << QStringLiteral("<html dir=rtl><body><p>one</p><ul><li>two</li></ul></body></html>");
+        QTest::newRow("a body that says its direction") << QStringLiteral("<html><body dir=rtl><p>one</p><p dir=ltr>two</p></body></html>");
+        QTest::newRow("a part with no html around it") << QStringLiteral("<body><p>one</p></body>");
+        QTest::newRow("a page that keeps its spaces") << QStringLiteral("<html><head><meta name=\"qrichtext\" content=\"1\" /></head><body><p>a   b</p><p>  indented</p></body></html>");
+        QTest::newRow("a copied part of a page") << QStringLiteral("<html><body><p>before the part</p><!--StartFragment--><p>the <b>part</b></p><table><tr><td>cell</td></tr></table><!--EndFragment--><p>after the part</p></body></html>");
+        QTest::newRow("a copied part inside a line") << QStringLiteral("<html><head><style>p{color:red}</style></head><body><!--StartFragment-->just <i>some</i> words<!--EndFragment--></body></html>");
+        QTest::newRow("slack in the markup") << QStringLiteral("<ul><li>a<li>b</ul><table><tr><td>x<td>y<tr><td>z</table><p>one<p>two<b>bold<i>both</b>only italic</i>");
     }
-    void partsTheParserClosesOrKnowsAsEmptyDoNotNest()
+    // fails when off: no (the guard that changes nothing passes it: it holds the guard to the look of the page)
+    void theGuardedPageIsReadAsThePageIsRead()
     {
-        for (const char *unit : {"<br>", "<hr>", "<meta>", "<div/>", "<li>x", "<p>x", "<td>x", "<dd>x", "<tr><td>x", "<p><b>x</b>", "<img>"}) {
-            const HtmlScan s = scanHtml(repeated(unit, 3 * kMostPageDepth));
-            QVERIFY2(s.deepest <= 2, unit);
-            QVERIFY2(s.refusal == HtmlRefusal::None, unit);
+        QFETCH(QString, page);
+        sameLook(page, QTest::currentDataTag());
+    }
+
+    // fails when off: yes (the marks of a copied part dropped: the parser then reads the whole page)
+    void theMarksOfACopiedPartAreKeptOnceEach()
+    {
+        const GuardedHtml g = guardHtml(QStringLiteral("<html><body>a<!--StartFragment--><p>b</p><!--StartFragment--><!--EndFragment--> c<!--EndFragment--><!-- other --></body></html>"));
+        QCOMPARE(g.html.count(QLatin1String("<!--StartFragment-->")), 1);
+        QCOMPARE(g.html.count(QLatin1String("<!--EndFragment-->")), 1);
+        QCOMPARE(g.html.count(QLatin1String("<!--")), 2);
+        const Look whole = lookOf(QStringLiteral("<html><body>a<p>b</p> c</body></html>"));
+        const Look part = lookOf(g.html);
+        QVERIFY(!(whole == part));   // (the parser reads between the marks)
+        QCOMPARE(part.text, QStringLiteral("b"));
+    }
+
+    void whatNoAppUsesIsLeftOutAndItsWordsStay()
+    {
+        const QString page = QStringLiteral(
+            "<html><head><title>The title</title><meta charset=utf-8><style>p{color:red}</style><script>alert('x<b>')</script></head><body onload=\"evil()\">"
+            "<!-- a comment <b>hidden</b> --><![CDATA[ cdata <i>hidden</i> ]]><form action=\"/x\"><label>Name</label><input type=text value=v><button onclick=\"go()\">Send</button></form>"
+            "<p class=\"c\" id=\"i\" onclick=\"bad()\" data-x=\"1\">Words <abbr title=t>abbr</abbr> <mark>marked</mark> <custom-tag>custom</custom-tag></p>"
+            "<iframe src=\"http://x\">frame text</iframe><noscript>no script text</noscript><svg><text>svg text</text></svg></body></html>");
+        const GuardedHtml g = guardHtml(page);
+        QCOMPARE(g.refusal, HtmlRefusal::None);
+        for (const char *gone : {"The title", "alert", "evil", "hidden", "cdata", "onclick", "class=", "id=", "data-x", "script", "<style", "<form", "<input", "<button", "<iframe", "frame text", "no script text", "<svg", "<head", "<abbr", "<mark", "custom-tag", "action"})
+            QVERIFY2(!g.html.contains(QLatin1String(gone)), gone);
+        for (const char *stays : {"Name", "Send", "Words", "abbr", "marked", "custom", "svg text"})
+            QVERIFY2(g.html.contains(QLatin1String(stays)), stays);
+        QVERIFY(g.html.contains(QLatin1String("<p>")));
+        QVERIFY2(!g.html.contains(QLatin1Char('\n')), "markup written without a newline");
+        // (the page's own wrappers are one each, with nothing of theirs but a direction)
+        QVERIFY(g.html.startsWith(QLatin1String("<html><body>")) && g.html.endsWith(QLatin1String("</body></html>")));
+        QCOMPARE(g.html.count(QLatin1String("<body")), 1);
+    }
+
+    void aStyleKeepsOnlyWhatIsUsed()
+    {
+        auto styleOf = [](const QString &style, const QString &open = QStringLiteral("<span")) {
+            const GuardedHtml g = guardHtml(open + QStringLiteral(" style=\"") + style + QStringLiteral("\">x</span>"));
+            const qsizetype at = g.html.indexOf(QLatin1String("style=\""));
+            return at < 0 ? QString() : g.html.mid(at + 7, g.html.indexOf(QLatin1Char('"'), at + 7) - at - 7);
+        };
+        QCOMPARE(styleOf(QStringLiteral("color:red;mso-number-format:General;font-size:11pt;behavior:url(x.htc)")), QStringLiteral("color:red;font-size:11pt"));
+        QCOMPARE(styleOf(QStringLiteral("COLOR : Red !important ; Background-Color:#FF0")), QStringLiteral("color:Red;background-color:#FF0"));
+        QCOMPARE(styleOf(QStringLiteral("background:url(http://x/y.png) red;color:blue")), QStringLiteral("color:blue"));
+        QCOMPARE(styleOf(QStringLiteral("font-family:&quot;Times New Roman&quot;, serif")), QStringLiteral("font-family:'Times New Roman', serif"));
+        QCOMPARE(styleOf(QStringLiteral("width:expression(alert(1));color:blue")), QStringLiteral("color:blue"));
+        // (what a part has without being told is not said again: the parser takes time for each word)
+        QCOMPARE(styleOf(QStringLiteral("border:none;font-weight:400;font-style:normal;text-decoration:none;text-align:general;color:red")), QStringLiteral("color:red"));
+        QCOMPARE(styleOf(QStringLiteral("font-weight:normal"), QStringLiteral("<b><span")), QStringLiteral("font-weight:normal"));   // (inside bold it says something)
+        QCOMPARE(styleOf(QStringLiteral("border:none"), QStringLiteral("<table border=1><tr><td")), QStringLiteral("border:none"));
+        // the declarations and the characters of one style are bounded
+        QString many;
+        for (int i = 0; i < 3 * kMostStyleDeclarations; ++i) many += QStringLiteral("margin-top:%1px;").arg(i);
+        QCOMPARE(styleOf(many).count(QLatin1Char(';')), kMostStyleDeclarations - 1);
+        QVERIFY(styleOf(QStringLiteral("color:red;") + QString(kMostStyleChars, QLatin1Char(' ')) + QStringLiteral("margin:1px")) == QStringLiteral("color:red"));
+        // and so are the styles of a page: the first ones are kept, the rest are left out, and the count says how many
+        HtmlLimits few;
+        few.styles = 5;
+        const GuardedHtml g = guardHtml(repeatedText(QStringLiteral("<span style=\"color:red\">x</span>"), 12), few);
+        QCOMPARE(g.counts.styles, qint64(5));
+        QCOMPARE(g.counts.stylesLeftOut, 7);
+        QCOMPARE(g.html.count(QLatin1String("style=")), 5);
+        HtmlLimits short1;
+        short1.styleChars = 40;
+        const GuardedHtml h = guardHtml(repeatedText(QStringLiteral("<span style=\"color:red;font-size:11pt\">x</span>"), 4), short1);
+        QCOMPARE(h.counts.styles, qint64(1));   // (24 characters fit in 40, and 24 more do not)
+        QCOMPARE(h.counts.stylesLeftOut, 3);
+    }
+
+    void aPageNestedPastTheLimitIsFlattenedAndKeepsItsWords()
+    {
+        const int deep = kMostHtmlNesting + 500;
+        for (const QString &open : {QStringLiteral("<div>"), QStringLiteral("<blockquote>"), QStringLiteral("<span>"), QStringLiteral("<b>"), QStringLiteral("<ul><li>"), QStringLiteral("<p><div>")}) {
+            const QString page = repeatedText(open, deep, QString(), QStringLiteral("the words"));
+            const GuardedHtml g = guardHtml(page);
+            QVERIFY2(g.refusal == HtmlRefusal::None, qPrintable(open));
+            QVERIFY2(g.counts.deepest <= kMostHtmlNesting, qPrintable(open));
+            QVERIFY2(g.counts.flattened > 0, qPrintable(open));
+            QVERIFY2(lookOf(g.html).text.contains(QLatin1String("the words")), qPrintable(open));
         }
-        // (a part left open inside a list item or a paragraph is still open when the next item comes: the parser does not close it, so neither does the scan)
-        QVERIFY(scanHtml(repeated("<li><b>x", kMostPageDepth, "<ul>")).refusal == HtmlRefusal::TooDeep);
-        QVERIFY(scanHtml(repeated("<p><div>x", kMostPageDepth)).refusal == HtmlRefusal::TooDeep);
+        // parts left open are counted as they are: a page of thousands of unclosed ones (past what is held open at once) is flat, and keeps its words
+        const GuardedHtml open = guardHtml(repeatedText(QStringLiteral("<i>w"), 3 * kMostHtmlOpen));
+        QCOMPARE(open.refusal, HtmlRefusal::None);
+        QVERIFY(open.counts.deepest <= kMostHtmlNesting);
+        QCOMPARE(lookOf(open.html).text.size(), 3 * kMostHtmlOpen);
+        // tables nested past the limit become their words
+        QString tables;
+        for (int i = 0; i < kMostHtmlTableDepth + 7; ++i) tables += QStringLiteral("<table><tr><td>level%1 ").arg(i);
+        const GuardedHtml t = guardHtml(tables);
+        QCOMPARE(t.refusal, HtmlRefusal::None);
+        QCOMPARE(t.counts.tables, kMostHtmlTableDepth);
+        QCOMPARE(t.html.count(QLatin1String("<table")), kMostHtmlTableDepth);
+        const QString text = lookOf(t.html).text;
+        for (int i = 0; i < kMostHtmlTableDepth + 7; ++i) QVERIFY2(text.contains(QStringLiteral("level%1").arg(i)), qPrintable(QString::number(i)));
     }
-    void depthTimesSizeIsRefusedUnderEveryLimitOfDepthAndSize()
+
+    // The guard's own work: one pass, whatever the page holds. The count is characters read and parts closed.
+    void theGuardWorksInTimeThatGrowsWithThePageAndNoMore_data()
     {
-        // 599 parts deep (under the depth limit) and then a page full of paragraphs: the parser's time is the depth times the size, so the work stops it, not the depth
-        const QByteArray open = repeated("<blockquote>", kMostPageDepth - 1);
-        const HtmlScan few = scanHtml(repeated("<p>hello</p>", 1000, open));
-        QCOMPARE(few.refusal, HtmlRefusal::None);
-        const QByteArray many = repeated("<p>hello</p>", 80000, open);
-        QVERIFY(many.size() < kMostHtmlBytes / 20);
-        const HtmlScan s = scanHtml(many);
-        QCOMPARE(s.refusal, HtmlRefusal::TooMuchWork);
-        QVERIFY(s.deepest <= kMostPageDepth);
-        QCOMPARE(scanHtml(repeated("<ul><li>", kMostPageDepth / 2 - 1, repeated("x ", 1))).refusal, HtmlRefusal::None);
-        QCOMPARE(scanHtml(repeated("<div>x</div>", 120000, repeated("<div>", kMostPageDepth - 1))).refusal, HtmlRefusal::TooMuchWork);
-        QString why;
-        Document d;
-        QVERIFY(!readHtml(many, &d, &why));
-        QVERIFY2(why.contains(QLatin1String("too complicated")), qPrintable(why));
-        QVERIFY(readHtmlTables(many, nullptr, &why).isEmpty());
-        QVERIFY(!clipTable(QString::fromUtf8(repeated("<tr><td>a</td></tr>", 80000, open + "<table>")), QString()));
+        QTest::addColumn<QString>("unit");
+        QTest::addColumn<QString>("before");
+        QTest::newRow("unclosed bold") << QStringLiteral("<b>x") << QString();
+        QTest::newRow("stray end tags") << QStringLiteral("</b></td></tr></table></ul>") << QStringLiteral("<table><tr><td><ul><li><b>");
+        QTest::newRow("end tags for an open part far down") << QStringLiteral("</i><u>") << QStringLiteral("<i>");
+        QTest::newRow("cells left open") << QStringLiteral("<td>a") << QStringLiteral("<table><tr>");
+        QTest::newRow("rows left open") << QStringLiteral("<tr><td>a<td>b") << QStringLiteral("<table>");
+        QTest::newRow("items left open") << QStringLiteral("<li>a") << QStringLiteral("<ul>");
+        QTest::newRow("tables left open") << QStringLiteral("<table><tr><td>") << QString();
+        QTest::newRow("a part closed by one far above it") << QStringLiteral("<p>a<div>") << QStringLiteral("<table><tr><td>");
+        QTest::newRow("less-than signs") << QStringLiteral("< <<< </ <! <?") << QString();
+        QTest::newRow("long names and attributes") << QStringLiteral("<aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa a=b c=\"d\" e f=g>") << QString();
+        QTest::newRow("quotes that never end") << QStringLiteral("<div a=\"") << QString();
+        QTest::newRow("comments that never end") << QStringLiteral("<!-- <b>") << QString();
+        QTest::newRow("a style that never ends") << QStringLiteral("<style>x") << QString();
+        QTest::newRow("scripts") << QStringLiteral("<script>a</script><style>b</style>") << QString();
+        QTest::newRow("long styles") << QStringLiteral("<span style=\"color:red;margin:1px;padding:2px;font-size:9pt;border:1px solid red\">x</span>") << QString();
+        QTest::newRow("spans") << QStringLiteral("<tr><td colspan=999 rowspan=999>a") << QStringLiteral("<table>");
+        QTest::newRow("pictures") << QStringLiteral("<p><img src=a>") << QString();
+        QTest::newRow("preformatted lines") << QStringLiteral("a\n") << QStringLiteral("<pre>");
     }
-    void whatNoDepthOrSizeBoundsIsCountedToo()
+    // fails when off: no (it holds the guard to one pass; a pass that went over the page again for each part would fail it, as the version that looked up the stack for each end tag did when it was tried by hand)
+    void theGuardWorksInTimeThatGrowsWithThePageAndNoMore()
     {
-        // items of ONE list (each is put in after all the earlier ones), pictures in ONE paragraph, and the grid a table's spans ask for: each takes the parser time that grows with the square of the count
-        QCOMPARE(scanHtml(repeated("<li>x</li>", 40000, "<ul>", "</ul>")).refusal, HtmlRefusal::TooMuchWork);
-        QCOMPARE(scanHtml(repeated("<li>x</li>", 40000, "<ol>", "</ol>")).refusal, HtmlRefusal::TooMuchWork);
-        QCOMPARE(scanHtml(repeated("<ul><li>x</li></ul>", 40000)).refusal, HtmlRefusal::None);   // (one item each: many lists are many cheap ones)
-        QCOMPARE(scanHtml(repeated("<img src=a>", 6000, "<p>")).refusal, HtmlRefusal::TooMuchWork);
-        QCOMPARE(scanHtml(repeated("<p><img src=a></p>", 6000)).refusal, HtmlRefusal::None);
-        QCOMPARE(scanHtml(repeated("<tr><td>y</td></tr>", 400, "<table><tr><td colspan=9999>x</td></tr>", "</table>")).refusal, HtmlRefusal::TooMuchWork);
-        QCOMPARE(scanHtml(repeated("<td colspan=9999>x</td>", 100, "<table><tr>", "</table>")).refusal, HtmlRefusal::TooMuchWork);
-        QCOMPARE(scanHtml(repeated("<td colspan=3>x</td>", 100, "<table><tr>", "</table>")).refusal, HtmlRefusal::None);
-        // (the counts are of one list or one paragraph: how deep the page stands has no part in them)
-        const HtmlScan a = scanHtml(repeated("<li>x</li>", 3000, "<ul>", "</ul>"));
-        const HtmlScan b = scanHtml(repeated("<li>x</li>", 3000, "<div><ul>", "</ul></div>"));
-        QVERIFY(b.work - a.work < a.work / 10);
+        QFETCH(QString, unit);
+        QFETCH(QString, before);
+        for (const int times : {2000, 16000, 120000}) {
+            const QString page = repeatedText(unit, times, before);
+            HtmlLimits wide;   // (the limits stop a page early: they are set out of the way, so that the work is the guard's whole)
+            wide.parts = wide.cells = wide.rows = wide.pictures = 1 << 30;
+            wide.grid = wide.spanGrid = Q_INT64_C(1) << 40;
+            const GuardedHtml g = guardHtml(page, wide);
+            QVERIFY2(g.counts.work <= 3 * qint64(page.size()) + 100, qPrintable(QStringLiteral("%1 times: work %2 for %3 characters").arg(times).arg(g.counts.work).arg(page.size())));
+            QVERIFY(g.counts.work >= qint64(page.size()) / 2);
+        }
     }
-    void theScanWorksInTimeThatGrowsWithTheSizeOfThePage()
+
+    void theLimitsAreKept_data()
     {
-        // each look at the parts that are open to close one is paid for by the work (the model counts it), so the looks are bounded by the limit whatever the page: a part that cannot close
-        // (a dt inside a deep stack under a dl) at 590 deep, repeated and repeated
-        const QByteArray deep = repeated("<div>", kMostPageDepth - 3, "<dt><dl>");
-        const QByteArray page = repeated("<dt/>", 400000, deep);
-        QVERIFY(page.size() > 1000000);
-        const HtmlScan s = scanHtml(page);
-        QCOMPARE(s.refusal, HtmlRefusal::TooMuchWork);
-        QVERIFY2(s.walked <= kMostHtmlWork / 60 + kMostPageDepth, qPrintable(QString::number(s.walked)));
-        QVERIFY(s.walked > kMostHtmlWork / 600);
-        // and a page that is not refused costs steps that grow with its size
-        const HtmlScan small = scanHtml(repeated("<tr><td>a<td>b", 2000, "<table>"));
-        const HtmlScan big = scanHtml(repeated("<tr><td>a<td>b", 8000, "<table>"));
-        QCOMPARE(small.refusal, HtmlRefusal::None);
-        QCOMPARE(big.refusal, HtmlRefusal::None);
-        QVERIFY(big.walked <= 4 * small.walked + 8);
+        QTest::addColumn<QString>("limit");
+        QTest::addColumn<int>("refusal");
+        QTest::newRow("bytes") << QStringLiteral("bytes") << int(HtmlRefusal::TooLarge);
+        QTest::newRow("words") << QStringLiteral("text") << int(HtmlRefusal::TooLarge);
+        QTest::newRow("parts") << QStringLiteral("parts") << int(HtmlRefusal::TooManyParts);
+        QTest::newRow("cells") << QStringLiteral("cells") << int(HtmlRefusal::TooManyCells);
+        QTest::newRow("rows") << QStringLiteral("rows") << int(HtmlRefusal::TooManyCells);
+        QTest::newRow("grid") << QStringLiteral("grid") << int(HtmlRefusal::TooManyCells);
+        QTest::newRow("pictures") << QStringLiteral("pictures") << int(HtmlRefusal::TooManyParts);
     }
-    void ordinaryPagesAreAcceptedWithRoomToSpare()
+    // fails when off: yes, each (the check of that limit taken out of htmlguard.cpp and the test run again)
+    void theLimitsAreKept()
     {
-        QByteArray article = "<html><head><title>t</title></head><body><h1>Title</h1>";
-        for (int i = 0; i < 3000; ++i) article += "<p>the quick brown fox jumps <b>over</b> the lazy dog and <a href=\"http://x/" + QByteArray::number(i) + "\">runs</a> far away from <i>here</i> again.</p>";
-        article += "</body></html>";
-        const HtmlScan a = scanHtml(article);
-        QCOMPARE(a.refusal, HtmlRefusal::None);
-        QVERIFY(a.work < kMostHtmlWork / 10);
-        const HtmlScan rows = scanHtml(repeated("<tr><td>x</td></tr>", 56000, "<table>", "</table>"));
-        QCOMPARE(rows.refusal, HtmlRefusal::None);
-        QVERIFY(rows.work < kMostHtmlWork * 6 / 10);
-        QByteArray outline;
-        for (int level = 0; level < 20; ++level) outline += repeated("<li>an item of the outline</li>", 40, "<ul>") + "<li>";
-        outline += "x";
-        for (int level = 0; level < 20; ++level) outline += "</li></ul>";
-        const HtmlScan o = scanHtml(outline);
-        QCOMPARE(o.refusal, HtmlRefusal::None);
-        QVERIFY(o.work < kMostHtmlWork / 100);
-        const QByteArray wrap = repeated("<div class=w>", 38, "<html><body>");
-        const HtmlScan browser = scanHtml(repeated("<div class=c><p><span>words of the page</span> <a href=/x><span>link</span></a></p></div>", 3000, wrap, repeated("</div>", 38) + "</body></html>"));
-        QCOMPARE(browser.refusal, HtmlRefusal::None);
-        QVERIFY(browser.deepest >= 40);
-        QVERIFY(browser.work < kMostHtmlWork / 5);
-        // (and the one the reader takes and reads)
-        QByteArray small = "<html><body><table>";
-        for (int i = 0; i < 50; ++i) small += "<tr><td>" + QByteArray::number(i) + "</td><td>b</td></tr>";
-        small += "</table></body></html>";
-        QCOMPARE(readHtmlTables(small).size(), 1);
-        Document d;
-        QVERIFY(readHtml(article, &d));
+        QFETCH(QString, limit);
+        QFETCH(int, refusal);
+        // (each at its limit passes and one more is refused: with the limit turned down to 40 here, and for the ones that are cheap, at the constant itself)
+        auto page = [&](int n) {
+            if (limit == QLatin1String("bytes")) return QString(n, QLatin1Char('a'));
+            if (limit == QLatin1String("text")) return QString(n, QLatin1Char('a'));
+            if (limit == QLatin1String("parts")) return repeatedText(QStringLiteral("<b>x</b>"), n);
+            if (limit == QLatin1String("cells")) return repeatedText(QStringLiteral("<td>"), n, QStringLiteral("<table><tr>"));
+            if (limit == QLatin1String("rows")) return repeatedText(QStringLiteral("<tr>"), n, QStringLiteral("<table>"));
+            if (limit == QLatin1String("grid")) return repeatedText(QStringLiteral("<tr><td>a<td>b<td>c<td>d"), n, QStringLiteral("<table>"));
+            return repeatedText(QStringLiteral("<p><img src=a>"), n);
+        };
+        auto limits = [&](int n) {
+            HtmlLimits l;
+            if (limit == QLatin1String("bytes")) l.bytes = n;
+            else if (limit == QLatin1String("text")) l.text = n;
+            else if (limit == QLatin1String("parts")) l.parts = n;
+            else if (limit == QLatin1String("cells")) l.cells = n;
+            else if (limit == QLatin1String("rows")) l.rows = n;
+            else if (limit == QLatin1String("grid")) l.grid = n * 4;   // (four cells to a row, in the rows)
+            else l.pictures = n;
+            return l;
+        };
+        const int n = 40;
+        QCOMPARE(int(guardHtml(page(n), limits(n)).refusal), int(HtmlRefusal::None));
+        QCOMPARE(int(guardHtml(page(n + 1), limits(n)).refusal), refusal);
+        // and the constants themselves, for the limits a page can reach cheaply
+        HtmlLimits d;
+        const qint64 most = limit == QLatin1String("bytes") ? d.bytes : limit == QLatin1String("text") ? d.text : limit == QLatin1String("parts") ? d.parts : limit == QLatin1String("cells") ? d.cells
+            : limit == QLatin1String("rows") ? d.rows : d.pictures;
+        if (limit == QLatin1String("bytes") || limit == QLatin1String("text") || limit == QLatin1String("grid")) return;
+        QCOMPARE(int(guardHtml(page(int(most)), d).refusal), int(HtmlRefusal::None));
+        QCOMPARE(int(guardHtml(page(int(most) + 1), d).refusal), refusal);
     }
+    void theLimitOfBytesIsTheConstant()
+    {
+        QCOMPARE(int(guardHtml(QByteArray(int(kMostHtmlBytes) + 1, 'a')).refusal), int(HtmlRefusal::TooLarge));
+        QCOMPARE(int(guardHtml(QString(int(kMostHtmlBytes) + 1, QLatin1Char('a'))).refusal), int(HtmlRefusal::TooLarge));
+        // (the words a page may hold are the constant, as one paragraph)
+        const QString words = QString(int(kMostHtmlText), QLatin1Char('a'));
+        QCOMPARE(int(guardHtml(words).refusal), int(HtmlRefusal::None));
+        QCOMPARE(int(guardHtml(words + QLatin1Char('b')).refusal), int(HtmlRefusal::TooLarge));
+    }
+
+    void aCellSpansNoMoreThanTheTableHas()
+    {
+        // columns: no more than the widest row has
+        QString g = guardHtml(QStringLiteral("<table><tr><td colspan=2000000000>a</td><td>b</td></tr><tr><td>c</td><td>d</td><td>e</td></tr></table>")).html;
+        QVERIFY2(g.contains(QLatin1String("colspan=\"003\"")), qPrintable(g));
+        // rows: no more than the rows left in the table
+        g = guardHtml(QStringLiteral("<table><tr><td rowspan=1000>a</td><td>b</td></tr><tr><td rowspan=2>c</td><td>d</td></tr><tr><td>e</td></tr></table>")).html;
+        QVERIFY2(g.contains(QLatin1String("rowspan=\"003\"")), qPrintable(g));
+        QVERIFY2(g.contains(QLatin1String("rowspan=\"002\"")), qPrintable(g));
+        // a span is no more than the constant
+        g = guardHtml(repeatedText(QStringLiteral("<tr><td>x"), 3, QStringLiteral("<table><tr><td colspan=5000>a</td>") + repeatedText(QStringLiteral("<td>b"), 2000), QString())).html;
+        QVERIFY2(g.contains(QStringLiteral("colspan=\"%1\"").arg(kMostHtmlSpan)), qPrintable(g.left(300)));
+        // the parser reads the clamped spans as spans
+        QTextDocument d;
+        d.setHtml(guardHtml(QStringLiteral("<table><tr><td colspan=2000000000>a</td><td>b</td></tr><tr><td>c</td><td>d</td><td>e</td></tr></table>")).html);
+        auto *table = qobject_cast<QTextTable *>(d.rootFrame()->childFrames().value(0));
+        QVERIFY(table);
+        QCOMPARE(table->columns(), 4);   // (a cell of three, and one: the cell spans the three that the widest row has)
+        QCOMPARE(table->cellAt(0, 0).columnSpan(), 3);
+    }
+    // fails when off: yes (the three cases that the span constants and the table's own counts clamp)
+    void aTableThatIsTooTallOrTooWideForSpansHasNone()
+    {
+        // rows past the limit: no cell spans rows (the page's parser takes more time than the page is worth with them)
+        const QString tall = repeatedText(QStringLiteral("<tr><td rowspan=2>a</td><td>b</td></tr>"), kMostHtmlSpanRows + 1, QStringLiteral("<table>"), QStringLiteral("</table>"));
+        const GuardedHtml g = guardHtml(tall);
+        QCOMPARE(g.refusal, HtmlRefusal::None);
+        QCOMPARE(g.counts.spansDropped, 1);
+        QVERIFY(!g.html.contains(QLatin1String("rowspan=\"002\"")));
+        // the same table with rows to spare keeps them
+        const GuardedHtml ok = guardHtml(repeatedText(QStringLiteral("<tr><td rowspan=2>a</td><td>b</td></tr>"), 100, QStringLiteral("<table>"), QStringLiteral("</table>")));
+        QCOMPARE(ok.counts.spansDropped, 0);
+        QVERIFY(ok.html.contains(QLatin1String("rowspan=\"002\"")));
+        // spans that pile up (each row's cell spans many rows, so the grid is rows times the cells that cover each) are counted in the grid, and dropped when it is large
+        const GuardedHtml piled = guardHtml(repeatedText(QStringLiteral("<tr><td rowspan=999>a</td><td>b</td></tr>"), 1000, QStringLiteral("<table>"), QStringLiteral("</table>")));
+        QCOMPARE(piled.counts.spansDropped, 1);
+        QVERIFY(piled.counts.grid <= 2 * 1000);
+        QVERIFY(!piled.html.contains(QLatin1String("rowspan=\"999\"")));
+        // columns: the grid of a table is its rows times its widest row, counted with the spans
+        HtmlLimits l;
+        const GuardedHtml wide = guardHtml(QStringLiteral("<table><tr><td colspan=100>a</td></tr>") + repeatedText(QStringLiteral("<tr><td>x</td></tr>"), 50, QString(), QStringLiteral("</table>")) + QString(), l);
+        QCOMPARE(wide.counts.rows, qint64(51));
+        QCOMPARE(wide.counts.grid, qint64(51));   // (a span is no more than the widest row, which is one cell)
+        const GuardedHtml real = guardHtml(QStringLiteral("<table><tr>") + repeatedText(QStringLiteral("<td>a"), 30) + QStringLiteral("</tr>") + repeatedText(QStringLiteral("<tr><td colspan=30>x</td></tr>"), 20) + QStringLiteral("</table>"));
+        QCOMPARE(real.counts.grid, qint64(21 * 30));
+    }
+
+    void aLongListIsWrittenAsSeveralThatGoOn()
+    {
+        const int items = 2 * kMostHtmlListItems + 50;
+        for (const bool ordered : {true, false}) {
+            const QString tag = ordered ? QStringLiteral("ol") : QStringLiteral("ul");
+            QString page = QStringLiteral("<%1>").arg(tag);
+            for (int i = 0; i < items; ++i) page += QStringLiteral("<li>item%1</li>").arg(i);
+            page += QStringLiteral("</%1><p>after</p>").arg(tag);
+            const GuardedHtml g = guardHtml(page);
+            QCOMPARE(g.counts.listSplits, 2);
+            QCOMPARE(g.html.count(QStringLiteral("<%1").arg(tag)), 3);
+            if (ordered) {
+                QVERIFY(g.html.contains(QStringLiteral("<ol start=\"%1\">").arg(kMostHtmlListItems + 1)));
+                QVERIFY(g.html.contains(QStringLiteral("<ol start=\"%1\">").arg(2 * kMostHtmlListItems + 1)));
+            }
+            QTextDocument d;
+            d.setHtml(g.html);
+            int count = 0;
+            for (QTextBlock b = d.begin(); b.isValid(); b = b.next()) {
+                if (!b.textList()) continue;
+                QCOMPARE(b.text(), QStringLiteral("item%1").arg(count));
+                if (ordered) QCOMPARE(b.textList()->itemNumber(b) + b.textList()->format().start(), count + 1);
+                ++count;
+            }
+            QCOMPARE(count, items);
+        }
+        // a list of the limit's size is one list
+        QCOMPARE(guardHtml(repeatedText(QStringLiteral("<li>x"), kMostHtmlListItems, QStringLiteral("<ul>"))).counts.listSplits, 0);
+        QCOMPARE(guardHtml(repeatedText(QStringLiteral("<li>x"), kMostHtmlListItems + 1, QStringLiteral("<ul>"))).counts.listSplits, 1);
+    }
+
+    void preformattedTextIsABlockForEachLineAndKeepsItsSpaces()
+    {
+        const QString page = QStringLiteral("<pre>\nfirst\n    indented &amp; <b>bold\n</b>spaced\r\n\nlast  </pre>");
+        const GuardedHtml g = guardHtml(page);
+        QVERIFY(!g.html.contains(QLatin1String("<pre")));
+        QTextDocument d;
+        d.setHtml(g.html);
+        const QStringList lines = d.toPlainText().split(QLatin1Char('\n'));
+        QCOMPARE(lines, (QStringList{QStringLiteral("first"), QStringLiteral("    indented & bold"), QStringLiteral("spaced"), QStringLiteral(" "), QStringLiteral("last  ")}));
+        // (a line with a part open in it is cut by a line break, the rest by a block each)
+        QCOMPARE(d.blockCount(), 4);
+        QTextCursor c(&d);
+        c.setPosition(d.toPlainText().indexOf(QLatin1String("bold")) + 1);
+        QVERIFY(c.charFormat().fontWeight() >= QFont::Bold);
+        // every line is a part, so that a page of many lines is held to the limit of parts
+        HtmlLimits few;
+        few.parts = 30;
+        QCOMPARE(int(guardHtml(repeatedText(QStringLiteral("line\n"), 100, QStringLiteral("<pre>")), few).refusal), int(HtmlRefusal::TooManyParts));
+        QCOMPARE(int(guardHtml(repeatedText(QStringLiteral("line\n"), 20, QStringLiteral("<pre>")), few).refusal), int(HtmlRefusal::None));
+    }
+
+    void wordsAndMarkupCharactersAreWrittenSoThePageReadsTheSame()
+    {
+        for (const char *page : {"AT&T and &bogus; and &#65;&#x42; and &amp; and a &lt; b &gt; c", "3 > 2 and x &lt; y and <b>bold</b>", "tab\tand\nnewlines   and    runs", "&nbsp;&nbsp;two nbsp", "<p title=\"a &amp; b &quot;q&quot; &lt;x&gt;\">attr</p>", "<a href=\"a?b=1&c=2&amp;d=3\">link</a>"})
+            sameLook(QString::fromLatin1(page), page);
+        // a character the page cannot hold is not written
+        const QString g = guardHtml(QString::fromLatin1("a\x01\x02" "b<p>c\x1f</p>")).html;
+        QVERIFY2(!g.contains(QChar(1)) && !g.contains(QChar(2)) && !g.contains(QChar(0x1f)), qPrintable(g));
+        // a "<" that starts no part is a word (the page's parser takes "< 2 and 3 >" for a part)
+        const GuardedHtml lt = guardHtml(QStringLiteral("1 < 2 and 3 > 2 and <3"));
+        QCOMPARE(lt.html, QStringLiteral("1 &lt; 2 and 3 &gt; 2 and &lt;3"));
+        QCOMPARE(lookOf(lt.html).text, QStringLiteral("1 < 2 and 3 > 2 and <3"));
+        // an entity of any length is not kept, but is an ampersand
+        QVERIFY(guardHtml(QStringLiteral("&aaaaaaaaaaaaaaaaaaaa;")).html.startsWith(QLatin1String("&amp;aaaa")));
+    }
+
+    // ---- ordinary pages are accepted, with their look (each against what the page's parser makes of the page as it came)
+    // (a copy of cells from a spreadsheet program: a style on every cell and every row; the price list's is a shorter one)
+    static QString spreadsheetPage(int rows, int cols, bool shortStyle = false)
+    {
+        const QString style = shortStyle ? QStringLiteral("font-size:11pt;font-family:Arial,sans-serif;border:none;mso-ignore:padding;color:black;background:#%1")
+                                         : QStringLiteral("font-size:11.0pt;font-family:Calibri,sans-serif;vertical-align:bottom;border:none;mso-ignore:padding;color:black;font-weight:400;font-style:normal;text-decoration:none;text-align:general;white-space:nowrap;background:#%1");
+        QString h = QStringLiteral("<html><head><meta charset=utf-8><style>td{mso-number-format:General}</style></head><body><!--StartFragment--><table border=0 cellpadding=0 cellspacing=0 style=\"border-collapse:collapse\"><col width=64 span=%1>").arg(cols);
+        h.reserve(rows * cols * 330);
+        for (int r = 0; r < rows; ++r) {
+            h += QStringLiteral("<tr height=20 style=\"height:15.0pt\">");
+            for (int c = 0; c < cols; ++c)
+                h += QStringLiteral("<td class=xl65 style=\"") + style.arg((r + c) % 7 == 0 ? QStringLiteral("FFFF00") : QStringLiteral("FFFFFF")) + QStringLiteral("\">") + (c % 3 ? QString::number(r * 7 + c) + QStringLiteral(".25") : QStringLiteral("Item %1").arg(r)) + QStringLiteral("</td>");
+            h += QStringLiteral("</tr>");
+        }
+        return h + QStringLiteral("</table><!--EndFragment--></body></html>");
+    }
+    // fails when off: yes (the guard of main's design, which refused it for its size: the sizes here are the ones that were refused)
+    void aSpreadsheetCopiedAsAStyledTableIsAccepted_data()
+    {
+        QTest::addColumn<int>("rows");
+        QTest::addColumn<int>("cols");
+        QTest::addColumn<bool>("shortStyle");
+        QTest::newRow("5,000 rows of 20 cells") << 5000 << 20 << false;
+        QTest::newRow("a price list of 20,000 rows of 8 cells") << 20000 << 8 << true;
+    }
+    void aSpreadsheetCopiedAsAStyledTableIsAccepted()
+    {
+        QFETCH(int, rows);
+        QFETCH(int, cols);
+        QFETCH(bool, shortStyle);
+        const QString page = spreadsheetPage(rows, cols, shortStyle);
+        QVERIFY(page.size() > 10 * 1024 * 1024);
+        QVERIFY(page.size() < kMostHtmlBytes);
+        const GuardedHtml g = guardHtml(page);
+        QCOMPARE(int(g.refusal), int(HtmlRefusal::None));
+        QCOMPARE(g.counts.cells, qint64(rows) * cols);
+        QCOMPARE(g.counts.rows, qint64(rows));
+        QCOMPARE(g.counts.stylesLeftOut, 0);
+        QCOMPARE(g.counts.styles, qint64(rows) * cols + rows + 1);   // (one for each cell, one for each row, and the table's)
+        QVERIFY(g.html.size() < page.size());
+        // what is kept: the cell's text, its fill, its font, and its size; what is left out: the class, the default says, and the program's own properties
+        QVERIFY(g.html.contains(QLatin1String("background:#FFFF00")));
+        QVERIFY(g.html.contains(shortStyle ? QLatin1String("font-family:Arial,sans-serif") : QLatin1String("font-family:Calibri,sans-serif")));
+        QVERIFY(g.html.contains(shortStyle ? QLatin1String("font-size:11pt") : QLatin1String("font-size:11.0pt")));
+        QVERIFY(g.html.contains(QStringLiteral("Item %1").arg(rows - 1)));
+        QVERIFY(g.html.contains(QLatin1String("<!--StartFragment--><table")) && g.html.contains(QLatin1String("</table><!--EndFragment-->")));
+        for (const char *gone : {"mso-", "class=", "font-weight:400", "text-decoration:none", "border:none", "<col", "<style"})
+            QVERIFY2(!g.html.contains(QLatin1String(gone)), gone);
+    }
+    // fails when off: no (the look of the same page, smaller)
+    void aStyledSpreadsheetKeepsItsLookInTheParser()
+    {
+        sameLook(spreadsheetPage(120, 20), "120 rows of 20");
+    }
+
+    static QString articlePage(int sections)
+    {
+        QString h = QStringLiteral("<html><head><title>x</title></head><body><article>");
+        for (int p = 0; p < sections; ++p) {
+            h += QStringLiteral("<h2>Section %1</h2>").arg(p);
+            for (int k = 0; k < 45; ++k) h += QStringLiteral("<p>Lorem <b>ipsum</b> dolor sit <i>amet</i>, <a href=\"https://example.com/%1/%2\">consectetur</a> adipiscing &amp; elit.</p>").arg(p).arg(k);
+            h += QStringLiteral("<ul>") + repeatedText(QStringLiteral("<li>item</li>"), 8) + QStringLiteral("</ul>");
+        }
+        return h + QStringLiteral("</article></body></html>");
+    }
+    static QString browserPage(int blocks)
+    {
+        return repeatedText(QStringLiteral("<div class=\"row\"><p><span style=\"color:#333;font-size:14px\">words of the page</span> <a href=\"/x\"><span>link</span></a></p></div>"), blocks,
+                            QStringLiteral("<html><head><style>.a{color:red}</style></head><body>") + repeatedText(QStringLiteral("<div class=c>"), 40), repeatedText(QStringLiteral("</div>"), 40) + QStringLiteral("</body></html>"));
+    }
+    static QString quotedEmail(int levels)
+    {
+        QString h = QStringLiteral("<html><body>");
+        for (int lv = 0; lv < levels; ++lv) h += QStringLiteral("<div>On Monday someone wrote:<br>Reply at level %1 with <b>bold</b>.</div><blockquote style=\"margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex\">").arg(lv);
+        return h + QStringLiteral("<p>original</p>") + repeatedText(QStringLiteral("</blockquote>"), levels) + QStringLiteral("</body></html>");
+    }
+    static QString wikiPage(int paragraphs)
+    {
+        QString h = QStringLiteral("<html><body><h1>Wiki</h1>");
+        for (int k = 0; k < paragraphs; ++k) {
+            for (int j = 0; j < 5; ++j) h += QStringLiteral("<a href=\"/wiki/Page_%1_%2\" title=\"t\">Link %2</a> ").arg(k).arg(j);
+            if (k % 3 == 0 && k < 900) h += QStringLiteral("<img src=\"img%1.png\" width=100 height=80> ").arg(k);
+            h += QStringLiteral("<p>trailing words.</p>");
+        }
+        return h + QStringLiteral("</body></html>");
+    }
+    static QString calendarPage(int months)
+    {
+        QString h = QStringLiteral("<html><body>");
+        for (int m = 0; m < months; ++m) {
+            h += QStringLiteral("<h3>Month %1</h3><table border=1><tr><th>S<th>M<th>T<th>W<th>T<th>F<th>S</tr>").arg(m);
+            for (int r = 0, d = 1; r < 5; ++r) {
+                h += QStringLiteral("<tr>");
+                for (int c = 0; c < 7; ++c) h += QStringLiteral("<td align=right>%1</td>").arg(d++);
+                h += QStringLiteral("</tr>");
+            }
+            h += QStringLiteral("</table>");
+        }
+        return h + QStringLiteral("</body></html>");
+    }
+    void ordinaryPagesAreAcceptedAtFullSize()
+    {
+        GuardedHtml g = guardHtml(articlePage(200));   // (a 200-page article)
+        QCOMPARE(int(g.refusal), int(HtmlRefusal::None));
+        QVERIFY(g.counts.parts > 30000);
+        QCOMPARE(g.counts.listSplits, 0);
+        g = guardHtml(browserPage(3000));   // (a page saved from a browser, 40 deep)
+        QCOMPARE(int(g.refusal), int(HtmlRefusal::None));
+        QCOMPARE(g.counts.flattened, 0);
+        QVERIFY(g.counts.deepest >= 44);
+        g = guardHtml(quotedEmail(30));   // (an email with 30 levels of quotes)
+        QCOMPARE(int(g.refusal), int(HtmlRefusal::None));
+        QCOMPARE(g.counts.flattened, 0);
+        QCOMPARE(g.html.count(QLatin1String("<blockquote")), 30);
+        g = guardHtml(wikiPage(1000));   // (5,000 links and 300 pictures)
+        QCOMPARE(int(g.refusal), int(HtmlRefusal::None));
+        QCOMPARE(g.html.count(QLatin1String("<a href=")), 5000);
+        QCOMPARE(g.counts.pictures, qint64(300));
+        g = guardHtml(calendarPage(600));   // (many small tables)
+        QCOMPARE(int(g.refusal), int(HtmlRefusal::None));
+        QCOMPARE(g.counts.tables, 600);
+        QCOMPARE(g.counts.cells, qint64(600 * 42));
+    }
+    // fails when off: no (the look of each of these pages, smaller)
+    void ordinaryPagesKeepTheirLookInTheParser()
+    {
+        sameLook(articlePage(3), "an article");
+        sameLook(browserPage(40), "a browser page");
+        sameLook(quotedEmail(30), "an email");
+        sameLook(wikiPage(30), "a wiki page");
+        sameLook(calendarPage(6), "a calendar");
+        sameLook(QStringLiteral("<ul><ul><ul><li>x</li></ul></ul></ul>"), "an outline");
+    }
+
+    // ---- the callers
     void aRefusedPageGivesPlainWordsForAPaste()
     {
         QCOMPARE(htmlPlainText(QStringLiteral("<div><b>one</b> two &amp; <i>three</i></div>")), QStringLiteral("one two & three"));
-        QCOMPARE(htmlPlainText(QString::fromUtf8(repeated("<div>x</div>", 1000))).size(), 1000);
+        const QString refused = repeatedText(QStringLiteral("<b>x</b>"), kMostHtmlParts + 1, QStringLiteral("<div>words"));
+        bool wasRefused = false;
         QMimeData withText;
-        withText.setHtml(QString::fromUtf8(repeated("<b_x>", kMostPageDepth + 1, "<div>", "words")));
+        withText.setHtml(refused);
         withText.setText(QStringLiteral("the text of the page"));
-        const auto plain = plainTextInsteadOfRefusedHtml(&withText);
-        QVERIFY(plain);
+        auto plain = guardedMimeData(&withText, &wasRefused);
+        QVERIFY(plain && wasRefused);
         QVERIFY(!plain->hasHtml());
         QCOMPARE(plain->text(), QStringLiteral("the text of the page"));
         QMimeData htmlOnly;
-        htmlOnly.setHtml(QString::fromUtf8(repeated("<b_x>", kMostPageDepth + 1, "<div>", "words")));
-        QCOMPARE(plainTextInsteadOfRefusedHtml(&htmlOnly)->text(), QStringLiteral("words"));
-        QMimeData fine;
-        fine.setHtml(QStringLiteral("<p>hello</p>"));
-        QVERIFY(!plainTextInsteadOfRefusedHtml(&fine));
-        QVERIFY(!plainTextInsteadOfRefusedHtml(nullptr));
+        htmlOnly.setHtml(refused);
+        QVERIFY(guardedMimeData(&htmlOnly, &wasRefused)->text().startsWith(QLatin1String("wordsxxxx")));
+        QVERIFY(wasRefused);
+        QVERIFY(!guardedMimeData(nullptr));
+        QMimeData none;
+        none.setText(QStringLiteral("text only"));
+        QVERIFY(!guardedMimeData(&none));
     }
-    void theLimitsOfSizeCellsAndRowsAreKeptByTheScanItself()
+    // fails when off: yes (a mime that is handed on as it came keeps its script, and its other formats are not lost)
+    void aPageThatIsNotRefusedIsHandedOnGuardedWithItsOtherFormats()
     {
-        // (counted by the scan, before any later reader looks at the grid)
-        QCOMPARE(scanHtml(QByteArray(int(kMostHtmlBytes) + 1, 'a')).refusal, HtmlRefusal::TooLarge);
-        QCOMPARE(scanHtml(QByteArray(int(kMostHtmlBytes), 'a')).refusal, HtmlRefusal::None);   // (plain words: 50 nanoseconds of the model's for each byte, under the limit)
-        QCOMPARE(scanHtml(repeated("<td>", kMostHtmlCells, "<table><tr>")).refusal, HtmlRefusal::None);
-        QCOMPARE(scanHtml(repeated("<td>", kMostHtmlCells + 1, "<table><tr>")).refusal, HtmlRefusal::TooManyCells);
-        QCOMPARE(scanHtml(repeated("<tr>", kMostHtmlRows, "<table>")).refusal, HtmlRefusal::None);
-        QCOMPARE(scanHtml(repeated("<tr>", kMostHtmlRows + 1, "<table>")).refusal, HtmlRefusal::TooManyCells);
-        QCOMPARE(scanHtml(repeated("<table>", kMostHtmlTableDepth + 1)).refusal, HtmlRefusal::TooDeep);
-        QCOMPARE(scanHtml(repeated("<table>", kMostHtmlTableDepth)).refusal, HtmlRefusal::None);
+        QMimeData page;
+        page.setHtml(QStringLiteral("<p onclick=\"bad()\">hello <script>alert(1)</script><b>bold</b></p>"));
+        page.setText(QStringLiteral("hello bold"));
+        page.setData(QStringLiteral("application/x-test"), "kept");
+        page.setData(QStringLiteral("application/x-qrichtext"), "<p onclick=\"bad()\">rich</p><script>x</script>");
+        bool refused = true;
+        const auto g = guardedMimeData(&page, &refused);
+        QVERIFY(g);
+        QVERIFY(!refused);
+        QCOMPARE(g->html(), QStringLiteral("<p>hello <b>bold</b></p>"));
+        QCOMPARE(g->text(), QStringLiteral("hello bold"));
+        QCOMPARE(g->data(QStringLiteral("application/x-test")), QByteArray("kept"));
+        QCOMPARE(g->data(QStringLiteral("application/x-qrichtext")), QByteArray("<p>rich</p>"));
+        QCOMPARE(g->formats(), page.formats());   // (in the order they came)
+        // a rich text format that is refused takes the page's html with it
+        QMimeData bad;
+        bad.setHtml(QStringLiteral("<p>fine</p>"));
+        bad.setText(QStringLiteral("fine"));
+        bad.setData(QStringLiteral("application/x-qrichtext"), repeatedText(QStringLiteral("<b>x</b>"), kMostHtmlParts + 1).toUtf8());
+        const auto p = guardedMimeData(&bad, &refused);
+        QVERIFY(refused);
+        QVERIFY(!p->hasHtml() && !p->hasFormat(QStringLiteral("application/x-qrichtext")));
+        QCOMPARE(p->text(), QStringLiteral("fine"));
     }
-    void cellsAndRowsPastTheLimitAreRefusedWithTheReason()
+    // fails when off: yes (the readers parsed the page as it came)
+    void everyReaderOfAPageParsesTheGuardedPage()
     {
+        const QByteArray page = "<html><head><style>td{color:red}</style><script>x</script></head><body><table><tr><td>a<td>b<tr><td>c<td>d</table></body></html>";
+        const auto tables = readHtmlTables(page);
+        QCOMPARE(tables.size(), 1);
+        QCOMPARE(tables[0].rows.size(), 2);
+        QCOMPARE(tables[0].rows[1], (QStringList{QStringLiteral("c"), QStringLiteral("d")}));
+        const auto clip = clipTable(QString::fromUtf8(page), QString());
+        QVERIFY(clip);
+        QCOMPARE(clip->rows.size(), 2);
+        // a page that is too much is refused with the word for it, by each reader
+        const QByteArray many = repeatedText(QStringLiteral("<td>"), kMostHtmlCells + 1, QStringLiteral("<table><tr>")).toUtf8();
         QString why;
-        QByteArray h = "<table><tr>";
-        for (int i = 0; i <= kMostHtmlCells; ++i) h += "<td>";
-        QVERIFY(readHtmlTables(h, nullptr, &why).isEmpty());
-        QVERIFY2(why.contains(QLatin1String("too many")), qPrintable(why));
-        QByteArray r = "<table>";
-        for (int i = 0; i <= kMostHtmlRows; ++i) r += "<tr>";
-        why.clear();
-        QVERIFY(readHtmlTables(r, nullptr, &why).isEmpty());
+        QVERIFY(readHtmlTables(many, nullptr, &why).isEmpty());
         QVERIFY2(why.contains(QLatin1String("too many")), qPrintable(why));
         Document d;
         why.clear();
-        QVERIFY(!readHtml(r, &d, &why));
+        QVERIFY(!readHtml(many, &d, &why));
         QVERIFY(why.contains(QLatin1String("too many")));
+        QVERIFY(!clipTable(QString::fromUtf8(many), QString()));
+        why.clear();
+        QVERIFY(!readHtml(QByteArray(int(kMostHtmlBytes) + 1, 'a'), &d, &why));
+        QVERIFY2(why.contains(QLatin1String("too large")), qPrintable(why));
+        // a page nested past the limits is read, flat, with its words
+        QString deep;
+        for (int i = 0; i < 3 * kMostHtmlNesting; ++i) deep += QStringLiteral("<table><tr><td>");
+        deep += QStringLiteral("the deep words");
+        QVERIFY(readHtml(deep.toUtf8(), &d, &why));
+        QVERIFY(!readHtmlTables(deep.toUtf8(), nullptr, &why).isEmpty());
     }
 };
 
