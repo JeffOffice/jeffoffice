@@ -2407,6 +2407,43 @@ private Q_SLOTS:
         view->undo();
         QCOMPARE(documentXml(doc->toDocx()), before);
     }
+
+    void aResultWithALineBreakKeepsItWhenTextIsTypedAroundIt()
+    {
+        const QByteArray tx = "<w:textInput><w:maxLength w:val=\"20\"/></w:textInput>";
+        const QByteArray body = para(run("pre ") + formField("A", tx, "FORMTEXT", run("one") + "<w:r><w:br/></w:r>" + run("two")) + run(" post"));
+        const QString joined = QStringLiteral("one\ntwo");   // (a line break is a new line in what a field holds)
+        for (int protectedForForms = 0; protectedForForms < 2; ++protectedForForms) {
+            auto w = windowOn(body, protectedForForms ? kFormsProtection : QByteArray());
+            QVERIFY(w);
+            PageView *view = w->view();
+            WriteDoc *doc = w->document();
+            auto result = [&] { return formFields(doc->story())[0].result; };
+            QCOMPARE(result(), joined);
+            // Typed at either end, or after the break: the break stays.
+            caretAt(view, formFields(doc->story())[0].end);
+            QTest::keyClicks(view, "!");
+            QCOMPARE(result(), joined + QLatin1Char('!'));
+            caretAt(view, formFields(doc->story())[0].separate + 1);
+            QTest::keyClicks(view, "?");
+            QCOMPARE(result(), QLatin1Char('?') + joined + QLatin1Char('!'));
+            // Text typed over the one side of the break leaves the break where it is.
+            caretAt(view, formFields(doc->story())[0].separate + 2, formFields(doc->story())[0].separate + 4);
+            QTest::keyClicks(view, "N");
+            QCOMPARE(result(), QStringLiteral("?Ne\ntwo!"));
+            // A paste turns a break in it into a space (one paragraph, one line); the whole result selected and typed over has no break left.
+            caretAt(view, formFields(doc->story())[0].separate + 1, formFields(doc->story())[0].end);
+            QTest::keyClicks(view, "all");
+            QCOMPARE(result(), QStringLiteral("all"));
+            // The break is written as a break in the saved file.
+            QCOMPARE(int(doc->story()->blockCount()), 1);
+        }
+        // Where the break is kept, the file still has it.
+        auto w = windowOn(body);
+        caretAt(w->view(), formFields(w->document()->story())[0].end);
+        QTest::keyClicks(w->view(), "!");
+        QVERIFY(documentXml(w->document()->toDocx()).contains("<w:br/>"));
+    }
 };
 
 QTEST_MAIN(FieldTests)

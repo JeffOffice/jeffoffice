@@ -415,7 +415,8 @@ bool fillFormText(WriteDoc &doc, QTextDocument *story, int begin, const QString 
     c.setPosition(f.separate + 1);
     c.setPosition(f.end, QTextCursor::KeepAnchor);
     if (c.hasSelection()) c.removeSelectedText();
-    if (!entered.isEmpty()) c.insertText(entered, look);
+    // (A line break in what a field holds is a break in its line, as it was read; never a new paragraph.)
+    if (!entered.isEmpty()) c.insertText(QString(entered).replace(QLatin1Char('\n'), QChar(QChar::LineSeparator)), look);
     // (What the begin mark shows: the default text where the result has none, else nothing.)
     Inline atom = unpackAtom(storedBytes(formatAt(story, f.begin), prop::Atom));
     atom.display = shownOf(f, entered);
