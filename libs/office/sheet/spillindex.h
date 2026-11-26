@@ -21,7 +21,7 @@ namespace jp::office::sheet {
 class MutationGuard;
 
 // Whether a calculation that loads from now on keeps the cells a formula spills into as blocks in this index (true) or as cells in the store (false, the default). A trial switch: the environment
-// variable JO_SPILL_INDEX=1 turns it on for a process; a test sets it with SpillIndexSwitch.
+// variable JO_SPILL_INDEX=1 turns it on for a process; a test sets it with SpillIndexSwitch (JO_SPILL_FORCE_ON=1 makes the switch to off stay on: a thread-checked run of the tests).
 bool spillIndexDefault();
 void setSpillIndexDefault(bool on);
 struct SpillIndexSwitch {

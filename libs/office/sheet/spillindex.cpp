@@ -20,7 +20,8 @@ bool spillIndexDefault()
     return v != 0;
 }
 
-void setSpillIndexDefault(bool on) { g_default.store(on ? 1 : 0, std::memory_order_relaxed); }
+// (JO_SPILL_FORCE_ON=1, for a test run only: a test that switches the index off for a pass of its own gets it on, so that a whole run, thread-checked, is of the index)
+void setSpillIndexDefault(bool on) { g_default.store(on || qEnvironmentVariableIntValue("JO_SPILL_FORCE_ON") != 0 ? 1 : 0, std::memory_order_relaxed); }
 
 SpillTable::BucketMap &SpillTable::bucketsForWrite(size_t i)
 {
