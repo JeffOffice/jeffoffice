@@ -69,6 +69,7 @@
 #include <vector>
 
 class QMenu;
+class QPlainTextEdit;
 class QPainter;
 
 namespace jp {
@@ -297,12 +298,20 @@ public:
     QMenu *buildMenu(QWidget *parent);
     // Presenter View from the menu: opened (on the window's screen, or on the second screen when there is one) when it is not, brought forward when it is; Reading View has none.
     void showPresenterView();
-    // The notes of the slide on the screen, in a box (the first kSpeakerNotesLimit characters of them).
+    // The notes of the slide on the screen, in a small box over the show that takes no keys or clicks (the show goes on with its own keys, a remote, and the mouse) and is
+    // filled again whenever the show moves; Esc closes it first. At most kSpeakerNotesLimit characters are shown, cut between whole characters, with a sentence saying so.
+    // Not offered while Presenter View is open: it shows the notes, and a box would be on the audience's screen.
     void showSpeakerNotes();
+    QPlainTextEdit *speakerNotesBox() const;
     static constexpr int kSpeakerNotesLimit = 5000;
     // Zoom into the slide: the slide twice as large, with the point `about` of the window kept where it is; a drag moves it, and it ends with Esc, the menu entry
     // again, another slide or step, a black or white screen, a pen, or a new window size. Nothing on a black or white screen, at the end, or while an effect plays.
     static constexpr double kZoomFactor = 2.0;
+    // The larger picture has at most this many pixels: past it, it is drawn at a lower scale and still shows the slide twice as large.
+    static constexpr double kZoomMaxPixels = 16e6;
+    static qreal zoomRatio(const QSize &windowSize, qreal pixelRatio);
+    QSize zoomImageSize() const { return m_zoomImage.size(); }   // (for tests)
+    const QImage &zoomImage() const { return m_zoomImage; }
     bool isZoomed() const { return m_zoomed; }
     QPointF zoomOrigin() const { return m_zoomOrigin; }   // the part of the larger picture at the window's top left corner
     void zoomInto(const QPointF &about);
@@ -413,6 +422,9 @@ private:
     void place();
     void openPresenterView(QScreen *on);
     bool canZoom() const;
+    QString speakerNotesText() const;
+    void fillSpeakerNotes();
+    void closeSpeakerNotes();
     void applyScreens();
     // The link under a point of the window, if the slide on it has one.
     QString linkAt(const QPointF &pos) const;
@@ -515,6 +527,8 @@ private:
     bool m_zoomed = false, m_panning = false;
     QImage m_zoomImage;         // the slide at kZoomFactor times the window's size while zoomed
     QPointF m_zoomOrigin, m_panFrom, m_panOrigin, m_menuAnchor;
+    bool m_haveAnchor = false;   // a right click on the show set m_menuAnchor for the next menu
+    QPointer<QPlainTextEdit> m_notesBox;
     QPointer<PresenterView> m_presenter;
     std::function<bool()> m_notesReadOnly;
     bool m_watchingScreens = false;

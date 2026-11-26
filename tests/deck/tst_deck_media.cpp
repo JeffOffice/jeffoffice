@@ -2346,6 +2346,38 @@ private Q_SLOTS:
         QCOMPARE(show.currentSlide(), 0);
     }
 
+    // Zoom into the slide is not offered while a movie is on the screen (the larger picture would leave it out while its sound went on); a sound alone does not stop it.
+    void zoomIsRefusedWhileAMovieIsOnTheSlide()
+    {
+        auto d = showDeck(2);
+        const QByteArray avi = testAvi(30, QSize(64, 48), 10, true), wav = testWav(3000);
+        deck::MediaPlay click, automatic;
+        automatic.start = deck::MediaStart::Automatically;
+        automatic.loop = true;
+        auto sound = showMedia(*d, 0, wav, QStringLiteral("tune.wav"), QPointF(700, 400), automatic);
+        auto movie = showMedia(*d, 0, avi, QStringLiteral("clip.avi"), QPointF(100, 100), click, QSizeF(320, 240));
+        LayoutCache cache;
+        SlideShow show(d.get(), &cache, 0);
+        show.resize(960, 540);
+        show.show();
+        QPointer<MediaPlayback> tune = show.media()->playbackOf(sound->id);
+        QVERIFY(tune);
+        QTRY_VERIFY_WITH_TIMEOUT(playerSettled(*tune, false), 15000);
+        QVERIFY(!show.media()->drawsMovie());
+        show.zoomInto(QPointF(100, 100));   // a sound alone does not stop it
+        QVERIFY(show.isZoomed());
+        show.endZoom();
+        show.next();   // the click is the movie's
+        QPointer<MediaPlayback> clip = show.media()->playbackOf(movie->id);
+        QVERIFY(clip);
+        QTRY_VERIFY_WITH_TIMEOUT(playerSettled(*clip, true), 15000);
+        QTRY_VERIFY(show.media()->drawsMovie());
+        std::unique_ptr<QMenu> menu(show.buildMenu(&show));
+        QVERIFY(!menu->findChild<QAction *>(QStringLiteral("menuZoom"))->isEnabled());
+        show.zoomInto(QPointF(100, 100));
+        QVERIFY(!show.isZoomed());
+    }
+
     // A show moved to another presentation does not go on playing the old one's media (its players belong to the old presentation, which the window is
     // free to delete).
     void showMediaStopsWhenTheShowIsBoundToAnotherPresentation()

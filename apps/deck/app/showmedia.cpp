@@ -234,6 +234,14 @@ void ShowMedia::run(const deck::MediaCue &cue)
     m_view->update();
 }
 
+bool ShowMedia::drawsMovie() const
+{
+    if (!m_on) return false;
+    for (auto it = m_entries.constBegin(); it != m_entries.constEnd(); ++it)
+        if (showsFrame(it.value())) return true;
+    return false;
+}
+
 bool ShowMedia::showsFrame(const Entry &e) const
 {
     const MediaPlayback *pb = e.player;

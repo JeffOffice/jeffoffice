@@ -3650,11 +3650,11 @@ private Q_SLOTS:
         for (const char *word : {"Page Down", "Home", "Enter", "Esc", "Shift+F10"}) QVERIFY2(help.contains(QLatin1String(word)), word);
     }
 
-    // The show's menu opens Presenter View (once: a second choice brings the one that is open forward, and Reading View, which has none, can't), tells the slide's notes without it.
+    // The show's menu opens Presenter View (once: a second choice brings the one that is open forward, and Reading View, which has none, can't); with it open the
+    // Speaker Notes entry is not offered (Presenter View shows the notes, and a box would be on the audience's screen).
     void showMenuHasPresenterViewAndSpeakerNotes()
     {
         auto d = showDeck(3);
-        d->storyDoc(d->pages[1]->notesStoryId)->setPlainText(QString());
         LayoutCache cache;
         SlideShow show(d.get(), &cache, 0);
         show.resize(960, 540);
@@ -3663,11 +3663,14 @@ private Q_SLOTS:
         QAction *pv = menu->findChild<QAction *>(QStringLiteral("menuPresenterView"));
         QAction *notes = menu->findChild<QAction *>(QStringLiteral("menuSpeakerNotes"));
         QVERIFY(pv && notes);
-        QVERIFY(pv->isEnabled());
+        QVERIFY(pv->isEnabled() && notes->isEnabled());
         QVERIFY(!show.presenterView());
+        notes->trigger();
+        QVERIFY(show.speakerNotesBox());
         pv->trigger();
         QVERIFY(show.presenterView());
         QVERIFY(show.presenterView()->isVisible());
+        QVERIFY(!show.speakerNotesBox());   // Presenter View has the notes
         QCOMPARE(show.presenterView()->counterText(), QStringLiteral("Slide 1 of 3"));
         QPointer<PresenterView> first = show.presenterView();
         pv->trigger();
@@ -3675,25 +3678,10 @@ private Q_SLOTS:
         int open = 0;
         for (QWidget *w : QApplication::allWidgets()) open += qobject_cast<PresenterView *>(w) != nullptr;
         QCOMPARE(open, 1);
-        // The notes of the slide on the screen, in a box that does not wait; a slide with none says so.
-        notes->trigger();
-        QList<QMessageBox *> boxes = show.findChildren<QMessageBox *>();
-        QCOMPARE(boxes.size(), 1);
-        QCOMPARE(boxes[0]->text(), QStringLiteral("Notes 1"));
-        delete boxes[0];
-        show.next();
-        notes->trigger();
-        boxes = show.findChildren<QMessageBox *>();
-        QCOMPARE(boxes.size(), 1);
-        QCOMPARE(boxes[0]->text(), QStringLiteral("This slide has no notes."));
-        delete boxes[0];
-        // A very long note is cut at the limit.
-        d->storyDoc(d->pages[1]->notesStoryId)->setPlainText(QString(SlideShow::kSpeakerNotesLimit * 3, QLatin1Char('x')));
-        notes->trigger();
-        boxes = show.findChildren<QMessageBox *>();
-        QCOMPARE(boxes.size(), 1);
-        QCOMPARE(boxes[0]->text().size(), SlideShow::kSpeakerNotesLimit + 1);
-        delete boxes[0];
+        std::unique_ptr<QMenu> later(show.buildMenu(&show));
+        QVERIFY(!later->findChild<QAction *>(QStringLiteral("menuSpeakerNotes"))->isEnabled());
+        show.showSpeakerNotes();
+        QVERIFY(!show.speakerNotesBox());
         // Reading View has no Presenter View to open.
         QWidget host;
         host.resize(960, 540);
@@ -3701,6 +3689,162 @@ private Q_SLOTS:
         inside.embedIn(&host);
         std::unique_ptr<QMenu> insideMenu(inside.buildMenu(&inside));
         QVERIFY(!insideMenu->findChild<QAction *>(QStringLiteral("menuPresenterView"))->isEnabled());
+    }
+
+    // The notes box does not block the show: it is not modal, takes no focus, and the show's keys and clicks still move it on; it shows the notes of the slide that is on the screen
+    // after every move (and says when there are none); Esc closes the box first, and then ends the show.
+    void speakerNotesBoxFollowsTheShowAndTakesNoKeys()
+    {
+        auto d = showDeck(4);
+        d->storyDoc(d->pages[1]->notesStoryId)->setPlainText(QString());
+        LayoutCache cache;
+        SlideShow show(d.get(), &cache, 0);
+        show.resize(960, 540);
+        show.show();
+        QVERIFY(QTest::qWaitForWindowExposed(&show));
+        show.activateWindow();
+        std::unique_ptr<QMenu> menu(show.buildMenu(&show));
+        menu->findChild<QAction *>(QStringLiteral("menuSpeakerNotes"))->trigger();
+        QPlainTextEdit *box = show.speakerNotesBox();
+        QVERIFY(box);
+        QVERIFY(box->isVisible());
+        QCOMPARE(box->toPlainText(), QStringLiteral("Notes 1"));
+        QVERIFY(!box->isModal());
+        QVERIFY(!QApplication::activeModalWidget());
+        QCOMPARE(box->focusPolicy(), Qt::NoFocus);
+        QVERIFY(!box->hasFocus());
+        // A key and a click of the show move it on, with the box up, and the box follows.
+        QTest::keyClick(&show, Qt::Key_Right);
+        QCOMPARE(show.currentSlide(), 1);
+        QCOMPARE(box->toPlainText(), QStringLiteral("This slide has no notes."));
+        QTest::mouseClick(&show, Qt::LeftButton, Qt::NoModifier, QPoint(480, 270));
+        QCOMPARE(show.currentSlide(), 2);
+        QCOMPARE(box->toPlainText(), QStringLiteral("Notes 3"));
+        show.previous();
+        show.goTo(0);
+        QCOMPARE(box->toPlainText(), QStringLiteral("Notes 1"));
+        // Choosing the entry again keeps the one box.
+        menu->findChild<QAction *>(QStringLiteral("menuSpeakerNotes"))->trigger();
+        QCOMPARE(show.speakerNotesBox(), box);
+        // Esc closes the box and not the show; the next one ends the show.
+        QPointer<QPlainTextEdit> gone = box;
+        QTest::keyClick(&show, Qt::Key_Escape);
+        QVERIFY(!show.speakerNotesBox());
+        QVERIFY(show.isVisible());
+        QCoreApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete);
+        QVERIFY(gone.isNull());
+        QTest::keyClick(&show, Qt::Key_Escape);
+        QVERIFY(!show.isVisible());
+    }
+
+    // A long note is cut at the limit between whole characters: not inside a pair (an emoji), and not between a letter and its marks; and the box says it was cut.
+    void speakerNotesAreCutBetweenWholeCharacters()
+    {
+        const int limit = SlideShow::kSpeakerNotesLimit;
+        auto d = showDeck(3);
+        const QString emoji = QString::fromUcs4(U"\U0001F600");
+        d->storyDoc(d->pages[0]->notesStoryId)->setPlainText(QStringLiteral("a") + emoji.repeated(limit + 1000));
+        d->storyDoc(d->pages[1]->notesStoryId)->setPlainText(QString(limit - 1, QLatin1Char('x')) + QStringLiteral("e") + QString(QChar(0x0301)).repeated(10) + QString(200, QLatin1Char('y')));
+        d->storyDoc(d->pages[2]->notesStoryId)->setPlainText(QString(limit * 3, QLatin1Char('x')));
+        LayoutCache cache;
+        SlideShow show(d.get(), &cache, 0);
+        show.resize(960, 540);
+        show.show();
+        show.showSpeakerNotes();
+        QPlainTextEdit *box = show.speakerNotesBox();
+        QVERIFY(box);
+        const QString cutNote = QStringLiteral("\n\nThese notes were cut short because they are very long.");
+        for (int slide = 0; slide < 3; ++slide) {
+            show.goTo(slide);
+            const QString text = box->toPlainText();
+            QVERIFY(text.endsWith(cutNote));
+            const QString body = text.left(text.size() - cutNote.size());
+            QVERIFY(body.size() <= limit);
+            QVERIFY(body.size() > limit - 4);   // (nothing but the last whole character is lost)
+            for (int i = 0; i < body.size(); ++i) {
+                if (body[i].isHighSurrogate()) QVERIFY2(i + 1 < body.size() && body[i + 1].isLowSurrogate(), "a pair was split");
+                if (body[i].isLowSurrogate()) QVERIFY2(i > 0 && body[i - 1].isHighSurrogate(), "a lone second half");
+            }
+            QVERIFY(!body.endsWith(QChar(0x0301)));
+            if (slide == 1) QVERIFY(!body.endsWith(QLatin1Char('e')));   // the letter and its marks go together
+        }
+        QCOMPARE(box->toPlainText().size(), limit + cutNote.size());   // (the plain long note: cut exactly at the limit)
+    }
+
+    // Zoom from a menu that Presenter View opened (or any menu that was not a right click on the show) is around the middle, not the point of an earlier right click.
+    void zoomFromPresenterViewIsAroundTheMiddle()
+    {
+        auto d = showDeck(2);
+        LayoutCache cache;
+        SlideShow show(d.get(), &cache, 0);
+        show.resize(960, 540);
+        show.show();
+        QVERIFY(QTest::qWaitForWindowExposed(&show));
+        // A right click on the show at one corner, and its menu put away.
+        QTest::mouseClick(&show, Qt::RightButton, Qt::NoModifier, QPoint(100, 60));
+        if (QWidget *popup = QApplication::activePopupWidget()) QTest::keyClick(popup, Qt::Key_Escape);
+        QVERIFY(!QApplication::activePopupWidget());
+        show.showPresenterView();
+        PresenterView *pv = show.presenterView();
+        QVERIFY(pv);
+        std::unique_ptr<QMenu> menu(show.buildMenu(pv));
+        menu->findChild<QAction *>(QStringLiteral("menuZoom"))->trigger();
+        QVERIFY(show.isZoomed());
+        QCOMPARE(show.zoomOrigin(), QPointF(480, 270));
+        show.endZoom();
+        // A right click on the show is around its own point.
+        QTest::mouseClick(&show, Qt::RightButton, Qt::NoModifier, QPoint(100, 60));
+        QMenu *popup = qobject_cast<QMenu *>(QApplication::activePopupWidget());
+        QVERIFY(popup);
+        popup->findChild<QAction *>(QStringLiteral("menuZoom"))->trigger();
+        QVERIFY(show.isZoomed());
+        QCOMPARE(show.zoomOrigin(), QPointF(100, 60));
+        if (QWidget *p = QApplication::activePopupWidget()) QTest::keyClick(p, Qt::Key_Escape);
+    }
+
+    // With a pen, a highlighter, an eraser, or the laser pointer chosen, Zoom is not offered (the ink would vanish and the pen go dead).
+    void zoomIsNotOfferedWithAPen()
+    {
+        auto d = showDeck(2);
+        LayoutCache cache;
+        SlideShow show(d.get(), &cache, 0);
+        show.resize(960, 540);
+        show.show();
+        for (SlideShow::Pointer p : {SlideShow::Pointer::Pen, SlideShow::Pointer::Highlighter, SlideShow::Pointer::Eraser, SlideShow::Pointer::Laser}) {
+            show.setPointer(p);
+            std::unique_ptr<QMenu> menu(show.buildMenu(&show));
+            QVERIFY(!menu->findChild<QAction *>(QStringLiteral("menuZoom"))->isEnabled());
+            show.zoomInto(QPointF(100, 100));
+            QVERIFY(!show.isZoomed());
+            QCOMPARE(show.pointer(), p);   // (the pen is still the pen)
+        }
+        show.setPointer(SlideShow::Pointer::Arrow);
+        std::unique_ptr<QMenu> menu(show.buildMenu(&show));
+        QVERIFY(menu->findChild<QAction *>(QStringLiteral("menuZoom"))->isEnabled());
+    }
+
+    // The larger picture has a pixel limit: a big window at a high pixel ratio draws it at a lower scale, and it still shows the slide twice as large.
+    void zoomPictureHasAPixelCap()
+    {
+        const double cap = SlideShow::kZoomMaxPixels;
+        auto pixels = [](const QSize &s, qreal r) { return double(s.width()) * SlideShow::kZoomFactor * r * (double(s.height()) * SlideShow::kZoomFactor * r); };
+        QCOMPARE(SlideShow::zoomRatio(QSize(960, 540), 1.0), 1.0);
+        QVERIFY(pixels(QSize(1920, 1080), 2.0) > cap);
+        QVERIFY(pixels(QSize(1920, 1080), SlideShow::zoomRatio(QSize(1920, 1080), 2.0)) <= cap * 1.0001);
+        QVERIFY(pixels(QSize(7680, 4320), SlideShow::zoomRatio(QSize(7680, 4320), 2.0)) <= cap * 1.0001);
+        // A real picture of a large window.
+        auto d = showDeck(1);
+        LayoutCache cache;
+        SlideShow show(d.get(), &cache, 0);
+        show.resize(3840, 2160);
+        show.show();
+        QVERIFY(QTest::qWaitForWindowExposed(&show));
+        QVERIFY(show.size().width() >= 3000);
+        show.zoomInto(QPointF(100, 100));
+        QVERIFY(show.isZoomed());
+        const QSize px = show.zoomImageSize();
+        QVERIFY(double(px.width()) * px.height() <= cap * 1.01);
+        QVERIFY(std::abs(show.zoomImage().deviceIndependentSize().width() - show.width() * 2) <= 2);
     }
 
     // A step of the slide's effects that is about to play ends the zoom too (the larger picture would not show it), and the slide stays where it is.

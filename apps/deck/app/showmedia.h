@@ -51,6 +51,8 @@ public:
     // A click or key forward when `done` steps have played: true when it starts or controls media instead (a step of
     // only a call to a movie or sound is a click of its own).
     bool takeClick(int slide, int done);
+    // Whether a movie's picture is on the screen (playing, paused, or at its first frame): what a larger copy of the slide would leave out.
+    bool drawsMovie() const;
     // Mouse over the slide: true when something here is the media's (its control bar, or a movie to click), and the
     // press does its work.
     bool mouseMove(const QPointF &pos);

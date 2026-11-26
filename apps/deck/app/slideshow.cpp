@@ -36,12 +36,15 @@
 #include <QPainter>
 #include <QPainterPath>
 #include <QPixmap>
+#include <QPlainTextEdit>
+#include <QTextBoundaryFinder>
 #include <QRandomGenerator>
 #include <QRadialGradient>
 #include <QScreen>
 #include <QSet>
 #include <QUrl>
 #include <algorithm>
+#include <cmath>
 #include <cstring>
 #include <optional>
 #include <vector>
@@ -1551,7 +1554,8 @@ void SlideShow::keyPressEvent(QKeyEvent *e)
     switch (k) {
     case Qt::Key_Escape:
         // Esc puts a zoomed slide back first, then brings the arrow back.
-        if (m_zoomed) endZoom();
+        if (m_notesBox) closeSpeakerNotes();
+        else if (m_zoomed) endZoom();
         else if (m_pointer != Pointer::Arrow) setPointer(Pointer::Arrow);
         else close();
         break;
@@ -1999,7 +2003,6 @@ void SlideShow::openMenu()
         return;
     }
     // On the window the presenter is looking at: Presenter View when it is open, else the show.
-    m_menuAnchor = QPointF(width() / 2.0, height() / 2.0);
     QWidget *where = this;
     if (PresenterView *pv = presenterView(); pv && pv->isVisible()) where = pv;
     QMenu *menu = buildMenu(where);
@@ -2076,6 +2079,7 @@ void SlideShow::mousePressEvent(QMouseEvent *e)
             return;
         }
         m_menuAnchor = e->position();
+        m_haveAnchor = true;
         QMenu *menu = buildMenu(this);
         menu->setAttribute(Qt::WA_DeleteOnClose);
         menu->popup(e->globalPosition().toPoint());
@@ -2581,13 +2585,16 @@ QMenu *SlideShow::buildMenu(QWidget *parent)
     connect(presenter, &QAction::triggered, this, [this] { showPresenterView(); });
     QAction *notes = menu->addAction(tr("Speaker Notes"));
     notes->setObjectName(QStringLiteral("menuSpeakerNotes"));
+    notes->setEnabled(!(m_presenter && m_presenter->isVisible()));
     connect(notes, &QAction::triggered, this, [this] { showSpeakerNotes(); });
     QAction *zoom = menu->addAction(tr("Zoom into the Slide"));
     zoom->setObjectName(QStringLiteral("menuZoom"));
     zoom->setCheckable(true);
     zoom->setChecked(m_zoomed);
-    zoom->setEnabled(m_zoomed || canZoom());
-    const QPointF about = m_menuAnchor;
+    zoom->setEnabled(m_zoomed || canZoom());   // (not with a pen or the laser pointer chosen, nor with a movie on the slide: a movie is not drawn in the larger picture)
+    // Zoom is around the point of a right click on the show, and around the middle for a menu opened any other way (by key, or from Presenter View).
+    const QPointF about = m_haveAnchor ? m_menuAnchor : QPointF(width() / 2.0, height() / 2.0);
+    m_haveAnchor = false;
     connect(zoom, &QAction::triggered, this, [this, about] {
         if (m_zoomed) endZoom();
         else zoomInto(about);
@@ -2912,6 +2919,7 @@ void SlideShow::swapScreens()
 
 void SlideShow::openPresenterView(QScreen *on)
 {
+    closeSpeakerNotes();
     m_presenter = new PresenterView(this);
     if (m_rehearsal) {
         const QRect area = on->availableGeometry();
@@ -2951,24 +2959,82 @@ void SlideShow::showPresenterView()
     openPresenterView(mine);
 }
 
-void SlideShow::showSpeakerNotes()
+QPlainTextEdit *SlideShow::speakerNotesBox() const { return m_notesBox; }
+
+// What the box says: the notes of the slide on the screen, cut between whole characters (never inside a pair of UTF-16 units or between a letter and its marks).
+QString SlideShow::speakerNotesText() const
 {
     const int slide = targetSlide();
     QString notes = slide >= 0 && slide < m_doc->pages.size() ? deck::notesText(*m_doc, *m_doc->pages[slide]) : QString();
-    if (notes.trimmed().isEmpty()) notes = tr("This slide has no notes.");
-    else if (notes.size() > kSpeakerNotesLimit) notes = notes.left(kSpeakerNotesLimit) + QChar(0x2026);
-    tellBox(tr("Speaker Notes"), notes, false);
+    if (notes.trimmed().isEmpty()) return tr("This slide has no notes.");
+    if (notes.size() > kSpeakerNotesLimit) {
+        const QString head = notes.left(kSpeakerNotesLimit + 1024);
+        QTextBoundaryFinder finder(QTextBoundaryFinder::Grapheme, head);
+        finder.setPosition(kSpeakerNotesLimit);
+        const int cut = finder.isAtBoundary() ? kSpeakerNotesLimit : finder.toPreviousBoundary();
+        notes = head.left(std::max(cut, 0)) + QStringLiteral("\n\n") + tr("These notes were cut short because they are very long.");
+    }
+    return notes;
+}
+
+void SlideShow::fillSpeakerNotes()
+{
+    if (!m_notesBox) return;
+    const QString text = speakerNotesText();
+    if (text != m_notesBox->toPlainText()) m_notesBox->setPlainText(text);
+}
+
+void SlideShow::closeSpeakerNotes()
+{
+    if (m_notesBox) m_notesBox->close();   // (it deletes itself when closed)
+    m_notesBox = nullptr;
+}
+
+void SlideShow::showSpeakerNotes()
+{
+    if (m_presenter && m_presenter->isVisible()) return;
+    if (!m_notesBox) {
+        auto *box = new QPlainTextEdit(this);
+        box->setWindowFlags(Qt::Tool | Qt::WindowDoesNotAcceptFocus | Qt::WindowStaysOnTopHint);
+        box->setObjectName(QStringLiteral("speakerNotes"));
+        box->setWindowTitle(tr("Speaker Notes"));
+        box->setAccessibleName(tr("Speaker Notes"));
+        box->setAttribute(Qt::WA_DeleteOnClose);
+        box->setAttribute(Qt::WA_ShowWithoutActivating);
+        box->setWindowModality(Qt::NonModal);
+        box->setFocusPolicy(Qt::NoFocus);   // the keys stay with the show
+        box->setReadOnly(true);
+        QFont f = box->font();
+        f.setPointSizeF(16);
+        box->setFont(f);
+        const QRect at(mapToGlobal(QPoint(0, 0)), size());
+        const int w = at.width() * 3 / 5, h = std::max(80, at.height() / 4);
+        box->setGeometry(QRect(at.left() + (at.width() - w) / 2, at.bottom() - h - 24, w, h));
+        connect(this, &SlideShow::changed, box, [this] { fillSpeakerNotes(); });
+        m_notesBox = box;
+        fillSpeakerNotes();
+        box->show();
+    } else {
+        fillSpeakerNotes();
+        m_notesBox->raise();
+    }
 }
 
 bool SlideShow::canZoom() const
 {
-    return !m_atEnd && !m_animating && !m_blank.isValid() && m_playing < 0 && m_slide >= 0 && m_slide < m_doc->pages.size() && !size().isEmpty();
+    return !m_atEnd && !m_animating && !m_blank.isValid() && m_playing < 0 && m_pointer == Pointer::Arrow && !m_tempLaser && !m_media->drawsMovie() && m_slide >= 0 && m_slide < m_doc->pages.size() && !size().isEmpty();
+}
+
+qreal SlideShow::zoomRatio(const QSize &windowSize, qreal pixelRatio)
+{
+    const double pixels = double(windowSize.width()) * kZoomFactor * pixelRatio * (double(windowSize.height()) * kZoomFactor * pixelRatio);
+    return pixels > kZoomMaxPixels ? pixelRatio * std::sqrt(kZoomMaxPixels / pixels) : pixelRatio;
 }
 
 void SlideShow::zoomInto(const QPointF &about)
 {
     if (m_zoomed || !canZoom()) return;
-    m_zoomImage = renderView(currentView(), -1, size() * kZoomFactor, devicePixelRatioF());
+    m_zoomImage = renderView(currentView(), -1, size() * kZoomFactor, zoomRatio(size(), devicePixelRatioF()));
     const QPointF room = QPointF(width(), height()) * (kZoomFactor - 1);
     const QPointF at = about * (kZoomFactor - 1);
     m_zoomOrigin = QPointF(std::clamp(at.x(), 0.0, room.x()), std::clamp(at.y(), 0.0, room.y()));
