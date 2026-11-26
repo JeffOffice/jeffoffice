@@ -756,7 +756,7 @@ ChartSeries Reader::readSeries(const QDomElement &ser, const ChartPlot &plot, in
     if (s.name.isEmpty()) s.name = QCoreApplication::translate("Chart", "Series%1").arg(idx + 1);
     // Its look.
     const QDomElement spPr = cChild(ser, "spPr");
-    const bool stroked = plot.type == ChartType::Line || plot.type == ChartType::Scatter;
+    const bool stroked = plot.type == ChartType::Line || plot.type == ChartType::Scatter || (plot.type == ChartType::Radar && !plot.filled);
     QColor fill;
     readFill(spPr, &fill, &s.noFill);
     s.outline = readLine(spPr);
@@ -903,6 +903,7 @@ bool Reader::readPlot(const QDomElement &e)
     else if (base == QLatin1String("pie") || base == QLatin1String("ofPie")) plot.type = ChartType::Pie;
     else if (base == QLatin1String("doughnut")) plot.type = ChartType::Doughnut;
     else if (base == QLatin1String("scatter") || base == QLatin1String("bubble")) plot.type = ChartType::Scatter;
+    else if (base == QLatin1String("radar") && !threeD) plot.type = ChartType::Radar;
     else plot.type = ChartType::Other;
 
     const QString grouping = valOf(cChild(e, "grouping"));
@@ -915,6 +916,11 @@ bool Reader::readPlot(const QDomElement &e)
     plot.gapWidth = int(std::clamp<qint64>(parseInt(valOf(cChild(e, "gapWidth")), 150), 0, 500));
     plot.overlap = int(std::clamp<qint64>(parseInt(valOf(cChild(e, "overlap")), plot.grouping == ChartGrouping::Stacked || plot.grouping == ChartGrouping::PercentStacked ? 100 : 0), -100, 100));
     plot.markers = flagOf(cChild(e, "marker"), true);
+    if (plot.type == ChartType::Radar) {
+        const QString style = valOf(cChild(e, "radarStyle"), QStringLiteral("standard"));
+        plot.filled = style == QLatin1String("filled");
+        plot.markers = style == QLatin1String("marker");
+    }
     plot.firstSliceAngle = int(std::clamp<qint64>(parseInt(valOf(cChild(e, "firstSliceAng")), 0), 0, 360));
     plot.holeSize = int(std::clamp<qint64>(parseInt(valOf(cChild(e, "holeSize")), 50), 10, 90));
     if (plot.type == ChartType::Scatter) {

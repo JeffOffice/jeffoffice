@@ -15,7 +15,7 @@
 namespace jp::office::sheet {
 
 // The kinds of chart Insert offers (and a chart's kind, as nearly as these say it).
-enum class ChartForm { Column, ColumnStacked, ColumnPercent, Bar, BarStacked, Line, LineMarkers, Pie, Doughnut, Area, AreaStacked, Scatter };
+enum class ChartForm { Column, ColumnStacked, ColumnPercent, Bar, BarStacked, Line, LineMarkers, Pie, Doughnut, Area, AreaStacked, Scatter, Radar, RadarMarkers, RadarFilled };
 const QVector<ChartForm> &chartForms();
 // What a chart plots: the words under the points (or a scatter's x numbers), the name of each series, and the numbers (a list for each series, a number for each category).
 struct ChartData {

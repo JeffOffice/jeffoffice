@@ -607,7 +607,7 @@ XlsChartRead readXlsChart(const QByteArray &d, qsizetype from, qsizetype to, con
     QVector<int> planOf(groups.size(), -1);
     for (int gi = 0; gi < groups.size(); ++gi) {
         const RawGroup &g = groups[gi];
-        const bool known = g.kind == 0x1017 || g.kind == 0x1018 || g.kind == 0x1019 || g.kind == 0x101A || (g.kind == 0x101B && !g.bubbles);
+        const bool known = g.kind == 0x1017 || g.kind == 0x1018 || g.kind == 0x1019 || g.kind == 0x101A || g.kind == 0x103E || g.kind == 0x1040 || (g.kind == 0x101B && !g.bubbles);
         if (!known) {
             res.lost = true;
             continue;
@@ -634,6 +634,12 @@ XlsChartRead readXlsChart(const QByteArray &d, qsizetype from, qsizetype to, con
             p.grouping = ChartGrouping::Standard;
             p.firstSliceAngle = std::clamp(g.start, 0, 360);
             if (g.donut > 0) p.holeSize = std::clamp(g.donut, 10, 90);
+            break;
+        case 0x103E:
+        case 0x1040:
+            p.type = ChartType::Radar;
+            p.grouping = ChartGrouping::Standard;
+            p.filled = g.kind == 0x1040;
             break;
         default:
             p.type = ChartType::Scatter;
@@ -670,7 +676,7 @@ XlsChartRead readXlsChart(const QByteArray &d, qsizetype from, qsizetype to, con
             s.categoryRef = r.categoryRef;
             for (const QString &t : r.categories) s.categories << t.left(kChartMaxLabel);
         }
-        const bool lineLike = p.type == ChartType::Line || p.type == ChartType::Scatter;
+        const bool lineLike = p.type == ChartType::Line || p.type == ChartType::Scatter || (p.type == ChartType::Radar && !p.filled);
         const QColor color = lineLike ? r.line : r.fill;
         if (color.isValid() && p.type != ChartType::Pie && p.type != ChartType::Doughnut) {
             s.color = color;
@@ -693,6 +699,7 @@ XlsChartRead readXlsChart(const QByteArray &d, qsizetype from, qsizetype to, con
     for (int pi = 0; pi < c.plots.size(); ++pi) {
         ChartPlot &p = c.plots[pi];
         if (p.type == ChartType::Line) p.markers = !markerSeen[pi] || markerOn[pi];
+        if (p.type == ChartType::Radar) p.markers = markerSeen[pi] && markerOn[pi];
         if (p.type == ChartType::Scatter) {
             p.lines = lineOn[pi];
             p.smooth = smoothOn[pi];

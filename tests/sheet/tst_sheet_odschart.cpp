@@ -210,6 +210,54 @@ private Q_SLOTS:
         roundTrip(QStringLiteral("doughnutChart"), QStringLiteral("Ring"), part);
     }
 
+    // A radar chart is a radar in the open-document form, filled or not, and is read back as one.
+    void aRadarChartSurvivesSaveAsOds()
+    {
+        roundTrip(QStringLiteral("radarChart"), QStringLiteral("Skills"));
+        const struct { const char *style; const char *cls; bool filled, markers; } looks[] = {{"standard", "chart:radar", false, false}, {"marker", "chart:radar", false, true}, {"filled", "chart:filled-radar", true, false}};
+        for (const auto &look : looks) {
+            QByteArray part = chartPart(QStringLiteral("radarChart"), twoSeries(), QStringLiteral("Skills"));
+            part.replace("<c:radarStyle val=\"marker\"/>", QByteArray("<c:radarStyle val=\"") + look.style + "\"/>");
+            if (look.filled) part.replace("<c:spPr>", "<c:spPr><a:solidFill><a:srgbClr val=\"336699\"/></a:solidFill>");
+            Saved s;
+            QString why;
+            QVERIFY2(saveAsOds(sheetWithChart(twoCell(1, 5, 6, 20, chartFrame(2, QStringLiteral("rId1"), QStringLiteral("Sales"))), part), &s, &why), qPrintable(why));
+            const QByteArray object = s.parts.value(QStringLiteral("Object 1/content.xml"));
+            QVERIFY2(object.contains(QByteArray("chart:class=\"") + look.cls + "\""), look.style);
+            QCOMPARE(object.contains("chart:filled-radar"), look.filled);
+            Back b;
+            QVERIFY2(readBack(s.ods, &b, &why), qPrintable(why));
+            QCOMPARE(b.charts.size(), 1);
+            QCOMPARE(int(b.charts[0].type()), int(ChartType::Radar));
+            QCOMPARE(b.charts[0].plots[0].filled, look.filled);
+            if (!look.filled) QCOMPARE(b.charts[0].plots[0].markers, look.markers);
+            QCOMPARE(int(b.charts[0].plots[0].series.size()), 2);
+        }
+    }
+    // A chart of another program, drawn as a radar by its class, is read as one (it was a column chart of its values before).
+    void aRadarChartOfAnotherProgramIsRead()
+    {
+        for (const char *cls : {"chart:radar", "chart:filled-radar"}) {
+            const QString plot = QStringLiteral("<chart:axis chart:dimension=\"x\" chart:name=\"primary-x\"/><chart:axis chart:dimension=\"y\" chart:name=\"primary-y\"/>"
+                                                "<chart:series chart:values-cell-range-address=\"local-table.B1:local-table.B3\" chart:class=\"%1\"/>").arg(QLatin1String(cls));
+            const QString table = QStringLiteral("<table:table table:name=\"local-table\"><table:table-rows>"
+                                                 "<table:table-row><table:table-cell office:value-type=\"string\"><text:p>a</text:p></table:table-cell><table:table-cell office:value-type=\"float\" office:value=\"3\"/></table:table-row>"
+                                                 "<table:table-row><table:table-cell office:value-type=\"string\"><text:p>b</text:p></table:table-cell><table:table-cell office:value-type=\"float\" office:value=\"1\"/></table:table-row>"
+                                                 "<table:table-row><table:table-cell office:value-type=\"string\"><text:p>c</text:p></table:table-cell><table:table-cell office:value-type=\"float\" office:value=\"2\"/></table:table-row>"
+                                                 "</table:table-rows></table:table>");
+            const QByteArray doc = miniChart(QLatin1String(cls), plot, QString(), table);
+            jp::office::sheet::ods::StyleStore store;
+            QString why;
+            QVERIFY2(jp::office::sheet::odschart::parseStyles(doc, Limits(), &store, &why), qPrintable(why));
+            Chart back;
+            QVERIFY2(jp::office::sheet::odschart::chartFromOdf(doc, store, nullptr, &back, &why, nullptr), qPrintable(why));
+            QCOMPARE(int(back.plots.size()), 1);
+            QCOMPARE(int(back.plots[0].type), int(ChartType::Radar));
+            QCOMPARE(back.plots[0].filled, QLatin1String(cls) == QLatin1String("chart:filled-radar"));
+            QCOMPARE(back.plots[0].series[0].values, (QVector<double>{3, 1, 2}));
+        }
+    }
+
     // A chart with a look: stacked horizontal bars, a series color and outline, titles on its axes, a scale with a least and greatest value, a number format, data labels, and a legend at the bottom.
     void aChartKeepsItsLookThroughAnOds()
     {

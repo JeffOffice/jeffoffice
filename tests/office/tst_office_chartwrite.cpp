@@ -507,7 +507,7 @@ private Q_SLOTS:
 
     void everyKindOfChartIsWrittenAndReadBack()
     {
-        const ChartType kinds[] = {ChartType::Bar, ChartType::Line, ChartType::Pie, ChartType::Doughnut, ChartType::Area, ChartType::Scatter};
+        const ChartType kinds[] = {ChartType::Bar, ChartType::Line, ChartType::Pie, ChartType::Doughnut, ChartType::Area, ChartType::Scatter, ChartType::Radar};
         for (const ChartType kind : kinds) {
             Chart c = blankChart(defaultTheme());
             ChartPlot p;
@@ -546,6 +546,51 @@ private Q_SLOTS:
             else QCOMPARE(r.plots[0].series[0].categoryRef, QStringLiteral("Sheet1!$A$2:$A$3"));
             QString why;
             QVERIFY2(chartIsFullyModeled(writeChartPart(c), &why), qPrintable(why));
+        }
+    }
+
+    // A radar chart is written as c:radarChart with the style of its look, its series as a line's less the smoothing, and read back the same, in each of its three looks.
+    void aRadarChartIsWrittenInItsThreeStylesAndReadBack()
+    {
+        const struct { bool filled, markers; const char *style; } looks[] = {{false, false, "standard"}, {false, true, "marker"}, {true, false, "filled"}};
+        for (const auto &look : looks) {
+            Chart c = blankChart(defaultTheme());
+            ChartPlot p;
+            p.type = ChartType::Radar;
+            p.grouping = ChartGrouping::Standard;
+            p.filled = look.filled;
+            p.markers = look.markers;
+            p.axisIds[0] = 1;
+            p.axisIds[1] = 2;
+            ChartAxis a, b;
+            a.id = 1;
+            a.crossId = 2;
+            a.majorGridlines = true;
+            b.kind = ChartAxis::Value;
+            b.id = 2;
+            b.crossId = 1;
+            b.position = QStringLiteral("l");
+            b.majorGridlines = true;
+            c.axes << a << b;
+            p.series << seriesOf(QStringLiteral("S"), QString(), QStringLiteral("Sheet1!$A$2:$A$4"), QStringLiteral("Sheet1!$B$2:$B$4"), {"a", "b", "c"}, {1, 2, 3}, QColor("#112233"));
+            c.plots << p;
+            const QByteArray part = writeChartPart(c);
+            QVERIFY2(part.contains(QByteArray("<c:radarChart><c:radarStyle val=\"") + look.style + "\"/>"), look.style);
+            QVERIFY(!part.contains("c:smooth") && !part.contains("c:bubble3D") && !part.contains("c:barChart"));
+            if (look.filled) QVERIFY(part.contains("<c:spPr><a:solidFill><a:srgbClr val=\"112233\"/>"));
+            else QVERIFY(part.contains("<a:ln") && part.contains("<a:srgbClr val=\"112233\"/>"));
+            Chart r;
+            QString err;
+            QVERIFY2(readChart(part, defaultTheme(), ColorMap(), &r, &err), qPrintable(err));
+            QCOMPARE(int(r.plots[0].type), int(ChartType::Radar));
+            QCOMPARE(r.plots[0].filled, look.filled);
+            QCOMPARE(r.plots[0].markers, look.markers);
+            QCOMPARE(r.plots[0].series[0].color, QColor("#112233"));
+            QCOMPARE(chartSvg(r, QSizeF(480, 288)), chartSvg(c, QSizeF(480, 288)));
+            QString why;
+            QVERIFY2(chartIsFullyModeled(part, &why), qPrintable(why));
+            // a part written from what was read is the part
+            QCOMPARE(writeChartPart(r), part);
         }
     }
 

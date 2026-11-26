@@ -30,6 +30,9 @@ ChartKind kindOfForm(ChartForm form)
     case ChartForm::Area: return K::Area;
     case ChartForm::AreaStacked: return K::AreaStacked;
     case ChartForm::Scatter: return K::Scatter;
+    case ChartForm::Radar: return K::Radar;
+    case ChartForm::RadarMarkers: return K::RadarMarkers;
+    case ChartForm::RadarFilled: return K::RadarFilled;
     }
     return K::Column;
 }
@@ -53,6 +56,9 @@ ChartForm formOfKind(ChartKind kind)
     case K::Scatter:
     case K::ScatterLines:
     case K::ScatterSmooth: return ChartForm::Scatter;
+    case K::Radar: return ChartForm::Radar;
+    case K::RadarMarkers: return ChartForm::RadarMarkers;
+    case K::RadarFilled: return ChartForm::RadarFilled;
     default: return ChartForm::Column;
     }
 }
@@ -93,7 +99,8 @@ void keepPartLinks(Chart &chart, const Chart &like)
 const QVector<ChartForm> &chartForms()
 {
     static const QVector<ChartForm> forms = {ChartForm::Column, ChartForm::ColumnStacked, ChartForm::ColumnPercent, ChartForm::Bar, ChartForm::BarStacked, ChartForm::Line, ChartForm::LineMarkers,
-                                             ChartForm::Pie, ChartForm::Doughnut, ChartForm::Area, ChartForm::AreaStacked, ChartForm::Scatter};
+                                             ChartForm::Pie, ChartForm::Doughnut, ChartForm::Area, ChartForm::AreaStacked, ChartForm::Scatter,
+                                             ChartForm::Radar, ChartForm::RadarMarkers, ChartForm::RadarFilled};
     return forms;
 }
 

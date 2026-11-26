@@ -37,7 +37,8 @@ enum class ChartType {
     Doughnut,
     Area,
     Scatter,
-    Other       // a kind not drawn yet (radar, stock, surface): drawn as columns of its values
+    Radar,      // each category a spoke from the middle, each series a closed shape through its values (ChartPlot::filled: filled)
+    Other       // a kind not drawn yet (stock, surface, bubble): drawn as columns of its values
 };
 
 enum class ChartGrouping { Clustered, Stacked, PercentStacked, Standard };
@@ -184,7 +185,8 @@ struct ChartPlot {
     int gapWidth = 150;             // between bars, percent of a bar
     int overlap = 0;                // of bars in a group, percent of a bar
     bool varyColors = false;        // each point, not each series, takes a color
-    bool markers = true;            // a line chart's markers (c:marker)
+    bool markers = true;            // a line chart's markers (c:marker); a radar's too (its style "marker")
+    bool filled = false;            // radar: the shape of each series is filled (the style "filled")
     int firstSliceAngle = 0;        // pie: degrees clockwise from twelve o'clock
     int holeSize = 50;              // doughnut: percent of the diameter
     bool lines = true;              // scatter: the points are joined (else markers only)

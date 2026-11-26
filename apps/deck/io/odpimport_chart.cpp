@@ -185,6 +185,7 @@ QString Reader::drawChart(const QString &part, const QSizeF &size)
         if (c == QLatin1String("chart:circle")) return office::ChartType::Pie;
         if (c == QLatin1String("chart:ring")) return office::ChartType::Doughnut;
         if (c == QLatin1String("chart:scatter")) return office::ChartType::Scatter;
+        if (c == QLatin1String("chart:radar") || c == QLatin1String("chart:filled-radar")) return office::ChartType::Radar;
         return office::ChartType::Other;
     };
     const bool stacked = plotBag.get(Graphic, "chart:stacked") == QLatin1String("true"), percent = plotBag.get(Graphic, "chart:percentage") == QLatin1String("true");
@@ -257,7 +258,8 @@ QString Reader::drawChart(const QString &part, const QSizeF &size)
         const Bag b = styles.resolve(QStringLiteral("chart"), a.get("chart:style-name"));
         const QString seriesClass = a.get("chart:class", cls);
         const office::ChartType type = kindOf(seriesClass);
-        QColor color = parseColor(b.get(Graphic, type == office::ChartType::Line || type == office::ChartType::Scatter ? "svg:stroke-color" : "draw:fill-color"));
+        const bool filledRadar = seriesClass == QLatin1String("chart:filled-radar");
+        QColor color = parseColor(b.get(Graphic, type == office::ChartType::Line || type == office::ChartType::Scatter || (type == office::ChartType::Radar && !filledRadar) ? "svg:stroke-color" : "draw:fill-color"));
         if (!color.isValid()) color = parseColor(b.get(Graphic, "draw:fill-color"));
         if (color.isValid()) {
             series.color = color;
@@ -266,12 +268,12 @@ QString Reader::drawChart(const QString &part, const QSizeF &size)
             // A series the file gives no color takes the next of the palette, as its slices would.
             series.color = chart.palette[(seriesCount - 1) % chart.palette.size()];
         }
-        if (b.get(Graphic, "draw:fill") == QLatin1String("none") && type != office::ChartType::Line) series.noFill = true;
+        if (b.get(Graphic, "draw:fill") == QLatin1String("none") && type != office::ChartType::Line && (type != office::ChartType::Radar || filledRadar)) series.noFill = true;
         if (b.get(Graphic, "draw:stroke") == QLatin1String("none")) {
             series.outline.set = true;
             series.outline.none = true;
         }
-        if (type == office::ChartType::Line && !b.has(Graphic, "svg:stroke-width")) series.outline.width = 2.25;
+        if ((type == office::ChartType::Line || (type == office::ChartType::Radar && !filledRadar)) && !b.has(Graphic, "svg:stroke-width")) series.outline.width = 2.25;
         if (double w = 0; parseLength(b.get(Graphic, "svg:stroke-width"), &w) && w > 0) {
             series.outline.set = true;
             series.outline.width = std::clamp(w, 0.75, 100.0);
@@ -316,7 +318,11 @@ QString Reader::drawChart(const QString &part, const QSizeF &size)
             plot.type = type;
             plot.element = seriesClass;
             plot.grouping = percent ? office::ChartGrouping::PercentStacked : stacked ? office::ChartGrouping::Stacked : office::ChartGrouping::Clustered;
-            if (type == office::ChartType::Area && !stacked && !percent) plot.grouping = office::ChartGrouping::Standard;
+            if ((type == office::ChartType::Area || type == office::ChartType::Radar) && !stacked && !percent) plot.grouping = office::ChartGrouping::Standard;
+            if (type == office::ChartType::Radar) {
+                plot.filled = filledRadar;
+                plot.markers = plotBag.get(Graphic, "chart:symbol-type") != QLatin1String("none");
+            }
             plot.horizontal = horizontal && type == office::ChartType::Bar;
             plot.axisIds[0] = 1;
             plot.axisIds[1] = 2;

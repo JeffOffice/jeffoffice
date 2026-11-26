@@ -168,7 +168,7 @@ private Q_SLOTS:
     // The kinds: columns, bars, stacked and whole-stacked ones, lines, areas, pies, doughnuts, and scatters.
     void theKindsOfChartAreTold_data()
     {
-        QTest::addColumn<int>("kind");   // 0 column 1 bar 2 stacked 3 percent 4 line 5 stacked line 6 area 7 stacked area 8 pie 9 doughnut 10 scatter
+        QTest::addColumn<int>("kind");   // 0 column 1 bar 2 stacked 3 percent 4 line 5 stacked line 6 area 7 stacked area 8 pie 9 doughnut 10 scatter 11 radar 12 filled radar
         QTest::newRow("column") << 0;
         QTest::newRow("bar") << 1;
         QTest::newRow("stacked") << 2;
@@ -180,6 +180,8 @@ private Q_SLOTS:
         QTest::newRow("pie") << 8;
         QTest::newRow("doughnut") << 9;
         QTest::newRow("scatter") << 10;
+        QTest::newRow("radar") << 11;
+        QTest::newRow("filled radar") << 12;
     }
     void theKindsOfChartAreTold()
     {
@@ -196,6 +198,8 @@ private Q_SLOTS:
         case 7: g = group(areaKind(1)); break;
         case 8: g = group(pie(90), true); break;
         case 9: g = group(pie(0, 60), true); break;
+        case 11: g = group(rec(0x103E, W().u16(0).u16(0))); break;
+        case 12: g = group(rec(0x1040, W().u16(0).u16(0))); break;
         default: g = group(scatterKind()); break;
         }
         const bool pieLike = kind == 8 || kind == 9;
@@ -218,6 +222,8 @@ private Q_SLOTS:
         case 7: QVERIFY(p.type == ChartType::Area && p.grouping == ChartGrouping::Stacked); break;
         case 8: QVERIFY(p.type == ChartType::Pie && p.firstSliceAngle == 90 && p.varyColors); break;
         case 9: QVERIFY(p.type == ChartType::Doughnut && p.holeSize == 60); break;
+        case 11: QVERIFY(p.type == ChartType::Radar && !p.filled && !p.markers); QCOMPARE(p.series[0].categoryRef, QStringLiteral("Data!$A$2:$A$4")); QCOMPARE(p.series[0].valueRef, QStringLiteral("Data!$B$2:$B$4")); break;
+        case 12: QVERIFY(p.type == ChartType::Radar && p.filled); break;
         default: QVERIFY(p.type == ChartType::Scatter); QCOMPARE(p.series[0].xRef, QStringLiteral("Data!$A$2:$A$4")); QCOMPARE(p.series[0].valueRef, QStringLiteral("Data!$B$2:$B$4")); break;
         }
     }
@@ -295,14 +301,14 @@ private Q_SLOTS:
         QVERIFY(val->majorGridlines);
     }
 
-    // A chart of a kind the model does not draw (radar, bubbles) is left out, and said to be.
+    // A chart of a kind the model does not draw (surfaces, bubbles) is left out, and said to be.
     void whatTheModelCannotHoldIsSkipped()
     {
         Workbook wb;
         QString why;
         QVector<Chart> charts;
         int count = -1;
-        const QByteArray radar = rec(0x103E, W().u16(0).u16(0));
+        const QByteArray radar = rec(0x103F, W().u16(0).u16(0));
         QVERIFY2(readCharts(bookWith(chartBody(series(0, named(0, 1), 1), columnParents(group(radar)))), &wb, 0, &charts, &why, &count), qPrintable(why));
         QCOMPARE(count, 0);
         QVERIFY(wb.skippedFeatures().contains(QStringLiteral("charts")));

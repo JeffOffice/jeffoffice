@@ -14,7 +14,7 @@
 namespace jp::office::sheet {
 
 enum class ChartKind : quint8 {
-    Column, ColumnStacked, ColumnPercent, Bar, BarStacked, BarPercent, Line, LineMarkers, LineStacked, Pie, Doughnut, Area, AreaStacked, Scatter, ScatterLines, ScatterSmooth, Combo
+    Column, ColumnStacked, ColumnPercent, Bar, BarStacked, BarPercent, Line, LineMarkers, LineStacked, Pie, Doughnut, Area, AreaStacked, Scatter, ScatterLines, ScatterSmooth, Combo, Radar, RadarMarkers, RadarFilled
 };
 
 // Where a series reads (empty: none).

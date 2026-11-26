@@ -1,7 +1,7 @@
 #pragma once
 // The charts of a workbook in the old binary format, read into the chart model the XML form fills (libs/office/office/chart.h). A chart's records are those between the start and the end of
 // its substream: the series (each with its name, values, and categories, as references to cells or as values the chart holds), the groups of series drawn the same way (columns, bars, lines,
-// areas, pies, scatters), the axes, the titles, and the legend. What the model cannot hold (3-D looks, radar and surface and bubble charts, fonts, fills of the chart's parts) is left out and
+// areas, pies, scatters), the axes, the titles, and the legend. What the model cannot hold (3-D looks, surface and bubble charts, fonts, fills of the chart's parts) is left out and
 // said to be. Every count and length is checked against the bytes of its record, nothing recurses, and a chart keeps at most the series and points the XML reader keeps.
 
 #include "office/chart.h"

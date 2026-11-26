@@ -748,7 +748,7 @@ private Q_SLOTS:
         setAxisTitle(&c, false, true);
         c.legend.position = QStringLiteral("t");
         const Theme theme = defaultTheme();
-        const ChartKind kinds[] = {ChartKind::Line, ChartKind::Area, ChartKind::Pie, ChartKind::Bar, ChartKind::ColumnStacked, ChartKind::Scatter, ChartKind::Doughnut, ChartKind::Combo};
+        const ChartKind kinds[] = {ChartKind::Line, ChartKind::Area, ChartKind::Pie, ChartKind::Bar, ChartKind::ColumnStacked, ChartKind::Scatter, ChartKind::Doughnut, ChartKind::Combo, ChartKind::Radar, ChartKind::RadarMarkers, ChartKind::RadarFilled};
         for (const ChartKind kind : kinds) {
             const Chart k = roundTrip(withKind(c, kind, theme));
             QCOMPARE(int(kindOfChart(k)), int(kind));

@@ -497,14 +497,14 @@ private Q_SLOTS:
     void chartKeepsWhatItCannotDrawAsColumns()
     {
         // Kinds not drawn yet read as columns of their values, with the file's name for them.
-        const QString plot = QStringLiteral("<c:radarChart><c:radarStyle val=\"marker\"/>") + chartSeries(0, QStringLiteral("R"), {"a", "b", "c"}, {3, 1, 2})
-                             + QStringLiteral("<c:axId val=\"111\"/><c:axId val=\"222\"/></c:radarChart>") + chartAxes();
+        const QString plot = QStringLiteral("<c:stockChart>") + chartSeries(0, QStringLiteral("R"), {"a", "b", "c"}, {3, 1, 2})
+                             + QStringLiteral("<c:axId val=\"111\"/><c:axId val=\"222\"/></c:stockChart>") + chartAxes();
         Chart c;
         QString err;
         QVERIFY2(readChart(chartPart(plot), defaultTheme(), ColorMap(), &c, &err), qPrintable(err));
         QCOMPARE(int(c.plots.size()), 1);
         QCOMPARE(int(c.plots[0].type), int(ChartType::Other));
-        QCOMPARE(c.plots[0].element, QStringLiteral("radarChart"));
+        QCOMPARE(c.plots[0].element, QStringLiteral("stockChart"));
         QCOMPARE(c.plots[0].series[0].values, (QVector<double>{3, 1, 2}));
         // Two kinds at once: columns with a line over them.
         const QString both = QStringLiteral("<c:barChart><c:barDir val=\"col\"/><c:grouping val=\"clustered\"/>") + chartSeries(0, QStringLiteral("Bars"), {"a", "b"}, {3, 1})
@@ -517,6 +517,37 @@ private Q_SLOTS:
         // The colors continue from one plot to the next.
         QCOMPARE(c.plots[0].series[0].color, defaultTheme().colors[Theme::Accent1]);
         QCOMPARE(c.plots[1].series[0].color, defaultTheme().colors[Theme::Accent2]);
+    }
+
+    // A radar chart is a kind of its own, in its three styles: lines, lines with markers, and filled.
+    void chartReadsRadarInItsThreeStyles()
+    {
+        const char *styles[] = {"standard", "marker", "filled"};
+        for (int i = 0; i < 3; ++i) {
+            const QString plot = QStringLiteral("<c:radarChart><c:radarStyle val=\"%1\"/><c:varyColors val=\"0\"/>").arg(QLatin1String(styles[i]))
+                                 + chartSeries(0, QStringLiteral("R"), {"a", "b", "c"}, {3, 1, 2}) + QStringLiteral("<c:axId val=\"111\"/><c:axId val=\"222\"/></c:radarChart>") + chartAxes();
+            Chart c;
+            QString err;
+            QVERIFY2(readChart(chartPart(plot), defaultTheme(), ColorMap(), &c, &err), qPrintable(err));
+            QCOMPARE(int(c.plots.size()), 1);
+            QCOMPARE(int(c.plots[0].type), int(ChartType::Radar));
+            QCOMPARE(c.plots[0].filled, i == 2);
+            QCOMPARE(c.plots[0].markers, i == 1);
+            QCOMPARE(c.plots[0].series[0].values, (QVector<double>{3, 1, 2}));
+            QCOMPARE(c.plots[0].axisIds[0], qint64(111));
+            QCOMPARE(c.plots[0].axisIds[1], qint64(222));
+        }
+        // A line radar takes its color from the line, a filled one from the fill.
+        const QString line = QStringLiteral("<c:spPr><a:ln w=\"28575\"><a:solidFill><a:srgbClr val=\"FF0000\"/></a:solidFill></a:ln></c:spPr>");
+        const QString fill = QStringLiteral("<c:spPr><a:solidFill><a:srgbClr val=\"00FF00\"/></a:solidFill></c:spPr>");
+        Chart c;
+        QString err;
+        QVERIFY2(readChart(chartPart(QStringLiteral("<c:radarChart><c:radarStyle val=\"standard\"/>") + chartSeries(0, QStringLiteral("R"), {"a", "b"}, {1, 2}, line)
+                                     + QStringLiteral("<c:axId val=\"111\"/><c:axId val=\"222\"/></c:radarChart>") + chartAxes()), defaultTheme(), ColorMap(), &c, &err), qPrintable(err));
+        QCOMPARE(c.plots[0].series[0].color, QColor(0xFF, 0, 0));
+        QVERIFY2(readChart(chartPart(QStringLiteral("<c:radarChart><c:radarStyle val=\"filled\"/>") + chartSeries(0, QStringLiteral("R"), {"a", "b"}, {1, 2}, fill)
+                                     + QStringLiteral("<c:axId val=\"111\"/><c:axId val=\"222\"/></c:radarChart>") + chartAxes()), defaultTheme(), ColorMap(), &c, &err), qPrintable(err));
+        QCOMPARE(c.plots[0].series[0].color, QColor(0, 0xFF, 0));
     }
 
     void chartRefusesWhatIsNotAChart()
@@ -803,6 +834,124 @@ private Q_SLOTS:
         const QString svg = QString::fromUtf8(chartSvg(c, QSizeF(400, 300)));
         QVERIFY(svg.contains(QStringLiteral(">10<")));
         QVERIFY(!svg.contains(QStringLiteral(">12<")));
+    }
+
+    void chartSvgDrawsRadarPointsOnTheirSpokes()
+    {
+        const QString line = QStringLiteral("<c:spPr><a:ln w=\"28575\"><a:solidFill><a:srgbClr val=\"FF0000\"/></a:solidFill></a:ln></c:spPr>");
+        const QString marker = QStringLiteral("<c:marker><c:symbol val=\"square\"/><c:size val=\"9\"/><c:spPr><a:solidFill><a:srgbClr val=\"00FF00\"/></a:solidFill></c:spPr></c:marker>");
+        Chart c;
+        QString err;
+        QVERIFY2(readChart(chartPart(radarPlot("marker", line, marker)), defaultTheme(), ColorMap(), &c, &err), qPrintable(err));
+        const QImage img = renderChart(c, QSizeF(400, 300), 2);
+        QVector<QPointF> m = colorComponents(img, QColor(0, 0xFF, 0), 20);
+        QCOMPARE(int(m.size()), 4);
+        std::sort(m.begin(), m.end(), [](const QPointF &a, const QPointF &b) { return a.y() < b.y(); });
+        const QPointF top = m[0], bottom = m[3];
+        QPointF left = m[1], right = m[2];
+        if (left.x() > right.x()) std::swap(left, right);
+        const double cx = (top.x() + bottom.x()) / 2, cy = (top.y() + bottom.y()) / 2, rim = (bottom.y() - top.y()) / 2;
+        QVERIFY(qAbs(top.x() - bottom.x()) < 2);                                 // up and down the same spoke line
+        QVERIFY2(qAbs(left.y() - cy) < 2 && qAbs(right.y() - cy) < 2, "the side points are level with the middle");
+        QVERIFY2(qAbs((right.x() - cx) - (cx - left.x())) < 2, "the side points are as far to either side");
+        QVERIFY2(qAbs((right.x() - cx) / rim - 0.5) < 0.03, qPrintable(QString::number((right.x() - cx) / rim)));   // 2 of 4
+        QVERIFY(rim > 120);                                               // the figure fills the picture, not a corner of it
+        // joined: the middle of the edge from the left point to the top one is on the red line
+        const QPointF mid = (left + top) / 2;
+        QVERIFY(colorArea(img.copy(int(mid.x()) - 4, int(mid.y()) - 4, 9, 9), Qt::red) > 6);
+        // not filled: the middle of the shape is white
+        QVERIFY(!isColor(img.pixel(int(cx) + 7, int(cy) + 13), Qt::red, 60));
+    }
+
+    void chartSvgFillsARadarShape()
+    {
+        const QString fill = QStringLiteral("<c:spPr><a:solidFill><a:srgbClr val=\"FF0000\"/></a:solidFill></c:spPr>");
+        Chart c;
+        QString err;
+        QVERIFY2(readChart(chartPart(radarPlot("filled", fill, QString())), defaultTheme(), ColorMap(), &c, &err), qPrintable(err));
+        const QImage img = renderChart(c, QSizeF(400, 300), 2);
+        const QRect box = colorBounds(img, Qt::red, false);
+        QVERIFY(!box.isEmpty());
+        const double rim = box.height() / 2.0;   // the top and bottom points are at the rim
+        // a diamond of half-diagonals rim and rim / 2 holds rim squared
+        const double area = colorArea(img, Qt::red);
+        QVERIFY2(qAbs(area / (rim * rim) - 1) < 0.08, qPrintable(QString::number(area / (rim * rim))));
+        QVERIFY2(qAbs(box.width() / (rim * 2 * 0.5) - 1) < 0.08, qPrintable(QString::number(box.width() / (rim * 2 * 0.5))));
+        // its middle is filled
+        QVERIFY(isColor(img.pixel(box.center().x(), box.center().y()), Qt::red, 40));
+    }
+
+    // Many spokes are drawn from fewer of them, and the picture stays small and says so.
+    void chartSvgDrawsAManySpokedRadarCoarser()
+    {
+        QStringList cats;
+        QVector<double> values;
+        for (int i = 0; i < 5000; ++i) {
+            cats << QString::number(i);
+            values << 1 + (i % 7);
+        }
+        const QString plot = QStringLiteral("<c:radarChart><c:radarStyle val=\"marker\"/>") + chartSeries(0, QStringLiteral("R"), cats, values) + chartSeries(1, QStringLiteral("S"), cats, values)
+                             + QStringLiteral("<c:axId val=\"111\"/><c:axId val=\"222\"/></c:radarChart>") + chartAxes();
+        Chart c;
+        QString err;
+        QVERIFY2(readChart(chartPart(plot), defaultTheme(), ColorMap(), &c, &err), qPrintable(err));
+        bool coarser = false;
+        const QByteArray svg = chartSvg(c, QSizeF(400, 300), &coarser);
+        QVERIFY(coarser);
+        // Counted: no shape of the picture has more corners than the 500 spokes a radar is drawn with (5,000 were read; without the rule 1,667 are left, from every third), and the picture
+        // is held to its tags.
+        int corners = 0;
+        for (const QRegularExpressionMatch &m : QRegularExpression(QStringLiteral(" points=\"([^\"]*)\"")).globalMatch(QString::fromUtf8(svg))) corners = std::max<int>(corners, m.captured(1).count(QLatin1Char(',')));
+        QVERIFY2(corners > 100 && corners <= 500 && svg.count('<') < 6000, qPrintable(QStringLiteral("%1 corners, %2 tags").arg(corners).arg(svg.count('<'))));
+        QVERIFY(svg.count("<text") < 300);
+    }
+
+    void chartSvgNamesRadarCategoriesAroundTheRim()
+    {
+        const QString plot = QStringLiteral("<c:radarChart><c:radarStyle val=\"standard\"/>") + chartSeries(0, QStringLiteral("R"), {"North", "East", "South", "West"}, {1, 2, 3, 4})
+                             + QStringLiteral("<c:axId val=\"111\"/><c:axId val=\"222\"/></c:radarChart>") + chartAxes();
+        Chart c;
+        QString err;
+        QVERIFY2(readChart(chartPart(plot), defaultTheme(), ColorMap(), &c, &err), qPrintable(err));
+        const QString svg = QString::fromUtf8(chartSvg(c, QSizeF(400, 300)));
+        for (const char *name : {"North", "East", "South", "West"}) QVERIFY2(svg.contains(QStringLiteral(">%1<").arg(QLatin1String(name))), name);
+        // the value axis is marked along the top spoke, to the scale's end
+        QVERIFY(svg.contains(QStringLiteral(">4<")) && svg.contains(QStringLiteral(">0<")));
+        QVERIFY(!svg.contains(QStringLiteral(">6<")));
+        // North is named at the top of the figure, South at the bottom, West at the left, and East at the right: dark text there, in the middle of the edges
+        const QImage img = renderChart(c, QSizeF(400, 300), 2);
+        auto dark = [&](const QRect &r) {
+            int n = 0;
+            for (int y = r.top(); y < r.bottom(); ++y)
+                for (int x = r.left(); x < r.right(); ++x) n += qRed(img.pixel(x, y)) < 110 && qGreen(img.pixel(x, y)) < 110 && qBlue(img.pixel(x, y)) < 110;
+            return n;
+        };
+        const int w = img.width(), h = img.height();
+        QVERIFY(dark(QRect(w * 4 / 10, 0, w / 5, h / 8)) > 15);                 // top
+        QVERIFY(dark(QRect(w * 4 / 10, h - h / 8, w / 5, h / 8 - 2)) > 15);     // bottom
+        QVERIFY(dark(QRect(0, h * 4 / 10, w / 5, h / 5)) > 15);                 // left
+        QVERIFY(dark(QRect(w - w / 5, h * 4 / 10, w / 5 - 2, h / 5)) > 15);     // right
+    }
+
+    // (With CHART_SHOT_DIR set, the three looks of a radar chart of five categories and two series are kept as pictures.)
+    void chartSvgRadarShots()
+    {
+        const QString dir = qEnvironmentVariable("CHART_SHOT_DIR");
+        if (dir.isEmpty()) QSKIP("CHART_SHOT_DIR is not set");
+        const QStringList cats = {"Speed", "Power", "Range", "Comfort", "Price"};
+        const QString lines = QStringLiteral("<c:spPr><a:ln w=\"28575\"><a:solidFill><a:srgbClr val=\"4472C4\"/></a:solidFill></a:ln></c:spPr>");
+        for (const char *style : {"standard", "marker", "filled"}) {
+            const QString plot = QStringLiteral("<c:radarChart><c:radarStyle val=\"%1\"/>").arg(QLatin1String(style))
+                                 + chartSeries(0, QStringLiteral("Model A"), cats, {8, 5, 7, 9, 4}) + chartSeries(1, QStringLiteral("Model B"), cats, {5, 8, 4, 6, 9})
+                                 + QStringLiteral("<c:axId val=\"111\"/><c:axId val=\"222\"/></c:radarChart>") + chartAxes();
+            Chart c;
+            QString err;
+            QVERIFY2(readChart(chartPart(plot, QStringLiteral("<c:title><c:tx><c:rich><a:bodyPr/><a:p><a:r><a:t>Models</a:t></a:r></a:p></c:rich></c:tx><c:overlay val=\"0\"/></c:title>"),
+                                         QStringLiteral("<c:legend><c:legendPos val=\"b\"/></c:legend>")),
+                              defaultTheme(), ColorMap(), &c, &err), qPrintable(err));
+            QVERIFY(renderChart(c, QSizeF(432, 288), 2).save(QStringLiteral("%1/radar-%2.png").arg(dir, QLatin1String(style))));
+        }
+        Q_UNUSED(lines);
     }
 
     void chartSvgScalesTheAxisToTheValues()
@@ -1432,6 +1581,19 @@ private:
                      .arg(values.size() + 1).arg(values.size()).arg(vals)
                + after + QStringLiteral("</c:ser>");
     }
+    // A radar chart of four categories (spokes up, right, down, and left) with values 4, 2, 4, 2 on a scale of 0 to 4: the top and bottom points are at the rim, the left and right at half of it.
+    static QString radarPlot(const char *style, const QString &spPr, const QString &beforeData)
+    {
+        return QStringLiteral("<c:radarChart><c:radarStyle val=\"%1\"/><c:varyColors val=\"0\"/>").arg(QLatin1String(style))
+               + chartSeries(0, QStringLiteral("R"), {"a", "b", "c", "d"}, {4, 2, 4, 2}, spPr, beforeData) + QStringLiteral("<c:axId val=\"111\"/><c:axId val=\"222\"/></c:radarChart>")
+               + QStringLiteral("<c:catAx><c:axId val=\"111\"/><c:scaling><c:orientation val=\"minMax\"/></c:scaling><c:delete val=\"1\"/><c:axPos val=\"b\"/><c:majorGridlines/><c:numFmt formatCode=\"General\" sourceLinked=\"1\"/>"
+                                "<c:majorTickMark val=\"none\"/><c:minorTickMark val=\"none\"/><c:tickLblPos val=\"nextTo\"/><c:crossAx val=\"222\"/><c:crosses val=\"autoZero\"/><c:auto val=\"1\"/><c:lblAlgn val=\"ctr\"/>"
+                                "<c:lblOffset val=\"100\"/><c:noMultiLvlLbl val=\"0\"/></c:catAx>"
+                                "<c:valAx><c:axId val=\"222\"/><c:scaling><c:orientation val=\"minMax\"/><c:max val=\"4\"/><c:min val=\"0\"/></c:scaling><c:delete val=\"1\"/><c:axPos val=\"l\"/><c:majorGridlines/>"
+                                "<c:numFmt formatCode=\"General\" sourceLinked=\"1\"/><c:majorTickMark val=\"none\"/><c:minorTickMark val=\"none\"/><c:tickLblPos val=\"nextTo\"/><c:crossAx val=\"111\"/><c:crosses val=\"autoZero\"/>"
+                                "<c:crossBetween val=\"between\"/><c:majorUnit val=\"1\"/></c:valAx>");
+    }
+
     // The chart drawn into a white picture, `scale` pixels to the point.
     static QImage renderChart(const Chart &chart, const QSizeF &size, int scale)
     {

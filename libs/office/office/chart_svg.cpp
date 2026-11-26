@@ -256,6 +256,7 @@ private:
     // Whether `lines` marks of one kind (gridlines, the marks of an axis) are drawn one by one: so while the chart has few. If not, they are one path.
     bool drawSeparately(int lines);
     void paintPie(const QRectF &area);
+    void paintRadar(const QRectF &area);
     void paintAxes(const QRectF &area);
     void drawLabels(const ChartPlot &plot, const ChartSeries &s, int index, QPointF at, double total, double ha, double va, bool inside, const QColor &under);
     QString labelText(const ChartPlot &plot, const ChartSeries &s, int i, double total, const ChartDataLabels &l) const;
@@ -584,8 +585,8 @@ QVector<Entry> ChartPainter::legendEntries() const
             Entry e;
             e.name = writable(s.name, kChartMaxLabel);
             e.color = s.color;
-            if (plot.type == ChartType::Line || plot.type == ChartType::Scatter) {
-                e.line = !s.outline.none && (plot.type == ChartType::Line || plot.lines);
+            if (plot.type == ChartType::Line || plot.type == ChartType::Scatter || (plot.type == ChartType::Radar && !plot.filled)) {
+                e.line = !s.outline.none && (plot.type != ChartType::Scatter || plot.lines);
                 e.width = s.outline.width > 0 ? s.outline.width : 2.25;
                 ChartMarker::Symbol symbol = s.marker.symbol;
                 if (symbol == ChartMarker::Auto) symbol = plot.markers || plot.type == ChartType::Scatter ? autoSymbols[index % 8] : ChartMarker::None;
@@ -813,6 +814,227 @@ void ChartPainter::paintPie(const QRectF &area)
 }
 
 // ---- stacking
+
+// ---- radar
+
+// A radar chart: a spoke from the middle for each category, the values along them (the scale's start at the middle, its end at the tips), each series a closed shape through its points
+// (filled, or a line with or without markers). The gridlines are shapes of as many corners as there are spokes. A blank is drawn as a zero, and a value past the scale is held to its ends.
+void ChartPainter::paintRadar(const QRectF &area)
+{
+    const Chart &c = m_chart;
+    QVector<const ChartPlot *> plots;
+    for (const ChartPlot &p : c.plots)
+        if (p.type == ChartType::Radar) plots << &p;
+    if (plots.isEmpty()) return;
+    const ChartPlot &first = *plots.first();
+    const ChartAxis *a0 = c.axis(first.axisIds[0]), *a1 = c.axis(first.axisIds[1]);
+    if (a0 && a1 && a0->kind == ChartAxis::Value && a1->kind != ChartAxis::Value) std::swap(a0, a1);
+    m_defaultCat = ChartAxis();
+    m_defaultVal = ChartAxis();
+    m_defaultVal.kind = ChartAxis::Value;
+    m_cat = a0 ? a0 : &m_defaultCat;
+    m_val = a1 ? a1 : &m_defaultVal;
+    m_n = 0;
+    double lo = std::numeric_limits<double>::infinity(), hi = -lo;
+    for (const ChartPlot *plot : plots)
+        for (const ChartSeries &s : plot->series) {
+            m_n = std::max<int>(m_n, int(std::max(s.values.size(), s.categories.size())));
+            for (const double v : s.values)
+                if (std::isfinite(v)) {
+                    lo = std::min(lo, v);
+                    hi = std::max(hi, v);
+                }
+        }
+    if (m_n <= 0) return;
+    m_scale = scaleOf(*m_val, lo, hi, false);
+    const Scale &scale = m_scale;
+    // the marks of the value axis
+    QVector<double> ticks;
+    if (scale.logBase >= 2) {
+        for (double t = scale.min; t <= scale.max * (1 + 1e-9) && ticks.size() <= kMaxTicks; t *= scale.logBase) ticks << t;
+    } else {
+        for (int i = 0; i <= kMaxTicks; ++i) {
+            const double t = scale.min + i * scale.major;
+            if (t > scale.max + scale.major * 1e-9) break;
+            ticks << t;
+        }
+    }
+    const QStringList cats = categoryLabels();
+    const QFont catFont = fontOf(m_cat->font, 10, false), valFont = fontOf(m_val->font, 10, false);
+    const QColor catColor = colorOf(m_cat->font), valColor = colorOf(m_val->font);
+    const bool catLabels = !m_cat->deleted && m_cat->labelPosition != QLatin1String("none");
+    const bool valLabels = !m_val->deleted && m_val->labelPosition != QLatin1String("none");
+    const double lineH = heightOf(catFont);
+    // the directions of the spokes, clockwise from the top
+    QVector<QPointF> dir(m_n);
+    for (int i = 0; i < m_n; ++i) {
+        const double a = 2 * kPi * i / m_n;
+        dir[i] = QPointF(std::sin(a), -std::cos(a));
+    }
+    // which categories are named: all of them, or every nth when the spokes crowd the labels
+    auto wrappedLabel = [&](int i) { return wrapped(cats.value(i), catFont, std::max(30.0, area.width() * 0.22)).join(QLatin1Char('\n')); };
+    const double gap = 4;
+    auto labelBox = [&](int i, const QPointF &centre, double radius) {
+        const QString text = wrappedLabel(i);
+        const int lines = int(text.count(QLatin1Char('\n'))) + 1;
+        double w = 0;
+        for (const QString &line : text.split(QLatin1Char('\n'))) w = std::max(w, widthOf(catFont, line));
+        const double h = heightOf(catFont, lines);
+        const QPointF tip = centre + dir[i] * (radius + gap);
+        const double ha = dir[i].x() > 0.2 ? 0 : dir[i].x() < -0.2 ? 1 : 0.5, va = dir[i].y() < -0.2 ? 1 : dir[i].y() > 0.2 ? 0 : 0.5;
+        return QRectF(tip.x() - ha * w, tip.y() - va * h, w, h);
+    };
+    int skip = 1;
+    double radius = std::min(area.width(), area.height()) / 2;
+    QPointF centre = area.center();
+    for (int pass = 0; pass < 4; ++pass) {
+        if (radius < 8) return;
+        skip = 1;
+        if (catLabels) {
+            const double spacing = 2 * kPi * radius / m_n;
+            skip = int(std::clamp(std::ceil(lineH / std::max(spacing, 1e-6)), 1.0, double(m_n)));
+        }
+        QRectF box(centre.x() - radius, centre.y() - radius, 2 * radius, 2 * radius);
+        if (catLabels)
+            for (int i = 0; i < m_n; i += skip) box = box.united(labelBox(i, centre, radius));
+        // the first mark of the value axis is read beside the top spoke: it needs room at the left
+        if (valLabels && !ticks.isEmpty()) {
+            double widest = 0;
+            for (const double t : ticks) widest = std::max(widest, widthOf(valFont, valueText(t, *m_val, first.series.isEmpty() ? nullptr : &first.series[0], false)));
+            box.setLeft(std::min(box.left(), centre.x() - 4 - widest));
+        }
+        const double fit = std::min(area.width() / std::max(box.width(), 1.0), area.height() / std::max(box.height(), 1.0));
+        // (the figure's box is put in the middle of the area; one that is still too large after the last pass is drawn as it is)
+        if (fit >= 0.999 || pass == 3) {
+            centre += area.center() - box.center();
+            break;
+        }
+        radius *= fit * 0.98;
+        centre = area.center();
+    }
+    if (radius < 8) return;
+    auto pointAt = [&](int i, double fraction) { return centre + dir[i] * (radius * std::clamp(std::isfinite(fraction) ? fraction : 0.0, 0.0, 1.0)); };
+
+    m_p->save();
+    const QColor classic = lineColor();
+    // ---- the plot area's own fill and border
+    {
+        const QRectF disc(centre.x() - radius, centre.y() - radius, 2 * radius, 2 * radius);
+        if (c.plotFill.isValid()) m_p->fillRect(disc, c.plotFill);
+        if (c.plotBorder.set && !c.plotBorder.none) {
+            m_p->setPen(penFor(c.plotBorder, classic, 0.75));
+            m_p->setBrush(Qt::NoBrush);
+            m_p->drawRect(disc);
+        }
+    }
+    // ---- gridlines: a shape through the spokes at each mark of the value axis, and the spokes themselves
+    if (m_val->majorGridlines && m_n >= 2) {
+        const QPen pen = penFor(m_val->gridline, classic, 0.75);
+        if (pen.style() != Qt::NoPen) {
+            m_p->setPen(pen);
+            m_p->setBrush(Qt::NoBrush);
+            const bool apart = drawSeparately(int(ticks.size()));
+            QPainterPath rings;
+            for (const double t : ticks) {
+                const double f = scale.frac(t);
+                if (!(f > 0)) continue;
+                QPolygonF ring;
+                for (int i = 0; i < m_n; ++i) ring << pointAt(i, f);
+                if (apart) {
+                    m_p->drawPolygon(ring);
+                } else {
+                    rings.addPolygon(ring);
+                    rings.closeSubpath();
+                }
+            }
+            if (!apart) drawPathChecked(rings);
+        }
+    }
+    if (m_cat->majorGridlines || (m_cat->line.set && !m_cat->line.none)) {
+        const QPen pen = penFor(m_cat->majorGridlines ? m_cat->gridline : m_cat->line, classic, 0.75);
+        if (pen.style() != Qt::NoPen) {
+            m_p->setPen(pen);
+            const bool apart = drawSeparately(m_n);
+            QPainterPath spokes;
+            for (int i = 0; i < m_n; ++i) {
+                if (apart) {
+                    m_p->drawLine(centre, pointAt(i, 1));
+                } else {
+                    spokes.moveTo(centre);
+                    spokes.lineTo(pointAt(i, 1));
+                }
+            }
+            if (!apart) drawPathChecked(spokes);
+        }
+    }
+    // the value axis along the top spoke
+    if (!m_val->deleted && m_val->line.set && !m_val->line.none) {
+        m_p->setPen(penFor(m_val->line, classic, 0.75));
+        m_p->drawLine(centre, pointAt(0, 1));
+    }
+    m_p->restore();
+
+    // ---- the series
+    static const ChartMarker::Symbol autoSymbols[] = {ChartMarker::Diamond, ChartMarker::Square, ChartMarker::Triangle, ChartMarker::X,
+                                                      ChartMarker::Star,    ChartMarker::Circle, ChartMarker::Plus,     ChartMarker::Dash};
+    int k = 0;
+    m_p->save();
+    for (const ChartPlot *plot : plots) {
+        for (const ChartSeries &s : plot->series) {
+            QVector<QPointF> pts(m_n);
+            QVector<bool> marked(m_n, false);
+            for (int i = 0; i < m_n; ++i) {
+                const double v = i < s.values.size() ? s.values[i] : kNaN;
+                marked[i] = std::isfinite(v);
+                pts[i] = pointAt(i, std::isfinite(v) ? scale.frac(v) : 0.0);
+            }
+            if (m_n >= 2) {
+                QPolygonF shape(pts);
+                if (plot->filled) {
+                    m_p->setBrush(s.noFill ? QBrush(Qt::NoBrush) : QBrush(s.color));
+                    m_p->setPen(s.outline.set && !s.outline.none ? penFor(s.outline, s.color, 0.75) : QPen(Qt::NoPen));
+                    m_p->drawPolygon(shape);
+                } else if (!s.outline.none) {
+                    QPen pen = penFor(s.outline, s.color, 2.25);
+                    pen.setCapStyle(Qt::RoundCap);
+                    pen.setJoinStyle(Qt::RoundJoin);
+                    m_p->setPen(pen);
+                    m_p->setBrush(Qt::NoBrush);
+                    m_p->drawPolygon(shape);
+                }
+            }
+            if (!plot->filled) {
+                ChartMarker::Symbol symbol = s.marker.symbol;
+                if (symbol == ChartMarker::Auto) symbol = plot->markers ? autoSymbols[k % 8] : ChartMarker::None;
+                const QColor markFill = s.marker.fill.isValid() ? s.marker.fill : s.color;
+                drawMarkers(pts, marked, symbol, s.marker.size, markFill, s.marker.line.isValid() ? s.marker.line : markFill, s.marker.noFill, s.marker.noLine);
+            }
+            if (s.labels.shown()) {
+                for (int i = 0; i < m_n; ++i) {
+                    if (!marked[i]) continue;
+                    const double ha = dir[i].x() > 0.2 ? 0 : dir[i].x() < -0.2 ? 1 : 0.5, va = dir[i].y() < -0.2 ? 1 : dir[i].y() > 0.2 ? 0 : 0.5;
+                    drawLabels(*plot, s, i, pts[i] + dir[i] * 4, 0, ha, va, false, QColor());
+                }
+            }
+            ++k;
+        }
+    }
+    m_p->restore();
+
+    // ---- the names of the categories, and the marks of the value axis beside the top spoke
+    if (catLabels)
+        for (int i = 0; i < m_n; i += skip) {
+            const QPointF tip = centre + dir[i] * (radius + gap);
+            const double ha = dir[i].x() > 0.2 ? 0 : dir[i].x() < -0.2 ? 1 : 0.5, va = dir[i].y() < -0.2 ? 1 : dir[i].y() > 0.2 ? 0 : 0.5;
+            drawText(wrappedLabel(i), catFont, catColor, tip, ha, va);
+        }
+    if (valLabels)
+        for (const double t : ticks) {
+            const double f = scale.frac(t);
+            if (!std::isfinite(f)) continue;
+            drawText(valueText(t, *m_val, first.series.isEmpty() ? nullptr : &first.series[0], false), valFont, valColor, pointAt(0, f) + QPointF(-4, 0), 1, 0.5);
+        }
+}
 
 void ChartPainter::stack(View *v) const
 {
@@ -1991,6 +2213,7 @@ void ChartPainter::paint()
     if (area.width() >= 10 && area.height() >= 10 && !c.plots.isEmpty()) {
         const ChartType type = c.plots.first().type;
         if (type == ChartType::Pie || type == ChartType::Doughnut) paintPie(c.plotManual ? manualPlot() : area);
+        else if (type == ChartType::Radar) paintRadar(c.plotManual ? manualPlot() : area);
         else paintAxes(area);
     }
     if (!legend.isEmpty()) drawLegend(legendBox, legend, legendBreaks);
@@ -2064,6 +2287,10 @@ Pieces piecesOf(const ChartPlot &plot, const ChartSeries &s, const QString &blan
         if (symbol != ChartMarker::None && (symbol != ChartMarker::Auto || plot.markers)) out.markers = finite(s.values);
         break;
     }
+    case ChartType::Radar:
+        out.shapes = 1;
+        if (!plot.filled && s.marker.symbol != ChartMarker::None && (s.marker.symbol != ChartMarker::Auto || plot.markers)) out.markers = finite(s.values);
+        break;
     case ChartType::Scatter:
         if (s.marker.symbol != ChartMarker::None)
             for (qsizetype i = 0; i < std::min(s.values.size(), s.xValues.size()); ++i) out.markers += std::isfinite(s.values[i]) && std::isfinite(s.xValues[i]);
@@ -2106,7 +2333,8 @@ Chart drawnChart(const Chart &chart, const Limits &limits, bool *thinned)
             for (const double v : s.values) unusable = unusable || (std::isfinite(v) && std::fabs(v) > kMaxMagnitude);
             for (const double v : s.xValues) unusable = unusable || (std::isfinite(v) && std::fabs(v) > kMaxMagnitude);
         }
-    const bool slices = !chart.plots.isEmpty() && (chart.plots.first().type == ChartType::Pie || chart.plots.first().type == ChartType::Doughnut);
+    // (a pie's slices and a radar's spokes: more than a few hundred cannot be told apart)
+    const bool slices = !chart.plots.isEmpty() && (chart.plots.first().type == ChartType::Pie || chart.plots.first().type == ChartType::Doughnut || chart.plots.first().type == ChartType::Radar);
     auto times = [](qsizetype n, int limit) { return (n + std::max(1, limit) - 1) / std::max(1, limit); };
     const int stride = int(std::max<qsizetype>({1, times(most, slices ? limits.slices : limits.points), times(total, slices ? 2 * limits.slices : limits.total), times(shapes, limits.pieces), times(markers, limits.markers)}));
     *thinned = stride > 1;

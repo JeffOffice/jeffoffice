@@ -120,7 +120,7 @@ inline QString seriesElement(int index, const SeriesSpec &s, bool scatter = fals
     return out + QStringLiteral("</c:ser>");
 }
 
-// A chart part: "barChart", "lineChart", "pieChart", "areaChart", or "scatterChart", the series, the title if any, and c:plotVisOnly and c:dispBlanksAs.
+// A chart part: "barChart", "lineChart", "pieChart", "areaChart", "scatterChart", or "radarChart", the series, the title if any, and c:plotVisOnly and c:dispBlanksAs.
 inline QByteArray chartPart(const QString &kind, const QVector<SeriesSpec> &series, const QString &title = QString(), bool plotVisOnly = true, const QString &blanksAs = QStringLiteral("gap"),
                             const QString &catAxisFormat = QString(), bool catAxisLinked = false)
 {
@@ -129,6 +129,7 @@ inline QByteArray chartPart(const QString &kind, const QVector<SeriesSpec> &seri
     if (kind == QLatin1String("barChart")) plot += QStringLiteral("<c:barDir val=\"col\"/><c:grouping val=\"clustered\"/>");
     else if (kind == QLatin1String("lineChart") || kind == QLatin1String("areaChart")) plot += QStringLiteral("<c:grouping val=\"standard\"/>");
     else if (scatter) plot += QStringLiteral("<c:scatterStyle val=\"lineMarker\"/>");
+    else if (kind == QLatin1String("radarChart")) plot += QStringLiteral("<c:radarStyle val=\"marker\"/>");
     plot += QStringLiteral("<c:varyColors val=\"0\"/>");
     for (int i = 0; i < series.size(); ++i) plot += seriesElement(i, series[i], scatter);
     const bool pie = kind == QLatin1String("pieChart");

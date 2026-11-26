@@ -279,7 +279,7 @@ public:
             QString x = QStringLiteral("<chart:series chart:values-cell-range-address=\"%1\"").arg(odsdraw::xmlText(values));
             if (!nameRef.isEmpty() && !nameRef.contains(QLatin1Char(':'))) x += QStringLiteral(" chart:label-cell-address=\"%1\"").arg(odsdraw::xmlText(nameRef));
             else if (!s.name.isEmpty()) x += QStringLiteral(" chart:label-cell-address=\"%1\"").arg(odsdraw::xmlText(localHeader(col)));
-            x += QStringLiteral(" chart:class=\"%1\" chart:style-name=\"%2\">").arg(classOf(e.plot->type), styleName(seriesStyle(s, *e.plot))) + domain;
+            x += QStringLiteral(" chart:class=\"%1\" chart:style-name=\"%2\">").arg(classOfPlot(*e.plot), styleName(seriesStyle(s, *e.plot))) + domain;
             x += curvesOf(s) + errorBarsOf(s, &extras, 1 + seriesColumns, rows) + pointsOf(s);
             x += QStringLiteral("</chart:series>");
             seriesXml << x;
@@ -325,7 +325,7 @@ public:
                                       " xmlns:fo=\"urn:oasis:names:tc:opendocument:xmlns:xsl-fo-compatible:1.0\" xmlns:xlink=\"http://www.w3.org/1999/xlink\" xmlns:number=\"urn:oasis:names:tc:opendocument:xmlns:datastyle:1.0\""
                                       " xmlns:svg=\"urn:oasis:names:tc:opendocument:xmlns:svg-compatible:1.0\" xmlns:chart=\"urn:oasis:names:tc:opendocument:xmlns:chart:1.0\" xmlns:loext=\"urn:org:documentfoundation:names:experimental:office:xmlns:loext:1.0\" xmlns:jo=\"urn:jeffoffice:odf-extension\" office:version=\"1.2\">");
         head += QStringLiteral("<office:automatic-styles>") + m_data + m_styles + QStringLiteral("</office:automatic-styles><office:body><office:chart>");
-        head += QStringLiteral("<chart:chart svg:width=\"%1\" svg:height=\"%2\" chart:class=\"%3\" chart:style-name=\"%4\">").arg(odsdraw::lengthText(m_w), odsdraw::lengthText(m_h), classOf(m_c.type()), chartStyle);
+        head += QStringLiteral("<chart:chart svg:width=\"%1\" svg:height=\"%2\" chart:class=\"%3\" chart:style-name=\"%4\">").arg(odsdraw::lengthText(m_w), odsdraw::lengthText(m_h), m_c.plots.isEmpty() ? classOf(m_c.type()) : classOfPlot(m_c.plots.first()), chartStyle);
         return (head + body + QStringLiteral("</chart:chart></office:chart></office:body></office:document-content>")).toUtf8();
     }
 
@@ -447,9 +447,13 @@ private:
         case ChartType::Doughnut: return QStringLiteral("chart:ring");
         case ChartType::Area: return QStringLiteral("chart:area");
         case ChartType::Scatter: return QStringLiteral("chart:scatter");
+        case ChartType::Radar: return QStringLiteral("chart:radar");
         default: return QStringLiteral("chart:bar");
         }
     }
+    static QString classOfPlot(const ChartPlot &p) { return p.type == ChartType::Radar && p.filled ? QStringLiteral("chart:filled-radar") : classOf(p.type); }
+    // a series drawn as a line (a radar's too, unless it is filled)
+    static bool isLineLike(const ChartPlot &p) { return p.type == ChartType::Line || p.type == ChartType::Scatter || (p.type == ChartType::Radar && !p.filled); }
 
     Sty chartAreaStyle() const
     {
@@ -474,7 +478,7 @@ private:
         if (p.grouping == jp::office::ChartGrouping::PercentStacked) s.chart += QStringLiteral(" chart:percentage=\"true\"");
         if (p.type == ChartType::Bar) s.chart += QStringLiteral(" chart:gap-width=\"%1\" chart:overlap=\"%2\"").arg(p.gapWidth).arg(p.overlap);
         if (p.type == ChartType::Pie || p.type == ChartType::Doughnut) s.chart += QStringLiteral(" chart:angle-offset=\"%1\"").arg(((90 - p.firstSliceAngle) % 360 + 360) % 360);   // (counter-clockwise from three o'clock; the model counts clockwise from twelve)
-        if (p.type == ChartType::Line || p.type == ChartType::Scatter) {
+        if (isLineLike(p)) {
             s.chart += QStringLiteral(" chart:symbol-type=\"%1\"").arg(p.markers ? QStringLiteral("automatic") : QStringLiteral("none"));
             if (p.type == ChartType::Scatter) s.chart += QStringLiteral(" chart:lines=\"%1\"").arg(p.lines ? QStringLiteral("true") : QStringLiteral("false"));
         }
@@ -501,7 +505,7 @@ private:
     Sty seriesStyle(const ChartSeries &s, const ChartPlot &p)
     {
         Sty st;
-        const bool lineLike = p.type == ChartType::Line || p.type == ChartType::Scatter;
+        const bool lineLike = isLineLike(p);
         if (lineLike) {
             ChartLine l = s.outline;
             if (!l.color.isValid()) l.color = s.color;
@@ -842,12 +846,14 @@ public:
                 QString el = element;
                 const QString sc = n->attrs.value(QStringLiteral("chart:class"));
                 if (!sc.isEmpty()) typeOf(sc, &st, &el);
+                m_filledRadar = (sc.isEmpty() ? cls : sc) == QLatin1String("chart:filled-radar");
                 ChartSeries s = seriesOf(n, k, st, palette, categoriesAddress, &cutPoints, &total);
-                const int key = int(st);
+                const int key = int(st) * 2 + (st == ChartType::Radar && m_filledRadar ? 1 : 0);
                 if (!plotOfType.contains(key)) {
                     ChartPlot p;
                     p.type = st;
                     p.element = st == ChartType::Other ? el : QString();
+                    p.filled = st == ChartType::Radar && m_filledRadar;
                     p.axisIds[0] = 111;
                     p.axisIds[1] = 222;
                     p.varyColors = st == ChartType::Pie || st == ChartType::Doughnut;
@@ -864,7 +870,7 @@ public:
             if (plotProps.value(QStringLiteral("chart:chart:vertical")) == QLatin1String("true") && p.type == ChartType::Bar) p.horizontal = true;
             if (plotProps.value(QStringLiteral("chart:chart:percentage")) == QLatin1String("true")) p.grouping = jp::office::ChartGrouping::PercentStacked;
             else if (plotProps.value(QStringLiteral("chart:chart:stacked")) == QLatin1String("true")) p.grouping = jp::office::ChartGrouping::Stacked;
-            else p.grouping = (p.type == ChartType::Line || p.type == ChartType::Area) ? jp::office::ChartGrouping::Standard : jp::office::ChartGrouping::Clustered;
+            else p.grouping = (p.type == ChartType::Line || p.type == ChartType::Area || p.type == ChartType::Radar) ? jp::office::ChartGrouping::Standard : jp::office::ChartGrouping::Clustered;
             bool ok = false;
             const int gap = plotProps.value(QStringLiteral("chart:chart:gap-width")).toInt(&ok);
             if (ok) p.gapWidth = std::clamp(gap, 0, 500);
@@ -954,10 +960,8 @@ private:
         else if (cls == QLatin1String("chart:circle")) *type = ChartType::Pie;
         else if (cls == QLatin1String("chart:ring")) *type = ChartType::Doughnut;
         else if (cls == QLatin1String("chart:scatter")) *type = ChartType::Scatter;
-        else if (cls == QLatin1String("chart:radar") || cls == QLatin1String("chart:filled-radar")) {
-            *type = ChartType::Other;
-            *element = QStringLiteral("radarChart");
-        } else if (cls == QLatin1String("chart:stock") || cls == QLatin1String("chart:bubble") || cls == QLatin1String("chart:gantt")) {
+        else if (cls == QLatin1String("chart:radar") || cls == QLatin1String("chart:filled-radar")) *type = ChartType::Radar;
+        else if (cls == QLatin1String("chart:stock") || cls == QLatin1String("chart:bubble") || cls == QLatin1String("chart:gantt")) {
             *type = ChartType::Other;
             *element = cls == QLatin1String("chart:stock") ? QStringLiteral("stockChart") : QStringLiteral("bubbleChart");
         } else if (cls.isEmpty()) {
@@ -1188,6 +1192,7 @@ private:
         return v;
     }
 
+    bool m_filledRadar = false;   // the series being read is of a filled radar
     ChartSeries seriesOf(const NodePtr &n, int k, ChartType type, const QVector<QColor> &palette, const QString &categoriesAddress, bool *cutPoints, qint64 *total)
     {
         ChartSeries s;
@@ -1239,7 +1244,7 @@ private:
                     break;
                 }
         // how it looks
-        const bool lineLike = type == ChartType::Line || type == ChartType::Scatter;
+        const bool lineLike = type == ChartType::Line || type == ChartType::Scatter || (type == ChartType::Radar && !m_filledRadar);
         s.color = palette.isEmpty() ? QColor(Qt::gray) : palette[k % palette.size()];
         QColor color;
         const QString fill = p.value(QStringLiteral("graphic:draw:fill"));

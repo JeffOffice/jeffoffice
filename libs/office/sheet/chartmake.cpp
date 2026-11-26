@@ -282,13 +282,16 @@ ChartPlot plotOf(ChartKind kind)
     case ChartKind::Scatter: p.type = ChartType::Scatter; p.grouping = ChartGrouping::Standard; p.lines = false; break;
     case ChartKind::ScatterLines: p.type = ChartType::Scatter; p.grouping = ChartGrouping::Standard; p.lines = true; break;
     case ChartKind::ScatterSmooth: p.type = ChartType::Scatter; p.grouping = ChartGrouping::Standard; p.lines = true; p.smooth = true; break;
+    case ChartKind::Radar: p.type = ChartType::Radar; p.grouping = ChartGrouping::Standard; p.markers = false; break;
+    case ChartKind::RadarMarkers: p.type = ChartType::Radar; p.grouping = ChartGrouping::Standard; p.markers = true; break;
+    case ChartKind::RadarFilled: p.type = ChartType::Radar; p.grouping = ChartGrouping::Standard; p.filled = true; break;
     }
     return p;
 }
 
 bool samePlot(const ChartPlot &a, const ChartPlot &b)
 {
-    return a.type == b.type && a.grouping == b.grouping && a.horizontal == b.horizontal && a.markers == b.markers && a.lines == b.lines && a.smooth == b.smooth;
+    return a.type == b.type && a.grouping == b.grouping && a.horizontal == b.horizontal && a.markers == b.markers && a.lines == b.lines && a.smooth == b.smooth && a.filled == b.filled;
 }
 
 int rankOf(ChartType t)
@@ -326,6 +329,8 @@ Chart chartFromSeries(const QVector<ChartSeries> &series, const QVector<SeriesKi
     };
     QVector<Group> groups;
     const bool onlyPie = count > 0 && kinds.value(0).kind != ChartKind::Combo && (plotOf(kinds.value(0).kind).type == ChartType::Pie || plotOf(kinds.value(0).kind).type == ChartType::Doughnut);
+    // (a radar holds only radar, all of one look: the first series' kind)
+    const bool onlyRadar = count > 0 && kinds.value(0).kind != ChartKind::Combo && plotOf(kinds.value(0).kind).type == ChartType::Radar;
     bool anyOther = false, anyHorizontal = false;
     for (int i = 0; i < count; ++i) {
         const ChartPlot p = plotOf(kinds.value(i).kind);
@@ -339,6 +344,8 @@ Chart chartFromSeries(const QVector<ChartSeries> &series, const QVector<SeriesKi
         const bool pie = p.type == ChartType::Pie || p.type == ChartType::Doughnut;
         if (onlyPie && !pie) k.kind = kinds.value(0).kind, p = plotOf(k.kind);   // (a pie holds only pie)
         if (!onlyPie && pie) p = plotOf(ChartKind::Column);
+        if (onlyRadar) k.kind = kinds.value(0).kind, p = plotOf(k.kind), k.secondary = false;
+        else if (p.type == ChartType::Radar) p = plotOf(ChartKind::Column);
         if (p.horizontal && count > 1) {
             // bars across mix with nothing: with other kinds they are columns
             bool others = false;
@@ -359,7 +366,7 @@ Chart chartFromSeries(const QVector<ChartSeries> &series, const QVector<SeriesKi
             s.colorFromFile = true;
         }
         if (p.type == ChartType::Scatter) s.smooth = p.lines && p.smooth;
-        if (p.type == ChartType::Line && !p.markers) s.marker.symbol = ChartMarker::None;
+        if ((p.type == ChartType::Line || p.type == ChartType::Radar) && !p.markers) s.marker.symbol = ChartMarker::None;
         else if (s.marker.symbol == ChartMarker::None) s.marker.symbol = ChartMarker::Auto;
         groups[at].plot.series << s;
     }
@@ -387,6 +394,7 @@ Chart chartFromSeries(const QVector<ChartSeries> &series, const QVector<SeriesKi
         ChartAxis val = axisOf(ChartAxis::Value, kValId, kCatId, horizontal ? QStringLiteral("b") : QStringLiteral("l"));
         val.majorGridlines = true;
         if (scatterOnly) cat.between = false;
+        if (first == ChartType::Radar) cat.majorGridlines = true;   // (the spokes)
         if (!groups.isEmpty() && groups.first().plot.grouping == ChartGrouping::PercentStacked) {
             val.format = QStringLiteral("0%");
             val.formatLinked = false;
@@ -504,6 +512,7 @@ ChartKind kindOfPlot(const ChartPlot &p)
     case ChartType::Area: return stacked || percent ? ChartKind::AreaStacked : ChartKind::Area;
     case ChartType::Pie: return ChartKind::Pie;
     case ChartType::Doughnut: return ChartKind::Doughnut;
+    case ChartType::Radar: return p.filled ? ChartKind::RadarFilled : p.markers ? ChartKind::RadarMarkers : ChartKind::Radar;
     case ChartType::Scatter: {
         if (!p.lines) return ChartKind::Scatter;
         bool smooth = p.smooth || !p.series.isEmpty();

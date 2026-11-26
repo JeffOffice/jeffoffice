@@ -261,7 +261,7 @@ private Q_SLOTS:
         const Cells f = regional();
         const ChartKind kinds[] = {ChartKind::Column, ChartKind::ColumnStacked, ChartKind::ColumnPercent, ChartKind::Bar, ChartKind::BarStacked, ChartKind::BarPercent, ChartKind::Line,
                                    ChartKind::LineMarkers, ChartKind::LineStacked, ChartKind::Pie, ChartKind::Doughnut, ChartKind::Area, ChartKind::AreaStacked, ChartKind::Scatter,
-                                   ChartKind::ScatterLines, ChartKind::ScatterSmooth, ChartKind::Combo};
+                                   ChartKind::ScatterLines, ChartKind::ScatterSmooth, ChartKind::Combo, ChartKind::Radar, ChartKind::RadarMarkers, ChartKind::RadarFilled};
         for (const ChartKind kind : kinds) {
             const ChartPlan plan = planChart(f, 0, QStringLiteral("Sheet1"), range(QStringLiteral("A1:C4")), kind);
             QVERIFY(!plan.series.isEmpty());
@@ -291,6 +291,36 @@ private Q_SLOTS:
         QCOMPARE(pie.plots[0].series[0].pointColors.size(), 3);
         QVERIFY(pie.title.present && pie.title.automatic);
         QVERIFY(pie.legend.shown);
+    }
+
+    // A radar is made with the spokes and rings drawn, holds only radar of the first series' look, and is no part of a combination.
+    void aRadarChartIsMadeAlone()
+    {
+        const Cells f = regional();
+        const ChartPlan plan = planChart(f, 0, QStringLiteral("Sheet1"), range(QStringLiteral("A1:C4")), ChartKind::Radar);
+        const Chart radar = makeChart(ChartKind::Radar, plan, defaultTheme());
+        QCOMPARE(radar.plots.size(), 1);
+        QCOMPARE(int(radar.plots[0].type), int(ChartType::Radar));
+        QVERIFY(!radar.plots[0].filled && !radar.plots[0].markers);
+        QCOMPARE(radar.axes.size(), 2);
+        QVERIFY(radar.axis(radar.plots[0].axisIds[0])->majorGridlines);   // the spokes
+        QVERIFY(radar.axis(radar.plots[0].axisIds[1])->majorGridlines);   // the rings
+        for (const ChartSeries &s : radar.plots[0].series) QCOMPARE(int(s.marker.symbol), int(ChartMarker::None));
+        QVERIFY(radar.legend.shown);
+        const Chart filled = makeChart(ChartKind::RadarFilled, plan, defaultTheme());
+        QVERIFY(filled.plots[0].filled);
+        QCOMPARE(int(kindOfChart(filled)), int(ChartKind::RadarFilled));
+        // the kind of the first series decides: the others follow it
+        QVector<ChartSeries> series = radar.plots[0].series;
+        QCOMPARE(series.size(), 2);
+        const Chart radarFirst = chartFromSeries(series, {SeriesKind{ChartKind::RadarMarkers, false}, SeriesKind{ChartKind::Column, false}}, defaultTheme());
+        QCOMPARE(radarFirst.plots.size(), 1);
+        QCOMPARE(int(radarFirst.plots[0].type), int(ChartType::Radar));
+        QCOMPARE(radarFirst.plots[0].series.size(), 2);
+        QVERIFY(radarFirst.plots[0].markers);
+        // a radar that is not first is columns
+        const Chart columnsFirst = chartFromSeries(series, {SeriesKind{ChartKind::Column, false}, SeriesKind{ChartKind::Radar, false}}, defaultTheme());
+        for (const ChartPlot &p : columnsFirst.plots) QVERIFY(p.type != ChartType::Radar);
     }
 
     void aSelectionOfAnySizeMakesALimitedChart()

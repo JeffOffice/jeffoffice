@@ -442,13 +442,14 @@ private:
         case ChartType::Area: return "c15:filteredAreaSeries";
         case ChartType::Pie: return "c15:filteredPieSeries";
         case ChartType::Scatter: return "c15:filteredScatterSeries";
+        case ChartType::Radar: return "c15:filteredRadarSeries";
         default: return nullptr;
         }
     }
 
     void series(const ChartPlot &plot, const ChartSeries &s, const char *element = "c:ser")
     {
-        const bool stroked = plot.type == ChartType::Line || plot.type == ChartType::Scatter;
+        const bool stroked = plot.type == ChartType::Line || plot.type == ChartType::Scatter || (plot.type == ChartType::Radar && !plot.filled);
         const bool scatter = plot.type == ChartType::Scatter;
         const int index = m_serial++;
         w.writeStartElement(QString::fromLatin1(element));
@@ -498,14 +499,14 @@ private:
             w.writeStartElement(QStringLiteral("c:dPt"));
             val("c:idx", QString::number(at));
             if (plot.type == ChartType::Bar) flag("c:invertIfNegative", false);
-            if (plot.type != ChartType::Pie && plot.type != ChartType::Doughnut) flag("c:bubble3D", false);
+            if (plot.type != ChartType::Pie && plot.type != ChartType::Doughnut && plot.type != ChartType::Radar) flag("c:bubble3D", false);
             shapeProps(color, false, ChartLine());
             w.writeEndElement();
         }
         labels(s.labels, plot.type == ChartType::Pie || plot.type == ChartType::Doughnut);
-        if (plot.type != ChartType::Pie && plot.type != ChartType::Doughnut)
+        if (plot.type != ChartType::Pie && plot.type != ChartType::Doughnut && plot.type != ChartType::Radar)
             for (const ChartTrendline &t : s.trendlines) trendline(t);
-        if (plot.type != ChartType::Pie && plot.type != ChartType::Doughnut)
+        if (plot.type != ChartType::Pie && plot.type != ChartType::Doughnut && plot.type != ChartType::Radar)
             for (const ChartErrorBars &b : s.errorBars) errorBars(b, scatter);
         if (scatter) {
             numberData("c:xVal", s.xRef, s.xValues, s.categoryFormat);
@@ -514,7 +515,7 @@ private:
             categoryData("c:cat", s);
             numberData("c:val", s.valueRef, s.values, s.format);
         }
-        if (stroked) flag("c:smooth", s.smooth);
+        if (stroked && plot.type != ChartType::Radar) flag("c:smooth", s.smooth);
         if (s.labels.cells && !s.labelCellsRef.isEmpty()) {
             w.writeStartElement(QStringLiteral("c:extLst"));
             w.writeStartElement(QStringLiteral("c:ext"));
@@ -594,6 +595,7 @@ private:
         case ChartType::Doughnut: element = "c:doughnutChart"; break;
         case ChartType::Area: element = "c:areaChart"; break;
         case ChartType::Scatter: element = "c:scatterChart"; break;
+        case ChartType::Radar: element = "c:radarChart"; break;
         case ChartType::Other: element = "c:barChart"; break;
         }
         w.writeStartElement(QString::fromLatin1(element));
@@ -611,6 +613,10 @@ private:
             break;
         case ChartType::Scatter:
             val("c:scatterStyle", QString::fromLatin1(p.lines ? "lineMarker" : "marker"));
+            flag("c:varyColors", p.varyColors);
+            break;
+        case ChartType::Radar:
+            val("c:radarStyle", QString::fromLatin1(p.filled ? "filled" : p.markers ? "marker" : "standard"));
             flag("c:varyColors", p.varyColors);
             break;
         case ChartType::Pie:

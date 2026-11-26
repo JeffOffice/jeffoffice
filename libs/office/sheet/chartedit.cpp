@@ -206,7 +206,7 @@ void setTrendlines(Chart *chart, const QString &kind, int order, int period)
     for (const ChartPlot &p : chart->plots)
         for (const ChartSeries &s : p.series) total += s.trendlines.size();
     for (ChartPlot &p : chart->plots) {
-        if (p.type == ChartType::Pie || p.type == ChartType::Doughnut) continue;
+        if (p.type == ChartType::Pie || p.type == ChartType::Doughnut || p.type == ChartType::Radar) continue;
         for (ChartSeries &s : p.series) {
             if (kind.isEmpty()) {
                 s.trendlines.clear();
@@ -255,6 +255,7 @@ QStringList labelPositionsFor(const Chart &chart)
     case ChartType::Scatter: return {"ctr", "l", "r", "t", "b"};
     case ChartType::Pie: return {"ctr", "inEnd", "outEnd", "bestFit"};
     case ChartType::Doughnut:
+    case ChartType::Radar:
     case ChartType::Area: return {};
     }
     return {};
@@ -1144,7 +1145,7 @@ void resetPartToStyle(Chart *chart, ChartPart part, int series)
                 s.keptPoints.clear();
                 s.smooth = lines && (p.smooth || kindSmooth);
                 s.marker = ChartMarker();
-                if ((p.type == ChartType::Line && !p.markers) || (lines && kindBare)) s.marker.symbol = ChartMarker::None;
+                if (((p.type == ChartType::Line || p.type == ChartType::Radar) && !p.markers) || (lines && kindBare)) s.marker.symbol = ChartMarker::None;
             }
         }
         break;
