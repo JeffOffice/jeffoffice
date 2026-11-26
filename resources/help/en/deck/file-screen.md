@@ -74,7 +74,7 @@ Click **Remove All** next to a kind to take it out. You can undo it with **Ctrl+
 
 ### Version History
 
-Click **Version History** to keep named copies of the presentation on your computer. Nothing is sent anywhere. Save the presentation first, because a version belongs to a file. Click **Keep a Version…**, and give it a name. Later, choose a version and click **Open a Copy** to look at it, **Compare** to see what that version changed (it opens the same Reviewing Pane as **Review > Compare**; see [Compare presentations](compare)), **Go Back to It** to put it in the window (the presentation as it is now is kept as a version first), or **Delete**. JeffDeck keeps the last 50.
+Click **Version History** to keep named copies of the presentation on your computer. Nothing is sent anywhere. Save the presentation first, because a version belongs to a file. Click **Keep a Version…**, and give it a name. Later, choose a version and click **Open a Copy** to look at it, **Compare** to see what that version changed (it opens the same Reviewing Pane as **Review > Compare**), **Go Back to It** to put it in the window (the presentation as it is now is kept as a version first), or **Delete**. JeffDeck keeps the last 50.
 
 ### Check Accessibility
 
