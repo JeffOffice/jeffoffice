@@ -2444,6 +2444,47 @@ private Q_SLOTS:
         QTest::keyClicks(w->view(), "!");
         QVERIFY(documentXml(w->document()->toDocx()).contains("<w:br/>"));
     }
+
+    void aKeystrokeInAFieldDoesNotScanTheWholeStoryEachTime()
+    {
+        const QByteArray tx = "<w:textInput><w:maxLength w:val=\"40\"/></w:textInput>";
+        QByteArray body;
+        for (int i = 0; i < 300; ++i) body += para(run("Paragraph number " + QByteArray::number(i) + " of the long document"));
+        body += para(run("pre ") + formField("A", tx, "FORMTEXT", run("")) + run(" post")) + para(run("The last paragraph"));
+        for (int protectedForForms = 0; protectedForForms < 2; ++protectedForForms) {
+            auto w = windowOn(body, protectedForForms ? kFormsProtection : QByteArray());
+            QVERIFY(w);
+            PageView *view = w->view();
+            WriteDoc *doc = w->document();
+            auto result = [&] { return formFields(doc->story())[0].result; };
+            const FormField f = formFields(doc->story())[0];
+            caretAt(view, f.end, f.separate + 1);
+            resetStoryScansForTest();
+            const QString keys = QStringLiteral("abcdefghijklmnopqrst");
+            for (const QChar ch : keys) QTest::keyClick(view, ch.toLatin1());
+            const qint64 scans = storyScansForTest();
+            QCOMPARE(result(), keys);
+            // (What is kept is what a fresh look at the file says.)
+            auto reopened = open(doc->toDocx());
+            QVERIFY(reopened);
+            const FormField kept = formFields(doc->story())[0], fresh = formFields(reopened->story())[0];
+            QCOMPARE(kept.begin, fresh.begin);
+            QCOMPARE(kept.separate, fresh.separate);
+            QCOMPARE(kept.end, fresh.end);
+            QCOMPARE(kept.result, fresh.result);
+            // (The scans do not grow with the keys typed: the fields are kept for as long as the text is as it was.)
+            QVERIFY2(scans <= 3, qPrintable(QStringLiteral("%1 scans for %2 keys").arg(scans).arg(keys.size())));
+            // An edit elsewhere is noticed: the next key still lands in the right field.
+            if (!protectedForForms) {
+                caretAt(view, 1);
+                QTest::keyClicks(view, "ZZ");
+                caretAt(view, formFields(doc->story())[0].end);
+                QTest::keyClicks(view, "!");
+                QCOMPARE(result(), keys + QLatin1Char('!'));
+                QVERIFY(lines(*doc).at(0).startsWith(QLatin1String("PZZ")));
+            }
+        }
+    }
 };
 
 QTEST_MAIN(FieldTests)

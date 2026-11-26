@@ -173,13 +173,44 @@ void describe(QTextDocument *story, const StoryScan &scan, QVector<FormField> *f
 
 } // namespace
 
-QVector<FormField> formFields(QTextDocument *story)
+namespace {
+
+// The form fields of a story, kept with it for as long as its text is as it was (any change of the text or of what a character carries ends it): a key typed in a field asks for them again
+// and again, and each scan of the story costs as much as the story is long. A fill puts the places right itself (keepFields), so the next key finds them kept.
+struct FieldCache : QObject {
+    explicit FieldCache(QTextDocument *story) : QObject(story)
+    {
+        setObjectName(QStringLiteral("jpFormFieldCache"));
+        connect(story, &QTextDocument::contentsChange, this, [this] { valid = false; });
+    }
+    bool valid = false;
+    QVector<FormField> fields;
+    QStringList refs;   // the instructions of the cross-references (REF fields) in the story
+};
+
+FieldCache &cacheOf(QTextDocument *story)
 {
-    const StoryScan scan = scanStory(story, true);
-    QVector<FormField> found = fieldsOf(scan);
-    describe(story, scan, &found);
-    return found;
+    QObject *c = story->findChild<QObject *>(QStringLiteral("jpFormFieldCache"), Qt::FindDirectChildrenOnly);
+    return c ? static_cast<FieldCache &>(*c) : *new FieldCache(story);
 }
+
+FieldCache &fieldsKept(QTextDocument *story)
+{
+    FieldCache &c = cacheOf(story);
+    if (c.valid) return c;
+    const StoryScan scan = scanStory(story, true);
+    c.fields = fieldsOf(scan);
+    describe(story, scan, &c.fields);
+    c.refs.clear();
+    for (int i = 0; i < scan.fields.size(); ++i)
+        if (scan.fields[i].name == QLatin1String("REF")) c.refs << scan.instructionOf(i);
+    c.valid = true;
+    return c;
+}
+
+} // namespace
+
+QVector<FormField> formFields(QTextDocument *story) { return fieldsKept(story).fields; }
 
 FormField formFieldAt(QTextDocument *story, int position)
 {
@@ -343,31 +374,44 @@ QByteArray withChosenEntry(const QByteArray &raw, int index)
 }
 
 // The field that begins at a place, described; none valid where there is none, or the field says nothing of what it is.
-FormField fieldBeginningAt(QTextDocument *story, int begin, StoryScan *scanOut = nullptr)
+FormField fieldBeginningAt(QTextDocument *story, int begin)
 {
-    StoryScan scan = scanStory(story, true);
-    QVector<FormField> found = fieldsOf(scan);
-    describe(story, scan, &found);
-    FormField out;
-    for (const FormField &f : std::as_const(found))
-        if (f.begin == begin) out = f;
-    if (scanOut) *scanOut = scan;
-    return out;
+    for (const FormField &f : std::as_const(fieldsKept(story).fields))
+        if (f.begin == begin) return f;
+    return FormField();
 }
 
-// The references to a field's bookmark in the text are worked out again (the other fields are left as they are).
-void updateReferencesTo(WriteDoc &doc, QTextDocument *story, const StoryScan &scan, const FormField &field)
+// The references to a field's bookmark in the text are worked out again (the other fields are left as they are). `refs` are the instructions of the references as they were before the edit.
+void updateReferencesTo(WriteDoc &doc, QTextDocument *story, const QStringList &refs, const FormField &field)
 {
     if (story != doc.story() || field.bookmark.isEmpty()) return;
     bool any = false;
-    for (int i = 0; i < scan.fields.size() && !any; ++i) {
-        if (scan.fields[i].name != QLatin1String("REF")) continue;
-        any = scan.instructionOf(i).contains(field.bookmark, Qt::CaseInsensitive);
-    }
+    for (const QString &instruction : refs) any = any || instruction.contains(field.bookmark, Qt::CaseInsensitive);
     if (!any) return;
     UpdateOptions options;
     options.skip = [](const QString &name) { return name != QLatin1String("REF"); };
     updateFields(doc, options);
+}
+
+// After a fill of a field's result the places of the fields are put right, and the story's fields stay kept: what follows the result moves by what it grew or shrank. (A field with another round it is
+// left to the next scan.)
+void keepFields(QTextDocument *story, QVector<FormField> fields, const QStringList &refs, const FormField &filled, const QString &entered)
+{
+    const int delta = int(entered.size()) - (filled.end - filled.separate - 1);
+    for (FormField &g : fields) {
+        if (g.begin == filled.begin) {
+            g.end += delta;
+            g.result = entered.left(kMostFormChars);
+            continue;
+        }
+        if (g.begin < filled.begin && g.end >= filled.end) return;
+        for (int *place : {&g.begin, &g.separate, &g.end})
+            if (*place >= filled.end) *place += delta;
+    }
+    FieldCache &c = cacheOf(story);
+    c.fields = fields;
+    c.refs = refs;
+    c.valid = true;
 }
 
 // What replaces a result's characters: the look of its first character, else of its separator.
@@ -398,8 +442,10 @@ FormField formFieldBeginningAt(QTextDocument *story, int begin) { return fieldBe
 
 bool fillFormText(WriteDoc &doc, QTextDocument *story, int begin, const QString &text, bool leaving, QString *shown, bool joinPrevious)
 {
-    StoryScan scan;
-    const FormField f = fieldBeginningAt(story, begin, &scan);
+    const FieldCache &kept = fieldsKept(story);
+    const QVector<FormField> before = kept.fields;
+    const QStringList refs = kept.refs;
+    const FormField f = fieldBeginningAt(story, begin);
     if (!f.valid() || f.kind != FormKind::Text || !f.fillable() || f.separate < 0) return false;
     QString entered = enteredFormText(f, text);
     if (leaving) entered = finishedFormText(f, entered);
@@ -422,7 +468,8 @@ bool fillFormText(WriteDoc &doc, QTextDocument *story, int begin, const QString 
     atom.display = shownOf(f, entered);
     putAtom(story, f.begin, atom);
     edit.endEditBlock();
-    updateReferencesTo(doc, story, scanStory(story, true), f);
+    keepFields(story, before, refs, f, entered);
+    updateReferencesTo(doc, story, refs, f);
     return true;
 }
 
@@ -446,8 +493,8 @@ bool setFormChecked(WriteDoc &doc, QTextDocument *story, int begin, bool checked
 
 bool chooseFormEntry(WriteDoc &doc, QTextDocument *story, int begin, int index)
 {
-    StoryScan scan;
-    const FormField f = fieldBeginningAt(story, begin, &scan);
+    const QStringList refs = fieldsKept(story).refs;
+    const FormField f = fieldBeginningAt(story, begin);
     if (!f.valid() || f.kind != FormKind::DropDown || !f.fillable() || index < 0 || index >= f.entries.size() || f.chosen == index) return false;
     Inline atom = unpackAtom(storedBytes(formatAt(story, f.begin), prop::Atom));
     const QByteArray raw = withChosenEntry(atom.raw, index);
@@ -460,7 +507,7 @@ bool chooseFormEntry(WriteDoc &doc, QTextDocument *story, int begin, int index)
     atom.display = f.entries.at(index);
     putAtom(story, f.begin, atom);
     edit.endEditBlock();
-    updateReferencesTo(doc, story, scanStory(story, true), f);
+    updateReferencesTo(doc, story, refs, f);
     return true;
 }
 
