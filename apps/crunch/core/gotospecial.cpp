@@ -461,9 +461,9 @@ SpecialResult goToSpecial(const EditSession &session, int sheet, const CellRange
                 seen.insert(key(sheet, r, c));
             }
         std::unordered_set<quint64> found;
-        qint64 followed = 0;
+        qint64 followed = 0, visitedAll = 0;   // (visitedAll: every cell looked at in the blocks formulas read, on any sheet)
         auto room = [&] {
-            if (followed < kMaxSpecialFollowed) return true;
+            if (followed < kMaxSpecialFollowed && visitedAll < kMaxSpecialFollowed) return true;
             out.truncated = true;
             return false;
         };
@@ -500,10 +500,11 @@ SpecialResult goToSpecial(const EditSession &session, int sheet, const CellRange
                             followed += cells.cellCount();
                         }
                         if (options.allLevels) {
-                            qint64 visited = 0;
+                            if (!room()) break;
                             bs.cells.forEachInRange(cells.row1, cells.col1, cells.row2, cells.col2, [&](quint32 r, quint32 c, const Cell &cell) {
                                 if (cell.hasFormula() && seen.insert(key(b.sheet, r, c)).second) next.push_back({b.sheet, r, quint32(c)});
-                                return ++visited < kMaxSpecialFollowed && room();
+                                ++visitedAll;
+                                return room();
                             });
                         }
                     }

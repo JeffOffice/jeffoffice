@@ -684,6 +684,28 @@ private Q_SLOTS:
         QCOMPARE(rangesOf(found), QStringLiteral("A1:A1000"));
     }
 
+    // Every cell looked at in the blocks that formulas read, on any sheet, counts against kMaxSpecialFollowed: formulas on a second sheet that each read a block of a third (150 x 1,000 cells is
+    // under the bound, 300 x 1,000 is over it) end the search and say so.
+    void goToSpecialPrecedentsOfEveryLevelCountCellsOnOtherSheets()
+    {
+        auto build = [](int formulas) {
+            QString first = QStringLiteral("<row r=\"1\"><c r=\"A1\"><f>SUM(Sheet2!A1:A%1)</f><v>0</v></c></row>").arg(formulas), second, third;
+            for (int r = 1; r <= formulas; ++r) second += QStringLiteral("<row r=\"%1\"><c r=\"A%1\"><f>SUM(Sheet3!A1:A1000)</f><v>0</v></c></row>").arg(r);
+            for (int r = 1; r <= 1000; ++r) third += QStringLiteral("<row r=\"%1\"><c r=\"A%1\"><v>1</v></c></row>").arg(r);
+            return buildXlsx({worksheet(first), worksheet(second), worksheet(third)});
+        };
+        for (const int formulas : {150, 300}) {
+            EditWindow e;
+            QVERIFY(e.open(build(formulas)));
+            QVERIFY(e.settle());
+            crunch::SpecialOptions o;
+            o.kind = crunch::SpecialKind::Precedents;
+            o.allLevels = true;
+            const crunch::SpecialResult found = crunch::goToSpecial(*e.win.w.session(), 0, CellRange(), 0, 0, o);
+            QCOMPARE(found.truncated, formulas == 300);
+        }
+    }
+
     // Row differences and column differences select the cells that are not like the cell with the cursor in their row (column): another number or text, a formula that is not the same once its
     // references are moved, or a formula where the other has none. The current array is the array formula the cursor is in.
     void goToSpecialFindsDifferencesAndTheCurrentArray()
