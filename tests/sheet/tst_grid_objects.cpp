@@ -576,6 +576,27 @@ private Q_SLOTS:
         QCOMPARE(s.objects.stats().renders, qint64(3));   // (the layer's counts are for good: two before, and the one picture of the new object; the job's was not heard)
     }
 
+    // prepareAll() leaves nothing to be made: a chart whose cells changed while its job ran (the job was given before the cells were known) is made again before it returns, not
+    // left to the layer's timer (the window waits for no more than this before a shot).
+    void prepareAllMakesAgainAChartWhoseCellsChangedWhileItWasMade()
+    {
+        Scene s;
+        Gate gate;
+        gate.blocked = true;
+        s.objects.setObjects({madeOnAWorker(1, twoCell(1, 2, 3, 5), kGreen, &gate)});
+        s.draw(false);
+        QTRY_VERIFY(gate.started.load() >= 1);
+        s.objects.invalidateAll();   // (the cells are given while the job runs)
+        gate.blocked = false;
+        gate.open.release(4);
+        for (int i = 0; i < 20000000 && gate.finished.load() < 1; ++i) QThread::yieldCurrentThread();   // (no events taken: the job is done, and its picture is not yet)
+        QCOMPARE(gate.finished.load(), 1);
+        s.objects.prepareAll();
+        QCOMPARE(s.objects.pendingRenders(), 0);
+        QCOMPARE(s.objects.stats().renders, qint64(2));
+        QCOMPARE(gate.finished.load(), 2);
+    }
+
     // The limit on what is held is hard: 600 objects as large as the window cannot all be held at full size, so every picture is made smaller until those on the screen fit, and the bytes
     // held never pass the budget.
     void theBudgetIsHardForWhatIsOnTheScreen()

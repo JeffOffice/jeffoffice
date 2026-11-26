@@ -677,7 +677,10 @@ void ObjectLayer::deliver()
         const bool wasStale = e.stale;
         store(e, r.image, r.requested, r.zoom);
         e.stale = wasStale;   // (its cells changed while it was being made: it is made again)
-        if (wasStale) schedule(kStaleDelayMillis);
+        if (wasStale) {
+            schedule(kStaleDelayMillis);
+            m_remake = true;
+        }
         evict();
         const QRect area = visibleRect(e);
         if (!area.isEmpty()) requestRepaint(area);
@@ -758,10 +761,11 @@ void ObjectLayer::step()
 void ObjectLayer::prepareAll()
 {
     for (;;) {
+        m_remake = false;
         const bool left = makePictures(true, false);
         m_pool.waitForDone();
         deliver();
-        if (!left) break;
+        if (!left && !m_remake) break;   // (a picture that came back out of date, its cells having changed while it was made, is made again here: not left to the timer)
     }
 }
 

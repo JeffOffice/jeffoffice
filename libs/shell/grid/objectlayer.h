@@ -332,6 +332,7 @@ private:
     quint64 m_generation = 1;
     qint64 m_bytes = 0, m_reserved = 0;
     int m_inflight = 0;
+    bool m_remake = false;   // (a picture delivered was out of date: set by deliver, read by prepareAll)
     double m_dpr = 1.0;
     double m_shrink = 1.0;
     std::vector<qint64> m_nearKey;   // where the grid was when the objects near the screen were last looked at
