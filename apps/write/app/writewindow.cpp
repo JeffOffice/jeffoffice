@@ -413,6 +413,13 @@ void WriteWindow::createFormatActions()
         showClipboardPane(this, ClipboardPaneHost{[this] { act("edit.paste")->trigger(); }, [v] { v->setFocus(); }, [v] { v->beginPasteGroup(); }, [v] { v->endPasteGroup(); }});
     });
     mk("edit.selectAll", tr("Select All"), "", QKeySequence::SelectAll, [v] { v->selectAll(); });
+    {
+        QAction *selectObjects = mk("edit.selectObjects", tr("Select Objects"), "mouse-pointer-2", QKeySequence(), [this, v] { v->setSelectObjectsMode(act(QStringLiteral("edit.selectObjects"))->isChecked()); }, true);
+        connect(v, &write::PageView::selectObjectsModeChanged, selectObjects, [selectObjects](bool on) {
+            const QSignalBlocker block(selectObjects);
+            selectObjects->setChecked(on);
+        });
+    }
 
     mk("fmt.bold", tr("Bold"), "bold", QKeySequence::Bold, [edit, v] { if (auto *typing = v->shapeEditor()) typing->toggleBold(); else edit([](write::WriteDoc &d, QTextCursor &c) { write::toggleBold(d, c); }); }, true);
     mk("fmt.italic", tr("Italic"), "italic", QKeySequence::Italic, [edit, v] { if (auto *typing = v->shapeEditor()) typing->toggleItalic(); else edit([](write::WriteDoc &d, QTextCursor &c) { write::toggleItalic(d, c); }); }, true);

@@ -354,6 +354,11 @@ public:
     bool toggleObjectInSelection(int position);
     // Selects these objects together (the first is the selected picture).
     void selectObjects(const QVector<int> &positions);
+    // Select Objects: a click chooses the drawn object under it and a drag draws a rectangle that chooses every object inside it (the way text is not selected, and no caret is put in the
+    // words); Esc, or the command again, goes back to the text. The objects of the first kMostSelectableObjects in the text are looked at.
+    void setSelectObjectsMode(bool on);
+    bool selectObjectsMode() const { return m_selectObjectsMode; }
+    static constexpr int kMostSelectableObjects = 5000;
     // Group joins the selected objects into one (two or more, each set at a place on one page), Ungroup takes the selected group apart; each is one step, and false with a notice
     // when it can't be done.
     bool groupSelectedObjects();
@@ -512,6 +517,7 @@ Q_SIGNALS:
     void grammarStopped();                  // the document is past the limit of work grammar checking may do: it has stopped (said once)
     void headerFooterModeChanged();         // a header or footer is edited now, or none is any more
     void noteModeChanged();                 // a footnote is edited now, or none is any more
+    void selectObjectsModeChanged(bool on);   // Select Objects was turned on or off (by Esc, too)
     void notice(const QString &text);       // a sentence for the person about what a command could not do
     void mergeBusy(const QString &text, std::atomic<bool> *cancel);   // a merge of shapes takes long: a box with Cancel is shown (it sets `*cancel`)
     void mergeBusyEnded();
@@ -687,6 +693,12 @@ private:
     bool m_textDragAllowed = true;
     bool m_linkNeedsCtrl = true, m_dragTextOption = true;
     bool m_selectWholeWord = true, m_smartParagraph = true;
+    bool m_selectObjectsMode = false;
+    struct Marquee {
+        bool active = false;
+        QPoint from, to;   // in the window
+    } m_marquee;
+    void finishMarquee();
     int m_pressAnchor = -1;   // where the press that began the drag was, for the selection the drag makes (the drag's own ends are moved to whole words)
     bool m_typingReplaces = true, m_insertKeyOvertype = false, m_overtype = false;
     PictureDrag m_pictureDrag;

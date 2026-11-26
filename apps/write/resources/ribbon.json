@@ -302,6 +302,18 @@
             {
               "small": "edit.goTo",
               "keytip": "GT"
+            },
+            {
+              "small": {
+                "id": "ribbon.select",
+                "text": "Select",
+                "icon": "mouse-pointer-2"
+              },
+              "keytip": "SL",
+              "menu": [
+                "edit.selectAll",
+                "edit.selectObjects"
+              ]
             }
           ]
         }

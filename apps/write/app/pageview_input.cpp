@@ -971,6 +971,11 @@ void PageView::keyPressEvent(QKeyEvent *e)
     // The Ctrl key tapped by itself after a paste opens the Paste Options (anything else between its press and release, and it is no tap); Esc ends the offer, and then does what it does besides.
     m_pasteOffer->keyPressed(e, pasteOptionsAvailable());
     if (e->key() == Qt::Key_Escape && e->modifiers() == Qt::NoModifier) endPasteOptions();
+    if (e->key() == Qt::Key_Escape && e->modifiers() == Qt::NoModifier && m_selectObjectsMode) {
+        setSelectObjectsMode(false);
+        e->accept();
+        return;
+    }
     if (e->key() == Qt::Key_Escape && m_linkFrom >= 0) {
         m_linkFrom = -1;
         viewport()->unsetCursor();
@@ -1118,6 +1123,12 @@ void PageView::mousePressEvent(QMouseEvent *e)
     if (!m_doc) return;
     setFocus(Qt::MouseFocusReason);
     m_movedFrom = -1;   // (a click has no way it went)
+    if (m_selectObjectsMode && e->button() == Qt::LeftButton) {
+        m_marquee.active = true;
+        m_marquee.from = m_marquee.to = e->position().toPoint();
+        e->accept();
+        return;
+    }
     if (m_linkFrom >= 0) {
         // Create Link is waiting for the box that follows: this click names it (or, on no box that can, leaves the link).
         const int from = m_linkFrom, to = pictureAtPoint(e->position().toPoint());
@@ -1267,6 +1278,11 @@ void PageView::mousePressEvent(QMouseEvent *e)
 
 void PageView::mouseMoveEvent(QMouseEvent *e)
 {
+    if (m_marquee.active) {
+        m_marquee.to = e->position().toPoint();
+        viewport()->update();
+        return;
+    }
     if (m_toolDrag.active) {
         const Hit hit = hitAt(e->position().toPoint());
         if (hit.page == m_toolDrag.page) {
@@ -1494,6 +1510,11 @@ void PageView::finishTableTool(const QPoint &viewportPos)
 
 void PageView::mouseReleaseEvent(QMouseEvent *e)
 {
+    if (m_marquee.active) {
+        m_marquee.to = e->position().toPoint();
+        finishMarquee();
+        return;
+    }
     if (m_toolDrag.active && !m_shapeDraw.isEmpty()) {
         finishShapeDraw(e->position().toPoint(), e->modifiers());
         return;

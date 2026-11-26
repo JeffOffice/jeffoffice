@@ -4769,6 +4769,61 @@ private Q_SLOTS:
         QTRY_VERIFY(!win.tabShown(QStringLiteral("Shape Format")));
     }
 
+    // Select Objects (Home > Editing > Select): a click chooses the object under it, a drag draws a rectangle that chooses the objects wholly inside it, a click on nothing lets the choice go, no
+    // text is selected on the way, and Esc goes back to the text.
+    void selectObjectsChoosesObjectsByClickAndByRectangle()
+    {
+        Win win;
+        write::WriteDoc *doc = win.w.document();
+        QTextCursor c(doc->story());
+        c.setPosition(0);
+        QCOMPARE(insertShape(*doc, c, QStringLiteral("rect")), PictureResult::Ok);
+        c.setPosition(1);
+        QCOMPARE(insertShape(*doc, c, QStringLiteral("ellipse")), PictureResult::Ok);
+        QVERIFY(setPicturePlace(*doc, 0, 100, 150));
+        QVERIFY(setPicturePlace(*doc, 1, 300, 250));
+        win.w.view()->refresh();
+        PageView *view = win.w.view();
+        QAction *command = win.w.act(QStringLiteral("edit.selectObjects"));
+        QVERIFY(command && command->isCheckable() && command->isEnabled());
+        QRectF first, second;
+        QVERIFY(view->pictureRect(0, &first));
+        QVERIFY(view->pictureRect(1, &second));
+        QVERIFY(!view->selectObjectsMode());
+        command->trigger();
+        QVERIFY(view->selectObjectsMode() && command->isChecked());
+        auto drag = [&](const QRectF &r) {
+            QTest::mousePress(view->viewport(), Qt::LeftButton, Qt::NoModifier, r.topLeft().toPoint());
+            QTest::mouseMove(view->viewport(), r.center().toPoint());
+            QTest::mouseMove(view->viewport(), r.bottomRight().toPoint());
+            QTest::mouseRelease(view->viewport(), Qt::LeftButton, Qt::NoModifier, r.bottomRight().toPoint());
+        };
+        // A rectangle round the first object only.
+        drag(first.adjusted(-8, -8, 8, 8));
+        QCOMPARE(view->selectedObjects(), (QVector<int>{0}));
+        QVERIFY(!view->cursor().hasSelection() || view->selectedPicture() == 0);
+        // One that takes only part of an object chooses nothing.
+        drag(QRectF(first.topLeft() - QPointF(8, 8), first.center()));
+        QCOMPARE(view->selectedPicture(), -1);
+        // One round both chooses both.
+        drag(first.united(second).adjusted(-8, -8, 8, 8));
+        QCOMPARE(view->selectedObjects(), (QVector<int>{0, 1}));
+        // A click on an object chooses it; a click on nothing lets it go, and puts no caret in the words.
+        QTest::mouseClick(view->viewport(), Qt::LeftButton, Qt::NoModifier, second.center().toPoint());
+        QCOMPARE(view->selectedObjects(), (QVector<int>{1}));
+        QTest::mouseClick(view->viewport(), Qt::LeftButton, Qt::NoModifier, QPoint(first.left() - 40, first.top() - 40).isNull() ? QPoint(5, 5) : (first.topLeft() - QPointF(40, 40)).toPoint());
+        QCOMPARE(view->selectedPicture(), -1);
+        QVERIFY(!view->cursor().hasSelection());
+        // Esc goes back to the text, and the command is unchecked; a click then puts the caret in the text.
+        QTest::keyClick(view, Qt::Key_Escape);
+        QVERIFY(!view->selectObjectsMode() && !command->isChecked());
+        // The command again turns it on and off.
+        command->trigger();
+        QVERIFY(view->selectObjectsMode());
+        command->trigger();
+        QVERIFY(!view->selectObjectsMode());
+    }
+
     // The Selection Pane lists the floating objects of the document by name, the one in front first. A row picks the object; a name typed in a row names it (wp:docPr's name); a box hides
     // or shows it (wp:docPr's hidden: a hidden object is not drawn and takes no room, and stays in the file); Show All and Hide All set every box; the buttons and a drag move it
     // through the layers. Each change is one step of Undo, and the names and marks are in the saved file.

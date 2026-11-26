@@ -105,6 +105,56 @@ void PageView::selectObjects(const QVector<int> &positions)
     viewport()->update();
 }
 
+void PageView::setSelectObjectsMode(bool on)
+{
+    if (m_selectObjectsMode == on) return;
+    m_selectObjectsMode = on;
+    m_marquee = Marquee();
+    if (on) viewport()->setCursor(Qt::ArrowCursor);
+    else viewport()->unsetCursor();
+    viewport()->update();
+    Q_EMIT selectObjectsModeChanged(on);
+}
+
+// The rectangle was drawn (or the click made): the objects inside it are chosen together; a click chooses the one under it; nothing under it, and the choice is let go.
+void PageView::finishMarquee()
+{
+    const QPoint from = m_marquee.from, to = m_marquee.to;
+    m_marquee = Marquee();
+    viewport()->update();
+    if (!m_doc || m_hf.active || m_note.active) return;
+    const QRect box = QRect(from, to).normalized();
+    QVector<int> chosen;
+    if (box.width() < 4 && box.height() < 4) {
+        const int at = pictureAtPoint(to);
+        if (at >= 0) chosen.push_back(at);
+    } else {
+        const QTextDocument *story = m_doc->story();
+        int looked = 0;
+        for (QTextBlock b = story->begin(); b.isValid() && looked < kMostSelectableObjects; b = b.next())
+            for (QTextBlock::iterator it = b.begin(); !it.atEnd() && looked < kMostSelectableObjects; ++it) {
+                const QTextFragment f = it.fragment();
+                if (!f.charFormat().hasProperty(prop::Atom)) continue;
+                for (int i = 0; i < int(f.length()) && looked < kMostSelectableObjects; ++i) {
+                    const int position = f.position() + i;
+                    if (!isDrawnObjectAt(story, position)) continue;
+                    ++looked;
+                    QRectF r;
+                    if (pictureRect(position, &r) && box.contains(r.toAlignedRect())) chosen.push_back(position);
+                }
+            }
+    }
+    if (chosen.isEmpty()) {
+        QTextCursor c(m_cursor);
+        c.clearSelection();
+        m_cursor = c;
+        m_moreObjects.clear();
+        caretMoved();
+        return;
+    }
+    selectObjects(chosen);
+}
+
 bool PageView::distributeSelectedObjects(bool horizontal)
 {
     if (!m_doc || editsBlocked()) return false;

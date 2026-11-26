@@ -883,6 +883,12 @@ void PageView::paintEvent(QPaintEvent *e)
             }
         }
     }
+    if (m_marquee.active) {
+        p.save();
+        p.setPen(QPen(uiAccent(), 1, Qt::DashLine));
+        p.drawRect(QRect(m_marquee.from, m_marquee.to).normalized());
+        p.restore();
+    }
     if (m_toolDrag.active && !m_shapeDraw.isEmpty() && m_toolDrag.page >= 0 && m_toolDrag.page < m_rects.size()) {
         // The shape being drawn: its box (or a line) as the drag would make it now.
         const double s = scale();
