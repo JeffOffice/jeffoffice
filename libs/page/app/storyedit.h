@@ -18,6 +18,7 @@
 namespace jp {
 
 class Editor;
+class ListMarkers;
 class MiniTarget;
 class MiniToolbar;
 
@@ -62,6 +63,9 @@ public:
     // Counted work (for the tests): how many times the marks were made anew, and how many were made.
     static int markRuns() { return s_markRuns; }
     static int marksBuilt() { return s_marksBuilt; }
+
+    // The bullets and numbers of the list items in view, drawn by the view (its document lays a list item's first line where the printed page puts the marker): see ListMarkers.
+    ListMarkers *listMarkers() const { return m_markers; }
 
     // The bar of the commands the selection can take, shown by the words a mouse selection ends on (made when first asked for). `target` is the host's own commands.
     MiniToolbar *setMiniTarget(std::unique_ptr<MiniTarget> target);
@@ -115,6 +119,7 @@ private:
     std::array<qint64, 9> m_markKey = {};
     static inline int s_markRuns = 0;
     static inline int s_marksBuilt = 0;
+    ListMarkers *m_markers = nullptr;
     MiniToolbar *m_mini = nullptr;
     std::unique_ptr<MiniTarget> m_miniTarget;
 };

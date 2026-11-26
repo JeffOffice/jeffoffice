@@ -39,6 +39,7 @@
 #include <QTextEdit>
 #include "app/editor.h"
 #include "app/notesdisplay.h"
+#include "app/listmarkers.h"
 #include <QTextBoundaryFinder>
 #include <QTextCursor>
 #include <QRandomGenerator>
@@ -2983,6 +2984,15 @@ QString SlideShow::speakerNotesText() const
     return notes;
 }
 
+namespace {
+// The box of the speaker notes in the show: a text view that lets the bullets and numbers of the note have their gutter.
+class SpeakerNotesBox : public QTextEdit {
+public:
+    using QTextEdit::QTextEdit;
+    void setGutter(int left, int right) { setViewportMargins(left, 0, right, 0); }
+};
+} // namespace
+
 // The box shows the story's own words, formatted (a copy: the notes are never changed by being shown), cut as speakerNotesText says. It is made again only when the slide or the
 // words changed.
 void SlideShow::fillSpeakerNotes()
@@ -3020,6 +3030,7 @@ void SlideShow::fillSpeakerNotes()
     m_notesBox->setDocument(now);
     m_notesDoc = now;
     if (own) delete own;
+    if (auto *marks = m_notesBox->findChild<ListMarkers *>()) marks->refresh();
 }
 
 void SlideShow::closeSpeakerNotes()
@@ -3032,7 +3043,7 @@ void SlideShow::showSpeakerNotes()
 {
     if (m_presenter && m_presenter->isVisible()) return;
     if (!m_notesBox) {
-        auto *box = new QTextEdit(this);
+        auto *box = new SpeakerNotesBox(this);
         box->setWindowFlags(Qt::Tool | Qt::WindowDoesNotAcceptFocus | Qt::WindowStaysOnTopHint);
         box->setObjectName(QStringLiteral("speakerNotes"));
         box->setWindowTitle(tr("Speaker Notes"));
@@ -3042,6 +3053,7 @@ void SlideShow::showSpeakerNotes()
         box->setWindowModality(Qt::NonModal);
         box->setFocusPolicy(Qt::NoFocus);   // the keys stay with the show
         box->setReadOnly(true);
+        new ListMarkers(box, [box](int left, int right) { box->setGutter(left, right); }, [this]() -> const ColorScheme * { return m_doc ? &m_doc->colors : nullptr; });   // (the bullets and numbers of the note are drawn left of its words)
         QFont f = box->font();
         f.setPointSizeF(16);
         box->setFont(f);

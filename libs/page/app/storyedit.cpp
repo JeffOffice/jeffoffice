@@ -1,6 +1,7 @@
 #include "app/storyedit.h"
 
 #include "app/editor.h"
+#include "app/listmarkers.h"
 #include "app/minitoolbar.h"
 #include "app/spelling.h"
 
@@ -36,6 +37,7 @@ StoryEdit::StoryEdit(Editor *ed, QWidget *parent) : QTextEdit(parent), m_ed(ed)
     connect(ed, &Editor::textCursorChanged, this, &StoryEdit::followEditor);
     connect(ed, &Editor::viewChanged, this, &StoryEdit::markWords);
     connect(verticalScrollBar(), &QScrollBar::valueChanged, this, &StoryEdit::markWords);
+    m_markers = new ListMarkers(this, [this](int left, int right) { setViewportMargins(left, 0, right, 0); }, [this]() -> const ColorScheme * { return m_ed->doc() ? &m_ed->doc()->colors : nullptr; });
 }
 
 StoryEdit::~StoryEdit()
@@ -107,6 +109,7 @@ void StoryEdit::bind(const std::shared_ptr<Story> &story)
     setTextCursor(c);
     m_syncing = false;
     markWords();
+    m_markers->refresh();
     if (isTarget()) followEditor();
     Q_EMIT storyShown();
 }
@@ -117,6 +120,7 @@ void StoryEdit::setDisplayScale(double scale)
     if (qFuzzyCompare(scale, m_scale)) return;
     m_scale = scale;
     applyScale();
+    m_markers->setScale(m_scale);
     markWords();
 }
 
@@ -140,6 +144,7 @@ void StoryEdit::applyScale()
         d->setIndentWidth(m_indent * m_scale);
     }
     d->markContentsDirty(0, d->characterCount());
+    m_markers->setScale(m_scale);
 }
 
 void StoryEdit::setYielding(bool yield)
