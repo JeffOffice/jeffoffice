@@ -864,14 +864,13 @@ void ChartPainter::paintRadar(const QRectF &area)
     const QColor catColor = colorOf(m_cat->font), valColor = colorOf(m_val->font);
     const bool catLabels = !m_cat->deleted && m_cat->labelPosition != QLatin1String("none");
     const bool valLabels = !m_val->deleted && m_val->labelPosition != QLatin1String("none");
-    const double lineH = heightOf(catFont);
     // the directions of the spokes, clockwise from the top
     QVector<QPointF> dir(m_n);
     for (int i = 0; i < m_n; ++i) {
         const double a = 2 * kPi * i / m_n;
         dir[i] = QPointF(std::sin(a), -std::cos(a));
     }
-    // which categories are named: all of them, or every nth when the spokes crowd the labels
+    // the names of the categories, wrapped to a fifth of the width
     auto wrappedLabel = [&](int i) { return wrapped(cats.value(i), catFont, std::max(30.0, area.width() * 0.22)).join(QLatin1Char('\n')); };
     const double gap = 4;
     auto labelBox = [&](int i, const QPointF &centre, double radius) {
@@ -889,11 +888,7 @@ void ChartPainter::paintRadar(const QRectF &area)
     QPointF centre = area.center();
     for (int pass = 0; pass < 4; ++pass) {
         if (radius < 8) return;
-        skip = 1;
-        if (catLabels) {
-            const double spacing = 2 * kPi * radius / m_n;
-            skip = int(std::clamp(std::ceil(lineH / std::max(spacing, 1e-6)), 1.0, double(m_n)));
-        }
+        skip = 1;   // (every category is named: the names crowd near the top and the bottom, as they do beside a larger figure)
         QRectF box(centre.x() - radius, centre.y() - radius, 2 * radius, 2 * radius);
         if (catLabels)
             for (int i = 0; i < m_n; i += skip) box = box.united(labelBox(i, centre, radius));
@@ -979,17 +974,21 @@ void ChartPainter::paintRadar(const QRectF &area)
                                                       ChartMarker::Star,    ChartMarker::Circle, ChartMarker::Plus,     ChartMarker::Dash};
     int k = 0;
     m_p->save();
+    // (a blank is a gap or a join across it, as the chart says empty cells are shown, or a zero; a single category has no shape to draw)
+    const bool blankIsZero = c.blanksAs == QLatin1String("zero");
     for (const ChartPlot *plot : plots) {
+        if (m_n < 2) break;
         for (const ChartSeries &s : plot->series) {
             QVector<QPointF> pts(m_n);
             QVector<bool> marked(m_n, false);
+            QPolygonF shape;
             for (int i = 0; i < m_n; ++i) {
                 const double v = i < s.values.size() ? s.values[i] : kNaN;
                 marked[i] = std::isfinite(v);
                 pts[i] = pointAt(i, std::isfinite(v) ? scale.frac(v) : 0.0);
+                if (marked[i] || blankIsZero) shape << pts[i];
             }
-            if (m_n >= 2) {
-                QPolygonF shape(pts);
+            if (shape.size() >= 2) {
                 if (plot->filled) {
                     m_p->setBrush(s.noFill ? QBrush(Qt::NoBrush) : QBrush(s.color));
                     m_p->setPen(s.outline.set && !s.outline.none ? penFor(s.outline, s.color, 0.75) : QPen(Qt::NoPen));
@@ -1004,10 +1003,31 @@ void ChartPainter::paintRadar(const QRectF &area)
                 }
             }
             if (!plot->filled) {
-                ChartMarker::Symbol symbol = s.marker.symbol;
-                if (symbol == ChartMarker::Auto) symbol = plot->markers ? autoSymbols[k % 8] : ChartMarker::None;
+                // the markers: those of points that have a symbol of their own are drawn one by one, the rest together
+                auto symbolOf = [&](const ChartMarker &m) {
+                    ChartMarker::Symbol symbol = m.symbol;
+                    if (symbol == ChartMarker::Auto) symbol = plot->markers ? autoSymbols[k % 8] : ChartMarker::None;
+                    return symbol;
+                };
+                QVector<bool> together = marked;
+                for (auto it = s.pointMarkers.cbegin(); it != s.pointMarkers.cend(); ++it)
+                    if (it.key() >= 0 && it.key() < m_n) together[it.key()] = false;
+                const ChartMarker::Symbol symbol = symbolOf(s.marker);
                 const QColor markFill = s.marker.fill.isValid() ? s.marker.fill : s.color;
-                drawMarkers(pts, marked, symbol, s.marker.size, markFill, s.marker.line.isValid() ? s.marker.line : markFill, s.marker.noFill, s.marker.noLine);
+                if (!s.pointColors.isEmpty()) {
+                    for (auto it = s.pointColors.cbegin(); it != s.pointColors.cend(); ++it)
+                        if (it.key() >= 0 && it.key() < m_n && !s.pointMarkers.contains(it.key())) together[it.key()] = false;
+                }
+                drawMarkers(pts, together, symbol, s.marker.size, markFill, s.marker.line.isValid() ? s.marker.line : markFill, s.marker.noFill, s.marker.noLine);
+                for (int i = 0; i < m_n; ++i) {
+                    if (!marked[i] || together[i]) continue;
+                    const ChartMarker m = s.pointMarkers.contains(i) ? s.pointMarkers.value(i) : s.marker;
+                    const bool own = s.pointMarkers.contains(i);
+                    const QColor fill = own && m.fill.isValid() ? m.fill : s.pointColors.contains(i) ? s.pointColors.value(i) : m.fill.isValid() ? m.fill : s.color;
+                    QVector<QPointF> one{pts[i]};
+                    QVector<bool> on{true};
+                    drawMarkers(one, on, symbolOf(m), m.size, fill, m.line.isValid() ? m.line : fill, m.noFill, m.noLine);
+                }
             }
             if (s.labels.shown()) {
                 for (int i = 0; i < m_n; ++i) {

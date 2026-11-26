@@ -165,6 +165,7 @@ struct ChartSeries {
     QVector<double> categoryNumbers;    // and these are the numbers (NaN for a blank); empty for text categories
     QString categoryFormat;             // the number format of the source (c:formatCode of the cache)
     ChartMarker marker;
+    QMap<int, ChartMarker> pointMarkers;   // a radar's point with a marker of its own (c:dPt c:marker), by its place
     bool smooth = false;
     ChartDataLabels labels;
     double explosion = 0;           // a pie's slice pulled out, percent of the radius

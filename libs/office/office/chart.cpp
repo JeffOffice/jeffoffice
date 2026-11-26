@@ -433,6 +433,7 @@ private:
     ChartMarker readMarker(const QDomElement &marker) const;
     ChartSeries readSeries(const QDomElement &ser, const ChartPlot &plot, int *order, bool *ownLabels) const;
     bool readPlot(const QDomElement &e);
+    QString refOf(const QDomElement &ref) const;
     ChartAxis readAxis(const QDomElement &e) const;
     void readLayout(const QDomElement &layout);
     void applyStyleColors();
@@ -628,6 +629,18 @@ ChartTitle Reader::readTitle(const QDomElement &e) const
     return t;
 }
 
+// The cells a c:strRef or c:numRef reads: its c:f, or for a series a filter leaves out the extension's c15:formulaRef in its place.
+QString Reader::refOf(const QDomElement &ref) const
+{
+    QString f = cChild(ref, "f").text().trimmed();
+    if (f.isEmpty())
+        for (const QDomElement &list : cChildren(ref, "extLst"))
+            for (QDomElement ext = list.firstChildElement(); !ext.isNull() && f.isEmpty(); ext = ext.nextSiblingElement())
+                for (QDomElement x = ext.firstChildElement(); !x.isNull() && f.isEmpty(); x = x.nextSiblingElement())
+                    if (x.localName() == QLatin1String("formulaRef")) f = x.firstChildElement().text().trimmed();
+    return f.left(kMaxRefChars);
+}
+
 // A c:cat, c:val, c:xVal, or c:yVal: the cache of whatever it refers to, or its literal data.
 Data Reader::readData(const QDomElement &parent) const
 {
@@ -639,7 +652,7 @@ Data Reader::readData(const QDomElement &parent) const
         if (const QDomElement ref = cChild(parent, k.ref); !ref.isNull()) {
             cache = cChild(ref, k.cache);
             data.numeric = k.numeric;
-            data.ref = cChild(ref, "f").text().trimmed().left(kMaxRefChars);
+            data.ref = refOf(ref);
             break;
         }
     if (cache.isNull())
@@ -749,7 +762,7 @@ ChartSeries Reader::readSeries(const QDomElement &ser, const ChartPlot &plot, in
     if (const QDomElement ref = cChild(tx, "strRef"); !ref.isNull()) {
         const QDomElement pt = cChild(cChild(ref, "strCache"), "pt");
         s.name = cChild(pt, "v").text().left(kChartMaxLabel);
-        s.nameRef = cChild(ref, "f").text().trimmed().left(kMaxRefChars);
+        s.nameRef = refOf(ref);
     } else if (!tx.isNull()) {
         s.name = cChild(tx, "v").text().left(kChartMaxLabel);
     }
@@ -775,6 +788,7 @@ ChartSeries Reader::readSeries(const QDomElement &ser, const ChartPlot &plot, in
         bool none = false;
         readFill(cChild(dPt, "spPr"), &c, &none);
         if (c.isValid()) s.pointColors.insert(at, c);
+        if (plot.type == ChartType::Radar && !cChild(dPt, "marker").isNull() && s.pointMarkers.size() < kMaxPoints) s.pointMarkers.insert(at, readMarker(cChild(dPt, "marker")));
         // a point that says more than a color (an outline, a marker, a pulled-out slice) is kept as the file wrote it
         bool plain = !none;
         for (QDomElement x = dPt.firstChildElement(); !x.isNull() && plain; x = x.nextSiblingElement()) {
@@ -916,10 +930,12 @@ bool Reader::readPlot(const QDomElement &e)
     plot.gapWidth = int(std::clamp<qint64>(parseInt(valOf(cChild(e, "gapWidth")), 150), 0, 500));
     plot.overlap = int(std::clamp<qint64>(parseInt(valOf(cChild(e, "overlap")), plot.grouping == ChartGrouping::Stacked || plot.grouping == ChartGrouping::PercentStacked ? 100 : 0), -100, 100));
     plot.markers = flagOf(cChild(e, "marker"), true);
+    QString radarStyle;
     if (plot.type == ChartType::Radar) {
         const QString style = valOf(cChild(e, "radarStyle"), QStringLiteral("standard"));
         plot.filled = style == QLatin1String("filled");
         plot.markers = style == QLatin1String("marker");
+        radarStyle = style;
     }
     plot.firstSliceAngle = int(std::clamp<qint64>(parseInt(valOf(cChild(e, "firstSliceAng")), 0), 0, 360));
     plot.holeSize = int(std::clamp<qint64>(parseInt(valOf(cChild(e, "holeSize")), 50), 10, 90));
@@ -981,6 +997,15 @@ bool Reader::readPlot(const QDomElement &e)
     for (Found &f : found) {
         if (!f.ownLabels && plotHasLabels) f.series.labels = plotLabels;
         plot.series << f.series;
+    }
+    if (plot.type == ChartType::Radar && !plot.filled) {
+        // the style "marker" is written for the plain radar as well as for the one with markers: the plain one's series each say the symbol is none; a radar of the style "standard" has none
+        bool allNone = !plot.series.isEmpty();
+        for (const ChartSeries &s : std::as_const(plot.series)) allNone = allNone && s.marker.symbol == ChartMarker::None;
+        plot.markers = radarStyle == QLatin1String("marker") && !allNone;
+        if (!plot.markers)
+            for (ChartSeries &s : plot.series)
+                if (s.marker.symbol == ChartMarker::Auto) s.marker.symbol = ChartMarker::None;
     }
     m_chart->plots << plot;
     return true;
@@ -1191,7 +1216,9 @@ bool Reader::read(const QDomElement &root, QString *error)
                 c.axes << readAxis(e);
         }
         // a radar beside another plot is not drawn as a radar (the spokes have no place beside axes): the chart is drawn the way a kind not drawn yet is, and its part kept as it is
-        if (c.plots.size() > 1)
+        bool anyOther = false;
+        for (const ChartPlot &p : c.plots) anyOther = anyOther || p.type != ChartType::Radar;
+        if (anyOther)
             for (ChartPlot &p : c.plots)
                 if (p.type == ChartType::Radar) {
                     p.type = ChartType::Other;
