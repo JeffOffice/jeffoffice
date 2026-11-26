@@ -3650,6 +3650,130 @@ private Q_SLOTS:
         for (const char *word : {"Page Down", "Home", "Enter", "Esc", "Shift+F10"}) QVERIFY2(help.contains(QLatin1String(word)), word);
     }
 
+    // The show's menu opens Presenter View (once: a second choice brings the one that is open forward, and Reading View, which has none, can't), tells the slide's notes without it.
+    void showMenuHasPresenterViewAndSpeakerNotes()
+    {
+        auto d = showDeck(3);
+        d->storyDoc(d->pages[1]->notesStoryId)->setPlainText(QString());
+        LayoutCache cache;
+        SlideShow show(d.get(), &cache, 0);
+        show.resize(960, 540);
+        show.show();
+        std::unique_ptr<QMenu> menu(show.buildMenu(&show));
+        QAction *pv = menu->findChild<QAction *>(QStringLiteral("menuPresenterView"));
+        QAction *notes = menu->findChild<QAction *>(QStringLiteral("menuSpeakerNotes"));
+        QVERIFY(pv && notes);
+        QVERIFY(pv->isEnabled());
+        QVERIFY(!show.presenterView());
+        pv->trigger();
+        QVERIFY(show.presenterView());
+        QVERIFY(show.presenterView()->isVisible());
+        QCOMPARE(show.presenterView()->counterText(), QStringLiteral("Slide 1 of 3"));
+        QPointer<PresenterView> first = show.presenterView();
+        pv->trigger();
+        QCOMPARE(show.presenterView(), first.data());
+        int open = 0;
+        for (QWidget *w : QApplication::allWidgets()) open += qobject_cast<PresenterView *>(w) != nullptr;
+        QCOMPARE(open, 1);
+        // The notes of the slide on the screen, in a box that does not wait; a slide with none says so.
+        notes->trigger();
+        QList<QMessageBox *> boxes = show.findChildren<QMessageBox *>();
+        QCOMPARE(boxes.size(), 1);
+        QCOMPARE(boxes[0]->text(), QStringLiteral("Notes 1"));
+        delete boxes[0];
+        show.next();
+        notes->trigger();
+        boxes = show.findChildren<QMessageBox *>();
+        QCOMPARE(boxes.size(), 1);
+        QCOMPARE(boxes[0]->text(), QStringLiteral("This slide has no notes."));
+        delete boxes[0];
+        // A very long note is cut at the limit.
+        d->storyDoc(d->pages[1]->notesStoryId)->setPlainText(QString(SlideShow::kSpeakerNotesLimit * 3, QLatin1Char('x')));
+        notes->trigger();
+        boxes = show.findChildren<QMessageBox *>();
+        QCOMPARE(boxes.size(), 1);
+        QCOMPARE(boxes[0]->text().size(), SlideShow::kSpeakerNotesLimit + 1);
+        delete boxes[0];
+        // Reading View has no Presenter View to open.
+        QWidget host;
+        host.resize(960, 540);
+        SlideShow inside(d.get(), &cache, 0);
+        inside.embedIn(&host);
+        std::unique_ptr<QMenu> insideMenu(inside.buildMenu(&inside));
+        QVERIFY(!insideMenu->findChild<QAction *>(QStringLiteral("menuPresenterView"))->isEnabled());
+    }
+
+    // A step of the slide's effects that is about to play ends the zoom too (the larger picture would not show it), and the slide stays where it is.
+    void zoomEndsWhenAStepPlays()
+    {
+        auto d = editDeck(2);
+        d->pages[0]->props[QStringLiteral("timingXml")] = animTriggerTiming(animSteps({animAppear(10)}), {{11, animAppear(12)}});
+        LayoutCache cache;
+        SlideShow show(d.get(), &cache, 0);
+        show.resize(960, 540);
+        show.show();
+        QVERIFY(QTest::qWaitForWindowExposed(&show));
+        show.zoomInto(QPointF(100, 100));
+        QVERIFY(show.isZoomed());
+        show.next();
+        QVERIFY(!show.isZoomed());
+        QCOMPARE(show.currentSlide(), 0);
+        QCOMPARE(show.step(), 1);
+        QTRY_VERIFY(!show.isPlayingStep());
+    }
+
+    // Zoom into the slide: the picture is twice as large, a drag moves it (and stops at the slide's edges), a click does not move the show on, and Esc, the next slide, a
+    // second choice of the menu entry, or a new window size end the zoom.
+    void zoomIntoTheSlideDragsAndEnds()
+    {
+        auto d = showDeck(3);
+        LayoutCache cache;
+        SlideShow show(d.get(), &cache, 0);
+        show.resize(960, 540);
+        show.show();
+        QVERIFY(QTest::qWaitForWindowExposed(&show));
+        QVERIFY(!show.isZoomed());
+        std::unique_ptr<QMenu> menu(show.buildMenu(&show));
+        QAction *zoom = menu->findChild<QAction *>(QStringLiteral("menuZoom"));
+        QVERIFY(zoom && zoom->isCheckable() && !zoom->isChecked());
+        show.zoomInto(QPointF(480, 270));
+        QVERIFY(show.isZoomed());
+        QCOMPARE(show.zoomOrigin(), QPointF(480, 270));   // the middle stays where it was
+        QVERIFY(!show.grab().toImage().isNull());
+        // A drag moves the picture the other way, a click moves nothing on, and the drag stops at the edge.
+        QTest::mousePress(&show, Qt::LeftButton, Qt::NoModifier, QPoint(500, 300));
+        QTest::mouseMove(&show, QPoint(460, 280));
+        QCOMPARE(show.zoomOrigin(), QPointF(520, 290));
+        QTest::mouseMove(&show, QPoint(-5000, -5000));
+        QTest::mouseRelease(&show, Qt::LeftButton, Qt::NoModifier, QPoint(-5000, -5000));
+        QCOMPARE(show.zoomOrigin(), QPointF(960, 540));
+        QTest::mouseClick(&show, Qt::LeftButton, Qt::NoModifier, QPoint(300, 300));
+        QCOMPARE(show.currentSlide(), 0);
+        QVERIFY(show.isZoomed());
+        std::unique_ptr<QMenu> again(show.buildMenu(&show));
+        QAction *off = again->findChild<QAction *>(QStringLiteral("menuZoom"));
+        QVERIFY(off->isChecked());
+        off->trigger();   // the entry again puts the slide back
+        QVERIFY(!show.isZoomed());
+        // Esc leaves the zoom and nothing else.
+        show.zoomInto(QPointF(100, 100));
+        QTest::keyClick(&show, Qt::Key_Escape);
+        QVERIFY(!show.isZoomed());
+        QVERIFY(show.isVisible());
+        // The next slide, and a new size, end it too.
+        show.zoomInto(QPointF(100, 100));
+        show.next();
+        QVERIFY(!show.isZoomed());
+        QCOMPARE(show.currentSlide(), 1);
+        show.zoomInto(QPointF(100, 100));
+        show.resize(800, 450);
+        QVERIFY(!show.isZoomed());
+        // No zoom on a black screen.
+        show.toggleBlank(Qt::black);
+        show.zoomInto(QPointF(100, 100));
+        QVERIFY(!show.isZoomed());
+    }
+
     // Lets the event loop run a counted number of turns, with the deletions that are waiting.
     static void settle(int turns = 50)
     {

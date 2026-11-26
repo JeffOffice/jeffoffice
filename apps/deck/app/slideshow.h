@@ -295,6 +295,18 @@ public:
     void paintOverlay(QPainter *p, int slide, const QRectF &at) const;
     // The menu a right click opens, and its pointer part, which Presenter View shows too; `parent` owns them.
     QMenu *buildMenu(QWidget *parent);
+    // Presenter View from the menu: opened (on the window's screen, or on the second screen when there is one) when it is not, brought forward when it is; Reading View has none.
+    void showPresenterView();
+    // The notes of the slide on the screen, in a box (the first kSpeakerNotesLimit characters of them).
+    void showSpeakerNotes();
+    static constexpr int kSpeakerNotesLimit = 5000;
+    // Zoom into the slide: the slide twice as large, with the point `about` of the window kept where it is; a drag moves it, and it ends with Esc, the menu entry
+    // again, another slide or step, a black or white screen, a pen, or a new window size. Nothing on a black or white screen, at the end, or while an effect plays.
+    static constexpr double kZoomFactor = 2.0;
+    bool isZoomed() const { return m_zoomed; }
+    QPointF zoomOrigin() const { return m_zoomOrigin; }   // the part of the larger picture at the window's top left corner
+    void zoomInto(const QPointF &about);
+    void endZoom();
     // The keys of the show, as the menu's Help lists them.
     static QString helpText();
     QMenu *pointerMenu(QWidget *parent);
@@ -400,6 +412,7 @@ private:
     void showSlide(int pos, int steps = 0);
     void place();
     void openPresenterView(QScreen *on);
+    bool canZoom() const;
     void applyScreens();
     // The link under a point of the window, if the slide on it has one.
     QString linkAt(const QPointF &pos) const;
@@ -499,6 +512,9 @@ private:
     QSize m_nowSize;
     qreal m_nowRatio = 1;
     bool m_nowValid = false;
+    bool m_zoomed = false, m_panning = false;
+    QImage m_zoomImage;         // the slide at kZoomFactor times the window's size while zoomed
+    QPointF m_zoomOrigin, m_panFrom, m_panOrigin, m_menuAnchor;
     QPointer<PresenterView> m_presenter;
     std::function<bool()> m_notesReadOnly;
     bool m_watchingScreens = false;

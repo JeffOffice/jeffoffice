@@ -8,6 +8,7 @@
 #include "app/effectsounds.h"
 #include "app/showmedia.h"
 #include "core/media.h"
+#include "core/deck.h"
 #include "core/document.h"
 #include "core/reuse.h"
 #include "render/renderer.h"
@@ -802,6 +803,7 @@ void SlideShow::setSlides(const QList<int> &slides, bool includeHidden)
 void SlideShow::documentChanged()
 {
     if (m_rebound) return;
+    endZoom();
     QStringList ids;
     ids.reserve(m_doc->pages.size());
     for (const auto &page : m_doc->pages) ids << page->id;
@@ -875,6 +877,7 @@ void SlideShow::rebind(const Document *doc)
     m_media->rebind(doc);
     m_sounds->rebind(doc);
     m_rebound = true;
+    endZoom();
     m_anim.stop();
     m_animating = false;
     m_fromOverlay = m_toOverlay = QImage();
@@ -929,6 +932,7 @@ void SlideShow::setRehearsal(bool on)
 // A click: it finishes the effect that plays, else plays the slide's next step, else moves on.
 void SlideShow::next()
 {
+    endZoom();
     const bool inTransition = m_animating;
     finishTransition();
     if (inTransition) finishStep();   // the effects that began when the transition ended
@@ -957,6 +961,7 @@ void SlideShow::next()
 // To the next slide, past the steps left.
 void SlideShow::moveOn()
 {
+    endZoom();
     finishTransition();
     m_auto.stop();
     const bool wasBlank = m_blank.isValid();
@@ -988,6 +993,7 @@ void SlideShow::moveOn()
 
 void SlideShow::previous()
 {
+    endZoom();
     finishTransition();
     m_auto.stop();
     m_blank = QColor();
@@ -1031,6 +1037,7 @@ void SlideShow::goToPosition(int pos)
 // The slide at a place in the order on the screen with `steps` of its steps played.
 void SlideShow::showSlide(int pos, int steps)
 {
+    endZoom();
     m_media->leave(pos);
     m_sounds->stopAll();
     m_frame.stop();
@@ -1058,6 +1065,7 @@ void SlideShow::showSlide(int pos, int steps)
 
 void SlideShow::toggleBlank(const QColor &color)
 {
+    endZoom();
     finishTransition();
     m_blank = m_blank == color ? QColor() : color;
     update();
@@ -1196,6 +1204,7 @@ void SlideShow::dropTriggerSteps(int slide, int at)
 
 bool SlideShow::fireTrigger(int shape)
 {
+    endZoom();
     if (m_atEnd || m_animating || m_slide < 0 || m_slide >= m_doc->pages.size() || m_triggerRuns >= kMaxTriggerRuns) return false;
     const deck::Timeline &known = playOf(m_slide).timeline;
     const auto trigger = std::find_if(known.triggers.cbegin(), known.triggers.cend(), [shape](const deck::Trigger &t) { return t.shape == shape; });
@@ -1426,6 +1435,11 @@ void SlideShow::paintEvent(QPaintEvent *)
         p.drawText(rect().adjusted(0, 24, 0, 0), Qt::AlignHCenter | Qt::AlignTop, tr("End of slide show, click to exit."));
         return;
     }
+    if (m_zoomed) {
+        p.fillRect(rect(), Qt::black);
+        p.drawImage(-m_zoomOrigin, m_zoomImage);
+        return;
+    }
     const QImage now = nowImage();
     if (now.deviceIndependentSize().toSize() != size()) p.fillRect(rect(), Qt::black);
     if (m_animating && m_morph) {
@@ -1476,6 +1490,7 @@ void SlideShow::paintEvent(QPaintEvent *)
 
 void SlideShow::resizeEvent(QResizeEvent *e)
 {
+    endZoom();
     finishTransition();
     m_nowValid = false;
     QWidget::resizeEvent(e);
@@ -1535,8 +1550,9 @@ void SlideShow::keyPressEvent(QKeyEvent *e)
     m_typed.clear();
     switch (k) {
     case Qt::Key_Escape:
-        // Esc brings the arrow back first.
-        if (m_pointer != Pointer::Arrow) setPointer(Pointer::Arrow);
+        // Esc puts a zoomed slide back first, then brings the arrow back.
+        if (m_zoomed) endZoom();
+        else if (m_pointer != Pointer::Arrow) setPointer(Pointer::Arrow);
         else close();
         break;
     case Qt::Key_Right: case Qt::Key_Down: case Qt::Key_Space: case Qt::Key_Return: case Qt::Key_Enter:
@@ -1983,6 +1999,7 @@ void SlideShow::openMenu()
         return;
     }
     // On the window the presenter is looking at: Presenter View when it is open, else the show.
+    m_menuAnchor = QPointF(width() / 2.0, height() / 2.0);
     QWidget *where = this;
     if (PresenterView *pv = presenterView(); pv && pv->isVisible()) where = pv;
     QMenu *menu = buildMenu(where);
@@ -2011,6 +2028,14 @@ void SlideShow::followHover(const QString &link)
 void SlideShow::mousePressEvent(QMouseEvent *e)
 {
     m_hoverHold = false;
+    // A zoomed slide is moved by dragging; a click does nothing else.
+    if (m_zoomed && e->button() == Qt::LeftButton) {
+        m_panning = true;
+        m_panFrom = e->position();
+        m_panOrigin = m_zoomOrigin;
+        setCursor(Qt::ClosedHandCursor);
+        return;
+    }
     if (e->button() == Qt::LeftButton) {
         const bool inking = !m_atEnd && !isKiosk() && !m_recording;
         // Ctrl and the button: the laser pointer, while they are held.
@@ -2050,6 +2075,7 @@ void SlideShow::mousePressEvent(QMouseEvent *e)
             previous();
             return;
         }
+        m_menuAnchor = e->position();
         QMenu *menu = buildMenu(this);
         menu->setAttribute(Qt::WA_DeleteOnClose);
         menu->popup(e->globalPosition().toPoint());
@@ -2058,6 +2084,15 @@ void SlideShow::mousePressEvent(QMouseEvent *e)
 
 void SlideShow::mouseMoveEvent(QMouseEvent *e)
 {
+    if (m_zoomed) {
+        if (m_panning) {
+            const QPointF room = QPointF(width(), height()) * (kZoomFactor - 1);
+            const QPointF to = m_panOrigin - (e->position() - m_panFrom);
+            m_zoomOrigin = QPointF(std::clamp(to.x(), 0.0, room.x()), std::clamp(to.y(), 0.0, room.y()));
+            update();
+        }
+        return;
+    }
     if (m_drawing || m_erasing || m_pointer == Pointer::Laser || m_tempLaser) {
         moveTo(pageAt(e->position()));
         return;
@@ -2093,6 +2128,13 @@ void SlideShow::mouseMoveEvent(QMouseEvent *e)
 
 void SlideShow::mouseReleaseEvent(QMouseEvent *e)
 {
+    if (m_panning) {
+        if (e->button() == Qt::LeftButton) {
+            m_panning = false;
+            setCursor(Qt::OpenHandCursor);
+        }
+        return;
+    }
     if (e->button() == Qt::LeftButton) releasePointer();
 }
 
@@ -2109,6 +2151,7 @@ void SlideShow::setPointer(Pointer pointer)
     // A kiosk and a rehearsal have no pen.
     if (isKiosk() || m_recording) pointer = Pointer::Arrow;
     if (pointer == m_pointer) return;
+    if (pointer != Pointer::Arrow) endZoom();
     m_pointer = pointer;
     m_drawing = m_erasing = m_tempLaser = false;
     m_laserShown = false;
@@ -2488,6 +2531,7 @@ QString SlideShow::helpText()
     lines << tr("Pen, highlighter, laser pointer, or arrow: %1, %2, %3, or %4.").arg(key(Qt::Key_P, ctrl), key(Qt::Key_I, ctrl), key(Qt::Key_L, ctrl), key(Qt::Key_A, ctrl));
     lines << tr("Eraser, to remove ink as you drag: %1.").arg(key(Qt::Key_E, ctrl));
     lines << tr("Erase all ink on the slide at once: E, without Ctrl.");
+    lines << tr("Zoom into the slide, from the menu: drag to move the slide, and press Esc to put it back.");
     lines << tr("The menu: a right click, the Menu key, or Shift+F10.");
     lines << tr("Esc: put the pointer back to an arrow; press again to end the show.");
     return lines.join(QLatin1Char('\n'));
@@ -2530,6 +2574,24 @@ QMenu *SlideShow::buildMenu(QWidget *parent)
             connect(a, &QAction::triggered, this, [this, id] { playCustomShow(id, false); });
         }
     }
+    menu->addSeparator();
+    QAction *presenter = menu->addAction(tr("Show Presenter View"));
+    presenter->setObjectName(QStringLiteral("menuPresenterView"));
+    presenter->setEnabled(!m_embedded);
+    connect(presenter, &QAction::triggered, this, [this] { showPresenterView(); });
+    QAction *notes = menu->addAction(tr("Speaker Notes"));
+    notes->setObjectName(QStringLiteral("menuSpeakerNotes"));
+    connect(notes, &QAction::triggered, this, [this] { showSpeakerNotes(); });
+    QAction *zoom = menu->addAction(tr("Zoom into the Slide"));
+    zoom->setObjectName(QStringLiteral("menuZoom"));
+    zoom->setCheckable(true);
+    zoom->setChecked(m_zoomed);
+    zoom->setEnabled(m_zoomed || canZoom());
+    const QPointF about = m_menuAnchor;
+    connect(zoom, &QAction::triggered, this, [this, about] {
+        if (m_zoomed) endZoom();
+        else zoomInto(about);
+    });
     menu->addSeparator();
     menu->addMenu(pointerMenu(menu));
     QMenu *screen = menu->addMenu(tr("Screen"));
@@ -2858,10 +2920,70 @@ void SlideShow::openPresenterView(QScreen *on)
     } else {
         if (on) {
             m_presenter->setScreen(on);
-            m_presenter->setGeometry(m_presenterScreen.available);
+            m_presenter->setGeometry(m_presenterScreen.geometry.isEmpty() ? on->availableGeometry() : m_presenterScreen.available);
         }
     }
     m_presenter->show();
+}
+
+void SlideShow::showPresenterView()
+{
+    if (m_embedded) return;
+    if (m_presenter) {
+        m_presenter->show();
+        m_presenter->raise();
+        m_presenter->activateWindow();
+        return;
+    }
+    QScreen *mine = QGuiApplication::screenAt(geometry().center());
+    if (!mine) mine = screen();
+    const QVector<ScreenInfo> screens = screensNow();
+    if (screens.size() >= 2 && !m_rehearsal) {
+        int window = 0;
+        for (int i = 0; i < screens.size(); ++i)
+            if (screens.at(i).name == mine->name() && screens.at(i).geometry == mine->geometry()) window = i;
+        const ScreenChoice c = chooseScreens(screens, showOn(), window);
+        if (c.audience >= 0 && c.presenter >= 0) {
+            placeOn(screens.at(c.audience), screens.at(c.presenter));
+            return;
+        }
+    }
+    openPresenterView(mine);
+}
+
+void SlideShow::showSpeakerNotes()
+{
+    const int slide = targetSlide();
+    QString notes = slide >= 0 && slide < m_doc->pages.size() ? deck::notesText(*m_doc, *m_doc->pages[slide]) : QString();
+    if (notes.trimmed().isEmpty()) notes = tr("This slide has no notes.");
+    else if (notes.size() > kSpeakerNotesLimit) notes = notes.left(kSpeakerNotesLimit) + QChar(0x2026);
+    tellBox(tr("Speaker Notes"), notes, false);
+}
+
+bool SlideShow::canZoom() const
+{
+    return !m_atEnd && !m_animating && !m_blank.isValid() && m_playing < 0 && m_slide >= 0 && m_slide < m_doc->pages.size() && !size().isEmpty();
+}
+
+void SlideShow::zoomInto(const QPointF &about)
+{
+    if (m_zoomed || !canZoom()) return;
+    m_zoomImage = renderView(currentView(), -1, size() * kZoomFactor, devicePixelRatioF());
+    const QPointF room = QPointF(width(), height()) * (kZoomFactor - 1);
+    const QPointF at = about * (kZoomFactor - 1);
+    m_zoomOrigin = QPointF(std::clamp(at.x(), 0.0, room.x()), std::clamp(at.y(), 0.0, room.y()));
+    m_zoomed = true;
+    setCursor(Qt::OpenHandCursor);
+    update();
+}
+
+void SlideShow::endZoom()
+{
+    if (!m_zoomed) return;
+    m_zoomed = m_panning = false;
+    m_zoomImage = QImage();
+    updateCursor();
+    update();
 }
 
 // ---- the ribbon's preview ----
