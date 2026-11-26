@@ -732,7 +732,7 @@
         },
         {
          "status": "partly",
-         "text": "26c597e7b6d8940b5c86f64fc05ae734154c19b924782d0f61b8290a7d85d6d7"
+         "text": "6f2f03c4712f5e570a118aea951da84d8299660399f246647ed1dc36c37320dd"
         },
         {
          "hide_soon": true,
@@ -3930,7 +3930,7 @@
         },
         {
          "status": "partly",
-         "text": "1da52561daa4f66a3251fd610ec3c36dd956ed11ed428cace6cc466c0e064483"
+         "text": "9d8a6b0a9fbd2b37fe413272c5974291be71eb0d6def48f3b34c4741badf7082"
         }
        ]
       }
@@ -10101,18 +10101,6 @@
     "fr": ""
    }
   },
-  "1da52561daa4f66a3251fd610ec3c36dd956ed11ed428cace6cc466c0e064483": {
-   "drop": false,
-   "en": "Speaker notes keep formatting: bold, italic, bulleted and numbered lists, and links. Notes are read from and saved to `.pptx` and `.odp` files, and read from older `.ppt` files.",
-   "es": "Las notas del orador conservan el formato: negrita, cursiva, listas con viñetas y numeradas, y vínculos. Las notas se leen y se guardan en archivos `.pptx` y `.odp`, y se leen de archivos `.ppt` antiguos.",
-   "fr": "Les notes du présentateur conservent la mise en forme : gras, italique, listes à puces et numérotées, et liens. Les notes sont lues et enregistrées dans les fichiers `.pptx` et `.odp`, et lues dans les anciens fichiers `.ppt`.",
-   "soon": {
-    "drop": false,
-    "en": "Formatted note editing in the notes pane, Notes Page view, Presenter View, and the Speaker Notes box",
-    "es": "Edición de notas con formato en el panel de notas, la vista Página de notas, la vista del presentador y el cuadro de notas del orador",
-    "fr": "Modification des notes avec mise en forme dans le volet des notes, la vue Page de notes, le mode Présentateur et la zone de notes du présentateur"
-   }
-  },
   "1db56d1b1eb814a1a09d3d5482f651440495744fcc565b924dc338b3ed06f150": {
    "drop": false,
    "en": "Add Animation gives a shape a second effect, started on a click.",
@@ -11047,18 +11035,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "26c597e7b6d8940b5c86f64fc05ae734154c19b924782d0f61b8290a7d85d6d7": {
-   "drop": false,
-   "en": "Make and change doughnut charts and combo charts of columns and a line against a second axis.",
-   "es": "Cree y modifique gráficos de anillo y gráficos combinados de columnas y una línea con un eje secundario.",
-   "fr": "Créez et modifiez des graphiques en anneau et des graphiques combinés de colonnes et d’une courbe avec un axe secondaire.",
-   "soon": {
-    "drop": false,
-    "en": "Bubble, radar, stock, 3-D, pie of pie, bar of pie, and surface charts",
-    "es": "Gráficos de burbujas, radar, cotizaciones, 3D, circular de circular, circular de barras y de superficie",
-    "fr": "Graphiques à bulles, radar, boursiers, 3D, secteurs de secteur, secteurs de barres et de surface"
    }
   },
   "26dbece18366256232c3ef8e212336eede3ebde362d275740445f09d2da92cd8": {
@@ -16905,6 +16881,18 @@
     "fr": ""
    }
   },
+  "6f2f03c4712f5e570a118aea951da84d8299660399f246647ed1dc36c37320dd": {
+   "drop": false,
+   "en": "Create radar, radar with markers, and filled radar charts, and read and save them in `.xlsx` and `.ods` files. Doughnut charts and combo charts with a secondary axis are also available.",
+   "es": "Cree gráficos de radar, de radar con marcadores y de radar relleno, y léalos y guárdelos en archivos `.xlsx` y `.ods`. También están disponibles los gráficos de anillos y los gráficos combinados con eje secundario.",
+   "fr": "Créez des graphiques radar, radar avec marqueurs et radar plein, puis lisez-les et enregistrez-les dans des fichiers `.xlsx` et `.ods`. Les graphiques en anneau et les graphiques combinés avec axe secondaire sont aussi disponibles.",
+   "soon": {
+    "drop": false,
+    "en": "Stock, bubble, pie of pie, bar of pie, 3-D column, 3-D bar, 3-D line, 3-D area, 3-D pie, and surface charts",
+    "es": "Gráficos de cotizaciones, de burbujas, de circular de circular, de barras de circular, de columnas 3D, de barras 3D, de líneas 3D, de áreas 3D, circulares 3D y de superficie",
+    "fr": "Graphiques boursiers, à bulles, secteurs de secteurs, barres de secteurs, histogrammes 3D, barres 3D, courbes 3D, aires 3D, secteurs 3D et de surface"
+   }
+  },
   "6f5567233b3586917bc6fa3e9ebcb15af1023df0be5a62d8862d4246193b0c8d": {
    "drop": false,
    "en": "Write right-to-left and complex script text, with a right-to-left paragraph direction on the Home tab and in the Paragraph dialog.",
@@ -19915,6 +19903,18 @@
     "en": "",
     "es": "",
     "fr": ""
+   }
+  },
+  "9d8a6b0a9fbd2b37fe413272c5974291be71eb0d6def48f3b34c4741badf7082": {
+   "drop": false,
+   "en": "Speaker notes keep formatting in the file: bold, italic, bulleted and numbered lists, and links. Edit them in the notes pane like slide text, with bold, italic, underline, bullets, numbering, list levels, font, and links.",
+   "es": "Las notas del orador conservan el formato en el archivo: negrita, cursiva, listas con viñetas y numeradas, y vínculos. Edítelas en el panel de notas como el texto de una diapositiva, con negrita, cursiva, subrayado, viñetas, numeración, niveles de lista, fuente y vínculos.",
+   "fr": "Les notes du présentateur conservent leur mise en forme dans le fichier : gras, italique, listes à puces et numérotées, et liens. Modifiez-les dans le volet des notes comme le texte d’une diapositive, avec gras, italique, souligné, puces, numérotation, niveaux de liste, police et liens.",
+   "soon": {
+    "drop": false,
+    "en": "Formatted notes in Notes Page view, Presenter View, and the Speaker Notes box of the slide show",
+    "es": "Notas con formato en la vista Página de notas, la vista del presentador y el cuadro de notas del orador de la presentación",
+    "fr": "Notes mises en forme dans la vue Page de notes, le mode Présentateur et la zone de notes du diaporama"
    }
   },
   "9db480cbd18cdfea3ad2fc9103b349e19764bda55493d22c8026f86655f05a10": {
