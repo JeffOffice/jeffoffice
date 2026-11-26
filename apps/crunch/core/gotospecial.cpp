@@ -1,5 +1,6 @@
 #include "core/gotospecial.h"
 
+#include "core/auditing.h"
 #include "sheet/cellref.h"
 
 #include <QCoreApplication>
@@ -8,6 +9,7 @@
 #include <algorithm>
 #include <array>
 #include <map>
+#include <unordered_set>
 
 namespace jp::crunch {
 
@@ -419,6 +421,100 @@ SpecialResult goToSpecial(const EditSession &session, int sheet, const CellRange
         }
         diff.finish();
         if (out.ranges.isEmpty()) none();
+        return out;
+    }
+    case SpecialKind::Precedents:
+    case SpecialKind::Dependents: {
+        // The cells on this sheet that the formulas of the selection read (or the cells whose formulas read the selection), the direct ones or every level. Counted: at most kMaxSpecialSources
+        // cells to start from, kMaxSpecialFollowed cells followed or found, and the readers of a cell as far as readersOf lists them.
+        const bool up = options.kind == SpecialKind::Precedents;
+        CellRange from = oneCell ? CellRange{} : selection;
+        if (oneCell) {
+            from.valid = true;
+            from.row1 = from.row2 = activeRow;
+            from.col1 = from.col2 = activeCol;
+        }
+        auto key = [](int sh, quint32 r, quint32 c) { return (quint64(sh) << 34) | (quint64(r) << 14) | quint64(c & 0x3FFF); };
+        std::unordered_set<quint64> seen;
+        std::vector<TraceCell> level;
+        qint64 looked = 0;
+        for (quint32 r = from.row1; r <= from.row2 && !out.truncated; ++r)
+            for (quint32 c = from.col1; c <= from.col2; ++c) {
+                if (++looked > kMaxSpecialSources) {
+                    out.truncated = true;
+                    break;
+                }
+                const std::optional<Cell> cell = s.cells.find(r, c);
+                if (up && !(cell && cell->hasFormula())) continue;
+                level.push_back({sheet, r, c});
+                seen.insert(key(sheet, r, c));
+            }
+        std::unordered_set<quint64> found;
+        qint64 followed = 0;
+        auto room = [&] {
+            if (followed < kMaxSpecialFollowed) return true;
+            out.truncated = true;
+            return false;
+        };
+        auto follow = [&](const TraceCell &d, std::vector<TraceCell> *next) {
+            if (!room()) return;
+            ++followed;
+            if (d.sheet == sheet) found.insert(key(sheet, d.row, d.col));
+            if (options.allLevels && seen.insert(key(d.sheet, d.row, d.col)).second) next->push_back(d);
+        };
+        while (!level.empty() && room()) {
+            std::vector<TraceCell> next;
+            for (const TraceCell &f : level) {
+                if (!room()) break;
+                if (up) {
+                    bool cut = false;
+                    const std::vector<TraceBlock> blocks = cellsRead(*calc, f.sheet, f.row, f.col, &cut);
+                    out.truncated = out.truncated || cut;
+                    for (const TraceBlock &b : blocks) {
+                        if (b.sheet < 0 || b.sheet >= calc->sheetCount() || !b.cells.valid) continue;
+                        const Sheet &bs = calc->sheet(b.sheet);
+                        CellRange cells = b.cells;
+                        // (cells past the ones the sheet uses are left out: a whole column is not read as a million blank cells)
+                        if (bs.extentRows == 0 || bs.extentCols == 0) continue;
+                        cells.row2 = std::min(cells.row2, bs.extentRows - 1);
+                        cells.col2 = std::min(cells.col2, bs.extentCols - 1);
+                        if (cells.row1 > cells.row2 || cells.col1 > cells.col2) continue;
+                        if (b.sheet == sheet) {
+                            if (cells.cellCount() > kMaxSpecialFollowed - followed) {
+                                out.truncated = true;
+                                break;
+                            }
+                            for (quint32 r = cells.row1; r <= cells.row2; ++r)
+                                for (quint32 c = cells.col1; c <= cells.col2; ++c) found.insert(key(sheet, r, c));
+                            followed += cells.cellCount();
+                        }
+                        if (options.allLevels) {
+                            qint64 visited = 0;
+                            bs.cells.forEachInRange(cells.row1, cells.col1, cells.row2, cells.col2, [&](quint32 r, quint32 c, const Cell &cell) {
+                                if (cell.hasFormula() && seen.insert(key(b.sheet, r, c)).second) next.push_back({b.sheet, r, quint32(c)});
+                                return ++visited < kMaxSpecialFollowed && room();
+                            });
+                        }
+                    }
+                } else {
+                    qint64 total = 0;
+                    const std::vector<TraceCell> readers = readersOf(*calc, f.sheet, f.row, f.col, kMaxTraceReaders, &total);
+                    out.truncated = out.truncated || total > qint64(readers.size());
+                    for (const TraceCell &d : readers) follow(d, &next);
+                }
+            }
+            level = std::move(next);
+            if (!options.allLevels) break;
+        }
+        std::vector<quint64> order;
+        order.reserve(found.size());
+        for (quint64 k : found) order.push_back(((k >> 14) & 0xFFFFF) << 32 | (k & 0x3FFF));
+        std::sort(order.begin(), order.end());
+        RangeBuilder cellsFound(&out);
+        for (quint64 k : order) cellsFound.add(quint32(k >> 32), quint32(k & 0xFFFFFFFFu));
+        cellsFound.finish();
+        if (out.ranges.isEmpty())
+            out.problem = up ? QCoreApplication::translate("jp::crunch::GoTo", "No formula in the selection reads a cell on this sheet.") : QCoreApplication::translate("jp::crunch::GoTo", "No formula on this sheet reads the selected cells.");
         return out;
     }
     case SpecialKind::ConditionalFormats:

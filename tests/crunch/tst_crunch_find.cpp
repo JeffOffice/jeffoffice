@@ -640,6 +640,50 @@ private Q_SLOTS:
         QVERIFY(!none.problem.isEmpty());
     }
 
+    // Precedents select the cells on the sheet that the formulas of the selection read; dependents, the cells whose formulas read the selection: the direct ones, or every level.
+    void goToSpecialFindsWhatFormulasReadAndWhatReadsThem()
+    {
+        using K = crunch::SpecialKind;
+        EditWindow e;
+        QVERIFY(e.open(sheetOf({"A1=1", "B1=2", "C1==A1+B1", "D1==C1*2", "E1==D1+1", "G1=9"})));
+        QVERIFY(e.settle());
+        auto find = [&](K kind, const QString &selection, const QString &active, bool all) {
+            crunch::SpecialOptions o;
+            o.kind = kind;
+            o.allLevels = all;
+            quint32 r = 0, c = 0;
+            parseCellRef(active, &r, &c);
+            return crunch::goToSpecial(*e.win.w.session(), 0, selection.isEmpty() ? CellRange() : rangeOf(selection), r, c, o);
+        };
+        QCOMPARE(rangesOf(find(K::Precedents, QString(), QStringLiteral("D1"), false)), QStringLiteral("C1"));
+        QCOMPARE(rangesOf(find(K::Precedents, QString(), QStringLiteral("D1"), true)), QStringLiteral("A1:C1"));
+        QCOMPARE(rangesOf(find(K::Precedents, QStringLiteral("C1:D1"), QStringLiteral("C1"), false)), QStringLiteral("A1:C1"));
+        QCOMPARE(rangesOf(find(K::Dependents, QString(), QStringLiteral("A1"), false)), QStringLiteral("C1"));
+        QCOMPARE(rangesOf(find(K::Dependents, QString(), QStringLiteral("A1"), true)), QStringLiteral("C1:E1"));
+        QCOMPARE(find(K::Dependents, QString(), QStringLiteral("A1"), true).cells, qint64(3));
+        // nothing: a constant reads nothing, and nothing reads the last formula or the loose number
+        for (const crunch::SpecialResult &none : {find(K::Precedents, QString(), QStringLiteral("A1"), true), find(K::Dependents, QString(), QStringLiteral("E1"), true), find(K::Dependents, QString(), QStringLiteral("G1"), true)}) {
+            QVERIFY(none.ranges.isEmpty());
+            QVERIFY(!none.problem.isEmpty());
+        }
+    }
+
+    // The search starts from at most kMaxSpecialSources cells of the selection and says it stopped.
+    void goToSpecialPrecedentsStartFromABoundedNumberOfCells()
+    {
+        QStringList specs;
+        for (int r = 1; r <= 1500; ++r) specs << QStringLiteral("A%1=1").arg(r) << QStringLiteral("B%1==A%1+1").arg(r);
+        EditWindow e;
+        QVERIFY(e.open(sheetOf(specs)));
+        QVERIFY(e.settle());
+        crunch::SpecialOptions o;
+        o.kind = crunch::SpecialKind::Precedents;
+        const crunch::SpecialResult found = crunch::goToSpecial(*e.win.w.session(), 0, rangeOf(QStringLiteral("B1:B1500")), 0, 1, o);
+        QVERIFY(found.truncated);
+        QCOMPARE(found.cells, crunch::kMaxSpecialSources);
+        QCOMPARE(rangesOf(found), QStringLiteral("A1:A1000"));
+    }
+
     // Row differences and column differences select the cells that are not like the cell with the cursor in their row (column): another number or text, a formula that is not the same once its
     // references are moved, or a formula where the other has none. The current array is the array formula the cursor is in.
     void goToSpecialFindsDifferencesAndTheCurrentArray()

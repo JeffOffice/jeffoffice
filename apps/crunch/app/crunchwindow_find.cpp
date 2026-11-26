@@ -578,7 +578,9 @@ void CrunchWindow::goToSpecialDialog()
                               {crunch::SpecialKind::LastCell, tr("The last cell that is used")},
                               {crunch::SpecialKind::VisibleCells, tr("Cells that show (not in hidden rows or columns)")},
                               {crunch::SpecialKind::ConditionalFormats, tr("Cells with conditional formatting")},
-                              {crunch::SpecialKind::DataValidation, tr("Cells with a rule for what may be entered")}};
+                              {crunch::SpecialKind::DataValidation, tr("Cells with a rule for what may be entered")},
+                              {crunch::SpecialKind::Precedents, tr("Cells that the formulas in the selection read")},
+                              {crunch::SpecialKind::Dependents, tr("Cells with formulas that read the selection")}};
         auto *group = new QButtonGroup(&dialog);
         int id = 0;
         for (const Kind &k : kinds) {
@@ -600,6 +602,8 @@ void CrunchWindow::goToSpecialDialog()
         layout->addWidget(which);
         auto *same = new QCheckBox(tr("For a rule for what may be entered: only the same rule as the cell with the cursor"));
         layout->addWidget(same);
+        auto *levels = new QCheckBox(tr("For cells that are read, or that read: follow them through every level, not only the first"));
+        layout->addWidget(levels);
         auto *buttons = new jp::ButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel);
         layout->addWidget(buttons);
         connect(buttons, &QDialogButtonBox::accepted, &dialog, &QDialog::accept);
@@ -611,6 +615,7 @@ void CrunchWindow::goToSpecialDialog()
         options.logicals = logicals->isChecked();
         options.errors = errors->isChecked();
         options.sameRule = same->isChecked();
+        options.allLevels = levels->isChecked();
     }
     goToSpecial(options);
 }

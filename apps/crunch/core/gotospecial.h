@@ -1,7 +1,7 @@
 #pragma once
 // Go To: a reference a person types (a cell or a range, with or without a sheet, whole rows or columns, or the name of a defined name) found in the workbook, and Select by Kind: the cells
 // of a sheet that are of a kind (blank, constants, formulas, errors, the current region, the current array, the last cell, those that show, those with conditional formats or a rule of
-// validation, those that differ from the cell with the cursor in their row or column) as
+// validation, those that differ from the cell with the cursor in their row or column, those the formulas of the selection read, and those whose formulas read the selection) as
 // ranges. All of it is bounded: the work is counted in cells and rows looked at, and what a search finds is at most kMaxSpecialRanges ranges.
 
 #include "core/editsession.h"
@@ -13,6 +13,9 @@ namespace jp::crunch {
 
 constexpr int kMaxSpecialRanges = 10000;
 constexpr qint64 kMaxSpecialWork = 3000000;
+// Precedents and Dependents: the most cells of the selection they start from, and the most cells they follow or find.
+constexpr qint64 kMaxSpecialSources = 1000;
+constexpr qint64 kMaxSpecialFollowed = 200000;
 
 struct GoToTarget {
     bool ok = false;
@@ -27,13 +30,15 @@ GoToTarget resolveGoTo(const EditSession &session, const QString &text, int shee
 // The defined names a person can go to (those that stand for a range), by name, with what they stand for.
 QVector<QPair<QString, QString>> goToNames(const EditSession &session, int sheet);
 
-enum class SpecialKind { Blanks, Constants, Formulas, Errors, CurrentRegion, LastCell, VisibleCells, ConditionalFormats, DataValidation, CurrentArray, RowDifferences, ColumnDifferences };
+enum class SpecialKind { Blanks, Constants, Formulas, Errors, CurrentRegion, LastCell, VisibleCells, ConditionalFormats, DataValidation, CurrentArray, RowDifferences, ColumnDifferences, Precedents, Dependents };
 struct SpecialOptions {
     SpecialKind kind = SpecialKind::Blanks;
     // Constants and Formulas: which results count
     bool numbers = true, text = true, logicals = true, errors = true;
     // DataValidation: only the cells whose rule is the one the active cell has
     bool sameRule = false;
+    // Precedents and Dependents: go through every level (what those read, and what reads those, and so on) rather than only the cells read directly
+    bool allLevels = false;
 };
 struct SpecialResult {
     QVector<jp::office::sheet::CellRange> ranges;   // in order of row, then column
