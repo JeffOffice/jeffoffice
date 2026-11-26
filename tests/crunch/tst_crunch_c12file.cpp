@@ -551,6 +551,16 @@ private Q_SLOTS:
         EditWindow e;
         QVERIFY(e.open(editBook()));
         CrunchWindow &w = e.win.w;
+        // (the three choices are the program's, kept in its settings: put back on every exit, so that a failure leaves none behind)
+        struct Restore {
+            CrunchWindow &w;
+            ~Restore()
+            {
+                w.setSheetTabsShown(true);
+                w.setScrollBarsShown(true);
+                w.setNoteDisplay(0);
+            }
+        } restore{w};
         w.setSheetTabsShown(true);
         w.setScrollBarsShown(true);
         w.setNoteDisplay(0);

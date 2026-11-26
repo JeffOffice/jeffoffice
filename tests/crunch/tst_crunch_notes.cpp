@@ -174,6 +174,10 @@ private Q_SLOTS:
         EditWindow e;
         QVERIFY(e.open(bookWithNotes()));
         CrunchWindow &w = e.win.w;
+        struct Restore {   // (the choice is the program's, kept in its settings: put back on every exit)
+            CrunchWindow &w;
+            ~Restore() { w.setNoteDisplay(0); }
+        } restore{w};
         w.setNoteDisplay(0);
         auto marks = [&] {
             const QImage image = e.view()->viewport()->grab().toImage();
