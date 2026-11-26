@@ -45,7 +45,7 @@ bool mayBeClipTable(const QString &html, const QString &text);
 // How many times clipTable has parsed a clipboard (the tests count what a command costs).
 int clipTableParses();
 // The page made into a new document (newDocument()'s styles and page); false, with the reason, when it is too large.
-// A picture is read only from a data: address, or from a file under `baseDir` (the page's own folder; empty: no files) that a relative address or a file: address names, and no
+// A picture is read only from a data: address, or from a file under `baseDir` (the page's own folder; empty: no files) that a relative address names (never a file: address), and no
 // address of the network is ever opened; a link is kept when it goes to http, https, or mailto.
 bool readHtml(const QByteArray &html, Document *out, QString *error = nullptr, const QString &baseDir = QString());
 

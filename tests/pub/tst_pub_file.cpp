@@ -11,7 +11,15 @@
 #include <QLineEdit>
 #include <QMessageBox>
 #include <QTableWidget>
+#include <QBuffer>
+#include <QDir>
+#include <QImage>
 #include <QTemporaryDir>
+#include <QTextBlock>
+#include <QTextCursor>
+#include <QTextFragment>
+#include <QTextImageFormat>
+#include <QUrl>
 #include <QTimer>
 
 void PubFileTests::initTestCase() { initPubTestCase(); }
@@ -1718,6 +1726,48 @@ void PubFileTests::aDamagedTextFileOrListIsTakenInOrRefusedWithAReason()
     }
 }
 
+
+// A web page put in as a file does not read a picture file from the disk: no file outside the page's folder (an absolute path, a file: address, a way up with ..), and no file beside it either (the page's
+// own parser would read that against the program's folder), only the pictures the page holds.
+// fails when off: yes (with the check of a picture's address taken out of the guard, the file outside is read and drawn)
+void PubFileTests::aWebPageImportReadsNoPictureFileFromTheDisk()
+{
+    QTemporaryDir dir;
+    QVERIFY(dir.isValid());
+    QVERIFY(QDir(dir.path()).mkpath(QStringLiteral("pages")));
+    QImage secret(7, 5, QImage::Format_RGB32);
+    secret.fill(QColor(12, 200, 99));
+    QVERIFY(secret.save(dir.filePath(QStringLiteral("secret.png")), "PNG"));
+    QVERIFY(secret.save(dir.filePath(QStringLiteral("pages/beside.png")), "PNG"));
+    QByteArray png;
+    {
+        QBuffer b(&png);
+        QVERIFY(b.open(QIODevice::WriteOnly));
+        QVERIFY(secret.save(&b, "PNG"));
+    }
+    const QString absolute = dir.filePath(QStringLiteral("secret.png"));
+    QString html = QStringLiteral("<html><body><p>start ");
+    for (const QString &src : {absolute, QStringLiteral("../secret.png"), QStringLiteral("file://") + absolute, QUrl::fromLocalFile(absolute).toString(), QStringLiteral("beside.png"), QStringLiteral("sub/../../secret.png")})
+        html += QStringLiteral("<img src=\"%1\"> ").arg(src);
+    html += QStringLiteral("<img src=\"data:image/png;base64,") + QString::fromLatin1(png.toBase64()) + QStringLiteral("\"> end</p></body></html>");
+    const QString path = dir.filePath(QStringLiteral("pages/page.html"));
+    {
+        QFile f(path);
+        QVERIFY(f.open(QIODevice::WriteOnly));
+        f.write(html.toUtf8());
+    }
+    QTextDocument doc;
+    QString problem;
+    QVERIFY2(jp::loadTextFileInto(&doc, path, &problem), qPrintable(problem));
+    QStringList names;
+    for (QTextBlock b = doc.begin(); b.isValid(); b = b.next())
+        for (QTextBlock::iterator it = b.begin(); !it.atEnd(); ++it)
+            if (it.fragment().charFormat().isImageFormat()) names << it.fragment().charFormat().toImageFormat().name();
+    // (only the picture the page holds is in the result; none of the others names a file)
+    QCOMPARE(names.size(), 1);
+    QVERIFY2(names.first().startsWith(QLatin1String("data:image/png")), qPrintable(names.first()));
+    QVERIFY(doc.toPlainText().contains(QLatin1String("start")) && doc.toPlainText().contains(QLatin1String("end")));
+}
 
 // The gallery Change Template opens is the New page's, in a mode of its
 // own: its title and button say so, it offers designs and no blank

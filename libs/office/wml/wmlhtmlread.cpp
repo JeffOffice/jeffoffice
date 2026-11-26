@@ -468,7 +468,10 @@ std::optional<ClipTable> clipTable(const QString &html, const QString &text)
 
 bool readHtml(const QByteArray &html, Document *out, QString *error, const QString &baseDir)
 {
-    const GuardedHtml guarded = guardHtml(html);
+    // (the guard keeps a path beside the page only when there is a folder for it to be read from)
+    HtmlLimits limits;
+    limits.folderPictures = !baseDir.isEmpty();
+    const GuardedHtml guarded = guardHtml(html, limits);
     if (guarded.refusal != HtmlRefusal::None) {
         if (error) *error = refusalText(guarded.refusal);
         return false;

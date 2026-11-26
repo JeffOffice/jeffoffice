@@ -29,8 +29,8 @@ constexpr int kMostHtmlNesting = 100;                     // parts standing insi
 constexpr int kMostHtmlTableDepth = 20;                 // tables standing inside one another (more become their words)
 constexpr int kMostHtmlListItems = 100;                 // items of one list (a longer list is written as several lists that go on from one another)
 constexpr int kMostHtmlSpan = 999999;                   // columns or rows a cell spans (and never more than the table has: a span is never cut to a number that moves the cells after it)
-constexpr int kMostHtmlSpanCells = 20000;               // cells in the page that span (the parser takes about 25 microseconds for each, and 3 for each cell it covers); past it the page is refused
-constexpr qint64 kMostHtmlSpanCovered = 100000;         // cells that the spanning cells of the page cover
+constexpr int kMostHtmlSpanCells = 50000;               // cells in the page that span (the parser takes about 25 microseconds for each, and 3 for each cell it covers: a calendar of 25,000 merged cells opens in about a second); past it the page is refused
+constexpr qint64 kMostHtmlSpanCovered = 250000;         // cells that the spanning cells of the page cover
 constexpr int kMostHtmlStyles = 200000;                 // style attributes in the page (more are left out)
 constexpr qint64 kMostHtmlStyleChars = 16 * 1024 * 1024; // characters of style attributes in the page (more are left out; a copied spreadsheet of 100,000 styled cells has 10 million, a price list of 160,000 has 16.3 million)
 constexpr int kMostHtmlOpen = 4096;                     // parts of the given page open at once (more are left out; their words stay)
@@ -61,6 +61,7 @@ struct HtmlLimits {
     int open = kMostHtmlOpen;
     int sheetChars = kMostHtmlSheetChars;
     int sheetRules = kMostHtmlSheetRules;
+    bool folderPictures = false;    // the page has a folder of its own (a page opened from a file): a picture beside it, by a path inside that folder, is kept; else only the pictures a page holds
 };
 
 // What the guard found and did (the tests count it).

@@ -102,6 +102,7 @@ private Q_SLOTS:
     void theOlderTextKindsSaveWhatTheyAlwaysDid();
     void aDroppedFilesNoteIsNotShownAsAnError();
     void aHugeOldDocumentIsCutAtTheReadersLimitAndSaid();
+    void aWebPageImportReadsNoPictureFileFromTheDisk();
     void aDroppedTextFileThatCantBeReadIsToldAboutAndTheOthersComeIn();
     void aPublicationFileOverTheLimitIsRefusedBeforeItIsRead();
     void aRecipientListOverTheLimitIsRefusedBeforeItIsRead();

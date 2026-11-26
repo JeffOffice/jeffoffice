@@ -15,6 +15,7 @@
 #include "core/fonts.h"
 
 #include <QBuffer>
+#include <QDir>
 #include <QTextBlock>
 #include <QTextCursor>
 #include <QTextDocument>
@@ -3730,20 +3731,37 @@ private Q_SLOTS:
     // fails when off: yes, each address (the check of pictureAddressKept taken out of htmlguard.cpp)
     void aPictureKeepsItsSourceOnlyWhenAReaderCanUseIt()
     {
-        auto kept = [](const QString &src) {
-            const GuardedHtml g = guardHtml(QStringLiteral("<p>a <img src=\"") + src + QStringLiteral("\" width=10> b</p>"));
+        auto kept = [](const QString &src, bool folder) {
+            HtmlLimits limits;
+            limits.folderPictures = folder;
+            const GuardedHtml g = guardHtml(QStringLiteral("<p>a <img src=\"") + src + QStringLiteral("\" width=10> b</p>"), limits);
             if (g.counts.pictures != (g.html.contains(QLatin1String("<img")) ? 1 : 0)) return false;   // (a picture left out is not counted)
             return g.html.contains(QLatin1String("<img src=\"") + src + QLatin1String("\""));
         };
-        for (const QString &yes : {QStringLiteral("data:image/png;base64,iVBORw0KGgo="), QStringLiteral("DATA:image/gif;base64,R0lGOD"), QStringLiteral("a.png"), QStringLiteral("images/a.png?v=2"),
-                                   QStringLiteral("./a.png"), QStringLiteral("file:///home/me/page_files/a.png")})
-            QVERIFY2(kept(yes), qPrintable(yes));
+        // a picture the page holds is kept with a folder or without
+        for (const QString &yes : {QStringLiteral("data:image/png;base64,iVBORw0KGgo="), QStringLiteral("DATA:image/gif;base64,R0lGOD")}) {
+            QVERIFY2(kept(yes, true), qPrintable(yes));
+            QVERIFY2(kept(yes, false), qPrintable(yes));
+        }
+        // a path inside the page's folder is kept for a page that has one (an opened file), and for no other
+        for (const QString &yes : {QStringLiteral("a.png"), QStringLiteral("images/a.png?v=2"), QStringLiteral("./a.png"), QStringLiteral("images/a%20b.png"), QStringLiteral("a/b/c.png#x")}) {
+            QVERIFY2(kept(yes, true), qPrintable(yes));
+            QVERIFY2(!kept(yes, false), qPrintable(yes + QStringLiteral(" without a folder")));
+        }
+        // no address is kept that is not one of those: the network, a script, a file: address in any form, a path that is not inside the folder in any spelling
         for (const QString &no : {QStringLiteral("http://example.com/a.png"), QStringLiteral("https://example.com/a.png"), QStringLiteral("ftp://example.com/a.png"), QStringLiteral("//example.com/a.png"),
-                                  QStringLiteral("javascript:alert(1)"), QStringLiteral("data:text/html;base64,PGI+"), QStringLiteral("data:application/x-sh,x"), QStringLiteral("/etc/a.png"),
-                                  QStringLiteral("C:/a.png"), QStringLiteral("a\\b.png"), QStringLiteral("../a.png"), QStringLiteral("images/../../a.png"), QStringLiteral("file:///a/../b.png"),
-                                  QStringLiteral("%2e%2e/a.png"), QStringLiteral("&#104;ttp://x/a.png"), QStringLiteral("gopher://x/a.png")})
-            QVERIFY2(!kept(no), qPrintable(no));
-        // (a picture with no address has nothing to show)
+                                  QStringLiteral("javascript:alert(1)"), QStringLiteral("data:text/html;base64,PGI+"), QStringLiteral("data:application/x-sh,x"), QStringLiteral("gopher://x/a.png"),
+                                  QStringLiteral("&#104;ttp://x/a.png"), QStringLiteral("file:x.png"), QStringLiteral("file:/x.png"), QStringLiteral("file:///home/me/a.png"), QStringLiteral("file://host/x.png"),
+                                  QStringLiteral("FILE:///a.png"), QStringLiteral("File:x.png"), QStringLiteral("  file:///a.png"), QStringLiteral("\x01file:///a.png"), QStringLiteral("\tfile:x.png"),
+                                  QStringLiteral("fi\nle:///a.png"), QStringLiteral("&#102;ile:///a.png"), QStringLiteral("&#x66;ile:///a.png"), QStringLiteral("file&colon;///a.png"), QStringLiteral("f&#105;le:/a.png"),
+                                  QStringLiteral("file%3a///a.png"), QStringLiteral("/etc/a.png"), QStringLiteral("\\\\host\\share\\a.png"), QStringLiteral("C:/a.png"), QStringLiteral("c:a.png"), QStringLiteral("a\\b.png"),
+                                  QStringLiteral("../a.png"), QStringLiteral("images/../../a.png"), QStringLiteral("file:///a/../b.png"), QStringLiteral("a/b/../../../c.png"), QStringLiteral("%2e%2e/a.png"),
+                                  QStringLiteral("%2E%2E/a.png"), QStringLiteral(".%2e/a.png"), QStringLiteral("a/%2e%2e/b.png"), QStringLiteral("a%2f..%2fb.png"), QStringLiteral("a/..%5cb.png"), QStringLiteral("a/%252e%252e/b.png"),
+                                  QStringLiteral("a/&#46;&#46;/b.png"), QStringLiteral("a/&#x2e;&#x2E;/b.png"), QStringLiteral("a/&period;&period;/b.png"), QStringLiteral("a/..&sol;b.png"), QStringLiteral("a/&#47;..&#47;b.png"),
+                                  QStringLiteral("a/...../b.png"), QStringLiteral("a/.. /b.png"), QStringLiteral("a%00b.png"), QStringLiteral("a%0ab.png"), QStringLiteral("a&#10;b.png"), QStringLiteral("a\tb.png"),
+                                  QStringLiteral("a/&bogus;/b.png"), QStringLiteral("a&amp;b.png"), QStringLiteral("a/b.png:stream")})
+            QVERIFY2(!kept(no, true) && !kept(no, false), qPrintable(no));
+    // (a picture with no address has nothing to show)
         QVERIFY(!guardHtml(QStringLiteral("<p>a <img width=10> b</p>")).html.contains(QLatin1String("<img")));
         // (the words around a picture that is left out stay in their place)
         QCOMPARE(QTextDocumentFragment::fromHtml(guardHtml(QStringLiteral("<p>a <img src=\"http://x/a.png\"> b</p>")).html).toPlainText().simplified(), QStringLiteral("a b"));
@@ -4154,6 +4172,60 @@ private Q_SLOTS:
         QVERIFY(tableCells(tall, true).contains(QStringLiteral("0,0 2500x1 a")));
     }
 
+    // An opened page keeps a picture beside it and no file outside its folder, by any path (the folder is the only one a kept path is read against); a pasted page keeps no path at all.
+    // fails when off: yes (the check of the path taken out of htmlguard.cpp: the file outside is read; and with the pasted-page rule off, the relative sources stay)
+    void anOpenedPageReadsPicturesOnlyInsideItsFolder()
+    {
+        QImage image(6, 4, QImage::Format_RGB32);
+        image.fill(QColor(200, 30, 60));
+        QByteArray png;
+        {
+            QBuffer b(&png);
+            QVERIFY(b.open(QIODevice::WriteOnly));
+            QVERIFY(image.save(&b, "PNG"));
+        }
+        QTemporaryDir root;
+        QVERIFY(root.isValid());
+        QVERIFY(QDir(root.path()).mkpath(QStringLiteral("site/pages")));
+        auto put = [&](const QString &rel) {
+            QFile f(root.filePath(rel));
+            QVERIFY(f.open(QIODevice::WriteOnly));
+            f.write(png);
+        };
+        put(QStringLiteral("secret.png"));
+        put(QStringLiteral("site/pages/beside.png"));
+        put(QStringLiteral("site/up.png"));
+        const QString folder = root.filePath(QStringLiteral("site/pages"));
+        const QString outside = root.filePath(QStringLiteral("secret.png"));
+        auto drawings = [&](const QStringList &sources, const QString &base) {
+            QString page = QStringLiteral("<html><body><p>");
+            for (const QString &src : sources) page += QStringLiteral("<img src=\"%1\"> ").arg(src);
+            page += QStringLiteral("</p></body></html>");
+            Document d;
+            QString err;
+            if (!readHtml(page.toUtf8(), &d, &err, base)) return -1;
+            int n = 0;
+            for (const Block &b : d.body)
+                if (!b.isRaw)
+                    for (const Inline &in : b.para.content) n += in.kind == Inline::RunAtom && in.tag == QLatin1String("drawing");
+            return n;
+        };
+        QCOMPARE(drawings({QStringLiteral("beside.png")}, folder), 1);
+        // (a path that goes up out of the folder, an absolute path, and a file: address: none is read, though each file exists)
+        QCOMPARE(drawings({QStringLiteral("../up.png"), QStringLiteral("../../secret.png"), outside, QStringLiteral("file://") + outside, QUrl::fromLocalFile(outside).toString(), QStringLiteral("%2e%2e/up.png")}, folder), 0);
+        QCOMPARE(drawings({QStringLiteral("beside.png"), QStringLiteral("../up.png"), outside}, folder), 1);
+        // a pasted page (no folder of its own): no path is kept, whatever it names
+        QCOMPARE(drawings({QStringLiteral("beside.png"), QStringLiteral("./beside.png")}, QString()), 0);
+        QCOMPARE(drawings({QStringLiteral("data:image/png;base64,") + QString::fromLatin1(png.toBase64()), QStringLiteral("beside.png")}, QString()), 1);
+        const GuardedHtml pasted = guardHtml(QStringLiteral("<p>x <img src=\"beside.png\"> <img src=\"data:image/png;base64,") + QString::fromLatin1(png.toBase64()) + QStringLiteral("\"></p>"));
+        QCOMPARE(pasted.counts.pictures, qint64(1));
+        QCOMPARE(pasted.html.count(QLatin1String("beside.png")), 0);
+        // (a link to a file in the folder that is a symbolic link to a file outside: the reader's own check of where the file really is stops it, where the system can make one)
+        if (QFile::link(outside, QDir(folder).filePath(QStringLiteral("link.png")))) {
+            QCOMPARE(drawings({QStringLiteral("link.png")}, folder), 0);
+        }
+    }
+
     // A cell's spans are never cut to a number that moves the cells after it: a page the budget cannot hold is refused.
     // fails when off: yes (the checks of the span budget taken out of htmlguard.cpp)
     void theSpansOfAPageAreHeldToABudgetAndRefuseTheWholePage()
@@ -4176,6 +4248,17 @@ private Q_SLOTS:
         const QString many = repeatedText(QStringLiteral("<tr><td colspan=2>a</td><td>b</td></tr>"), kMostHtmlSpanCells, QStringLiteral("<table>"), QStringLiteral("</table>"));
         QCOMPARE(int(guardHtml(many).refusal), int(HtmlRefusal::None));
         QCOMPARE(int(guardHtml(many + QStringLiteral("<table><tr><td colspan=2>a</td><td>b</td></tr></table>")).refusal), int(HtmlRefusal::TooManyCells));
+        // a calendar of 25,000 merged cells, and a sheet of 50,000 two-by-two merges, are read whole
+        const GuardedHtml calendar = guardHtml(repeatedText(QStringLiteral("<tr>") + repeatedText(QStringLiteral("<td colspan=2>d</td>"), 25) + QStringLiteral("</tr>"), 1000, QStringLiteral("<table>"), QStringLiteral("</table>")));
+        QCOMPARE(int(calendar.refusal), int(HtmlRefusal::None));
+        QCOMPARE(calendar.counts.spanCells, 25000);
+        QString merges = QStringLiteral("<table>");
+        for (int r = 0; r < 200; ++r) merges += QStringLiteral("<tr>") + repeatedText(QStringLiteral("<td rowspan=2 colspan=2>m</td>"), 250) + QStringLiteral("</tr><tr></tr>");
+        merges += QStringLiteral("</table>");
+        const GuardedHtml sheet = guardHtml(merges);
+        QCOMPARE(int(sheet.refusal), int(HtmlRefusal::None));
+        QCOMPARE(sheet.counts.spanCells, 50000);
+        QCOMPARE(sheet.counts.spanCovered, qint64(150000));
         // spans that pile up (each row's cell spans all the rows below it) cover more cells than the budget holds
         const GuardedHtml piled = guardHtml(repeatedText(QStringLiteral("<tr><td rowspan=1000>a</td><td>b</td></tr>"), 1000, QStringLiteral("<table>"), QStringLiteral("</table>")));
         QCOMPARE(int(piled.refusal), int(HtmlRefusal::TooManyCells));

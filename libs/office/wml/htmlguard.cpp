@@ -3,6 +3,7 @@
 #include <QCoreApplication>
 #include <QHash>
 #include <QMimeData>
+#include <QUrl>
 
 #include <algorithm>
 #include <cstring>
@@ -99,22 +100,66 @@ bool linkAddressKept(QStringView raw)
     if (a.relative) return true;
     return a.scheme == QLatin1String("http") || a.scheme == QLatin1String("https") || a.scheme == QLatin1String("mailto") || a.scheme == QLatin1String("tel") || a.scheme == QLatin1String("ftp");
 }
-// A picture address kept: a picture the page holds (data:image, within the size the readers take), or a file beside the page (a relative address, or a file: address) that does not climb out of the page's folder. The
-// readers read nothing else (never the network), so no other address is kept.
-bool pictureAddressKept(QStringView raw, qint64 mostBytes)
+// An address with the entities of the page decoded the way the parser decodes them (a number, or one of the names that matter in an address); false when one is not known, which is as bad as a
+// character that is not told.
+bool decodedAddress(QStringView v, QString *out)
+{
+    static const std::pair<const char *, ushort> names[] = {{"amp", '&'}, {"lt", '<'}, {"gt", '>'}, {"quot", '"'}, {"apos", '\''}, {"colon", ':'}, {"sol", '/'}, {"bsol", '\\'}, {"period", '.'},
+        {"Tab", '\t'}, {"NewLine", '\n'}, {"nbsp", 0xa0}, {"lpar", '('}, {"rpar", ')'}, {"comma", ','}, {"semi", ';'}, {"equals", '='}, {"excl", '!'}, {"num", '#'}, {"percnt", '%'}, {"quest", '?'},
+        {"lowbar", '_'}, {"hyphen", '-'}, {"dollar", '$'}, {"commat", '@'}, {"plus", '+'}, {"ast", '*'}};
+    out->clear();
+    for (qsizetype k = 0; k < v.size(); ++k) {
+        if (v[k] != QLatin1Char('&')) {
+            out->append(v[k]);
+            continue;
+        }
+        const qsizetype end = v.indexOf(QLatin1Char(';'), k);
+        if (end < 0 || end - k > 12) return false;
+        const QStringView body = v.mid(k + 1, end - k - 1);
+        uint code = 0;
+        if (body.startsWith(QLatin1Char('#'))) {
+            bool ok = false;
+            const bool hex = body.size() > 1 && (body[1] == QLatin1Char('x') || body[1] == QLatin1Char('X'));
+            code = body.mid(hex ? 2 : 1).toUInt(&ok, hex ? 16 : 10);
+            if (!ok || code == 0 || code > 0x10ffff) return false;
+        } else {
+            bool found = false;
+            for (const auto &n : names)
+                if (body == QLatin1String(n.first)) {
+                    code = n.second;
+                    found = true;
+                }
+            if (!found) return false;
+        }
+        out->append(QChar::fromUcs4(char32_t(code)));
+        k = end;
+    }
+    return true;
+}
+// A picture address kept: a picture the page holds (data:image, within the size the readers take), or, when the page has a folder of its own (`folder`: a page opened from a file), a path inside that folder: no
+// scheme (a file: address is never kept), no leading slash or backslash, no drive letter, no ".." part in any spelling (entities and percent signs are decoded first), and no control character. The page's
+// own parser reads a kept path against whatever it likes, so a page with no folder keeps only the pictures it holds.
+bool pictureAddressKept(QStringView raw, qint64 mostBytes, bool folder)
 {
     const QStringView v = raw.trimmed();
     const AddressStart a = addressStart(v);
     if (a.scheme == QLatin1String("data")) return v.startsWith(QLatin1String("data:image/"), Qt::CaseInsensitive) && v.size() <= mostBytes * 4 / 3 + 300;
-    if (!a.relative && a.scheme != QLatin1String("file")) return false;
-    if (a.relative && v.startsWith(QLatin1Char('/'))) return false;   // (a path from the root, or an address on another host: not beside the page)
-    // (no part of the path is ".." or goes in through a percent sign or a backslash)
-    if (v.contains(QLatin1Char('\\')) || v.contains(QLatin1String("%2e"), Qt::CaseInsensitive) || v.contains(QLatin1String("%5c"), Qt::CaseInsensitive) || v.contains(QLatin1String("%2f"), Qt::CaseInsensitive)) return false;
+    if (!folder || !a.relative) return false;
+    QString entityFree;
+    if (!decodedAddress(v, &entityFree)) return false;
     qsizetype pathEnd = 0;
-    while (pathEnd < v.size() && v[pathEnd] != QLatin1Char('?') && v[pathEnd] != QLatin1Char('#')) ++pathEnd;
-    const QStringView path = v.left(pathEnd);
-    for (const QStringView part : path.split(QLatin1Char('/')))
-        if (part == QLatin1String("..")) return false;
+    while (pathEnd < entityFree.size() && entityFree[pathEnd] != QLatin1Char('?') && entityFree[pathEnd] != QLatin1Char('#')) ++pathEnd;
+    // (percent signs are decoded to the end: a part that is ".." however it is written is refused, and so is a path that is not plain after it)
+    QString path = entityFree.left(pathEnd);
+    for (int round = 0; round < 3 && path.contains(QLatin1Char('%')); ++round) path = QUrl::fromPercentEncoding(path.toUtf8());
+    if (path.isEmpty() || path.contains(QLatin1Char('%')) || path.contains(QLatin1Char('&')) || path.contains(QLatin1Char('\\')) || path.contains(QLatin1Char(':')) || path.contains(QChar::ReplacementCharacter)) return false;
+    if (path.startsWith(QLatin1Char('/')) || path.startsWith(QLatin1Char(' ')) || path.endsWith(QLatin1Char(' '))) return false;
+    for (const QChar c : path)
+        if (c.unicode() < 0x20 || c.unicode() == 0x7f || (c.unicode() >= 0x80 && c.unicode() < 0xa0)) return false;
+    for (const QStringView part : QStringView(path).split(QLatin1Char('/'))) {
+        // (a part of dots only, or of dots and spaces, is a way up on some systems)
+        if (part.size() >= 2 && part.trimmed().toString().remove(QLatin1Char('.')).isEmpty()) return false;
+    }
     return true;
 }
 
@@ -1202,7 +1247,7 @@ private:
         }
         if (name == "img") {
             // (a picture whose address no reader takes is not written: there is nothing to show, and nothing is left to fetch)
-            if (!has(ASrc) || !pictureAddressKept(s.mid(vb[ASrc], ve[ASrc] - vb[ASrc]), kMostGuardedPictureBytes)) return;
+            if (!has(ASrc) || !pictureAddressKept(s.mid(vb[ASrc], ve[ASrc] - vb[ASrc]), kMostGuardedPictureBytes, lim.folderPictures)) return;
             if (++counts.pictures > lim.pictures) {
                 fail(HtmlRefusal::TooManyParts);
                 return;
