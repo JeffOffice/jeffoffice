@@ -127,6 +127,10 @@ round (Publisher's designs store 2 for many shapes). Without it Publisher
 draws mitered corners, as its own new shapes do. Publisher opened a JeffPub
 file with all three, drew each as such, and kept 0 and 2 when saving again.
 
+### Border art in the older layout
+
+Publications in the older layout (header word 0x02CD at 0x0C; the 0x0268 layout shows none in the files seen) have no border-art chunk (type 0x46) and no picture for it anywhere in the file: the art is a number into the program's own built-in list. In a shape (type 8), picture (type 2), or type 5 record the left line is a width byte at 0x2C and a color word at 0x2D, then an i16 at 0x31 and a u16 at 0x33, then the top, right, and bottom lines from 0x35 (width, color; the last two a pad byte apart). Without art 0x31 is -2 (0xFFFE) and 0x33 is 0. With art 0x31 is the art number and 0x33 repeats the width byte, which then is the art's band width in points (18 reads as 18 pt; the reference pictures show the tiles that wide), and the four color words are not colors. Seen in 2 of the 24 development files that use this layout: AYWQ3WMH (number 6 on three title boxes, 3, 9, 2, and 0 once each; the pictures show small suns, so 6 is not 0) and 4TDXIHXF (number 0 on a picture, a red frame with corner marks). The other 22 have -2 throughout. Because the tiles are not in the file, JeffPub draws the band as a plain line of that width, which is a thick black frame where Publisher shows tiles; no number is mapped to a picture. The number 0 is real art, not "none".
+
 ### Pictures
 
 Each image is one `BSE` in a `BStoreContainer` (after `Dgg`), instance =
