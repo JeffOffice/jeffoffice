@@ -3598,7 +3598,7 @@
       },
       {
        "status": "partly",
-       "text": "68ba9432501d422ed034a0f830e09bbf497b46ba302a1a53b8f10c7367f9b31b"
+       "text": "12b2e4108d08d788377fd80c4e6af42bbdba7bc45b405f77e117991c39b446ba"
       },
       {
        "hide_soon": true,
@@ -6234,12 +6234,13 @@
          "text": "d2fd6b58a0ddcde9f030e516c4101ebc635a1d02c9af46c1f9804cb499247b9b"
         },
         {
-         "status": "partly",
-         "text": "547456a22dbe31bc34e42d7abf751684315e4d66479425fd766e1bc5f81f3ae8"
+         "hide_soon": true,
+         "status": "done",
+         "text": "328581d4c9a81fb681ff03aff27ec284258a07a1e623b29546c358e05742adbb"
         },
         {
          "status": "partly",
-         "text": "0456e8ee4c18141a97cc500c1fcda73d028b8dc40bbc17b7231ade71bb460246"
+         "text": "26dbece18366256232c3ef8e212336eede3ebde362d275740445f09d2da92cd8"
         },
         {
          "status": "partly",
@@ -6287,7 +6288,7 @@
         },
         {
          "status": "partly",
-         "text": "dd1243a40103b3aba0d28c7be0c165e4b035dfd3030b6e2b3bd8574afec4a607"
+         "text": "8bb29c086a85b5fda86950c2c78fefb5f44de27d8bcd022a19ddca17ff8c3305"
         },
         {
          "hide_soon": true,
@@ -6380,7 +6381,7 @@
        "items": [
         {
          "status": "partly",
-         "text": "5d90fd69877b96b5e4c5a951d6f5453046078299b08939f941197805f9369c0e"
+         "text": "424f65aa71f34bad3ca61b88d07cf62483018eba3d7d389756544c8b060043e3"
         },
         {
          "hide_soon": true,
@@ -6459,7 +6460,7 @@
         },
         {
          "status": "partly",
-         "text": "0bc2902bdc8eda0f3572e4f19fcbf2a3b1a341f4e7f659b97f461b6b928490b2"
+         "text": "415adb7d702830f18686322051d90336e64720a1a1a5c5f0d8b3848d408dec15"
         },
         {
          "status": "partly",
@@ -6482,7 +6483,7 @@
         },
         {
          "status": "partly",
-         "text": "4e49a0ca839e4b8312a46f0ab2f1ffb3c5f716f2d5787a6d5089fe8bc87c88de"
+         "text": "647057993cfdc0df834d5cc1d3135c6aa835715d709e1dcd60ed91d6702ab886"
         },
         {
          "hide_soon": true,
@@ -6500,7 +6501,7 @@
         },
         {
          "status": "partly",
-         "text": "bcf6480fc11192a7b5ed5a9a11347d185a141489d44578675637ee8bd079bc6a"
+         "text": "2907fc578667ae29760a1a533e5f2a929614554801aca072c068d86b55231129"
         }
        ]
       }
@@ -6519,8 +6520,9 @@
          "text": "c3a68ab5117a4936d46ce1c8b512d59b2b199178674b35b73a6b7f9973ca6d04"
         },
         {
-         "status": "partly",
-         "text": "9ebbc171279f2e91b493067b377c161a6b71228288f86736e07a658b255e8b09"
+         "hide_soon": true,
+         "status": "done",
+         "text": "a5e7da2b41a4256f77374a310903129daf7483b8aafef5ac3ae02f7c2b0a6912"
         }
        ]
       },
@@ -6538,8 +6540,9 @@
          "text": "b1d16f40b36cb56e49069571e7098ce401426abfe59923aaf94c6ff0fdbf934d"
         },
         {
-         "status": "partly",
-         "text": "78f5cd18365ca78c318097550405796769aaf9421fd81a5b7d1547927ac76f22"
+         "hide_soon": true,
+         "status": "done",
+         "text": "af6f129fc517aefcef15b58f1a2d2674e4bfaf3e1d3e646d8751dc6d6341eb0c"
         },
         {
          "status": "partly",
@@ -6616,8 +6619,9 @@
          "text": "7c529414cccbb059c828b8701f2044935d91a74453fb4f886efba6dbe83bfb2d"
         },
         {
-         "status": "partly",
-         "text": "83c5ea97ca2c06ab309c5b727e157f864f42ec677e302746267c366078b1f866"
+         "hide_soon": true,
+         "status": "done",
+         "text": "aa7c739ce0908a2abcd467e687ef41f7b2543de6bd1c3ba037a1dcac71f163d2"
         },
         {
          "status": "partly",
@@ -6960,15 +6964,16 @@
        "items": [
         {
          "status": "partly",
-         "text": "3f27d05a0d8412029f7871d0c65e33bf122a38bc8ec57ce89c58f5b98c19bc5e"
+         "text": "36f0d05ce9af61775b1cbd65aab824d04ec0a2632dfa28e28fb5da744cbe7f8a"
         },
         {
          "status": "partly",
          "text": "6709273a6da660f91bca9610d32c46125a45d77df3c2c46abce4fde337062f8c"
         },
         {
-         "status": "partly",
-         "text": "fac54bbabc7ce36528aa415f4ff67f1a7540d8c0e89f7299ee7033876931e859"
+         "hide_soon": true,
+         "status": "done",
+         "text": "7c3346d9f31034b7eb42068d356d4a6ba34d522f1025994856a0939e549f1291"
         },
         {
          "hide_soon": true,
@@ -7002,7 +7007,7 @@
        "items": [
         {
          "status": "partly",
-         "text": "ffae9cb657351755a910b0e32049a5c1f1dd72c4825bd07f1eb845b2168a7c51"
+         "text": "30723682d8498ec8116fa698966d433ad94f801cc1cf85a73e6bd71fe262e61f"
         }
        ]
       },
@@ -7170,8 +7175,9 @@
      "heading": "fea607c5f30540290dff64ba26c5f1e84f0a8d32c5e2eb64c7353d137db77fde",
      "items": [
       {
-       "status": "partly",
-       "text": "13768bf65a173ce4513e0e4abbaf9931b5da2e89fae6b56be0722b463595ac4f"
+       "hide_soon": true,
+       "status": "done",
+       "text": "2e0648f73e22cff4a50523391a12985f5b6296a8699fdbd8e3c13178fbbad861"
       }
      ]
     },
@@ -7190,8 +7196,9 @@
          "text": "6789f3c842142e5a0bea23270cde7a4b919588e188e0b22715249aef79647387"
         },
         {
-         "status": "partly",
-         "text": "76b27e8ec3aad2a7aa7ae296982c4f62a8f09240102ed5dfd19aaa383cd407d5"
+         "hide_soon": true,
+         "status": "done",
+         "text": "309053d258a1a5940948acd10045785682dc7b5fbd329fda2a420d32e8d77e23"
         },
         {
          "hide_soon": true,
@@ -7305,7 +7312,7 @@
         },
         {
          "status": "partly",
-         "text": "997633006dbda95a6884a8caa920b9e3947d96398a78feb91196876d2256b27a"
+         "text": "cb81360d202d242a77408c151a9ba149b97e2d33dfc92b841d02a3909c0a8184"
         },
         {
          "hide_soon": true,
@@ -7382,7 +7389,7 @@
       },
       {
        "status": "partly",
-       "text": "a9d4f978bd79c30821e047d6e9f0576bf76767a6e0d88ed76a529c15e88f3b87"
+       "text": "88f54ff2d3ef4ba0f3cdb6a0356b2a8637d5e1647eddf22dac7b35bb5905ffc8"
       },
       {
        "hide_soon": true,
@@ -7446,8 +7453,9 @@
          "text": "27485404c315fbc70a40bf988400429f951f6f3be8ebc98e4bd47f8fd7c72c66"
         },
         {
-         "status": "partly",
-         "text": "595de30e35522b97687b2c0a50ea38c1d05a33307bcd34365708ee6a142ecaad"
+         "hide_soon": true,
+         "status": "done",
+         "text": "d95aa1f2a993801a41b19a87f48409bb0b0e91e8624f56551d7c1ea6d7aca5dc"
         },
         {
          "status": "partly",
@@ -7497,8 +7505,9 @@
        "heading": "53866ed0250fb4e810279811dd09ebb332d4392acb613260e320ece6362c5c92",
        "items": [
         {
-         "status": "partly",
-         "text": "922aeb723d3808da0b72635c67a824a4a7584f7749301a5cd42dbe4a4b992d1b"
+         "hide_soon": true,
+         "status": "done",
+         "text": "3c142267c6dec7f70f692344cf8cae5108e0cf03f4d85724e3973e6b50450d88"
         },
         {
          "status": "partly",
@@ -7575,7 +7584,7 @@
        "items": [
         {
          "status": "partly",
-         "text": "1db690706369bd050e871f5af73a9df662d01d61bd7c7d1e4a6811d5f3a1f916"
+         "text": "fad7c56a30b8343cae3c3dcfa0a4ef46b1ce4daa5f26f458cfb8fe3fb9047890"
         },
         {
          "status": "partly",
@@ -8145,18 +8154,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "0456e8ee4c18141a97cc500c1fcda73d028b8dc40bbc17b7231ade71bb460246": {
-   "drop": false,
-   "en": "Set the default paste for content from the same document, from other documents, and from other programs: Keep Source Formatting, Merge Formatting, or Keep Text Only. A table copied whole is pasted as a table, with its rows, columns, borders, shading, and style.",
-   "es": "Defina el pegado predeterminado para el contenido del mismo documento, de otros documentos y de otros programas: Mantener formato de origen, Combinar formato o Mantener solo texto. Una tabla copiada completa se pega como tabla, con sus filas, columnas, bordes, sombreado y estilo.",
-   "fr": "Définissez le collage par défaut pour le contenu du même document, d’autres documents et d’autres programmes : Conserver la mise en forme source, Fusionner la mise en forme ou Conserver le texte uniquement. Un tableau copié en entier est collé comme tableau, avec ses lignes, colonnes, bordures, ombrage et style.",
-   "soon": {
-    "drop": false,
-    "en": "Default paste for lists and pictures",
-    "es": "Pegado predeterminado para listas e imágenes",
-    "fr": "Collage par défaut pour les listes et les images"
    }
   },
   "0462f6269d11f2c5ae6b1ba91b1d3f04f7765090b7fa2ec0b3f9e98d606dcd8e": {
@@ -8843,18 +8840,6 @@
     "fr": ""
    }
   },
-  "0bc2902bdc8eda0f3572e4f19fcbf2a3b1a341f4e7f659b97f461b6b928490b2": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": true,
-    "en": "",
-    "es": "",
-    "fr": ""
-   }
-  },
   "0bc3d2fb4026fd0935eb4e378991cdd6cbee7f4acc2708d73ea349178bae6ec6": {
    "drop": false,
    "en": "Summarize a table with a pivot table, remove duplicate rows by choosing the columns to compare, and convert a table back to a plain range of cells. Formulas that point at the cells follow the change.",
@@ -9359,6 +9344,18 @@
     "fr": ""
    }
   },
+  "12b2e4108d08d788377fd80c4e6af42bbdba7bc45b405f77e117991c39b446ba": {
+   "drop": false,
+   "en": "Show menu options: See All Slides, Last Viewed, Custom Show, Show Presenter View, Zoom into the Slide, Arrow Options (automatic, visible, or hidden pointer), Speaker Notes, and Help. The menu opens with the Menu key or `Shift+F10`.",
+   "es": "Opciones del menú de la presentación: Ver todas las diapositivas, Última vista, Presentación personalizada, Mostrar vista del presentador, Ampliar la diapositiva, Opciones de flecha (puntero automático, visible u oculto), Notas del orador y Ayuda. El menú se abre con la tecla Menú o con `Shift+F10`.",
+   "fr": "Options du menu du diaporama : Afficher toutes les diapositives, Dernière vue, Diaporama personnalisé, Afficher le mode Présentateur, Zoom sur la diapositive, Options de la flèche (pointeur automatique, visible ou masqué), Notes du présentateur et Aide. Le menu s’ouvre avec la touche Menu ou avec `Shift+F10`.",
+   "soon": {
+    "drop": false,
+    "en": "Subtitle Settings",
+    "es": "Configuración de subtítulos",
+    "fr": "Paramètres des sous-titres"
+   }
+  },
   "12b64bbb6199d3f9a7ea1e162be32c2d355ed41f3a066c8393a7f3538c5cc031": {
    "drop": false,
    "en": "Use `TEXT` to turn a number into text with a format code.",
@@ -9441,18 +9438,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "13768bf65a173ce4513e0e4abbaf9931b5da2e89fae6b56be0722b463595ac4f": {
-   "drop": false,
-   "en": "Outline view, with the Outlining tab, shows paragraphs as a tree. Promote and Demote (`Alt+Shift+Left` and `Alt+Shift+Right`), Promote to Heading 1, Demote to Body Text, Move Up and Move Down (`Alt+Shift+Up` and `Alt+Shift+Down`), Expand and Collapse, Show Level 1 to 9 or all, Show Text Formatting, and Show First Line Only are available, each as one step that undoes. `F2` edits a row's text in place, `Enter` makes a new paragraph at the same level, and `Tab` and `Shift+Tab` demote and promote.",
-   "es": "La vista Esquema, con la pestaña Esquema, muestra los párrafos como un árbol. Están disponibles Subir de nivel y Bajar de nivel (`Alt+Mayús+Izquierda` y `Alt+Mayús+Derecha`), Subir a Título 1, Bajar a texto independiente, Mover arriba y Mover abajo (`Alt+Mayús+Arriba` y `Alt+Mayús+Abajo`), Expandir y Contraer, Mostrar nivel del 1 al 9 o todos, Mostrar formato de texto y Mostrar solo la primera línea, cada uno como un paso que se puede deshacer. `F2` edita el texto de una fila en su lugar, `Intro` crea un párrafo nuevo del mismo nivel, y `Tab` y `Mayús+Tab` bajan y suben de nivel.",
-   "fr": "La vue Plan, avec l’onglet Plan, affiche les paragraphes sous forme d’arborescence. Promouvoir et Abaisser (`Alt+Maj+Gauche` et `Alt+Maj+Droite`), Promouvoir en Titre 1, Abaisser en corps de texte, Monter et Descendre (`Alt+Maj+Haut` et `Alt+Maj+Bas`), Développer et Réduire, Afficher le niveau 1 à 9 ou tous, Afficher la mise en forme du texte et Afficher la première ligne seulement sont disponibles, chacun en une étape annulable. `F2` modifie le texte d’une ligne sur place, `Entrée` crée un nouveau paragraphe au même niveau, et `Tab` et `Maj+Tab` abaissent et promeuvent.",
-   "soon": {
-    "drop": false,
-    "en": "Dragging a heading's symbol to move its section",
-    "es": "Arrastrar el símbolo de un título para mover su sección",
-    "fr": "Glisser le symbole d’un titre pour déplacer sa section"
    }
   },
   "137e939cfa89e9168a1c39bd1d380b84ea3942a877a7cdf16d6d40591f6fa9ab": {
@@ -10125,18 +10110,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "1db690706369bd050e871f5af73a9df662d01d61bd7c7d1e4a6811d5f3a1f916": {
-   "drop": false,
-   "en": "The settings in a file that change layout (the space at the top of a page after a break, line spacing, hanging punctuation, East Asian layout, hyphenation, and mirrored margins) are read and honored one by one.",
-   "es": "Los ajustes de un archivo que cambian el diseño (el espacio en la parte superior de una página tras un salto, el interlineado, la puntuación colgante, el diseño de Asia oriental, la separación silábica y los márgenes simétricos) se leen y se respetan uno por uno.",
-   "fr": "Les réglages d’un fichier qui modifient la mise en page (l’espace en haut d’une page après un saut, l’interligne, la ponctuation suspendue, la mise en page pour l’Asie de l’Est, la césure et les marges en miroir) sont lus et respectés un par un.",
-   "soon": {
-    "drop": false,
-    "en": "Compatibility Mode title and Convert command",
-    "es": "Título de modo de compatibilidad y comando Convertir",
-    "fr": "Titre du mode de compatibilité et commande Convertir"
    }
   },
   "1dd1af8033b34ce0cbfbdf0a78caab13d031e9c77ab25bc79a2ccb86b85a8c65": {
@@ -11075,6 +11048,18 @@
     "fr": "Graphiques à bulles, radar, boursiers, 3D, secteurs de secteur, secteurs de barres et de surface"
    }
   },
+  "26dbece18366256232c3ef8e212336eede3ebde362d275740445f09d2da92cd8": {
+   "drop": false,
+   "en": "Choose the default for pasting within the same document, between documents, and from other programs: keep source formatting, merge formatting, or keep text only. Also set how pasted list items and spreadsheet cells are handled. A table copied whole is pasted as a table.",
+   "es": "Elija el valor predeterminado para pegar dentro del mismo documento, entre documentos y desde otros programas: mantener el formato de origen, combinar formato o conservar solo el texto. También puede definir cómo se pegan los elementos de lista y las celdas de hoja de cálculo. Una tabla copiada completa se pega como tabla.",
+   "fr": "Choisissez le comportement de collage par défaut dans le même document, entre documents et depuis d’autres programmes : conserver la mise en forme source, fusionner la mise en forme ou conserver le texte seulement. Vous pouvez aussi définir le collage des éléments de liste et des cellules de tableur. Un tableau copié en entier est collé comme tableau.",
+   "soon": {
+    "drop": false,
+    "en": "Default paste setting for pictures",
+    "es": "Valor de pegado predeterminado para imágenes",
+    "fr": "Collage par défaut pour les images"
+   }
+  },
   "26e645121a6d7212868bd9dca4edbfbe45197ed23a553f0fc6c073f157aaf8b1": {
    "drop": false,
    "en": "Tracking and changes",
@@ -11265,6 +11250,18 @@
     "en": "",
     "es": "",
     "fr": ""
+   }
+  },
+  "2907fc578667ae29760a1a533e5f2a929614554801aca072c068d86b55231129": {
+   "drop": false,
+   "en": "Select All and Select Objects, by click or rectangle. The Selection Pane lists floating objects, lets you rename, hide, show, and reorder them.",
+   "es": "Seleccionar todo y Seleccionar objetos, con un clic o un rectángulo. El panel de selección enumera los objetos flotantes y permite cambiarles el nombre, ocultarlos, mostrarlos y reordenarlos.",
+   "fr": "Tout sélectionner et Sélectionner des objets, par clic ou rectangle. Le volet Sélection liste les objets flottants et permet de les renommer, de les masquer, de les afficher et de les réorganiser.",
+   "soon": {
+    "drop": false,
+    "en": "Selection Pane: objects in line with the text",
+    "es": "Panel de selección: objetos en línea con el texto",
+    "fr": "Volet Sélection : objets alignés sur le texte"
    }
   },
   "29399a826dd2896b23e105781dc5a97b01cda02b6841509090592ec2fa828130": {
@@ -11651,6 +11648,18 @@
     "fr": ""
    }
   },
+  "2e0648f73e22cff4a50523391a12985f5b6296a8699fdbd8e3c13178fbbad861": {
+   "drop": false,
+   "en": "Work in Outline view: promote, demote, move up and down, expand and collapse, show a level (1 to 9 or all), show text formatting or the first line only, and drag a heading’s symbol to move its section.",
+   "es": "Trabaje en la vista Esquema: suba y baje de nivel, mueva hacia arriba y hacia abajo, expanda y contraiga, muestre un nivel (del 1 al 9 o todos), muestre el formato del texto o solo la primera línea, y arrastre el símbolo de un título para mover su sección.",
+   "fr": "Travaillez en mode Plan : promouvez, rétrogradez, déplacez vers le haut et vers le bas, développez et réduisez, affichez un niveau (de 1 à 9 ou tous), affichez la mise en forme du texte ou la première ligne seulement, et faites glisser le symbole d’un titre pour déplacer sa section.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "2e0add71177aa3481e43701694a9eac6797c11eeb88a41b881ea61a86f7ee224": {
    "drop": false,
    "en": "Use the logical functions IF, AND, OR, NOT, TRUE, FALSE, and IFERROR.",
@@ -11800,6 +11809,30 @@
    "en": "Saves `.pub` files as complete files with all their pages in the 2003-and-later `.pub` layout.",
    "es": "Guarda archivos `.pub` como archivos completos, con todas sus páginas, en el formato `.pub` de 2003 y posteriores.",
    "fr": "Enregistre les fichiers `.pub` sous forme de fichiers complets, avec toutes leurs pages, dans la structure `.pub` de 2003 et ultérieure.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
+  "30723682d8498ec8116fa698966d433ad94f801cc1cf85a73e6bd71fe262e61f": {
+   "drop": false,
+   "en": "Add, edit, reply to, resolve, reopen, and delete comments, and move with Previous and Next. Comments show in margin balloons or in the Reviewing pane, with author and initials, and are saved with their replies.",
+   "es": "Agregue, edite, responda, resuelva, reabra y elimine comentarios, y desplácese con Anterior y Siguiente. Los comentarios aparecen en globos en el margen o en el panel de revisión, con autor e iniciales, y se guardan con sus respuestas.",
+   "fr": "Ajoutez, modifiez, répondez, résolvez, rouvrez et supprimez des commentaires, et naviguez avec Précédent et Suivant. Les commentaires s’affichent dans des bulles en marge ou dans le volet Vérification, avec l’auteur et les initiales, et sont enregistrés avec leurs réponses.",
+   "soon": {
+    "drop": false,
+    "en": "Margin balloons: show all comments regardless of margin space",
+    "es": "Globos del margen: mostrar todos los comentarios sin depender del espacio del margen",
+    "fr": "Bulles en marge : affichage de tous les commentaires quel que soit l’espace disponible"
+   }
+  },
+  "309053d258a1a5940948acd10045785682dc7b5fbd329fda2a420d32e8d77e23": {
+   "drop": false,
+   "en": "Select a cell, row, column, or table. Insert rows above or below and columns left or right. Delete cells, rows, columns, or the table. The `Tab` key at the last cell adds a row.",
+   "es": "Seleccione una celda, fila, columna o tabla. Inserte filas arriba o abajo y columnas a la izquierda o a la derecha. Elimine celdas, filas, columnas o la tabla. La tecla `Tab` en la última celda agrega una fila.",
+   "fr": "Sélectionnez une cellule, une ligne, une colonne ou un tableau. Insérez des lignes au-dessus ou en dessous et des colonnes à gauche ou à droite. Supprimez des cellules, des lignes, des colonnes ou le tableau. La touche `Tab` dans la dernière cellule ajoute une ligne.",
    "soon": {
     "drop": true,
     "en": "",
@@ -11980,6 +12013,18 @@
    "en": "Header and footer fields (page, pages, date, time, file, path, sheet, picture) update at print time, with separate first-page and even-page forms and the margins they sit in.",
    "es": "Los campos de encabezado y pie de página (página, páginas, fecha, hora, archivo, ruta, hoja, imagen) se actualizan al imprimir, con formas distintas para la primera página y las páginas pares, y los márgenes en los que se ubican.",
    "fr": "Les champs d’en-tête et de pied de page (page, pages, date, heure, fichier, chemin, feuille, image) sont mis à jour à l’impression, avec des formes distinctes pour la première page et les pages paires, et les marges où ils se placent.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
+  "328581d4c9a81fb681ff03aff27ec284258a07a1e623b29546c358e05742adbb": {
+   "drop": false,
+   "en": "Set advanced editing options: typing replaces the selection, drag and drop text, `Ctrl`+click to follow a link, smart paragraph selection, select the whole word, overtype mode with the `Insert` key, and smart cut and paste.",
+   "es": "Configure opciones avanzadas de edición: escribir reemplaza la selección, arrastrar y soltar texto, `Ctrl`+clic para seguir un vínculo, selección inteligente de párrafos, selección de palabras completas, modo de sobrescritura con la tecla `Insert` y cortar y pegar inteligente.",
+   "fr": "Réglez les options avancées de modification : la saisie remplace la sélection, glisser-déposer du texte, `Ctrl`+clic pour suivre un lien, sélection intelligente des paragraphes, sélection du mot entier, mode refrappe avec la touche `Insert` et couper-coller intelligent.",
    "soon": {
     "drop": true,
     "en": "",
@@ -12321,6 +12366,18 @@
     "en": "",
     "es": "",
     "fr": ""
+   }
+  },
+  "36f0d05ce9af61775b1cbd65aab824d04ec0a2632dfa28e28fb5da744cbe7f8a": {
+   "drop": false,
+   "en": "Check spelling as you type with wavy underlines, suggestions on right-click, Ignore All, Add to Dictionary, and AutoCorrect. The Spelling pane (`F7`) offers Change, Change All, Ignore, Ignore All, and Add. Edit custom and excluded words, and skip words in capitals or with numbers.",
+   "es": "Revise la ortografía mientras escribe, con subrayados ondulados, sugerencias con clic derecho, Omitir todo, Agregar al diccionario y Autocorrección. El panel Ortografía (`F7`) ofrece Cambiar, Cambiar todo, Omitir, Omitir todo y Agregar. Edite las palabras personalizadas y excluidas, y omita palabras en mayúsculas o con números.",
+   "fr": "Vérifiez l’orthographe pendant la frappe avec des soulignements ondulés, des suggestions par clic droit, Ignorer tout, Ajouter au dictionnaire et la correction automatique. Le volet Orthographe (`F7`) propose Modifier, Modifier tout, Ignorer, Ignorer tout et Ajouter. Modifiez les mots personnalisés et exclus, et ignorez les mots en majuscules ou contenant des chiffres.",
+   "soon": {
+    "drop": false,
+    "en": "Spelling pane: change endnote words",
+    "es": "Panel Ortografía: cambiar palabras de las notas al final",
+    "fr": "Volet Orthographe : modification des mots des notes de fin"
    }
   },
   "36f2f8cac91e8834f6daa9325dd00f732e6e07aad7e4e6a01a5062941510ad4b": {
@@ -12695,6 +12752,18 @@
     "fr": ""
    }
   },
+  "3c142267c6dec7f70f692344cf8cae5108e0cf03f4d85724e3973e6b50450d88": {
+   "drop": false,
+   "en": "Fields keep both code and result. Show codes or results (`Alt+F9` and per field), update with `F9` (including before printing), lock, unlock, and unlink with `Ctrl+Shift+F9`. Nested fields, field shading, and format switches are supported.",
+   "es": "Los campos conservan su código y su resultado. Muestre códigos o resultados (`Alt+F9` y por campo), actualice con `F9` (también antes de imprimir), bloquee, desbloquee y desvincule con `Ctrl+Shift+F9`. Se admiten campos anidados, sombreado de campos e interruptores de formato.",
+   "fr": "Les champs conservent leur code et leur résultat. Affichez les codes ou les résultats (`Alt+F9` et par champ), mettez à jour avec `F9` (y compris avant l’impression), verrouillez, déverrouillez et dissociez avec `Ctrl+Shift+F9`. Les champs imbriqués, l’ombrage des champs et les commutateurs de format sont pris en charge.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "3c59d3c6c19bc79e78b88ceaaf8ad405ac36fb6b5e886502cf0552f705e6992f": {
    "drop": false,
    "en": "Spelling marks appear as you type in text being edited.",
@@ -12959,18 +13028,6 @@
     "fr": ""
    }
   },
-  "3f27d05a0d8412029f7871d0c65e33bf122a38bc8ec57ce89c58f5b98c19bc5e": {
-   "drop": false,
-   "en": "Red wavy underlines mark misspelled words as you type, with suggestions, `Ignore All`, and `Add to Dictionary` on right-click. The Spelling pane (`F7`) offers Change, Change All, Ignore, Ignore All, and Add, and goes through tables, footnotes, headers, and footers. Words in capitals or with numbers are skipped, AutoCorrect works, and the custom dictionary lets you edit added and excluded words, find, add, and remove them, and import and export a word list.",
-   "es": "Las líneas onduladas rojas marcan las palabras con errores mientras escribe, con sugerencias, `Ignore All` y `Add to Dictionary` al hacer clic con el botón derecho. El panel de ortografía (`F7`) ofrece Cambiar, Cambiar todo, Omitir, Omitir todo y Agregar, y recorre tablas, notas al pie, encabezados y pies de página. Se omiten las palabras en mayúsculas o con números, la corrección automática funciona y el diccionario personalizado permite editar las palabras agregadas y excluidas, buscarlas, agregarlas y quitarlas, e importar y exportar una lista de palabras.",
-   "fr": "Des lignes ondulées rouges signalent les mots mal orthographiés pendant la saisie, avec des suggestions, `Ignore All` et `Add to Dictionary` dans le menu contextuel. Le volet d’orthographe (`F7`) propose Modifier, Tout modifier, Ignorer, Tout ignorer et Ajouter, et parcourt les tableaux, les notes de bas de page, les en-têtes et les pieds de page. Les mots en majuscules ou contenant des chiffres sont ignorés, la correction automatique fonctionne, et le dictionnaire personnalisé permet de modifier les mots ajoutés et exclus, de les rechercher, de les ajouter et de les supprimer, et d’importer et d’exporter une liste de mots.",
-   "soon": {
-    "drop": false,
-    "en": "Spelling pane starting at the caret in headers and notes, and changing words in endnotes",
-    "es": "Panel de ortografía que comienza en el cursor en encabezados y notas, y cambio de palabras en notas finales",
-    "fr": "Volet d’orthographe démarrant au curseur dans les en-têtes et les notes, et modification des mots dans les notes de fin"
-   }
-  },
   "3f6d9d63250352303c99a64176da8e37490600a643b4d4b0eed82f6bc066629c": {
    "drop": false,
    "en": "Transitions tab",
@@ -13151,6 +13208,18 @@
     "fr": ""
    }
   },
+  "415adb7d702830f18686322051d90336e64720a1a1a5c5f0d8b3848d408dec15": {
+   "drop": false,
+   "en": "Update a style to match the selection and clear all formatting.",
+   "es": "Actualice un estilo para que coincida con la selección y borre todo el formato.",
+   "fr": "Mettez à jour un style pour qu’il corresponde à la sélection et effacez toute la mise en forme.",
+   "soon": {
+    "drop": false,
+    "en": "Select Text with Similar Formatting",
+    "es": "Seleccionar texto con formato similar",
+    "fr": "Sélection du texte ayant une mise en forme similaire"
+   }
+  },
   "4168bea328468edd3d5779a3820179d544cb4c0a5a4b7f9eef2d73198df71ab5": {
    "drop": true,
    "en": "",
@@ -13221,6 +13290,18 @@
     "en": "",
     "es": "",
     "fr": ""
+   }
+  },
+  "424f65aa71f34bad3ca61b88d07cf62483018eba3d7d389756544c8b060043e3": {
+   "drop": false,
+   "en": "Align paragraphs left, center, right, or justified. Set indents (left, right, first line, hanging) in the Paragraph dialog, and use Increase and Decrease Indent.",
+   "es": "Alinee los párrafos a la izquierda, al centro, a la derecha o justificados. Defina sangrías (izquierda, derecha, primera línea, francesa) en el cuadro de diálogo Párrafo y use Aumentar sangría y Disminuir sangría.",
+   "fr": "Alignez les paragraphes à gauche, au centre, à droite ou en justifié. Définissez les retraits (gauche, droit, première ligne, suspendu) dans la boîte de dialogue Paragraphe et utilisez Augmenter le retrait et Diminuer le retrait.",
+   "soon": {
+    "drop": false,
+    "en": "Mirror indents and the ruler’s indent markers",
+    "es": "Sangrías simétricas y marcadores de sangría de la regla",
+    "fr": "Retraits en miroir et marqueurs de retrait de la règle"
    }
   },
   "42949f76aace550a7155ab1dc2ddb0b5b4f7c32484ac7a8e5a5fe06811f1ff34": {
@@ -14075,18 +14156,6 @@
     "fr": ""
    }
   },
-  "4e49a0ca839e4b8312a46f0ab2f1ffb3c5f716f2d5787a6d5089fe8bc87c88de": {
-   "drop": false,
-   "en": "Replace and Replace All with `Ctrl+H`, searching down, up, or all, across the body, tables, headers, footers, footnotes, and text boxes. Replace All is one Undo step.",
-   "es": "Reemplace y Reemplazar todo con `Ctrl+H`, buscando hacia abajo, hacia arriba o en todo, en el cuerpo, las tablas, los encabezados, los pies de página, las notas al pie y los cuadros de texto. Reemplazar todo es un solo paso de deshacer.",
-   "fr": "Remplacez et Remplacer tout avec `Ctrl+H`, en cherchant vers le bas, vers le haut ou partout, dans le corps, les tableaux, les en-têtes, les pieds de page, les notes de bas de page et les zones de texte. Remplacer tout est une seule étape d’annulation.",
-   "soon": {
-    "drop": false,
-    "en": "Find Next and Replace stopping at a match in a text box",
-    "es": "Buscar siguiente y Reemplazar con parada en una coincidencia dentro de un cuadro de texto",
-    "fr": "Arrêt de Suivant et Remplacer sur une occurrence dans une zone de texte"
-   }
-  },
   "4eb96e4971089c81c91cfbe218121363e76134bcba89210451f8b1ad5452eb59": {
    "drop": false,
    "en": "Changing the slide size scales text, line weights, layouts, and placeholders to the new shape, while other objects keep their own shape and stay centered.",
@@ -14603,18 +14672,6 @@
     "fr": ""
    }
   },
-  "547456a22dbe31bc34e42d7abf751684315e4d66479425fd766e1bc5f81f3ae8": {
-   "drop": false,
-   "en": "Advanced editing options: Ctrl+click to follow a link, drag-and-drop text, typing that replaces the selection, and overtype mode with the `Insert` key.",
-   "es": "Opciones de edición avanzada: Ctrl+clic para seguir un vínculo, arrastrar y soltar texto, escritura que reemplaza la selección y modo de sobrescritura con la tecla `Insert`.",
-   "fr": "Options d’édition avancées : Ctrl+clic pour suivre un lien, glisser-déposer du texte, saisie qui remplace la sélection et mode refrappe avec la touche `Insert`.",
-   "soon": {
-    "drop": false,
-    "en": "Smart paragraph selection, select the whole word, and smart cut and paste",
-    "es": "Selección inteligente de párrafos, selección de la palabra completa y cortar y pegar inteligente",
-    "fr": "Sélection intelligente des paragraphes, sélection du mot entier et couper-coller intelligent"
-   }
-  },
   "54a001a714fbb43a59ce5048030dc84b9e4a6cb9cfd3fa9ffb1669e0952e96ff": {
    "drop": false,
    "en": "The play list of a slide (what plays, when, and how) is read from the timing data and written back unchanged, whatever the edits.",
@@ -14865,18 +14922,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "595de30e35522b97687b2c0a50ea38c1d05a33307bcd34365708ee6a142ecaad": {
-   "drop": false,
-   "en": "With facing pages and mirrored margins, even-numbered pages swap the inside and outside sides in the text, headers and footers, and page borders. A section that starts on an odd or even page gets the blank page it needs.",
-   "es": "Con páginas opuestas y márgenes simétricos, las páginas pares intercambian los lados interior y exterior en el texto, los encabezados y pies de página y los bordes de página. Una sección que comienza en una página impar o par recibe la página en blanco que necesita.",
-   "fr": "Avec des pages en regard et des marges en miroir, les pages paires inversent les côtés intérieur et extérieur dans le texte, les en-têtes et pieds de page et les bordures de page. Une section qui commence sur une page impaire ou paire reçoit la page blanche dont elle a besoin.",
-   "soon": {
-    "drop": false,
-    "en": "Objects set in the inside or outside margin strip: mirrored on even pages",
-    "es": "Objetos situados en la franja de margen interior o exterior: simetría en páginas pares",
-    "fr": "Objets placés dans la bande de marge intérieure ou extérieure : miroir sur les pages paires"
    }
   },
   "5965c3a676d2a3e4b1db411e838032ef86ba3b675ce0921c90e6e90d91f351ae": {
@@ -15244,18 +15289,6 @@
    "en": "Behind the scenes: themes and masters",
    "es": "Detrás de escena: temas y patrones",
    "fr": "Dans les coulisses : thèmes et masques",
-   "soon": {
-    "drop": true,
-    "en": "",
-    "es": "",
-    "fr": ""
-   }
-  },
-  "5d90fd69877b96b5e4c5a951d6f5453046078299b08939f941197805f9369c0e": {
-   "drop": false,
-   "en": "Align paragraphs left, center, right, or justified, and set indents in the Paragraph dialog and with the ruler's markers.",
-   "es": "Alinee párrafos a la izquierda, al centro, a la derecha o justificados, y defina sangrías en el cuadro Párrafo y con los marcadores de la regla.",
-   "fr": "Alignez les paragraphes à gauche, au centre, à droite ou en justifié, et réglez les retraits dans la boîte Paragraphe et avec les repères de la règle.",
    "soon": {
     "drop": true,
     "en": "",
@@ -15815,6 +15848,18 @@
     "fr": "Remplissages de la zone du graphique et de traçage, bordures, ombre, lueur, bords adoucis, format et rotation 3D, et choix des parois et du sol"
    }
   },
+  "647057993cfdc0df834d5cc1d3135c6aa835715d709e1dcd60ed91d6702ab886": {
+   "drop": false,
+   "en": "Replace and Replace All with `Ctrl+H`, with match case, whole words, and direction. Replace reaches the body, tables, headers, footers, and footnotes, and Replace All also reaches text boxes and shapes, as one step that can be undone.",
+   "es": "Reemplace y Reemplazar todo con `Ctrl+H`, con distinción de mayúsculas, palabras completas y dirección. Reemplazar alcanza el cuerpo, las tablas, los encabezados, los pies de página y las notas al pie, y Reemplazar todo también alcanza cuadros de texto y formas, en un solo paso que se puede deshacer.",
+   "fr": "Remplacez et Remplacer tout avec `Ctrl+H`, avec respect de la casse, mots entiers et sens de recherche. Remplacer atteint le corps, les tableaux, les en-têtes, les pieds de page et les notes de bas de page, et Remplacer tout atteint aussi les zones de texte et les formes, en une seule étape annulable.",
+   "soon": {
+    "drop": false,
+    "en": "Find Next and Replace: stop at a match in a text box",
+    "es": "Buscar siguiente y Reemplazar: detenerse en una coincidencia en un cuadro de texto",
+    "fr": "Suivant et Remplacer : s’arrêter sur une occurrence dans une zone de texte"
+   }
+  },
   "64844237ef1ec2240322d611b54fd5903ebc5031bd0753f286e468f26ebf323a": {
    "drop": false,
    "en": "A diagram in a file is drawn from the drawing it saved and treated as one object: select, move, resize, copy, and delete it as a whole. It prints as vectors and is saved whole with all its parts.",
@@ -16221,18 +16266,6 @@
     "en": "Text styles on ordinary text",
     "es": "Estilos de texto en texto normal",
     "fr": "Styles de texte sur du texte ordinaire"
-   }
-  },
-  "68ba9432501d422ed034a0f830e09bbf497b46ba302a1a53b8f10c7367f9b31b": {
-   "drop": false,
-   "en": "The show menu has See All Slides, Last Viewed, Custom Show, Help, and Arrow Options (Automatic, Visible, or Hidden). The `Menu` key and `Shift+F10` open the show menu without a mouse.",
-   "es": "El menú de la presentación incluye Ver todas las diapositivas, Última vista, Presentación personalizada, Ayuda y Opciones de flecha (Automática, Visible u Oculta). Las teclas `Menú` y `Shift+F10` abren el menú de la presentación sin usar el mouse.",
-   "fr": "Le menu du diaporama propose Afficher toutes les diapositives, Dernière vue, Diaporama personnalisé, Aide et Options de flèche (Automatique, Visible ou Masquée). Les touches `Menu` et `Maj+F10` ouvrent le menu du diaporama sans souris.",
-   "soon": {
-    "drop": false,
-    "en": "Show Presenter View, Zoom into the slide, Speaker Notes, and Subtitle Settings in the show menu",
-    "es": "Mostrar vista del presentador, Ampliar la diapositiva, Notas del orador y Configuración de subtítulos en el menú de la presentación",
-    "fr": "Afficher le mode présentateur, Zoom sur la diapositive, Notes du présentateur et Paramètres des sous-titres dans le menu du diaporama"
    }
   },
   "68bdf8edf8bcb0b4aafaad7e8d2741e2b041c46af9a356e06cd560b8ba1bf1cc": {
@@ -17255,18 +17288,6 @@
     "fr": ""
    }
   },
-  "76b27e8ec3aad2a7aa7ae296982c4f62a8f09240102ed5dfd19aaa383cd407d5": {
-   "drop": false,
-   "en": "Select a cell, row, column, or table; insert rows and columns; delete rows, columns, cells, or the table, from the Table Layout tab or the right-click menu. Each is one step to undo. Delete Cells, Shift Left moves cells out of their rows.",
-   "es": "Seleccione una celda, fila, columna o tabla; inserte filas y columnas; elimine filas, columnas, celdas o la tabla, desde la pestaña Diseño de tabla o el menú contextual. Cada acción se deshace en un paso. Eliminar celdas desplazando a la izquierda quita las celdas de sus filas.",
-   "fr": "Sélectionnez une cellule, une ligne, une colonne ou un tableau ; insérez des lignes et des colonnes ; supprimez des lignes, des colonnes, des cellules ou le tableau, depuis l’onglet Disposition du tableau ou le menu contextuel. Chaque action s’annule en une étape. Supprimer des cellules en décalant vers la gauche retire les cellules de leurs lignes.",
-   "soon": {
-    "drop": false,
-    "en": "Delete Cells, Shift Up",
-    "es": "Eliminar celdas desplazando hacia arriba",
-    "fr": "Suppression de cellules avec décalage vers le haut"
-   }
-  },
   "7719cbc962fdbf2063b9f162258a409339f5b63b694b5f978553f614d3c534fe": {
    "drop": false,
    "en": "Paragraph shading and borders from a file are drawn.",
@@ -17421,18 +17442,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "78f5cd18365ca78c318097550405796769aaf9421fd81a5b7d1547927ac76f22": {
-   "drop": false,
-   "en": "Insert a ready-made table: a calendar of this month, a matrix, a four-column list, or a weekly schedule, with its words in place, as one step.",
-   "es": "Inserte una tabla prediseñada: un calendario del mes actual, una matriz, una lista de cuatro columnas o un horario semanal, con su texto ya colocado, en un solo paso.",
-   "fr": "Insérez un tableau prédéfini : un calendrier du mois en cours, une matrice, une liste à quatre colonnes ou un emploi du temps hebdomadaire, avec son texte en place, en une seule étape.",
-   "soon": {
-    "drop": false,
-    "en": "Ready-made tables: save your own",
-    "es": "Tablas prediseñadas: guardar las propias",
-    "fr": "Tableaux prédéfinis : enregistrer les vôtres"
    }
   },
   "78ff5d31e6e44c26f85fde8d153c63a8b5851b8d200b8459429d9bb7807f78cf": {
@@ -17608,6 +17617,18 @@
    "en": "Export the active sheet as a text file (`.csv`, `.tsv`, or `.txt`). Choose the separator (comma, semicolon, tab, space, vertical bar, or another character), the encoding, the line endings, and whether cells are written as shown or as stored.",
    "es": "Exporte la hoja activa como archivo de texto (`.csv`, `.tsv` o `.txt`). Elija el separador (coma, punto y coma, tabulación, espacio, barra vertical u otro carácter), la codificación, los finales de línea y si las celdas se escriben como se muestran o como están almacenadas.",
    "fr": "Exportez la feuille active en fichier texte (`.csv`, `.tsv` ou `.txt`). Choisissez le séparateur (virgule, point-virgule, tabulation, espace, barre verticale ou autre caractère), l’encodage, les fins de ligne et si les cellules sont écrites telles qu’affichées ou telles que stockées.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
+  "7c3346d9f31034b7eb42068d356d4a6ba34d522f1025994856a0939e549f1291": {
+   "drop": false,
+   "en": "Count pages, words, characters with and without spaces, paragraphs, and lines, for the selection or the whole document, with or without text boxes, footnotes, and endnotes. The status bar shows the count for a selection.",
+   "es": "Cuente páginas, palabras, caracteres con y sin espacios, párrafos y líneas, de la selección o de todo el documento, con o sin cuadros de texto, notas al pie y notas al final. La barra de estado muestra el recuento de una selección.",
+   "fr": "Comptez les pages, mots, caractères avec et sans espaces, paragraphes et lignes, pour la sélection ou tout le document, avec ou sans zones de texte, notes de bas de page et notes de fin. La barre d’état affiche le décompte d’une sélection.",
    "soon": {
     "drop": true,
     "en": "",
@@ -18179,18 +18200,6 @@
     "fr": ""
    }
   },
-  "83c5ea97ca2c06ab309c5b727e157f864f42ec677e302746267c366078b1f866": {
-   "drop": false,
-   "en": "Insert > Text Box offers six designs: Simple, Plain, Sidebar, Pull Quote, Banner, and Note.",
-   "es": "Insertar > Cuadro de texto ofrece seis diseños: Simple, Sencillo, Barra lateral, Cita destacada, Banner y Nota.",
-   "fr": "Insertion > Zone de texte propose six styles : Simple, Plain, Sidebar, Pull Quote, Banner et Note.",
-   "soon": {
-    "drop": false,
-    "en": "Saving your own text box designs",
-    "es": "Guardar sus propios diseños de cuadro de texto",
-    "fr": "Enregistrement de vos propres styles de zone de texte"
-   }
-  },
   "83e91c60af6e966a208aed05ebda720d8281b8a31ae5b652a2a5189155d4b6d0": {
    "drop": false,
    "en": "Define your own bullet character with Define New Bullet.",
@@ -18419,6 +18428,18 @@
     "fr": ""
    }
   },
+  "88f54ff2d3ef4ba0f3cdb6a0356b2a8637d5e1647eddf22dac7b35bb5905ffc8": {
+   "drop": false,
+   "en": "Right-click a link to open, edit, or remove it. On a field, update it, toggle its field code, lock, unlock, unlink, or edit it. On a footnote mark, go to the footnote. Accept or reject a tracked change.",
+   "es": "Haga clic derecho en un vínculo para abrirlo, editarlo o quitarlo. En un campo, actualícelo, alterne su código de campo, bloquéelo, desbloquéelo, desvincúlelo o edítelo. En la marca de una nota al pie, vaya a la nota. Acepte o rechace un cambio con seguimiento.",
+   "fr": "Faites un clic droit sur un lien pour l’ouvrir, le modifier ou le supprimer. Sur un champ, mettez-le à jour, basculez son code de champ, verrouillez, déverrouillez, dissociez ou modifiez-le. Sur une marque de note de bas de page, accédez à la note. Acceptez ou rejetez une modification suivie.",
+   "soon": {
+    "drop": false,
+    "en": "Edit Field: edit a field that has other fields in its code",
+    "es": "Editar campo: editar un campo que tiene otros campos en su código",
+    "fr": "Modification d’un champ dont le code contient d’autres champs"
+   }
+  },
   "89224a126b93feb76e250fa058d78282c5195e83ea618509a7f9e5ab6563d030": {
    "drop": false,
    "en": "Insert > Recommended Pivot Tables lists up to six layouts for the table or cells you are in, each with a sentence saying what it shows. The one you choose is made on its own sheet, with date columns grouped by years and months, in one step of Undo.",
@@ -18609,6 +18630,18 @@
     "en": "",
     "es": "",
     "fr": ""
+   }
+  },
+  "8bb29c086a85b5fda86950c2c78fefb5f44de27d8bcd022a19ddca17ff8c3305": {
+   "drop": false,
+   "en": "Paste list items with Continue List, New List, or Merge List. Paste spreadsheet cells as a table, and with the caret in a table, choose Nest Table, Merge Table, Insert as New Rows, Insert as New Columns, or Overwrite Cells. Set the default paste in Options > Advanced.",
+   "es": "Pegue elementos de lista con Continuar lista, Lista nueva o Combinar lista. Pegue celdas de hoja de cálculo como tabla y, con el cursor en una tabla, elija Anidar tabla, Combinar tabla, Insertar como filas nuevas, Insertar como columnas nuevas o Sobrescribir celdas. Defina el pegado predeterminado en Opciones > Avanzadas.",
+   "fr": "Collez des éléments de liste avec Continuer la liste, Nouvelle liste ou Fusionner la liste. Collez des cellules de tableur comme tableau et, le curseur dans un tableau, choisissez Imbriquer le tableau, Fusionner le tableau, Insérer comme nouvelles lignes, Insérer comme nouvelles colonnes ou Remplacer les cellules. Définissez le collage par défaut dans Options > Avancées.",
+   "soon": {
+    "drop": false,
+    "en": "Paste spreadsheet cells in the source’s table style or as a picture",
+    "es": "Pegar celdas de hoja de cálculo con el estilo de tabla de origen o como imagen",
+    "fr": "Collage de cellules de tableur avec le style de tableau source ou comme image"
    }
   },
   "8bc060e604b336c5e7685c2de554561a307e174185f4d87190e87524a2883193": {
@@ -19029,18 +19062,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "922aeb723d3808da0b72635c67a824a4a7584f7749301a5cd42dbe4a4b992d1b": {
-   "drop": false,
-   "en": "Every field is kept with its code and its result and written back as it was. `F9` updates the fields in the selection, and `Ctrl+A` then `F9` updates the whole text, as one step and never tracked. `Ctrl+Shift+F9` unlinks a field, `Ctrl+F11` locks it, and `Ctrl+Shift+F11` unlocks it. `Shift+F9` and `Alt+F9` show the codes of one field or of all. Format switches, number pictures, and date pictures work for every field that is worked out.",
-   "es": "Cada campo se conserva con su código y su resultado y se guarda tal como estaba. `F9` actualiza los campos de la selección, y `Ctrl+A` seguido de `F9` actualiza todo el texto, en un solo paso y sin control de cambios. `Ctrl+Shift+F9` desvincula un campo, `Ctrl+F11` lo bloquea y `Ctrl+Shift+F11` lo desbloquea. `Shift+F9` y `Alt+F9` muestran los códigos de un campo o de todos. Los modificadores de formato, los formatos de número y los formatos de fecha funcionan en todos los campos que se calculan.",
-   "fr": "Chaque champ est conservé avec son code et son résultat et réécrit tel qu’il était. `F9` met à jour les champs de la sélection, et `Ctrl+A` puis `F9` met à jour tout le texte, en une seule étape et sans suivi des modifications. `Ctrl+Maj+F9` dissocie un champ, `Ctrl+F11` le verrouille et `Ctrl+Maj+F11` le déverrouille. `Maj+F9` et `Alt+F9` affichent les codes d’un champ ou de tous. Les commutateurs de format, les images de nombre et les images de date fonctionnent pour tous les champs calculés.",
-   "soon": {
-    "drop": false,
-    "en": "Field shading and update before printing",
-    "es": "Sombreado de campos y actualización antes de imprimir",
-    "fr": "Ombrage des champs et mise à jour avant l’impression"
    }
   },
   "9263b246c8cec8898a4e1bcc2b2bf0dc62806ef2e804aaf9d4ab210504f05efc": {
@@ -19571,18 +19592,6 @@
     "fr": ""
    }
   },
-  "997633006dbda95a6884a8caa920b9e3947d96398a78feb91196876d2256b27a": {
-   "drop": false,
-   "en": "Page numbers and fields can be inserted in headers and footers.",
-   "es": "Se pueden insertar números de página y campos en encabezados y pies de página.",
-   "fr": "Vous pouvez insérer des numéros de page et des champs dans les en-têtes et pieds de page.",
-   "soon": {
-    "drop": false,
-    "en": "Insert Date and Time, Document Info, building blocks, and pictures in headers and footers",
-    "es": "Insertar fecha y hora, información del documento, bloques de creación e imágenes en encabezados y pies de página",
-    "fr": "Insertion de la date et de l’heure, des informations du document, de blocs de construction et d’images dans les en-têtes et pieds de page"
-   }
-  },
   "99a653d65ec0e174563f7d1f257943658242e4642cc4844e867e89c32da716c1": {
    "drop": false,
    "en": "Start from built-in templates for resumes, cover letters, invoices, flyers, and meeting notes.",
@@ -19991,18 +20000,6 @@
     "fr": "Symbole : n’importe quel caractère de n’importe quelle police, et symboles récents"
    }
   },
-  "9ebbc171279f2e91b493067b377c161a6b71228288f86736e07a658b255e8b09": {
-   "drop": false,
-   "en": "Insert a cover page from three designs (Classic, Band, and Plain), each with a title, subtitle, author, and date, one cover to a document, in one step that undoes. Remove Current Cover Page removes it.",
-   "es": "Inserte una portada entre tres diseños (Clásico, Banda y Sencillo), cada uno con título, subtítulo, autor y fecha, una portada por documento, en un solo paso que se puede deshacer. Quitar portada actual la elimina.",
-   "fr": "Insérez une page de garde parmi trois modèles (Classique, Bandeau et Simple), chacun avec titre, sous-titre, auteur et date, une page de garde par document, en une seule étape annulable. Supprimer la page de garde actuelle la retire.",
-   "soon": {
-    "drop": false,
-    "en": "Save your own cover page",
-    "es": "Guardar su propia portada",
-    "fr": "Enregistrement de votre propre page de garde"
-   }
-  },
   "9ebdf34a08bdd3a2f6c418672db9bb00b300029aa05644960cdc07d6b6eb178d": {
    "drop": false,
    "en": "Set the font color from the theme’s colors or more colors, or use an eyedropper to pick a color from the screen.",
@@ -20363,6 +20360,18 @@
     "fr": ""
    }
   },
+  "a5e7da2b41a4256f77374a310903129daf7483b8aafef5ac3ae02f7c2b0a6912": {
+   "drop": false,
+   "en": "Insert a cover page from three built-in designs (Classic, Band, and Plain), remove the current cover page, and save your own cover page to a gallery.",
+   "es": "Inserte una portada de entre tres diseños incorporados (Clásico, Banda y Sencillo), quite la portada actual y guarde su propia portada en una galería.",
+   "fr": "Insérez une page de garde parmi trois modèles intégrés (Classique, Bandeau et Simple), supprimez la page de garde actuelle et enregistrez votre propre page de garde dans une galerie.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "a623cfdf2713065ededd839aa09b7f34be3ac460b6d96411c9f233af25047e60": {
    "drop": false,
    "en": "Print gridlines, row and column headings, notes (at the end of the sheet), errors as blank, black and white, and draft quality as chosen.",
@@ -20639,18 +20648,6 @@
     "fr": "Enregistrer sous `.ppt`, `.pps` et `.pot`, avec un avertissement sur ce qu’ils ne peuvent pas contenir"
    }
   },
-  "a9d4f978bd79c30821e047d6e9f0576bf76767a6e0d88ed76a529c15e88f3b87": {
-   "drop": false,
-   "en": "The right-click menu on a link offers Open Link, Edit Link, and Remove Link. On a field it offers Update Field, Toggle Field Code, Lock, Unlock, and Unlink Field, and Edit Field, which asks for the field's new code and works out its result again. On a footnote's mark it offers Go to Footnote, and on a tracked change Accept and Reject.",
-   "es": "El menú contextual de un vínculo ofrece Abrir vínculo, Editar vínculo y Quitar vínculo. En un campo ofrece Actualizar campo, Alternar código de campo, Bloquear, Desbloquear y Desvincular campo, y Editar campo, que pide el nuevo código del campo y vuelve a calcular su resultado. En la marca de una nota al pie ofrece Ir a la nota al pie, y en un cambio con seguimiento, Aceptar y Rechazar.",
-   "fr": "Le menu contextuel d’un lien propose Ouvrir le lien, Modifier le lien et Supprimer le lien. Sur un champ, il propose Mettre à jour le champ, Basculer le code de champ, Verrouiller, Déverrouiller et Dissocier le champ, ainsi que Modifier le champ, qui demande le nouveau code du champ et recalcule son résultat. Sur la marque d’une note de bas de page, il propose Atteindre la note de bas de page, et sur une modification suivie, Accepter et Rejeter.",
-   "soon": {
-    "drop": false,
-    "en": "Going from a note back to its mark, and editing a field with other fields in its code",
-    "es": "Volver de una nota a su marca, y edición de un campo que tiene otros campos en su código",
-    "fr": "Retour d’une note à sa marque, et modification d’un champ contenant d’autres champs dans son code"
-   }
-  },
   "a9d835f99ba0badd0b4c314ad4e28a16c233effe97e79aa45dc9d5cd8b8454f2": {
    "drop": false,
    "en": "Apply Reflection to letters (Tight, Half, Full, or none) from the Effects menu on the Home tab. Shadow, Outline, Emboss, Engrave, Text Fill (solid and gradient), Text Outline, and Text Glow in a color you pick are also available.",
@@ -20704,6 +20701,18 @@
    "en": "Built-in Help that works offline: a Help pane with 51 topics in plain language, a contents page, links between topics, Back and Forward, and a search that finds topics and commands and runs the commands. Press `F1` to open the topic for what you are doing: the ribbon tab, task pane, File page, dialog, or selected object.",
    "es": "Ayuda integrada que funciona sin conexión: un panel de ayuda con 51 temas en lenguaje sencillo, una página de contenido, vínculos entre temas, Atrás y Adelante, y una búsqueda que encuentra temas y comandos y ejecuta los comandos. Pulse `F1` para abrir el tema correspondiente a lo que está haciendo: la pestaña de la cinta de opciones, el panel de tareas, la página Archivo, el cuadro de diálogo o el objeto seleccionado.",
    "fr": "Aide intégrée qui fonctionne hors ligne : un volet d’aide de 51 sujets en langage clair, une page de sommaire, des liens entre sujets, Précédent et Suivant, et une recherche qui trouve des sujets et des commandes et exécute les commandes. Appuyez sur `F1` pour ouvrir le sujet correspondant à ce que vous faites : l’onglet du ruban, le volet de tâches, la page Fichier, la boîte de dialogue ou l’objet sélectionné.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
+  "aa7c739ce0908a2abcd467e687ef41f7b2543de6bd1c3ba037a1dcac71f163d2": {
+   "drop": false,
+   "en": "Insert a text box from six designs (Simple, Plain, Sidebar, Pull Quote, Banner, and Note), and save your own text boxes to a gallery.",
+   "es": "Inserte un cuadro de texto de entre seis diseños (Simple, Sencillo, Barra lateral, Cita destacada, Banner y Nota) y guarde sus propios cuadros de texto en una galería.",
+   "fr": "Insérez une zone de texte parmi six modèles (Simple, Uni, Barre latérale, Citation, Bandeau et Note) et enregistrez vos propres zones de texte dans une galerie.",
    "soon": {
     "drop": true,
     "en": "",
@@ -21052,6 +21061,18 @@
    "en": "View tab",
    "es": "Pestaña Vista",
    "fr": "Onglet Affichage",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
+  "af6f129fc517aefcef15b58f1a2d2674e4bfaf3e1d3e646d8751dc6d6341eb0c": {
+   "drop": false,
+   "en": "Insert a ready-made table: a calendar, a matrix, a four-column list, or a weekly schedule. Save your own tables to a gallery and insert them again.",
+   "es": "Inserte una tabla prediseñada: un calendario, una matriz, una lista de cuatro columnas o un horario semanal. Guarde sus propias tablas en una galería e insértelas de nuevo.",
+   "fr": "Insérez un tableau prédéfini : un calendrier, une matrice, une liste à quatre colonnes ou un emploi du temps hebdomadaire. Enregistrez vos propres tableaux dans une galerie et réinsérez-les.",
    "soon": {
     "drop": true,
     "en": "",
@@ -21873,18 +21894,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "bcf6480fc11192a7b5ed5a9a11347d185a141489d44578675637ee8bd079bc6a": {
-   "drop": false,
-   "en": "Select All works. The Selection Pane (View > Selection Pane, also in Arrange) lists the floating objects of the document, the front one first. Pick an object from a row, type a name in a row to name it, and hide or show it with its box; names and hidden marks are kept for other programs. Show All and Hide All set every box. Move objects through the layers with the buttons or a drag, each as one Undo step.",
-   "es": "Seleccionar todo funciona. El panel de selección (Vista > Panel de selección, también en Organizar) enumera los objetos flotantes del documento, con el de delante primero. Elija un objeto desde una fila, escriba un nombre en una fila para nombrarlo y ocúltelo o muéstrelo con su casilla; los nombres y las marcas de ocultación se conservan para otros programas. Mostrar todo y Ocultar todo establecen todas las casillas. Mueva los objetos entre las capas con los botones o arrastrando, cada uno como un paso de Deshacer.",
-   "fr": "Tout sélectionner fonctionne. Le volet Sélection (Affichage > Volet Sélection, aussi dans Organiser) liste les objets flottants du document, celui de devant en premier. Choisissez un objet depuis une ligne, saisissez un nom dans une ligne pour le nommer, et masquez-le ou affichez-le avec sa case ; les noms et les marques de masquage sont conservés pour les autres programmes. Tout afficher et Tout masquer règlent toutes les cases. Déplacez les objets entre les calques avec les boutons ou par glisser-déposer, chacun comme une étape d’annulation.",
-   "soon": {
-    "drop": false,
-    "en": "Select Objects and selection of objects in line with the text",
-    "es": "Seleccionar objetos y selección de objetos en línea con el texto",
-    "fr": "Sélection des objets et sélection des objets en ligne avec le texte"
    }
   },
   "bd7c8f63f194ee7f68975b25186be431c31b6e0ccda2139153fcd4f540f4ce16": {
@@ -22989,6 +22998,18 @@
     "en": "",
     "es": "",
     "fr": ""
+   }
+  },
+  "cb81360d202d242a77408c151a9ba149b97e2d33dfc92b841d02a3909c0a8184": {
+   "drop": false,
+   "en": "Page numbers and fields can be inserted in headers and footers.",
+   "es": "Se pueden insertar números de página y campos en encabezados y pies de página.",
+   "fr": "Vous pouvez insérer des numéros de page et des champs dans les en-têtes et les pieds de page.",
+   "soon": {
+    "drop": false,
+    "en": "Insert Date and Time, Document Info, building blocks, and pictures in headers and footers",
+    "es": "Insertar fecha y hora, información del documento, bloques de creación e imágenes en encabezados y pies de página",
+    "fr": "Insertion de la date et l’heure, des informations du document, de blocs de construction et d’images dans les en-têtes et les pieds de page"
    }
   },
   "cb853a0d5adab0f0922757bab82aa5d49b4eb2f7d12bae03ef8b1885772e7fbb": {
@@ -24107,6 +24128,18 @@
     "fr": ""
    }
   },
+  "d95aa1f2a993801a41b19a87f48409bb0b0e91e8624f56551d7c1ea6d7aca5dc": {
+   "drop": false,
+   "en": "Use facing pages and mirrored margins: left and right pages swap inside and outside margins and gutter, and a section that starts on an odd or even page gets the blank page it needs. Objects placed inside or outside follow the binding.",
+   "es": "Use páginas opuestas y márgenes simétricos: las páginas izquierda y derecha intercambian los márgenes interior y exterior y el medianil, y una sección que empieza en página impar o par recibe la página en blanco que necesita. Los objetos colocados en el interior o el exterior siguen la encuadernación.",
+   "fr": "Utilisez les pages en vis-à-vis et les marges en miroir : les pages gauche et droite échangent marges intérieure et extérieure et reliure, et une section qui commence sur une page impaire ou paire reçoit la page blanche nécessaire. Les objets placés à l’intérieur ou à l’extérieur suivent la reliure.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "d961f7821ca5107172c55685c9ccc7cd8c1f7b5b3cb6f81b3caa79ef47f5aa13": {
    "drop": false,
    "en": "Fill the screen with the window using Full Screen (`F11`, View > Window). The same command restores the window, and so does `Esc` when nothing is selected or being typed in.",
@@ -24369,18 +24402,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "dd1243a40103b3aba0d28c7be0c165e4b035dfd3030b6e2b3bd8574afec4a607": {
-   "drop": false,
-   "en": "Paste list items as Continue List, New List, or Merge List, and paste spreadsheet cells as a table: nest, merge, insert as new rows or columns, or overwrite cells. Each is one Undo step; a pasted table has up to 500 rows and 63 columns.",
-   "es": "Pegue elementos de lista como Continuar lista, Lista nueva o Combinar lista, y pegue celdas de hoja de cálculo como tabla: anidar, combinar, insertar como filas o columnas nuevas o sobrescribir celdas. Cada opción es un solo paso de deshacer; una tabla pegada admite hasta 500 filas y 63 columnas.",
-   "fr": "Collez des éléments de liste en Continuer la liste, Nouvelle liste ou Fusionner la liste, et collez des cellules de feuille de calcul en tableau : imbriquer, fusionner, insérer comme nouvelles lignes ou colonnes, ou remplacer des cellules. Chaque choix est une seule étape d’annulation ; un tableau collé compte jusqu’à 500 lignes et 63 colonnes.",
-   "soon": {
-    "drop": false,
-    "en": "Paste with the source’s table style, and paste cells as a picture",
-    "es": "Pegar con el estilo de tabla de origen y pegar celdas como imagen",
-    "fr": "Collage avec le style de tableau source et collage de cellules en image"
    }
   },
   "dd3bca86b1f0876bc12137a8e0cdb99d528bdd5029d8181c59464f0f67cb05a4": {
@@ -26795,18 +26816,6 @@
     "fr": ""
    }
   },
-  "fac54bbabc7ce36528aa415f4ff67f1a7540d8c0e89f7299ee7033876931e859": {
-   "drop": false,
-   "en": "Count Words on the Review tab shows pages, words, characters with and without spaces, paragraphs, and lines, for the selection or the whole document, with or without footnotes and endnotes. The status bar shows the count of a selection, such as \"12 of 340 words\". Hidden text and deleted changes are not counted.",
-   "es": "Contar palabras, en la pestaña Revisar, muestra páginas, palabras, caracteres con y sin espacios, párrafos y líneas, para la selección o todo el documento, con o sin notas al pie y notas al final. La barra de estado muestra el recuento de una selección, como \"12 de 340 palabras\". El texto oculto y los cambios eliminados no se cuentan.",
-   "fr": "Compter les mots, dans l’onglet Révision, affiche les pages, les mots, les caractères avec et sans espaces, les paragraphes et les lignes, pour la sélection ou tout le document, avec ou sans notes de bas de page et notes de fin. La barre d’état affiche le décompte d’une sélection, par exemple « 12 sur 340 mots ». Le texte masqué et les modifications supprimées ne sont pas comptés.",
-   "soon": {
-    "drop": false,
-    "en": "Word count of text boxes",
-    "es": "Recuento de palabras de los cuadros de texto",
-    "fr": "Décompte des mots des zones de texte"
-   }
-  },
   "faccc128e8dc664416161b74bb3bd0f079255d56c1ac018bc6b98a2ff213d69a": {
    "drop": false,
    "en": "Inspect the publication to find and remove comments (with their authors' names), personal information in the properties, business information, mail merge data, and objects on the scratch area.",
@@ -26817,6 +26826,18 @@
     "en": "",
     "es": "",
     "fr": ""
+   }
+  },
+  "fad7c56a30b8343cae3c3dcfa0a4ef46b1ce4daa5f26f458cfb8fe3fb9047890": {
+   "drop": false,
+   "en": "Files in an older compatibility mode show [Compatibility Mode] in the title, and File > Info has Convert to take on the newest layout rules. Layout settings stored in the file are honored one by one.",
+   "es": "Los archivos en un modo de compatibilidad anterior muestran [Modo de compatibilidad] en el título, y Archivo > Información tiene Convertir para adoptar las reglas de diseño más recientes. Los ajustes de diseño guardados en el archivo se respetan uno por uno.",
+   "fr": "Les fichiers en mode de compatibilité plus ancien affichent [Mode de compatibilité] dans le titre, et Fichier > Informations propose Convertir pour adopter les règles de mise en page les plus récentes. Les paramètres de mise en page enregistrés dans le fichier sont respectés un à un.",
+   "soon": {
+    "drop": false,
+    "en": "Compatibility mode: layout rules chosen by the mode",
+    "es": "Modo de compatibilidad: reglas de diseño elegidas según el modo",
+    "fr": "Mode de compatibilité : règles de mise en page choisies selon le mode"
    }
   },
   "fafba3a4944c4710e9c884863fc446a664258f1f2116281ceaf1b4518d35e248": {
@@ -27105,18 +27126,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "ffae9cb657351755a910b0e32049a5c1f1dd72c4825bd07f1eb845b2168a7c51": {
-   "drop": false,
-   "en": "Add comments with `Ctrl+Alt+M`, reply in threads, resolve and reopen, edit, and delete (one with its replies, or all), with Previous and Next. Comments show in margin balloons and in the Reviewing pane, and are written back with their replies.",
-   "es": "Agregue comentarios con `Ctrl+Alt+M`, responda en hilos, resuelva y reabra, edite y elimine (uno con sus respuestas, o todos), con Anterior y Siguiente. Los comentarios se muestran en globos en el margen y en el panel de revisión, y se guardan con sus respuestas.",
-   "fr": "Ajoutez des commentaires avec `Ctrl+Alt+M`, répondez en fils de discussion, résolvez et rouvrez, modifiez et supprimez (un avec ses réponses, ou tous), avec Précédent et Suivant. Les commentaires s’affichent dans des bulles en marge et dans le volet de révision, et sont réécrits avec leurs réponses.",
-   "soon": {
-    "drop": false,
-    "en": "Comments: delete all comments shown",
-    "es": "Comentarios: eliminar todos los comentarios mostrados",
-    "fr": "Commentaires : supprimer tous les commentaires affichés"
    }
   },
   "ffd733f94df1af3e55e465c3577964b76be12b93dff4f4d84f420261eefda38e": {
