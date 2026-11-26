@@ -1298,6 +1298,7 @@
               "keytip": "D",
               "menu": [
                 "review.deleteComment",
+                "review.deleteShownComments",
                 "review.deleteAllComments"
               ]
             },

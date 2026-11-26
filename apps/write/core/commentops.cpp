@@ -766,6 +766,31 @@ int threadRootOf(const QVector<Comment> &all, int id)
     }, int(all.size())).toInt();
 }
 
+QSet<int> commentsOfPerson(const QVector<Comment> &all, const QString &person)
+{
+    QSet<int> out;
+    if (person.isEmpty()) {
+        for (const Comment &c : all) out.insert(c.id);
+        return out;
+    }
+    QHash<int, int> parentOf;
+    for (const Comment &c : all) parentOf.insert(c.id, c.parent);
+    auto rootOf = [&](int id) {
+        for (int step = 0; step <= all.size(); ++step) {
+            const int up = parentOf.value(id, -1);
+            if (up < 0 || !parentOf.contains(up)) break;
+            id = up;
+        }
+        return id;
+    };
+    QSet<int> roots;
+    for (const Comment &c : all)
+        if (c.author == person) roots.insert(rootOf(c.id));
+    for (const Comment &c : all)
+        if (roots.contains(rootOf(c.id))) out.insert(c.id);
+    return out;
+}
+
 bool setCommentDone(WriteDoc &doc, int id, bool done)
 {
     const QVector<Comment> all = comments(doc);

@@ -260,7 +260,7 @@ void WriteWindow::createHomeActions()
     mk("review.wordCount", tr("Word Count"), "hash", QKeySequence(), [this] {
         if (!m_doc) return;
         const QTextCursor sel = m_view->cursor();
-        write::wordCountDialog(this, m_view->pageCount(), sel.hasSelection(), [this, sel](bool notes) { return write::countWords(*m_doc, sel, notes); });
+        write::wordCountDialog(this, m_view->pageCount(), sel.hasSelection(), [this, sel](bool notes, bool boxes) { return write::countWords(*m_doc, sel, notes, boxes); });
         m_view->setFocus(Qt::OtherFocusReason);
     });
 }

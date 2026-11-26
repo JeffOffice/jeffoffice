@@ -1,6 +1,7 @@
 #include "core/proofops.h"
 
 #include "core/editops.h"
+#include "core/pictureops.h"
 #include "core/wordformat.h"
 #include "core/writeprops.h"
 #include "text/textprops.h"
@@ -68,7 +69,7 @@ static int linesBetween(WriteDoc &doc, int from, int to)
     return n;
 }
 
-WordStats countWords(WriteDoc &doc, const QTextCursor &selection, bool notes)
+WordStats countWords(WriteDoc &doc, const QTextCursor &selection, bool notes, bool boxes)
 {
     WordStats s;
     const QTextDocument *story = selection.document() ? selection.document() : doc.story();
@@ -82,6 +83,23 @@ WordStats countWords(WriteDoc &doc, const QTextCursor &selection, bool notes)
     if (notes)
         for (const int id : doc.citedFootnotes())
             if (const QTextDocument *note = doc.editableFootnote(id)) addTo(s, note, 0, note->characterCount(), true);
+    if (boxes) {
+        QTextDocument *body = doc.story();
+        int counted = 0;
+        for (QTextBlock b = body->begin(); b.isValid() && counted < kMostCountedBoxes; b = b.next())
+            for (QTextBlock::iterator it = b.begin(); !it.atEnd() && counted < kMostCountedBoxes; ++it) {
+                const QTextFragment f = it.fragment();
+                if (!f.charFormat().hasProperty(prop::Atom) || f.charFormat().hasProperty(prop::TrackedDeleted) || f.charFormat().boolProperty(tp::HiddenText)) continue;
+                for (int i = 0; i < int(f.length()) && counted < kMostCountedBoxes; ++i) {
+                    if (!isDrawnObjectAt(body, f.position() + i)) continue;
+                    const PictureInfo info = pictureAt(doc, body, f.position() + i);
+                    if (!info.valid || !info.editable || (info.kind != DrawnKind::Shape && info.kind != DrawnKind::TextBox)) continue;
+                    ++counted;
+                    const std::unique_ptr<QTextDocument> words = textBoxStory(doc, f.position() + i);
+                    if (words) addTo(s, words.get(), 0, words->characterCount(), true);
+                }
+            }
+    }
     return s;
 }
 

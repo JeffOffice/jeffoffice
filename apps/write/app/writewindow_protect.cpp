@@ -28,7 +28,7 @@ namespace {
 bool allowedWithComments(const QString &id)
 {
     static const QSet<QString> ids = {QStringLiteral("review.newComment"), QStringLiteral("review.deleteComment"), QStringLiteral("review.replyComment"), QStringLiteral("review.resolveComment"),
-                                      QStringLiteral("review.show.comments"), QStringLiteral("review.deleteAllComments")};
+                                      QStringLiteral("review.show.comments"), QStringLiteral("review.deleteAllComments"), QStringLiteral("review.deleteShownComments")};
     return ids.contains(id);
 }
 

@@ -227,6 +227,8 @@ void ReviewPane::rebuild()
         QStringList authors;
         for (const write::StoryRevision &sr : write::documentRevisions(*doc, kMostListed * 4))
             if (!sr.revision.author.isEmpty() && !authors.contains(sr.revision.author)) authors.push_back(sr.revision.author);
+        for (const write::Comment &c : write::comments(*doc))
+            if (!c.author.isEmpty() && !authors.contains(c.author) && authors.size() < kMostListed) authors.push_back(c.author);
         for (const QString &p : std::as_const(authors)) m_person->addItem(p, p);
         const int at = m_person->findData(was);
         m_person->setCurrentIndex(std::max(0, at));
@@ -284,12 +286,13 @@ void ReviewPane::rebuild()
         return item;
     };
     int made = 0;
+    const QSet<int> ofPerson = write::commentsOfPerson(all, person);   // (a thread with a comment by the reviewer chosen is listed whole)
     for (const write::Comment &c : all)
-        if (c.parent < 0 && made++ < kMostListed) make(c, nullptr);
+        if (c.parent < 0 && ofPerson.contains(c.id) && made++ < kMostListed) make(c, nullptr);
     for (int round = 0; round < 64; ++round) {
         bool grew = false;
         for (const write::Comment &c : all)
-            if (c.parent >= 0 && !items.contains(c.id) && items.contains(c.parent) && made++ < kMostListed * 2) {
+            if (c.parent >= 0 && !items.contains(c.id) && ofPerson.contains(c.id) && items.contains(c.parent) && made++ < kMostListed * 2) {
                 make(c, items.value(c.parent));
                 grew = true;
             }

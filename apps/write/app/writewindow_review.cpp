@@ -176,6 +176,14 @@ void WriteWindow::createReviewActions()
         statusBar()->showMessage(n == 1 ? tr("1 comment deleted.") : tr("%1 comments deleted.").arg(n), 5000);
         m_view->setFocus(Qt::OtherFocusReason);
     });
+    // The comments shown: those Show Markup has on, of the reviewer chosen in the Reviewing pane when it is open; each goes with its replies.
+    mk("review.deleteShownComments", tr("Delete All Comments Shown"), "message-square-x", QKeySequence(), [this] {
+        if (!m_doc) return;
+        const QString person = m_review && m_reviewDock && m_reviewDock->isVisible() ? m_review->chosenPerson() : QString();
+        const int n = m_showComments && m_reviewView != ReviewView::NoMarkup ? write::deleteComments(*m_doc, write::commentsOfPerson(write::comments(*m_doc), person)) : 0;
+        statusBar()->showMessage(n == 1 ? tr("1 comment deleted.") : tr("%1 comments deleted.").arg(n), 5000);
+        m_view->setFocus(Qt::OtherFocusReason);
+    });
     mk("review.nextComment", tr("Next Comment"), "arrow-down", QKeySequence(), [this] { gotoComment(true); });
     mk("review.previousComment", tr("Previous Comment"), "arrow-up", QKeySequence(), [this] { gotoComment(false); });
     mk("review.replyComment", tr("Reply to Comment"), "message-square-reply", QKeySequence(), [this] {
@@ -372,7 +380,7 @@ void WriteWindow::refreshReviewUi()
         for (const char *id : {"review.accept", "review.reject", "review.acceptShown", "review.rejectShown", "review.acceptAll", "review.rejectAll", "review.acceptAllStop", "review.nextChange",
                                "review.previousChange"})
             act(QString::fromLatin1(id))->setEnabled(m_hasRevisions);
-        for (const char *id : {"review.deleteComment", "review.deleteAllComments", "review.replyComment", "review.resolveComment", "review.nextComment", "review.previousComment"})
+        for (const char *id : {"review.deleteComment", "review.deleteAllComments", "review.deleteShownComments", "review.replyComment", "review.resolveComment", "review.nextComment", "review.previousComment"})
             act(QString::fromLatin1(id))->setEnabled(m_hasComments);
     }
     // A document whose tracking is locked on lets neither Track Changes be turned off nor a change be accepted or rejected.

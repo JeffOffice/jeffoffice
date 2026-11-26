@@ -5,6 +5,7 @@
 #include "../isolatesettings.h"
 #include "../withdialog.h"
 #include "../pub/threadscript.h"
+#include "core/proofops.h"
 #include "core/threads.h"
 #include "app/writeinfo.h"
 #include "app/homedialogs.h"
@@ -1788,7 +1789,7 @@ private Q_SLOTS:
         for (const char *id : {"review.trackChanges", "review.accept", "review.reject", "review.acceptAll", "review.rejectAll", "review.acceptShown", "review.rejectShown", "review.acceptAllStop",
                                "review.nextChange", "review.previousChange", "review.view.simple", "review.view.all", "review.view.none", "review.view.original", "review.show.insdel",
                                "review.show.formatting", "review.show.comments", "review.balloons.inline", "review.balloons.balloons", "review.balloons.comments", "review.reviewingPane",
-                               "review.newComment", "review.deleteComment", "review.deleteAllComments", "review.nextComment", "review.previousComment", "review.replyComment", "review.resolveComment"})
+                               "review.newComment", "review.deleteComment", "review.deleteAllComments", "review.deleteShownComments", "review.nextComment", "review.previousComment", "review.replyComment", "review.resolveComment"})
             QVERIFY2(w.act(QString::fromLatin1(id)), id);
         QCOMPARE(w.act(QStringLiteral("review.trackChanges"))->shortcut().toString(QKeySequence::NativeText), QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_E).toString(QKeySequence::NativeText));
         QCOMPARE(w.act(QStringLiteral("review.newComment"))->shortcut().toString(QKeySequence::NativeText), QKeySequence(Qt::CTRL | Qt::ALT | Qt::Key_M).toString(QKeySequence::NativeText));
@@ -4295,6 +4296,43 @@ private Q_SLOTS:
         QCOMPARE(documentXml(savedByWindow(m)).count("dog"), 0);
     }
 
+    // Word Count counts the words of text boxes when asked (Include text boxes, on at first), for the whole document; a selection counts what is selected.
+    void wordCountIncludesTheWordsOfTextBoxesWhenAsked()
+    {
+        WriteWindow w;
+        w.setNotifier([](const QString &, const QString &) {});
+        w.resize(900, 700);
+        w.show();
+        w.setDocument(open(makeDocx(para(run("two words")) + para(run("a") + boxOf(para(run("box has four words")) + para(run("and ") + QByteArray("<w:r><w:rPr><w:vanish/></w:rPr><w:t>hidden</w:t></w:r>")))))), QString());
+        QTextCursor none(w.document()->story());
+        QCOMPARE(countWords(*w.document(), none, false).words, 3);
+        QCOMPARE(countWords(*w.document(), none, false, true).words, 3 + 4 + 1);   // (hidden words are not counted in a box either)
+        QCOMPARE(countWords(*w.document(), none, false, true).paragraphs, 2 + 2);
+        QTextCursor sel(w.document()->story());
+        sel.setPosition(0);
+        sel.setPosition(3, QTextCursor::KeepAnchor);
+        QCOMPARE(countWords(*w.document(), sel, false, true).words, 1);
+        // The box in Review > Proofing > Word Count: on at first, and the numbers follow it.
+        withDialog([&] { w.act(QStringLiteral("review.wordCount"))->trigger(); }, QStringLiteral("wordCountDialog"), [](QDialog *d) {
+            auto *boxes = d->findChild<QCheckBox *>(QStringLiteral("countBoxes"));
+            auto *words = d->findChild<QLabel *>(QStringLiteral("count1"));
+            QVERIFY(boxes && words);
+            QVERIFY(boxes->isChecked());
+            QCOMPARE(words->text(), QStringLiteral("8"));
+            boxes->setChecked(false);
+            QCOMPARE(words->text(), QStringLiteral("3"));
+        });
+        // Many boxes: no more than kMostCountedBoxes of them are read.
+        QByteArray many;
+        for (int i = 0; i < kMostCountedBoxes + 5; ++i) many += boxOf(para(run("w")));
+        WriteWindow v;
+        v.setNotifier([](const QString &, const QString &) {});
+        v.show();
+        v.setDocument(open(makeDocx(para(run("x") + many))), QString());
+        QTextCursor all(v.document()->story());
+        QCOMPARE(countWords(*v.document(), all, false, true).words, 1 + kMostCountedBoxes);
+    }
+
     // With Track Changes on, Replace All records its replacements as tracked changes, in the text and in the words of text boxes: the old words are kept as deleted, the new ones inserted,
     // so a reviewer sees what was changed (ECMA-376 Part 1 sections 17.13.5.14 and 17.13.5.18); with it off, the words are simply replaced.
     void replaceAllRecordsTrackedChangesInTheTextAndInTextBoxes()
@@ -5387,6 +5425,53 @@ private Q_SLOTS:
         QCOMPARE(w.state(), QStringList{QStringLiteral("One")});
         QVERIFY(w.doc->undo());
         QCOMPARE(w.threadCount(), 3);
+    }
+
+    // Review > Delete > Delete All Comments Shown: the comments Show Markup has on, of the reviewer chosen in the Reviewing pane when it is open; the Reviewing pane lists what it deletes.
+    void deleteAllCommentsShownGoesByShowMarkupAndTheReviewerChosen()
+    {
+        WriteWindow w;
+        w.setNotifier([](const QString &, const QString &) {});
+        w.show();
+        const QByteArray cm = commentElement(1, "Ann", "one", "0000000A") + commentElement(2, "Bob", "two", "0000000B") + commentElement(3, "Ann", "three", "0000000C");
+        w.setDocument(open(makeDocxWithComments(para(run("x ") + commented(1, "a") + run(" ") + commented(2, "b") + run(" ") + commented(3, "c")), cm,
+                                                "<w15:commentEx w15:paraId=\"0000000A\" w15:done=\"0\"/><w15:commentEx w15:paraId=\"0000000B\" w15:done=\"0\"/><w15:commentEx w15:paraId=\"0000000C\" w15:done=\"0\"/>")),
+                      QString());
+        WriteDoc *doc = w.document();
+        auto authors = [&] {
+            QStringList out;
+            for (const Comment &c : comments(*doc)) out << c.author;
+            out.sort();
+            return out;
+        };
+        QCOMPARE(authors(), (QStringList{"Ann", "Ann", "Bob"}));
+        QVERIFY(w.act(QStringLiteral("review.deleteShownComments")));
+        // Show Markup has comments off: nothing is shown, nothing goes.
+        w.act(QStringLiteral("review.show.comments"))->trigger();
+        w.act(QStringLiteral("review.deleteShownComments"))->trigger();
+        QCOMPARE(authors().size(), 3);
+        w.act(QStringLiteral("review.show.comments"))->trigger();
+        // With the pane open on Bob, only Bob's comment is shown, in the pane and for the command.
+        w.act(QStringLiteral("review.reviewingPane"))->trigger();
+        ReviewPane *pane = w.reviewPane();
+        QVERIFY(pane);
+        QCOMPARE(pane->commentList()->topLevelItemCount(), 3);
+        const int bob = pane->personBox()->findData(QStringLiteral("Bob"));
+        QVERIFY(bob > 0 && pane->personBox()->findData(QStringLiteral("Ann")) > 0);
+        pane->personBox()->setCurrentIndex(bob);
+        QCOMPARE(pane->commentList()->topLevelItemCount(), 1);
+        QVERIFY(pane->commentList()->topLevelItem(0)->text(0).contains(QStringLiteral("two")));
+        w.act(QStringLiteral("review.deleteShownComments"))->trigger();
+        QCOMPARE(authors(), (QStringList{"Ann", "Ann"}));
+        QVERIFY(doc->undo());
+        QCOMPARE(authors().size(), 3);
+        // All reviewers: every comment is shown, and one step takes them all.
+        pane->personBox()->setCurrentIndex(0);
+        QCOMPARE(pane->commentList()->topLevelItemCount(), 3);
+        w.act(QStringLiteral("review.deleteShownComments"))->trigger();
+        QCOMPARE(authors().size(), 0);
+        QVERIFY(doc->undo());
+        QCOMPARE(authors().size(), 3);
     }
 
     // The file keeps a thread with its replies both ways; and a file whose comments are not touched is written with the same comment parts.

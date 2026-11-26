@@ -115,7 +115,7 @@ bool sortDialog(QWidget *parent, SortOptions *options, bool inTable)
     return true;
 }
 
-void wordCountDialog(QWidget *parent, int pages, bool selection, const std::function<WordStats(bool)> &recount)
+void wordCountDialog(QWidget *parent, int pages, bool selection, const std::function<WordStats(bool, bool)> &recount)
 {
     QDialog dlg(parent);
     dlg.setObjectName(QStringLiteral("wordCountDialog"));
@@ -142,8 +142,13 @@ void wordCountDialog(QWidget *parent, int pages, bool selection, const std::func
     notes->setObjectName(QStringLiteral("countNotes"));
     notes->setChecked(true);
     v->addWidget(notes);
+    auto *boxes = new QCheckBox(QCoreApplication::translate("jp::write::HomeDialogs", "Include text boxes"), &dlg);
+    boxes->setObjectName(QStringLiteral("countBoxes"));
+    boxes->setChecked(true);
+    boxes->setEnabled(!selection);   // (a selection counts what is selected)
+    v->addWidget(boxes);
     auto fill = [&] {
-        const WordStats s = recount(notes->isChecked());
+        const WordStats s = recount(notes->isChecked(), boxes->isChecked());
         values[0]->setText(selection ? QString() : QString::number(pages));
         values[1]->setText(QString::number(s.words));
         values[2]->setText(QString::number(s.charactersNoSpaces));
@@ -152,6 +157,7 @@ void wordCountDialog(QWidget *parent, int pages, bool selection, const std::func
         values[5]->setText(QString::number(s.lines));
     };
     QObject::connect(notes, &QCheckBox::toggled, &dlg, fill);
+    QObject::connect(boxes, &QCheckBox::toggled, &dlg, fill);
     fill();
     auto *bb = new jp::ButtonBox(QDialogButtonBox::Close, &dlg);
     QObject::connect(bb, &QDialogButtonBox::rejected, &dlg, &QDialog::accept);

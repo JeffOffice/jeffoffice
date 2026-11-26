@@ -22,7 +22,7 @@ class PageView;
 // Sort: (in a table the keys are columns, and there are no separators) up to three keys (the field, its type, ascending or descending), what separates the fields, and whether the first paragraph is a header. False if canceled; `options` is then as it was.
 bool sortDialog(QWidget *parent, SortOptions *options, bool inTable = false);
 // Word Count: the numbers of `stats` (for the selection or the whole document), with the pages, and a box for the notes that asks for the count again through `recount`.
-void wordCountDialog(QWidget *parent, int pages, bool selection, const std::function<WordStats(bool notes)> &recount);
+void wordCountDialog(QWidget *parent, int pages, bool selection, const std::function<WordStats(bool notes, bool boxes)> &recount);
 
 // Paste Special: the ways the clipboard can be pasted now (each a line), and which the person picks; -1 if canceled.
 int pasteSpecialDialog(QWidget *parent, const QStringList &choices);
