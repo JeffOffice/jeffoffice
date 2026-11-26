@@ -395,7 +395,10 @@ private:
         const auto is = [&](const char *word) { return value == QLatin1String(word); };
         if (name.substr(0, 6) == "border" && name != "border-collapse") {
             const bool none = value.startsWith(QLatin1String("none")) || is("0") || value.startsWith(QLatin1String("0px")) || value.startsWith(QLatin1String("0pt"));
-            return none && !(!tables.empty() && tables.back().bordered);
+            // (a style says "no border" over the border attribute of the same part: that is not the default)
+            int width = 0;
+            const bool bordered = writingTable ? numberOf(ABorder, 100, false, false, &width) && width > 0 : !tables.empty() && tables.back().bordered;
+            return none && !bordered;
         }
         if (name == "font-weight") return (is("400") || is("normal")) && pos[CB].empty() && pos[CHead].empty() && headers == 0;
         if (name == "font-style") return is("normal") && pos[CI].empty();
@@ -515,10 +518,12 @@ private:
         out += QLatin1Char('"');
     }
     // Writes the kept attributes of a part. A span is written as three digits and set when the table ends.
+    bool writingTable = false;   // the attributes being written are a table's own (its style then answers to its own border attribute, not to the table it stands in)
     void putAttributes(Cls c, bool picture, bool emitSpans, int row)
     {
         Site site;
         site.row = row;
+        writingTable = c == CTable;
         const quint32 allowed = allowedAttributes(c, picture) & seen;
         if (!allowed) return;
         for (int a = 0; a < AtCount; ++a) {

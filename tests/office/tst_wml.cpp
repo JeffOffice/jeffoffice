@@ -3703,6 +3703,25 @@ private Q_SLOTS:
         QCOMPARE(g.html.count(QLatin1String("<body")), 1);
     }
 
+    // A table's own style that says "no border" over its own border attribute (what a copied web spreadsheet writes) is not a default, and the table comes out as it does unguarded.
+    // fails when off: yes (the border test of isDefault taken back to the border of the table the part stands in)
+    void aTableStyleThatSaysNoBorderOverItsBorderAttributeIsKept()
+    {
+        const QString page = QStringLiteral("<table border=1 style=\"border:none\"><tr><td>a</td><td style=\"border:none\">b</td></tr></table>");
+        const GuardedHtml g = guardHtml(page);
+        QVERIFY2(g.html.contains(QLatin1String("<table border=\"1\" style=\"border:none\">")), qPrintable(g.html));
+        auto border = [](const QString &html) {
+            QTextDocument d;
+            d.setHtml(html);
+            auto *t = qobject_cast<QTextTable *>(d.rootFrame()->childFrames().value(0));
+            return t ? QStringLiteral("%1 %2").arg(t->format().border()).arg(int(t->format().borderStyle())) : QString();
+        };
+        QCOMPARE(border(g.html), border(page));
+        // a table with no border attribute, and one that stands in a bordered table, still drop what they have anyway
+        QVERIFY2(!guardHtml(QStringLiteral("<table style=\"border:none\"><tr><td>a</td></tr></table>")).html.contains(QLatin1String("border:none")), "a default is kept");
+        QVERIFY2(!guardHtml(QStringLiteral("<table border=1><tr><td><table style=\"border:none\"><tr><td>a</td></tr></table></td></tr></table>")).html.contains(QLatin1String("border:none")), "a default is kept");
+    }
+
     void aStyleKeepsOnlyWhatIsUsed()
     {
         auto styleOf = [](const QString &style, const QString &open = QStringLiteral("<span")) {
