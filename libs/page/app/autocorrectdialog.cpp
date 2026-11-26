@@ -128,6 +128,29 @@ AutoCorrectPage::AutoCorrectPage(const QString &language, QWidget *parent) : QWi
     m_exceptions = exceptionList(exceptionTab, el, QStringLiteral("exceptionList"), QCoreApplication::translate("AutoCorrectDialog", "Do not capitalize after these abbreviations:"), &m_exceptionEdit, this, [] {});
     m_initials = exceptionList(exceptionTab, el, QStringLiteral("initialList"), QCoreApplication::translate("AutoCorrectDialog", "Do not correct these words with two initial capitals:"), &m_initialEdit, this, [] {});
     tabs->addTab(exceptionTab, QCoreApplication::translate("AutoCorrectDialog", "Exceptions"));
+    auto *mathTab = new QWidget(tabs);
+    auto *ml = new QVBoxLayout(mathTab);
+    m_math = new QCheckBox(QCoreApplication::translate("AutoCorrectDialog", "Replace the names of math symbols as you type"), mathTab);
+    m_math->setObjectName(QStringLiteral("mathSymbols"));
+    ml->addWidget(m_math);
+    auto *mathNote = new QLabel(QCoreApplication::translate("AutoCorrectDialog", "Type a backslash and one of these names, then a space or a mark, and the symbol takes its place. \\alpha becomes α."), mathTab);
+    mathNote->setTextFormat(Qt::PlainText);
+    mathNote->setWordWrap(true);
+    ml->addWidget(mathNote);
+    auto *mathTable = new QTableWidget(0, 2, mathTab);
+    mathTable->setObjectName(QStringLiteral("mathSymbolList"));
+    mathTable->setHorizontalHeaderLabels({QCoreApplication::translate("AutoCorrectDialog", "Name"), QCoreApplication::translate("AutoCorrectDialog", "Symbol")});
+    mathTable->horizontalHeader()->setStretchLastSection(true);
+    mathTable->setEditTriggers(QAbstractItemView::NoEditTriggers);
+    mathTable->setSelectionMode(QAbstractItemView::NoSelection);
+    for (const auto &entry : autotext::mathSymbols()) {
+        const int row = mathTable->rowCount();
+        mathTable->insertRow(row);
+        mathTable->setItem(row, 0, new QTableWidgetItem(entry.first));
+        mathTable->setItem(row, 1, new QTableWidgetItem(entry.second));
+    }
+    ml->addWidget(mathTable, 1);
+    tabs->addTab(mathTab, QCoreApplication::translate("AutoCorrectDialog", "Math Symbols"));
     outer->addWidget(tabs, 1);
     connect(add, &QPushButton::clicked, this, &AutoCorrectPage::addReplacement);
     connect(m_with, &QLineEdit::returnPressed, add, &QPushButton::click);
@@ -162,6 +185,7 @@ void AutoCorrectPage::showLanguage(const QString &language)
         m_days->setChecked(c.days);
         m_twoInitials->setChecked(c.twoInitials);
         m_capsLock->setChecked(c.capsLock);
+        m_math->setChecked(c.math);
         m_switchesSet = true;
     }
     fillReplacements();
@@ -204,6 +228,7 @@ void AutoCorrectPage::store()
     c.days = m_days->isChecked();
     c.twoInitials = m_twoInitials->isChecked();
     c.capsLock = m_capsLock->isChecked();
+    c.math = m_math->isChecked();
     c.replacements.clear();
     for (int row = 0; row < m_table->rowCount(); ++row) c.replacements.append({m_table->item(row, 0)->text(), m_table->item(row, 1)->text()});
     c.exceptions.clear();
@@ -271,6 +296,7 @@ void AutoCorrectPage::apply()
         c.days = shown.days;
         c.twoInitials = shown.twoInitials;
         c.capsLock = shown.capsLock;
+        c.math = shown.math;
         saveAutoCorrectConfig(c);
     }
 }

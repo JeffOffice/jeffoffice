@@ -32,6 +32,7 @@ struct Config {
     bool days = true;               // capitalize names of days
     bool twoInitials = true;        // correct TWo INitial CApitals
     bool capsLock = true;           // correct accidental usage of cAPS LOCK
+    bool math = false;              // replace the names of math symbols (a backslash and a name, such as \alpha) with the symbols
     QList<QPair<QString, QString>> replacements;   // what is typed, and what it becomes
     QStringList exceptions;         // abbreviations after which a lowercase word is no new sentence ("e.g.")
     QStringList initialExceptions;  // words that keep their two initial capitals ("IDs")
@@ -43,6 +44,8 @@ QList<QPair<QString, QString>> defaultReplacements(const QString &language);
 QStringList defaultExceptions(const QString &language);
 QStringList defaultInitialExceptions(const QString &language);
 Config defaultConfig(const QString &language = QString());
+// The math symbols' names and the symbols (\alpha and α), for every language; used while `Config::math` is on.
+const QList<QPair<QString, QString>> &mathSymbols();
 
 // AutoCorrect: the word that ends at `rel` in `text` (a typing slip, a symbol such as (c), two initial capitals, a day's name, or the capital at the start of a sentence).
 // `inCell`: the paragraph is in a table's cell.

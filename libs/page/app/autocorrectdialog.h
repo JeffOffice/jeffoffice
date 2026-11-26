@@ -37,7 +37,7 @@ private:
     QString m_language;
     QMap<QString, autotext::Config> m_configs;   // (by the language's first part)
     QComboBox *m_languages = nullptr;
-    QCheckBox *m_replace = nullptr, *m_sentences = nullptr, *m_cells = nullptr, *m_days = nullptr, *m_twoInitials = nullptr, *m_capsLock = nullptr;
+    QCheckBox *m_replace = nullptr, *m_sentences = nullptr, *m_cells = nullptr, *m_days = nullptr, *m_twoInitials = nullptr, *m_capsLock = nullptr, *m_math = nullptr;
     QTableWidget *m_table = nullptr;
     QLineEdit *m_from = nullptr, *m_with = nullptr;
     QListWidget *m_exceptions = nullptr, *m_initials = nullptr;

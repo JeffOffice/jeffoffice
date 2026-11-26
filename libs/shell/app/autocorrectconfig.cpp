@@ -38,6 +38,7 @@ autotext::Config autoCorrectConfig(const QString &language)
     c.days = st.value(QStringLiteral("proof/ac/days"), true).toBool();
     c.twoInitials = st.value(QStringLiteral("proof/ac/twoInitials"), true).toBool();
     c.capsLock = st.value(QStringLiteral("proof/ac/capsLock"), true).toBool();
+    c.math = st.value(QStringLiteral("proof/ac/math"), false).toBool();
     if (const QStringList own = readList(QStringLiteral("proof/ac/replace/") + base); !own.isEmpty()) {
         c.replacements.clear();
         for (const QString &line : own) {
@@ -66,6 +67,7 @@ void saveAutoCorrectConfig(const autotext::Config &config)
     st.setValue(QStringLiteral("proof/ac/days"), config.days);
     st.setValue(QStringLiteral("proof/ac/twoInitials"), config.twoInitials);
     st.setValue(QStringLiteral("proof/ac/capsLock"), config.capsLock);
+    st.setValue(QStringLiteral("proof/ac/math"), config.math);
     QStringList replacements, program;
     for (const auto &entry : config.replacements) replacements << entry.first + QLatin1Char('\t') + entry.second;
     for (const auto &entry : autotext::defaultReplacements(config.language)) program << entry.first + QLatin1Char('\t') + entry.second;

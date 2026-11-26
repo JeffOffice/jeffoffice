@@ -154,6 +154,7 @@ bool PageView::stopAutoFix()
     case autotext::Fix::Kind::Replacement:
         for (int i = int(config.replacements.size()) - 1; i >= 0; --i)
             if (config.replacements[i].first == fix.entry) config.replacements.removeAt(i);
+        if (fix.entry.startsWith(QLatin1Char('\\'))) config.math = false;   // (a math symbol's name is not in the list: its switch goes off)
         break;
     case autotext::Fix::Kind::TwoInitials:
     case autotext::Fix::Kind::CapsLock:

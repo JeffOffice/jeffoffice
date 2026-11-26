@@ -14,12 +14,17 @@
 #include <QTemporaryDir>
 #include <QUrlQuery>
 
+#include "text/autocorrect.h"
+#include "app/autocorrectconfig.h"
+#include "app/autocorrectdialog.h"
 #include "app/grammar.h"
 #include "app/spelling.h"
 #include "app/proofingdialogs.h"
 
+#include <QCheckBox>
 #include <QLabel>
 #include <QMenu>
+#include <QTableWidget>
 #include <QPushButton>
 
 namespace {
@@ -542,6 +547,51 @@ private Q_SLOTS:
         QCOMPARE(w.notesPane()->toPlainText(), QStringLiteral("This is a test of the checker."));
         jp::setGrammarAsYouType(false);
         QTRY_VERIFY(w.notesPane()->grammarIssues().isEmpty());
+    }
+
+    // AutoCorrect's math symbols: a backslash and a name become the symbol as the word ends, only when the switch is on; \in does not cut into \int; the switch and the list are in the AutoCorrect Options.
+    void mathSymbolNamesBecomeSymbolsWhileTypingWhenTheSwitchIsOn()
+    {
+        const jptest::SettingGuard math(QStringLiteral("proof/ac/math"), false, false);
+        DeckWindow w;
+        w.show();
+        Editor *ed = w.editor();
+        QTextDocument *doc = editTitle(w, QString(), 0, 0);
+        auto type = [&](const QString &s) {
+            for (const QChar c : s) ed->typeText(QString(c));
+        };
+        type(QStringLiteral("\\alpha "));
+        QCOMPARE(doc->toPlainText(), QStringLiteral("\\alpha "));   // (off: nothing is replaced)
+        jp::autotext::Config on = jp::autoCorrectConfig(QStringLiteral("en-US"));
+        on.math = true;
+        jp::saveAutoCorrectConfig(on);
+        QVERIFY(jp::autoCorrectConfig(QStringLiteral("en-US")).math);
+        ed->setCursor([&] {
+            QTextCursor c(doc);
+            c.select(QTextCursor::Document);
+            return c;
+        }());
+        type(QStringLiteral("\\pi r \\leq 3 \\int, \\in \\alphabet \\Sigma \\infty."));
+        QCOMPARE(doc->toPlainText(), QStringLiteral("π r ≤ 3 ∫, ∈ \\alphabet Σ ∞."));
+    }
+
+    void theAutoCorrectOptionsHaveTheMathSymbolSwitchAndList()
+    {
+        const jptest::SettingGuard math(QStringLiteral("proof/ac/math"), false, false);
+        jp::AutoCorrectPage page(QStringLiteral("en-US"));
+        page.show();
+        auto *box = page.findChild<QCheckBox *>(QStringLiteral("mathSymbols"));
+        auto *list = page.findChild<QTableWidget *>(QStringLiteral("mathSymbolList"));
+        QVERIFY(box && list);
+        QVERIFY(!box->isChecked());
+        QVERIFY(list->rowCount() >= 80);
+        bool alpha = false;
+        for (int i = 0; i < list->rowCount(); ++i) alpha = alpha || (list->item(i, 0)->text() == QLatin1String("\\alpha") && list->item(i, 1)->text() == QStringLiteral("α"));
+        QVERIFY(alpha);
+        box->setChecked(true);
+        page.apply();
+        QVERIFY(jp::autoCorrectConfig(QStringLiteral("en-US")).math);
+        QVERIFY(jp::autoCorrectConfig(QStringLiteral("fr-FR")).math);   // (a switch is for every language)
     }
 };
 
