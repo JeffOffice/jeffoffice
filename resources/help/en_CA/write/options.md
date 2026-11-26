@@ -31,6 +31,10 @@ A change on this page applies to the window you are in at once, and to each wind
 
 **Allow text to be dragged and dropped** lets you select words and drag them to a new place. Hold **Ctrl** while you drop to copy them instead of moving them. Turn it off if you drag by accident.
 
+**When selecting, automatically select the whole word** is on at first: when you drag across more than one word, the selection grows to take in the whole word at each end. A drag inside one word selects just the letters you cover. The same goes for Shift+click. A double-click and drag selects whole words, forward or back, and keeps the word you double-clicked.
+
+**Use smart paragraph selection** is on at first. When you drag from the start of a paragraph to the end of its words, the selection takes the paragraph mark too. If you then press Delete or cut it, the whole paragraph goes and the next paragraph stays as it was. If you type over it, the new letters go at the start of the next paragraph and take that paragraph's style, because the mark between the two is gone. To make a drag stop at the end of the words, so that typing over it keeps your paragraph and its style, turn this box off in **Options > Advanced**.
+
 **Typing replaces the selected text** is on at first: when words are selected and you type, the new letters take their place. Turn it off and the new letters go after the selected words instead.
 
 **Use the Insert key to turn overtype mode on and off** is off at first. When it is on, the **Insert** key switches between two ways of typing. Normally each letter you type pushes the letters after it along. In **overtype** mode each letter you type replaces the letter after the cursor. Press **Insert** again to go back.

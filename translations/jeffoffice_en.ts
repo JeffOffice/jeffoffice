@@ -246,7 +246,7 @@
 <context>
     <name>Proofing</name>
     <message numerus="yes">
-        <location filename="../libs/shell/app/spelling.cpp" line="+330"/>
+        <location filename="../libs/shell/app/spelling.cpp" line="+331"/>
         <source>A word can&apos;t be empty, have a space or a control character in it, or be longer than %n letters.</source>
         <translation>
             <numerusform>A word can&apos;t be empty, have a space or a control character in it, or be longer than %n letter.</numerusform>
@@ -365,7 +365,7 @@
 <context>
     <name>jp::Blocks</name>
     <message numerus="yes">
-        <location filename="../libs/shell/app/blockgallery.cpp" line="+362"/>
+        <location filename="../libs/shell/app/blockgallery.cpp" line="+376"/>
         <source>%n block was added.</source>
         <translation>
             <numerusform>%n block was added.</numerusform>
@@ -758,7 +758,7 @@
 <context>
     <name>jp::ReviewPane</name>
     <message numerus="yes">
-        <location filename="../apps/write/app/reviewpane.cpp" line="+259"/>
+        <location filename="../apps/write/app/reviewpane.cpp" line="+261"/>
         <source>%n more change(s) are inside text boxes that are not listed here, and are done only by Accept All Changes and Reject All Changes.</source>
         <translation>
             <numerusform>%n more change is inside a text box that is not listed here, and is done only by Accept All Changes and Reject All Changes.</numerusform>
@@ -800,7 +800,7 @@
 <context>
     <name>jp::WriteWindow</name>
     <message numerus="yes">
-        <location filename="../apps/write/app/writewindow.cpp" line="+822"/>
+        <location filename="../apps/write/app/writewindow.cpp" line="+849"/>
         <source>%1 of %n word(s)</source>
         <translation>
             <numerusform>%1 of %n word</numerusform>
@@ -848,7 +848,7 @@
         </translation>
     </message>
     <message numerus="yes">
-        <location filename="../apps/write/app/writewindow_review.cpp" line="+421"/>
+        <location filename="../apps/write/app/writewindow_review.cpp" line="+429"/>
         <source>%n change is inside a content control that can&apos;t be edited.</source>
         <translation>
             <numerusform>%n change is inside a content control that can&apos;t be edited.</numerusform>
@@ -864,7 +864,7 @@
         </translation>
     </message>
     <message numerus="yes">
-        <location filename="../apps/write/app/writewindow_info.cpp" line="+238"/>
+        <location filename="../apps/write/app/writewindow_info.cpp" line="+243"/>
         <source>%n picture filling a shape is left as it is, because changing it would change how the shape looks.</source>
         <translation>
             <numerusform>%n picture filling a shape is left as it is, because changing it would change how the shape looks.</numerusform>
@@ -1159,7 +1159,7 @@
 <context>
     <name>jp::write::HomeDialogs</name>
     <message numerus="yes">
-        <location filename="../apps/write/app/homedialogs.cpp" line="+536"/>
+        <location filename="../apps/write/app/homedialogs.cpp" line="+542"/>
         <source>%n problem(s) found. Click one to go to it.</source>
         <translation>
             <numerusform>%n problem found. Click it to go to it.</numerusform>

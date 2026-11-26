@@ -21,6 +21,16 @@ If a block with that name is already saved, JeffWrite asks whether to replace it
 
 Putting a block in is one step to undo. A style the block uses that your document does not have is added; a style your document already has under the same name is never changed. A field in the block, such as the page number, is updated for the document it is in. The first and last paragraphs of a block take the look of the paragraphs they join, as when you paste.
 
+## Your own cover pages, tables, and text boxes
+
+Your own cover page, table, or text box can be kept in a gallery of its own, under the built-in ones.
+
+- **Cover page.** Select the cover page and its page break (or put the cursor anywhere and select nothing, when the document has a cover page already), and choose **Insert > Cover Page > Your Cover Pages > Save Selection to Cover Page Gallery**.
+- **Table.** Select the whole table, and choose **Insert > Table > Ready-Made Tables > Your Tables > Save Selection to Table Gallery**.
+- **Text box.** Click the text box so it is selected, and choose **Insert > Text Box > Your Text Boxes > Save Selection to Text Box Gallery**.
+
+Give it a name and click **Save**. It is then listed under **Your Cover Pages**, **Your Tables**, or **Your Text Boxes**. Click it to put it in. A cover page goes at the start of the document, on a page of its own, and takes the place of the cover page the document has. A table or a text box goes in at the cursor. **Manage Saved Blocks** lists these galleries too, so you can rename, change, delete, export, and import them.
+
 ## Text Shortcuts
 
 A Text Shortcut is a block with a short name. Type the name, then press **F3** (or choose **Insert > Saved Blocks > Expand Text Shortcut**), and the name is replaced by the block. The name must start a word: "sig" works after a space, but not inside "design".

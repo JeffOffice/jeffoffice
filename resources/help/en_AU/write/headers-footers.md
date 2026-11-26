@@ -34,6 +34,10 @@ Click **Header & Footer > Insert > Page Number Format**. Pick a look: 1, 2, 3, o
 
 An **alignment tab** sends the words after it to the left edge, the middle, or the right edge of the line, whatever tab stops the paragraph has. Click **Insert Alignment Tab** in the **Insert** group of the **Header & Footer** tab. Pick **Left**, **Centre**, or **Right**. Pick whether the place is measured from the **Margin** or from the **Indent** of the paragraph. Pick a **Leader** if you want dots, dashes, or a line to fill the space before the words. For a header with a title on the left, the date in the middle, and a page number on the right, put an alignment tab (Centre) before the date and another (Right) before the page number.
 
+## Put in a field or a saved block
+
+On the **Header & Footer** tab, **Field** in the **Insert** group opens the list of fields, such as the file name, the number of words, or a date, and puts the one you pick in at the cursor. **Saved Blocks** puts in a block you saved, as it does in the text. A block that is set to go on a page of its own goes in as a paragraph of its own, because a header or a footer has no page break.
+
 ## Set how far they are from the edge of the paper
 
 On the **Header & Footer** tab, the **Position** group has two boxes. **Header from Top** is the space between the top edge of the paper and the header. **Footer from Bottom** is the space between the bottom edge and the footer. Type a number and press Enter. It changes the section you are editing, and **Undo** takes it back.

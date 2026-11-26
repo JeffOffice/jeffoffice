@@ -6052,13 +6052,13 @@ Matéria da última página	4</translation>
     <message>
         <location filename="../libs/page/app/saveoptions.cpp" line="-15"/>
         <location filename="../apps/pub/app/mainwindow.cpp" line="+462"/>
-        <location filename="../apps/write/app/writewindow.cpp" line="+846"/>
+        <location filename="../apps/write/app/writewindow.cpp" line="+873"/>
         <source>Save</source>
         <translation type="unfinished">Salvar</translation>
     </message>
     <message>
         <location filename="../apps/pub/app/dialogs.cpp" line="+66"/>
-        <location filename="../apps/write/app/writewindow_options.cpp" line="+169"/>
+        <location filename="../apps/write/app/writewindow_options.cpp" line="+189"/>
         <source>Inches</source>
         <translation type="unfinished">Polegadas</translation>
     </message>
@@ -6537,7 +6537,7 @@ Matéria da última página	4</translation>
         <translation type="unfinished">Selecione primeiro uma lista de destinatários.</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/writewindow_options.cpp" line="-75"/>
+        <location filename="../apps/write/app/writewindow_options.cpp" line="-89"/>
         <source>Document (*.docx)</source>
         <translation type="unfinished">Documento (*.docx)</translation>
     </message>
@@ -6578,7 +6578,7 @@ Matéria da última página	4</translation>
         <translation type="unfinished">Exibição</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/writewindow_options.cpp" line="-63"/>
+        <location filename="../apps/write/app/writewindow_options.cpp" line="-69"/>
         <source>Tab characters</source>
         <translation type="unfinished">Caracteres de tabulação</translation>
     </message>
@@ -6608,7 +6608,7 @@ Matéria da última página	4</translation>
         <translation type="unfinished">Âncoras de objeto</translation>
     </message>
     <message>
-        <location line="+42"/>
+        <location line="+48"/>
         <source>Save fonts in the file</source>
         <translation type="unfinished">Salvar fontes no arquivo</translation>
     </message>
@@ -6633,6 +6633,32 @@ Matéria da última página	4</translation>
         <translation type="unfinished">Mostrar linhas de grade de tabela ao abrir uma janela</translation>
     </message>
     <message>
+        <location line="+6"/>
+        <location line="+5"/>
+        <source>Field shading</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-4"/>
+        <source>Never</source>
+        <translation type="unfinished">Nunca</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Always</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>When selected</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Update fields before printing</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <location line="+9"/>
         <source>Hidden</source>
         <translation type="unfinished">Oculto</translation>
@@ -6644,7 +6670,7 @@ Matéria da última página	4</translation>
         <translation type="unfinished">Largura da área de estilos nos modos de exibição Rascunho e Estrutura de Tópicos</translation>
     </message>
     <message>
-        <location line="+25"/>
+        <location line="+27"/>
         <source>Show measurements in</source>
         <translation>Mostrar medidas em</translation>
     </message>
@@ -6655,6 +6681,16 @@ Matéria da última página	4</translation>
     </message>
     <message>
         <location line="+8"/>
+        <source>When selecting, automatically select the whole word</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>Use smart paragraph selection</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
         <source>Typing replaces the selected text</source>
         <translation type="unfinished">Digitar substitui o texto selecionado</translation>
     </message>
@@ -12710,17 +12746,22 @@ Baixá-lo de %2 agora? (%3, uma única vez.)</translation>
     </message>
     <message>
         <location filename="../libs/shell/app/spelling.cpp" line="+187"/>
-        <location line="+153"/>
+        <location line="+158"/>
         <source>The file is read-only.</source>
         <translation type="unfinished">O arquivo é somente leitura.</translation>
     </message>
     <message numerus="yes">
-        <location line="-10"/>
+        <location line="-14"/>
         <source>A word can&apos;t be empty, have a space or a control character in it, or be longer than %n letters.</source>
         <translation type="unfinished">
             <numerusform>Uma palavra não pode estar vazia, ter espaço ou caractere de controle, nem ter mais de %n letra.</numerusform>
             <numerusform>Uma palavra não pode estar vazia, ter espaço ou caractere de controle, nem ter mais de %n letras.</numerusform>
         </translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>The dictionary is a folder, not a file.</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <location line="+6"/>
@@ -17833,7 +17874,7 @@ Abra-o no seu programa de email, adicione os destinatários e envie.</translatio
         <translation>Automático</translation>
     </message>
     <message>
-        <location filename="../apps/deck/app/slideshow.cpp" line="+2700"/>
+        <location filename="../apps/deck/app/slideshow.cpp" line="+2769"/>
         <source>Screen %1</source>
         <translation type="unfinished">Tela %1</translation>
     </message>
@@ -23431,17 +23472,32 @@ Editoração eletrônica</translation>
 <context>
     <name>jp::Blocks</name>
     <message>
-        <location filename="../libs/shell/app/blockgallery.cpp" line="+30"/>
+        <location filename="../libs/shell/app/blockgallery.cpp" line="+32"/>
         <source>Text Shortcuts</source>
         <translation type="unfinished">Atalhos de Texto</translation>
     </message>
     <message>
-        <location line="+0"/>
+        <location line="+1"/>
+        <source>Cover Pages</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Tables</source>
+        <translation type="unfinished">Tabelas</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Text Boxes</source>
+        <translation type="unfinished">Caixas de Texto</translation>
+    </message>
+    <message>
+        <location line="+1"/>
         <source>Saved Blocks</source>
         <translation type="unfinished">Blocos Salvos</translation>
     </message>
     <message>
-        <location line="+42"/>
+        <location line="+43"/>
         <source>Search by name</source>
         <translation type="unfinished">Pesquisar por nome</translation>
     </message>
@@ -23467,20 +23523,20 @@ Editoração eletrônica</translation>
     </message>
     <message>
         <location line="+0"/>
-        <location line="+59"/>
+        <location line="+65"/>
         <location line="+4"/>
         <source>Save as a Block</source>
         <translation type="unfinished">Salvar como Bloco</translation>
     </message>
     <message>
-        <location line="-58"/>
+        <location line="-64"/>
         <location line="+1"/>
         <source>Name</source>
         <translation>Nome</translation>
     </message>
     <message>
         <location line="+3"/>
-        <location line="+5"/>
+        <location line="+11"/>
         <location line="+61"/>
         <source>Gallery</source>
         <translation type="unfinished">Galeria</translation>
@@ -23534,7 +23590,7 @@ Editoração eletrônica</translation>
         <translation type="unfinished">Gerenciar Blocos Salvos</translation>
     </message>
     <message>
-        <location line="+23"/>
+        <location line="+24"/>
         <source>Edit Properties…</source>
         <translation type="unfinished">Editar Propriedades…</translation>
     </message>
@@ -58639,12 +58695,12 @@ Seu navegador da Web abrirá o LibreTranslate, um serviço de tradução gratuit
     </message>
     <message>
         <location line="+2"/>
-        <location line="+226"/>
+        <location line="+229"/>
         <source>Resolve</source>
         <translation type="unfinished">Resolver</translation>
     </message>
     <message>
-        <location line="-224"/>
+        <location line="-227"/>
         <source>Delete</source>
         <translation type="unfinished">Excluir</translation>
     </message>
@@ -58713,7 +58769,7 @@ Seu navegador da Web abrirá o LibreTranslate, um serviço de tradução gratuit
         <translation type="unfinished">Todos os Revisores</translation>
     </message>
     <message>
-        <location line="+27"/>
+        <location line="+29"/>
         <source>In a text box</source>
         <translation type="unfinished">Em uma caixa de texto</translation>
     </message>
@@ -58731,7 +58787,7 @@ Seu navegador da Web abrirá o LibreTranslate, um serviço de tradução gratuit
         <translation type="unfinished">Resolvido</translation>
     </message>
     <message>
-        <location line="+46"/>
+        <location line="+47"/>
         <source>Reopen</source>
         <translation type="unfinished">Reabrir</translation>
     </message>
@@ -59688,19 +59744,19 @@ Seu navegador da Web abrirá o LibreTranslate, um serviço de tradução gratuit
 <context>
     <name>jp::SlideShow</name>
     <message>
-        <location filename="../apps/deck/app/slideshow.cpp" line="-2032"/>
+        <location filename="../apps/deck/app/slideshow.cpp" line="-2097"/>
         <location line="+105"/>
-        <location line="+151"/>
+        <location line="+153"/>
         <source>Slide Show</source>
         <translation type="unfinished">Apresentação de slides</translation>
     </message>
     <message>
-        <location line="+502"/>
+        <location line="+508"/>
         <source>End of slide show, click to exit.</source>
         <translation type="unfinished">Fim da apresentação de slides. Clique para sair.</translation>
     </message>
     <message>
-        <location line="+512"/>
+        <location line="+520"/>
         <source>There is no earlier slide to go back to.</source>
         <translation type="unfinished">Não há slide anterior para voltar.</translation>
     </message>
@@ -59772,7 +59828,7 @@ Seu navegador da Web abrirá o LibreTranslate, um serviço de tradução gratuit
         <translation type="unfinished">A apresentação %1 não pode ser aberta.</translation>
     </message>
     <message>
-        <location line="+539"/>
+        <location line="+566"/>
         <source>Pointer Options</source>
         <translation type="unfinished">Opções de Ponteiro</translation>
     </message>
@@ -59873,6 +59929,11 @@ Seu navegador da Web abrirá o LibreTranslate, um serviço de tradução gratuit
     </message>
     <message>
         <location line="+1"/>
+        <source>Zoom into the slide, from the menu: drag to move the slide, and press Esc to put it back.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
         <source>The menu: a right click, the Menu key, or Shift+F10.</source>
         <translation type="unfinished">O menu: um clique com o botão direito, a tecla Menu ou Shift+F10.</translation>
     </message>
@@ -59907,7 +59968,24 @@ Seu navegador da Web abrirá o LibreTranslate, um serviço de tradução gratuit
         <translation type="unfinished">Apresentação Personalizada</translation>
     </message>
     <message>
-        <location line="+10"/>
+        <location line="+9"/>
+        <source>Show Presenter View</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <location line="+414"/>
+        <location line="+1"/>
+        <source>Speaker Notes</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-411"/>
+        <source>Zoom into the Slide</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+14"/>
         <source>Screen</source>
         <translation type="unfinished">Tela</translation>
     </message>
@@ -59935,6 +60013,16 @@ Seu navegador da Web abrirá o LibreTranslate, um serviço de tradução gratuit
         <location line="+1"/>
         <source>End Show</source>
         <translation type="unfinished">Finalizar Apresentação</translation>
+    </message>
+    <message>
+        <location line="+351"/>
+        <source>This slide has no notes.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>These notes were cut short because they are very long.</source>
+        <translation type="unfinished"></translation>
     </message>
 </context>
 <context>
@@ -61561,7 +61649,7 @@ Seu navegador da Web abrirá o LibreTranslate, um serviço de tradução gratuit
 <context>
     <name>jp::TransitionPreview</name>
     <message>
-        <location filename="../apps/deck/app/slideshow.cpp" line="+324"/>
+        <location filename="../apps/deck/app/slideshow.cpp" line="+86"/>
         <source>Transition Preview</source>
         <translation type="unfinished">Visualização da transição</translation>
     </message>
@@ -63801,7 +63889,7 @@ Seu navegador da Web abrirá o LibreTranslate, um serviço de tradução gratuit
 <context>
     <name>jp::WriteOutlineView</name>
     <message>
-        <location filename="../apps/write/app/writeoutlineview.cpp" line="+25"/>
+        <location filename="../apps/write/app/writeoutlineview.cpp" line="+46"/>
         <source>Outline</source>
         <translation type="unfinished">Estrutura de Tópicos</translation>
     </message>
@@ -63814,7 +63902,7 @@ Seu navegador da Web abrirá o LibreTranslate, um serviço de tradução gratuit
 <context>
     <name>jp::WriteWindow</name>
     <message>
-        <location filename="../apps/write/app/writewindow.cpp" line="-754"/>
+        <location filename="../apps/write/app/writewindow.cpp" line="-781"/>
         <source>Document%1</source>
         <translation type="unfinished">Documento%1</translation>
     </message>
@@ -63845,7 +63933,7 @@ Seu navegador da Web abrirá o LibreTranslate, um serviço de tradução gratuit
         <translation type="unfinished">%1 (%2)</translation>
     </message>
     <message>
-        <location line="+124"/>
+        <location line="+126"/>
         <source> (Protected)</source>
         <translation type="unfinished"> (Protegido)</translation>
     </message>
@@ -63853,6 +63941,27 @@ Seu navegador da Web abrirá o LibreTranslate, um serviço de tradução gratuit
         <location line="+0"/>
         <source> (Read-Only)</source>
         <translation type="unfinished"> (Somente Leitura)</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source> [Compatibility Mode]</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+15"/>
+        <location filename="../apps/write/app/writewindow_info.cpp" line="+70"/>
+        <source>Convert</source>
+        <translation type="unfinished">Converter</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>The document will use the newest layout rules. Lines and pages may break in other places, and this can&apos;t be undone. Convert it?</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>The document now uses the newest layout rules.</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <location line="+47"/>
@@ -63896,6 +64005,11 @@ Seu navegador da Web abrirá o LibreTranslate, um serviço de tradução gratuit
     </message>
     <message>
         <location line="+2"/>
+        <source>Select Objects</source>
+        <translation type="unfinished">Selecionar Objetos</translation>
+    </message>
+    <message>
+        <location line="+7"/>
         <source>Bold</source>
         <translation type="unfinished">Negrito</translation>
     </message>
@@ -64183,7 +64297,7 @@ Seu navegador da Web abrirá o LibreTranslate, um serviço de tradução gratuit
         <translation type="unfinished">Marcadores e Numeração</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/writewindow_tables.cpp" line="+89"/>
+        <location filename="../apps/write/app/writewindow_tables.cpp" line="+90"/>
         <location line="+19"/>
         <source>A table can&apos;t be put in a table cell here.</source>
         <translation type="unfinished">Não é possível colocar uma tabela em uma célula de tabela aqui.</translation>
@@ -64240,6 +64354,17 @@ Seu navegador da Web abrirá o LibreTranslate, um serviço de tradução gratuit
     </message>
     <message>
         <location line="+1"/>
+        <location line="+4"/>
+        <source>Turn off Track Changes to delete cells and shift the others.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-1"/>
+        <source>Delete Cells, Shift Up</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
         <source>Delete Rows</source>
         <translation type="unfinished">Excluir Linhas</translation>
     </message>
@@ -64339,7 +64464,12 @@ Seu navegador da Web abrirá o LibreTranslate, um serviço de tradução gratuit
         <translation type="unfinished">Alinhar no Centro à Esquerda</translation>
     </message>
     <message>
-        <location line="+229"/>
+        <location line="+188"/>
+        <source>Your Tables</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+43"/>
         <location line="+1"/>
         <source>Pen Color</source>
         <translation type="unfinished">Cor da Caneta</translation>
@@ -64385,13 +64515,13 @@ Seu navegador da Web abrirá o LibreTranslate, um serviço de tradução gratuit
         <translation type="unfinished">Estilo da Caneta: o tipo de linha que o Pincel de Bordas desenha. Sem Borda faz com que ele apague bordas.</translation>
     </message>
     <message>
-        <location line="+136"/>
+        <location line="+137"/>
         <source>Move Table</source>
         <translation type="unfinished">Mover Tabela</translation>
     </message>
     <message>
         <location filename="../apps/write/app/writewindow_shapes.cpp" line="-1"/>
-        <location filename="../apps/write/app/writewindow_tables.cpp" line="-411"/>
+        <location filename="../apps/write/app/writewindow_tables.cpp" line="-414"/>
         <source>Align Center</source>
         <translation type="unfinished">Alinhar no Centro</translation>
     </message>
@@ -64584,7 +64714,7 @@ Seu navegador da Web abrirá o LibreTranslate, um serviço de tradução gratuit
     <message>
         <location filename="../apps/write/app/writewindow_home.cpp" line="+1"/>
         <location filename="../apps/write/app/writewindow_tables.cpp" line="+1"/>
-        <location line="+211"/>
+        <location line="+213"/>
         <source>No Border</source>
         <translation type="unfinished">Sem Borda</translation>
     </message>
@@ -65452,7 +65582,7 @@ Seu navegador da Web abrirá o LibreTranslate, um serviço de tradução gratuit
     </message>
     <message>
         <location filename="../apps/write/app/writewindow_home.cpp" line="+0"/>
-        <location filename="../apps/write/app/writewindow_tables.cpp" line="-190"/>
+        <location filename="../apps/write/app/writewindow_tables.cpp" line="-192"/>
         <source>All Borders</source>
         <translation type="unfinished">Todas as Bordas</translation>
     </message>
@@ -65574,7 +65704,7 @@ Seu navegador da Web abrirá o LibreTranslate, um serviço de tradução gratuit
     </message>
     <message>
         <location filename="../apps/write/app/writewindow_ribbon.cpp" line="+160"/>
-        <location filename="../apps/write/app/writewindow_tables.cpp" line="+32"/>
+        <location filename="../apps/write/app/writewindow_tables.cpp" line="+34"/>
         <source>Shading</source>
         <translation type="unfinished">Sombreamento</translation>
     </message>
@@ -65594,7 +65724,7 @@ Seu navegador da Web abrirá o LibreTranslate, um serviço de tradução gratuit
         <translation type="unfinished">Estilos de Tabela</translation>
     </message>
     <message>
-        <location line="+97"/>
+        <location line="+98"/>
         <source>Insert</source>
         <translation type="unfinished">Inserir</translation>
     </message>
@@ -65667,7 +65797,7 @@ Seu navegador da Web abrirá o LibreTranslate, um serviço de tradução gratuit
     <message>
         <location line="-598"/>
         <location filename="../apps/write/app/writewindow_graphics.cpp" line="+88"/>
-        <location filename="../apps/write/app/writewindow_insert.cpp" line="+216"/>
+        <location filename="../apps/write/app/writewindow_insert.cpp" line="+285"/>
         <location filename="../apps/write/app/writewindow_pictures.cpp" line="+163"/>
         <location filename="../apps/write/app/writewindow_shapes.cpp" line="-334"/>
         <location line="+59"/>
@@ -65734,7 +65864,7 @@ Seu navegador da Web abrirá o LibreTranslate, um serviço de tradução gratuit
     </message>
     <message>
         <location line="+1"/>
-        <location filename="../apps/write/app/writewindow_output.cpp" line="+865"/>
+        <location filename="../apps/write/app/writewindow_output.cpp" line="+867"/>
         <source>Shrink by One Page</source>
         <translation type="unfinished">Reduzir em Uma Página</translation>
     </message>
@@ -65904,7 +66034,7 @@ A senha não pôde ser aplicada ao arquivo.</translation>
     </message>
     <message>
         <location line="+87"/>
-        <location filename="../apps/write/app/writewindow_info.cpp" line="+315"/>
+        <location filename="../apps/write/app/writewindow_info.cpp" line="+250"/>
         <source>document</source>
         <translation type="unfinished">documento</translation>
     </message>
@@ -65912,7 +66042,7 @@ A senha não pôde ser aplicada ao arquivo.</translation>
         <location line="-197"/>
         <location line="+122"/>
         <location filename="../apps/write/app/writewindow_output.cpp" line="-300"/>
-        <location line="+508"/>
+        <location line="+516"/>
         <source>%1 couldn&apos;t save &quot;%2&quot;.
 %3%4</source>
         <translation type="unfinished">O %1 não pôde salvar &quot;%2&quot;.
@@ -66087,27 +66217,27 @@ A senha não pôde ser aplicada ao arquivo.</translation>
         <translation type="unfinished">Feedback</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/writewindow_output.cpp" line="-805"/>
+        <location filename="../apps/write/app/writewindow_output.cpp" line="-814"/>
         <source>PDF (*.pdf)</source>
         <translation type="unfinished">PDF (*.pdf)</translation>
     </message>
     <message>
         <location line="+120"/>
         <location line="+64"/>
-        <location line="+13"/>
+        <location line="+14"/>
         <location line="+21"/>
         <source>Export to PDF</source>
         <translation type="unfinished">Exportar para PDF</translation>
     </message>
     <message>
-        <location line="-201"/>
+        <location line="-202"/>
         <location line="+32"/>
-        <location line="+227"/>
+        <location line="+228"/>
         <source>The pages can&apos;t be made.</source>
         <translation type="unfinished">Não é possível gerar as páginas.</translation>
     </message>
     <message>
-        <location line="-152"/>
+        <location line="-153"/>
         <source>All pages</source>
         <translation type="unfinished">Todas as páginas</translation>
     </message>
@@ -66142,7 +66272,7 @@ A senha não pôde ser aplicada ao arquivo.</translation>
         <translation type="unfinished">Nenhum desses números é uma página do documento. Digite números de página, como 1-3, 5.</translation>
     </message>
     <message>
-        <location line="+34"/>
+        <location line="+35"/>
         <location line="+93"/>
         <location line="+19"/>
         <location line="+54"/>
@@ -66210,7 +66340,7 @@ A senha não pôde ser aplicada ao arquivo.</translation>
         <translation type="unfinished">Texto (*.txt)</translation>
     </message>
     <message>
-        <location line="+151"/>
+        <location line="+159"/>
         <source>The printer &quot;%1&quot; is not there any more. Choose another printer.</source>
         <translation type="unfinished">A impressora &quot;%1&quot; não está mais disponível. Escolha outra impressora.</translation>
     </message>
@@ -66236,7 +66366,7 @@ A senha não pôde ser aplicada ao arquivo.</translation>
         <translation>Imprimir</translation>
     </message>
     <message>
-        <location line="-669"/>
+        <location line="-678"/>
         <source>Pages to include</source>
         <translation>Páginas a incluir</translation>
     </message>
@@ -66256,7 +66386,7 @@ A senha não pôde ser aplicada ao arquivo.</translation>
         <translation type="unfinished">PDF/A está desativado, porque um PDF com senha não pode ser um arquivo PDF/A.</translation>
     </message>
     <message>
-        <location line="+71"/>
+        <location line="+72"/>
         <source>The document &quot;%1&quot; is attached.</source>
         <translation type="unfinished">O documento &quot;%1&quot; está anexado.</translation>
     </message>
@@ -66284,7 +66414,7 @@ A senha não pôde ser aplicada ao arquivo.</translation>
         <translation type="unfinished">E-mail</translation>
     </message>
     <message>
-        <location line="-233"/>
+        <location line="-234"/>
         <source>page %1</source>
         <translation type="unfinished">página %1</translation>
     </message>
@@ -66334,7 +66464,7 @@ A senha não pôde ser aplicada ao arquivo.</translation>
         <translation type="unfinished">Marca os títulos, parágrafos, listas, tabelas e imagens (com seus textos alternativos), para que um leitor de tela leia o PDF na ordem correta.</translation>
     </message>
     <message>
-        <location line="+65"/>
+        <location line="+66"/>
         <source>(not tagged for screen readers: %1)</source>
         <translation type="unfinished">(sem marcação para leitores de tela: %1)</translation>
     </message>
@@ -66526,7 +66656,7 @@ A senha não pôde ser aplicada ao arquivo.</translation>
         <translation type="unfinished">O texto foi reduzido um pouco, e o documento ficou uma página mais curto.</translation>
     </message>
     <message>
-        <location line="+86"/>
+        <location line="+94"/>
         <source>That is more pages than one job can send. Print fewer pages or fewer copies.</source>
         <translation type="unfinished">Este trabalho tem mais páginas do que pode enviar. Imprima menos páginas ou menos cópias.</translation>
     </message>
@@ -66627,7 +66757,7 @@ A senha não pôde ser aplicada ao arquivo.</translation>
         <location line="+47"/>
         <location filename="../apps/write/app/writewindow_ribbon.cpp" line="+15"/>
         <location line="+23"/>
-        <location filename="../apps/write/app/writewindow_tables.cpp" line="-191"/>
+        <location filename="../apps/write/app/writewindow_tables.cpp" line="-192"/>
         <source>No Color</source>
         <translation type="unfinished">Sem Cor</translation>
     </message>
@@ -66797,7 +66927,7 @@ A senha não pôde ser aplicada ao arquivo.</translation>
     </message>
     <message>
         <location line="+1"/>
-        <location filename="../apps/write/app/writewindow_headers.cpp" line="+163"/>
+        <location filename="../apps/write/app/writewindow_headers.cpp" line="+169"/>
         <source>Replace</source>
         <translation>Substituir</translation>
     </message>
@@ -66868,7 +66998,7 @@ A senha não pôde ser aplicada ao arquivo.</translation>
         <translation type="unfinished">Aceitar Todas as Alterações</translation>
     </message>
     <message>
-        <location line="+331"/>
+        <location line="+339"/>
         <source>1 change accepted.</source>
         <translation type="unfinished">1 alteração aceita.</translation>
     </message>
@@ -66878,12 +67008,12 @@ A senha não pôde ser aplicada ao arquivo.</translation>
         <translation type="unfinished">%1 alterações aceitas.</translation>
     </message>
     <message>
-        <location line="-321"/>
+        <location line="-329"/>
         <source>Accept All Changes and Stop Tracking</source>
         <translation type="unfinished">Aceitar Todas as Alterações e Parar o Controle</translation>
     </message>
     <message>
-        <location line="+322"/>
+        <location line="+330"/>
         <source>1 change accepted. Track Changes is off.</source>
         <translation type="unfinished">1 alteração aceita. Controlar Alterações está desativado.</translation>
     </message>
@@ -66893,12 +67023,12 @@ A senha não pôde ser aplicada ao arquivo.</translation>
         <translation type="unfinished">%1 alterações aceitas. Controlar Alterações está desativado.</translation>
     </message>
     <message>
-        <location line="-311"/>
+        <location line="-319"/>
         <source>Reject All Changes</source>
         <translation type="unfinished">Rejeitar Todas as Alterações</translation>
     </message>
     <message>
-        <location line="+310"/>
+        <location line="+318"/>
         <source>1 change rejected.</source>
         <translation type="unfinished">1 alteração rejeitada.</translation>
     </message>
@@ -66908,7 +67038,7 @@ A senha não pôde ser aplicada ao arquivo.</translation>
         <translation type="unfinished">%1 alterações rejeitadas.</translation>
     </message>
     <message>
-        <location line="-300"/>
+        <location line="-308"/>
         <source>Next Change</source>
         <translation type="unfinished">Próxima Alteração</translation>
     </message>
@@ -66948,7 +67078,7 @@ A senha não pôde ser aplicada ao arquivo.</translation>
         <translation>Formatação</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/writewindow_info.cpp" line="-302"/>
+        <location filename="../apps/write/app/writewindow_info.cpp" line="-307"/>
         <source>Pages</source>
         <translation>Páginas</translation>
     </message>
@@ -66981,6 +67111,11 @@ A senha não pôde ser aplicada ao arquivo.</translation>
         <location line="+0"/>
         <source>The pieces of other programs in the document: what each is, and opening, turning into a picture, or deleting it.</source>
         <translation type="unfinished">As partes de outros programas no documento: o que é cada uma e a abertura, conversão em imagem ou exclusão.</translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>This document uses the layout rules of an older program. Convert it to use the newest rules.</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <location line="+35"/>
@@ -67337,39 +67472,46 @@ A senha não pôde ser aplicada ao arquivo.</translation>
     </message>
     <message>
         <location line="+3"/>
-        <location line="+234"/>
+        <location line="+242"/>
         <source>New Comment</source>
         <translation type="unfinished">Novo Comentário</translation>
     </message>
     <message>
-        <location line="-233"/>
+        <location line="-241"/>
         <source>Delete Comment</source>
         <translation type="unfinished">Excluir Comentário</translation>
     </message>
     <message>
         <location line="+4"/>
-        <location line="+18"/>
+        <location line="+26"/>
         <location line="+15"/>
         <source>The caret is not in a comment.</source>
         <translation type="unfinished">O cursor não está em um comentário.</translation>
     </message>
     <message>
-        <location line="-27"/>
+        <location line="-35"/>
         <source>Delete All Comments in Document</source>
         <translation type="unfinished">Excluir Todos os Comentários do Documento</translation>
     </message>
     <message>
         <location line="+3"/>
+        <location line="+8"/>
         <source>1 comment deleted.</source>
         <translation type="unfinished">1 comentário excluído.</translation>
     </message>
     <message>
-        <location line="+0"/>
+        <location line="-8"/>
+        <location line="+8"/>
         <source>%1 comments deleted.</source>
         <translation type="unfinished">%1 comentários excluídos.</translation>
     </message>
     <message>
-        <location line="+3"/>
+        <location line="-4"/>
+        <source>Delete All Comments Shown</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+7"/>
         <source>Next Comment</source>
         <translation type="unfinished">Próximo Comentário</translation>
     </message>
@@ -67405,18 +67547,18 @@ A senha não pôde ser aplicada ao arquivo.</translation>
         </translation>
     </message>
     <message>
-        <location line="-377"/>
-        <location line="+170"/>
+        <location line="-385"/>
+        <location line="+178"/>
         <source>Spelling</source>
         <translation type="unfinished">Ortografia</translation>
     </message>
     <message>
-        <location line="-168"/>
+        <location line="-176"/>
         <source>AutoCorrect Options Menu</source>
         <translation type="unfinished">Menu de Opções de Autocorreção</translation>
     </message>
     <message>
-        <location line="+186"/>
+        <location line="+194"/>
         <source>Reviewing</source>
         <translation type="unfinished">Revisando</translation>
     </message>
@@ -67467,7 +67609,7 @@ A senha não pôde ser aplicada ao arquivo.</translation>
         <translation type="unfinished">Não há mais comentários.</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/writewindow_headers.cpp" line="-134"/>
+        <location filename="../apps/write/app/writewindow_headers.cpp" line="-140"/>
         <source>Header</source>
         <translation>Cabeçalho</translation>
     </message>
@@ -67483,14 +67625,14 @@ A senha não pôde ser aplicada ao arquivo.</translation>
     </message>
     <message>
         <location line="+4"/>
-        <location line="+117"/>
+        <location line="+123"/>
         <location line="+39"/>
         <location line="+2"/>
         <source>Page Number</source>
         <translation type="unfinished">Número de Página</translation>
     </message>
     <message>
-        <location line="-153"/>
+        <location line="-159"/>
         <source>Page Number Format…</source>
         <translation type="unfinished">Formato do Número de Página…</translation>
     </message>
@@ -67515,7 +67657,7 @@ A senha não pôde ser aplicada ao arquivo.</translation>
         <translation type="unfinished">Data &amp;&amp; Hora…</translation>
     </message>
     <message>
-        <location line="+6"/>
+        <location line="+12"/>
         <source>Previous Section</source>
         <translation type="unfinished">Seção Anterior</translation>
     </message>
@@ -67601,7 +67743,7 @@ A senha não pôde ser aplicada ao arquivo.</translation>
     </message>
     <message>
         <location line="+30"/>
-        <location filename="../apps/write/app/writewindow_output.cpp" line="-396"/>
+        <location filename="../apps/write/app/writewindow_output.cpp" line="-404"/>
         <source>Author</source>
         <translation>Autor</translation>
     </message>
@@ -68116,6 +68258,7 @@ A senha não pôde ser aplicada ao arquivo.</translation>
     </message>
     <message>
         <location line="+4"/>
+        <location filename="../apps/write/app/writewindow_headers.cpp" line="-169"/>
         <source>Field…</source>
         <translation type="unfinished">Campo…</translation>
     </message>
@@ -68359,7 +68502,7 @@ A senha não pôde ser aplicada ao arquivo.</translation>
     </message>
     <message>
         <location line="+8"/>
-        <location filename="../apps/write/app/writewindow_tables.cpp" line="-87"/>
+        <location filename="../apps/write/app/writewindow_tables.cpp" line="-89"/>
         <source>Sort…</source>
         <translation type="unfinished">Classificar…</translation>
     </message>
@@ -68470,27 +68613,45 @@ A senha não pôde ser aplicada ao arquivo.</translation>
         </translation>
     </message>
     <message>
-        <location filename="../apps/write/app/writewindow_insert.cpp" line="-119"/>
-        <source>A saved block can be put in the text of the document, not in a header, a footer, or a note.</source>
-        <translation type="unfinished">Um bloco salvo pode ser inserido no texto do documento, não em um cabeçalho, rodapé ou nota.</translation>
+        <location filename="../apps/write/app/writewindow_insert.cpp" line="-188"/>
+        <source>A saved block can be put in the text of the document, or in a header or a footer, not in a note.</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+25"/>
+        <location line="+26"/>
+        <location line="+43"/>
         <source>Save as a Block</source>
         <translation type="unfinished">Salvar como Bloco</translation>
     </message>
     <message>
-        <location line="+0"/>
+        <location line="-43"/>
+        <location line="+43"/>
         <source>Save the block anyway?</source>
         <translation type="unfinished">Salvar o bloco mesmo assim?</translation>
     </message>
     <message>
-        <location line="+6"/>
+        <location line="-37"/>
+        <location line="+45"/>
         <source>Saved &quot;%1&quot; to %2.</source>
         <translation type="unfinished">&quot;%1&quot; salvo em %2.</translation>
     </message>
     <message>
-        <location line="+13"/>
+        <location line="-26"/>
+        <source>Select the cover page first, with its page break.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>Select a table first.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>Select a text box first.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+54"/>
         <source>No Text Shortcut ends just before the cursor.</source>
         <translation type="unfinished">Nenhum Atalho de Texto termina logo antes do cursor.</translation>
     </message>
@@ -68632,6 +68793,21 @@ A senha não pôde ser aplicada ao arquivo.</translation>
     </message>
     <message>
         <location line="+1"/>
+        <source>Save Selection to Cover Page Gallery…</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Save Selection to Table Gallery…</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Save Selection to Text Box Gallery…</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
         <source>Manage Saved Blocks…</source>
         <translation type="unfinished">Gerenciar Blocos Salvos…</translation>
     </message>
@@ -68656,8 +68832,18 @@ A senha não pôde ser aplicada ao arquivo.</translation>
         <translation type="unfinished">Abrir %1?</translation>
     </message>
     <message>
+        <location line="+41"/>
+        <source>Your Cover Pages</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+13"/>
+        <source>Your Text Boxes</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <location filename="../apps/write/app/writewindow_fields.cpp" line="-23"/>
-        <location filename="../apps/write/app/writewindow_insert.cpp" line="+1"/>
+        <location filename="../apps/write/app/writewindow_insert.cpp" line="-53"/>
         <source>Open Link</source>
         <translation type="unfinished">Abrir Vínculo</translation>
     </message>
@@ -69192,7 +69378,7 @@ A senha não pôde ser aplicada ao arquivo.</translation>
         <translation type="unfinished">Abra uma segunda janela para exibir dois documentos lado a lado.</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/writewindow_outline.cpp" line="+24"/>
+        <location filename="../apps/write/app/writewindow_outline.cpp" line="+25"/>
         <location filename="../apps/write/app/writewindow_shapes.cpp" line="-217"/>
         <source>Outline</source>
         <translation type="unfinished">Estrutura de Tópicos</translation>
@@ -69358,7 +69544,7 @@ A senha não pôde ser aplicada ao arquivo.</translation>
         <translation type="unfinished">Relaxado</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/writewindow_tables.cpp" line="+132"/>
+        <location filename="../apps/write/app/writewindow_tables.cpp" line="+134"/>
         <location filename="../apps/write/core/designops.cpp" line="+1"/>
         <source>Double</source>
         <translation type="unfinished">Duplo</translation>
@@ -81333,7 +81519,7 @@ A senha não pôde ser aplicada ao arquivo.</translation>
 <context>
     <name>jp::write::Blocks</name>
     <message>
-        <location filename="../apps/write/core/blockops.cpp" line="+138"/>
+        <location filename="../apps/write/core/blockops.cpp" line="+141"/>
         <source>Select what you want to save first.</source>
         <translation type="unfinished">Selecione primeiro o que você deseja salvar.</translation>
     </message>
@@ -81374,13 +81560,16 @@ A senha não pôde ser aplicada ao arquivo.</translation>
         <translation type="unfinished">A seleção é grande demais para ser salva como bloco.</translation>
     </message>
     <message>
-        <location line="+23"/>
+        <location line="+45"/>
+        <location line="+3"/>
+        <location line="+13"/>
         <location line="+3"/>
         <source>This block cannot be read.</source>
         <translation type="unfinished">Este bloco não pode ser lido.</translation>
     </message>
     <message>
-        <location line="+4"/>
+        <location line="-13"/>
+        <location line="+17"/>
         <source>This block is empty.</source>
         <translation type="unfinished">Este bloco está vazio.</translation>
     </message>
@@ -81691,12 +81880,13 @@ A senha não pôde ser aplicada ao arquivo.</translation>
 <context>
     <name>jp::write::CoverPage</name>
     <message>
-        <location filename="../apps/write/core/insertops.cpp" line="+75"/>
+        <location filename="../apps/write/core/insertops.cpp" line="+76"/>
+        <location line="+59"/>
         <source>A cover page can&apos;t go before a table at the very start of the document. Put a paragraph before the table first.</source>
         <translation type="unfinished">Uma folha de rosto não pode ser inserida antes de uma tabela no início do documento. Insira primeiro um parágrafo antes da tabela.</translation>
     </message>
     <message>
-        <location line="+33"/>
+        <location line="-26"/>
         <source>Document Title</source>
         <translation type="unfinished">Título do Documento</translation>
     </message>
@@ -83669,7 +83859,7 @@ A senha não pôde ser aplicada ao arquivo.</translation>
         <translation type="unfinished">Incluir notas de rodapé e notas de fim</translation>
     </message>
     <message>
-        <location line="+26"/>
+        <location line="+32"/>
         <source>Paste Special</source>
         <translation type="unfinished">Colar Especial</translation>
     </message>
@@ -83982,7 +84172,7 @@ A senha não pôde ser aplicada ao arquivo.</translation>
         <translation type="unfinished">Alterações e comentários são assinados com este nome e estas iniciais.</translation>
     </message>
     <message>
-        <location line="-308"/>
+        <location line="-314"/>
         <source>Column</source>
         <translation>Coluna</translation>
     </message>
@@ -84032,7 +84222,12 @@ A senha não pôde ser aplicada ao arquivo.</translation>
         <translation>Linhas</translation>
     </message>
     <message>
-        <location line="+38"/>
+        <location line="+14"/>
+        <source>Include text boxes</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+30"/>
         <source>Paste the clipboard as</source>
         <translation>Colar a área de transferência como</translation>
     </message>
@@ -84299,7 +84494,7 @@ A senha não pôde ser aplicada ao arquivo.</translation>
         <translation type="unfinished">Revelar Formatação</translation>
     </message>
     <message>
-        <location line="-421"/>
+        <location line="-427"/>
         <source>Word Count</source>
         <translation type="unfinished">Contagem de Palavras</translation>
     </message>
@@ -84336,7 +84531,7 @@ A senha não pôde ser aplicada ao arquivo.</translation>
 <context>
     <name>jp::write::InsertText</name>
     <message>
-        <location filename="../apps/write/core/insertops.cpp" line="+27"/>
+        <location filename="../apps/write/core/insertops.cpp" line="+57"/>
         <source>That file is too large to put in a document.</source>
         <translation type="unfinished">Este arquivo é grande demais para ser inserido em um documento.</translation>
     </message>
@@ -85682,7 +85877,7 @@ A senha não pôde ser aplicada ao arquivo.</translation>
 <context>
     <name>jp::write::PageView</name>
     <message>
-        <location filename="../apps/write/app/pagepaint.cpp" line="+251"/>
+        <location filename="../apps/write/app/pagepaint.cpp" line="+278"/>
         <source>Footer</source>
         <translation>Rodapé</translation>
     </message>
@@ -85692,7 +85887,7 @@ A senha não pôde ser aplicada ao arquivo.</translation>
         <translation>Cabeçalho</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/pageview.cpp" line="+271"/>
+        <location filename="../apps/write/app/pageview.cpp" line="+272"/>
         <source>Place in this document: %1</source>
         <translation type="unfinished">Local neste documento: %1</translation>
     </message>
@@ -85702,7 +85897,7 @@ A senha não pôde ser aplicada ao arquivo.</translation>
         <translation type="unfinished">Ctrl+clique para seguir o link</translation>
     </message>
     <message>
-        <location line="+532"/>
+        <location line="+545"/>
         <source>Section Break</source>
         <translation type="unfinished">Quebra de Seção</translation>
     </message>
@@ -85712,7 +85907,7 @@ A senha não pôde ser aplicada ao arquivo.</translation>
         <translation type="unfinished">Quebra de Página</translation>
     </message>
     <message>
-        <location line="+490"/>
+        <location line="+496"/>
         <source>Drag along the lines of a table to draw or erase its borders.</source>
         <translation type="unfinished">Arraste ao longo das linhas de uma tabela para desenhar ou apagar suas bordas.</translation>
     </message>
@@ -85728,8 +85923,8 @@ A senha não pôde ser aplicada ao arquivo.</translation>
         <translation type="unfinished">+%1 mais</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/pageview_input.cpp" line="+138"/>
-        <location line="+545"/>
+        <location filename="../apps/write/app/pageview_input.cpp" line="+139"/>
+        <location line="+576"/>
         <source>Keep Source Formatting</source>
         <translation type="unfinished">Manter Formatação da Origem</translation>
     </message>
@@ -85739,13 +85934,13 @@ A senha não pôde ser aplicada ao arquivo.</translation>
         <translation type="unfinished">A Área de Transferência está cheia. Cole-a para esvaziá-la.</translation>
     </message>
     <message>
-        <location line="-76"/>
-        <location line="+545"/>
+        <location line="-107"/>
+        <location line="+576"/>
         <source>Merge Formatting</source>
         <translation type="unfinished">Mesclar Formatação</translation>
     </message>
     <message>
-        <location line="-586"/>
+        <location line="-617"/>
         <source>A table with changes tracked in it is copied as its words, not as a table. Accept or reject the changes to copy it as a table.</source>
         <translation type="unfinished">Uma tabela com alterações controladas é copiada como as palavras dela, não como tabela. Aceite ou rejeite as alterações para copiá-la como tabela.</translation>
     </message>
@@ -85761,12 +85956,12 @@ A senha não pôde ser aplicada ao arquivo.</translation>
     </message>
     <message>
         <location line="+40"/>
-        <location line="+546"/>
+        <location line="+577"/>
         <source>Keep Text Only</source>
         <translation type="unfinished">Manter Somente Texto</translation>
     </message>
     <message>
-        <location line="-545"/>
+        <location line="-576"/>
         <source>Pasting within the same document</source>
         <translation type="unfinished">Colar dentro do mesmo documento</translation>
     </message>
@@ -85781,32 +85976,38 @@ A senha não pôde ser aplicada ao arquivo.</translation>
         <translation type="unfinished">Colar de outros programas</translation>
     </message>
     <message>
-        <location line="+545"/>
+        <location line="+576"/>
+        <location filename="../apps/write/app/writewindow_options.cpp" line="+11"/>
         <source>Continue List</source>
         <translation type="unfinished">Continuar Lista</translation>
     </message>
     <message>
         <location line="+1"/>
+        <location filename="../apps/write/app/writewindow_options.cpp" line="+0"/>
         <source>New List</source>
         <translation type="unfinished">Nova Lista</translation>
     </message>
     <message>
         <location line="+1"/>
+        <location filename="../apps/write/app/writewindow_options.cpp" line="+1"/>
         <source>Merge List</source>
         <translation type="unfinished">Mesclar Lista</translation>
     </message>
     <message>
         <location line="+4"/>
+        <location filename="../apps/write/app/writewindow_options.cpp" line="+7"/>
         <source>Nest Table</source>
         <translation type="unfinished">Aninhar Tabela</translation>
     </message>
     <message>
         <location line="+1"/>
+        <location filename="../apps/write/app/writewindow_options.cpp" line="+1"/>
         <source>Merge Table</source>
         <translation type="unfinished">Mesclar Tabela</translation>
     </message>
     <message>
         <location line="+1"/>
+        <location filename="../apps/write/app/writewindow_options.cpp" line="+0"/>
         <source>Insert as New Rows</source>
         <translation type="unfinished">Inserir como Novas Linhas</translation>
     </message>
@@ -85817,11 +86018,13 @@ A senha não pôde ser aplicada ao arquivo.</translation>
     </message>
     <message>
         <location line="+1"/>
+        <location filename="../apps/write/app/writewindow_options.cpp" line="+1"/>
         <source>Overwrite Cells</source>
         <translation type="unfinished">Substituir Células</translation>
     </message>
     <message>
         <location line="+2"/>
+        <location filename="../apps/write/app/writewindow_options.cpp" line="-2"/>
         <source>Table</source>
         <translation type="unfinished">Tabela</translation>
     </message>
@@ -85831,7 +86034,7 @@ A senha não pôde ser aplicada ao arquivo.</translation>
         <translation type="unfinished">Como o conteúdo colado é mantido. Pressione a tecla %1 após colar para abri-lo.</translation>
     </message>
     <message>
-        <location line="+182"/>
+        <location line="+186"/>
         <source>Control</source>
         <translation type="unfinished">Controle</translation>
     </message>
@@ -85841,12 +86044,12 @@ A senha não pôde ser aplicada ao arquivo.</translation>
         <translation type="unfinished">Ctrl</translation>
     </message>
     <message>
-        <location line="+14"/>
+        <location line="+16"/>
         <source>Paste Options. Use the arrow keys and Enter to choose, or Esc to leave them.</source>
         <translation type="unfinished">Opções de Colar. Use as setas e Enter para escolher, ou Esc para sair delas.</translation>
     </message>
     <message>
-        <location line="+121"/>
+        <location line="+138"/>
         <source>Overtype: typing replaces the letters after the caret. Press Insert to go back.</source>
         <translation type="unfinished">Sobrescrever: a digitação substitui as letras após o cursor. Pressione Insert para voltar.</translation>
     </message>
@@ -85856,17 +86059,17 @@ A senha não pôde ser aplicada ao arquivo.</translation>
         <translation type="unfinished">Inserir: a digitação empurra as letras após o cursor para a frente.</translation>
     </message>
     <message>
-        <location line="+67"/>
+        <location line="+73"/>
         <source>A text box can be followed only by a text box that has no words and is in no chain yet.</source>
         <translation type="unfinished">Uma caixa de texto só pode ser seguida por outra caixa de texto que não tenha palavras e ainda não esteja em nenhuma cadeia.</translation>
     </message>
     <message>
-        <location line="+373"/>
+        <location line="+422"/>
         <source>Drop the table between paragraphs, not inside a table.</source>
         <translation type="unfinished">Solte a tabela entre parágrafos, não dentro de uma tabela.</translation>
     </message>
     <message>
-        <location line="+236"/>
+        <location line="+274"/>
         <source>The contents of this picture control can&apos;t be edited.</source>
         <translation type="unfinished">O conteúdo deste controle de imagem não pode ser editado.</translation>
     </message>
@@ -85891,7 +86094,7 @@ A senha não pôde ser aplicada ao arquivo.</translation>
         <translation type="unfinished">O JeffWrite abre links para endereços da web, endereços de email e documentos ou imagens somente neste computador.</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/pageview_pictures.cpp" line="+113"/>
+        <location filename="../apps/write/app/pageview_pictures.cpp" line="+209"/>
         <source>Select three or more objects first: click one, then hold Ctrl and click the others.</source>
         <translation type="unfinished">Selecione três ou mais objetos primeiro: clique em um, depois mantenha Ctrl pressionada e clique nos outros.</translation>
     </message>
@@ -86032,6 +86235,26 @@ A senha não pôde ser aplicada ao arquivo.</translation>
         <source>AutoCorrect Options...</source>
         <translation type="unfinished">Opções de AutoCorreção...</translation>
     </message>
+    <message>
+        <location filename="../apps/write/app/writewindow_options.cpp" line="-9"/>
+        <source>As they come</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>Pasting list items next to a list</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>As words</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>Pasting spreadsheet cells</source>
+        <translation type="unfinished"></translation>
+    </message>
 </context>
 <context>
     <name>jp::write::Pictures</name>
@@ -86065,9 +86288,9 @@ A senha não pôde ser aplicada ao arquivo.</translation>
         <translation type="unfinished">Não há nenhuma imagem na área de transferência que o JeffWrite consiga ler.</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/pageview_input.cpp" line="-412"/>
+        <location filename="../apps/write/app/pageview_input.cpp" line="-455"/>
         <location filename="../apps/write/app/pageview_pictures.cpp" line="+18"/>
-        <location filename="../apps/write/core/pictureops.cpp" line="+2246"/>
+        <location filename="../apps/write/core/pictureops.cpp" line="+2261"/>
         <source>That shape can&apos;t be put here.</source>
         <translation type="unfinished">Essa forma não pode ser colocada aqui.</translation>
     </message>
@@ -86110,9 +86333,9 @@ A senha não pôde ser aplicada ao arquivo.</translation>
     </message>
     <message>
         <location filename="../apps/write/core/editops.cpp" line="+2251"/>
-        <location filename="../apps/write/core/pictureops.cpp" line="-1559"/>
+        <location filename="../apps/write/core/pictureops.cpp" line="-1574"/>
         <location line="+362"/>
-        <location line="+2051"/>
+        <location line="+2066"/>
         <location line="+1716"/>
         <location line="+162"/>
         <location line="+1211"/>
@@ -86120,30 +86343,30 @@ A senha não pôde ser aplicada ao arquivo.</translation>
         <translation type="unfinished">As imagens deste documento já atingiram o tamanho total máximo que o JeffWrite permite em um documento, por isso esta não foi adicionada.</translation>
     </message>
     <message>
-        <location filename="../apps/write/core/pictureops.cpp" line="-5514"/>
+        <location filename="../apps/write/core/pictureops.cpp" line="-5529"/>
         <location line="+388"/>
         <location line="+825"/>
-        <location line="+3864"/>
+        <location line="+3879"/>
         <location line="+200"/>
         <source>A picture can&apos;t be put in a header, a footer, or a note yet.</source>
         <translation type="unfinished">Ainda não é possível inserir uma imagem em um cabeçalho, um rodapé ou uma nota.</translation>
     </message>
     <message>
-        <location line="-5225"/>
+        <location line="-5240"/>
         <location line="+361"/>
         <location line="+823"/>
-        <location line="+3866"/>
+        <location line="+3881"/>
         <location line="+198"/>
         <source>A picture can&apos;t be put here, or this document holds as many pictures and drawn objects as JeffWrite can show.</source>
         <translation type="unfinished">Não é possível inserir uma imagem aqui, ou este documento já contém o número máximo de imagens e objetos desenhados que o JeffWrite pode mostrar.</translation>
     </message>
     <message>
-        <location line="-5202"/>
+        <location line="-5217"/>
         <source>This document holds as many pictures and drawn objects as JeffWrite can show. Save it, and open it again, to change more.</source>
         <translation type="unfinished">Este documento contém o número máximo de imagens e objetos desenhados que o JeffWrite pode mostrar. Salve-o e abra-o novamente para fazer mais alterações.</translation>
     </message>
     <message>
-        <location line="+1604"/>
+        <location line="+1619"/>
         <source>Edit Points is not offered for a shape that is flipped.</source>
         <translation type="unfinished">Editar Pontos não está disponível para uma forma que foi invertida.</translation>
     </message>
@@ -86266,7 +86489,7 @@ A senha não pôde ser aplicada ao arquivo.</translation>
 <context>
     <name>jp::write::ReadyTables</name>
     <message>
-        <location filename="../apps/write/core/tableops.cpp" line="+2243"/>
+        <location filename="../apps/write/core/tableops.cpp" line="+2319"/>
         <source>Column 1</source>
         <translation type="unfinished">Coluna 1</translation>
     </message>
@@ -86359,7 +86582,7 @@ A senha não pôde ser aplicada ao arquivo.</translation>
 <context>
     <name>jp::write::Review</name>
     <message>
-        <location filename="../apps/write/core/commentops.cpp" line="+1143"/>
+        <location filename="../apps/write/core/commentops.cpp" line="+1163"/>
         <source>Inserted row</source>
         <translation type="unfinished">Linha inserida</translation>
     </message>
@@ -86998,7 +87221,7 @@ A senha não pôde ser aplicada ao arquivo.</translation>
 <context>
     <name>jp::write::Tables</name>
     <message>
-        <location filename="../apps/write/core/tableops.cpp" line="-2011"/>
+        <location filename="../apps/write/core/tableops.cpp" line="-2087"/>
         <source>A table can have at most 20,000 rows.</source>
         <translation type="unfinished">Uma tabela pode ter no máximo 20.000 linhas.</translation>
     </message>
@@ -87026,7 +87249,7 @@ A senha não pôde ser aplicada ao arquivo.</translation>
         <translation type="unfinished">Não é possível inserir novas colunas ali: células mescladas se estendem pelo local onde elas seriam.</translation>
     </message>
     <message>
-        <location filename="../apps/write/core/tableops.cpp" line="+1437"/>
+        <location filename="../apps/write/core/tableops.cpp" line="+1513"/>
         <location line="+68"/>
         <source>A table can only be moved in the main text.</source>
         <translation type="unfinished">Uma tabela só pode ser movida no texto principal.</translation>
@@ -87175,7 +87398,7 @@ A senha não pôde ser aplicada ao arquivo.</translation>
         <translation type="unfinished">Linhas cujas células não estão nas mesmas colunas não podem ser classificadas.</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/pageview_input.cpp" line="-879"/>
+        <location filename="../apps/write/app/pageview_input.cpp" line="-952"/>
         <location filename="../apps/write/core/homeops.cpp" line="-62"/>
         <location line="+35"/>
         <source>To paste cells as new columns, click in a table that has room for them.</source>

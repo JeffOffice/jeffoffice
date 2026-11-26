@@ -10,7 +10,7 @@ These tools are on the **Review** tab.
 
 If you select some text first, the box counts only that text. The status bar at the bottom of the window also shows it, as "12 of 340 words".
 
-Check **Include footnotes and endnotes** to count them too. Hidden text is never counted. Neither is text that a tracked change deleted.
+Check **Include footnotes and endnotes** to count them too. Check **Include text boxes** to count the words in text boxes and shapes (it counts the whole document, not a selection). A box inside another box is counted too, and so is a box in a footnote or endnote when **Include footnotes and endnotes** is checked. Boxes in headers and footers are not counted. Hidden text is never counted. Neither is text that a tracked change deleted.
 
 ## Set the language of text
 

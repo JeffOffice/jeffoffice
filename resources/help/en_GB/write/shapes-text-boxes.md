@@ -122,6 +122,10 @@ To put the last group you took apart back together, click **Regroup**. It works 
 
 You can move a group, change its size, change its layer (**Bring Forward**, **Send Backward**), and give it alt text. To change the fill or the words of one part, take the group apart first. All of this is one step to undo.
 
+## Select objects with a rectangle
+
+Click **Home > Select > Select Objects** to turn on a mode where the mouse chooses pictures, shapes, and text boxes instead of text. Click an object to choose it. Drag a rectangle to choose every object that is completely inside it, and hold nothing down: a rectangle that only touches an object leaves it out. A click on empty space lets the choice go. No text is selected, and no cursor is put in the words, so you cannot move a text box by accident while you aim at a small one. While the mode is on, typing does not change your words, and the arrow keys do nothing. **Delete** or **Backspace** removes the chosen objects, in one step you can undo. **Select All** (Ctrl+A) chooses the objects on the page you are looking at. Double-click an object to leave the mode and open it as you would normally, for example to type in a text box. Press **Esc**, or click **Select Objects** again, to go back to the text. The mode also ends when you run any other command, change the zoom or the view, open another document, or click away from the window. Objects inside a header, footer, or note cannot be chosen this way; open that part to work with them.
+
 ## The Selection Pane
 
 **View > Selection Pane**, or **Arrange > Selection Pane** on the Picture Format and Shape Format tabs, lists the floating objects of the document by name, the one in front first. Objects that sit in line with the text are not in the list, because they have no layer.
