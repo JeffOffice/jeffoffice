@@ -688,6 +688,7 @@ private Q_SLOTS:
             {QStringLiteral("picture.lockAspect"), QStringLiteral("it is the setting the next change of a picture's width or height reads, and changes nothing by itself")},
             {QStringLiteral("edit.copyFormat"), QStringLiteral("it only holds the look of the selection for Paste Format; the paste is the change")},
             {QStringLiteral("edit.pasteFormat"), QStringLiteral("it puts the look held on the selection, which here has that look already, or nothing is held yet")},
+            {QStringLiteral("edit.selectObjects"), QStringLiteral("it turns on a mode where the mouse chooses objects; the cursor and the window show nothing until a drag, and selectObjectsChoosesObjectsByClickAndByRectangle checks it")},
             {QStringLiteral("edit.formatPainter"), QStringLiteral("it picks up the look of the selection and waits for the next selection; the paint is the change, and the window's tests check it")},
             {QStringLiteral("view.printLayout"), QStringLiteral("the window begins in the print layout, and choosing it again changes nothing; the outline tests choose it from Outline view")},
             {QStringLiteral("review.show.comments"), QStringLiteral("it chooses whether the balloons for comments are painted in the pages' margin, which no control shows; the window's tests check the painting")},
