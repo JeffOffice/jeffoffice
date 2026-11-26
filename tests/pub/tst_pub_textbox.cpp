@@ -127,6 +127,30 @@ private Q_SLOTS:
         QVERIFY(std::abs(box->rect.left() - 100) < 3);
     }
 
+    // A document that becomes read-only ends the text edit: a key typed after is refused, and the next format command finds no caret (it once used a cursor into
+    // text that the refused edit had rolled back).
+    void aDocumentThatBecomesReadOnlyEndsTheTextEdit()
+    {
+        MainWindow w;
+        w.resize(1200, 800);
+        w.show();
+        QVERIFY(QTest::qWaitForWindowExposed(&w));
+        Editor *ed = w.editor();
+        ed->setDocument(oneSlide());
+        auto box = std::static_pointer_cast<TextItem>(ed->newTextBox(QRectF(72, 72, 400, 200), QStringLiteral("alpha")));
+        ed->addItem(box);
+        ed->beginTextEdit(box->id, 0);
+        QVERIFY(ed->isEditingText());
+        ed->setReadOnly(true);
+        QVERIFY(!ed->isEditingText());
+        ed->typeText(QStringLiteral("zz"));
+        ed->toggleBold();
+        ed->setFontSize(30);
+        QCOMPARE(ed->doc()->storyDoc(box->storyId)->toPlainText(), QStringLiteral("alpha"));
+        QVERIFY(!ed->isEditingText());
+        ed->setReadOnly(false);
+    }
+
     void escapeAndAnotherToolPutTheTextBoxToolDown()
     {
         MainWindow w;

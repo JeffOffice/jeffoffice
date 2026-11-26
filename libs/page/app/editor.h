@@ -94,7 +94,7 @@ public:
     void setNewDocumentName(const QString &name) { m_newName = name; }
     bool isModified() const { return !m_undo.isClean() || m_cropOpen; }
     // A document opened read-only: no text is edited (the window disables the commands that change it, and the canvas refuses keys, text, and drops).
-    void setReadOnly(bool on) { m_readOnly = on; }
+    void setReadOnly(bool on);
     bool readOnly() const { return m_readOnly; }
     // The window that holds this editor is being taken down: no change begins from now on (a pane's focus-out or a field's editingFinished that
     // fires while the window goes would save into a window that is half gone).
@@ -102,6 +102,7 @@ public:
     bool closed() const { return m_closed; }
     // For the tests: how many times a change or a text edit was asked for (begun or refused), over all editors.
     static int changeEntries() { return s_entries; }
+    static int spellBlocksChecked() { return s_spellBlocks; }   // paragraphs checked for spelling (an edit checks the ones it touched)
     static int snapshotCount() { return s_snapshots; }   // whole-presentation snapshots taken (a step's start and end): typing keeps this to two for a run of keys
     bool typing() const { return m_typing; }              // keys typed that are not yet closed as one undo step
     void markSaved() { m_undo.setClean(); }
@@ -563,7 +564,10 @@ private:
     std::unique_ptr<Document> m_doc;
     LayoutCache m_cache;
     // Spelling results per story, recomputed only when the story's text changes.
-    struct SpellEntry { quint64 serial = 0; int revision = -1; QVector<QPair<int, int>> ranges; };
+    // The misspelled words of a story, kept for each paragraph with a signature of what was checked (its words, and the languages and no-check marks on them), so that an edit
+    // checks only the paragraphs it touched.
+    struct SpellBlock { quint64 sig = 0; QVector<QPair<int, int>> rel; };   // (ranges from the paragraph's start)
+    struct SpellEntry { quint64 serial = 0; int revision = -1; int dict = -1; QVector<QPair<int, int>> ranges; QVector<SpellBlock> blocks; };
     mutable QHash<QString, SpellEntry> m_spell;
     int m_filterListener = 0;   // (blipeffects.h: draws again when a picture's filters are done)
     // The grammar checks, one for each story, on one thread and one budget (the pool is declared first, so it is destroyed last).
@@ -628,6 +632,7 @@ private:
     bool m_closed = false;
     static inline int s_entries = 0;
     static inline int s_snapshots = 0;
+    static inline int s_spellBlocks = 0;
     int m_changeDepth = 0;
     QByteArray m_before;
     QStringList m_selBefore;

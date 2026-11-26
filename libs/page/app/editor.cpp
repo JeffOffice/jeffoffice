@@ -315,10 +315,35 @@ QVector<QPair<int, int>> Editor::misspelledIn(const QString &storyId) const
     const Story *st = m_doc->story(storyId);
     if (!st || !st->doc) return {};
     SpellEntry &e = m_spell[storyId];
-    if (e.serial != st->serial || e.revision != st->doc->revision()) {
+    if (e.serial != st->serial || e.revision != st->doc->revision() || e.dict != spellingRevision()) {
+        const bool all = e.serial != st->serial || e.dict != spellingRevision();
         e.serial = st->serial;
         e.revision = st->doc->revision();
-        e.ranges = misspellings(st->doc.get());
+        e.dict = spellingRevision();
+        if (all) e.blocks.clear();
+        QVector<SpellBlock> now;
+        now.reserve(st->doc->blockCount());
+        e.ranges.clear();
+        int n = 0;
+        for (QTextBlock b = st->doc->begin(); b.isValid(); b = b.next(), ++n) {
+            quint64 sig = qHash(b.text(), 0x9e3779b9u);
+            for (auto it = b.begin(); !it.atEnd(); ++it) {
+                const QTextCharFormat cf = it.fragment().charFormat();
+                sig = sig * 1099511628211ULL + quint64(it.fragment().length());
+                sig = sig * 1099511628211ULL + qHash(cf.stringProperty(tp::Language), 7) + (cf.boolProperty(tp::NoProof) ? 3 : 0) + (cf.boolProperty(tp::HiddenText) ? 5 : 0);
+            }
+            SpellBlock sb;
+            if (n < e.blocks.size() && e.blocks[n].sig == sig) {
+                sb = e.blocks[n];
+            } else {
+                ++s_spellBlocks;
+                sb.sig = sig;
+                for (const auto &m : misspellingsIn(b)) sb.rel.append({m.first - b.position(), m.second - b.position()});
+            }
+            for (const auto &m : sb.rel) e.ranges.append({m.first + b.position(), m.second + b.position()});
+            now.append(sb);
+        }
+        e.blocks = now;
     }
     return e.ranges;
 }
@@ -439,6 +464,7 @@ void Editor::setGrammarDelayMs(int ms)
 // ---------- selection ----------
 void Editor::select(const QStringList &ids, bool add)
 {
+    if (editingStoryOnly()) endTextEdit();   // (a choice on the page, or none, takes the keyboard commands from the notes: no focus event has to come)
     QStringList next = add ? m_sel : QStringList();
     QSet<QString> have(next.cbegin(), next.cend());   // (a list of thousands is not searched for each id)
     for (const auto &id : ids)
@@ -678,6 +704,17 @@ void Editor::beginStoryEdit(const QString &storyId, int pos)
     }
     Q_EMIT textCursorChanged();
     Q_EMIT changed();
+}
+
+// A document open for reading only takes no text edit: what was typed is settled first, and the caret goes, so no later command holds a cursor into text
+// that a refused edit rolled back.
+void Editor::setReadOnly(bool on)
+{
+    if (on && !m_readOnly) {
+        flushTyping();
+        endTextEdit();
+    }
+    m_readOnly = on;
 }
 
 void Editor::endTextEdit()

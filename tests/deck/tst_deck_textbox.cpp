@@ -114,6 +114,30 @@ private Q_SLOTS:
 
     // Typed in the program: 40 point text, then Shift+Enter, in the order a person does it (the size first, or the text first and then selected).
     // The empty last line is as tall as the text.
+    // A document that becomes read-only ends the text edit: a key typed after is refused, and the next format command finds no caret (it once used a cursor into
+    // text that the refused edit had rolled back).
+    void aDocumentThatBecomesReadOnlyEndsTheTextEdit()
+    {
+        DeckWindow w;
+        w.resize(1200, 800);
+        w.show();
+        QVERIFY(QTest::qWaitForWindowExposed(&w));
+        Editor *ed = w.editor();
+        ed->setDocument(oneSlide());
+        auto box = std::static_pointer_cast<TextItem>(ed->newTextBox(QRectF(72, 72, 400, 200), QStringLiteral("alpha")));
+        ed->addItem(box);
+        ed->beginTextEdit(box->id, 0);
+        QVERIFY(ed->isEditingText());
+        ed->setReadOnly(true);
+        QVERIFY(!ed->isEditingText());
+        ed->typeText(QStringLiteral("zz"));
+        ed->toggleBold();
+        ed->setFontSize(30);
+        QCOMPARE(ed->doc()->storyDoc(box->storyId)->toPlainText(), QStringLiteral("alpha"));
+        QVERIFY(!ed->isEditingText());
+        ed->setReadOnly(false);
+    }
+
     void typedLargeTextThenShiftEnterLeavesALargeEmptyLine()
     {
         for (const bool sizeFirst : {true, false}) {
