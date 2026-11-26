@@ -234,13 +234,16 @@ QAction *WriteWindow::mk(const QString &id, const QString &text, const QString &
         if (m_view && id != QLatin1String("edit.selectObjects") && id != QLatin1String("edit.selectAll")) m_view->setSelectObjectsMode(false);
         const quint64 document = m_repeat->document();
         const QPointer<WriteWindow> self(this);   // (a command may close the window)
+        const quint64 stepsBefore = m_doc ? m_doc->nextStepSerial() : 0;
+        const bool wasInTable = m_doc && cursorInTable();
+        if (m_doc) m_doc->trackNotice.clear();
         {
             std::optional<write::WriteDoc::StepName> stepName;
             if (m_doc && id != QLatin1String("edit.repeat")) stepName.emplace(*m_doc, label);   // (a repeat is named for the command it does again)
             runWhereOpen(openHere, fn);
         }
         if (!self) return;
-        showTrackNotice();
+        showTrackNotice(id, stepsBefore, wasInTable);
         if (m_doc && (repeatableCommand(id) || m_testRepeatable.contains(id))) {
             // (A command that turns something on or off is repeated as the state it made, not as a toggle: bold on one word is bold on the next, whatever that has.)
             const std::optional<bool> made = toggleResult(id);
@@ -259,21 +262,20 @@ QAction *WriteWindow::mk(const QString &id, const QString &text, const QString &
 
 QAction *WriteWindow::act(const QString &id) const { return m_actions.value(id); }
 
-bool WriteWindow::turnedDownByTracking(const QString &id)
+void WriteWindow::showUntrackedNotice()
 {
-    if (!m_doc || !m_doc->trackChanges()) return false;
-    const write::TrackPolicy policy = write::trackPolicyOf(id);
-    if (policy == write::TrackPolicy::Neutral || policy == write::TrackPolicy::Tracked) return false;
-    if (policy == write::TrackPolicy::TrackedInText && !cursorInTable()) return false;
-    statusBar()->showMessage(write::trackRefusalText(), 6000);
-    return true;
+    // (Typing is one run: the notice stays up, and is not put up again by each key.)
+    if (statusBar()->currentMessage() != write::untrackedNoticeText()) statusBar()->showMessage(write::untrackedNoticeText(), 6000);
 }
 
-void WriteWindow::showTrackNotice()
+void WriteWindow::showTrackNotice(const QString &id, quint64 stepsBefore, bool wasInTable)
 {
-    if (!m_doc || m_doc->trackNotice.isEmpty()) return;
-    statusBar()->showMessage(m_doc->trackNotice, 6000);
+    if (!m_doc) return;
+    const bool flagged = !m_doc->trackNotice.isEmpty();
     m_doc->trackNotice.clear();
+    if (!m_doc->trackChanges() || m_doc->nextStepSerial() <= stepsBefore) return;
+    const write::TrackPolicy policy = id.isEmpty() ? write::TrackPolicy::Neutral : write::trackPolicyOf(id);
+    if (flagged || policy == write::TrackPolicy::Untracked || (policy == write::TrackPolicy::TrackedInText && wasInTable)) showUntrackedNotice();
 }
 
 QStringList WriteWindow::actionIds() const
@@ -341,6 +343,7 @@ void WriteWindow::setDocument(std::unique_ptr<write::WriteDoc> doc, const QStrin
     m_doc = std::move(doc);
     m_path = path;
     if (m_repeat) m_repeat->setDocument(++m_documentCounter);
+    if (m_doc) connect(m_doc.get(), &write::WriteDoc::untrackedChange, this, [this] { showUntrackedNotice(); });
     if (m_doc) connect(m_doc.get(), &write::WriteDoc::historyChanged, this, [this] { syncHistoryActions(); });   // (what was repeatable in the document that goes is not for this one)
     if (!m_mini) createMiniToolbar();
     if (m_doc) {
@@ -446,9 +449,10 @@ struct Edit {
     {
         if (!w->document()) return;
         w->document()->takeFormattingRefused();
+        const quint64 stepsBefore = w->document()->nextStepSerial();
         fn(*w->document(), w->view()->cursor());
         if (w->document()->takeFormattingRefused()) w->statusBar()->showMessage(QCoreApplication::translate("jp::WriteWindow", "Formatting is limited in this document. Only styles that are not locked can be used."), 6000);
-        w->showTrackNotice();
+        w->showTrackNotice(QString(), stepsBefore, false);
         w->view()->setFocus(Qt::OtherFocusReason);
         w->view()->viewport()->update();
     }

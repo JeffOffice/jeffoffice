@@ -574,8 +574,10 @@ public:
     // ---- tables
     // What the last table command that did nothing said of why (empty when it did what it was asked): a limit of the file, or a shape it can't take.
     QString tableNotice;
-    // What a command that was turned down because Track Changes is on (and the change is not recorded yet) says of it, for the window to show (core/trackpolicy.h).
+    // Set by a command that makes a change that is not recorded as a tracked change while Track Changes is on (core/trackpolicy.h); the window shows it if the command changed the document.
     QString trackNotice;
+    // Says (the signal `untrackedChange`) that a change that is not recorded as a tracked change was just made while Track Changes is on.
+    void noteUntrackedChange() { Q_EMIT untrackedChange(); }
     QSet<QString> builtInTableStylesAdded;   // built-in table styles a change put in the style sheet (their names stay)
     // The same for the picture commands (core/pictureops.h): why the last one that did nothing did nothing, when the person needs telling.
     QString pictureNotice;
@@ -855,6 +857,7 @@ Q_SIGNALS:
     void noteChanged(QTextDocument *story);
     // The steps that can be undone or done again changed, or whether the document is modified.
     void historyChanged();
+    void untrackedChange();
     void modifiedChanged();
     // Track Changes was turned on or off, the person who reviews changed, or the way changes are shown did.
     void reviewChanged();

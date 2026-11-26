@@ -3,6 +3,7 @@
 
 #include "../cmdsearchcheck.h"
 #include "../clipboardpanechecks.h"
+#include "core/trackpolicy.h"
 #include "core/syslocale.h"
 #include "core/workthread.h"
 #include "../isolatesettings.h"
@@ -3293,7 +3294,7 @@ private Q_SLOTS:
         }
     }
 
-    // Track Changes on: what a paste as new columns records today. The columns are not tracked (no marks on the cells); the words in them are one insertion each.
+    // Track Changes on: what a paste as new columns records today. The columns are not tracked (no marks on the cells); the words in them are one insertion each. The status bar says so.
     void newColumnsWithTrackedChangesRecordTheWordsOnly()
     {
         WriteWindow w;
@@ -3305,14 +3306,19 @@ private Q_SLOTS:
         NewTable t;
         t.rows = 1;
         t.columns = 1;
+        w.document()->setTrackChanges(false);   // (the table is not an inserted row: a paste over the cells of one is turned down)
         QVERIFY(insertTable(*w.document(), at, t));
+        w.document()->setTrackChanges(true);
         w.view()->setCursor(at);
         const QByteArray plain = bodyXml(w.document()->toDocx());
         putCells({QStringLiteral("a|b")});
         w.view()->pasteCellsAsColumns();
-        // (New columns are not recorded as tracked changes yet, so with Track Changes on they are turned down and nothing changes with no mark.)
-        QCOMPARE(bodyXml(w.document()->toDocx()), plain);
-        QCOMPARE(count(w, "<w:gridCol "), 1);
+        const QByteArray xml = bodyXml(w.document()->toDocx());
+        QCOMPARE(count(w, "<w:gridCol "), 3);
+        QCOMPARE(xml.count("<w:del "), 0);
+        QCOMPARE(xml.count("<w:cellIns"), plain.count("<w:cellIns"));
+        QCOMPARE(xml.count("<w:ins "), plain.count("<w:ins ") + 2);   // (the table made with Track Changes on has its inserted row; the two words are one insertion each)
+        QCOMPARE(w.statusBar()->currentMessage(), untrackedNoticeText());
     }
 
     // Set Default Paste: what Paste does is the form set for where the content came from: this document, another document, or another program. The Options > Advanced page chooses them.

@@ -488,8 +488,12 @@ void PageView::paste()
         const auto &cells = cellsOf(src);
         const TablePaste how = m_choice.columns ? TablePaste::Overwrite : TablePaste(m_choice.table);
         if (!cells || (!m_choice.columns && !canPasteCells(*m_doc, m_cursor, how))) return;
+        const quint64 stepsBefore = m_doc->nextStepSerial();
+        m_doc->trackNotice.clear();
         const bool done = m_choice.columns ? write::pasteCellsAsColumns(*m_doc, m_cursor, *cells) : pasteCells(*m_doc, m_cursor, *cells, how);   // (one step of its own; it looks at every limit first, and a refusal has changed nothing)
         if (!m_doc->tableNotice.isEmpty()) Q_EMIT notice(m_doc->tableNotice);
+        if (!m_doc->trackNotice.isEmpty() && m_doc->nextStepSerial() > stepsBefore) m_doc->noteUntrackedChange();   // (new columns are not recorded as tracked changes)
+        m_doc->trackNotice.clear();
         if (!done) return;
         notePaste(pasteFrom, pasteSelectionEnd, src, startedInTable, true);
         caretMoved();
@@ -508,11 +512,16 @@ void PageView::paste()
 // One step: the paste, and then, when a list choice was made, what it makes of the list items the paste put in.
 void PageView::runPaste(bool smart, const std::function<void()> &put, int from)
 {
+    const quint64 stepsBefore = m_doc->nextStepSerial();
+    m_doc->trackNotice.clear();
     m_cursor.beginEditBlock();
     if (smart) smartPaste(*m_doc, m_cursor, put);
     else put();
     if (m_choice.list) applyListPaste(*m_doc, m_cursor, from, m_cursor.position(), *m_choice.list);
     m_cursor.endEditBlock();
+    // (A paste that made a change that is not recorded as a tracked change, as new columns are, says so once the step is made.)
+    if (!m_doc->trackNotice.isEmpty() && m_doc->nextStepSerial() > stepsBefore) m_doc->noteUntrackedChange();
+    m_doc->trackNotice.clear();
 }
 
 void PageView::pasteListAs(ListPaste how)

@@ -360,24 +360,24 @@ void WriteTests::paintedBordersSurviveSaveAndOpenInEveryFormat()
     }
 }
 
-void WriteTests::paintingBordersWithTrackChangesOnIsTurnedDownAsTheOtherTableCommandsAre()
+void WriteTests::paintingBordersWithTrackChangesOnIsNotRecordedAsTheOtherBorderCommandsAreNot()
 {
-    // (A change of a table's look is not recorded as a tracked change yet, so with Track Changes on it is turned down, and nothing is changed with no mark.)
     auto viaCommand = open(makeDocx(tableBody()));
     auto viaPainter = open(makeDocx(tableBody()));
-    const QByteArray saved = documentXml(viaCommand->toDocx());
     viaCommand->setTrackChanges(true);
     viaPainter->setTrackChanges(true);
     QTextCursor c(viaCommand->story());
     c.setPosition(positionOf(*viaCommand, QStringLiteral("a")));
     setBorders(*viaCommand, c, BorderSide::Right, flow::TableLine{flow::TableLine::Style::Single, 0.5, QColor()});
-    QVERIFY(!paintBorderEdges(*viaPainter, {{positionOf(*viaPainter, QStringLiteral("a")), BorderSide::Right}}, flow::TableLine{flow::TableLine::Style::Single, 0.5, QColor()}));
-    QVERIFY(documentXml(viaCommand->toDocx()) == saved && documentXml(viaPainter->toDocx()) == saved);
-    QCOMPARE(viaPainter->tableNotice, trackRefusalText());
-    // With Track Changes off the painted one has its line.
-    auto off = open(makeDocx(tableBody()));
-    QVERIFY(paintBorderEdges(*off, {{positionOf(*off, QStringLiteral("a")), BorderSide::Right}}, flow::TableLine{flow::TableLine::Style::Single, 0.5, QColor()}));
-    QVERIFY(bordersOf(documentXml(off->toDocx()), "a").contains("<w:right w:val=\"single\""));
+    QVERIFY(paintBorderEdges(*viaPainter, {{positionOf(*viaPainter, QStringLiteral("a")), BorderSide::Right}}, flow::TableLine{flow::TableLine::Style::Single, 0.5, QColor()}));
+    const QByteArray one = documentXml(viaCommand->toDocx()), two = documentXml(viaPainter->toDocx());
+    // Neither records the change (the same as each other), and the painted one has its line.
+    QCOMPARE(one.contains("tcPrChange"), two.contains("tcPrChange"));
+    QVERIFY(!two.contains("<w:ins ") && !two.contains("<w:del "));
+    QVERIFY(bordersOf(two, "a").contains("<w:right w:val=\"single\""));
+    // Each says it was not recorded as a tracked change.
+    QCOMPARE(viaCommand->trackNotice, untrackedNoticeText());
+    QCOMPARE(viaPainter->trackNotice, untrackedNoticeText());
 }
 
 void WriteTests::theBorderPainterIsInTheTableDesignTabAndTheCellMenu()
@@ -669,23 +669,27 @@ void WriteTests::aTablePulledAndLetGoInAnotherTableMovesNothingAndSaysSo()
     QVERIFY2(said.first().first().toString().contains(QStringLiteral("between paragraphs")), qPrintable(said.first().first().toString()));
 }
 
-void WriteTests::movingATableWithTrackChangesOnIsTurnedDownAsTheOtherTableCommandsAre()
+void WriteTests::movingATableWithTrackChangesOnRecordsNothingAsDeleteTableDoesNot()
 {
-    // (A move is not recorded as a tracked change yet, so with Track Changes on it is turned down; with it off the table is whole in its new place.)
     auto moved = open(makeDocx(tableBody()));
-    const QByteArray saved = documentXml(moved->toDocx());
+    auto deleted = open(makeDocx(tableBody()));
     moved->setTrackChanges(true);
+    deleted->setTrackChanges(true);
     QTextCursor c(moved->story());
-    QVERIFY(!moveTable(*moved, c, positionOf(*moved, QStringLiteral("a")), positionOf(*moved, QStringLiteral("After two"))));
-    QVERIFY(documentXml(moved->toDocx()) == saved);
-    QCOMPARE(moved->tableNotice, trackRefusalText());
-    auto off = open(makeDocx(tableBody()));
-    QTextCursor d(off->story());
-    QVERIFY(moveTable(*off, d, positionOf(*off, QStringLiteral("a")), positionOf(*off, QStringLiteral("After two"))));
-    const QByteArray x = documentXml(off->toDocx());
+    QVERIFY(moveTable(*moved, c, positionOf(*moved, QStringLiteral("a")), positionOf(*moved, QStringLiteral("After two"))));
+    QTextCursor d(deleted->story());
+    d.setPosition(positionOf(*deleted, QStringLiteral("a")));
+    deleteTable(*deleted, d);
+    const QByteArray x = documentXml(moved->toDocx()), y = documentXml(deleted->toDocx());
+    // The move records nothing (nothing is marked as moved, and it says so), and the table is whole: each cell once, in the new place, with its row and cells. Delete Table is recorded.
+    QVERIFY(!x.contains("<w:ins ") && !x.contains("<w:del "));
+    QVERIFY(y.contains("<w:del "));
+    QCOMPARE(x.contains("<w:moveFrom"), false);
+    QCOMPARE(moved->trackNotice, untrackedNoticeText());
     QCOMPARE(wordsInOrder(x), (QStringList{"Before", "After one", "a", "b", "c", "d", "After two"}));
     QCOMPARE(x.count("<w:tc>"), 4);
     QCOMPARE(x.count("<w:tr>") + x.count("<w:tr "), 2);
+    QVERIFY(!y.contains("<w:t>a</w:t>") || y.contains("<w:del "));
 }
 
 void WriteTests::aTableMoveIsOneLookAtItsNeighborsNotAWalkOfTheTable()

@@ -93,7 +93,7 @@ void typeText(WriteDoc &doc, QTextCursor &c, const QString &text, const AutoOpti
     if (c.position() != at + 1 || !isSeparator(typed[0])) return;
     QTextDocument *story = doc.story();
     // A list: "1." or "*" and a space, at the start of a paragraph that is not in a list. The space goes with the mark.
-    if (options.format && !doc.trackChanges() && typed == QLatin1String(" ") && listKindOf(doc, c.block()) == ListKind::None) {   // (a list is not made while changes are tracked: the numbering is not recorded yet)
+    if (options.format && typed == QLatin1String(" ") && listKindOf(doc, c.block()) == ListKind::None) {
         const Visible before = beforeSeparator(c);
         const auto list = autotext::listStart(before.text);
         if (list && (!list->numbered || (list->number == 1 && (list->letter || !list->paren)))) {

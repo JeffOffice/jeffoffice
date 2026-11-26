@@ -110,8 +110,11 @@ QAction *WriteWindow::makeKeyCommand(const QString &id)
     connect(a, &QAction::triggered, this, [this, id, fn] {
         bool openHere = false;   // (a document protected for forms: a key made for a style or a symbol acts in text the protection leaves out, as the commands do)
         if (refuseCommand(id, &openHere)) return;
+        const quint64 stepsBefore = m_doc ? m_doc->nextStepSerial() : 0;
+        const bool wasInTable = m_doc && cursorInTable();
+        if (m_doc) m_doc->trackNotice.clear();
         runWhereOpen(openHere, fn);
-        showTrackNotice();
+        showTrackNotice(id, stepsBefore, wasInTable);
     });
     m_actions.insert(id, a);
     KeyMap::applyLater(this, a);

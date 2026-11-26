@@ -1895,7 +1895,7 @@ private Q_SLOTS:
     void draggingTheBorderPainterAlongALinePutsTheBorderOnBothSides();
     void theBorderPainterWithNoBorderAsItsStyleErasesTheLinesItIsDraggedAlong();
     void paintedBordersSurviveSaveAndOpenInEveryFormat();
-    void paintingBordersWithTrackChangesOnIsTurnedDownAsTheOtherTableCommandsAre();
+    void paintingBordersWithTrackChangesOnIsNotRecordedAsTheOtherBorderCommandsAreNot();
     void theBorderPainterIsInTheTableDesignTabAndTheCellMenu();
     void aTableHandleAtTheCornerMovesTheTableWhenPulledAndSelectsItWhenClicked();
     void movingATableKeepsItsCellsAndBordersThroughEveryFormat();
@@ -1904,7 +1904,7 @@ private Q_SLOTS:
     void aTableIsOfferedAMoveOnlyWhereTheMoveIsDoneAndAFailedMoveSaysWhy();
     void aTableIsNotPutRightAgainstAnotherTable();
     void aTablePulledAndLetGoInAnotherTableMovesNothingAndSaysSo();
-    void movingATableWithTrackChangesOnIsTurnedDownAsTheOtherTableCommandsAre();
+    void movingATableWithTrackChangesOnRecordsNothingAsDeleteTableDoesNot();
     void aTableMoveIsOneLookAtItsNeighborsNotAWalkOfTheTable();
     void lettingGoOfAPullOnLosingTheFocusDoesNotMoveTheTableOrPaintBorders();
     void theMoveHandleIsNotShownWhereTheDocumentCannotBeChanged();

@@ -50,33 +50,28 @@ TrackPolicy trackPolicyOf(const QString &id, bool *known)
         "fields.toggleAllCodes", "insert.manageBlocks", "insert.saveBlock", "insert.cover.save", "insert.textBox.save", "design.themes.browse", "design.themes.save", "mail.preview",
         "mail.highlight", "mail.first", "mail.last", "mail.next", "mail.prev", "mail.find", "mail.check", "mail.editList", "mail.matchFields", "picture.lockAspect", "shape.createLink",
         "shape.breakLink", "para.sort"});
-    // Changes that are not recorded yet, each turned down while Track Changes is on (see DESIGN: the slices that record them are listed there): the properties of sections (page setup,
+    // Changes that are not recorded yet, each made as it is with Track Changes off, with a notice (see DESIGN: the slices that record them are listed there): the properties of sections (page setup,
     // columns, margins, line numbers, a watermark, page borders), numbering and indents, notes, generated tables and indexes, fields and links, content controls, headers and footers, the
     // drawn objects and pictures and their properties, and what is made of the merge.
-    static const QStringList refusedPrefixes = {QStringLiteral("layout."), QStringLiteral("design."), QStringLiteral("list."), QStringLiteral("refs."), QStringLiteral("insert.control."),
+    static const QStringList untrackedPrefixes = {QStringLiteral("layout."), QStringLiteral("design."), QStringLiteral("list."), QStringLiteral("refs."), QStringLiteral("insert.control."),
                                                 QStringLiteral("insert.chart."), QStringLiteral("insert.equation"), QStringLiteral("insert.textBox."), QStringLiteral("insert.object."),
                                                 QStringLiteral("insert.cover."), QStringLiteral("equation."), QStringLiteral("chart"), QStringLiteral("shape."),
                                                 QStringLiteral("picture."), QStringLiteral("pic."), QStringLiteral("arrange"), QStringLiteral("graphics"), QStringLiteral("pn."),
                                                 QStringLiteral("hf."), QStringLiteral("mail."), QStringLiteral("fields."), QStringLiteral("outline."), QStringLiteral("para.")};
-    static const QSet<QString> refused = setOf({"insert.header", "insert.footer", "insert.field", "insert.bookmark", "insert.hyperlink", "insert.removeHyperlink", "insert.dateTime",
+    static const QSet<QString> untracked = setOf({"insert.header", "insert.footer", "insert.field", "insert.bookmark", "insert.hyperlink", "insert.removeHyperlink", "insert.dateTime",
         "insert.barcode", "insert.icons", "insert.onlinePicture", "insert.picture", "insert.pictureClipboard", "insert.drawingCanvas", "insert.expandShortcut", "insert.textFromFile",
         "edit.pastePicture", "edit.pasteObject", "edit.replaceFonts"});
     if (tracked.contains(id) || startsWithAny(id, trackedPrefixes)) return TrackPolicy::Tracked;
     if (inText.contains(id)) return TrackPolicy::TrackedInText;
     if (neutral.contains(id) || startsWithAny(id, neutralPrefixes)) return TrackPolicy::Neutral;
-    if (refused.contains(id) || startsWithAny(id, refusedPrefixes)) return TrackPolicy::Refused;
-    // What is not named is turned down too, and a command that is added later has to be put on one side.
+    if (untracked.contains(id) || startsWithAny(id, untrackedPrefixes)) return TrackPolicy::Untracked;
+    // What is not named is Untracked too, and a command that is added later has to be put on one side.
     if (known) *known = false;
-    return TrackPolicy::Refused;
+    return TrackPolicy::Untracked;
 }
 
-QString trackRefusalText() { return QCoreApplication::translate("jp::write::Tracking", "Turn off Track Changes to make this change: it is not recorded as a change yet."); }
+QString untrackedNoticeText() { return QCoreApplication::translate("jp::write::Tracking", "This change was not recorded as a tracked change."); }
 
-bool refusedWhileTracking(WriteDoc &doc)
-{
-    if (!doc.trackChanges()) return false;
-    doc.trackNotice = trackRefusalText();
-    return true;
-}
+QString trackedRowsText() { return QCoreApplication::translate("jp::write::Tracking", "This change was not made: it would take part of a row that has tracked changes. Accept or reject them first."); }
 
 } // namespace jp::write

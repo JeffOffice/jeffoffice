@@ -1,6 +1,7 @@
 // Tests of JeffWrite's drawn objects: the shapes and text boxes a file holds and the ones Insert puts in, and the Picture Format and Shape Format commands. Each document is
 // built here from a few lines of XML.
 
+#include "core/trackpolicy.h"
 #include "core/workthread.h"
 #include "app/picturetools.h"
 #include "app/infopage.h"
@@ -3988,13 +3989,9 @@ private Q_SLOTS:
         win.w.view()->selectObjects({0, 1});
         win.w.refreshNow();
         const QByteArray before = documentXml(doc->toDocx());
-        // (A change of a drawn object is not recorded as a tracked change, so with Track Changes on it is turned down, and the document is as it was.)
-        win.w.act("shape.union")->trigger();
-        QCOMPARE(drawnPlaces(*doc).size(), 2);
-        QCOMPARE(documentXml(doc->toDocx()), before);
-        doc->setTrackChanges(false);
         win.w.act("shape.union")->trigger();
         QCOMPARE(drawnPlaces(*doc).size(), 1);
+        QCOMPARE(win.w.statusBar()->currentMessage(), write::untrackedNoticeText());   // (a change of a drawn object is not recorded as a tracked change: the status bar says so)
         QVERIFY(doc->undo());
         QCOMPARE(documentXml(doc->toDocx()), before);
     }

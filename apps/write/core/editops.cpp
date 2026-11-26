@@ -657,16 +657,24 @@ const QTextDocument *&trackedStory()
 // Whether an edit of the story the cursor is in is recorded as a tracked change.
 bool tracking(const WriteDoc &doc, const QTextCursor &c) { return doc.trackChanges() && untrackedDepth() == 0 && (c.document() == doc.story() || (trackedStory() && c.document() == trackedStory())); }
 
-// Whether an edit of a header, a footer, or a note is turned down because Track Changes is on and changes are not recorded in those yet (it does nothing, and says so in doc.trackNotice).
-bool sideStoryUntracked(WriteDoc &doc, const QTextCursor &c)
-{
-    if (!doc.trackChanges() || untrackedDepth() != 0 || !doc.isSideStory(c.document()) || isTrackedStory(c.document())) return false;
-    doc.trackNotice = trackRefusalText();
-    return true;
-}
+// With Track Changes on, an edit that is not recorded as a tracked change (in a header, a footer, or a note; a list or an indent) is made as it is with Track Changes off, and the document says
+// so once the edit has made a step of the history.
+class UntrackedNote {
+public:
+    UntrackedNote(WriteDoc &doc, bool applies = true) : m_doc(doc), m_before(doc.nextStepSerial()), m_on(applies && doc.trackChanges() && untrackedDepth() == 0) {}
+    UntrackedNote(WriteDoc &doc, const QTextCursor &c) : UntrackedNote(doc, doc.isSideStory(c.document()) && !isTrackedStory(c.document())) {}
+    ~UntrackedNote()
+    {
+        if (m_on && m_doc.nextStepSerial() > m_before) m_doc.noteUntrackedChange();
+    }
+    UntrackedNote(const UntrackedNote &) = delete;
+    UntrackedNote &operator=(const UntrackedNote &) = delete;
 
-// Whether a change that is not recorded yet is turned down because Track Changes is on (not while the program's own code makes a change that is not the person's).
-bool notRecordedYet(WriteDoc &doc) { return untrackedDepth() == 0 && refusedWhileTracking(doc); }
+private:
+    WriteDoc &m_doc;
+    quint64 m_before;
+    bool m_on;
+};
 
 // The look of text the reviewer inserted.
 QTextCharFormat insertedLook(WriteDoc &doc, const QTextCharFormat &f) { return withRevisionLook(f, false, 1, doc.reviewerIndex(doc.reviewer())); }
@@ -928,7 +936,7 @@ void insertText(WriteDoc &doc, QTextCursor &c, const QString &typed)
 {
     const NoteScopeGuard scopeGuard(doc, c);
     if (!intoBody(c)) return;
-    if (sideStoryUntracked(doc, c)) return;
+    const UntrackedNote untrackedNote(doc, c);
     // (A header or footer has no page or column breaks: they are not typed into one.)
     QString text = typed;
     if ((doc.isSideStory(c.document()) || inEndnoteWords(c)) && (text.contains(flow::kPageBreak) || text.contains(flow::kColumnBreak))) text.remove(flow::kPageBreak).remove(flow::kColumnBreak);
@@ -1035,7 +1043,7 @@ void insertParagraph(WriteDoc &doc, QTextCursor &c)
 {
     const NoteScopeGuard scopeGuard(doc, c);
     if (!intoBody(c)) return;
-    if (sideStoryUntracked(doc, c)) return;
+    const UntrackedNote untrackedNote(doc, c);
     NumberGuard numbers(doc, c.document());
     if (caretInKnownControl(doc, c) || !contentControlsAllow(doc, c.document(), c.selectionStart(), c.selectionEnd(), true)) return;   // (a content control's two ends stay in one paragraph)
     c.beginEditBlock();
@@ -1204,7 +1212,7 @@ void removeSelection(WriteDoc &doc, QTextCursor &c)
 {
     const NoteScopeGuard scopeGuard(doc, c);
     if (!intoBody(c)) return;
-    if (sideStoryUntracked(doc, c)) return;
+    const UntrackedNote untrackedNote(doc, c);
     NumberGuard numbers(doc, c.document());
     if (!c.hasSelection()) return;
     if (!contentControlsAllow(doc, c.document(), c.selectionStart(), c.selectionEnd(), false)) return;
@@ -1340,7 +1348,7 @@ void deleteBack(WriteDoc &doc, QTextCursor &c, bool byWord)
 {
     const NoteScopeGuard scopeGuard(doc, c);
     if (!intoBody(c)) return;
-    if (sideStoryUntracked(doc, c)) return;
+    const UntrackedNote untrackedNote(doc, c);
     NumberGuard numbers(doc, c.document());
     const AdvanceGuard advance(c);
     if (c.hasSelection()) {
@@ -1422,7 +1430,7 @@ void deleteForward(WriteDoc &doc, QTextCursor &c, bool byWord)
 {
     const NoteScopeGuard scopeGuard(doc, c);
     if (!intoBody(c)) return;
-    if (sideStoryUntracked(doc, c)) return;
+    const UntrackedNote untrackedNote(doc, c);
     NumberGuard numbers(doc, c.document());
     const AdvanceGuard advance(c);
     if (c.hasSelection()) {
@@ -2012,7 +2020,7 @@ void pasteFragment(WriteDoc &doc, QTextCursor &c, const QTextDocumentFragment &f
     doc.forgetDrawingIds();   // (what is pasted may hold drawings with ids of their own)
     const NoteScopeGuard scopeGuard(doc, c);
     if (!intoBody(c)) return;
-    if (sideStoryUntracked(doc, c)) return;
+    const UntrackedNote untrackedNote(doc, c);
     NumberGuard numbers(doc, c.document());
     if (fragment.isEmpty()) return;
     if (c.document() == doc.story() && (caretInKnownControl(doc, c) || typingReplacesPlaceholder(doc, c) || pasteWouldOverfillControls(doc, fragment))) {   // (in a content control only the words go in; so for more controls than a file holds)
@@ -2154,7 +2162,7 @@ void pasteClip(WriteDoc &doc, QTextCursor &c, const Clip &clip)
     doc.forgetDrawingIds();   // (what is pasted may hold drawings with ids of their own)
     const NoteScopeGuard scopeGuard(doc, c);
     if (!intoBody(c)) return;
-    if (sideStoryUntracked(doc, c)) return;
+    const UntrackedNote untrackedNote(doc, c);
     NumberGuard numbers(doc, c.document());
     if (clip.isEmpty()) return;
     const bool same = clip.source == doc.id();
@@ -2387,7 +2395,7 @@ void pasteText(WriteDoc &doc, QTextCursor &c, const QString &text)
 {
     const NoteScopeGuard scopeGuard(doc, c);
     if (!intoBody(c)) return;
-    if (sideStoryUntracked(doc, c)) return;
+    const UntrackedNote untrackedNote(doc, c);
     NumberGuard numbers(doc, c.document());
     QString t = text;
     t.replace(QLatin1String("\r\n"), QLatin1String("\n")).replace(QLatin1Char('\r'), QLatin1Char('\n'));
@@ -2475,7 +2483,7 @@ static void followAutoRedefine(WriteDoc &doc, QTextCursor &c)
 
 void changeCharFormat(WriteDoc &doc, QTextCursor &c, const std::function<void(QTextCharFormat &)> &change)
 {
-    if (sideStoryUntracked(doc, c)) return;
+    const UntrackedNote untrackedNote(doc, c);
     if (doc.formattingLimited()) {
         doc.noteFormattingRefused();
         return;
@@ -2930,7 +2938,7 @@ static bool paragraphKept(const QVector<std::pair<int, int>> &locked, const QTex
 
 void changeBlockFormat(WriteDoc &doc, QTextCursor &c, const std::function<void(QTextBlockFormat &)> &change, const QVector<std::pair<int, int>> *locked)
 {
-    if (sideStoryUntracked(doc, c)) return;
+    const UntrackedNote untrackedNote(doc, c);
     if (doc.formattingLimited()) {
         doc.noteFormattingRefused();
         return;
@@ -2971,7 +2979,7 @@ static void setBlockList(WriteDoc &doc, QTextBlock block, int numId, int level, 
 
 void changeIndent(WriteDoc &doc, QTextCursor &c, double points)
 {
-    if (notRecordedYet(doc)) return;   // (numbering and indents are not recorded as tracked changes yet)
+    const UntrackedNote untrackedNote(doc);   // (numbering and indents are not recorded as tracked changes yet)
     const NoteScopeGuard scopeGuard(doc, c);
     if (!intoBody(c)) return;
     NumberGuard numbers(doc, c.document());
@@ -3117,7 +3125,7 @@ void toggleList(WriteDoc &doc, QTextCursor &c, bool numbered)
 
 void setList(WriteDoc &doc, QTextCursor &c, bool numbered, std::optional<bool> on)
 {
-    if (notRecordedYet(doc)) return;   // (numbering and indents are not recorded as tracked changes yet)
+    const UntrackedNote untrackedNote(doc);   // (numbering and indents are not recorded as tracked changes yet)
     const NoteScopeGuard scopeGuard(doc, c);
     if (!intoBody(c)) return;
     NumberGuard numbers(doc, c.document());
@@ -3196,7 +3204,7 @@ AbstractNum listDefinitionAt(const WriteDoc &doc, const QTextBlock &block, bool 
 
 void clearList(WriteDoc &doc, QTextCursor &c)
 {
-    if (notRecordedYet(doc)) return;   // (numbering and indents are not recorded as tracked changes yet)
+    const UntrackedNote untrackedNote(doc);   // (numbering and indents are not recorded as tracked changes yet)
     const NoteScopeGuard scopeGuard(doc, c);
     if (!intoBody(c)) return;
     NumberGuard numbers(doc, c.document());
@@ -3208,7 +3216,7 @@ void clearList(WriteDoc &doc, QTextCursor &c)
 
 void applyListLevel(WriteDoc &doc, QTextCursor &c, const Level &spec)
 {
-    if (notRecordedYet(doc)) return;   // (numbering and indents are not recorded as tracked changes yet)
+    const UntrackedNote untrackedNote(doc);   // (numbering and indents are not recorded as tracked changes yet)
     const NoteScopeGuard scopeGuard(doc, c);
     if (!intoBody(c)) return;
     QVector<QTextBlock> blocks;
@@ -3250,7 +3258,7 @@ void applyListLevel(WriteDoc &doc, QTextCursor &c, const Level &spec)
 
 void applyMultilevelList(WriteDoc &doc, QTextCursor &c, const AbstractNum &def)
 {
-    if (notRecordedYet(doc)) return;   // (numbering and indents are not recorded as tracked changes yet)
+    const UntrackedNote untrackedNote(doc);   // (numbering and indents are not recorded as tracked changes yet)
     const NoteScopeGuard scopeGuard(doc, c);
     if (!intoBody(c)) return;
     QVector<QTextBlock> blocks;
@@ -3473,7 +3481,7 @@ bool deleteListStyle(WriteDoc &doc, const QString &styleId)
 
 void setListLevel(WriteDoc &doc, QTextCursor &c, int level)
 {
-    if (notRecordedYet(doc)) return;   // (numbering and indents are not recorded as tracked changes yet)
+    const UntrackedNote untrackedNote(doc);   // (numbering and indents are not recorded as tracked changes yet)
     const NoteScopeGuard scopeGuard(doc, c);
     if (!intoBody(c)) return;
     NumberGuard numbers(doc, c.document());
@@ -3487,7 +3495,7 @@ void setListLevel(WriteDoc &doc, QTextCursor &c, int level)
 
 bool setNumberingValue(WriteDoc &doc, QTextCursor &c, bool continuePrevious, std::optional<int> value)
 {
-    if (notRecordedYet(doc)) return false;   // (numbering and indents are not recorded as tracked changes yet)
+    const UntrackedNote untrackedNote(doc);   // (numbering and indents are not recorded as tracked changes yet)
     const NoteScopeGuard scopeGuard(doc, c);
     if (!intoBody(c)) return false;
     const QTextBlock first = selectedBlocks(c).first();
