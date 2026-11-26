@@ -1031,12 +1031,12 @@
     <message>
         <location line="+3"/>
         <source>Replace the names of math symbols as you type</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Namen mathematischer Symbole beim Eingeben ersetzen</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>Type a backslash and one of these names, then a space or a mark, and the symbol takes its place. \alpha becomes α.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Geben Sie einen Backslash und einen dieser Namen ein, dann ein Leerzeichen oder ein Satzzeichen, und das Symbol ersetzt ihn. \alpha wird zu α.</translation>
     </message>
     <message>
         <location line="+6"/>
@@ -1051,7 +1051,7 @@
     <message>
         <location line="+11"/>
         <source>Math Symbols</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Mathematische Symbole</translation>
     </message>
     <message>
         <location line="+155"/>
@@ -2996,12 +2996,12 @@ Artikel auf der Rückseite	4</translation>
     <message>
         <location line="+2"/>
         <source>[Report title]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Berichtstitel]</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>[Author]  |  [Date]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Autor]  |  [Datum]</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -3011,17 +3011,17 @@ Artikel auf der Rückseite	4</translation>
     <message>
         <location line="+1"/>
         <source>[The question this report answers]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Die Frage, die dieser Bericht beantwortet]</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>[The answer, in one sentence]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Die Antwort in einem Satz]</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>[What you recommend]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Was Sie empfehlen]</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -3037,7 +3037,7 @@ Artikel auf der Rückseite	4</translation>
         <location line="+0"/>
         <location line="+1"/>
         <source>[The number or fact behind it]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Die Zahl oder Tatsache dahinter]</translation>
     </message>
     <message>
         <location line="+0"/>
@@ -3052,112 +3052,112 @@ Artikel auf der Rückseite	4</translation>
     <message>
         <location line="+1"/>
         <source>[What to do first, and who does it]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Was zuerst zu tun ist und wer es übernimmt]</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>[What to do next]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Was als Nächstes zu tun ist]</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>[How you will know it worked]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Woran Sie erkennen, dass es funktioniert hat]</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Questions</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Fragen</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>[Where readers can find the details]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Wo Leser die Details finden]</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>[Training title]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Schulungstitel]</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>[Team or audience]  |  [Trainer]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Team oder Zielgruppe]  |  [Trainer]</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>What you will learn</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Was Sie lernen werden</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>[A skill people will have by the end]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Eine Fähigkeit, die die Teilnehmer am Ende haben]</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>[A second skill]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Eine zweite Fähigkeit]</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>[How long this takes]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Wie lange das dauert]</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>How it works</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">So funktioniert es</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Step 1: [what to do]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Schritt 1: [was zu tun ist]</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Step 2: [what to do]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Schritt 2: [was zu tun ist]</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>[A tip that saves time]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Ein Tipp, der Zeit spart]</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>[A mistake to avoid]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Ein Fehler, den man vermeiden sollte]</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Practice</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Übung</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>[A short exercise, and how long people have]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Eine kurze Übung und wie viel Zeit die Teilnehmer dafür haben]</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Check what you learned</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Prüfen Sie, was Sie gelernt haben</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>[A question with one right answer]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Eine Frage mit einer richtigen Antwort]</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>[A question that asks them to show it]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Eine Frage, bei der sie es zeigen sollen]</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>[Where to get help afterward]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Wo man danach Hilfe bekommt]</translation>
     </message>
     <message>
         <location line="+2"/>
@@ -3272,17 +3272,17 @@ Artikel auf der Rückseite	4</translation>
     <message>
         <location line="+0"/>
         <source>A summary, the findings, and what you recommend, in a calm, serious design.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Eine Zusammenfassung, die Ergebnisse und Ihre Empfehlungen in einem ruhigen, seriösen Entwurf.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Training</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Schulung</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>What people will learn, how to do it, a practice exercise, and a short check.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Was die Teilnehmer lernen, wie es geht, eine Übung und ein kurzer Test.</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -6636,7 +6636,7 @@ Artikel auf der Rückseite	4</translation>
         <location line="+6"/>
         <location line="+5"/>
         <source>Field shading</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Feldschattierung</translation>
     </message>
     <message>
         <location line="-4"/>
@@ -6646,17 +6646,17 @@ Artikel auf der Rückseite	4</translation>
     <message>
         <location line="+1"/>
         <source>Always</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Immer</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>When selected</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Bei Auswahl</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>Update fields before printing</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Felder vor dem Drucken aktualisieren</translation>
     </message>
     <message>
         <location line="+9"/>
@@ -6682,12 +6682,12 @@ Artikel auf der Rückseite	4</translation>
     <message>
         <location line="+8"/>
         <source>When selecting, automatically select the whole word</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Bei Auswahl automatisch das ganze Wort auswählen</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>Use smart paragraph selection</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Intelligente Absatzauswahl verwenden</translation>
     </message>
     <message>
         <location line="+4"/>
@@ -12763,7 +12763,7 @@ Jetzt von %2 herunterladen? (%3, einmalig.)</translation>
     <message>
         <location line="+4"/>
         <source>The dictionary is a folder, not a file.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Das Wörterbuch ist ein Ordner, keine Datei.</translation>
     </message>
     <message>
         <location line="+6"/>
@@ -23486,7 +23486,7 @@ Desktop-Publishing</translation>
     <message>
         <location line="+1"/>
         <source>Cover Pages</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Deckblätter</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -23993,17 +23993,17 @@ Quelle: %3</translation>
     <message>
         <location line="+1"/>
         <source>Radar</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Netz</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Radar with Markers</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Netz mit Markierungen</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Filled Radar</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Gefülltes Netz</translation>
     </message>
     <message>
         <location line="+50"/>
@@ -25019,17 +25019,17 @@ Quelle: %3</translation>
     <message>
         <location line="+1"/>
         <source>Radar</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Netz</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Radar with markers</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Netz mit Markierungen</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Filled radar</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Gefülltes Netz</translation>
     </message>
 </context>
 <context>
@@ -27152,22 +27152,22 @@ Quelle: %3</translation>
     <message>
         <location line="+84"/>
         <source>Show the sheet tabs</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Blattregister anzeigen</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>Show the scroll bars</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Bildlaufleisten anzeigen</translation>
     </message>
     <message>
         <location line="+7"/>
         <source>A mark on the cell, and the note when the pointer rests on it</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Eine Markierung in der Zelle und die Notiz, wenn der Zeiger darauf verweilt</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>A mark on the cell only</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Nur eine Markierung in der Zelle</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -27177,7 +27177,7 @@ Quelle: %3</translation>
     <message>
         <location line="+2"/>
         <source>Show a cell&apos;s note as</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Notiz einer Zelle anzeigen als</translation>
     </message>
     <message>
         <location line="+36"/>
@@ -27357,17 +27357,17 @@ Quelle: %3</translation>
         <location line="-415"/>
         <location line="+17"/>
         <source>Radar</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Netz</translation>
     </message>
     <message>
         <location line="-16"/>
         <source>Radar with markers</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Netz mit Markierungen</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Filled radar</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Gefülltes Netz</translation>
     </message>
     <message>
         <location line="+25"/>
@@ -29143,12 +29143,12 @@ Quelle: %3</translation>
     <message>
         <location line="+1"/>
         <source>Cells that the formulas in the selection read</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Zellen, die die Formeln in der Auswahl lesen</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Cells with formulas that read the selection</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Zellen mit Formeln, die die Auswahl lesen</translation>
     </message>
     <message>
         <location line="+9"/>
@@ -29188,7 +29188,7 @@ Quelle: %3</translation>
     <message>
         <location line="+2"/>
         <source>For cells that are read, or that read: follow them through every level, not only the first</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Für gelesene oder lesende Zellen: über alle Ebenen verfolgen, nicht nur die erste</translation>
     </message>
     <message>
         <location line="+31"/>
@@ -33696,12 +33696,12 @@ Die Datei kann nicht gelesen werden.</translation>
     <message>
         <location line="+1"/>
         <source>Clear Rules from This Table</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Regeln aus dieser Tabelle löschen</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Clear Rules from This Pivot Table</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Regeln aus dieser Pivot-Tabelle entfernen</translation>
     </message>
     <message>
         <location line="+10"/>
@@ -43015,7 +43015,7 @@ Die Datei kann nicht gelesen werden.</translation>
     <message>
         <location line="+10"/>
         <source>There is no saved presentation to compare.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Es gibt keine gespeicherte Präsentation zum Vergleichen.</translation>
     </message>
     <message>
         <location line="+2"/>
@@ -43026,7 +43026,7 @@ Die Datei kann nicht gelesen werden.</translation>
         <location line="+3"/>
         <location line="+3"/>
         <source>The version can&apos;t be compared.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Die Version kann nicht verglichen werden.</translation>
     </message>
     <message>
         <location line="+34"/>
@@ -59985,7 +59985,7 @@ Ihr Webbrowser öffnet LibreTranslate, einen kostenlosen Open-Source-Übersetzun
     <message>
         <location line="+1"/>
         <source>Zoom into the slide, from the menu: drag to move the slide, and press Esc to put it back.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Zoomen Sie über das Menü in die Folie: Ziehen Sie, um die Folie zu verschieben, und drücken Sie Esc, um sie zurückzusetzen.</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -60025,19 +60025,19 @@ Ihr Webbrowser öffnet LibreTranslate, einen kostenlosen Open-Source-Übersetzun
     <message>
         <location line="+9"/>
         <source>Show Presenter View</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Referentenansicht anzeigen</translation>
     </message>
     <message>
         <location line="+4"/>
         <location line="+414"/>
         <location line="+1"/>
         <source>Speaker Notes</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Sprechernotizen</translation>
     </message>
     <message>
         <location line="-411"/>
         <source>Zoom into the Slide</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">In die Folie zoomen</translation>
     </message>
     <message>
         <location line="+14"/>
@@ -60072,12 +60072,12 @@ Ihr Webbrowser öffnet LibreTranslate, einen kostenlosen Open-Source-Übersetzun
     <message>
         <location line="+351"/>
         <source>This slide has no notes.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Diese Folie hat keine Notizen.</translation>
     </message>
     <message>
         <location line="+6"/>
         <source>These notes were cut short because they are very long.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Diese Notizen wurden gekürzt, weil sie sehr lang sind.</translation>
     </message>
 </context>
 <context>
@@ -61177,12 +61177,12 @@ Ihr Webbrowser öffnet LibreTranslate, einen kostenlosen Open-Source-Übersetzun
     <message>
         <location line="+5"/>
         <source>The first row has column names</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Die erste Zeile enthält Spaltennamen</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>The row of names is not used to guess what the columns hold.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Die Zeile mit den Namen wird nicht verwendet, um zu erraten, was die Spalten enthalten.</translation>
     </message>
     <message>
         <location line="+10"/>
@@ -61202,17 +61202,17 @@ Ihr Webbrowser öffnet LibreTranslate, einen kostenlosen Open-Source-Übersetzun
     <message>
         <location line="+2"/>
         <source>What each column holds is guessed from its first %1 rows. Change any column above before you open the file.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Welchen Inhalt jede Spalte hat, wird anhand der ersten %1 Zeilen geschätzt. Ändern Sie oben jede Spalte, bevor Sie die Datei öffnen.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Columns that could be dates, but not for certain, are not read as dates until you choose an order: %1.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Spalten, die Datumsangaben sein könnten, aber nicht sicher sind, werden erst als Datum gelesen, wenn Sie eine Reihenfolge wählen: %1.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>The columns after the first %1 are brought in as text.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Die Spalten nach den ersten %1 werden als Text übernommen.</translation>
     </message>
     <message>
         <location line="+35"/>
@@ -64040,7 +64040,7 @@ Ihr Webbrowser öffnet LibreTranslate, einen kostenlosen Open-Source-Übersetzun
     <message>
         <location line="+0"/>
         <source> [Compatibility Mode]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished"> [Kompatibilitätsmodus]</translation>
     </message>
     <message>
         <location line="+15"/>
@@ -64051,12 +64051,12 @@ Ihr Webbrowser öffnet LibreTranslate, einen kostenlosen Open-Source-Übersetzun
     <message>
         <location line="+0"/>
         <source>The document will use the newest layout rules. Lines and pages may break in other places, and this can&apos;t be undone. Convert it?</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Das Dokument verwendet die neuesten Layoutregeln. Zeilen und Seiten können an anderen Stellen umbrechen, und dies kann nicht rückgängig gemacht werden. Konvertieren?</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>The document now uses the newest layout rules.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Das Dokument verwendet jetzt die neuesten Layoutregeln.</translation>
     </message>
     <message>
         <location line="+47"/>
@@ -64452,12 +64452,12 @@ Ihr Webbrowser öffnet LibreTranslate, einen kostenlosen Open-Source-Übersetzun
         <location line="+1"/>
         <location line="+4"/>
         <source>Turn off Track Changes to delete cells and shift the others.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Schalten Sie die Änderungsverfolgung aus, um Zellen zu löschen und die übrigen zu verschieben.</translation>
     </message>
     <message>
         <location line="-1"/>
         <source>Delete Cells, Shift Up</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Zellen löschen und nach oben verschieben</translation>
     </message>
     <message>
         <location line="+4"/>
@@ -64562,7 +64562,7 @@ Ihr Webbrowser öffnet LibreTranslate, einen kostenlosen Open-Source-Übersetzun
     <message>
         <location line="+188"/>
         <source>Your Tables</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Ihre Tabellen</translation>
     </message>
     <message>
         <location line="+43"/>
@@ -65144,17 +65144,17 @@ Ihr Webbrowser öffnet LibreTranslate, einen kostenlosen Open-Source-Übersetzun
     <message>
         <location line="+1"/>
         <source>Radar</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Netz</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Radar with Markers</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Netz mit Markierungen</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Filled Radar</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Gefülltes Netz</translation>
     </message>
     <message>
         <location line="+19"/>
@@ -66992,7 +66992,7 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
         <location line="+9"/>
         <location line="+5"/>
         <source>Text Shading</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Texthintergrund</translation>
     </message>
     <message>
         <location line="+32"/>
@@ -67265,7 +67265,7 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
     <message>
         <location line="+5"/>
         <source>This document uses the layout rules of an older program. Convert it to use the newest rules.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Dieses Dokument verwendet die Layoutregeln eines älteren Programms. Konvertieren Sie es, um die neuesten Regeln zu verwenden.</translation>
     </message>
     <message>
         <location line="+35"/>
@@ -67658,7 +67658,7 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
     <message>
         <location line="-4"/>
         <source>Delete All Comments Shown</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Alle angezeigten Kommentare löschen</translation>
     </message>
     <message>
         <location line="+7"/>
@@ -68765,7 +68765,7 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
     <message>
         <location filename="../apps/write/app/writewindow_insert.cpp" line="-188"/>
         <source>A saved block can be put in the text of the document, or in a header or a footer, not in a note.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Ein gespeicherter Block kann in den Text des Dokuments oder in eine Kopf- oder Fußzeile eingefügt werden, nicht in eine Fußnote.</translation>
     </message>
     <message>
         <location line="+26"/>
@@ -68788,17 +68788,17 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
     <message>
         <location line="-26"/>
         <source>Select the cover page first, with its page break.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Wählen Sie zuerst das Deckblatt mit dem Seitenumbruch aus.</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>Select a table first.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Wählen Sie zuerst eine Tabelle aus.</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>Select a text box first.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Wählen Sie zuerst ein Textfeld aus.</translation>
     </message>
     <message>
         <location line="+54"/>
@@ -68944,17 +68944,17 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
     <message>
         <location line="+1"/>
         <source>Save Selection to Cover Page Gallery…</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Auswahl in Deckblatt-Katalog speichern…</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Save Selection to Table Gallery…</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Auswahl in Tabellen-Katalog speichern…</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Save Selection to Text Box Gallery…</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Auswahl in Textfeld-Katalog speichern…</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -68984,12 +68984,12 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
     <message>
         <location line="+41"/>
         <source>Your Cover Pages</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Ihre Deckblätter</translation>
     </message>
     <message>
         <location line="+13"/>
         <source>Your Text Boxes</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Ihre Textfelder</translation>
     </message>
     <message>
         <location filename="../apps/write/app/writewindow_fields.cpp" line="-23"/>
@@ -70072,7 +70072,7 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
     <message>
         <location filename="../apps/write/app/writewindow_repeat.cpp" line="+17"/>
         <source>This cannot be repeated while the text of a box or shape is being edited.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Dies kann nicht wiederholt werden, während der Text eines Textfelds oder einer Form bearbeitet wird.</translation>
     </message>
     <message>
         <location line="+91"/>
@@ -70090,7 +70090,7 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
     <message>
         <location line="+33"/>
         <source>Repeat %1</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">%1 wiederholen</translation>
     </message>
 </context>
 <context>
@@ -77535,12 +77535,12 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
     <message>
         <location line="+155"/>
         <source>No formula in the selection reads a cell on this sheet.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Keine Formel in der Auswahl liest eine Zelle auf diesem Blatt.</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>No formula on this sheet reads the selected cells.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Keine Formel auf diesem Blatt liest die ausgewählten Zellen.</translation>
     </message>
     <message>
         <location line="+9"/>
@@ -84440,7 +84440,7 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
     <message>
         <location line="+14"/>
         <source>Include text boxes</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Textfelder einschließen</translation>
     </message>
     <message>
         <location line="+30"/>
@@ -86430,7 +86430,7 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
     <message>
         <location line="+4"/>
         <source>Stop Replacing Math Names</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Mathematische Namen nicht ersetzen</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -86465,22 +86465,22 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
     <message>
         <location filename="../apps/write/app/writewindow_options.cpp" line="-9"/>
         <source>As they come</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Unverändert</translation>
     </message>
     <message>
         <location line="+5"/>
         <source>Pasting list items next to a list</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Einfügen von Listenelementen neben einer Liste</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>As words</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Als Wörter</translation>
     </message>
     <message>
         <location line="+6"/>
         <source>Pasting spreadsheet cells</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Einfügen von Tabellenzellen</translation>
     </message>
 </context>
 <context>

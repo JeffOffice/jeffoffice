@@ -1,14 +1,14 @@
 # JeffWrite Help
 <!-- keywords: inhoud, help, onderwerpen, start -->
 
-Typ in het zoekvak hierboven om een onderwerp of een opdracht te zoeken. Druk op **F1** om op elk moment hulp te krijgen bij wat u doet: het linttabblad waarop u staat, of de pagina van het Bestand-scherm waarop u staat.
+Typ in het zoekvak hierboven om een onderwerp of een opdracht te zoeken en uit te voeren. Druk op **F1** om op elk moment hulp te krijgen bij wat u doet: het linttabblad waarop u staat, of de pagina van het scherm Bestand waarop u staat.
 
 ## Aan de slag
 
 - [Welkom bij JeffWrite](start)
 - [Openen, opslaan, afdrukken en exporteren](open-save)
 - [Pack and Go: een document verzenden met wat het nodig heeft](pack-and-go)
-- [Info: eigenschappen, wachtwoorden en Inspecteren](info)
+- [Info: eigenschappen, wachtwoorden en Document controleren](info)
 - [OpenDocument-bestanden openen en opslaan](open-odt)
 - [RTF-bestanden openen](open-rtf)
 - [Afdrukken](print)
@@ -16,9 +16,9 @@ Typ in het zoekvak hierboven om een onderwerp of een opdracht te zoeken. Druk op
 ## Werk aan uw tekst
 
 - [Uw spelling controleren](spelling)
-- [Woorden tellen, de taal instellen, toegankelijkheid controleren en woorden opzoeken](proofing-tools)
+- [Woorden tellen, de taal instellen, de toegankelijkheid controleren en woorden opzoeken](proofing-tools)
 - [Tekst vertalen](translate)
-- [Wijzigingen bijhouden, en ze accepteren of weigeren](track-changes)
+- [Wijzigingen bijhouden, en wijzigingen accepteren of weigeren](track-changes)
 - [Opmerkingen toevoegen en beantwoorden](comments)
 - [Een document beveiligen en het bijhouden van wijzigingen vergrendelen](protect)
 
@@ -28,12 +28,13 @@ Typ in het zoekvak hierboven om een onderwerp of een opdracht te zoeken. Druk op
 - [Hoofdlettergebruik wijzigen, sorteren en op andere manieren plakken](home-tools)
 - [Stijlen gebruiken](styles)
 - [Een opmaak overnemen met Opmaak kopiëren](format-painter)
-- [Koptekst, voettekst en paginanummers toevoegen](headers-footers)
+- [Ongedaan maken, Opnieuw en Herhalen](undo-repeat)
+- [Kopteksten, voetteksten en paginanummers toevoegen](headers-footers)
 - [Tabellen maken en wijzigen](tables)
 - [Voetnoten en eindnoten toevoegen](footnotes-endnotes)
 - [Een inhoudsopgave maken](table-of-contents)
 - [Bijschriften en een illustratielijst toevoegen](captions)
-- [Bronnen citeren en een bronnenlijst maken](citations)
+- [Bronnen vermelden en een bronnenlijst maken](citations)
 - [Een register maken](making-an-index)
 - [Een lijst met autoriteiten maken](table-of-authorities)
 - [Velden gebruiken](fields)

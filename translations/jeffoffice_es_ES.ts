@@ -919,6 +919,10 @@ Download it from %2 now? (%3, once.)</source>
         <source>The file is read-only.</source>
         <translation type="unfinished">El fichero es de solo lectura.</translation>
     </message>
+    <message>
+        <source>The dictionary is a folder, not a file.</source>
+        <translation type="unfinished">El diccionario es una carpeta, no un fichero.</translation>
+    </message>
 </context>
 <context>
     <name>Sharing</name>
@@ -2484,6 +2488,10 @@ No se encontraron los ficheros de la Ayuda junto al programa. Volver a instalar 
     <message>
         <source>The preview shows the first %1 rows of the file. The whole file is opened.</source>
         <translation type="unfinished">La vista previa muestra las primeras %1 filas del fichero. Se abre el fichero completo.</translation>
+    </message>
+    <message>
+        <source>What each column holds is guessed from its first %1 rows. Change any column above before you open the file.</source>
+        <translation type="unfinished">El contenido de cada columna se deduce de sus primeras %1 filas. Cambie cualquier columna de arriba antes de abrir el fichero.</translation>
     </message>
 </context>
 <context>

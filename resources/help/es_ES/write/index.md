@@ -1,5 +1,5 @@
 # Ayuda de JeffWrite
-<!-- keywords: contenido, ayuda, temas, inicio, índice -->
+<!-- keywords: contenido, ayuda, temas, inicio, comenzar, índice -->
 
 Escriba en el cuadro de búsqueda de arriba para encontrar un tema o un comando que ejecutar. Pulse **F1** en cualquier momento para obtener ayuda sobre lo que está haciendo: la pestaña de la cinta de opciones en la que se encuentra o la página de la pantalla Archivo en la que está.
 
@@ -16,20 +16,21 @@ Escriba en el cuadro de búsqueda de arriba para encontrar un tema o un comando 
 ## Trabajar con el texto
 
 - [Comprobar la ortografía](spelling)
-- [Contar palabras, definir el idioma, comprobar la accesibilidad y buscar palabras](proofing-tools)
+- [Contar palabras, establecer el idioma, comprobar la accesibilidad y buscar palabras](proofing-tools)
 - [Traducir texto](translate)
 - [Control de cambios: aceptar o rechazar cambios](track-changes)
 - [Agregar y responder comentarios](comments)
 - [Proteger un documento y bloquear el control de cambios](protect)
 
-## Escribir y cambiar el texto
+## Escribir y modificar el texto
 
 - [Cambiar el aspecto del texto](font)
 - [Cambiar mayúsculas y minúsculas, ordenar y pegar de otras formas](home-tools)
 - [Usar estilos](styles)
-- [Copiar un aspecto con Copiar formato](format-painter)
+- [Copiar un formato con Copiar formato](format-painter)
+- [Deshacer, Rehacer y Repetir](undo-repeat)
 - [Agregar encabezados, pies de página y números de página](headers-footers)
-- [Crear y cambiar tablas](tables)
+- [Crear y modificar tablas](tables)
 - [Agregar notas al pie y notas al final](footnotes-endnotes)
 - [Crear una tabla de contenido](table-of-contents)
 - [Agregar títulos y una tabla de ilustraciones](captions)

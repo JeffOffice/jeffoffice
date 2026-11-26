@@ -1,5 +1,5 @@
 # Ajuda do JeffWrite
-<!-- keywords: conteúdo, ajuda, tópicos, início, índice, contents, help, topics, start -->
+<!-- keywords: conteúdo, ajuda, tópicos, começar -->
 
 Digite na caixa de pesquisa acima para encontrar um tópico ou um comando a executar. Pressione **F1** a qualquer momento para obter ajuda sobre o que você está fazendo: a guia da faixa de opções em que você está ou a página da tela Arquivo em que você está.
 
@@ -15,7 +15,7 @@ Digite na caixa de pesquisa acima para encontrar um tópico ou um comando a exec
 
 ## Trabalhar no texto
 
-- [Verificar a ortografia](spelling)
+- [Verificar sua ortografia](spelling)
 - [Contar palavras, definir o idioma, verificar a acessibilidade e pesquisar palavras](proofing-tools)
 - [Traduzir texto](translate)
 - [Controlar alterações, e aceitar ou rejeitá-las](track-changes)
@@ -27,7 +27,8 @@ Digite na caixa de pesquisa acima para encontrar um tópico ou um comando a exec
 - [Alterar a aparência do texto](font)
 - [Alterar maiúsculas e minúsculas, classificar e colar de outras formas](home-tools)
 - [Usar estilos](styles)
-- [Copiar uma aparência com Copiar formatação](format-painter)
+- [Copiar uma aparência com Copiar Formatação](format-painter)
+- [Desfazer, Refazer e Repetir](undo-repeat)
 - [Adicionar cabeçalhos, rodapés e números de página](headers-footers)
 - [Criar e alterar tabelas](tables)
 - [Adicionar notas de rodapé e notas de fim](footnotes-endnotes)
@@ -47,11 +48,11 @@ Digite na caixa de pesquisa acima para encontrar um tópico ou um comando a exec
 - [Configurar a página](page-setup)
 - [Quebras, colunas, hifenização e numeração de linhas](breaks-columns)
 - [Inserir símbolos e caracteres especiais](symbols-special-characters)
-- [Adicionar vínculos e texto de outros arquivos](links)
+- [Adicionar links e texto de outros arquivos](links)
 - [Salvar um bloco e inseri-lo novamente](saved-blocks)
 - [Criar formulários com controles de conteúdo](content-controls)
 - [Alterar a cor e as bordas das páginas](page-look)
-- [Orientar-se com o Painel de Navegação](navigation-pane)
+- [Orientar-se com o painel de Navegação](navigation-pane)
 - [Usar a régua](ruler)
 - [Localizar e substituir palavras](find-replace)
 - [Ir para um local e mover texto](go-to-and-move-text)

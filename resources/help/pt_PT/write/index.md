@@ -1,9 +1,9 @@
 # Ajuda do JeffWrite
-<!-- keywords: conteúdo, ajuda, tópicos, início, índice remissivo, procurar -->
+<!-- keywords: conteúdo, ajuda, tópicos, início, índice -->
 
-Escreva na caixa de pesquisa acima para encontrar um tópico ou um comando a executar. Prima **F1** em qualquer altura para obter ajuda sobre o que está a fazer: o separador do friso em que está ou a página do ecrã Ficheiro em que se encontra.
+Escreva na caixa de pesquisa acima para encontrar um tópico ou um comando a executar. Prima **F1** a qualquer momento para obter ajuda sobre o que está a fazer: o separador do friso em que se encontra ou a página do ecrã Ficheiro em que está.
 
-## Primeiros passos
+## Como começar
 
 - [Bem-vindo ao JeffWrite](start)
 - [Abrir, guardar, imprimir e exportar](open-save)
@@ -13,21 +13,22 @@ Escreva na caixa de pesquisa acima para encontrar um tópico ou um comando a exe
 - [Abrir ficheiros RTF](open-rtf)
 - [Imprimir](print)
 
-## Trabalhar no texto
+## Trabalhar o texto
 
 - [Verificar a ortografia](spelling)
-- [Contar palavras, definir o idioma, verificar a acessibilidade e procurar palavras](proofing-tools)
+- [Contar palavras, definir o idioma, verificar a acessibilidade e pesquisar palavras](proofing-tools)
 - [Traduzir texto](translate)
-- [Controlar alterações, e aceitá-las ou rejeitá-las](track-changes)
+- [Controlar alterações, e aceitar ou rejeitar](track-changes)
 - [Adicionar e responder a comentários](comments)
 - [Proteger um documento e bloquear o controlo de alterações](protect)
 
 ## Escrever e alterar texto
 
 - [Alterar o aspeto do texto](font)
-- [Alterar maiúsculas, ordenar e colar de outras formas](home-tools)
+- [Alterar maiúsculas e minúsculas, ordenar e colar de outras formas](home-tools)
 - [Utilizar estilos](styles)
 - [Copiar um aspeto com Copiar Formatação](format-painter)
+- [Anular, Refazer e Repetir](undo-repeat)
 - [Adicionar cabeçalhos, rodapés e números de página](headers-footers)
 - [Criar e alterar tabelas](tables)
 - [Adicionar notas de rodapé e notas de fim](footnotes-endnotes)
@@ -60,5 +61,5 @@ Escreva na caixa de pesquisa acima para encontrar um tópico ou um comando a exe
 
 - [Utilizar o JeffWrite com o teclado](keyboard)
 - [Alterar as definições do JeffWrite](options)
-- [Segurança: a que o que um ficheiro pode aceder](security)
+- [Segurança: a que pode o ficheiro ligar-se](security)
 - [Escolher um idioma](language)

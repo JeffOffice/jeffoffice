@@ -1031,12 +1031,12 @@
     <message>
         <location line="+3"/>
         <source>Replace the names of math symbols as you type</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Заменять названия математических символов при вводе</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>Type a backslash and one of these names, then a space or a mark, and the symbol takes its place. \alpha becomes α.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Введите обратную косую черту и одно из этих названий, затем пробел или знак препинания, и вместо него появится символ. \alpha превращается в α.</translation>
     </message>
     <message>
         <location line="+6"/>
@@ -1051,7 +1051,7 @@
     <message>
         <location line="+11"/>
         <source>Math Symbols</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Математические символы</translation>
     </message>
     <message>
         <location line="+155"/>
@@ -2997,12 +2997,12 @@ Back page story	4</source>
     <message>
         <location line="+2"/>
         <source>[Report title]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Название отчёта]</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>[Author]  |  [Date]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Автор]  |  [Дата]</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -3012,22 +3012,22 @@ Back page story	4</source>
     <message>
         <location line="+1"/>
         <source>[The question this report answers]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Вопрос, на который отвечает этот отчёт]</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>[The answer, in one sentence]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Ответ в одном предложении]</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>[What you recommend]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Что вы рекомендуете]</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Findings</source>
-        <translation type="unfinished">Результаты</translation>
+        <translation type="unfinished">Выводы</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -3038,7 +3038,7 @@ Back page story	4</source>
         <location line="+0"/>
         <location line="+1"/>
         <source>[The number or fact behind it]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Число или факт, на котором он основан]</translation>
     </message>
     <message>
         <location line="+0"/>
@@ -3053,112 +3053,112 @@ Back page story	4</source>
     <message>
         <location line="+1"/>
         <source>[What to do first, and who does it]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Что сделать в первую очередь и кто это делает]</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>[What to do next]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Что сделать дальше]</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>[How you will know it worked]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Как вы поймёте, что это сработало]</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Questions</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Вопросы</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>[Where readers can find the details]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Где читатели могут найти подробности]</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>[Training title]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Название обучения]</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>[Team or audience]  |  [Trainer]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Команда или аудитория]  |  [Преподаватель]</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>What you will learn</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Чему вы научитесь</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>[A skill people will have by the end]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Навык, которым люди овладеют к концу]</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>[A second skill]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Второй навык]</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>[How long this takes]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Сколько времени это займёт]</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>How it works</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Как это работает</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Step 1: [what to do]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Шаг 1: [что сделать]</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Step 2: [what to do]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Шаг 2: [что сделать]</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>[A tip that saves time]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Совет, который экономит время]</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>[A mistake to avoid]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Ошибка, которой следует избегать]</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Practice</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Практика</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>[A short exercise, and how long people have]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Короткое упражнение и сколько на него отводится времени]</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Check what you learned</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Проверьте, что вы усвоили</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>[A question with one right answer]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Вопрос с одним правильным ответом]</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>[A question that asks them to show it]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Вопрос, в котором нужно это показать]</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>[Where to get help afterward]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Где получить помощь потом]</translation>
     </message>
     <message>
         <location line="+2"/>
@@ -3273,17 +3273,17 @@ Back page story	4</source>
     <message>
         <location line="+0"/>
         <source>A summary, the findings, and what you recommend, in a calm, serious design.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Краткое резюме, выводы и рекомендации в спокойном, строгом оформлении.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Training</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Обучение</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>What people will learn, how to do it, a practice exercise, and a short check.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Что люди узнают, как это сделать, практическое упражнение и короткая проверка.</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -6638,7 +6638,7 @@ Back page story	4</source>
         <location line="+6"/>
         <location line="+5"/>
         <source>Field shading</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Затенение полей</translation>
     </message>
     <message>
         <location line="-4"/>
@@ -6648,17 +6648,17 @@ Back page story	4</source>
     <message>
         <location line="+1"/>
         <source>Always</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Всегда</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>When selected</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">При выделении</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>Update fields before printing</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Обновлять поля перед печатью</translation>
     </message>
     <message>
         <location line="+9"/>
@@ -6684,12 +6684,12 @@ Back page story	4</source>
     <message>
         <location line="+8"/>
         <source>When selecting, automatically select the whole word</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">При выделении автоматически выделять всё слово</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>Use smart paragraph selection</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Использовать умное выделение абзацев</translation>
     </message>
     <message>
         <location line="+4"/>
@@ -12791,7 +12791,7 @@ Download it from %2 now? (%3, once.)</source>
     <message>
         <location line="+4"/>
         <source>The dictionary is a folder, not a file.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Словарь представляет собой папку, а не файл.</translation>
     </message>
     <message>
         <location line="+6"/>
@@ -23526,7 +23526,7 @@ Desktop publishing</source>
     <message>
         <location line="+1"/>
         <source>Cover Pages</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Титульные страницы</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -24035,17 +24035,17 @@ Source: %3</source>
     <message>
         <location line="+1"/>
         <source>Radar</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Лепестковая</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Radar with Markers</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Лепестковая с маркерами</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Filled Radar</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Закрашенная лепестковая</translation>
     </message>
     <message>
         <location line="+50"/>
@@ -25061,17 +25061,17 @@ Source: %3</source>
     <message>
         <location line="+1"/>
         <source>Radar</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Лепестковая</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Radar with markers</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Лепестковая с маркерами</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Filled radar</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Закрашенная лепестковая</translation>
     </message>
 </context>
 <context>
@@ -27208,22 +27208,22 @@ Source: %3</source>
     <message>
         <location line="+7"/>
         <source>Show the sheet tabs</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Показывать ярлычки листов</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>Show the scroll bars</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Показывать полосы прокрутки</translation>
     </message>
     <message>
         <location line="+7"/>
         <source>A mark on the cell, and the note when the pointer rests on it</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Метка в ячейке и примечание при наведении указателя на неё</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>A mark on the cell only</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Только метка в ячейке</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -27233,7 +27233,7 @@ Source: %3</source>
     <message>
         <location line="+2"/>
         <source>Show a cell&apos;s note as</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Показывать примечание ячейки как</translation>
     </message>
     <message>
         <location line="+21"/>
@@ -28174,17 +28174,17 @@ Source: %3</source>
         <location line="+1"/>
         <location line="+17"/>
         <source>Radar</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Лепестковая</translation>
     </message>
     <message>
         <location line="-16"/>
         <source>Radar with markers</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Лепестковая с маркерами</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Filled radar</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Закрашенная лепестковая</translation>
     </message>
     <message>
         <location line="+11"/>
@@ -29489,12 +29489,12 @@ Source: %3</source>
     <message>
         <location line="+1"/>
         <source>Clear Rules from This Table</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Очистить правила в этой таблице</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Clear Rules from This Pivot Table</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Очистить правила в этой сводной таблице</translation>
     </message>
     <message>
         <location line="+10"/>
@@ -30426,12 +30426,12 @@ This file is protected with a password. Password:</source>
     <message>
         <location line="+1"/>
         <source>Cells that the formulas in the selection read</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Ячейки, которые читают формулы из выделения</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Cells with formulas that read the selection</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Ячейки с формулами, которые читают выделение</translation>
     </message>
     <message>
         <location line="+9"/>
@@ -30471,7 +30471,7 @@ This file is protected with a password. Password:</source>
     <message>
         <location line="+2"/>
         <source>For cells that are read, or that read: follow them through every level, not only the first</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Для ячеек, которые читаются или которые читают другие: проследите их через все уровни, а не только первый</translation>
     </message>
     <message>
         <location line="+31"/>
@@ -43086,18 +43086,18 @@ The file can&apos;t be read.</source>
     <message>
         <location line="+10"/>
         <source>There is no saved presentation to compare.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Нет сохранённой презентации для сравнения.</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>That version can&apos;t be opened.</source>
-        <translation type="unfinished">Эту версию невозможно открыть.</translation>
+        <translation type="unfinished">Эту версию нельзя открыть.</translation>
     </message>
     <message>
         <location line="+3"/>
         <location line="+3"/>
         <source>The version can&apos;t be compared.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Эту версию нельзя сравнить.</translation>
     </message>
     <message>
         <location line="+34"/>
@@ -60070,7 +60070,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     <message>
         <location line="+1"/>
         <source>Zoom into the slide, from the menu: drag to move the slide, and press Esc to put it back.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Увеличьте слайд через меню: перетаскивайте слайд, чтобы переместить его, и нажмите Esc, чтобы вернуть его на место.</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -60110,19 +60110,19 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     <message>
         <location line="+9"/>
         <source>Show Presenter View</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Показать режим докладчика</translation>
     </message>
     <message>
         <location line="+4"/>
         <location line="+414"/>
         <location line="+1"/>
         <source>Speaker Notes</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Заметки докладчика</translation>
     </message>
     <message>
         <location line="-411"/>
         <source>Zoom into the Slide</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Увеличить слайд</translation>
     </message>
     <message>
         <location line="+14"/>
@@ -60157,12 +60157,12 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     <message>
         <location line="+351"/>
         <source>This slide has no notes.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">У этого слайда нет заметок.</translation>
     </message>
     <message>
         <location line="+6"/>
         <source>These notes were cut short because they are very long.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Эти заметки обрезаны, потому что они очень длинные.</translation>
     </message>
 </context>
 <context>
@@ -61262,12 +61262,12 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     <message>
         <location line="+5"/>
         <source>The first row has column names</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">В первой строке есть названия столбцов</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>The row of names is not used to guess what the columns hold.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Строка с названиями не используется для определения содержимого столбцов.</translation>
     </message>
     <message>
         <location line="+10"/>
@@ -61287,17 +61287,17 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     <message>
         <location line="+2"/>
         <source>What each column holds is guessed from its first %1 rows. Change any column above before you open the file.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Содержимое каждого столбца определяется по первым %1 строкам. Измените любой столбец выше, прежде чем открыть файл.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Columns that could be dates, but not for certain, are not read as dates until you choose an order: %1.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Столбцы, которые могут содержать даты, но не наверняка, не читаются как даты, пока вы не выберете порядок: %1.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>The columns after the first %1 are brought in as text.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Столбцы после первых %1 импортируются как текст.</translation>
     </message>
     <message>
         <location line="+35"/>
@@ -64127,7 +64127,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     <message>
         <location line="+0"/>
         <source> [Compatibility Mode]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished"> [Режим совместимости]</translation>
     </message>
     <message>
         <location line="+15"/>
@@ -64138,12 +64138,12 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     <message>
         <location line="+0"/>
         <source>The document will use the newest layout rules. Lines and pages may break in other places, and this can&apos;t be undone. Convert it?</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Документ будет использовать новейшие правила разметки. Строки и страницы могут разбиться в других местах, и это действие нельзя отменить. Преобразовать?</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>The document now uses the newest layout rules.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Документ теперь использует новейшие правила разметки.</translation>
     </message>
     <message>
         <location line="+47"/>
@@ -65581,7 +65581,7 @@ The password couldn&apos;t be put on the file.</source>
     <message>
         <location line="+5"/>
         <source>This document uses the layout rules of an older program. Convert it to use the newest rules.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Этот документ использует правила разметки более старой программы. Преобразуйте его, чтобы использовать новейшие правила.</translation>
     </message>
     <message>
         <location line="+35"/>
@@ -65926,7 +65926,7 @@ The password couldn&apos;t be put on the file.</source>
     <message>
         <location filename="../apps/write/app/writewindow_insert.cpp" line="-218"/>
         <source>A saved block can be put in the text of the document, or in a header or a footer, not in a note.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Сохранённый блок можно вставить в текст документа или в верхний или нижний колонтитул, но не в сноску.</translation>
     </message>
     <message>
         <location line="+26"/>
@@ -65949,17 +65949,17 @@ The password couldn&apos;t be put on the file.</source>
     <message>
         <location line="-26"/>
         <source>Select the cover page first, with its page break.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Сначала выделите титульную страницу вместе с её разрывом страницы.</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>Select a table first.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Сначала выделите таблицу.</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>Select a text box first.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Сначала выделите текстовое поле.</translation>
     </message>
     <message>
         <location line="+54"/>
@@ -66105,17 +66105,17 @@ The password couldn&apos;t be put on the file.</source>
     <message>
         <location line="+1"/>
         <source>Save Selection to Cover Page Gallery…</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Сохранить выделенное в коллекцию титульных страниц…</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Save Selection to Table Gallery…</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Сохранить выделенное в коллекцию таблиц…</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Save Selection to Text Box Gallery…</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Сохранить выделенное в коллекцию текстовых полей…</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -66145,12 +66145,12 @@ The password couldn&apos;t be put on the file.</source>
     <message>
         <location line="+41"/>
         <source>Your Cover Pages</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Ваши титульные страницы</translation>
     </message>
     <message>
         <location line="+13"/>
         <source>Your Text Boxes</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Ваши текстовые поля</translation>
     </message>
     <message>
         <location filename="../apps/write/app/writewindow_fields.cpp" line="-23"/>
@@ -67659,7 +67659,7 @@ The password couldn&apos;t be put on the file.</source>
     <message>
         <location line="-4"/>
         <source>Delete All Comments Shown</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Удалить все показанные примечания</translation>
     </message>
     <message>
         <location line="+7"/>
@@ -67859,13 +67859,13 @@ The password couldn&apos;t be put on the file.</source>
         <location line="+47"/>
         <location line="+6"/>
         <source>Highlight</source>
-        <translation type="unfinished">Выделение</translation>
+        <translation type="unfinished">Выделение цветом</translation>
     </message>
     <message>
         <location line="+9"/>
         <location line="+5"/>
         <source>Text Shading</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Заливка текста</translation>
     </message>
     <message>
         <location line="+32"/>
@@ -68139,12 +68139,12 @@ The password couldn&apos;t be put on the file.</source>
         <location line="+1"/>
         <location line="+4"/>
         <source>Turn off Track Changes to delete cells and shift the others.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Выключите режим исправлений, чтобы удалить ячейки и сдвинуть остальные.</translation>
     </message>
     <message>
         <location line="-1"/>
         <source>Delete Cells, Shift Up</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Удалить ячейки со сдвигом вверх</translation>
     </message>
     <message>
         <location line="+4"/>
@@ -68249,7 +68249,7 @@ The password couldn&apos;t be put on the file.</source>
     <message>
         <location line="+188"/>
         <source>Your Tables</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Ваши таблицы</translation>
     </message>
     <message>
         <location line="+43"/>
@@ -68750,17 +68750,17 @@ The password couldn&apos;t be put on the file.</source>
     <message>
         <location line="+1"/>
         <source>Radar</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Лепестковая</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Radar with Markers</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Лепестковая с маркерами</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Filled Radar</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Лепестковая с заливкой</translation>
     </message>
     <message>
         <location line="+19"/>
@@ -70177,7 +70177,7 @@ The password couldn&apos;t be put on the file.</source>
     <message>
         <location filename="../apps/write/app/writewindow_repeat.cpp" line="+17"/>
         <source>This cannot be repeated while the text of a box or shape is being edited.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Это нельзя повторить, пока редактируется текст поля или фигуры.</translation>
     </message>
     <message>
         <location line="+91"/>
@@ -70195,7 +70195,7 @@ The password couldn&apos;t be put on the file.</source>
     <message>
         <location line="+33"/>
         <source>Repeat %1</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Повторить %1</translation>
     </message>
 </context>
 <context>
@@ -77642,12 +77642,12 @@ The password couldn&apos;t be put on the file.</source>
     <message>
         <location line="+155"/>
         <source>No formula in the selection reads a cell on this sheet.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Ни одна формула в выделении не ссылается на ячейку этого листа.</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>No formula on this sheet reads the selected cells.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Ни одна формула на этом листе не ссылается на выделенные ячейки.</translation>
     </message>
     <message>
         <location line="+9"/>
@@ -84573,7 +84573,7 @@ The password couldn&apos;t be put on the file.</source>
     <message>
         <location line="+14"/>
         <source>Include text boxes</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Включить текстовые поля</translation>
     </message>
     <message>
         <location line="+30"/>
@@ -86559,7 +86559,7 @@ The password couldn&apos;t be put on the file.</source>
     <message>
         <location line="+4"/>
         <source>Stop Replacing Math Names</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Не заменять имена математических функций</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -86594,22 +86594,22 @@ The password couldn&apos;t be put on the file.</source>
     <message>
         <location filename="../apps/write/app/writewindow_options.cpp" line="-9"/>
         <source>As they come</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Как есть</translation>
     </message>
     <message>
         <location line="+5"/>
         <source>Pasting list items next to a list</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Вставка элементов списка рядом со списком</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>As words</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Как слова</translation>
     </message>
     <message>
         <location line="+6"/>
         <source>Pasting spreadsheet cells</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Вставка ячеек таблицы</translation>
     </message>
 </context>
 <context>
@@ -87776,7 +87776,7 @@ The password couldn&apos;t be put on the file.</source>
         <location filename="../apps/write/core/writedoc_headers.cpp" line="+1026"/>
         <location line="+18"/>
         <source>Edit</source>
-        <translation type="unfinished">Изменить</translation>
+        <translation type="unfinished">Правка</translation>
     </message>
 </context>
 <context>
