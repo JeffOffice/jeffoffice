@@ -22,7 +22,7 @@ Hidden slides are skipped. After the last slide, a black screen says "End of sli
 - **Black screen:** press B or the period key. Press it again to bring the slide back. **White screen:** press W or the comma key.
 - **End the show:** press Esc.
 
-**Right-click** to open the show's menu. It has **Next**, **Previous**, **Last Viewed** (back to the slide that was on the screen before this one), **Go to Slide**, **Custom Show** (when the presentation has custom shows: it plays the one you choose from its first slide), **Pointer Options**, **Screen** (black or white), **Help** (the keys the show uses), and **End Show**.
+**Right-click** to open the show's menu. It has **Next**, **Previous**, **Last Viewed** (back to the slide that was on the screen before this one), **Go to Slide**, **Custom Show** (when the presentation has custom shows: it plays the one you choose from its first slide), **Show Presenter View** (opens Presenter View, or brings it forward), **Speaker Notes** (the notes of the slide on the screen), **Zoom into the Slide** (makes the slide twice as large; drag to move it, and press Esc to put it back), **Pointer Options**, **Screen** (black or white), **Help** (the keys the show uses), and **End Show**.
 
 If a slide has animations, each click or key plays the next step before the show moves on. See [Animations](animations). If a slide has **On Mouse Click** turned off in its transition settings, a click does not move on, but the keys do. See [Transitions between slides](transitions).
 
