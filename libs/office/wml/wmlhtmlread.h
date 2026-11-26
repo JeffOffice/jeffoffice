@@ -4,6 +4,7 @@
 // network is opened. A page larger than
 // kMostHtmlBytes is refused; tables nested deeper than kMaxTableDepth, and more than kMostHtmlBlocks paragraphs, are left out.
 
+#include "wml/htmlguard.h"
 #include "wml/wml.h"
 
 #include <QByteArray>
@@ -14,14 +15,6 @@
 
 namespace jp::office::wml {
 
-constexpr qint64 kMostHtmlBytes = 32 * 1024 * 1024;
-// The page's own parser takes time that grows with the square of how deep the parts of a page stand inside one another (measured: 4,000 nested tables 2 s, 16,000 nested tables 51 s, 16,000 nested
-// lists 34 s), so a page is looked at once, in time that grows with its size, and refused before the parser sees it when it goes past these. Real pages nest up to about 40 parts deep (tables up to
-// about 10) and keep fewer than 50,000 cells in a table; each limit is ten times or more of that.
-constexpr int kMostPageDepth = 600;          // parts (elements) standing inside one another
-constexpr int kMostHtmlTableDepth = 100;     // tables standing inside one another
-constexpr int kMostHtmlCells = 200000;       // cells (td and th) in the whole page
-constexpr int kMostHtmlRows = 100000;        // rows (tr) in the whole page
 constexpr int kMostHtmlBlocks = 200000;
 constexpr int kMostHtmlImages = 500;       // pictures read from one page
 constexpr int kMostHtmlLinks = 5000;       // links read from one page
