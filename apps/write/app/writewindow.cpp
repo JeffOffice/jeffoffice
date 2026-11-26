@@ -234,6 +234,8 @@ QAction *WriteWindow::mk(const QString &id, const QString &text, const QString &
             return;
         }
         telemetry::count(id);
+        // (Select Objects ends when another command runs; Select All chooses the objects while it is on.)
+        if (m_view && id != QLatin1String("edit.selectObjects") && id != QLatin1String("edit.selectAll")) m_view->setSelectObjectsMode(false);
         fn();
     });
     m_actions.insert(id, a);

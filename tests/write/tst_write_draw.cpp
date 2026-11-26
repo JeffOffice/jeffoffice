@@ -4824,6 +4824,207 @@ private Q_SLOTS:
         QVERIFY(!view->selectObjectsMode());
     }
 
+    // Select Objects is for objects, not words: typing, Backspace, Return, Tab, and the arrow keys change nothing (the words and the caret stay), Delete and Backspace remove the chosen objects in one step,
+    // and with none chosen they do nothing.
+    void selectObjectsModeTakesNoTypingAndDeleteRemovesTheChosenObjectsInOneStep()
+    {
+        Win win(mergeBody({mergePart(1, "rect", 100, 200, 100, 60), mergePart(2, "rect", 300, 200, 100, 60)}));
+        write::WriteDoc *doc = win.w.document();
+        PageView *view = win.w.view();
+        view->refresh();
+        QCOMPARE(drawnPlaces(*doc).size(), 2);
+        const QString words = doc->story()->toPlainText();
+        QAction *command = win.w.act(QStringLiteral("edit.selectObjects"));
+        command->trigger();
+        QVERIFY(view->selectObjectsMode());
+        const int revision = doc->story()->revision(), caret = view->cursor().position();
+        QTest::keyClicks(view, QStringLiteral("abc"));
+        for (const Qt::Key key : {Qt::Key_Backspace, Qt::Key_Delete, Qt::Key_Return, Qt::Key_Enter, Qt::Key_Tab, Qt::Key_Left, Qt::Key_Right, Qt::Key_Up, Qt::Key_Down, Qt::Key_Home, Qt::Key_End, Qt::Key_Space})
+            QTest::keyClick(view, key);
+        QTest::keyClick(view, Qt::Key_Return, Qt::ShiftModifier);
+        QCOMPARE(doc->story()->toPlainText(), words);
+        QCOMPARE(doc->story()->revision(), revision);
+        QCOMPARE(view->cursor().position(), caret);
+        QCOMPARE(drawnPlaces(*doc).size(), 2);
+        QVERIFY(view->selectObjectsMode());
+        // Both objects chosen by a rectangle; Delete removes both, and one Undo brings both back.
+        QRectF a, b;
+        QVERIFY(view->pictureRect(drawnPlaces(*doc)[0], &a));
+        QVERIFY(view->pictureRect(drawnPlaces(*doc)[1], &b));
+        const QRect box = a.united(b).adjusted(-8, -8, 8, 8).toAlignedRect();
+        QTest::mousePress(view->viewport(), Qt::LeftButton, Qt::NoModifier, box.topLeft());
+        QTest::mouseMove(view->viewport(), box.center());
+        QTest::mouseMove(view->viewport(), box.bottomRight());
+        QTest::mouseRelease(view->viewport(), Qt::LeftButton, Qt::NoModifier, box.bottomRight());
+        QCOMPARE(view->selectedObjects().size(), 2);
+        QTest::keyClick(view, Qt::Key_Delete);
+        QCOMPARE(drawnPlaces(*doc).size(), 0);
+        view->undo();
+        QCOMPARE(drawnPlaces(*doc).size(), 2);
+        QCOMPARE(doc->story()->toPlainText(), words);
+        // Backspace does the same.
+        view->selectObjects(drawnPlaces(*doc));
+        QTest::keyClick(view, Qt::Key_Backspace);
+        QCOMPARE(drawnPlaces(*doc).size(), 0);
+        view->undo();
+        QCOMPARE(drawnPlaces(*doc).size(), 2);
+        QVERIFY(view->selectObjectsMode());
+    }
+
+    // Select All, in the mode, chooses the objects of the page that is shown (as in JeffDeck, where it chooses the objects of the slide), not the words; an object on a later page is left out.
+    void selectObjectsModeSelectAllChoosesTheObjectsOfThePage()
+    {
+        QByteArray body;
+        for (int i = 0; i < 150; ++i) {
+            body += "<w:p>";
+            if (i == 0) body += mergePart(1, "rect", 100, 200, 100, 60) + mergePart(2, "rect", 300, 200, 100, 60);
+            if (i == 140) body += mergePart(3, "rect", 100, 200, 100, 60);
+            body += "<w:r><w:t>line</w:t></w:r></w:p>";
+        }
+        Win win(body);
+        PageView *view = win.w.view();
+        view->refresh();
+        QCOMPARE(drawnPlaces(*win.w.document()).size(), 3);
+        QCOMPARE(view->topPage(), 0);
+        win.w.act(QStringLiteral("edit.selectObjects"))->trigger();
+        const QKeyCombination all = QKeySequence(QKeySequence::SelectAll)[0];
+        QTest::keyClick(view, all.key(), all.keyboardModifiers());
+        QCOMPARE(view->selectedObjects().size(), 2);
+        QVERIFY(view->cursor().selectionEnd() - view->cursor().selectionStart() <= 1);
+        // The command's own Select All does the same, and the mode stays on.
+        view->selectObjects({});
+        win.w.act(QStringLiteral("edit.selectAll"))->trigger();
+        QCOMPARE(view->selectedObjects().size(), 2);
+        QVERIFY(view->selectObjectsMode());
+    }
+
+    // The mode ends when the window or the view loses the keyboard (a menu opening does not end it), when another command runs, when the view changes (zoom, draft, web), and when the document is replaced.
+    void selectObjectsModeEndsWhenSomethingElseHappens()
+    {
+        Win win(mergeBody({mergePart(1, "rect", 100, 200, 100, 60)}));
+        PageView *view = win.w.view();
+        view->refresh();
+        QAction *command = win.w.act(QStringLiteral("edit.selectObjects"));
+        auto on = [&] {
+            if (!view->selectObjectsMode()) command->trigger();
+            QVERIFY(view->selectObjectsMode() && command->isChecked());
+        };
+        auto ended = [&] { return !view->selectObjectsMode() && !command->isChecked(); };
+        on();
+        QEvent deactivate(QEvent::WindowDeactivate);
+        QApplication::sendEvent(view, &deactivate);
+        QVERIFY(ended());
+        on();
+        QFocusEvent popup(QEvent::FocusOut, Qt::PopupFocusReason);
+        QApplication::sendEvent(view, &popup);
+        QVERIFY(view->selectObjectsMode());
+        QFocusEvent out(QEvent::FocusOut, Qt::TabFocusReason);
+        QApplication::sendEvent(view, &out);
+        QVERIFY(ended());
+        on();
+        win.w.act(QStringLiteral("fmt.bold"))->trigger();
+        QVERIFY(ended());
+        on();
+        view->setZoom(view->zoom() * 1.5);
+        QVERIFY(ended());
+        on();
+        view->setDraft(true);
+        QVERIFY(ended());
+        view->setDraft(false);
+        on();
+        view->setWebLayout(true);
+        QVERIFY(ended());
+        view->setWebLayout(false);
+        on();
+        win.w.setDocument(open(makeDocx("<w:p><w:r><w:t>Another</w:t></w:r></w:p>")), QString());
+        QVERIFY(ended());
+        // Typing after it ended edits the words again.
+        const QString before = win.w.document()->story()->toPlainText();
+        QTest::keyClick(view, Qt::Key_X);
+        QVERIFY(win.w.document()->story()->toPlainText() != before);
+    }
+
+    // A double click on an object leaves the mode and does what it does outside it (a text box is opened for its words); on empty space it does nothing, and no word is chosen.
+    void selectObjectsModeDoubleClickOnAnObjectLeavesTheModeAndOpensIt()
+    {
+        Win win(mergeBody({mergePart(1, "rect", 100, 200, 100, 60)}));
+        PageView *view = win.w.view();
+        view->refresh();
+        QRectF r;
+        QVERIFY(view->pictureRect(drawnPlaces(*win.w.document())[0], &r));
+        win.w.act(QStringLiteral("edit.selectObjects"))->trigger();
+        QTest::mouseDClick(view->viewport(), Qt::LeftButton, Qt::NoModifier, (r.topLeft() - QPointF(60, 60)).toPoint());
+        QVERIFY(view->selectObjectsMode());
+        QVERIFY(!view->cursor().hasSelection());
+        QVERIFY(!view->shapeEditor());
+        QTest::mouseDClick(view->viewport(), Qt::LeftButton, Qt::NoModifier, r.center().toPoint());
+        QVERIFY(!view->selectObjectsMode());
+        QVERIFY(!win.w.act(QStringLiteral("edit.selectObjects"))->isChecked());
+        QVERIFY(view->shapeEditor());
+    }
+
+    // What the mode does with the objects that are harder to reach: one behind the text is chosen like the rest; a group is one object; an object on a page that is not shown is not reached by the rectangle;
+    // while a header is edited the mode chooses nothing and the typing still goes nowhere.
+    void selectObjectsModeWithBehindTextGroupedOtherPageAndHeaderObjects()
+    {
+        QByteArray body;
+        for (int i = 0; i < 150; ++i) {
+            body += "<w:p>";
+            if (i == 0) body += mergePart(1, "rect", 100, 200, 100, 60) + mergePart(2, "rect", 300, 200, 100, 60) + mergePart(3, "rect", 450, 200, 60, 60) + mergePart(4, "rect", 520, 200, 60, 60);
+            if (i == 140) body += mergePart(5, "rect", 100, 200, 100, 60);
+            body += "<w:r><w:t>line</w:t></w:r></w:p>";
+        }
+        Win win(body);
+        write::WriteDoc *doc = win.w.document();
+        PageView *view = win.w.view();
+        view->refresh();
+        QVector<int> places = drawnPlaces(*doc);
+        QCOMPARE(places.size(), 5);
+        QVERIFY(setPictureWrap(*doc, places[0], PictureWrap::BehindText));
+        view->refresh();
+        auto drag = [&](const QRectF &rect) {
+            const QRect box = rect.toAlignedRect();
+            QTest::mousePress(view->viewport(), Qt::LeftButton, Qt::NoModifier, box.topLeft());
+            QTest::mouseMove(view->viewport(), box.center());
+            QTest::mouseMove(view->viewport(), box.bottomRight());
+            QTest::mouseRelease(view->viewport(), Qt::LeftButton, Qt::NoModifier, box.bottomRight());
+        };
+        win.w.act(QStringLiteral("edit.selectObjects"))->trigger();
+        QRectF behind, second;
+        QVERIFY(view->pictureRect(places[0], &behind));
+        QVERIFY(view->pictureRect(places[1], &second));
+        // Behind the text: chosen by a rectangle and by a click.
+        drag(behind.adjusted(-8, -8, 8, 8));
+        QCOMPARE(view->selectedObjects(), (QVector<int>{places[0]}));
+        view->selectObjects({});
+        QTest::mouseClick(view->viewport(), Qt::LeftButton, Qt::NoModifier, behind.center().toPoint());
+        QCOMPARE(view->selectedObjects(), (QVector<int>{places[0]}));
+        // A group: one object, chosen whole.
+        QVERIFY(groupObjects(*doc, {places[2], places[3]}, {QRectF(450, 200, 60, 60), QRectF(520, 200, 60, 60)}));
+        view->refresh();
+        places = drawnPlaces(*doc);
+        QCOMPARE(places.size(), 4);
+        QRectF group;
+        QVERIFY(view->pictureRect(places[2], &group));
+        drag(group.adjusted(-8, -8, 8, 8));
+        QCOMPARE(view->selectedObjects(), (QVector<int>{places[2]}));
+        // The object on page 3 or later is not on the page shown, and a rectangle over the whole window does not reach it.
+        QCOMPARE(view->topPage(), 0);
+        drag(QRectF(view->viewport()->rect()).adjusted(1, 1, -1, -1));
+        QCOMPARE(view->selectedObjects().size(), 3);
+        QVERIFY(!view->selectedObjects().contains(places.last()));
+        // A header being edited: no object is chosen, and the keys change neither the header nor the text.
+        view->selectObjects({});
+        QVERIFY(view->enterHeaderFooter(0, false, true));
+        QVERIFY(view->selectObjectsMode());   // (going into a header is not a command: the mode stays)
+        const QString body0 = doc->story()->toPlainText();
+        QTest::keyClicks(view, QStringLiteral("abc"));
+        QCOMPARE(doc->story()->toPlainText(), body0);
+        drag(QRectF(view->viewport()->rect()).adjusted(1, 1, -1, -1));
+        QCOMPARE(view->selectedPicture(), -1);
+        view->leaveHeaderFooter();
+    }
+
     // The Selection Pane lists the floating objects of the document by name, the one in front first. A row picks the object; a name typed in a row names it (wp:docPr's name); a box hides
     // or shows it (wp:docPr's hidden: a hidden object is not drawn and takes no room, and stays in the file); Show All and Hide All set every box; the buttons and a drag move it
     // through the layers. Each change is one step of Undo, and the names and marks are in the saved file.

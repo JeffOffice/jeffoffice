@@ -116,6 +116,52 @@ void PageView::setSelectObjectsMode(bool on)
     Q_EMIT selectObjectsModeChanged(on);
 }
 
+// Select Objects, Delete: the chosen objects go, in one step, as they do outside the mode.
+bool PageView::deleteSelectedObjects()
+{
+    if (!m_doc || editsBlocked() || m_hf.active || m_note.active) return false;
+    QVector<int> positions = selectedObjects();
+    if (positions.isEmpty()) return false;
+    std::sort(positions.begin(), positions.end(), std::greater<int>());
+    QTextCursor group(m_doc->story());
+    group.beginEditBlock();
+    for (const int p : positions) {
+        QTextCursor c(m_doc->story());
+        c.setPosition(p);
+        c.setPosition(p + 1, QTextCursor::KeepAnchor);
+        removeSelection(*m_doc, c);
+    }
+    group.endEditBlock();
+    m_moreObjects.clear();
+    m_cursor.setPosition(std::min(positions.last(), m_doc->story()->characterCount() - 1));
+    caretMoved();
+    return true;
+}
+
+// Select Objects, Select All: every object set at a place on the page the window is on, or in line there.
+void PageView::selectObjectsOfPage()
+{
+    if (!m_doc || m_hf.active || m_note.active || m_rects.isEmpty()) return;
+    const QRectF page = m_rects[std::clamp(topPage(), 0, int(m_rects.size()) - 1)].translated(-horizontalScrollBar()->value(), -verticalScrollBar()->value());
+    QVector<int> chosen;
+    const QTextDocument *story = m_doc->story();
+    int looked = 0;
+    for (QTextBlock b = story->begin(); b.isValid() && looked < kMostSelectableObjects; b = b.next())
+        for (QTextBlock::iterator it = b.begin(); !it.atEnd() && looked < kMostSelectableObjects; ++it) {
+            const QTextFragment f = it.fragment();
+            if (!f.charFormat().hasProperty(prop::Atom)) continue;
+            for (int i = 0; i < int(f.length()) && looked < kMostSelectableObjects; ++i) {
+                const int position = f.position() + i;
+                if (!isDrawnObjectAt(story, position)) continue;
+                ++looked;
+                QRectF r;
+                if (pictureRect(position, &r) && page.intersects(r)) chosen.push_back(position);
+            }
+        }
+    if (chosen.isEmpty()) return;
+    selectObjects(chosen);
+}
+
 // The rectangle was drawn (or the click made): the objects inside it are chosen together; a click chooses the one under it; nothing under it, and the choice is let go.
 void PageView::finishMarquee()
 {

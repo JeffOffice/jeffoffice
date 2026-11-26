@@ -359,6 +359,8 @@ public:
     void setSelectObjectsMode(bool on);
     bool selectObjectsMode() const { return m_selectObjectsMode; }
     static constexpr int kMostSelectableObjects = 5000;
+    bool deleteSelectedObjects();
+    void selectObjectsOfPage();
     // Group joins the selected objects into one (two or more, each set at a place on one page), Ungroup takes the selected group apart; each is one step, and false with a notice
     // when it can't be done.
     bool groupSelectedObjects();

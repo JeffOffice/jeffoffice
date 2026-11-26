@@ -143,6 +143,7 @@ PageView::~PageView()
 
 void PageView::setDocument(WriteDoc *doc)
 {
+    setSelectObjectsMode(false);
     ++m_docEpoch;
     if (m_note.active) {
         QObject::disconnect(m_hfEdit);
@@ -341,6 +342,7 @@ void PageView::goToPage(int index)
 void PageView::setDraft(bool on)
 {
     if (m_draft == on) return;
+    setSelectObjectsMode(false);
     if (on) {
         leaveHeaderFooter();
         leaveNote();
@@ -354,6 +356,7 @@ void PageView::setDraft(bool on)
 void PageView::setWebLayout(bool on)
 {
     if (m_web == on || (on && !m_doc)) return;
+    setSelectObjectsMode(false);
     if (on) {
         leaveHeaderFooter();
         leaveNote();
@@ -562,6 +565,7 @@ void PageView::setZoom(double zoom)
     m_mode = ZoomMode::Percent;
     m_across = m_down = 1;
     if (std::abs(zoom - m_zoom) < 1e-9) return;
+    setSelectObjectsMode(false);
     // The point in the middle of the window stays in the middle.
     const QPointF center(horizontalScrollBar()->value() + viewport()->width() / 2.0, verticalScrollBar()->value() + viewport()->height() / 2.0);
     int page = -1;
@@ -585,6 +589,7 @@ void PageView::setZoom(double zoom)
 
 void PageView::setZoomMode(ZoomMode mode, int across, int down)
 {
+    setSelectObjectsMode(false);
     m_mode = mode;
     m_across = mode == ZoomMode::ManyPages ? std::clamp(across, 1, 8) : 1;
     m_down = mode == ZoomMode::ManyPages ? std::clamp(down, 1, 4) : 1;

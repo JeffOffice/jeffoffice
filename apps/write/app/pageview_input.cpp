@@ -756,6 +756,10 @@ void PageView::selectAll()
         return;
     }
     if (!m_doc) return;
+    if (m_selectObjectsMode) {
+        selectObjectsOfPage();
+        return;
+    }
     m_cursor.select(QTextCursor::Document);
     caretMoved();
 }
@@ -934,6 +938,8 @@ bool PageView::event(QEvent *e)
 {
     // A shortcut, or the window losing the keyboard, is something between the press of the key and its release.
     if (e->type() == QEvent::WindowDeactivate || e->type() == QEvent::FocusOut) m_pasteOffer->cancelTap();
+    // Select Objects goes when the window or the view loses the keyboard (a menu opening does not take it).
+    if (e->type() == QEvent::WindowDeactivate || (e->type() == QEvent::FocusOut && static_cast<QFocusEvent *>(e)->reason() != Qt::PopupFocusReason)) setSelectObjectsMode(false);
     if (e->type() == QEvent::ShortcutOverride) m_pasteOffer->shortcutOverride(static_cast<QKeyEvent *>(e));
     return QAbstractScrollArea::event(e);
 }
@@ -973,6 +979,18 @@ void PageView::keyPressEvent(QKeyEvent *e)
     if (e->key() == Qt::Key_Escape && e->modifiers() == Qt::NoModifier) endPasteOptions();
     if (e->key() == Qt::Key_Escape && e->modifiers() == Qt::NoModifier && m_selectObjectsMode) {
         setSelectObjectsMode(false);
+        e->accept();
+        return;
+    }
+    if (m_selectObjectsMode) {
+        // Select Objects: the keys work on the chosen objects, never on the words. Delete and Backspace remove the chosen objects (one step); Select All chooses the objects of the page; the rest do nothing
+        // (a shortcut with Ctrl goes on to the window's commands, and each of them ends the mode).
+        if (e->matches(QKeySequence::SelectAll)) selectAll();
+        else if (e->key() == Qt::Key_Delete || e->key() == Qt::Key_Backspace) deleteSelectedObjects();
+        else if (e->modifiers() & (Qt::ControlModifier | Qt::MetaModifier)) {
+            e->ignore();
+            return;
+        }
         e->accept();
         return;
     }
@@ -1095,7 +1113,7 @@ void PageView::keyPressEvent(QKeyEvent *e)
 void PageView::inputMethodEvent(QInputMethodEvent *e)
 {
     m_pasteOffer->cancelTap();
-    if (!m_doc || editsBlocked()) return;
+    if (!m_doc || editsBlocked() || m_selectObjectsMode) return;
     if (!e->commitString().isEmpty()) insertText(e->commitString());
     e->accept();
 }
@@ -1595,6 +1613,15 @@ void PageView::mouseReleaseEvent(QMouseEvent *e)
 
 void PageView::mouseDoubleClickEvent(QMouseEvent *e)
 {
+    if (m_selectObjectsMode) {
+        // Select Objects: a double click on an object leaves the mode and does what it does outside it; on nothing, it does nothing (no word is chosen).
+        const QPoint at = e->position().toPoint();
+        if (e->button() != Qt::LeftButton || (pictureAtPoint(at) < 0 && objectAtPoint(at) < 0)) {
+            e->accept();
+            return;
+        }
+        setSelectObjectsMode(false);
+    }
     // A barcode picture: a double click selects it and asks for its data again.
     if (m_doc && !editsBlocked() && e->button() == Qt::LeftButton && !m_hf.active && !m_note.active) {
         // A barcode field (shown as its bars): the same, on the field.
