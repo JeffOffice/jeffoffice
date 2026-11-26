@@ -7,6 +7,7 @@
 #include "app/linktargetpicker.h"
 #include "app/navpane.h"
 #include "core/blockops.h"
+#include "app/blockgallery.h"
 #include "app/pagepaint.h"
 #include "app/pageview.h"
 #include "app/settings.h"
@@ -1859,6 +1860,31 @@ private Q_SLOTS:
         QVERIFY2(partsWithMarks.size() == 2, qPrintable(QStringList(partsWithMarks.begin(), partsWithMarks.end()).join(QLatin1Char(','))));
         QCOMPARE(QSet<QString>(names.begin(), names.end()).size(), 4);
         QCOMPARE(QSet<QString>(ids.begin(), ids.end()).size(), 4);
+    }
+
+    // Manage Saved Blocks lists the galleries an app uses: JeffWrite's lists its cover pages, tables, and text boxes, and a box opened as another app opens it lists the blocks and the shortcuts only.
+    void manageSavedBlocksListsOnlyTheGalleriesTheAppUses()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        jp::BlockLibrary::setSharedPath(dir.filePath(QStringLiteral("own.jblocks")));
+        const auto reset = qScopeGuard([] { jp::BlockLibrary::setSharedPath(QString()); });
+        Win win({"Body text"});
+        auto galleries = [](QDialog *d) {
+            QStringList out;
+            auto *which = d->findChild<QComboBox *>(QStringLiteral("manageGallery"));
+            for (int i = 0; which && i < which->count(); ++i) out << which->itemData(i).toString();
+            return out;
+        };
+        withDialog([&] { win.w.act("insert.manageBlocks")->trigger(); }, QStringLiteral("manageBlocksBox"), [&](QDialog *d) {
+            const QStringList all = galleries(d);
+            QCOMPARE(all.size(), 5);
+            QVERIFY(all.contains(jp::kCoverPagesGallery) && all.contains(jp::kTablesGallery) && all.contains(jp::kTextBoxesGallery));
+        });
+        QWidget other;
+        withDialog([&] { jp::manageBlocksBox(&other, QStringLiteral("docx"), [](const jp::BlockEntry &, const QSize &, qreal) { return QImage(); }); }, QStringLiteral("manageBlocksBox"), [&](QDialog *d) {
+            QCOMPARE(galleries(d), QStringList({jp::kBlocksGallery, jp::kShortcutsGallery}));
+        });
     }
 
     void aTableOfTheirOwnIsSavedAndPutInAgain()

@@ -271,7 +271,7 @@ bool saveBlock(QWidget *parent, const BlockInfo &info, const QByteArray &data)
     return false;
 }
 
-void manageBlocksBox(QWidget *parent, const QString &format, const BlockPreview &preview)
+void manageBlocksBox(QWidget *parent, const QString &format, const BlockPreview &preview, const QStringList &more)
 {
     QDialog dlg(parent);
     dlg.setObjectName(QStringLiteral("manageBlocksBox"));
@@ -282,9 +282,7 @@ void manageBlocksBox(QWidget *parent, const QString &format, const BlockPreview 
     which->setAccessibleName(QCoreApplication::translate("jp::Blocks", "Gallery"));
     which->addItem(blockGalleryName(kBlocksGallery), kBlocksGallery);
     which->addItem(blockGalleryName(kShortcutsGallery), kShortcutsGallery);
-    which->addItem(blockGalleryName(kCoverPagesGallery), kCoverPagesGallery);
-    which->addItem(blockGalleryName(kTablesGallery), kTablesGallery);
-    which->addItem(blockGalleryName(kTextBoxesGallery), kTextBoxesGallery);
+    for (const QString &gallery : more) which->addItem(blockGalleryName(gallery), gallery);
     column->addWidget(which);
     auto *gal = new BlockGalleryList(kBlocksGallery, format, preview, &dlg);
     column->addWidget(gal);

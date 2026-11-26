@@ -299,7 +299,7 @@ void WriteWindow::createInsertActions()
     mk("insert.ready.save", tr("Save Selection to Table Gallery…"), "package-plus", QKeySequence(), [this] { saveToOwnGallery(jp::kTablesGallery); });
     mk("insert.textBox.save", tr("Save Selection to Text Box Gallery…"), "package-plus", QKeySequence(), [this] { saveToOwnGallery(jp::kTextBoxesGallery); });
     mk("insert.manageBlocks", tr("Manage Saved Blocks…"), "package-open", QKeySequence(), [this] {
-        jp::manageBlocksBox(this, QStringLiteral("docx"), blockPreviewImage);
+        jp::manageBlocksBox(this, QStringLiteral("docx"), blockPreviewImage, {jp::kCoverPagesGallery, jp::kTablesGallery, jp::kTextBoxesGallery});
         m_view->setFocus(Qt::OtherFocusReason);
     });
     mk("insert.expandShortcut", tr("Expand Text Shortcut"), "zap", QKeySequence(Qt::Key_F3), [this] { expandTextShortcut(); });

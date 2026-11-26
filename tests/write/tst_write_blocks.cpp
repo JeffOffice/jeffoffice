@@ -1121,7 +1121,7 @@ void WriteTests::thePicturesOfTheSavedBlocksWindows()
         LayoutCache cache;
         paintPage(&p, *page, &cache, PageDrawing());
         return img;
-    });
+    }, {jp::kCoverPagesGallery, jp::kTablesGallery, jp::kTextBoxesGallery});
     delete t2;
     jp::BlockLibrary::setSharedPath(QString());
 }

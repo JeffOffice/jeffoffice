@@ -61,7 +61,8 @@ JO_COMMON_EXPORT bool saveBlockBox(QWidget *parent, BlockInfo *info, bool editin
 JO_COMMON_EXPORT bool saveBlock(QWidget *parent, const BlockInfo &info, const QByteArray &data);
 
 // The box that lists the library for the person to rename, change, delete (until the box closes, a delete can be taken back), export, and import.
-JO_COMMON_EXPORT void manageBlocksBox(QWidget *parent, const QString &format, const BlockPreview &preview);
+// The galleries it lists are the blocks and the text shortcuts, and `more`: the galleries of one's own that the app uses (an app lists only the galleries it uses).
+JO_COMMON_EXPORT void manageBlocksBox(QWidget *parent, const QString &format, const BlockPreview &preview, const QStringList &more = QStringList());
 
 // The names of the galleries, as the person reads them.
 JO_COMMON_EXPORT QString blockGalleryName(const QString &gallery);
