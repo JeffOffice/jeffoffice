@@ -4,6 +4,7 @@
 #include "../isolatesettings.h"
 #include "fields/fieldcode.h"
 #include "core/fieldops.h"
+#include "core/formfieldops.h"
 #include "core/refops.h"
 #include "core/tocops.h"
 #include "app/pageview.h"
@@ -22,6 +23,9 @@
 #include "wml/wml.h"
 
 #include <QElapsedTimer>
+#include <QMenu>
+#include <QSignalSpy>
+#include <QMouseEvent>
 #include <QSet>
 #include <QTemporaryDir>
 #include <QTest>
@@ -46,7 +50,7 @@ const char kStyles[] =
     "<w:style w:type=\"paragraph\" w:styleId=\"Heading1\"><w:name w:val=\"heading 1\"/><w:basedOn w:val=\"Normal\"/><w:pPr><w:outlineLvl w:val=\"0\"/></w:pPr></w:style>"
     "<w:style w:type=\"paragraph\" w:styleId=\"Heading2\"><w:name w:val=\"heading 2\"/><w:basedOn w:val=\"Normal\"/><w:pPr><w:outlineLvl w:val=\"1\"/></w:pPr></w:style>";
 
-QByteArray makeDocx(const QByteArray &body)
+QByteArray makeDocx(const QByteArray &body, const QByteArray &settings = QByteArray())
 {
     office::PackageWriter w;
     const QString rel = QStringLiteral("http://schemas.openxmlformats.org/officeDocument/2006/relationships/");
@@ -55,6 +59,10 @@ QByteArray makeDocx(const QByteArray &body)
     w.addRelationship(QStringLiteral("/"), rel + QStringLiteral("officeDocument"), QStringLiteral("/word/document.xml"));
     w.addPart(QStringLiteral("/word/styles.xml"), xml(QByteArray("<w:styles ") + kNs + ">" + kStyles + "</w:styles>"), QStringLiteral("application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"));
     w.addRelationship(QStringLiteral("/word/document.xml"), rel + QStringLiteral("styles"), QStringLiteral("/word/styles.xml"));
+    if (!settings.isEmpty()) {
+        w.addPart(QStringLiteral("/word/settings.xml"), xml(QByteArray("<w:settings ") + kNs + ">" + settings + "</w:settings>"), QStringLiteral("application/vnd.openxmlformats-officedocument.wordprocessingml.settings+xml"));
+        w.addRelationship(QStringLiteral("/word/document.xml"), rel + QStringLiteral("settings"), QStringLiteral("/word/settings.xml"));
+    }
     return w.finish();
 }
 
@@ -93,6 +101,22 @@ QStringList lines(const WriteDoc &doc)
     return out;
 }
 
+// A legacy form field: its data (the part of w:ffData after the name), its code, and its result (none: no separator).
+QByteArray formField(const QByteArray &name, const QByteArray &data, const QByteArray &code, const QByteArray &result = QByteArray(), const QByteArray &extra = QByteArray())
+{
+    return "<w:r><w:fldChar w:fldCharType=\"begin\"><w:ffData><w:name w:val=\"" + name + "\"/><w:enabled/>" + extra + data + "</w:ffData></w:fldChar></w:r><w:r><w:instrText xml:space=\"preserve\"> " + code +
+           " </w:instrText></w:r>" + (result.isNull() ? QByteArray() : "<w:r><w:fldChar w:fldCharType=\"separate\"/></w:r>" + result) + "<w:r><w:fldChar w:fldCharType=\"end\"/></w:r>";
+}
+const QByteArray kTextData = "<w:textInput><w:default w:val=\"Name here\"/><w:maxLength w:val=\"8\"/><w:format w:val=\"UPPERCASE\"/></w:textInput>";
+const QByteArray kBlank = "<w:r><w:t xml:space=\"preserve\">   </w:t></w:r>";
+
+// The string a form field's begin mark shows (its place in the story is the mark's).
+QString shownAt(WriteDoc &doc, int position)
+{
+    QTextCursor c(doc.story());
+    c.setPosition(position + 1);
+    return c.charFormat().stringProperty(tp::Field);
+}
 
 } // namespace
 
@@ -1429,6 +1453,389 @@ private Q_SLOTS:
         QCOMPARE(test(same + QLatin1Char('x'), QStringLiteral("="), QStringLiteral("a*x")), QStringLiteral("yes"));
         QCOMPARE(test(same, QStringLiteral("="), QString(3000, QLatin1Char('a')) + QStringLiteral("*b")), QStringLiteral("no"));
         QVERIFY(fields::globStepsForTest() > 0 && fields::globStepsForTest() < qint64(4096) * 4096 + 20000);
+    }
+
+    // ---- legacy form fields (filling in)
+    void aTextFieldSaysWhatItIsAndIsFilledInInOneStep()
+    {
+        const QByteArray body = para(run("Name: ") + bookmark(1, "Text1", formField("Text1", kTextData, "FORMTEXT", kBlank, "<w:helpText w:type=\"text\" w:val=\"Help me\"/><w:statusText w:type=\"text\" w:val=\"On the bar\"/>")) +
+                                     run(" ") + field("REF Text1 \\h", "stale"));
+        auto doc = open(makeDocx(body));
+        QVERIFY(doc);
+        const QByteArray original = documentXml(doc->toDocx());
+        QCOMPARE(documentXml(open(doc->toDocx())->toDocx()), original);   // (an unedited save is the same, twice)
+        const QVector<FormField> all = formFields(doc->story());
+        QCOMPARE(int(all.size()), 1);
+        const FormField f = all[0];
+        QCOMPARE(f.kind, FormKind::Text);
+        QCOMPARE(f.name, QStringLiteral("Text1"));
+        QCOMPARE(f.bookmark, QStringLiteral("Text1"));
+        QCOMPARE(f.defaultText, QStringLiteral("Name here"));
+        QCOMPARE(f.maxLength, 8);
+        QCOMPARE(f.format, QStringLiteral("UPPERCASE"));
+        QCOMPARE(f.help, QStringLiteral("Help me"));
+        QCOMPARE(f.status, QStringLiteral("On the bar"));
+        QVERIFY(f.fillable());
+        QString shown;
+        QVERIFY(fillFormText(*doc, doc->story(), f.begin, QStringLiteral("alexander"), false, &shown));
+        QCOMPARE(shown, QStringLiteral("ALEXANDER").left(8));   // (cut to its longest text, in its case)
+        QCOMPARE(formFieldAt(doc->story(), f.begin).result, QStringLiteral("ALEXANDE"));
+        QCOMPARE(shownAt(*doc, f.begin), QStringLiteral("raw:"));
+        QVERIFY(!fillFormText(*doc, doc->story(), f.begin, QStringLiteral("alexande")));   // (the same: no step)
+        updateFields(*doc, UpdateOptions());
+        const QByteArray saved = documentXml(doc->toDocx());
+        QVERIFY(saved.contains("ALEXANDE"));
+        QVERIFY(saved.contains(kTextData));   // (the field's data is as it was)
+        QVERIFY(!saved.contains("<w:ins ") && !saved.contains("<w:del "));
+        // The reference to its bookmark follows, in the same step.
+        QVERIFY(lines(*doc)[0].endsWith(QStringLiteral("ALEXANDE")));
+        QVERIFY(doc->undo());
+        QCOMPARE(formFieldAt(doc->story(), f.begin).result.trimmed(), QString());
+        QCOMPARE(shownAt(*doc, f.begin), QStringLiteral("raw:Name here"));
+        QCOMPARE(documentXml(doc->toDocx()), original);
+        QVERIFY(doc->redo());
+        QCOMPARE(formFieldAt(doc->story(), f.begin).result, QStringLiteral("ALEXANDE"));
+    }
+
+    void aFilledTextFieldIsNotATrackedChangeAndALockedOneIsRefused()
+    {
+        const QByteArray locked = "<w:textInput><w:default w:val=\"x\"/></w:textInput>";
+        auto doc = open(makeDocx(para(formField("T", kTextData, "FORMTEXT", kBlank)) + para("<w:r><w:fldChar w:fldCharType=\"begin\"><w:ffData><w:name w:val=\"L\"/><w:enabled w:val=\"0\"/>" + locked +
+                                                                                              "</w:ffData></w:fldChar></w:r><w:r><w:instrText> FORMTEXT </w:instrText></w:r><w:r><w:fldChar w:fldCharType=\"separate\"/></w:r>" + run("kept") + "<w:r><w:fldChar w:fldCharType=\"end\"/></w:r>")));
+        QVERIFY(doc);
+        doc->setTrackChanges(true);
+        const QVector<FormField> all = formFields(doc->story());
+        QCOMPARE(int(all.size()), 2);
+        QVERIFY(all[0].fillable() && !all[1].fillable());
+        QVERIFY(fillFormText(*doc, doc->story(), all[0].begin, QStringLiteral("abc")));
+        QVERIFY(!fillFormText(*doc, doc->story(), all[1].begin, QStringLiteral("changed")));
+        QCOMPARE(formFields(doc->story())[1].result, QStringLiteral("kept"));
+        const QByteArray out = documentXml(doc->toDocx());
+        QVERIFY(!out.contains("<w:ins ") && !out.contains("<w:del "));
+        QVERIFY(out.contains("ABC"));
+    }
+
+    void aTextFieldsFormatIsEnforcedOnEntryAndOnLeaving()
+    {
+        FormField f;
+        f.textType = QStringLiteral("number");
+        f.format = QStringLiteral("0.00");
+        QCOMPARE(enteredFormText(f, QStringLiteral("a1b2.5x")), QStringLiteral("12.5"));
+        bool ok = false;
+        QCOMPARE(finishedFormText(f, QStringLiteral("12.5"), &ok), QStringLiteral("12.50"));
+        QVERIFY(ok);
+        QCOMPARE(finishedFormText(f, QStringLiteral("."), &ok), QStringLiteral("."));
+        QVERIFY(!ok);
+        f.textType = QStringLiteral("date");
+        f.format = QStringLiteral("MMMM d, yyyy");
+        QCOMPARE(finishedFormText(f, QStringLiteral("3/4/2026"), &ok), QStringLiteral("March 4, 2026"));
+        QVERIFY(ok);
+        QVERIFY(finishedFormText(f, QStringLiteral("not a date"), &ok) == QStringLiteral("not a date") && !ok);
+        f.textType = QStringLiteral("regular");
+        f.maxLength = 0;
+        f.format = QStringLiteral("Title case");
+        QCOMPARE(enteredFormText(f, QStringLiteral("jane van DYKE")), QStringLiteral("Jane Van Dyke"));
+        f.format = QStringLiteral("First capital");
+        QCOMPARE(enteredFormText(f, QStringLiteral("jane van DYKE")), QStringLiteral("Jane van dyke"));
+        f.format = QStringLiteral("lowercase");
+        QCOMPARE(enteredFormText(f, QStringLiteral("AbC")), QStringLiteral("abc"));
+        f.format.clear();
+        f.maxLength = 3;
+        QCOMPARE(enteredFormText(f, QString::fromUtf8("ab\xf0\x9f\x98\x80")), QStringLiteral("ab"));   // (a pair is not cut in half)
+        f.maxLength = 0;
+        QCOMPARE(enteredFormText(f, QString(100000, QLatin1Char('a'))).size(), kMostFormChars);
+        // And through a field of the file: a number field left in its picture.
+        const QByteArray number = "<w:textInput><w:type w:val=\"number\"/><w:format w:val=\"#,##0.00\"/></w:textInput>";
+        auto doc = open(makeDocx(para(formField("N", number, "FORMTEXT", kBlank))));
+        QVERIFY(doc);
+        const FormField n = formFields(doc->story())[0];
+        QString shown;
+        QVERIFY(fillFormText(*doc, doc->story(), n.begin, QStringLiteral("1234.5"), true, &shown));
+        QCOMPARE(shown, QStringLiteral("1,234.50"));
+    }
+
+    void aFormFieldInATableCellAndANeverSeparatedOneAreHandled()
+    {
+        const QByteArray cell = "<w:tbl><w:tblPr><w:tblW w:w=\"0\" w:type=\"auto\"/></w:tblPr><w:tblGrid><w:gridCol w:w=\"2400\"/></w:tblGrid><w:tr><w:tc><w:tcPr><w:tcW w:w=\"2400\" w:type=\"dxa\"/></w:tcPr>" +
+                                para(formField("C", kTextData, "FORMTEXT", kBlank)) + "</w:tc></w:tr></w:tbl>";
+        auto doc = open(makeDocx(cell + para(formField("S", kTextData, "FORMTEXT"))));
+        QVERIFY(doc);
+        const QVector<FormField> all = formFields(doc->story());
+        QCOMPARE(int(all.size()), 2);
+        QVERIFY(fillFormText(*doc, doc->story(), all[0].begin, QStringLiteral("cell")));
+        QVERIFY(documentXml(doc->toDocx()).contains("CELL"));
+        QVERIFY(!fillFormText(*doc, doc->story(), all[1].begin, QStringLiteral("x")));   // (no separator: nothing to fill)
+    }
+
+    void hostileFormDataIsBounded()
+    {
+        QByteArray entries;
+        for (int i = 0; i < 100000; ++i) entries += "<w:listEntry w:val=\"e" + QByteArray::number(i) + "\"/>";
+        const QByteArray big = "<w:ddList><w:result w:val=\"3\"/>" + entries + "</w:ddList>";
+        const QByteArray longText = "<w:textInput><w:default w:val=\"" + QByteArray(3000000, 'x') + "\"/></w:textInput>";
+        auto doc = open(makeDocx(para(formField("D", big, "FORMDROPDOWN")) + para(formField("T", longText, "FORMTEXT", kBlank))));
+        QVERIFY(doc);
+        const QVector<FormField> all = formFields(doc->story());
+        QCOMPARE(int(all.size()), 2);
+        QCOMPARE(int(all[0].entries.size()), kMostFormEntries);
+        QCOMPARE(all[0].chosen, 3);
+        QVERIFY(all[1].defaultText.size() <= kMostFormChars);
+        // The data read stops at its bound: nothing past it is looked at.
+        QCOMPARE(int(formFieldFromData(QByteArray("<w:fldChar><w:ffData><w:ddList>") + entries + "</w:ddList></w:ffData></w:fldChar>").entries.size()), kMostFormEntries);
+    }
+
+    void aCheckBoxIsTickedAndClearedInOneStepAndSavedAsTheFileSaysIt()
+    {
+        const QByteArray plain = "<w:checkBox><w:size w:val=\"24\"/><w:default w:val=\"0\"/></w:checkBox>";   // (no state of its own: its default is)
+        const QByteArray ticked = "<w:checkBox><w:sizeAuto/><w:default w:val=\"0\"/><w:checked/></w:checkBox>";
+        const QByteArray locked = "<w:checkBox><w:sizeAuto/><w:default w:val=\"0\"/></w:checkBox>";
+        auto doc = open(makeDocx(para(formField("A", plain, "FORMCHECKBOX", QByteArray(), "<w:calcOnExit/>")) + para(formField("B", ticked, "FORMCHECKBOX", QByteArray())) +
+                                 para("<w:r><w:fldChar w:fldCharType=\"begin\"><w:ffData><w:name w:val=\"C\"/><w:enabled w:val=\"0\"/>" + locked + "</w:ffData></w:fldChar></w:r><w:r><w:instrText> FORMCHECKBOX </w:instrText></w:r><w:r><w:fldChar w:fldCharType=\"end\"/></w:r>")));
+        QVERIFY(doc);
+        const QByteArray original = documentXml(doc->toDocx());
+        QVector<FormField> all = formFields(doc->story());
+        QCOMPARE(int(all.size()), 3);
+        QCOMPARE(all[0].kind, FormKind::CheckBox);
+        QVERIFY(!all[0].checked && all[1].checked);
+        QCOMPARE(all[0].size, 24);
+        QCOMPARE(all[1].size, 0);
+        QVERIFY(all[0].calcOnExit && !all[1].calcOnExit);
+        QCOMPARE(shownAt(*doc, all[0].begin), QString::fromUtf8("raw:\xe2\x98\x90"));
+        QVERIFY(setFormChecked(*doc, doc->story(), all[0].begin, true));
+        QVERIFY(!setFormChecked(*doc, doc->story(), all[0].begin, true));   // (so already: no step)
+        QVERIFY(setFormChecked(*doc, doc->story(), all[1].begin, false));
+        QVERIFY(!setFormChecked(*doc, doc->story(), all[2].begin, true));   // (a protected one is refused)
+        all = formFields(doc->story());
+        QVERIFY(all[0].checked && !all[1].checked);
+        QCOMPARE(shownAt(*doc, all[0].begin), QString::fromUtf8("raw:\xe2\x98\x92"));
+        QCOMPARE(shownAt(*doc, all[1].begin), QString::fromUtf8("raw:\xe2\x98\x90"));
+        const QByteArray saved = documentXml(doc->toDocx());
+        QVERIFY(saved.contains("<w:checkBox><w:size w:val=\"24\"/><w:default w:val=\"0\"/><w:checked/></w:checkBox>"));
+        QVERIFY(saved.contains("<w:checkBox><w:sizeAuto/><w:default w:val=\"0\"/><w:checked w:val=\"0\"/></w:checkBox>"));
+        QVERIFY(saved.contains("<w:calcOnExit/>"));
+        // Opened again, the file says the same; each is one step.
+        QVERIFY(formFields(open(doc->toDocx())->story())[0].checked);
+        QVERIFY(doc->undo());
+        QVERIFY(formFields(doc->story())[1].checked);
+        QVERIFY(doc->undo());
+        QVERIFY(!formFields(doc->story())[0].checked);
+        QCOMPARE(documentXml(doc->toDocx()), original);
+    }
+
+    void aDropDownChoosesAnEntryInOneStepAndSavesItsResult()
+    {
+        const QByteArray drop = "<w:ddList><w:result w:val=\"1\"/><w:default w:val=\"1\"/><w:listEntry w:val=\"Alpha\"/><w:listEntry w:val=\"Beta &amp; Co\"/><w:listEntry w:val=\"Gamma\"/></w:ddList>";
+        const QByteArray bare = "<w:ddList><w:listEntry w:val=\"One\"/><w:listEntry w:val=\"Two\"/></w:ddList>";   // (none chosen: the first shows)
+        auto doc = open(makeDocx(para(formField("D", drop, "FORMDROPDOWN")) + para(formField("E", bare, "FORMDROPDOWN"))));
+        QVERIFY(doc);
+        const QByteArray original = documentXml(doc->toDocx());
+        const QVector<FormField> all = formFields(doc->story());
+        QCOMPARE(int(all.size()), 2);
+        QCOMPARE(all[0].entries, (QStringList{"Alpha", "Beta & Co", "Gamma"}));
+        QCOMPARE(all[0].chosen, 1);
+        QCOMPARE(all[1].chosen, 0);
+        QVERIFY(chooseFormEntry(*doc, doc->story(), all[0].begin, 2));
+        QVERIFY(chooseFormEntry(*doc, doc->story(), all[1].begin, 1));
+        QVERIFY(!chooseFormEntry(*doc, doc->story(), all[1].begin, 1));    // (chosen already)
+        QVERIFY(!chooseFormEntry(*doc, doc->story(), all[1].begin, 2));    // (no such entry)
+        QVERIFY(!chooseFormEntry(*doc, doc->story(), all[1].begin, -1));
+        QCOMPARE(shownAt(*doc, all[0].begin), QStringLiteral("raw:Gamma"));
+        QCOMPARE(shownAt(*doc, all[1].begin), QStringLiteral("raw:Two"));
+        const QByteArray saved = documentXml(doc->toDocx());
+        QVERIFY(saved.contains("<w:ddList><w:result w:val=\"2\"/><w:default w:val=\"1\"/><w:listEntry w:val=\"Alpha\"/><w:listEntry w:val=\"Beta &amp; Co\"/>"));
+        QVERIFY(saved.contains("<w:ddList><w:result w:val=\"1\"/><w:listEntry w:val=\"One\"/>"));
+        QCOMPARE(formFields(open(doc->toDocx())->story())[1].chosen, 1);
+        QVERIFY(doc->undo());
+        QVERIFY(doc->undo());
+        QCOMPARE(documentXml(doc->toDocx()), original);
+    }
+
+    void tabGoesRoundTheFieldsThatCanBeFilledIn()
+    {
+        const QByteArray locked = "<w:r><w:fldChar w:fldCharType=\"begin\"><w:ffData><w:name w:val=\"L\"/><w:enabled w:val=\"0\"/><w:textInput/></w:ffData></w:fldChar></w:r><w:r><w:instrText> FORMTEXT </w:instrText></w:r><w:r><w:fldChar w:fldCharType=\"end\"/></w:r>";
+        auto doc = open(makeDocx(para(formField("A", kTextData, "FORMTEXT", kBlank) + run(" x ") + locked + run(" ") + formField("B", "<w:checkBox><w:sizeAuto/><w:default w:val=\"0\"/></w:checkBox>", "FORMCHECKBOX"))));
+        QVERIFY(doc);
+        const QVector<FormField> all = formFields(doc->story());
+        QCOMPARE(int(all.size()), 3);
+        QCOMPARE(nextFormField(doc->story(), -1, false).name, QStringLiteral("A"));
+        QCOMPARE(nextFormField(doc->story(), all[0].begin, false).name, QStringLiteral("B"));   // (the protected one is passed)
+        QCOMPARE(nextFormField(doc->story(), all[2].begin, false).name, QStringLiteral("A"));   // (round to the first)
+        QCOMPARE(nextFormField(doc->story(), all[0].begin, true).name, QStringLiteral("B"));    // (and back round)
+        QCOMPARE(nextFormField(doc->story(), all[2].begin, true).name, QStringLiteral("A"));
+        QTextCursor c(doc->story());
+        selectFormField(c, all[0]);
+        QCOMPARE(c.selectionStart(), all[0].separate + 1);
+        QCOMPARE(c.selectionEnd(), all[0].end);
+        selectFormField(c, all[2]);
+        QCOMPARE(c.position(), all[2].begin);
+        QVERIFY(!c.hasSelection());
+        auto none = open(makeDocx(para(run("no fields"))));
+        QVERIFY(!nextFormField(none->story(), 0, false).valid());
+    }
+
+    // A document protected for filling in forms, in a window: only the fields (and a section the protection leaves out) can be changed; Tab and Shift+Tab go from field to field.
+    void aDocumentProtectedForFormsIsFilledInFieldByFieldWithTabAndUndoesEachFill()
+    {
+        const QByteArray tick = "<w:checkBox><w:sizeAuto/><w:default w:val=\"0\"/></w:checkBox>";
+        const QByteArray drop = "<w:ddList><w:listEntry w:val=\"Alpha\"/><w:listEntry w:val=\"Beta\"/><w:listEntry w:val=\"Gamma\"/></w:ddList>";
+        const QByteArray number = "<w:textInput><w:type w:val=\"number\"/><w:format w:val=\"0.00\"/></w:textInput>";
+        const QByteArray body = para(run("Fixed ") + formField("A", kTextData, "FORMTEXT", kBlank) + run(" ") + formField("B", tick, "FORMCHECKBOX") + run(" ") + formField("C", drop, "FORMDROPDOWN") + run(" ") +
+                                     formField("D", number, "FORMTEXT", kBlank)) + para(run("Closed"));
+        const QByteArray settings = "<w:documentProtection w:edit=\"forms\" w:enforcement=\"1\"/>";
+        auto made = open(makeDocx(body, settings));
+        QVERIFY(made);
+        const QByteArray original = documentXml(made->toDocx());
+        WriteWindow w;
+        w.setNotifier([](const QString &, const QString &) {});
+        w.show();
+        w.setDocument(std::move(made), QString());
+        PageView *view = w.view();
+        QVERIFY(view->readOnly() && view->formsOnly());
+        WriteDoc *doc = w.document();
+        const QVector<FormField> all = formFields(doc->story());
+        QCOMPARE(int(all.size()), 4);
+        // Text that is not in a field is not edited.
+        QTextCursor c(doc->story());
+        c.setPosition(2);
+        view->setCursor(c);
+        QTest::keyClicks(view, "zz");
+        QTest::keyClick(view, Qt::Key_Backspace);
+        QCOMPARE(documentXml(doc->toDocx()), original);
+        QVERIFY(!doc->canUndo());
+        // Tab goes to the first field and selects its result; what is typed is held to its case and its longest text.
+        QTest::keyClick(view, Qt::Key_Tab);
+        QCOMPARE(view->cursor().selectionStart(), all[0].separate + 1);
+        QCOMPARE(view->cursor().selectionEnd(), all[0].end);
+        QTest::keyClicks(view, "abcdefghijkl");
+        QCOMPARE(formFields(doc->story())[0].result, QStringLiteral("ABCDEFGH"));
+        QTest::keyClick(view, Qt::Key_Backspace);
+        QCOMPARE(formFields(doc->story())[0].result, QStringLiteral("ABCDEFG"));
+        // The check box: Tab, then Space.
+        QTest::keyClick(view, Qt::Key_Tab);
+        QCOMPARE(view->cursor().position(), formFields(doc->story())[1].begin);
+        QTest::keyClick(view, Qt::Key_Space);
+        QVERIFY(formFields(doc->story())[1].checked);
+        QTest::keyClick(view, Qt::Key_Tab);
+        QTest::keyClick(view, Qt::Key_G);   // (a letter chooses the entry it begins)
+        QCOMPARE(formFields(doc->story())[2].chosen, 2);
+        QTest::keyClick(view, Qt::Key_Tab);
+        QTest::keyClicks(view, "x12.5y");
+        QCOMPARE(formFields(doc->story())[3].result, QStringLiteral("12.5"));
+        QTest::keyClick(view, Qt::Key_Tab);   // (leaving finishes the number, and the next field is the first again)
+        QCOMPARE(formFields(doc->story())[3].result, QStringLiteral("12.50"));
+        QCOMPARE(view->cursor().selectionStart(), all[0].separate + 1);
+        QTest::keyClick(view, Qt::Key_Tab, Qt::ShiftModifier);
+        QCOMPARE(view->cursor().selectionStart(), formFields(doc->story())[3].separate + 1);
+        const QByteArray filled = documentXml(doc->toDocx());
+        QVERIFY(filled.contains("ABCDEFG") && filled.contains("12.50") && filled.contains("<w:result w:val=\"2\"/>") && filled.contains("<w:checked/>"));
+        // Each fill is one step: Undo takes them back one by one, to the file as it was; Redo does them again.
+        int steps = 0;
+        while (doc->canUndo() && steps < 40) {
+            view->undo();
+            ++steps;
+        }
+        QVERIFY(steps >= 4 && steps < 40);
+        QCOMPARE(documentXml(doc->toDocx()), original);
+        view->undo();   // (nothing before the fills is undone)
+        QCOMPARE(documentXml(doc->toDocx()), original);
+        for (int i = 0; i < steps; ++i) view->redo();
+        QCOMPARE(documentXml(doc->toDocx()), filled);
+    }
+
+    void aSectionTheProtectionLeavesOutCanBeEditedAndTheRestCannot()
+    {
+        const QByteArray body = "<w:p><w:pPr><w:sectPr/></w:pPr><w:r><w:t>Closed</w:t></w:r></w:p><w:p><w:r><w:t>Open</w:t></w:r></w:p><w:sectPr><w:formProt w:val=\"false\"/></w:sectPr>";
+        auto made = open(makeDocx(body, "<w:documentProtection w:edit=\"forms\" w:enforcement=\"1\"/>"));
+        QVERIFY(made);
+        WriteWindow w;
+        w.setNotifier([](const QString &, const QString &) {});
+        w.show();
+        w.setDocument(std::move(made), QString());
+        PageView *view = w.view();
+        WriteDoc *doc = w.document();
+        QCOMPARE(doc->sectionCount(), 2);
+        QVERIFY(!formsSectionOpenAt(*doc, 2) && formsSectionOpenAt(*doc, doc->story()->characterCount() - 2));
+        QTextCursor c(doc->story());
+        c.setPosition(3);
+        view->setCursor(c);
+        QTest::keyClicks(view, "zz");
+        QVERIFY(!doc->story()->toPlainText().contains(QLatin1Char('z')));
+        c.setPosition(doc->story()->characterCount() - 1);
+        view->setCursor(c);
+        QTest::keyClicks(view, "yes");
+        QVERIFY(doc->story()->toPlainText().contains(QStringLiteral("Openyes")));
+        QVERIFY(view->readOnly());   // (the rest of the commands stay held)
+        QVERIFY(doc->canUndo());
+    }
+
+    void aReadOnlyOrCommentsDocumentRefusesToFillAndAnUnprotectedOneTakesAClick()
+    {
+        const QByteArray tick = "<w:checkBox><w:sizeAuto/><w:default w:val=\"0\"/></w:checkBox>";
+        const QByteArray drop = "<w:ddList><w:listEntry w:val=\"Alpha\"/><w:listEntry w:val=\"Beta\"/></w:ddList>";
+        const QByteArray body = para(run("T ") + formField("A", kTextData, "FORMTEXT", kBlank) + run(" ") + formField("B", tick, "FORMCHECKBOX") + run(" ") + formField("C", drop, "FORMDROPDOWN"));
+        for (const char *kind : {"readOnly", "comments"}) {
+            auto made = open(makeDocx(body, "<w:documentProtection w:edit=\"" + QByteArray(kind) + "\" w:enforcement=\"1\"/>"));
+            QVERIFY(made);
+            const QByteArray original = documentXml(made->toDocx());
+            WriteWindow w;
+            w.setNotifier([](const QString &, const QString &) {});
+            w.show();
+            w.setDocument(std::move(made), QString());
+            QVERIFY(w.view()->readOnly() && !w.view()->formsOnly());
+            const QVector<FormField> all = formFields(w.document()->story());
+            QTextCursor c(w.document()->story());
+            c.setPosition(all[0].separate + 1);
+            w.view()->setCursor(c);
+            QTest::keyClicks(w.view(), "abc");
+            c.setPosition(all[1].begin);
+            w.view()->setCursor(c);
+            QTest::keyClick(w.view(), Qt::Key_Space);
+            QTest::keyClick(w.view(), Qt::Key_Tab);
+            QCOMPARE(documentXml(w.document()->toDocx()), original);
+            QVERIFY(!w.document()->canUndo());
+        }
+        // No protection: a click on a check box ticks it, a click on a drop-down asks for its entries, and the text field's entry is held to its longest text.
+        auto made = open(makeDocx(body));
+        QVERIFY(made);
+        WriteWindow w;
+        w.setNotifier([](const QString &, const QString &) {});
+        w.resize(900, 700);
+        w.show();
+        w.setDocument(std::move(made), QString());
+        PageView *view = w.view();
+        WriteDoc *doc = w.document();
+        const QVector<FormField> all = formFields(doc->story());
+        auto clickOn = [&](int begin) {
+            QTextCursor c(doc->story());
+            c.setPosition(begin);
+            view->setCursor(c);
+            QRect r;
+            QVERIFY(view->caretRect(&r));
+            QTest::mouseClick(view->viewport(), Qt::LeftButton, Qt::NoModifier, QPoint(r.left() + 3, r.center().y()));
+        };
+        QSignalSpy asked(view, &PageView::formChoiceWanted);
+        clickOn(all[1].begin);
+        QVERIFY(formFields(doc->story())[1].checked);
+        QCOMPARE(documentXml(doc->toDocx()).count("<w:checked/>"), 1);
+        clickOn(all[1].begin);
+        QVERIFY(!formFields(doc->story())[1].checked);
+        QVERIFY(doc->undo());
+        QVERIFY(formFields(doc->story())[1].checked);
+        clickOn(all[2].begin);
+        QCOMPARE(asked.size(), 1);
+        QCOMPARE(asked.first().first().toInt(), all[2].begin);
+        QTextCursor c(doc->story());
+        c.setPosition(all[0].separate + 1);
+        c.setPosition(all[0].end, QTextCursor::KeepAnchor);
+        view->setCursor(c);
+        QTest::keyClicks(view, "abcdefghijkl");
+        QCOMPARE(formFields(doc->story())[0].result, QStringLiteral("ABCDEFGH"));
+        // With Track Changes on, what is typed in the text field is the ordinary tracked edit.
+        doc->setTrackChanges(true);
+        c.setPosition(formFields(doc->story())[0].end);
+        view->setCursor(c);
+        QTest::keyClicks(view, "q");
+        QVERIFY(documentXml(doc->toDocx()).contains("<w:ins "));
     }
 };
 

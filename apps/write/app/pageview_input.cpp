@@ -10,6 +10,8 @@
 #include "core/autoops.h"
 #include "core/contentcontrolops.h"
 #include "core/editops.h"
+#include "core/fieldops.h"
+#include "core/formfieldops.h"
 #include "core/linkops.h"
 #include "app/settings.h"
 #include "core/homeops.h"
@@ -54,8 +56,12 @@ bool s_copiedWhole = true;   // the words last copied from here were whole words
 
 void PageView::undo()
 {
-    if (editsBlocked()) return;
-    endTypedRun();   // (a search that is under way holds the text as it is)
+    if (editsBlocked() && !(m_formsOnly && m_formUndo > 0 && m_searchBlocks == 0)) return;   // (a search that is under way holds the text as it is)
+    endTypedRun();
+    if (m_formsOnly && m_formUndo > 0) {
+        --m_formUndo;
+        ++m_formRedo;
+    }
     if (m_shapeEditor) {
         m_shapeEditor->undo();
         return;
@@ -75,8 +81,12 @@ void PageView::undo()
 
 void PageView::redo()
 {
-    if (editsBlocked()) return;
+    if (editsBlocked() && !(m_formsOnly && m_formRedo > 0 && m_searchBlocks == 0)) return;
     endTypedRun();
+    if (m_formsOnly && m_formRedo > 0) {
+        --m_formRedo;
+        ++m_formUndo;
+    }
     if (m_shapeEditor) {
         m_shapeEditor->redo();
         return;
@@ -1145,6 +1155,10 @@ void PageView::keyPressEvent(QKeyEvent *e)
         e->accept();
         return;
     }
+    if (formKey(e)) {
+        e->accept();
+        return;
+    }
     if (editsBlocked()) {
         // (only the keys that move the caret)
         switch (e->key()) {
@@ -1361,6 +1375,7 @@ void PageView::mousePressEvent(QMouseEvent *e)
     m_clicks = again ? (m_clicks % 3) + 1 : e->type() == QEvent::MouseButtonDblClick ? 2 : 1;
     m_lastClickTime = now;
     m_lastPos = e->position().toPoint();
+    if (m_clicks <= 2 && !(e->modifiers() & (Qt::ShiftModifier | Qt::ControlModifier)) && clickInFormField(at, e->globalPosition().toPoint(), m_clicks)) return;
     if (m_clicks <= 2 && !(e->modifiers() & (Qt::ShiftModifier | Qt::ControlModifier)) && clickInControl(at, e->position().toPoint(), e->globalPosition().toPoint(), m_clicks)) return;
     // A press inside the selection may begin a drag of its text: the selection stays until the pointer has moved (or the button is let go, which puts the caret there).
     if (m_clicks == 1 && m_textDragAllowed && m_dragTextOption && !editsBlocked() && !(e->modifiers() & Qt::ShiftModifier) && m_cursor.hasSelection() && !m_hf.active && !m_note.active && m_cursor.document() == m_doc->story() &&
@@ -2024,6 +2039,158 @@ bool PageView::activateControlAtCaret(int key, const QPoint &globalPos)
         return true;
     }
     return false;
+}
+
+// ---- legacy form fields
+
+void PageView::setFormsOnly(bool on)
+{
+    if (m_formsOnly == on) return;
+    m_formsOnly = on;
+    m_formUndo = m_formRedo = 0;
+}
+
+// Whether the selection is in the section of the text that the protection for forms leaves out (one answer for each state of the text and of the selection).
+bool PageView::formsSectionOpenAtCaret() const
+{
+    if (!m_formsOnly || !m_doc || m_cursor.document() != m_doc->story()) return false;
+    const quint64 key = (quint64(m_doc->story()->revision()) << 32) ^ (quint64(m_cursor.selectionStart()) << 16) ^ quint64(m_cursor.selectionEnd()) ^ 0x8000000000000000ull;
+    if (key == m_formOpenKey) return m_formOpen;
+    m_formOpenKey = key;
+    m_formOpen = write::formsSectionOpenAt(*m_doc, m_cursor.selectionStart()) && write::formsSectionOpenAt(*m_doc, m_cursor.selectionEnd());
+    return m_formOpen;
+}
+
+namespace {
+
+// Whether the character at a place is the begin mark of a form field (which keeps the field's data).
+bool isFormMark(QTextDocument *story, int position)
+{
+    if (position < 0 || position >= story->characterCount() - 1) return false;
+    QTextCursor c(story);
+    c.setPosition(position + 1);
+    const QTextCharFormat f = c.charFormat();
+    return f.hasProperty(write::prop::Atom) && write::storedBytes(f, write::prop::Atom).contains("ffData");
+}
+
+} // namespace
+
+bool PageView::clickInFormField(int at, const QPoint &globalPos, int clicks)
+{
+    if (!m_doc || (m_readOnly && !m_formsOnly) || m_searchBlocks > 0 || m_shapeEditor || at < 0) return false;
+    QTextDocument *story = m_cursor.document();
+    const int begin = isFormMark(story, at) ? at : isFormMark(story, at - 1) ? at - 1 : -1;
+    if (begin < 0) return false;
+    const write::FormField f = write::formFieldBeginningAt(story, begin);
+    if (!f.valid() || !f.fillable()) return false;
+    if (f.kind == write::FormKind::CheckBox) {
+        if (write::setFormChecked(*m_doc, story, begin, !f.checked) && m_formsOnly) {
+            ++m_formUndo;
+            m_formRedo = 0;
+        }
+    } else if (f.kind == write::FormKind::DropDown) {
+        if (clicks > 1) return true;
+        Q_EMIT formChoiceWanted(begin, globalPos);
+    } else {
+        return false;
+    }
+    m_cursor.setPosition(std::min(begin + 1, story->characterCount() - 1));
+    m_dragging = false;
+    caretMoved();
+    viewport()->update();
+    return true;
+}
+
+bool PageView::formKey(QKeyEvent *e)
+{
+    if (!m_doc || m_shapeEditor || m_searchBlocks > 0 || (m_readOnly && !m_formsOnly)) return false;
+    const Qt::KeyboardModifiers mods = e->modifiers() & ~Qt::KeypadModifier;
+    QTextDocument *story = m_cursor.document();
+    const int key = e->key();
+    // Tab and Shift+Tab go from field to field in a document protected for forms (the one left is finished: a number or a date in its picture).
+    if (m_formsOnly && (key == Qt::Key_Tab || key == Qt::Key_Backtab) && !(mods & (Qt::ControlModifier | Qt::AltModifier | Qt::MetaModifier))) {
+        const bool backward = key == Qt::Key_Backtab || (mods & Qt::ShiftModifier);
+        const write::FormField here = write::formFieldAt(story, m_cursor.selectionStart());
+        if (here.valid() && here.kind == write::FormKind::Text && here.fillable() && here.separate >= 0) {
+            bool fits = true;
+            const QString finished = write::finishedFormText(here, here.result, &fits);
+            if (!fits) Q_EMIT notice(tr("What you typed doesn't fit this field's format."));
+            else if (write::fillFormText(*m_doc, story, here.begin, finished, true) && m_formsOnly) {
+                ++m_formUndo;
+                m_formRedo = 0;
+            }
+        }
+        const write::FormField next = write::nextFormField(story, here.valid() ? here.begin : m_cursor.selectionStart() - 1, backward);
+        if (next.valid()) {
+            write::selectFormField(m_cursor, next);
+            caretMoved();
+            viewport()->update();
+        }
+        return true;
+    }
+    if (mods & (Qt::ControlModifier | Qt::MetaModifier)) return false;
+    const bool typed = !e->text().isEmpty() && e->text()[0].isPrint() && !(mods & Qt::AltModifier);
+    const bool editing = typed || key == Qt::Key_Backspace || key == Qt::Key_Delete;
+    const bool acts = key == Qt::Key_Space || key == Qt::Key_Return || key == Qt::Key_Enter || (key == Qt::Key_Down && (mods & Qt::AltModifier)) || key == Qt::Key_F4;
+    if (!editing && !acts) return false;
+    if (!write::fieldsNearSelection(story, m_cursor).any) return false;
+    const write::FormField f = write::formFieldAt(story, m_cursor.selectionStart());
+    if (!f.valid() || m_cursor.selectionEnd() > f.end + 1) return false;
+    auto counted = [this](bool done) {
+        if (done && m_formsOnly) {
+            ++m_formUndo;
+            m_formRedo = 0;
+        }
+    };
+    if (!f.fillable()) return m_formsOnly;   // (a field that can't be filled in: in a protected document the key is no edit of anything)
+    if (f.kind == write::FormKind::CheckBox) {
+        if (key == Qt::Key_Space && !(mods & Qt::AltModifier)) counted(write::setFormChecked(*m_doc, story, f.begin, !f.checked));
+        else if (!(m_formsOnly || key == Qt::Key_Space)) return false;
+        caretMoved();
+        viewport()->update();
+        return true;
+    }
+    if (f.kind == write::FormKind::DropDown) {
+        if (key == Qt::Key_Return || key == Qt::Key_Enter || key == Qt::Key_F4 || (key == Qt::Key_Down && (mods & Qt::AltModifier))) {
+            QRect r;
+            Q_EMIT formChoiceWanted(f.begin, caretRect(&r) ? viewport()->mapToGlobal(r.bottomLeft()) : QCursor::pos());
+        } else if (typed && !f.entries.isEmpty()) {
+            // (A letter chooses the next entry that begins with it.)
+            const QString letter = e->text().left(1);
+            for (int k = 1; k <= f.entries.size(); ++k) {
+                const int index = (std::max(f.chosen, 0) + k) % int(f.entries.size());
+                if (f.entries.at(index).startsWith(letter, Qt::CaseInsensitive)) {
+                    counted(write::chooseFormEntry(*m_doc, story, f.begin, index));
+                    break;
+                }
+            }
+        } else if (!m_formsOnly) {
+            return false;
+        }
+        caretMoved();
+        viewport()->update();
+        return true;
+    }
+    // A text field: the key edits its result, held to the field's longest text and case.
+    if (!editing) return m_formsOnly;
+    if (!m_formsOnly && m_doc->trackChanges()) return false;   // (a document that tracks its changes tracks what is typed in the field: the ordinary edit, which holds it to no longest text)
+    if (f.separate < 0 || f.end - f.separate - 1 != f.result.size()) return m_formsOnly;   // (a result with marks inside: not edited a letter at a time)
+    const int start = f.separate + 1;
+    int a = std::clamp(m_cursor.selectionStart(), start, f.end) - start, b = std::clamp(m_cursor.selectionEnd(), start, f.end) - start;
+    QString text = f.result;
+    QString put;
+    if (typed) put = e->text();
+    else if (a == b && key == Qt::Key_Backspace && a > 0) --a;
+    else if (a == b && key == Qt::Key_Delete && b < text.size()) ++b;
+    text.replace(a, b - a, put);
+    QString shown;
+    const bool done = write::fillFormText(*m_doc, story, f.begin, text, false, &shown);
+    counted(done);
+    const int caret = std::min<int>(a + int(put.size()), int(shown.size()));
+    m_cursor.setPosition(start + caret);
+    caretMoved();
+    viewport()->update();
+    return true;
 }
 
 bool PageView::followLinkAt(int at)

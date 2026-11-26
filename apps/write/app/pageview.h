@@ -74,7 +74,18 @@ public:
     void beginSearchBlock() { ++m_searchBlocks; }
     void endSearchBlock() { if (m_searchBlocks > 0) --m_searchBlocks; }
     bool searchBlocked() const { return m_searchBlocks > 0; }
-    bool editsBlocked() const { return m_readOnly || m_searchBlocks > 0; }
+    bool editsBlocked() const { return (m_readOnly && !(m_formsOnly && formsSectionOpenAtCaret())) || m_searchBlocks > 0; }
+    // A document protected for filling in forms: the text is held read only, but the form fields can be filled in (typing, Space on a check box, a click on a drop-down, and Tab and
+    // Shift+Tab from field to field), and so can a section the protection leaves out. Undo and Redo take back and do again the fills made since (and only those).
+    void setFormsOnly(bool on);
+    bool formsOnly() const { return m_formsOnly; }
+    // The window made a fill (a choice from a drop-down's menu) in a document protected for forms: Undo can take it back.
+    void noteFormFill()
+    {
+        if (!m_formsOnly) return;
+        ++m_formUndo;
+        m_formRedo = 0;
+    }
 
     explicit PageView(QWidget *parent = nullptr);
     ~PageView() override;
@@ -204,6 +215,11 @@ public:
     // The control whose words (on one line: its box) the point of the window is on; the caret position a click there gives is beside the control's atoms, not always inside them.
     write::ContentControl controlUnder(int position, const QPoint &viewportPos);
     bool activateControlAtCaret(int key, const QPoint &globalPos);
+    // Legacy form fields: a click on a check box ticks or clears it, on a drop-down asks the window (formChoiceWanted) to show its entries; false where it is no such field or it can't be
+    // filled in here (a read-only document, or one held for comments). The keys: filling in a text field (typing, Backspace, Delete), Space on a check box, Enter or Alt+Down on a
+    // drop-down, and, with the document protected for forms, Tab and Shift+Tab.
+    bool clickInFormField(int position, const QPoint &globalPos, int clicks);
+    bool formKey(QKeyEvent *e);
     // A click on the button at the end of the repeating section the caret is in adds an item; a picture put in the picture control at the place (a drop): false where there is none.
     bool clickOnAddItem(const QPoint &viewportPos);
     bool putInPictureControl(int at, const QByteArray &bytes, const QString &name);
@@ -523,6 +539,7 @@ Q_SIGNALS:
     void caretChanged();                    // the caret moved or the selection changed
     void contentChanged();                  // the text was edited
     void controlPictureWanted(int start);   // a picture control was clicked: where its start is
+    void formChoiceWanted(int begin, const QPoint &globalPos);   // a form field that is a drop-down was clicked (or asked for with a key): where its begin mark is, and where the menu goes
     void controlChoiceWanted(int start, const QPoint &globalPos);   // a content control that holds a choice (a list, a date) was clicked: where its start is, and where to show the choices
     void selectionMade();                   // a click or a drag with the mouse ended: the selection (or the caret) is where it was left
     void contextMenuWanted(const QPoint &globalPos);
@@ -558,6 +575,11 @@ protected:
     bool m_documentDrag = false;   // what is being dragged over is a document file, which the window opens
     bool m_readOnly = false;
     int m_searchBlocks = 0;
+    bool m_formsOnly = false;
+    int m_formUndo = 0, m_formRedo = 0;   // the fills made in a document protected for forms that Undo can take back, and Redo do again
+    bool formsSectionOpenAtCaret() const;
+    mutable quint64 m_formOpenKey = 0;   // (what the last answer of formsSectionOpenAtCaret was for: the text's revision and the selection)
+    mutable bool m_formOpen = false;
     void contextMenuEvent(QContextMenuEvent *e) override;
     void focusInEvent(QFocusEvent *e) override;
     void focusOutEvent(QFocusEvent *e) override;

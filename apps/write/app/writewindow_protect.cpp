@@ -182,6 +182,7 @@ void WriteWindow::applyProtection()
         m_readOnlyByProtection = false;
         setReadOnly(false);
     }
+    m_view->setFormsOnly(kind == QLatin1String("forms"));
     if (kind == QLatin1String("trackedChanges") && m_doc && !m_doc->trackChanges()) m_doc->setTrackChanges(true);
     refreshReviewUi();
     if (kind != m_titledKind) updateTitle();

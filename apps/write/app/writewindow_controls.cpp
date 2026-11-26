@@ -5,6 +5,7 @@
 #include "app/pageview.h"
 #include "app/writewindow.h"
 #include "core/contentcontrolops.h"
+#include "core/formfieldops.h"
 
 #include <QAction>
 #include <QFileDialog>
@@ -75,6 +76,25 @@ void WriteWindow::createControlActions()
         write::contentControlDialog(this, m_doc.get(), c);
         m_view->setFocus(Qt::OtherFocusReason);
         m_view->viewport()->update();
+    });
+    connect(m_view, &write::PageView::formChoiceWanted, this, [this](int begin, const QPoint &global) {
+        if (!m_doc) return;
+        QTextDocument *story = m_view->cursor().document();
+        const write::FormField field = write::formFieldBeginningAt(story, begin);
+        if (!field.valid() || field.kind != write::FormKind::DropDown || !field.fillable()) return;
+        auto *menu = new QMenu(this);
+        menu->setAttribute(Qt::WA_DeleteOnClose);
+        for (int i = 0; i < field.entries.size(); ++i) {
+            QAction *a = menu->addAction(field.entries.at(i));
+            a->setCheckable(true);
+            a->setChecked(i == field.chosen);
+            connect(a, &QAction::triggered, this, [this, story, begin, i] {
+                if (m_doc && write::chooseFormEntry(*m_doc, story, begin, i)) m_view->noteFormFill();
+                m_view->setFocus(Qt::OtherFocusReason);
+                m_view->viewport()->update();
+            });
+        }
+        menu->popup(global);
     });
     connect(m_view, &write::PageView::controlChoiceWanted, this, [this](int start, const QPoint &global) {
         if (!m_doc || refuseIfReadOnly()) return;
