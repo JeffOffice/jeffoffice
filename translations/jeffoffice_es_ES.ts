@@ -1069,14 +1069,6 @@ Download it from %2 now? (%3, once.)</source>
         <translation type="unfinished">Dos hojas del libro comparten una misma parte, algo que no ocurre en ningún fichero real.</translation>
     </message>
     <message>
-        <source>This file is a web page that was saved with an .xls name. This program can't open that kind of file yet.</source>
-        <translation type="unfinished">Este fichero es una página web guardada con extensión .xls. Este programa todavía no puede abrir ese tipo de fichero.</translation>
-    </message>
-    <message>
-        <source>This file is a spreadsheet written as plain text and saved with an .xls name. This program can't open that kind of file yet.</source>
-        <translation type="unfinished">Este fichero es una hoja de cálculo escrita como texto sin formato y guardada con extensión .xls. Este programa todavía no puede abrir ese tipo de fichero.</translation>
-    </message>
-    <message>
         <source>The file is empty.</source>
         <translation type="unfinished">El fichero está vacío.</translation>
     </message>

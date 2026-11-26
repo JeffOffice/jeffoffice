@@ -6052,7 +6052,7 @@ Artículo de contraportada	4</translation>
     <message>
         <location filename="../libs/page/app/saveoptions.cpp" line="-15"/>
         <location filename="../apps/pub/app/mainwindow.cpp" line="+462"/>
-        <location filename="../apps/write/app/writewindow.cpp" line="+889"/>
+        <location filename="../apps/write/app/writewindow.cpp" line="+895"/>
         <source>Save</source>
         <translation type="unfinished">Guardar</translation>
     </message>
@@ -8959,7 +8959,7 @@ Save without a backup?</source>
         <translation type="unfinished">El archivo no tiene filas.</translation>
     </message>
     <message>
-        <location filename="../apps/pub/io/importers.cpp" line="+546"/>
+        <location filename="../apps/pub/io/importers.cpp" line="+557"/>
         <source>%1 (merged)</source>
         <translation type="unfinished">%1 (combinado)</translation>
     </message>
@@ -9142,20 +9142,22 @@ Open them with your email program to send.</source>
 <context>
     <name>Importers</name>
     <message>
-        <location filename="../apps/pub/io/importers.cpp" line="-692"/>
+        <location filename="../apps/pub/io/importers.cpp" line="-702"/>
         <source>&quot;%1&quot; is larger than the %2 MB of text JeffPub puts in at once, so none of it was inserted.</source>
         <translation type="unfinished">&quot;%1&quot; es mayor que los %2 MB de texto que JeffPub inserta de una vez, así que no se insertó nada.</translation>
     </message>
     <message>
         <location line="+1"/>
         <location line="+23"/>
+        <location line="+9"/>
+        <location line="+22"/>
         <source>&quot;%1&quot; couldn&apos;t be read, so nothing was inserted.
 %2</source>
         <translation type="unfinished">No se pudo leer &quot;%1&quot;, así que no se insertó nada.
 %2</translation>
     </message>
     <message>
-        <location line="+9"/>
+        <location line="-17"/>
         <source>No text was found in &quot;%1&quot;, so nothing was inserted.</source>
         <translation type="unfinished">No se encontró texto en &quot;%1&quot;, así que no se insertó nada.</translation>
     </message>
@@ -9165,7 +9167,7 @@ Open them with your email program to send.</source>
         <translation type="unfinished">&quot;%1&quot; no es un documento que JeffPub pueda leer, así que no se insertó nada.</translation>
     </message>
     <message numerus="yes">
-        <location line="+24"/>
+        <location line="+29"/>
         <source>%n picture, table, list, comment, or note in &quot;%1&quot; was left out or came in as plain text.</source>
         <translation type="unfinished">
             <numerusform>%n imagen, tabla, lista, comentario o nota en &quot;%1&quot; se omitió o se importó como texto sin formato.</numerusform>
@@ -10444,7 +10446,7 @@ Download it from %2 now? (%3, once.)</source>
 <context>
     <name>Online</name>
     <message>
-        <location filename="../libs/page/app/onlinepictures.cpp" line="+87"/>
+        <location filename="../libs/page/app/onlinepictures.cpp" line="+94"/>
         <source>It is too large.</source>
         <translation type="unfinished">Es demasiado grande.</translation>
     </message>
@@ -16735,8 +16737,18 @@ Open it in your email program, add recipients and send.</source>
         <translation type="unfinished">El nombre de una hoja es más largo que en cualquier archivo real.</translation>
     </message>
     <message>
+        <location line="+1963"/>
+        <source>This file is a web page that was saved with an .%1 name. This program can&apos;t open that kind of file yet.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>This file is a spreadsheet written as plain text and saved with an .%1 name. This program can&apos;t open that kind of file yet.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <location filename="../libs/office/sheet/chartembed.cpp" line="+118"/>
-        <location filename="../libs/office/sheet/sheetreader.cpp" line="+70"/>
+        <location filename="../libs/office/sheet/sheetreader.cpp" line="-1895"/>
         <source>The sheet would take more memory to hold than any real file&apos;s does.</source>
         <translation type="unfinished">La hoja necesitaría más memoria que la de cualquier archivo real.</translation>
     </message>
@@ -16838,17 +16850,7 @@ Open it in your email program, add recipients and send.</source>
         <translation type="unfinished">Dos hojas del libro comparten una misma parte, algo que no ocurre en ningún archivo real.</translation>
     </message>
     <message>
-        <location line="+214"/>
-        <source>This file is a web page that was saved with an .xls name. This program can&apos;t open that kind of file yet.</source>
-        <translation type="unfinished">Este archivo es una página web guardada con extensión .xls. Este programa todavía no puede abrir ese tipo de archivo.</translation>
-    </message>
-    <message>
-        <location line="+2"/>
-        <source>This file is a spreadsheet written as plain text and saved with an .xls name. This program can&apos;t open that kind of file yet.</source>
-        <translation type="unfinished">Este archivo es una hoja de cálculo escrita como texto sin formato y guardada con extensión .xls. Este programa todavía no puede abrir ese tipo de archivo.</translation>
-    </message>
-    <message>
-        <location line="+7"/>
+        <location line="+252"/>
         <source>The file is empty.</source>
         <translation type="unfinished">El archivo está vacío.</translation>
     </message>
@@ -16941,7 +16943,7 @@ Open it in your email program, add recipients and send.</source>
         <translation type="unfinished">El archivo no contiene ningún libro.</translation>
     </message>
     <message>
-        <location filename="../libs/office/sheet/sheetreader.cpp" line="+1312"/>
+        <location filename="../libs/office/sheet/sheetreader.cpp" line="+1323"/>
         <location filename="../libs/office/sheet/xls.cpp" line="+2253"/>
         <source>There is no such sheet.</source>
         <translation type="unfinished">No existe esa hoja.</translation>
@@ -17287,7 +17289,7 @@ Open it in your email program, add recipients and send.</source>
     </message>
     <message>
         <location filename="../libs/office/sheet/odssave.cpp" line="+233"/>
-        <location filename="../libs/office/sheet/xlssave.cpp" line="+233"/>
+        <location filename="../libs/office/sheet/xlssave.cpp" line="+234"/>
         <source>%1 formulas the format cannot hold (they keep the value they came to)</source>
         <translation type="unfinished">%1 fórmulas que el formato no admite (conservan el valor resultante)</translation>
     </message>
@@ -17301,7 +17303,7 @@ Open it in your email program, add recipients and send.</source>
         <location line="+244"/>
         <location line="+44"/>
         <location filename="../libs/office/sheet/xlssave.cpp" line="-36"/>
-        <location line="+820"/>
+        <location line="+821"/>
         <location line="+14"/>
         <source>The save was stopped.</source>
         <translation type="unfinished">Se detuvo el guardado.</translation>
@@ -17471,7 +17473,7 @@ Open it in your email program, add recipients and send.</source>
         <translation type="unfinished">El libro llama por su nombre a más de 255 funciones distintas, lo que el formato antiguo no admite.</translation>
     </message>
     <message>
-        <location filename="../libs/office/sheet/xlssave.cpp" line="-1108"/>
+        <location filename="../libs/office/sheet/xlssave.cpp" line="-1109"/>
         <source>The workbook is larger than the old format can hold.</source>
         <translation type="unfinished">El libro es más grande de lo que admite el formato antiguo.</translation>
     </message>
@@ -17481,7 +17483,12 @@ Open it in your email program, add recipients and send.</source>
         <translation type="unfinished">No se pudo proteger el libro con la contraseña.</translation>
     </message>
     <message>
-        <location line="+132"/>
+        <location line="+18"/>
+        <source>Cells with the error #UNKNOWN! (%1), which the old format has no code for; they show #N/A</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+115"/>
         <source>colors past the 56 the format holds (each is the nearest of the first 56)</source>
         <translation type="unfinished">colores más allá de los 56 que admite el formato (cada uno pasa al más parecido de los primeros 56)</translation>
     </message>
@@ -21855,7 +21862,7 @@ Autoedición</translation>
 <context>
     <name>WriteFindPane</name>
     <message>
-        <location filename="../apps/write/app/writefindpane.cpp" line="+626"/>
+        <location filename="../apps/write/app/writefindpane.cpp" line="+627"/>
         <source>A match longer than %1 characters was found, which is more than JeffWrite can work with at once. Nothing was changed.</source>
         <translation type="unfinished">Se encontró una coincidencia de más de %1 caracteres, lo que supera lo que JeffWrite puede procesar a la vez. No se modificó nada.</translation>
     </message>
@@ -29931,7 +29938,7 @@ Origen: %3</translation>
         <location line="+25"/>
         <location line="+5"/>
         <location line="+70"/>
-        <location line="+149"/>
+        <location line="+165"/>
         <location line="+2"/>
         <location line="+7"/>
         <location line="+2"/>
@@ -29977,7 +29984,7 @@ Origen: %3</translation>
         <translation type="unfinished">Un minigráfico necesita al menos dos números en una fila.</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow_tables.cpp" line="-471"/>
+        <location filename="../apps/crunch/app/crunchwindow_tables.cpp" line="-487"/>
         <source>Change Table Size…</source>
         <translation type="unfinished">Cambiar tamaño de tabla…</translation>
     </message>
@@ -30177,7 +30184,7 @@ Origen: %3</translation>
         <translation type="unfinished">Elija un aspecto para al menos una parte de la tabla.</translation>
     </message>
     <message>
-        <location line="+49"/>
+        <location line="+65"/>
         <source>Insert Row Above</source>
         <translation type="unfinished">Insertar fila encima</translation>
     </message>
@@ -30745,7 +30752,7 @@ Origen: %3</translation>
     </message>
     <message>
         <location line="-341"/>
-        <location filename="../apps/crunch/app/crunchwindow_tables.cpp" line="-212"/>
+        <location filename="../apps/crunch/app/crunchwindow_tables.cpp" line="-228"/>
         <source>None</source>
         <translation type="unfinished">Ninguno</translation>
     </message>
@@ -32911,6 +32918,7 @@ No se puede leer el archivo.</translation>
         <location line="+316"/>
         <location line="+307"/>
         <location filename="../apps/crunch/app/crunchwindow_quick.cpp" line="+51"/>
+        <location filename="../apps/crunch/app/crunchwindow_tables.cpp" line="+345"/>
         <source>Pivot Table</source>
         <translation type="unfinished">Tabla dinámica</translation>
     </message>
@@ -44005,35 +44013,35 @@ No se puede leer el archivo.</translation>
         <translation type="unfinished">Se omitieron algunas de las celdas pegadas: una celda admite como máximo %1 caracteres.</translation>
     </message>
     <message>
-        <location line="+34"/>
+        <location line="+36"/>
         <source>The clipboard has no spreadsheet cells to paste.</source>
         <translation type="unfinished">El portapapeles no contiene celdas de hoja de cálculo para pegar.</translation>
     </message>
     <message>
-        <location line="+16"/>
+        <location line="+17"/>
         <source>Some of the pasted cells were left out: a pasted table has at most %1 rows and columns, and 4,000 characters in a cell.</source>
         <translation type="unfinished">Algunas de las celdas pegadas se han omitido: una tabla pegada tiene como máximo %1 filas y columnas, y 4000 caracteres por celda.</translation>
     </message>
     <message>
-        <location line="-48"/>
-        <location line="+52"/>
+        <location line="-51"/>
+        <location line="+55"/>
         <source>Paste Cells</source>
         <translation type="unfinished">Pegar celdas</translation>
     </message>
     <message>
-        <location line="-44"/>
-        <location line="+48"/>
+        <location line="-47"/>
+        <location line="+51"/>
         <source>Some of the pasted cells did not fit in the table and were left out.</source>
         <translation type="unfinished">Algunas de las celdas pegadas no cabían en la tabla y se han omitido.</translation>
     </message>
     <message>
-        <location line="-46"/>
-        <location line="+52"/>
+        <location line="-49"/>
+        <location line="+55"/>
         <source>Paste Table</source>
         <translation type="unfinished">Pegar tabla</translation>
     </message>
     <message>
-        <location line="+38"/>
+        <location line="+46"/>
         <location line="+20"/>
         <source>Paste</source>
         <translation type="unfinished">Pegar</translation>
@@ -55426,7 +55434,7 @@ Su explorador web abrirá LibreTranslate, un servicio de traducción gratuito y 
 <context>
     <name>jp::Objects</name>
     <message>
-        <location filename="../libs/shell/app/objects.cpp" line="+207"/>
+        <location filename="../libs/shell/app/objects.cpp" line="+211"/>
         <source>The file can&apos;t be opened.</source>
         <translation type="unfinished">No se puede abrir el archivo.</translation>
     </message>
@@ -63424,7 +63432,7 @@ Su explorador web abrirá LibreTranslate, un servicio de traducción gratuito y 
         <translation type="unfinished">JeffWrite terminó de buscar en el documento. No se encontró &quot;%1&quot;.</translation>
     </message>
     <message>
-        <location line="+54"/>
+        <location line="+68"/>
         <source>A section break, a field, or a note mark can be found but not replaced.</source>
         <translation type="unfinished">Se pueden encontrar un salto de sección, un campo o una marca de nota, pero no reemplazarlos.</translation>
     </message>
@@ -63434,7 +63442,12 @@ Su explorador web abrirá LibreTranslate, un servicio de traducción gratuito y 
         <translation type="unfinished">El texto de un control de contenido que no se puede cambiar se puede encontrar, pero no reemplazar.</translation>
     </message>
     <message>
-        <location line="+186"/>
+        <location line="+4"/>
+        <source>Text that is protected can be found but not replaced.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+192"/>
         <source>JeffWrite made no replacements. &quot;%1&quot; was not found.</source>
         <translation type="unfinished">JeffWrite no realizó ningún reemplazo. No se encontró &quot;%1&quot;.</translation>
     </message>
@@ -63460,6 +63473,16 @@ Su explorador web abrirá LibreTranslate, un servicio de traducción gratuito y 
             <numerusform>%n coincidencia está en contenido que no se puede cambiar.</numerusform>
             <numerusform>%n coincidencias están en contenido que no se puede cambiar.</numerusform>
         </translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Matches left as they are because the text is protected: %1.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Text in headers, footers, notes, and text boxes was left as it is.</source>
+        <translation type="unfinished"></translation>
     </message>
     <message numerus="yes">
         <location line="+1"/>
@@ -63974,7 +63997,7 @@ Su explorador web abrirá LibreTranslate, un servicio de traducción gratuito y 
 <context>
     <name>jp::WriteWindow</name>
     <message>
-        <location filename="../apps/write/app/writewindow.cpp" line="-797"/>
+        <location filename="../apps/write/app/writewindow.cpp" line="-803"/>
         <source>Document%1</source>
         <translation type="unfinished">Documento%1</translation>
     </message>
@@ -64005,7 +64028,7 @@ Su explorador web abrirá LibreTranslate, un servicio de traducción gratuito y 
         <translation type="unfinished">%1 (%2)</translation>
     </message>
     <message>
-        <location line="+138"/>
+        <location line="+144"/>
         <source> (Protected)</source>
         <translation type="unfinished"> (Protegido)</translation>
     </message>
@@ -65912,7 +65935,7 @@ Su explorador web abrirá LibreTranslate, un servicio de traducción gratuito y 
         <translation type="unfinished">Cerrar</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/writewindow_protect.cpp" line="+52"/>
+        <location filename="../apps/write/app/writewindow_protect.cpp" line="+79"/>
         <source>Checking the password…</source>
         <translation type="unfinished">Comprobando la contraseña…</translation>
     </message>
@@ -66899,7 +66922,7 @@ No se pudo aplicar la contraseña al archivo.</translation>
         <translation type="unfinished">Símbolos</translation>
     </message>
     <message>
-        <location line="+34"/>
+        <location line="+28"/>
         <source>The document has no style named &quot;%1&quot;, and it is not a built-in style, so the key changed nothing.</source>
         <translation type="unfinished">El documento no tiene ningún estilo llamado &quot;%1&quot; y no es un estilo integrado, así que la tecla no cambió nada.</translation>
     </message>
@@ -68124,7 +68147,7 @@ No se pudo aplicar la contraseña al archivo.</translation>
         <translation type="unfinished">Insertar imagen</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/writewindow_controls.cpp" line="+62"/>
+        <location filename="../apps/write/app/writewindow_controls.cpp" line="+63"/>
         <location line="+4"/>
         <location filename="../apps/write/app/writewindow_pictures.cpp" line="+9"/>
         <location filename="../apps/write/app/writewindow_shapes.cpp" line="-49"/>
@@ -70052,7 +70075,7 @@ No se pudo aplicar la contraseña al archivo.</translation>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+67"/>
+        <location line="+91"/>
         <location line="+2"/>
         <location line="+51"/>
         <source>Repeat</source>
@@ -72771,19 +72794,19 @@ No se pudo aplicar la contraseña al archivo.</translation>
     </message>
     <message>
         <location line="+15"/>
-        <location line="+1377"/>
+        <location line="+1385"/>
         <location line="+21"/>
         <source>The pivot table would go past the edge of the sheet.</source>
         <translation type="unfinished">La tabla dinámica sobrepasaría el borde de la hoja.</translation>
     </message>
     <message>
-        <location line="-1348"/>
-        <location line="+1388"/>
+        <location line="-1356"/>
+        <location line="+1396"/>
         <source>The pivot table would cover cells that have something in them (%1). Clear those cells, or move the pivot table, and try again.</source>
         <translation type="unfinished">La tabla dinámica cubriría celdas que tienen contenido (%1). Borre esas celdas o mueva la tabla dinámica e inténtelo de nuevo.</translation>
     </message>
     <message>
-        <location line="-1372"/>
+        <location line="-1380"/>
         <source>The pivot table would be larger than JeffCrunch changes at once.</source>
         <translation type="unfinished">La tabla dinámica sería más grande de lo que JeffCrunch puede cambiar de una vez.</translation>
     </message>
@@ -72912,7 +72935,7 @@ No se pudo aplicar la contraseña al archivo.</translation>
     </message>
     <message>
         <location line="+50"/>
-        <location line="+127"/>
+        <location line="+135"/>
         <location line="+93"/>
         <location line="+147"/>
         <location line="+48"/>
@@ -72930,7 +72953,7 @@ No se pudo aplicar la contraseña al archivo.</translation>
         <translation type="unfinished">Aquí no hay ninguna tabla dinámica.</translation>
     </message>
     <message>
-        <location line="-1011"/>
+        <location line="-1019"/>
         <source>Refresh Pivot Table</source>
         <translation type="unfinished">Actualizar tabla dinámica</translation>
     </message>
@@ -72965,12 +72988,13 @@ No se pudo aplicar la contraseña al archivo.</translation>
         <translation type="unfinished">Detalle %1</translation>
     </message>
     <message>
-        <location line="+42"/>
+        <location line="+9"/>
+        <location line="+39"/>
         <source>Show Details</source>
         <translation type="unfinished">Mostrar detalles</translation>
     </message>
     <message>
-        <location line="+21"/>
+        <location line="+23"/>
         <source>This pivot table has no calculated fields or items.</source>
         <translation type="unfinished">Esta tabla dinámica no tiene campos ni elementos calculados.</translation>
     </message>
@@ -79426,7 +79450,7 @@ No se pudo aplicar la contraseña al archivo.</translation>
         <location filename="../libs/office/office/package.cpp" line="+4"/>
         <location line="+7"/>
         <location filename="../libs/office/sheet/sheetcrypt.cpp" line="-1"/>
-        <location filename="../libs/office/sheet/sheetreader.cpp" line="-1541"/>
+        <location filename="../libs/office/sheet/sheetreader.cpp" line="-1581"/>
         <location filename="../apps/deck/io/presentationfile.cpp" line="-23"/>
         <location line="+28"/>
         <source>The file is larger than this program can open.</source>
@@ -81084,7 +81108,7 @@ No se pudo aplicar la contraseña al archivo.</translation>
 <context>
     <name>jp::office::sheet::Workbook</name>
     <message>
-        <location filename="../libs/office/sheet/sheetreader.cpp" line="+688"/>
+        <location filename="../libs/office/sheet/sheetreader.cpp" line="+728"/>
         <source>Give the table style a name.</source>
         <translation type="unfinished">Asigne un nombre al estilo de tabla.</translation>
     </message>
@@ -81272,10 +81296,29 @@ No se pudo aplicar la contraseña al archivo.</translation>
         <translation type="unfinished">No se pudo empaquetar el documento.</translation>
     </message>
     <message>
-        <location filename="../libs/office/wml/wmlhtmlread.cpp" line="+355"/>
-        <location line="+95"/>
+        <location filename="../libs/office/wml/htmlguard.cpp" line="+1468"/>
+        <source>This web page has too many table rows or cells to open.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>This web page is too complicated to open.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
         <source>The web page is too large to open.</source>
         <translation type="unfinished">La página web es demasiado grande para abrirla.</translation>
+    </message>
+    <message>
+        <location line="+51"/>
+        <source>The copied page was too large or too complicated to read, so its plain text was pasted.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>The copied page was too large or too complicated to read, so nothing was pasted.</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <location filename="../libs/office/wml/wmlfonts.cpp" line="+107"/>
@@ -86060,7 +86103,7 @@ No se pudo aplicar la contraseña al archivo.</translation>
         <translation>Encabezado</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/pageview.cpp" line="+272"/>
+        <location filename="../apps/write/app/pageview.cpp" line="+274"/>
         <source>Place in this document: %1</source>
         <translation type="unfinished">Colocar en este documento: %1</translation>
     </message>
@@ -86096,24 +86139,24 @@ No se pudo aplicar la contraseña al archivo.</translation>
         <translation type="unfinished">+%1 más</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/pageview_input.cpp" line="+141"/>
-        <location line="+576"/>
+        <location filename="../apps/write/app/pageview_input.cpp" line="+146"/>
+        <location line="+599"/>
         <source>Keep Source Formatting</source>
         <translation type="unfinished">Mantener formato de origen</translation>
     </message>
     <message>
-        <location line="-468"/>
+        <location line="-491"/>
         <source>The Spike is full. Paste it to empty it.</source>
         <translation type="unfinished">El Portapapeles de recortes está lleno. Pegue su contenido para vaciarlo.</translation>
     </message>
     <message>
         <location line="-107"/>
-        <location line="+576"/>
+        <location line="+599"/>
         <source>Merge Formatting</source>
         <translation type="unfinished">Combinar formato</translation>
     </message>
     <message>
-        <location line="-617"/>
+        <location line="-640"/>
         <source>A table with changes tracked in it is copied as its words, not as a table. Accept or reject the changes to copy it as a table.</source>
         <translation type="unfinished">Una tabla con cambios controlados se copia como sus palabras, no como tabla. Acepta o rechaza los cambios para copiarla como tabla.</translation>
     </message>
@@ -86129,12 +86172,12 @@ No se pudo aplicar la contraseña al archivo.</translation>
     </message>
     <message>
         <location line="+40"/>
-        <location line="+577"/>
+        <location line="+600"/>
         <source>Keep Text Only</source>
         <translation type="unfinished">Mantener solo texto</translation>
     </message>
     <message>
-        <location line="-576"/>
+        <location line="-599"/>
         <source>Pasting within the same document</source>
         <translation type="unfinished">Pegar dentro del mismo documento</translation>
     </message>
@@ -86149,7 +86192,7 @@ No se pudo aplicar la contraseña al archivo.</translation>
         <translation type="unfinished">Pegar desde otros programas</translation>
     </message>
     <message>
-        <location line="+576"/>
+        <location line="+599"/>
         <location filename="../apps/write/app/writewindow_options.cpp" line="+11"/>
         <source>Continue List</source>
         <translation type="unfinished">Continuar lista</translation>
@@ -86207,7 +86250,7 @@ No se pudo aplicar la contraseña al archivo.</translation>
         <translation type="unfinished">Cómo se conserva el contenido pegado. Pulse la tecla %1 después de pegar para abrirlo.</translation>
     </message>
     <message>
-        <location line="+44"/>
+        <location line="+53"/>
         <source>Typing</source>
         <translation type="unfinished">Escritura</translation>
     </message>
@@ -86227,7 +86270,7 @@ No se pudo aplicar la contraseña al archivo.</translation>
         <translation type="unfinished">Opciones de pegado. Use las teclas de flecha e Intro para elegir, o Esc para salir.</translation>
     </message>
     <message>
-        <location line="+138"/>
+        <location line="+142"/>
         <source>Overtype: typing replaces the letters after the caret. Press Insert to go back.</source>
         <translation type="unfinished">Sobrescribir: al escribir se reemplazan las letras situadas después del cursor. Pulse Insert para volver atrás.</translation>
     </message>
@@ -86237,12 +86280,12 @@ No se pudo aplicar la contraseña al archivo.</translation>
         <translation type="unfinished">Insertar: al escribir, las letras situadas después del cursor se desplazan.</translation>
     </message>
     <message>
-        <location line="+73"/>
+        <location line="+79"/>
         <source>A text box can be followed only by a text box that has no words and is in no chain yet.</source>
         <translation type="unfinished">Un cuadro de texto solo puede ir seguido de otro cuadro de texto que no tenga palabras y que todavía no esté en ninguna cadena.</translation>
     </message>
     <message>
-        <location line="+422"/>
+        <location line="+423"/>
         <source>Drop the table between paragraphs, not inside a table.</source>
         <translation type="unfinished">Suelte la tabla entre párrafos, no dentro de una tabla.</translation>
     </message>
@@ -86267,7 +86310,13 @@ No se pudo aplicar la contraseña al archivo.</translation>
         <translation type="unfinished">El archivo</translation>
     </message>
     <message>
-        <location line="+80"/>
+        <location line="+165"/>
+        <location line="+12"/>
+        <source>What you typed doesn&apos;t fit this field&apos;s format.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+140"/>
         <source>JeffWrite opens links to web addresses, email addresses, and documents or pictures on this computer only.</source>
         <translation type="unfinished">JeffWrite abre solo los vínculos a direcciones web, direcciones de correo electrónico y documentos o imágenes de este equipo.</translation>
     </message>
@@ -86332,7 +86381,7 @@ No se pudo aplicar la contraseña al archivo.</translation>
         <translation type="unfinished">No hay ningún grupo que restaurar. Reagrupar funciona después de Desagrupar, mientras sus objetos sigan ahí.</translation>
     </message>
     <message>
-        <location line="+1029"/>
+        <location line="+1036"/>
         <source>This text box holds too many paragraphs to be typed in here.</source>
         <translation type="unfinished">Este cuadro de texto contiene demasiados párrafos para escribirlos aquí.</translation>
     </message>
@@ -86437,7 +86486,7 @@ No se pudo aplicar la contraseña al archivo.</translation>
 <context>
     <name>jp::write::Pictures</name>
     <message>
-        <location filename="../apps/write/app/pageview_pictures.cpp" line="-403"/>
+        <location filename="../apps/write/app/pageview_pictures.cpp" line="-410"/>
         <location line="+37"/>
         <source>That is not a picture JeffWrite can read.</source>
         <translation type="unfinished">JeffWrite no puede leer esa imagen.</translation>
@@ -86451,12 +86500,12 @@ No se pudo aplicar la contraseña al archivo.</translation>
         <location line="+1"/>
         <location line="+36"/>
         <location line="+19"/>
-        <location line="+224"/>
+        <location line="+231"/>
         <source>That picture is too large to put in a document.</source>
         <translation type="unfinished">Esa imagen es demasiado grande para insertarla en un documento.</translation>
     </message>
     <message>
-        <location line="-261"/>
+        <location line="-268"/>
         <source>That is not a barcode JeffWrite can draw.</source>
         <translation type="unfinished">Ese no es un código de barras que JeffWrite pueda dibujar.</translation>
     </message>
@@ -86466,7 +86515,7 @@ No se pudo aplicar la contraseña al archivo.</translation>
         <translation type="unfinished">No hay ninguna imagen en el Portapapeles que JeffWrite pueda leer.</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/pageview_input.cpp" line="-455"/>
+        <location filename="../apps/write/app/pageview_input.cpp" line="-692"/>
         <location filename="../apps/write/app/pageview_pictures.cpp" line="+18"/>
         <location filename="../apps/write/core/pictureops.cpp" line="+2261"/>
         <source>That shape can&apos;t be put here.</source>
@@ -86505,7 +86554,7 @@ No se pudo aplicar la contraseña al archivo.</translation>
         <translation type="unfinished">Un gráfico no se puede colocar aquí.</translation>
     </message>
     <message>
-        <location line="+112"/>
+        <location line="+119"/>
         <source>%1 can&apos;t be opened as a picture.</source>
         <translation type="unfinished">No se puede abrir %1 como imagen.</translation>
     </message>
@@ -87035,7 +87084,7 @@ No se pudo aplicar la contraseña al archivo.</translation>
         <translation type="unfinished">La comprobación de ortografía y gramática se ha completado.</translation>
     </message>
     <message numerus="yes">
-        <location line="+95"/>
+        <location line="+96"/>
         <source>%n word changed.</source>
         <translation type="unfinished">
             <numerusform>%n palabra cambiada.</numerusform>
@@ -87576,7 +87625,7 @@ No se pudo aplicar la contraseña al archivo.</translation>
         <translation type="unfinished">Las filas cuyas celdas no están en las mismas columnas no se pueden ordenar.</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/pageview_input.cpp" line="-1020"/>
+        <location filename="../apps/write/app/pageview_input.cpp" line="-1047"/>
         <location filename="../apps/write/core/homeops.cpp" line="-62"/>
         <location line="+35"/>
         <source>To paste cells as new columns, click in a table that has room for them.</source>

@@ -6051,7 +6051,7 @@ Berita halaman belakang	4</translation>
     <message>
         <location filename="../libs/page/app/saveoptions.cpp" line="-15"/>
         <location filename="../apps/pub/app/mainwindow.cpp" line="+462"/>
-        <location filename="../apps/write/app/writewindow.cpp" line="+889"/>
+        <location filename="../apps/write/app/writewindow.cpp" line="+895"/>
         <source>Save</source>
         <translation type="unfinished">Simpan</translation>
     </message>
@@ -8953,7 +8953,7 @@ Simpan tanpa cadangan?</translation>
         <translation type="unfinished">File tidak memiliki baris.</translation>
     </message>
     <message>
-        <location filename="../apps/pub/io/importers.cpp" line="+546"/>
+        <location filename="../apps/pub/io/importers.cpp" line="+557"/>
         <source>%1 (merged)</source>
         <translation type="unfinished">%1 (digabung)</translation>
     </message>
@@ -9135,20 +9135,22 @@ Buka dengan program email Anda untuk mengirimnya.</translation>
 <context>
     <name>Importers</name>
     <message>
-        <location filename="../apps/pub/io/importers.cpp" line="-692"/>
+        <location filename="../apps/pub/io/importers.cpp" line="-702"/>
         <source>&quot;%1&quot; is larger than the %2 MB of text JeffPub puts in at once, so none of it was inserted.</source>
         <translation type="unfinished">&quot;%1&quot; lebih besar daripada %2 MB teks yang dimasukkan JeffPub sekaligus, sehingga tidak ada yang dimasukkan.</translation>
     </message>
     <message>
         <location line="+1"/>
         <location line="+23"/>
+        <location line="+9"/>
+        <location line="+22"/>
         <source>&quot;%1&quot; couldn&apos;t be read, so nothing was inserted.
 %2</source>
         <translation type="unfinished">&quot;%1&quot; tidak dapat dibaca, sehingga tidak ada yang dimasukkan.
 %2</translation>
     </message>
     <message>
-        <location line="+9"/>
+        <location line="-17"/>
         <source>No text was found in &quot;%1&quot;, so nothing was inserted.</source>
         <translation type="unfinished">Tidak ada teks yang ditemukan di &quot;%1&quot;, sehingga tidak ada yang disisipkan.</translation>
     </message>
@@ -9158,7 +9160,7 @@ Buka dengan program email Anda untuk mengirimnya.</translation>
         <translation type="unfinished">&quot;%1&quot; bukan dokumen yang dapat dibaca JeffPub, sehingga tidak ada yang dimasukkan.</translation>
     </message>
     <message numerus="yes">
-        <location line="+24"/>
+        <location line="+29"/>
         <source>%n picture, table, list, comment, or note in &quot;%1&quot; was left out or came in as plain text.</source>
         <translation type="unfinished">
             <numerusform>%n gambar, tabel, daftar, komentar, atau catatan di &quot;%1&quot; dilewati atau masuk sebagai teks biasa.</numerusform>
@@ -10424,7 +10426,7 @@ Unduh dari %2 sekarang? (%3, sekali saja.)</translation>
 <context>
     <name>Online</name>
     <message>
-        <location filename="../libs/page/app/onlinepictures.cpp" line="+87"/>
+        <location filename="../libs/page/app/onlinepictures.cpp" line="+94"/>
         <source>It is too large.</source>
         <translation type="unfinished">Ukurannya terlalu besar.</translation>
     </message>
@@ -16555,7 +16557,7 @@ Buka di program email Anda, tambahkan penerima, lalu kirim.</translation>
     <name>Sheet</name>
     <message>
         <location filename="../libs/office/sheet/odssave.cpp" line="+233"/>
-        <location filename="../libs/office/sheet/xlssave.cpp" line="+233"/>
+        <location filename="../libs/office/sheet/xlssave.cpp" line="+234"/>
         <source>%1 formulas the format cannot hold (they keep the value they came to)</source>
         <translation type="unfinished">%1 formula yang tidak dapat disimpan dalam format ini (nilainya tetap seperti nilai yang dihasilkan)</translation>
     </message>
@@ -16569,7 +16571,7 @@ Buka di program email Anda, tambahkan penerima, lalu kirim.</translation>
         <location line="+244"/>
         <location line="+44"/>
         <location filename="../libs/office/sheet/xlssave.cpp" line="-36"/>
-        <location line="+820"/>
+        <location line="+821"/>
         <location line="+14"/>
         <source>The save was stopped.</source>
         <translation type="unfinished">Penyimpanan dihentikan.</translation>
@@ -16990,8 +16992,18 @@ Buka di program email Anda, tambahkan penerima, lalu kirim.</translation>
         <translation type="unfinished">Nama sebuah lembar lebih panjang daripada file nyata mana pun.</translation>
     </message>
     <message>
+        <location line="+1963"/>
+        <source>This file is a web page that was saved with an .%1 name. This program can&apos;t open that kind of file yet.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>This file is a spreadsheet written as plain text and saved with an .%1 name. This program can&apos;t open that kind of file yet.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <location filename="../libs/office/sheet/chartembed.cpp" line="+118"/>
-        <location filename="../libs/office/sheet/sheetreader.cpp" line="+70"/>
+        <location filename="../libs/office/sheet/sheetreader.cpp" line="-1895"/>
         <source>The sheet would take more memory to hold than any real file&apos;s does.</source>
         <translation type="unfinished">Lembar ini akan membutuhkan lebih banyak memori untuk disimpan daripada file nyata mana pun.</translation>
     </message>
@@ -17093,17 +17105,7 @@ Buka di program email Anda, tambahkan penerima, lalu kirim.</translation>
         <translation type="unfinished">Dua lembar dari buku kerja berbagi satu bagian, yang tidak dimiliki file nyata mana pun.</translation>
     </message>
     <message>
-        <location line="+214"/>
-        <source>This file is a web page that was saved with an .xls name. This program can&apos;t open that kind of file yet.</source>
-        <translation type="unfinished">File ini adalah halaman web yang disimpan dengan nama .xls. Program ini belum dapat membuka jenis file tersebut.</translation>
-    </message>
-    <message>
-        <location line="+2"/>
-        <source>This file is a spreadsheet written as plain text and saved with an .xls name. This program can&apos;t open that kind of file yet.</source>
-        <translation type="unfinished">File ini adalah lembar kerja berupa teks biasa yang disimpan dengan nama .xls. Program ini belum dapat membuka jenis file tersebut.</translation>
-    </message>
-    <message>
-        <location line="+7"/>
+        <location line="+252"/>
         <source>The file is empty.</source>
         <translation type="unfinished">File ini kosong.</translation>
     </message>
@@ -17188,7 +17190,7 @@ Buka di program email Anda, tambahkan penerima, lalu kirim.</translation>
         <translation type="unfinished">File ini adalah file majemuk, tetapi tidak memiliki buku kerja di dalamnya.</translation>
     </message>
     <message>
-        <location line="+1312"/>
+        <location line="+1323"/>
         <location filename="../libs/office/sheet/xls.cpp" line="+763"/>
         <source>There is no such sheet.</source>
         <translation type="unfinished">Lembar tersebut tidak ada.</translation>
@@ -17470,7 +17472,7 @@ Buka di program email Anda, tambahkan penerima, lalu kirim.</translation>
         <translation type="unfinished">Rumus ini digunakan bersama oleh sel lain dan dibaca di tempat sel-sel tersebut berada.</translation>
     </message>
     <message>
-        <location filename="../libs/office/sheet/xlssave.cpp" line="-1108"/>
+        <location filename="../libs/office/sheet/xlssave.cpp" line="-1109"/>
         <source>The workbook is larger than the old format can hold.</source>
         <translation type="unfinished">Buku kerja lebih besar daripada yang dapat ditampung format lama.</translation>
     </message>
@@ -17480,7 +17482,12 @@ Buka di program email Anda, tambahkan penerima, lalu kirim.</translation>
         <translation type="unfinished">Buku kerja tidak dapat dilindungi dengan sandi tersebut.</translation>
     </message>
     <message>
-        <location line="+132"/>
+        <location line="+18"/>
+        <source>Cells with the error #UNKNOWN! (%1), which the old format has no code for; they show #N/A</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+115"/>
         <source>colors past the 56 the format holds (each is the nearest of the first 56)</source>
         <translation type="unfinished">warna melebihi 56 yang ditampung format (masing-masing diganti dengan warna terdekat dari 56 yang pertama)</translation>
     </message>
@@ -21815,7 +21822,7 @@ Penerbitan desktop</translation>
 <context>
     <name>WriteFindPane</name>
     <message>
-        <location filename="../apps/write/app/writefindpane.cpp" line="+626"/>
+        <location filename="../apps/write/app/writefindpane.cpp" line="+627"/>
         <source>A match longer than %1 characters was found, which is more than JeffWrite can work with at once. Nothing was changed.</source>
         <translation type="unfinished">Ditemukan kecocokan lebih panjang dari %1 karakter, yang melebihi kemampuan JeffWrite untuk diproses sekaligus. Tidak ada yang diubah.</translation>
     </message>
@@ -33263,6 +33270,7 @@ Berkas ini dilindungi kata sandi. Kata sandi:</translation>
         <location line="+316"/>
         <location line="+307"/>
         <location filename="../apps/crunch/app/crunchwindow_quick.cpp" line="-252"/>
+        <location filename="../apps/crunch/app/crunchwindow_tables.cpp" line="+58"/>
         <source>Pivot Table</source>
         <translation type="unfinished">Tabel Pivot</translation>
     </message>
@@ -35371,7 +35379,7 @@ Berkas ini dilindungi kata sandi. Kata sandi:</translation>
         <translation type="unfinished">Kontrol ini tidak memiliki apa pun untuk diformat di sini.</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow_tables.cpp" line="-500"/>
+        <location filename="../apps/crunch/app/crunchwindow_tables.cpp" line="-558"/>
         <location line="+1"/>
         <source>Table look %1</source>
         <translation type="unfinished">Tampilan tabel %1</translation>
@@ -35399,7 +35407,7 @@ Berkas ini dilindungi kata sandi. Kata sandi:</translation>
         <location line="+25"/>
         <location line="+5"/>
         <location line="+70"/>
-        <location line="+149"/>
+        <location line="+165"/>
         <location line="+2"/>
         <location line="+7"/>
         <location line="+2"/>
@@ -35410,7 +35418,7 @@ Berkas ini dilindungi kata sandi. Kata sandi:</translation>
         <translation type="unfinished">Tabel</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow_tables.cpp" line="-471"/>
+        <location filename="../apps/crunch/app/crunchwindow_tables.cpp" line="-487"/>
         <source>Change Table Size…</source>
         <translation type="unfinished">Ubah Ukuran Tabel…</translation>
     </message>
@@ -35603,7 +35611,7 @@ Berkas ini dilindungi kata sandi. Kata sandi:</translation>
         <translation type="unfinished">Pilih tampilan untuk setidaknya satu bagian tabel.</translation>
     </message>
     <message>
-        <location line="+49"/>
+        <location line="+65"/>
         <source>Insert Row Above</source>
         <translation type="unfinished">Sisipkan Baris di Atas</translation>
     </message>
@@ -43934,35 +43942,35 @@ Berkas tidak dapat dibaca.</translation>
         <translation type="unfinished">Sebagian sel yang ditempel tidak disertakan: sebuah sel paling banyak memuat %1 karakter.</translation>
     </message>
     <message>
-        <location line="+34"/>
+        <location line="+36"/>
         <source>The clipboard has no spreadsheet cells to paste.</source>
         <translation type="unfinished">Papan Klip tidak memiliki sel spreadsheet untuk ditempel.</translation>
     </message>
     <message>
-        <location line="+16"/>
+        <location line="+17"/>
         <source>Some of the pasted cells were left out: a pasted table has at most %1 rows and columns, and 4,000 characters in a cell.</source>
         <translation type="unfinished">Sebagian sel yang ditempel tidak disertakan: tabel yang ditempel memiliki maksimal %1 baris dan kolom, serta 4.000 karakter per sel.</translation>
     </message>
     <message>
-        <location line="-48"/>
-        <location line="+52"/>
+        <location line="-51"/>
+        <location line="+55"/>
         <source>Paste Cells</source>
         <translation type="unfinished">Tempel Sel</translation>
     </message>
     <message>
-        <location line="-44"/>
-        <location line="+48"/>
+        <location line="-47"/>
+        <location line="+51"/>
         <source>Some of the pasted cells did not fit in the table and were left out.</source>
         <translation type="unfinished">Sebagian sel yang ditempel tidak muat di tabel dan tidak disertakan.</translation>
     </message>
     <message>
-        <location line="-46"/>
-        <location line="+52"/>
+        <location line="-49"/>
+        <location line="+55"/>
         <source>Paste Table</source>
         <translation type="unfinished">Tempel Tabel</translation>
     </message>
     <message>
-        <location line="+38"/>
+        <location line="+46"/>
         <location line="+20"/>
         <source>Paste</source>
         <translation type="unfinished">Tempel</translation>
@@ -55347,7 +55355,7 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
 <context>
     <name>jp::Objects</name>
     <message>
-        <location filename="../libs/shell/app/objects.cpp" line="+207"/>
+        <location filename="../libs/shell/app/objects.cpp" line="+211"/>
         <source>The file can&apos;t be opened.</source>
         <translation type="unfinished">Berkas tidak dapat dibuka.</translation>
     </message>
@@ -63339,7 +63347,7 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
         <translation type="unfinished">JeffWrite selesai mencari dokumen. &quot;%1&quot; tidak ditemukan.</translation>
     </message>
     <message>
-        <location line="+54"/>
+        <location line="+68"/>
         <source>A section break, a field, or a note mark can be found but not replaced.</source>
         <translation type="unfinished">Pemisah bagian, bidang, atau tanda catatan dapat ditemukan tetapi tidak dapat diganti.</translation>
     </message>
@@ -63349,7 +63357,12 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
         <translation type="unfinished">Teks dalam kontrol konten yang tidak dapat diubah dapat ditemukan tetapi tidak dapat diganti.</translation>
     </message>
     <message>
-        <location line="+186"/>
+        <location line="+4"/>
+        <source>Text that is protected can be found but not replaced.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+192"/>
         <source>JeffWrite made no replacements. &quot;%1&quot; was not found.</source>
         <translation type="unfinished">JeffWrite tidak melakukan penggantian. &quot;%1&quot; tidak ditemukan.</translation>
     </message>
@@ -63374,6 +63387,16 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
         <translation type="unfinished">
             <numerusform>%n kecocokan berada dalam konten yang tidak dapat diubah.</numerusform>
         </translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Matches left as they are because the text is protected: %1.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Text in headers, footers, notes, and text boxes was left as it is.</source>
+        <translation type="unfinished"></translation>
     </message>
     <message numerus="yes">
         <location line="+1"/>
@@ -63887,7 +63910,7 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
 <context>
     <name>jp::WriteWindow</name>
     <message>
-        <location filename="../apps/write/app/writewindow.cpp" line="-797"/>
+        <location filename="../apps/write/app/writewindow.cpp" line="-803"/>
         <source>Document%1</source>
         <translation type="unfinished">Dokumen%1</translation>
     </message>
@@ -63918,7 +63941,7 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
         <translation type="unfinished">%1 (%2)</translation>
     </message>
     <message>
-        <location line="+138"/>
+        <location line="+144"/>
         <source> (Protected)</source>
         <translation type="unfinished"> (Dilindungi)</translation>
     </message>
@@ -64469,7 +64492,7 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
         <translation type="unfinished">Buka Catatan Kaki</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/writewindow_protect.cpp" line="+52"/>
+        <location filename="../apps/write/app/writewindow_protect.cpp" line="+79"/>
         <source>Checking the password…</source>
         <translation type="unfinished">Memeriksa kata sandi…</translation>
     </message>
@@ -65121,7 +65144,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
         <translation type="unfinished">Simpan Teks Saja</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/writewindow_controls.cpp" line="+28"/>
+        <location filename="../apps/write/app/writewindow_controls.cpp" line="+29"/>
         <location filename="../apps/write/app/writewindow_home.cpp" line="+1"/>
         <location line="+10"/>
         <source>Picture</source>
@@ -67570,7 +67593,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
         <translation type="unfinished">Simbol</translation>
     </message>
     <message>
-        <location line="+34"/>
+        <location line="+28"/>
         <source>The document has no style named &quot;%1&quot;, and it is not a built-in style, so the key changed nothing.</source>
         <translation type="unfinished">Dokumen tidak memiliki gaya bernama &quot;%1&quot;, dan itu bukan gaya bawaan, sehingga tombol tidak mengubah apa pun.</translation>
     </message>
@@ -69947,7 +69970,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+67"/>
+        <location line="+91"/>
         <location line="+2"/>
         <location line="+51"/>
         <source>Repeat</source>
@@ -71785,19 +71808,19 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
     </message>
     <message>
         <location line="+15"/>
-        <location line="+1377"/>
+        <location line="+1385"/>
         <location line="+21"/>
         <source>The pivot table would go past the edge of the sheet.</source>
         <translation type="unfinished">Tabel pivot akan melewati tepi lembar.</translation>
     </message>
     <message>
-        <location line="-1348"/>
-        <location line="+1388"/>
+        <location line="-1356"/>
+        <location line="+1396"/>
         <source>The pivot table would cover cells that have something in them (%1). Clear those cells, or move the pivot table, and try again.</source>
         <translation type="unfinished">Tabel pivot akan menimpa sel yang berisi sesuatu (%1). Kosongkan sel tersebut, atau pindahkan tabel pivot, lalu coba lagi.</translation>
     </message>
     <message>
-        <location line="-1372"/>
+        <location line="-1380"/>
         <source>The pivot table would be larger than JeffCrunch changes at once.</source>
         <translation type="unfinished">Tabel pivot akan lebih besar daripada perubahan yang dapat dilakukan JeffCrunch sekaligus.</translation>
     </message>
@@ -71926,7 +71949,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
     </message>
     <message>
         <location line="+50"/>
-        <location line="+127"/>
+        <location line="+135"/>
         <location line="+93"/>
         <location line="+147"/>
         <location line="+48"/>
@@ -71944,7 +71967,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
         <translation type="unfinished">Tidak ada tabel pivot di sini.</translation>
     </message>
     <message>
-        <location line="-1011"/>
+        <location line="-1019"/>
         <source>Refresh Pivot Table</source>
         <translation type="unfinished">Segarkan Tabel Pivot</translation>
     </message>
@@ -71979,12 +72002,13 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
         <translation type="unfinished">Detail %1</translation>
     </message>
     <message>
-        <location line="+42"/>
+        <location line="+9"/>
+        <location line="+39"/>
         <source>Show Details</source>
         <translation type="unfinished">Tampilkan Detail</translation>
     </message>
     <message>
-        <location line="+21"/>
+        <location line="+23"/>
         <source>This pivot table has no calculated fields or items.</source>
         <translation type="unfinished">Tabel pivot ini tidak memiliki bidang atau item terhitung.</translation>
     </message>
@@ -79314,7 +79338,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
         <location filename="../libs/office/office/package.cpp" line="+4"/>
         <location line="+7"/>
         <location filename="../libs/office/sheet/sheetcrypt.cpp" line="-1"/>
-        <location filename="../libs/office/sheet/sheetreader.cpp" line="-1541"/>
+        <location filename="../libs/office/sheet/sheetreader.cpp" line="-1581"/>
         <location filename="../apps/deck/io/presentationfile.cpp" line="-23"/>
         <location line="+28"/>
         <source>The file is larger than this program can open.</source>
@@ -80961,7 +80985,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
 <context>
     <name>jp::office::sheet::Workbook</name>
     <message>
-        <location filename="../libs/office/sheet/sheetreader.cpp" line="+688"/>
+        <location filename="../libs/office/sheet/sheetreader.cpp" line="+728"/>
         <source>Give the table style a name.</source>
         <translation type="unfinished">Beri nama gaya tabel.</translation>
     </message>
@@ -81147,10 +81171,29 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
         <translation type="unfinished">Dokumen tidak dapat dikemas.</translation>
     </message>
     <message>
-        <location filename="../libs/office/wml/wmlhtmlread.cpp" line="+355"/>
-        <location line="+95"/>
+        <location filename="../libs/office/wml/htmlguard.cpp" line="+1468"/>
+        <source>This web page has too many table rows or cells to open.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>This web page is too complicated to open.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
         <source>The web page is too large to open.</source>
         <translation type="unfinished">Halaman web terlalu besar untuk dibuka.</translation>
+    </message>
+    <message>
+        <location line="+51"/>
+        <source>The copied page was too large or too complicated to read, so its plain text was pasted.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>The copied page was too large or too complicated to read, so nothing was pasted.</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <location filename="../libs/office/wml/wmlfonts.cpp" line="+107"/>
@@ -85931,7 +85974,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
         <translation>Header</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/pageview.cpp" line="+272"/>
+        <location filename="../apps/write/app/pageview.cpp" line="+274"/>
         <source>Place in this document: %1</source>
         <translation type="unfinished">Tempatkan di dokumen ini: %1</translation>
     </message>
@@ -85967,24 +86010,24 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
         <translation type="unfinished">+%1 lagi</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/pageview_input.cpp" line="+141"/>
-        <location line="+576"/>
+        <location filename="../apps/write/app/pageview_input.cpp" line="+146"/>
+        <location line="+599"/>
         <source>Keep Source Formatting</source>
         <translation type="unfinished">Pertahankan Format Sumber</translation>
     </message>
     <message>
-        <location line="-468"/>
+        <location line="-491"/>
         <source>The Spike is full. Paste it to empty it.</source>
         <translation type="unfinished">Spike penuh. Tempel untuk mengosongkannya.</translation>
     </message>
     <message>
         <location line="-107"/>
-        <location line="+576"/>
+        <location line="+599"/>
         <source>Merge Formatting</source>
         <translation type="unfinished">Gabungkan Format</translation>
     </message>
     <message>
-        <location line="-617"/>
+        <location line="-640"/>
         <source>A table with changes tracked in it is copied as its words, not as a table. Accept or reject the changes to copy it as a table.</source>
         <translation type="unfinished">Tabel dengan perubahan yang dilacak disalin sebagai kata-katanya, bukan sebagai tabel. Terima atau tolak perubahan untuk menyalin sebagai tabel.</translation>
     </message>
@@ -86000,12 +86043,12 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
     </message>
     <message>
         <location line="+40"/>
-        <location line="+577"/>
+        <location line="+600"/>
         <source>Keep Text Only</source>
         <translation type="unfinished">Pertahankan Hanya Teks</translation>
     </message>
     <message>
-        <location line="-576"/>
+        <location line="-599"/>
         <source>Pasting within the same document</source>
         <translation type="unfinished">Menempel dalam dokumen yang sama</translation>
     </message>
@@ -86020,7 +86063,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
         <translation type="unfinished">Menempel dari program lain</translation>
     </message>
     <message>
-        <location line="+576"/>
+        <location line="+599"/>
         <location filename="../apps/write/app/writewindow_options.cpp" line="+11"/>
         <source>Continue List</source>
         <translation type="unfinished">Lanjutkan Daftar</translation>
@@ -86078,7 +86121,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
         <translation type="unfinished">Cara konten yang ditempel disimpan. Tekan tombol %1 setelah menempel untuk membukanya.</translation>
     </message>
     <message>
-        <location line="+44"/>
+        <location line="+53"/>
         <source>Typing</source>
         <translation type="unfinished">Pengetikan</translation>
     </message>
@@ -86098,7 +86141,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
         <translation type="unfinished">Opsi Tempel. Gunakan tombol panah dan Enter untuk memilih, atau Esc untuk keluar.</translation>
     </message>
     <message>
-        <location line="+138"/>
+        <location line="+142"/>
         <source>Overtype: typing replaces the letters after the caret. Press Insert to go back.</source>
         <translation type="unfinished">Timpa: mengetik menggantikan huruf setelah kursor. Tekan Insert untuk kembali.</translation>
     </message>
@@ -86108,12 +86151,12 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
         <translation type="unfinished">Sisip: mengetik mendorong huruf setelah kursor ke depan.</translation>
     </message>
     <message>
-        <location line="+73"/>
+        <location line="+79"/>
         <source>A text box can be followed only by a text box that has no words and is in no chain yet.</source>
         <translation type="unfinished">Kotak teks hanya dapat diikuti kotak teks lain yang tidak berisi kata dan belum berada dalam rantai.</translation>
     </message>
     <message>
-        <location line="+422"/>
+        <location line="+423"/>
         <source>Drop the table between paragraphs, not inside a table.</source>
         <translation type="unfinished">Letakkan tabel di antara paragraf, bukan di dalam tabel.</translation>
     </message>
@@ -86138,7 +86181,13 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
         <translation type="unfinished">Berkas</translation>
     </message>
     <message>
-        <location line="+80"/>
+        <location line="+165"/>
+        <location line="+12"/>
+        <source>What you typed doesn&apos;t fit this field&apos;s format.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+140"/>
         <source>JeffWrite opens links to web addresses, email addresses, and documents or pictures on this computer only.</source>
         <translation type="unfinished">JeffWrite hanya membuka tautan ke alamat web, alamat email, serta dokumen atau gambar di komputer ini.</translation>
     </message>
@@ -86203,7 +86252,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
         <translation type="unfinished">Tidak ada kelompok untuk dikembalikan. Kelompokkan Ulang bekerja setelah Pisahkan Kelompok, selama objeknya masih ada.</translation>
     </message>
     <message>
-        <location line="+1029"/>
+        <location line="+1036"/>
         <source>This text box holds too many paragraphs to be typed in here.</source>
         <translation type="unfinished">Kotak teks ini memuat terlalu banyak paragraf untuk diketik di sini.</translation>
     </message>
@@ -86308,7 +86357,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
 <context>
     <name>jp::write::Pictures</name>
     <message>
-        <location filename="../apps/write/app/pageview_pictures.cpp" line="-403"/>
+        <location filename="../apps/write/app/pageview_pictures.cpp" line="-410"/>
         <location line="+37"/>
         <source>That is not a picture JeffWrite can read.</source>
         <translation type="unfinished">Itu bukan gambar yang dapat dibaca JeffWrite.</translation>
@@ -86322,12 +86371,12 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
         <location line="+1"/>
         <location line="+36"/>
         <location line="+19"/>
-        <location line="+224"/>
+        <location line="+231"/>
         <source>That picture is too large to put in a document.</source>
         <translation type="unfinished">Gambar itu terlalu besar untuk dimasukkan ke dalam dokumen.</translation>
     </message>
     <message>
-        <location line="-261"/>
+        <location line="-268"/>
         <source>That is not a barcode JeffWrite can draw.</source>
         <translation type="unfinished">Itu bukan kode batang yang dapat digambar JeffWrite.</translation>
     </message>
@@ -86337,7 +86386,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
         <translation type="unfinished">Tidak ada gambar di papan klip yang dapat dibaca JeffWrite.</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/pageview_input.cpp" line="-455"/>
+        <location filename="../apps/write/app/pageview_input.cpp" line="-692"/>
         <location filename="../apps/write/app/pageview_pictures.cpp" line="+18"/>
         <location filename="../apps/write/core/pictureops.cpp" line="+2261"/>
         <source>That shape can&apos;t be put here.</source>
@@ -86376,7 +86425,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
         <translation type="unfinished">Bagan tidak dapat disisipkan di sini.</translation>
     </message>
     <message>
-        <location line="+112"/>
+        <location line="+119"/>
         <source>%1 can&apos;t be opened as a picture.</source>
         <translation type="unfinished">%1 tidak dapat dibuka sebagai gambar.</translation>
     </message>
@@ -86906,7 +86955,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
         <translation type="unfinished">Pemeriksaan ejaan dan tata bahasa selesai.</translation>
     </message>
     <message numerus="yes">
-        <location line="+95"/>
+        <location line="+96"/>
         <source>%n word changed.</source>
         <translation type="unfinished">
             <numerusform>%n kata diubah.</numerusform>
@@ -87445,7 +87494,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
         <translation type="unfinished">Baris yang selnya tidak berada di kolom yang sama tidak dapat diurutkan.</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/pageview_input.cpp" line="-1020"/>
+        <location filename="../apps/write/app/pageview_input.cpp" line="-1047"/>
         <location filename="../apps/write/core/homeops.cpp" line="-62"/>
         <location line="+35"/>
         <source>To paste cells as new columns, click in a table that has room for them.</source>

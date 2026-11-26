@@ -61,7 +61,7 @@
 <context>
     <name>Import</name>
     <message numerus="yes">
-        <location filename="../apps/pub/io/importers.cpp" line="+646"/>
+        <location filename="../apps/pub/io/importers.cpp" line="+657"/>
         <source>Created %n email file(s) in %1.</source>
         <translation>
             <numerusform>Created %n email file in %1.</numerusform>
@@ -284,7 +284,7 @@
         </translation>
     </message>
     <message numerus="yes">
-        <location filename="../libs/office/sheet/xlssave.cpp" line="+777"/>
+        <location filename="../libs/office/sheet/xlssave.cpp" line="+779"/>
         <source>%n note(s) outside the old format&apos;s sheet size (past row 65,536 or column IV), which were left out</source>
         <translation>
             <numerusform>%n note is outside the old format&apos;s sheet size (past row 65,536 or column IV) and was left out.</numerusform>
@@ -717,7 +717,7 @@
 <context>
     <name>jp::OnlinePicturesPane</name>
     <message numerus="yes">
-        <location filename="../libs/page/app/onlinepictures.cpp" line="+311"/>
+        <location filename="../libs/page/app/onlinepictures.cpp" line="+318"/>
         <source>%n picture(s) found. Choose one to see its license.</source>
         <translation>
             <numerusform>%n picture found. Choose it to see its license.</numerusform>
@@ -781,7 +781,7 @@
 <context>
     <name>jp::WriteFindPane</name>
     <message numerus="yes">
-        <location filename="../apps/write/app/writefindpane.cpp" line="+1428"/>
+        <location filename="../apps/write/app/writefindpane.cpp" line="+1453"/>
         <source>%n match is in content that can&apos;t be changed.</source>
         <translation>
             <numerusform>%n match is in content that can&apos;t be changed.</numerusform>
@@ -789,7 +789,7 @@
         </translation>
     </message>
     <message numerus="yes">
-        <location line="+1"/>
+        <location line="+3"/>
         <source>%n text box was too large to change.</source>
         <translation>
             <numerusform>%n text box was too large to change.</numerusform>
@@ -800,7 +800,7 @@
 <context>
     <name>jp::WriteWindow</name>
     <message numerus="yes">
-        <location filename="../apps/write/app/writewindow.cpp" line="+865"/>
+        <location filename="../apps/write/app/writewindow.cpp" line="+871"/>
         <source>%1 of %n word(s)</source>
         <translation>
             <numerusform>%1 of %n word</numerusform>
@@ -955,7 +955,7 @@
         </translation>
     </message>
     <message numerus="yes">
-        <location filename="../apps/crunch/core/editpivot.cpp" line="+1307"/>
+        <location filename="../apps/crunch/core/editpivot.cpp" line="+1315"/>
         <source>%n pivot table(s) were not read again when the file opened: there is too much data. Use Refresh All.</source>
         <translation>
             <numerusform>%n pivot table was not read again when the file opened: there is too much data. Use Refresh All.</numerusform>
@@ -1170,7 +1170,7 @@
 <context>
     <name>jp::write::SpellPane</name>
     <message numerus="yes">
-        <location filename="../apps/write/app/spellpane.cpp" line="+698"/>
+        <location filename="../apps/write/app/spellpane.cpp" line="+699"/>
         <source>%n word changed.</source>
         <translation>
             <numerusform>%n word changed.</numerusform>
