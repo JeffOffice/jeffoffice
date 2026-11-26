@@ -702,7 +702,7 @@ std::optional<jp::office::sheet::RichText> EditSession::richOf(int sheet, quint3
 {
     using namespace jp::office::sheet;
     if (!m_book || !m_book->calc || !m_book->book || sheet < 0 || sheet >= m_book->calc->sheetCount()) return std::nullopt;
-    const Calculation::CellContent c = m_book->calc->content(sheet, row, col);
+    const Calculation::CellContent c = m_book->calc->content(sheet, row, col, false);
     if (!c.exists || c.isFormula || !c.value.isText()) return std::nullopt;
     const quint64 key = markOf(sheet, row, col);
     if (key != kNoKey) {
@@ -743,7 +743,7 @@ EditSession::Outcome EditSession::setRichText(int sheet, quint32 row, quint32 co
     };
     QString why;
     if (!canEdit(&why) || !canEditCell(sheet, row, col, &why)) return refuse(why);
-    const jp::office::sheet::Calculation::CellContent c = m_book->calc->content(sheet, row, col);
+    const jp::office::sheet::Calculation::CellContent c = m_book->calc->content(sheet, row, col, false);
     const bool want = !rich.isEmpty();
     if (want && (!c.exists || c.isFormula || !c.value.isText() || c.value.text() != rich.text)) return refuse(tr("Formatting inside a text needs a cell that holds text, not a number or a formula."));
     if (rich.runs.size() > 10000 || rich.fonts.size() > 10000) return refuse(tr("The text has more formatting inside it than JeffCrunch keeps."));

@@ -60,7 +60,7 @@ QString EditSession::searchText(int sheet, quint32 row, quint32 col) const
     case CellType::FormulaString: return s.texts.value(c->textIndex());
     default: break;
     }
-    const Calculation::CellContent content = m_book->calc->content(sheet, row, col);
+    const Calculation::CellContent content = m_book->calc->content(sheet, row, col, false);
     const QString code = m_book->book->styles().formatCode(content.style, m_locale);
     return editTextOfValue(content.value, code, entryOptions(sheet, code == QLatin1String("@")));
 }
@@ -137,7 +137,7 @@ bool EditSession::prepareReplace(ReplacePlan &plan, qint64 budget)
         if (n == 0) continue;
         // (a text constant stays a text where the new text begins with a mark that would make it a formula or an apostrophe-led text when typed)
         if (plainText && (now.startsWith(QLatin1Char('=')) || now.startsWith(QLatin1Char('\''))) ) now.prepend(QLatin1Char('\''));
-        const Calculation::CellContent before = calc->content(spot.sheet, spot.row, spot.col);
+        const Calculation::CellContent before = calc->content(spot.sheet, spot.row, spot.col, false);
         if (!before.exists) continue;
         if (!before.editable) {
             plan.problem = tr("%1 is part of an array or a data table, so it can't be changed one cell at a time. Nothing was replaced.").arg(where);
@@ -272,7 +272,7 @@ namespace jp::crunch {
 bool EditSession::cellFormatMatches(int sheet, quint32 row, quint32 col, const FormatChange &want) const
 {
     if (!m_book || !m_book->calc || !m_book->book || sheet < 0 || sheet >= m_book->calc->sheetCount()) return false;
-    return formatMatches(m_book->book->styles(), m_book->calc->content(sheet, row, col).style, want);
+    return formatMatches(m_book->book->styles(), m_book->calc->content(sheet, row, col, false).style, want);
 }
 
 } // namespace jp::crunch

@@ -398,7 +398,7 @@ SpecialResult goToSpecial(const EditSession &session, int sheet, const CellRange
         qint64 looked = 0;
         // the cell with the cursor in a row (a column) is read once for the row (the column), and the others are held up to it
         auto differs = [&](const Calculation::CellContent &base, const Value &baseValue, quint32 baseRow, quint32 baseCol, quint32 row, quint32 col) {
-            const Calculation::CellContent b = calc->content(sheet, row, col);
+            const Calculation::CellContent b = calc->content(sheet, row, col, false);
             if (base.isFormula != b.isFormula) return true;
             if (base.isFormula) return shiftFormula(base.formula, int(row) - int(baseRow), int(col) - int(baseCol)) != b.formula;
             return !(baseValue == session.valueAt(sheet, row, col));

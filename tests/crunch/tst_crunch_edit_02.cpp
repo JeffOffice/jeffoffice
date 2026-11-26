@@ -1285,6 +1285,34 @@ void CrunchEditTests::theFormulaBarReadsNoNodeOfTheWorker()
     }
 }
 
+// What the window's thread asks of a cell to show it or to say if it may be changed (the text to edit, the format, whether it can be edited, whether a selection has data) is the cell and the
+// text of its formula: it looks at no node, which is the worker's while it works. Fails when one of them asks for the whole content of a cell (the count of looks at a node moves), on and off.
+void CrunchEditTests::theWindowsQuestionsAboutACellReadNoNodeOfTheWorker()
+{
+    for (const bool index : {true, false}) {
+        SpillIndexSwitch sw(index);
+        EditWindow e;
+        QVERIFY(e.openBlank());
+        EditSession *s = e.win.w.session();
+        e.select(QStringLiteral("A1"));
+        e.enter(QStringLiteral("3"));
+        e.select(QStringLiteral("B1"));
+        e.enter(QStringLiteral("=SEQUENCE(A1)"));
+        e.select(QStringLiteral("C1"));
+        e.enter(QStringLiteral("=A1+1"));
+        QVERIFY(e.settle());
+        const Calculation *calc = s->calculation();
+        const qint64 before = calc->contentNodeReads();
+        QCOMPARE(s->editText(0, 0, 2), QStringLiteral("=A1+1"));
+        QCOMPARE(s->editText(0, 2, 1), QStringLiteral("=SEQUENCE(A1)"));
+        QVERIFY(!s->formatCodeOf(0, 0, 2).isEmpty());
+        QString why;
+        QVERIFY(s->canEditCell(0, 0, 2, &why));
+        QVERIFY(s->quickHasData(0, CellRange{0, 0, 0, 2, true}));
+        QCOMPARE(calc->contentNodeReads(), before);
+    }
+}
+
 // A slice's blocks are staged by the worker and read by the window only when the batch of values sent after them is taken: between the two the window reads the block it had, with the values it has. Nothing
 // here lets the window's event loop run until the checks are made (the batch waits in its queue). Fails when staging makes the copy the one the window reads at once (the window reads B1:B5 with the
 // values of B1:B3).

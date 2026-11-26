@@ -42,7 +42,7 @@ bool EditSession::cellsHoldData(int sheet, const CellRange &range) const { retur
 CellChange EditSession::dataCell(int sheet, quint32 row, quint32 col, const DataCell &cell, char kind)
 {
     if (cell.kind == 0 && cell.text.isEmpty()) {
-        const Calculation::CellContent before = m_book->calc->content(sheet, row, col);
+        const Calculation::CellContent before = m_book->calc->content(sheet, row, col, false);
         return before.exists ? clearedCell(sheet, row, col) : textCell(sheet, row, col, QString());
     }
     if (kind == 'n') {
@@ -216,7 +216,7 @@ EditSession::Outcome EditSession::refreshDataTable(int table, const DataRows &da
     // (rows the table had and the file has no more of)
     for (quint32 rr = now.row2 + 1; rr <= was.row2; ++rr)
         for (quint32 cc = was.col1; cc <= was.col2; ++cc) {
-            const Calculation::CellContent before = m_book->calc->content(was.sheet, rr, cc);
+            const Calculation::CellContent before = m_book->calc->content(was.sheet, rr, cc, false);
             if (before.exists) step.cells.push_back(clearedCell(was.sheet, rr, cc));
         }
     // (the rows the table gained take the formulas of the columns the person added, as a table that grows does)

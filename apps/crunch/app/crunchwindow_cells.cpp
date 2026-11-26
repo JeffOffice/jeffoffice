@@ -386,7 +386,7 @@ void CrunchWindow::showChoices()
             for (const int step : {-1, 1}) {
                 qint64 r = qint64(row) + step;
                 for (int looked = 0; looked < 100000 && r >= 0 && r < jp::calc::kGridRows; ++looked, r += step) {
-                    const jp::office::sheet::Calculation::CellContent c = calc->content(m_sheet, quint32(r), col);
+                    const jp::office::sheet::Calculation::CellContent c = calc->content(m_sheet, quint32(r), col, false);
                     if (!c.exists || c.value.isEmpty()) break;
                     if (c.value.isText() && !seen.contains(c.value.text())) {
                         seen.insert(c.value.text());

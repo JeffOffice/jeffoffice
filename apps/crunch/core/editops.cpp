@@ -51,7 +51,7 @@ EditSession::AutoSumResult EditSession::autoSum(int sheet, const CellRange &sel,
         return out;
     }
     auto isNumber = [&](quint32 r, quint32 c) { return valueAt(sheet, r, c).isNumber(); };
-    auto isEmptyCell = [&](quint32 r, quint32 c) { return valueAt(sheet, r, c).isEmpty() && !m_book->calc->content(sheet, r, c).isFormula; };
+    auto isEmptyCell = [&](quint32 r, quint32 c) { return valueAt(sheet, r, c).isEmpty() && !m_book->calc->content(sheet, r, c, false).isFormula; };
     // the end of the data of a sheet that is selected whole is the end of the cells
     quint32 usedRows = 0, usedCols = 0;
     {
@@ -665,7 +665,7 @@ EditSession::Outcome EditSession::justify(int sheet, const CellRange &range, dou
     }
     QStringList words;
     for (quint32 r = range.row1; r <= range.row2; ++r) {
-        const Calculation::CellContent c = calc->content(sheet, r, col);
+        const Calculation::CellContent c = calc->content(sheet, r, col, false);
         if (!c.exists || (c.value.isEmpty() && !c.isFormula)) continue;
         if (c.isFormula || !c.value.isText()) {
             out.ok = false;

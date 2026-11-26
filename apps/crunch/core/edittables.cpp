@@ -339,7 +339,7 @@ EditSession::Outcome EditSession::makeTable(int sheet, const CellRange &range, b
     for (quint32 i = 0; i < columns; ++i) {
         QString name;
         if (hasHeaders) {
-            const Calculation::CellContent c = m_book->calc->content(sheet, r.row1, r.col1 + i);
+            const Calculation::CellContent c = m_book->calc->content(sheet, r.row1, r.col1 + i, false);
             QString shown;
             if (c.exists && (c.isFormula || !c.value.isEmpty())) shown = displayText(sheet, r.row1, r.col1 + i);
             name = shown.trimmed();
@@ -734,7 +734,7 @@ EditSession::Outcome EditSession::setTableTotalsRow(int table, bool on)
         step.cells.push_back(formulaCell(t.sheet, after.row2, t.col2, totalsFormulaOf(after, last)));
     } else {
         for (int i = 0; i < t.columns.size(); ++i) {
-            const Calculation::CellContent c = m_book->calc->content(t.sheet, t.row2, t.col1 + quint32(i));
+            const Calculation::CellContent c = m_book->calc->content(t.sheet, t.row2, t.col1 + quint32(i), false);
             if (c.exists && (c.isFormula || !c.value.isEmpty())) step.cells.push_back(clearedCell(t.sheet, t.row2, t.col1 + quint32(i)));
         }
         after.row2 = t.row2 - 1;
@@ -1108,7 +1108,7 @@ void EditSession::growTableAfterEntry(int sheet, quint32 row, quint32 col, const
             if (c == col) continue;
             const QString formula = calculatedFormulaFor(after, i, after.row2);
             if (formula.isEmpty()) continue;
-            const Calculation::CellContent now = m_book->calc->content(sheet, after.row2, c);
+            const Calculation::CellContent now = m_book->calc->content(sheet, after.row2, c, false);
             if (now.exists && (now.isFormula || !now.value.isEmpty())) continue;
             step.cells.push_back(formulaCell(sheet, after.row2, c, formula));
         }
@@ -1130,7 +1130,7 @@ void EditSession::growTableAfterEntry(int sheet, quint32 row, quint32 col, const
         const QString unique = uniqueColumnName(name, t.columns + QStringList(QString()), int(t.columns.size()));
         name = unique.isEmpty() ? freshColumnName(t.columns, int(t.columns.size()) + 1) : unique;
         if (t.headerRows > 0) {
-            const Calculation::CellContent head = m_book->calc->content(sheet, t.row1, newCol);
+            const Calculation::CellContent head = m_book->calc->content(sheet, t.row1, newCol, false);
             const bool isName = head.exists && !head.isFormula && head.value.isText() && head.value.text() == name;
             if (!isName) step.cells.push_back(textCell(sheet, t.row1, newCol, name));
         }
@@ -1170,7 +1170,7 @@ void EditSession::calculatedColumnAfterEntry(int sheet, quint32 row, quint32 col
     m_book->calc->sheet(sheet).cells.forEachInRange(firstRow, col, lastRow, col, [&](quint32 cellRow, quint32, const Cell &c) {
         if (cellRow == row) return true;
         if (!c.hasFormula() && c.type == CellType::Empty) return true;
-        const Calculation::CellContent now = m_book->calc->content(sheet, cellRow, col);
+        const Calculation::CellContent now = m_book->calc->content(sheet, cellRow, col, false);
         const bool old = !was.isEmpty() && now.isFormula && now.formula == shiftFormula(was, int(qint64(cellRow) - qint64(firstRow)), 0);
         if (!old) {
             consistent = false;

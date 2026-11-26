@@ -69,7 +69,7 @@ EditSession::Outcome EditSession::flashFill(int sheet, quint32 row, quint32 col,
     QVector<quint32> exampleRows;
     QVector<quint32> empty;
     for (quint32 r = first; r <= last; ++r) {
-        const Calculation::CellContent c = calc->content(sheet, r, col);
+        const Calculation::CellContent c = calc->content(sheet, r, col, false);
         if (c.exists && (c.isFormula || (!c.value.isEmpty() && !c.value.isText() && !c.value.isNumber()))) continue;
         if (!c.exists || c.value.isEmpty()) {
             empty << r;

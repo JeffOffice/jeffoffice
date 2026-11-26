@@ -95,7 +95,7 @@ EditSession::Outcome EditSession::restyle(int sheet, const std::vector<RestyleTa
         std::map<std::pair<quint32, const FormatChange *>, quint32> made;
         step.styles.reserve(targets.size());
         for (const RestyleTarget &t : targets) {
-            const Calculation::CellContent before = calc->content(sheet, t.row, t.col);
+            const Calculation::CellContent before = calc->content(sheet, t.row, t.col, false);
             const quint32 base = before.exists ? before.style : implicitStyles.at(t.row, t.col);
             if (QString notAllowed; !allows(sheet, Allow::FormatCells, &notAllowed)) {
                 out.ok = false;
@@ -823,7 +823,7 @@ EditSession::Outcome EditSession::newCellStyle(int sheet, quint32 row, quint32 c
         jp::office::sheet::BuiltinStyle def;
         if (jp::office::sheet::builtinStyle(trimmed, &def)) taken = true;   // (a name of the built-in styles is theirs, whether or not the workbook has it yet)
         if (!taken) {
-            fromFormat = m_book->calc->content(sheet, row, col).style;
+            fromFormat = m_book->calc->content(sheet, row, col, false).style;
             place = m_book->book->addNamedStyle(trimmed, fromFormat);
         }
     }
@@ -881,7 +881,7 @@ EditSession::Outcome EditSession::deleteCellStyle(const QString &name)
             Run open{sheet, CellRange()};
             quint32 openRow = 0;
             model.cells.forEachInRange(0, 0, lastRow, lastCol, [&](quint32 row, quint32 col, const jp::office::sheet::Cell &) {
-                const quint32 style = m_book->calc->content(sheet, row, col).style;
+                const quint32 style = m_book->calc->content(sheet, row, col, false).style;
                 if (styles.format(style).xfId != quint32(place)) return true;
                 if (open.range.valid && openRow == row && open.range.col2 + 1 == col) {
                     open.range.col2 = col;
@@ -1277,7 +1277,7 @@ bool EditSession::followersOf(const std::vector<StyleChange> &styles, FollowPlan
         bool tooMany = false;
         if (model.extentRows > 0 && model.extentCols > 0)
             model.cells.forEachInRange(0, 0, model.extentRows - 1, model.extentCols - 1, [&](quint32 row, quint32 col, const jp::office::sheet::Cell &) {
-                if (const auto c = changeFor(calc.content(sheet, row, col).style)) {
+                if (const auto c = changeFor(calc.content(sheet, row, col, false).style)) {
                     one.targets.push_back({row, col, c.get()});
                     tooMany = ++total > kMaxStyledCells;
                 }
@@ -1657,7 +1657,7 @@ EditSession::Outcome EditSession::removeLinksAndLook(int sheet, const CellRange 
                 if (!r.valid) continue;
                 bool tooMany = false;
                 model.cells.forEachInRange(r.row1, r.col1, r.row2, r.col2, [&](quint32 row, quint32 col, const jp::office::sheet::Cell &) {
-                    const quint32 format = m_book->calc->content(sheet, row, col).style;
+                    const quint32 format = m_book->calc->content(sheet, row, col, false).style;
                     if (styles.format(format).xfId != quint32(link)) return true;
                     targets.push_back({row, col, changeFor(format).get()});
                     tooMany = ++count > kMaxStyledCells;

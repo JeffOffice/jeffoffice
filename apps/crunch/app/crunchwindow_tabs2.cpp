@@ -1080,7 +1080,7 @@ QString CrunchWindow::textToTranslate() const
     quint32 lastRow = 0;
     bool first = true;
     for (const auto &rc : cells) {
-        const jp::office::sheet::Calculation::CellContent c = calc->content(m_sheet, rc.first, rc.second);
+        const jp::office::sheet::Calculation::CellContent c = calc->content(m_sheet, rc.first, rc.second, false);
         if (!c.exists || !c.value.isText() || c.value.text().isEmpty()) continue;
         text += first ? QString() : (rc.first != lastRow ? QStringLiteral("\n") : QStringLiteral(" "));
         text += c.value.text();

@@ -16,7 +16,7 @@ std::vector<CellRange> invalidCells(const Calculation &calc, int sheet, bool *tr
         if (full || (c.type == CellType::Empty && !c.hasFormula())) return;
         const Validation *rule = calc.validationAt(sheet, row, col);
         if (!rule || rule->type == Validation::Type::Any) return;
-        const Calculation::CellContent content = calc.content(sheet, row, col);
+        const Calculation::CellContent content = calc.content(sheet, row, col, false);
         if (!content.exists || content.value.isEmpty()) return;
         if (calc.entryAllowed(sheet, row, col, *rule, content.value, QString())) return;
         if (out.size() >= kMaxInvalidCells) {

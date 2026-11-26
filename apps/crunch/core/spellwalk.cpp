@@ -40,7 +40,7 @@ bool spellableText(const EditSession &session, int sheet, quint32 row, quint32 c
 {
     const jp::office::sheet::Calculation *calc = session.calculation();
     if (!calc || sheet < 0 || sheet >= calc->sheetCount()) return false;
-    const jp::office::sheet::Calculation::CellContent c = calc->content(sheet, row, col);
+    const jp::office::sheet::Calculation::CellContent c = calc->content(sheet, row, col, false);
     if (!c.exists || c.isFormula || !c.value.isText() || c.value.text().isEmpty()) return false;
     if (text) *text = c.value.text();
     if (language || noProof) {

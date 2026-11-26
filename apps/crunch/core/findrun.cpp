@@ -114,7 +114,7 @@ qint64 FindRun::look(int sheet, quint32 row, quint32 col, const std::map<quint64
     qint64 formatWork = 0;
     if (m_formatMatcher) {
         const qint64 resolved = m_formatMatcher->resolutions();
-        const bool alike = m_formatMatcher->matches(m_session->calculation()->content(sheet, row, col).style);
+        const bool alike = m_formatMatcher->matches(m_session->calculation()->content(sheet, row, col, false).style);
         formatWork = (m_formatMatcher->resolutions() - resolved) * kFormatResolutionWork;
         if (!alike) return 1 + formatWork;
     }

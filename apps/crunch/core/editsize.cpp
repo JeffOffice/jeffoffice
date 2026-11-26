@@ -301,7 +301,7 @@ EditSession::Outcome EditSession::autoOutline(int sheet, AutoOutlineReport *repo
             sh.cells.forEachInRange(0, 0, lastRow - 1, lastCol - 1, [&](quint32 row, quint32 col, const Cell &cell) {
                 if (!cell.hasFormula()) return true;
                 ++rep.cellsRead;
-                const Calculation::CellContent content = calc->content(sheet, row, col);
+                const Calculation::CellContent content = calc->content(sheet, row, col, false);
                 if (!content.isFormula) return true;
                 if (++seen > maxFormulas) {
                     tooMany = true;

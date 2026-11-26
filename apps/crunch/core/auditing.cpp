@@ -73,7 +73,7 @@ std::vector<TraceBlock> cellsRead(const jp::office::sheet::Calculation &calc, in
     std::vector<TraceBlock> out;
     if (truncated) *truncated = false;
     if (sheet < 0 || sheet >= calc.sheetCount()) return out;
-    const jp::office::sheet::Calculation::CellContent c = calc.content(sheet, row, col);
+    const jp::office::sheet::Calculation::CellContent c = calc.content(sheet, row, col, false);
     if (!c.exists || !c.isFormula || c.formula.isEmpty()) return out;
     Walk w{calc, &out};
     w.formula(c.formula, sheet, false, 0);

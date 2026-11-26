@@ -849,7 +849,7 @@ void EditSession::fillPivotSource(PivotSource *ps, int sheet, const CellRange &r
     };
     // (the format of the first cell of data of each column is the field's)
     for (quint32 c = range.col1; c <= range.col2; ++c) {
-        const Calculation::CellContent first = m_book->calc->content(sheet, range.row1 + 1, c);
+        const Calculation::CellContent first = m_book->calc->content(sheet, range.row1 + 1, c, false);
         ps->numFmtIds.append(first.exists ? int(book.styles().numFmtId(first.style)) : 0);
         if (range.col2 - range.col1 > quint32(kPivotMaxFields)) break;
     }

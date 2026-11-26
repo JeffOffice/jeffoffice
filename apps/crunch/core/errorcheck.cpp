@@ -206,7 +206,7 @@ private:
 // The two rules that read what a formula refers to. Adds what it finds (at most one of each rule) to `found`. `work` counts the references looked at.
 void referenceProblems(const EditSession &session, const Calculation *calc, int sheet, quint32 row, quint32 col, quint32 rules, qint64 *work, std::vector<FormulaProblem> *found)
 {
-    const Calculation::CellContent content = calc->content(sheet, row, col);
+    const Calculation::CellContent content = calc->content(sheet, row, col, false);
     if (!content.isFormula) return;
     const QString text = content.formula.startsWith(QLatin1Char('=')) ? content.formula.mid(1) : content.formula;
     const std::vector<FormulaRef> refs = findReferences(text);
@@ -272,7 +272,7 @@ const QString &InconsistentScan::keyAt(qint64 row, qint64 col)
     const std::optional<Cell> cell = m_calc->sheet(m_sheet).cells.find(quint32(row), quint32(col));
     QString key;
     if (cell && cell->hasFormula() && !(cell->flags & ArrayMember)) {
-        const Calculation::CellContent content = m_calc->content(m_sheet, quint32(row), quint32(col));
+        const Calculation::CellContent content = m_calc->content(m_sheet, quint32(row), quint32(col), false);
         if (content.isFormula) key = relativeKey(content.formula, quint32(row), quint32(col));
     }
     return m_keys.emplace(id, key).first->second;

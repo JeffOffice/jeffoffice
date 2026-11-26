@@ -329,7 +329,7 @@ EditSession::Outcome EditSession::updateExternalValues(int index, const QString 
                 cut = true;
                 return;
             }
-            const QString formula = hold->calculation()->content(sheet, row, col).formula;
+            const QString formula = hold->calculation()->content(sheet, row, col, false).formula;
             const bool numbered = readsAnotherWorkbook(formula);
             if (!numbered || readsAnotherWorkbook(formula, index)) places.push_back({sheet, row, col, formula});
         });

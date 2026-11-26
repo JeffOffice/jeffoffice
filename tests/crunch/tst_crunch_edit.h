@@ -177,6 +177,7 @@ private Q_SLOTS:
     void aLoadedSpillThatTurnsToAnErrorIsLetGoOfWhileTheWindowReadsItsCells();
     void theWindowReadsTheBlocksOfTheBatchItTook();
     void theFormulaBarReadsNoNodeOfTheWorker();
+    void theWindowsQuestionsAboutACellReadNoNodeOfTheWorker();
     void aBlockOfASliceIsNotReadUntilItsBatchIsTaken();
     void aTableMadeAgainUnderAHoldIsPublishedOnce();
     void aBlockIsReadBesideTheWorkerThatChangesIt();

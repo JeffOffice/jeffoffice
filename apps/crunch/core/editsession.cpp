@@ -532,7 +532,7 @@ bool EditSession::canEditCell(int sheet, quint32 row, quint32 col, QString *why,
     };
     if (!canEditSheet(sheet, why)) return false;
     if (row >= kMaxRows || col >= kMaxColumns) return refuse(tr("That cell is outside the sheet."));
-    const Calculation::CellContent c = m_book->calc->content(sheet, row, col);
+    const Calculation::CellContent c = m_book->calc->content(sheet, row, col, false);
     if (!c.editable && !(ofArray && m_book->calc->arrayRangeAt(sheet, row, col).valid)) return refuse(tr("You can't change part of an array or a data table."));
     // (a cell that holds nothing has its row's or its column's format, and so its lock)
     if (isLocked(sheet, c.exists ? c.style : implicitStyle(sheet, row, col), row, col)) return refuse(lockedMessage());
@@ -586,7 +586,7 @@ QString EditSession::lockedMessage() const
 QString EditSession::formatCodeOf(int sheet, quint32 row, quint32 col) const
 {
     if (!m_book || !m_book->calc || !m_book->book) return QStringLiteral("General");
-    const Calculation::CellContent c = m_book->calc->content(sheet, row, col);
+    const Calculation::CellContent c = m_book->calc->content(sheet, row, col, false);
     return m_book->book->styles().formatCode(c.style, m_locale);
 }
 
@@ -641,7 +641,7 @@ QString EditSession::shownFormula(const Calculation::CellContent &c) const
 QString EditSession::editText(int sheet, quint32 row, quint32 col) const
 {
     if (!m_book || !m_book->calc) return {};
-    const Calculation::CellContent c = m_book->calc->content(sheet, row, col);
+    const Calculation::CellContent c = m_book->calc->content(sheet, row, col, false);
     if (!c.exists) return {};
     if (c.spilled) {
         // (a cell a spill fills is edited as the formula that fills it, as the formula bar shows it; what is entered unchanged makes no change: see typedChange)
@@ -654,7 +654,7 @@ QString EditSession::editText(int sheet, quint32 row, quint32 col) const
         // (a cell of an array that is not its first is edited as the array's formula, as the formula bar shows it)
         const CellRange whole = m_book->calc->arrayRangeAt(sheet, row, col);
         if (whole.valid && (whole.row1 != row || whole.col1 != col)) {
-            const Calculation::CellContent head = m_book->calc->content(sheet, whole.row1, whole.col1);
+            const Calculation::CellContent head = m_book->calc->content(sheet, whole.row1, whole.col1, false);
             if (head.isFormula) {
                 if (formulaHidden(sheet, head.style) || formulaHidden(sheet, c.style)) return {};
                 return QLatin1Char('=') + formulaToLocale(jp::grid::displayFormula(shownFormula(head)), formulaLocale());
@@ -1365,7 +1365,7 @@ bool EditSession::apply(Step *step, bool forward)
                     calc->setFormula(f.sheet, row, f.col, shiftFormula(f.oldFormula, int(qint64(row) - qint64(f.oldBase)), 0), Calculation::Marking::Later);
                     formulas.push_back(it);
                 } else {
-                    const quint32 style = calc->content(f.sheet, row, f.col).style;
+                    const quint32 style = calc->content(f.sheet, row, f.col, false).style;
                     calc->setValue(f.sheet, row, f.col, Value(), Calculation::Marking::Later);
                     calc->setStyle(f.sheet, row, f.col, style);
                 }

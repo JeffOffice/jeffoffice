@@ -24,7 +24,7 @@ const WorkbookProtection &EditSession::workbookProtection() const
 bool EditSession::cellIsLocked(int sheet, quint32 row, quint32 col) const
 {
     if (!m_book || !m_book->calc || !m_book->book || sheet < 0 || sheet >= m_book->calc->sheetCount()) return false;
-    const jp::office::sheet::Calculation::CellContent c = m_book->calc->content(sheet, row, col);
+    const jp::office::sheet::Calculation::CellContent c = m_book->calc->content(sheet, row, col, false);
     return m_book->book->styles().format(c.exists ? c.style : implicitStyle(sheet, row, col)).locked;
 }
 

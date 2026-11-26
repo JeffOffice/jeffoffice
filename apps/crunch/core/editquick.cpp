@@ -40,7 +40,7 @@ bool EditSession::quickHasData(int sheet, const CellRange &sel) const
     for (quint32 r = sel.row1; r <= row2; ++r)
         for (quint32 c = sel.col1; c <= col2; ++c) {
             if (++looked > kQuickProbe) return true;   // (a large block is taken to have what it needs: finding out would cost what the button is not to)
-            if (!valueAt(sheet, r, c).isEmpty() || m_book->calc->content(sheet, r, c).isFormula)
+            if (!valueAt(sheet, r, c).isEmpty() || m_book->calc->content(sheet, r, c, false).isFormula)
                 if (++found >= 2) return true;
         }
     return false;
@@ -172,7 +172,7 @@ EditSession::QuickTotalsPlan EditSession::planQuickTotals(int sheet, const CellR
         }
     }
     for (const QuickCell &cell : plan.cells)
-        if (!valueAt(sheet, cell.row, cell.col).isEmpty() || m_book->calc->content(sheet, cell.row, cell.col).isFormula) ++plan.overwrites;
+        if (!valueAt(sheet, cell.row, cell.col).isEmpty() || m_book->calc->content(sheet, cell.row, cell.col, false).isFormula) ++plan.overwrites;
     plan.ok = true;
     return plan;
 }
