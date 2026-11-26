@@ -1,4 +1,5 @@
 // JeffDeck's tests of the slide show: settings, custom shows, ink, and rehearsal.
+#include "app/listmarkers.h"
 #include "app/notespageview.h"
 #include <QTextEdit>
 #include <QScopeGuard>
@@ -1566,6 +1567,75 @@ private Q_SLOTS:
         QTRY_VERIFY(!w.slideShow());
     }
 
+    // The note's bullets and numbers show in Presenter View, inside the notes box and left of the words, with the printed page's texts, and they are bigger at a bigger text size (A+).
+    void presenterViewDrawsTheMarkersAtEveryTextSize()
+    {
+        DeckWindow w;
+        SlideShow *show = nullptr;
+        PresenterView *pv = presenterOnFormattedNote(w, &show);
+        QVERIFY(show && pv);
+        Editor *ed = w.editor();
+        QTextDocument *story = ed->doc()->storyDoc(ed->doc()->pages[0]->notesStoryId);
+        fillMixedListNote(story);
+        auto *edit = qobject_cast<StoryEdit *>(pv->findChild<QTextEdit *>(QStringLiteral("notesText")));
+        QVERIFY(edit);
+        QTRY_VERIFY(edit->document() == story);
+        const QStringList printed = printedMarkerTexts(ed);
+        QCOMPARE(printed.size(), 10);
+        QVector<double> heights;
+        for (int step = 0; step < 2; ++step) {
+            if (step) pv->findChild<QAbstractButton *>(QStringLiteral("notesBigger"))->click();
+            if (step) pv->findChild<QAbstractButton *>(QStringLiteral("notesBigger"))->click();
+            QTRY_VERIFY(edit->listMarkers()->visibleMarkers().size() >= 2);
+            QTRY_VERIFY([&] {
+                for (const ListMarkers::Marker &m : edit->listMarkers()->visibleMarkers())
+                    if (m.rect.left() < 0 || m.rect.right() > edit->width()) return false;
+                return true;
+            }());
+            const QVector<ListMarkers::Marker> shown = edit->listMarkers()->visibleMarkers();
+            QStringList texts;
+            for (const ListMarkers::Marker &m : shown) texts << m.text;
+            QCOMPARE(texts, printed.mid(0, texts.size()));
+            const QImage img = edit->grab().toImage();
+            const QColor ground = edit->viewport()->palette().color(edit->viewport()->backgroundRole());
+            for (const ListMarkers::Marker &m : shown) {
+                QVERIFY2(m.rect.left() >= 0 && m.rect.right() <= edit->width(), qPrintable(QStringLiteral("size step %1: %2").arg(step).arg(m.text)));
+                QTextCursor c(edit->document());
+                c.setPosition(m.blockPos);
+                QVERIFY2(m.rect.right() < edit->viewport()->x() + edit->cursorRect(c).left(), qPrintable(m.text));
+                int ink = 0;
+                for (int y = int(m.rect.top()); y < int(m.rect.bottom()); ++y)
+                    for (int x = int(m.rect.left()); x < int(m.rect.right()); ++x) {
+                        const QColor px = img.pixelColor(x, y);
+                        ink += qAbs(px.red() - ground.red()) + qAbs(px.green() - ground.green()) + qAbs(px.blue() - ground.blue()) > 150;
+                    }
+                QVERIFY2(ink >= 2, qPrintable(m.text));
+            }
+            heights << shown.first().rect.height();
+        }
+        QVERIFY2(heights[1] > heights[0] * 1.1, qPrintable(QStringLiteral("%1 then %2").arg(heights[0]).arg(heights[1])));
+        show->close();
+        QTRY_VERIFY(!w.slideShow());
+    }
+
+    // A picture of Presenter View with the mixed note, for looking at, when JP_SHOT_DIR names a folder.
+    void pictureOfTheMarkersInPresenterView()
+    {
+        if (qEnvironmentVariableIsEmpty("JP_SHOT_DIR")) QSKIP("JP_SHOT_DIR names the folder for the pictures");
+        jp::applyUiTheme(1);
+        DeckWindow w;
+        SlideShow *show = nullptr;
+        PresenterView *pv = presenterOnFormattedNote(w, &show);
+        QVERIFY(show && pv);
+        fillMixedListNote(w.editor()->doc()->storyDoc(w.editor()->doc()->pages[0]->notesStoryId));
+        auto *edit = qobject_cast<StoryEdit *>(pv->findChild<QTextEdit *>(QStringLiteral("notesText")));
+        QTRY_VERIFY(edit && edit->listMarkers()->visibleMarkers().size() >= 2);
+        QCoreApplication::processEvents();
+        pv->grab().save(qEnvironmentVariable("JP_SHOT_DIR") + QStringLiteral("/presenter-view.png"));
+        show->close();
+        QTRY_VERIFY(!w.slideShow());
+    }
+
     // The sequence of the notes everywhere: the caret in each notes view (under the slide, on the Notes Page, in Presenter View), the presentation becomes read only, a key and a format
     // command are refused, and nothing of the edit is left (a stale cursor crashed the next command).
     void aReadOnlyPresentationRefusesEditsInPresenterViewNotes()
@@ -1683,6 +1753,39 @@ private Q_SLOTS:
         QVERIFY2(shown.contains(QStringLiteral("x[/B]|")) && shown.endsWith(QStringLiteral("very long.")), qPrintable(shown.right(80)));
         show.goTo(0);
         QCOMPARE(markedNotes(box->document()), QStringLiteral("plain [B]bold[/B]|second paragraph"));
+    }
+
+    // The Speaker Notes box draws the bullets and numbers of the note (its copy keeps the lists) left of the words, inside the box, with the texts the printed page shows.
+    void speakerNotesBoxDrawsTheMarkers()
+    {
+        auto d = showDeck(1);
+        fillMixedListNote(d->storyDoc(d->pages[0]->notesStoryId));
+        LayoutCache cache;
+        SlideShow show(d.get(), &cache, 0);
+        show.resize(960, 540);
+        show.show();
+        show.showSpeakerNotes();
+        QTextEdit *box = show.speakerNotesBox();
+        QVERIFY(box && box->isVisible());
+        auto *marks = box->findChild<ListMarkers *>();
+        QVERIFY(marks);
+        box->resize(box->width(), 700);
+        QStringList texts;
+        QTRY_VERIFY([&] {
+            texts.clear();
+            for (const ListMarkers::Marker &m : marks->visibleMarkers()) {
+                texts << m.text;
+                if (m.rect.left() < 0 || m.rect.right() > box->width()) return false;
+            }
+            return texts.size() == 10;
+        }());
+        QCOMPARE(texts, (QStringList{"•", "•", "◦", "1.", "2.", "3.", "a.", "4.", "1.", "2."}));
+        QVERIFY(marks->gutterLeft() > 0);
+        for (const ListMarkers::Marker &m : marks->visibleMarkers()) {
+            QTextCursor c(box->document());
+            c.setPosition(m.blockPos);
+            QVERIFY2(m.rect.right() < box->viewport()->x() + box->cursorRect(c).left(), qPrintable(m.text));
+        }
     }
 
     void speakerNotesBoxIsNotOfferedWhilePresenterViewIsUp()

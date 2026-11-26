@@ -2,6 +2,9 @@
 #include "deckhelpers.h"
 
 #include "io/crypto.h"
+#include "render/renderer.h"
+#include "text/textengine.h"
+#include "text/textprops.h"
 #include "office/binarycrypt.h"
 
 #include <QCryptographicHash>
@@ -1605,6 +1608,79 @@ void answerOutputDialog(const std::function<void(QDialog *)> &set, QDialogButton
         if (set) set(dialog);
         dialog->findChild<QDialogButtonBox *>()->button(button)->click();
     });
+}
+
+void fillMixedListNote(QTextDocument *story)
+{
+    QTextCursor c(story);
+    c.select(QTextCursor::Document);
+    c.removeSelectedText();
+    c.setBlockFormat(QTextBlockFormat());
+    c.setBlockCharFormat(QTextCharFormat());
+    if (QTextList *l = c.currentList()) l->remove(c.block());
+    bool first = true;
+    // kind: 0 plain, 1 bullets, 2 numbers; the list is the one a call before made when `reuse` (the same list, as items that are not next to each other can be).
+    auto add = [&](const QString &text, int kind, int level, QTextList *reuse) {
+        if (!first) c.insertBlock();
+        first = false;
+        if (QTextList *old = c.currentList()) old->remove(c.block());
+        QTextBlockFormat bf;
+        if (kind) {
+            bf.setLeftMargin(18.0 * (level + 1));
+            bf.setTextIndent(-18);
+        }
+        c.setBlockFormat(bf);
+        c.insertText(text);
+        if (!kind) return static_cast<QTextList *>(nullptr);
+        if (reuse) {
+            reuse->add(c.block());
+            return reuse;
+        }
+        QTextListFormat lf;
+        lf.setIndent(0);
+        lf.setProperty(tp::ListLevel, level);
+        if (kind == 1) {
+            lf.setStyle(level ? QTextListFormat::ListCircle : QTextListFormat::ListDisc);
+        } else {
+            lf.setStyle(level ? QTextListFormat::ListLowerAlpha : QTextListFormat::ListDecimal);
+            lf.setNumberSuffix(QStringLiteral("."));
+            lf.setStart(1);
+            lf.setProperty(tp::NumberFormat, level ? 2 : 1);
+        }
+        return c.createList(lf);
+    };
+    add(QStringLiteral("Plan for the talk"), 0, 0, nullptr);
+    QTextList *bullets = add(QStringLiteral("first point"), 1, 0, nullptr);
+    add(QStringLiteral("second point"), 1, 0, bullets);
+    add(QStringLiteral("a nested point"), 1, 1, nullptr);
+    add(QStringLiteral("Between the lists"), 0, 0, nullptr);
+    QTextList *numbers = add(QStringLiteral("alpha"), 2, 0, nullptr);
+    add(QStringLiteral("beta"), 2, 0, numbers);
+    add(QStringLiteral("closing words of a part"), 0, 0, nullptr);
+    add(QStringLiteral("gamma"), 2, 0, numbers);
+    add(QStringLiteral("sub item"), 2, 1, nullptr);
+    add(QStringLiteral("delta"), 2, 0, numbers);
+    add(QStringLiteral("Starting again"), 0, 0, nullptr);
+    QTextList *again = add(QStringLiteral("red"), 2, 0, nullptr);
+    add(QStringLiteral("blue"), 2, 0, again);
+}
+
+QStringList printedMarkerTexts(Editor *ed, int slide)
+{
+    Document &d = *ed->doc();
+    TextItem box;
+    box.id = QStringLiteral("printed-notes");
+    box.storyId = d.pages[slide]->notesStoryId;
+    box.rect = QRectF(0, 0, 420, 2000);
+    box.insets = QMarginsF(0, 0, 0, 0);
+    LayoutCache cache;
+    const LayoutCache::FrameLayout fl = cache.textFrame(d, box, 1, RenderOptions());
+    QStringList out;
+    if (!fl.layout) return out;
+    const auto lines = fl.layout->lineInfo(0);
+    for (const auto &line : lines)
+        if (!line.marker.isEmpty()) out << line.marker;
+    return out;
 }
 
 } // namespace deckhelp

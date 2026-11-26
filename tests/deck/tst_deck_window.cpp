@@ -15,6 +15,7 @@
 #include "io/deckoutput.h"
 #include "core/threadtime.h"
 #include "app/notespageview.h"
+#include "app/listmarkers.h"
 #include "core/notesmaster.h"
 #include "core/printheaderfooter.h"
 #include "core/gridview.h"
@@ -1844,6 +1845,347 @@ private Q_SLOTS:
         const double before = notesStory(ed)->lastBlock().blockFormat().leftMargin() + notesStory(ed)->lastBlock().blockFormat().indent();
         run(w, QStringLiteral("para.indentInc"));
         QVERIFY(notesStory(ed)->lastBlock().blockFormat().leftMargin() + notesStory(ed)->lastBlock().blockFormat().indent() > before);
+    }
+
+    // ---------------- The markers of list items in the notes views ----------------
+    // The texts of the markers a notes view draws, in order.
+    static QStringList markerTexts(StoryEdit *e)
+    {
+        QStringList out;
+        for (const ListMarkers::Marker &m : e->listMarkers()->visibleMarkers()) out << m.text;
+        return out;
+    }
+    // Where the first character of the paragraph at `pos` is, in the view's own coordinates.
+    static double textStart(StoryEdit *e, int pos)
+    {
+        QTextCursor c(e->document());
+        c.setPosition(pos);
+        return e->viewport()->x() + e->cursorRect(c).left();
+    }
+    // How many pixels in `r` of the picture are not the view's background.
+    static int inkIn(const QImage &img, const QRectF &r, const QColor &ground)
+    {
+        int n = 0;
+        for (int y = std::max(0, int(std::floor(r.top()))); y < std::min(img.height(), int(std::ceil(r.bottom()))); ++y)
+            for (int x = std::max(0, int(std::floor(r.left()))); x < std::min(img.width(), int(std::ceil(r.right()))); ++x) {
+                const QColor c = img.pixelColor(x, y);
+                if (qAbs(c.red() - ground.red()) + qAbs(c.green() - ground.green()) + qAbs(c.blue() - ground.blue()) > 150) ++n;
+            }
+        return n;
+    }
+    // Whether the view has markers and all are inside it (the gutter follows the words and the size once the event loop has run).
+    static bool markersInside(StoryEdit *e)
+    {
+        const QVector<ListMarkers::Marker> all = e->listMarkers()->visibleMarkers();
+        for (const ListMarkers::Marker &m : all)
+            if (m.rect.left() < 0 || m.rect.right() > e->width()) return false;   // (a paragraph at the edge of the view can be cut by the scrolling: only the sides count)
+        return !all.isEmpty();
+    }
+    static QColor groundOf(QWidget *e) { return e->palette().color(e->backgroundRole()); }
+    // The notes pane with the mixed note, big enough to show all of it.
+    static NotesPane *notesWithMixedLists(DeckWindow &w)
+    {
+        NotesPane *pane = notesWith(w, QStringLiteral("x"));
+        fillMixedListNote(notesStory(w.editor()));
+        pane->setMinimumHeight(520);
+        w.resize(900, 1100);
+        pane->reload();
+        return pane;
+    }
+
+    // Bullets on a plain paragraph makes a bullet appear in the pane, inside the pane, left of the words and drawn (not clipped off the edge); Bullets again takes it away, and the
+    // gutter with it.
+    void bulletsOnAPlainParagraphDrawTheBulletInsideThePane()
+    {
+        DeckWindow w;
+        NotesPane *pane = notesWith(w, QStringLiteral("one"));
+        QTest::mouseClick(pane->viewport(), Qt::LeftButton, Qt::NoModifier, inNotes(pane, 1));
+        QVERIFY(markerTexts(pane).isEmpty());
+        QCOMPARE(pane->listMarkers()->gutterLeft(), 0);
+        run(w, QStringLiteral("para.bullets"));
+        QTRY_COMPARE(markerTexts(pane), QStringList{QStringLiteral("•")});
+        QTRY_VERIFY(markersInside(pane));
+        const ListMarkers::Marker m = pane->listMarkers()->visibleMarkers().first();
+        QVERIFY2(QRectF(pane->rect()).contains(m.rect), "the bullet is inside the pane");
+        QVERIFY2(m.rect.right() < textStart(pane, 0), "and left of the words");
+        QVERIFY(pane->listMarkers()->gutterLeft() > 0);
+        QVERIFY2(inkIn(pane->grab().toImage(), m.rect, groundOf(pane->viewport())) >= 4, "and drawn");
+        run(w, QStringLiteral("para.bullets"));
+        QTRY_VERIFY(markerTexts(pane).isEmpty());
+        QCOMPARE(pane->listMarkers()->gutterLeft(), 0);
+    }
+
+    // The markers in the pane are the printed notes page's, in order: bullets, numbers that go on after a paragraph that is not numbered, a nested level (its own look), a list that
+    // starts again at 1; a nested level is indented further than the first.
+    void theMarkersInThePaneAreThePrintedPagesMarkers()
+    {
+        DeckWindow w;
+        NotesPane *pane = notesWithMixedLists(w);
+        Editor *ed = w.editor();
+        const QStringList printed = printedMarkerTexts(ed);
+        QCOMPARE(printed, (QStringList{"•", "•", "◦", "1.", "2.", "3.", "a.", "4.", "1.", "2."}));
+        QTRY_COMPARE(markerTexts(pane), printed);
+        QTRY_VERIFY(markersInside(pane));
+        const QVector<ListMarkers::Marker> shown = pane->listMarkers()->visibleMarkers();
+        for (const ListMarkers::Marker &m : shown) {
+            QVERIFY2(m.rect.left() >= 0 && m.rect.right() <= pane->width(), qPrintable(m.text + QStringLiteral(" at ") + QString::number(m.rect.left()) + QLatin1Char(',') + QString::number(m.rect.top()) + QLatin1Char(' ') + QString::number(m.rect.width()) + QLatin1Char('x') + QString::number(m.rect.height()) + QStringLiteral(" gutter ") + QString::number(pane->listMarkers()->gutterLeft()) + QStringLiteral(" vp.x ") + QString::number(pane->viewport()->x()) + QStringLiteral(" start ") + QString::number(textStart(pane, m.blockPos)) + QStringLiteral(" in ") + QString::number(pane->width()) + QLatin1Char('x') + QString::number(pane->height())));
+            QVERIFY2(m.rect.right() < textStart(pane, m.blockPos), qPrintable(m.text));
+        }
+        QVERIFY2(shown[2].rect.left() > shown[1].rect.left() + 4, "a nested bullet is indented further");
+        QVERIFY2(shown[6].rect.right() > shown[5].rect.right() + 4, "and a nested number");
+        const QImage img = pane->grab().toImage();
+        for (const ListMarkers::Marker &m : shown) QVERIFY2(inkIn(img, m.rect, groundOf(pane->viewport())) >= 2, qPrintable(m.text));
+        // Taking a paragraph out of the list renumbers the rest, as the printed page does.
+        QTextCursor c(notesStory(ed));
+        c.setPosition(notesStory(ed)->findBlockByNumber(5).position());
+        ed->setCursor(c);
+        QTest::mouseClick(pane->viewport(), Qt::LeftButton, Qt::NoModifier, inNotes(pane, notesStory(ed)->findBlockByNumber(5).position() + 1));
+        run(w, QStringLiteral("para.numbers"));
+        QTRY_COMPARE(markerTexts(pane), printedMarkerTexts(ed));
+        QVERIFY(markerTexts(pane).size() == printed.size() - 1);
+    }
+
+    // The gutter does not draw over the selection or the caret, and the document's own plain mark (left of an indented level's words) is not drawn as well as ours.
+    void theGutterLeavesTheSelectionAndTheCaretAlone()
+    {
+        DeckWindow w;
+        NotesPane *pane = notesWithMixedLists(w);
+        QTRY_COMPARE(markerTexts(pane).size(), 10);
+        QTRY_VERIFY(markersInside(pane));
+        const QColor ground = groundOf(pane->viewport());
+        const QColor highlight = pane->palette().color(QPalette::Highlight);
+        // A selected nested item: its words are on the highlight from the first character, and the only ink left of them is the one marker.
+        const QTextBlock nested = notesStory(w.editor())->findBlockByNumber(3);
+        QTextCursor sel(pane->document());
+        sel.setPosition(nested.position());
+        sel.setPosition(nested.position() + nested.length() - 1, QTextCursor::KeepAnchor);
+        pane->setTextCursor(sel);
+        QImage img = pane->grab().toImage();
+        const double at = textStart(pane, nested.position());
+        QTextCursor line(pane->document());
+        line.setPosition(nested.position());
+        const QRect cr = pane->cursorRect(line).translated(pane->viewport()->pos());
+        int on = 0;
+        for (int y = cr.top(); y < cr.bottom(); ++y) {
+            const QColor c = img.pixelColor(int(at) + 1, y);
+            if (qAbs(c.red() - highlight.red()) + qAbs(c.green() - highlight.green()) + qAbs(c.blue() - highlight.blue()) < 40) ++on;
+        }
+        QVERIFY2(on >= cr.height() / 2, qPrintable(QString::number(on) + QStringLiteral(" of ") + QString::number(cr.height())));
+        // Only the one marker is left of the words, in the line's band: the bounding box of the ink there lies within the marker's own rectangle.
+        const ListMarkers::Marker m = pane->listMarkers()->visibleMarkers().at(2);
+        int minX = 100000, maxX = -1;
+        for (int y = cr.top() + 1; y < cr.bottom() - 1; ++y)
+            for (int x = pane->frameWidth(); x < int(at) - 1; ++x) {
+                const QColor c = img.pixelColor(x, y);
+                if (qAbs(c.red() - ground.red()) + qAbs(c.green() - ground.green()) + qAbs(c.blue() - ground.blue()) > 150) {
+                    minX = std::min(minX, x);
+                    maxX = std::max(maxX, x);
+                }
+            }
+        QVERIFY(maxX >= 0);
+        QVERIFY2(minX >= m.rect.left() - 1 && maxX <= m.rect.right() + 1, qPrintable(QStringLiteral("ink %1..%2, marker %3..%4").arg(minX).arg(maxX).arg(m.rect.left()).arg(m.rect.right())));
+        // The caret in an empty item: it is drawn at the words' place, where the marker's room ends.
+        QFocusEvent focusIn(QEvent::FocusIn, Qt::OtherFocusReason);   // (the window is not the active one here: the caret shows once the pane has the focus)
+        QApplication::sendEvent(pane, &focusIn);
+        QTextCursor end(pane->document());
+        end.movePosition(QTextCursor::End);
+        end.insertBlock();   // (an item that goes on the last one's list, with nothing in it yet)
+        QTRY_COMPARE(markerTexts(pane).size(), 11);
+        QTRY_VERIFY(markersInside(pane));
+        QTextCursor last(pane->document());
+        last.movePosition(QTextCursor::End);
+        pane->setTextCursor(last);
+        const QRect caret = pane->cursorRect(last).translated(pane->viewport()->pos());
+        img = pane->grab().toImage();
+        int dark = 0;
+        for (int y = caret.top() + 1; y < caret.bottom() - 1; ++y) {
+            const QColor c = img.pixelColor(caret.left(), y), d = img.pixelColor(caret.left() + 1, y);
+            if (qAbs(c.red() - ground.red()) + qAbs(c.green() - ground.green()) + qAbs(c.blue() - ground.blue()) > 150 || qAbs(d.red() - ground.red()) + qAbs(d.green() - ground.green()) + qAbs(d.blue() - ground.blue()) > 150) ++dark;
+        }
+        QVERIFY2(dark >= (caret.height() - 2) / 2, qPrintable(QStringLiteral("caret column has %1 dark of %2").arg(dark).arg(caret.height())));
+    }
+
+    // A note with no list has no gutter, no marker, and looks exactly as a plain text view shows the same note.
+    void aNoteWithoutListsHasNoGutterAndLooksAsBefore()
+    {
+        DeckWindow w;
+        NotesPane *pane = notesWith(w, QStringLiteral("Plain first line\nand a second one\n\nthe last"));
+        QCOMPARE(pane->listMarkers()->gutterLeft(), 0);
+        QCOMPARE(pane->listMarkers()->gutterRight(), 0);
+        QVERIFY(markerTexts(pane).isEmpty());
+        QCOMPARE(pane->viewport()->x(), pane->frameWidth());
+        QTextEdit plain;
+        plain.setReadOnly(true);
+        plain.setFont(pane->font());
+        plain.setDocument(pane->document()->clone(&plain));
+        plain.setFrameStyle(pane->frameStyle());
+        plain.setLineWidth(pane->lineWidth());
+        plain.setPalette(pane->palette());
+        plain.resize(pane->size());
+        plain.show();
+        QTRY_VERIFY(plain.isVisible());
+        const QImage a = pane->grab().toImage(), b = plain.grab().toImage();
+        QCOMPARE(a.size(), b.size());
+        int different = 0;
+        for (int y = 0; y < a.height(); ++y)
+            for (int x = 0; x < a.width(); ++x) different += a.pixel(x, y) != b.pixel(x, y);
+        QVERIFY2(different < a.width() * a.height() / 200, qPrintable(QString::number(different) + QStringLiteral(" pixels differ")));
+    }
+
+    // The same markers show in the Notes Page box at two zooms (bigger at the bigger one), with the printed page's texts.
+    void theNotesPageBoxDrawsTheMarkersAtEveryZoom()
+    {
+        DeckWindow w;
+        NotesPane *box = nullptr;
+        notesPageWith(w, &box, [](QTextCursor &) {});
+        fillMixedListNote(notesStory(w.editor()));
+        NotesPageView *v = w.notesPageView();
+        v->reload();
+        const QStringList printed = printedMarkerTexts(w.editor());
+        QVector<double> heights, gutters;
+        for (double zoom : {1.0, 2.0}) {
+            v->setZoom(zoom);
+            QTRY_COMPARE(box->displayScale(), zoom * v->notesFit());
+            QTRY_VERIFY(box->document()->size().height() > 1);
+            // (the box shows as much of the note as fits; the markers it shows are the first of the printed page's, in order)
+            QTRY_VERIFY(markerTexts(box).size() >= 3);
+            QTRY_VERIFY(markersInside(box));
+            const QStringList shown = markerTexts(box);
+            QCOMPARE(shown, printed.mid(0, shown.size()));
+            for (const ListMarkers::Marker &m : box->listMarkers()->visibleMarkers()) {
+                QVERIFY2(m.rect.left() >= 0 && m.rect.right() <= box->width(), qPrintable(QStringLiteral("zoom %1: %2").arg(zoom).arg(m.text)));
+                QVERIFY2(m.rect.right() < textStart(box, m.blockPos), qPrintable(m.text));
+            }
+            const ListMarkers::Marker first = box->listMarkers()->visibleMarkers().first();
+            QVERIFY2(inkIn(box->grab().toImage(), first.rect, groundOf(box->viewport())) >= 2, "drawn");
+            heights << first.rect.height();
+            gutters << box->listMarkers()->gutterLeft();
+        }
+        QVERIFY2(heights[1] > heights[0] * 1.5, "the markers are as big as the words at the bigger zoom");
+        QVERIFY2(gutters[1] > gutters[0], "and so is the gutter");
+    }
+
+    // The work of the markers does not grow with the note: a 5,000 item numbered note makes the looks of the items in view, and a key typed in it makes them again for the items in
+    // view only; the last item is numbered 5,000 as on the printed page.
+    void theMarkersCostsNoMoreInALongNote()
+    {
+        auto measure = [&](int items, int *perKey, int *shown, QString *lastMarker) {
+            DeckWindow w;
+            NotesPane *pane = notesWith(w, QStringLiteral("x"));
+            QTextDocument *story = notesStory(w.editor());
+            {
+                QTextCursor c(story);
+                c.select(QTextCursor::Document);
+                c.removeSelectedText();
+                QTextListFormat lf;
+                lf.setStyle(QTextListFormat::ListDecimal);
+                lf.setNumberSuffix(QStringLiteral("."));
+                lf.setProperty(tp::NumberFormat, 1);
+                QTextBlockFormat bf;
+                bf.setLeftMargin(18);
+                bf.setTextIndent(-18);
+                c.setBlockFormat(bf);
+                c.insertText(QStringLiteral("item 1"));
+                c.createList(lf);
+                for (int i = 2; i <= items; ++i) {
+                    c.insertBlock();
+                    c.insertText(QStringLiteral("item %1").arg(i));
+                }
+            }
+            pane->reload();
+            w.editor()->undoStack()->clear();
+            QTest::mouseClick(pane->viewport(), Qt::LeftButton, Qt::NoModifier, QPoint(30, 5));
+            QTest::keyClick(pane, Qt::Key_End, Qt::ControlModifier);
+            for (int i = 0; i < 4; ++i) QCoreApplication::processEvents();
+            const int built = ListMarkers::looksBuilt();
+            for (int i = 0; i < 5; ++i) {
+                QTest::keyClick(pane, Qt::Key_X);
+                QCoreApplication::processEvents();
+                (void)pane->grab();   // (a paint)
+            }
+            *perKey = (ListMarkers::looksBuilt() - built + 4) / 5;
+            const QVector<ListMarkers::Marker> m = pane->listMarkers()->visibleMarkers();
+            *shown = m.size();
+            *lastMarker = m.isEmpty() ? QString() : m.last().text;
+            const int again = ListMarkers::looksBuilt();
+            for (int i = 0; i < 5; ++i) (void)pane->grab();
+            QCOMPARE(ListMarkers::looksBuilt(), again);   // (painting again with nothing changed makes none)
+        };
+        int smallKey = 0, smallShown = 0, bigKey = 0, bigShown = 0;
+        QString smallLast, bigLast;
+        measure(100, &smallKey, &smallShown, &smallLast);
+        measure(5000, &bigKey, &bigShown, &bigLast);
+        QCOMPARE(bigLast, QStringLiteral("5000."));
+        QVERIFY(bigShown >= 1 && bigShown < 60);
+        QVERIFY2(bigKey <= bigShown + 4, qPrintable(QStringLiteral("%1 looks for a key with %2 items in view").arg(bigKey).arg(bigShown)));
+        QVERIFY2(bigKey <= smallKey + 4, qPrintable(QStringLiteral("5000 items: %1, 100 items: %2").arg(bigKey).arg(smallKey)));
+    }
+
+    // Pictures of the notes pane and the Notes Page box with the mixed note, for looking at, when JP_SHOT_DIR names a folder.
+    void picturesOfTheMarkersInTheNotesViews()
+    {
+        if (qEnvironmentVariableIsEmpty("JP_SHOT_DIR")) QSKIP("JP_SHOT_DIR names the folder for the pictures");
+        jp::applyUiTheme(1);
+        const QString dir = qEnvironmentVariable("JP_SHOT_DIR");
+        {
+            DeckWindow w;
+            NotesPane *pane = notesWithMixedLists(w);
+            QTRY_VERIFY(markersInside(pane));
+            pane->grab().save(dir + QStringLiteral("/notes-pane.png"));
+        }
+        DeckWindow w;
+        NotesPane *box = nullptr;
+        notesPageWith(w, &box, [](QTextCursor &) {});
+        fillMixedListNote(notesStory(w.editor()));
+        w.notesPageView()->reload();
+        w.notesPageView()->setZoom(1.0);
+        QTRY_VERIFY(markersInside(box));
+        w.grab().save(dir + QStringLiteral("/notes-page-window.png"));
+        box->grab().save(dir + QStringLiteral("/notes-page-box.png"));
+    }
+
+    // People who never use a list pay nothing for the markers: typing in a note with none makes no marker look, and the paragraphs in view are gone through once for each key at most.
+    void typingInANoteWithoutListsMakesNoMarkers()
+    {
+        DeckWindow w;
+        NotesPane *pane = notesWith(w, QStringLiteral("Plain first line\nand a second one"));
+        QTest::mouseClick(pane->viewport(), Qt::LeftButton, Qt::NoModifier, inNotes(pane, 3));
+        for (int i = 0; i < 4; ++i) QCoreApplication::processEvents();
+        const int looks = ListMarkers::looksBuilt(), runs = ListMarkers::viewRuns();
+        for (int i = 0; i < 20; ++i) QTest::keyClick(pane, Qt::Key_X);
+        for (int i = 0; i < 4; ++i) QCoreApplication::processEvents();
+        QCOMPARE(ListMarkers::looksBuilt(), looks);
+        QVERIFY2(ListMarkers::viewRuns() - runs <= 20 * 2 + 4, qPrintable(QString::number(ListMarkers::viewRuns() - runs)));
+        QVERIFY(markerTexts(pane).isEmpty());
+    }
+
+    // A right-to-left paragraph has its marker on the right of the words, with the gutter on the right where the words reach the edge.
+    void aRightToLeftItemHasItsMarkerOnTheRight()
+    {
+        DeckWindow w;
+        NotesPane *pane = notesWith(w, QStringLiteral("x"));
+        QTextCursor c(notesStory(w.editor()));
+        c.select(QTextCursor::Document);
+        c.removeSelectedText();
+        QTextBlockFormat bf;
+        bf.setLayoutDirection(Qt::RightToLeft);
+        c.setBlockFormat(bf);
+        c.insertText(QString::fromUtf8("שלום עולם"));
+        QTextListFormat lf;
+        lf.setStyle(QTextListFormat::ListDisc);
+        lf.setIndent(0);   // (as the list commands make it)
+        c.createList(lf);
+        pane->reload();
+        QTRY_COMPARE(markerTexts(pane).size(), 1);
+        QTRY_VERIFY(pane->listMarkers()->gutterRight() > 0);
+        QCOMPARE(pane->listMarkers()->gutterLeft(), 0);
+        const ListMarkers::Marker m = pane->listMarkers()->visibleMarkers().first();
+        QVERIFY(m.rightToLeft);
+        QVERIFY2(m.rect.left() >= 0 && m.rect.right() <= pane->width(), "inside the pane");
+        QTextCursor e(pane->document());
+        e.setPosition(0);
+        QVERIFY2(m.rect.left() > pane->viewport()->x() + pane->cursorRect(e).left(), "right of the words (the caret at the start of the words is at their right edge)");
+        QVERIFY2(inkIn(pane->grab().toImage(), m.rect, groundOf(pane->viewport())) >= 2, "and drawn");
     }
 
     // A link from the ribbon's Link command goes on the words selected in the notes, in the link color and underlined, and the words keep it through typing around them.

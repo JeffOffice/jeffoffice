@@ -501,6 +501,12 @@ int pdfPageCount(const QByteArray &pdf);
 void answerOutputDialog(const std::function<void(QDialog *)> &set = nullptr, QDialogButtonBox::StandardButton button = QDialogButtonBox::Ok,
                                QDeadlineTimer until = QDeadlineTimer(10000));
 
+// Fills a notes story (its text is replaced) with a mixed note: plain paragraphs, a bulleted list with a nested level, a numbered list that goes on after a plain paragraph with a
+// nested level of its own, and a second numbered list that starts again at 1. The formats are the list commands' own.
+void fillMixedListNote(QTextDocument *story);
+// What the printed notes page's lines show as the markers of the slide's notes, in order (the page text engine's own: a number counts as it does on paper).
+QStringList printedMarkerTexts(Editor *ed, int slide = 0);
+
 } // namespace deckhelp
 
 using namespace deckhelp;
