@@ -527,6 +527,45 @@ private Q_SLOTS:
         QCOMPARE(asked.at(9), QStringLiteral("-5"));
     }
 
+    // A date column the guess makes is shown as the same column is in a window that does not guess (the format a typed date gets), when opened and when pasted.
+    void aGuessedDateColumnIsShownInTheFormatAsTypedGives()
+    {
+        const QByteArray file = "d,n\n05/13/2024,1\n01/02/2024,2\n";
+        QStringList asked, plain;
+        for (const bool ask : {true, false}) {
+            EditWindow e;
+            e.win.w.setPromptForText(ask);
+            e.win.w.anchorHooks().textImportAsker = [](TextImportRequest *r) {
+                TextImportDialog d(*r);
+                r->choices = d.choices();
+                return true;
+            };
+            QVERIFY(e.open(file, QStringLiteral("g.csv")));
+            (ask ? asked : plain) << e.shownAt(QStringLiteral("A2")) << e.shownAt(QStringLiteral("A3"));
+        }
+        QCOMPARE(asked, plain);
+        QCOMPARE(asked.first(), QStringLiteral("5/13/2024"));
+        QStringList pasted, pastedPlain;
+        for (const bool guess : {true, false}) {
+            EditWindow e;
+            QVERIFY(e.open(editBook()));
+            auto *md = new QMimeData;
+            md->setText(QStringLiteral("05/13/2024,1\n01/02/2024,2\n"));
+            QApplication::clipboard()->setMimeData(md);
+            e.win.w.anchorHooks().textImportAsker = [guess](TextImportRequest *r) {
+                r->guessKinds = guess;
+                TextImportDialog d(*r);
+                r->choices = d.choices();
+                return true;
+            };
+            e.select(QStringLiteral("D5"));
+            e.win.w.act(QStringLiteral("paste.textImport"))->trigger();
+            QVERIFY(e.settle());
+            (guess ? pasted : pastedPlain) << e.shownAt(QStringLiteral("D5")) << e.shownAt(QStringLiteral("D6"));
+        }
+        QCOMPARE(pasted, pastedPlain);
+    }
+
     // A kind the person set stays through every later change (separator, marks, names), and a column they did not set is guessed again from the new split.
     void aKindThePersonSetIsNeverReplacedByALaterGuess()
     {
@@ -600,7 +639,7 @@ private Q_SLOTS:
             QVERIFY(guessed);
             QCOMPARE(e.shownAt(QStringLiteral("A2")), QStringLiteral("1E5"));   // (kept: as typed it would be 100000)
             QCOMPARE(e.shownAt(QStringLiteral("A3")), QStringLiteral("007"));
-            QCOMPARE(e.shownAt(QStringLiteral("B2")), QStringLiteral("2024-05-13"));   // (month first: 13 is no month)
+            QCOMPARE(e.shownAt(QStringLiteral("B2")), QStringLiteral("5/13/2024"));   // (month first: 13 is no month; shown as a typed date is)
         }
         {
             // a window that does not ask reads the file as before

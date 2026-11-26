@@ -642,6 +642,25 @@ private Q_SLOTS:
         QVERIFY(openWith("=1+1\n", c, &wb));
         QCOMPARE(formulaOf(read(wb), QStringLiteral("A1")), QStringLiteral("1+1"));
     }
+
+    // A date column the guess makes shows its dates as as typed shows a date, not in the format of a column a person picked as dates.
+    void aGuessedDateColumnIsShownInTheFormatAsTypedGives()
+    {
+        LocaleScope locale(QLocale(QLocale::English, QLocale::UnitedStates));
+        for (const QByteArray &file : {QByteArray("05/13/2024\n01/02/2024\n"), QByteArray("2024-05-13\n2023-01-02\n")}) {
+            const CsvGuess g = usGuess(file);
+            QCOMPARE(g.columns.value(0).kind, CsvColumn::Kind::Date);
+            QCOMPARE(imported(file, g.columns), imported(file));   // (the same days, and the same format)
+        }
+        // day first: as typed makes no date of 13/05/2024, and the guess makes the day it is, in the format of the others
+        const QByteArray dmy = "13/05/2024\n01/02/2024\n";
+        const QStringList cells = imported(dmy, usGuess(dmy).columns);
+        const QString usual = imported("05/13/2024\n").value(0).section(QLatin1Char('|'), 1);
+        QVERIFY(!usual.isEmpty() && usual != QLatin1String("yyyy-mm-dd"));
+        QCOMPARE(cells.value(0), QStringLiteral("n:45425|") + usual);
+        // a column a person picks as dates keeps the format it always had
+        QCOMPARE(imported(dmy, {CsvColumn{CsvColumn::Kind::Date, QStringLiteral("DMY")}}).value(0), QStringLiteral("n:45425|yyyy-mm-dd"));
+    }
 };
 
 JP_TEST_CLASS(SheetCsvChoicesTests)

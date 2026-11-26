@@ -18,7 +18,8 @@ struct CsvColumn {
         Skip,      // not brought in
     } kind = Kind::General;
     QString dateOrder;   // "MDY", "DMY", or "YMD", for a date
-    bool operator==(const CsvColumn &o) const { return kind == o.kind && dateOrder == o.dateOrder; }
+    bool usualFormat = false;   // for a date: shown as a date typed into a cell is (a column the guess made), not in the format of a column a person picked as dates
+    bool operator==(const CsvColumn &o) const { return kind == o.kind && dateOrder == o.dateOrder && usualFormat == o.usualFormat; }
 };
 
 struct CsvImport {

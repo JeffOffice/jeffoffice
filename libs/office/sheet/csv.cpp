@@ -691,7 +691,7 @@ public:
             if (dateInOrder(text.toString(), kind.dateOrder, &serial)) {
                 c.type = CellType::Number;
                 c.number = serial;
-                c.style = m_formats.value(QStringLiteral("yyyy-mm-dd"), 0);
+                c.style = m_formats.value(kind.usualFormat ? QStringLiteral("m/d/yyyy") : QStringLiteral("yyyy-mm-dd"), 0);
                 return add(quint32(row), shown, c, 0);
             }
             return addText(quint32(row), shown, c, text.toString());
@@ -1329,6 +1329,7 @@ struct ColumnSeen {
             if (orders == kOrderMDY || orders == kOrderDMY || orders == kOrderYMD) {
                 k.kind = CsvColumn::Kind::Date;
                 k.dateOrder = orders == kOrderMDY ? QStringLiteral("MDY") : orders == kOrderDMY ? QStringLiteral("DMY") : QStringLiteral("YMD");
+                k.usualFormat = true;
             } else if (orders != 0 && unclear) {
                 *unclear = true;
             }
