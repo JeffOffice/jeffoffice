@@ -7,6 +7,10 @@
 #include <QInputMethodEvent>
 #include <QShortcut>
 #include <QSignalSpy>
+#include <QClipboard>
+#include <QGuiApplication>
+#include <QMimeData>
+#include "wml/htmlguard.h"
 #include <QWidget>
 
 using namespace jp;
@@ -36,6 +40,30 @@ private Q_SLOTS:
         QVERIFY(e.changed());
     }
 
+    // A page the parser is not given (nested past the limit) is pasted into the box as its plain text, never parsed.
+    void aPastedPageTheParserIsNotGivenIsPastedAsItsText()
+    {
+        QWidget host;
+        host.resize(400, 300);
+        ShapeTextEdit e(&host);
+        e.begin(story(), QRect(20, 20, 200, 100), ShapeTextLook());
+        e.selectAll();
+        QString deep;
+        for (int i = 0; i < office::wml::kMostPageDepth + 1; ++i) deep += QStringLiteral("<b_x>");
+        deep += QStringLiteral("page words");
+        auto *mime = new QMimeData;
+        mime->setHtml(deep);
+        mime->setText(QStringLiteral("the plain text"));
+        QGuiApplication::clipboard()->setMimeData(mime);
+        e.paste();
+        QCOMPARE(e.toPlainText(), QStringLiteral("the plain text"));
+        e.selectAll();
+        auto *fine = new QMimeData;
+        fine->setHtml(QStringLiteral("<p>fine <b>page</b></p>"));
+        QGuiApplication::clipboard()->setMimeData(fine);
+        e.paste();
+        QCOMPARE(e.toPlainText().trimmed(), QStringLiteral("fine page"));
+    }
     void wordsTurnedAQuarterAreLaidOutOnTheBoxsHeightAndMouseHitsFollowThem()
     {
         QWidget host;
