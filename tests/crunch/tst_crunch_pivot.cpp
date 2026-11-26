@@ -1276,6 +1276,41 @@ private Q_SLOTS:
         QCOMPARE(valueOf(e, QStringLiteral("L5")), QStringLiteral("n:15"));
     }
 
+    // The menu of the cells has a Pivot Table menu inside a pivot table, with its commands (each the ribbon's own action), and none outside one.
+    void theMenuOfCellsHasThePivotTablesCommands()
+    {
+        EditWindow e;
+        QVERIFY(e.open(pivotWorkbook()));
+        crunch::EditSession *s = e.win.w.session();
+        QVERIFY(s->type(0, rowOf(QStringLiteral("C2")), colOf(QStringLiteral("C2")), QStringLiteral("100")).ok);
+        QVERIFY(e.settle());
+        auto pivotMenu = [&]() -> QMenu * {
+            Q_EMIT e.view()->contextMenuRequested(QPoint(10, 10));
+            QMenu *cells = e.win.w.findChild<QMenu *>(QStringLiteral("cellMenu"));
+            return cells ? cells->findChild<QMenu *>(QStringLiteral("pivotMenu")) : nullptr;
+        };
+        e.select(QStringLiteral("A1"));
+        QVERIFY(!pivotMenu());
+        delete e.win.w.findChild<QMenu *>(QStringLiteral("cellMenu"));
+        e.select(QStringLiteral("F5"));
+        QMenu *menu = pivotMenu();
+        QVERIFY(menu);
+        QStringList ids;
+        for (QAction *a : menu->actions())
+            if (a->isSeparator()) continue;
+            else ids << a->objectName();
+        QVERIFY(ids.contains(QStringLiteral("pivot.refresh")));
+        QVERIFY(ids.contains(QStringLiteral("pivot.fieldSettings")));
+        QVERIFY(ids.contains(QStringLiteral("pivot.options")));
+        QVERIFY(ids.contains(QStringLiteral("pivot.fieldList")));
+        QAction *refresh = e.win.w.act(QStringLiteral("pivot.refresh"));
+        QVERIFY(menu->actions().contains(refresh));
+        refresh->trigger();
+        finish(e);
+        QCOMPARE(valueOf(e, QStringLiteral("F5")), QStringLiteral("n:105"));
+        delete e.win.w.findChild<QMenu *>(QStringLiteral("cellMenu"));
+    }
+
     // The commands of the pivot table tab work on the table the cursor is in: Refresh, Change Data Source (the cells asked for), and Clear; the tab shows only inside a table.
     void theTabsCommandsWorkOnTheTableTheCursorIsIn()
     {

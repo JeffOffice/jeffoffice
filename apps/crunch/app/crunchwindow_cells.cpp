@@ -674,6 +674,7 @@ void CrunchWindow::showContextMenu(const QPoint &globalPos)
         for (const char *id : {"sort.ascending", "sort.descending", "sort.custom"})
             if (QAction *a = act(QString::fromLatin1(id))) sort->addAction(a);
         addTableMenu(menu);
+        addPivotMenu(menu);
         menu->addSeparator();
         // the note and the link on the cell with the cursor
         updateNoteActions();

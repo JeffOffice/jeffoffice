@@ -674,6 +674,22 @@ void CrunchWindow::newTableStyle()
     if (selectedTable() >= 0) tableGalleryChosen(name.trimmed());
 }
 
+// The pivot table's commands in the menu of the cells (right-click), when the cursor is in a pivot table: each is the ribbon's own action.
+void CrunchWindow::addPivotMenu(QMenu *menu)
+{
+    if (selectedPivot() < 0) return;
+    QMenu *sub = menu->addMenu(icon(QStringLiteral("table-properties")), tr("Pivot Table"));
+    sub->setObjectName(QStringLiteral("pivotMenu"));
+    auto add = [&](const char *id) {
+        if (QAction *a = act(QString::fromLatin1(id))) sub->addAction(a);
+    };
+    for (const char *id : {"pivot.refresh", "pivot.showDetail", "pivot.fieldSettings", "pivot.valueSettings"}) add(id);
+    sub->addSeparator();
+    for (const char *id : {"pivot.expandField", "pivot.collapseField", "pivot.group", "pivot.ungroup"}) add(id);
+    sub->addSeparator();
+    for (const char *id : {"pivot.options", "pivot.fieldList"}) add(id);
+}
+
 // The table's commands in the menu of the cells (right-click), when the cursor is in a table: rows and columns put in beside the selection (whole rows and columns of the sheet, as Insert makes them:
 // a table that one is put beside grows by it) or taken out of the table, the row of totals, and back to cells.
 void CrunchWindow::addTableMenu(QMenu *menu)
