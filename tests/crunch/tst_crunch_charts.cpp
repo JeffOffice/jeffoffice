@@ -4667,7 +4667,7 @@ private Q_SLOTS:
             for (const ChartKindEntry &k : chartKindEntries()) d->selectKind(k.kind);
             QVERIFY(!d->previewShown().isNull());
             const qint64 read = cells->reads() - before;
-            QVERIFY2(read < 8500, qPrintable(QString::number(read)));   // (the block of the selection is looked for once, and the kinds are drawn from it: found again for each of the 17 kinds and the swap it would be read several times over)
+            QVERIFY2(read < 510 * int(chartKindEntries().size()), qPrintable(QString::number(read)));   // (the block of the selection is looked for once, and each kind is drawn from it, about 490 reads for each of the 20 kinds: found again for each kind and the swap it would be read several times over)
         }
     }
 
