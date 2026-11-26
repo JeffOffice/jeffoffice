@@ -706,6 +706,25 @@ private Q_SLOTS:
         }
     }
 
+    // Only cells that hold a formula count toward the cap of starting cells: a selection of 2,000 cells with one formula late in it finds what that formula reads.
+    void goToSpecialPrecedentsCapCountsOnlyFormulaCells()
+    {
+        QStringList specs;
+        for (int r = 1; r <= 2000; ++r) {
+            if (r != 1999) specs << QStringLiteral("B%1=1").arg(r);
+        }
+        specs << QStringLiteral("A1=5") << QStringLiteral("B1999==A1");
+        EditWindow e;
+        QVERIFY(e.open(sheetOf(specs)));
+        QVERIFY(e.settle());
+        crunch::SpecialOptions o;
+        o.kind = crunch::SpecialKind::Precedents;
+        const crunch::SpecialResult found = crunch::goToSpecial(*e.win.w.session(), 0, rangeOf(QStringLiteral("B1:B2000")), 0, 1, o);
+        QVERIFY(!found.truncated);
+        QVERIFY(found.problem.isEmpty());
+        QCOMPARE(rangesOf(found), QStringLiteral("A1"));
+    }
+
     // Row differences and column differences select the cells that are not like the cell with the cursor in their row (column): another number or text, a formula that is not the same once its
     // references are moved, or a formula where the other has none. The current array is the array formula the cursor is in.
     void goToSpecialFindsDifferencesAndTheCurrentArray()

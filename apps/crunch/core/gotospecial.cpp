@@ -449,17 +449,34 @@ SpecialResult goToSpecial(const EditSession &session, int sheet, const CellRange
         std::unordered_set<quint64> seen;
         std::vector<TraceCell> level;
         qint64 looked = 0;
-        for (quint32 r = from.row1; r <= from.row2 && !out.truncated; ++r)
-            for (quint32 c = from.col1; c <= from.col2; ++c) {
-                if (++looked > kMaxSpecialSources) {
+        if (up) {
+            // (only the cells that hold a formula count toward the cap: a selection of blank cells and numbers with a formula late in it still finds it; the cells the sheet holds are looked at, at most kMaxSpecialWork)
+            qint64 formulas = 0;
+            s.cells.forEachInRange(from.row1, from.col1, from.row2, from.col2, [&](quint32 r, quint32 c, const Cell &cell) {
+                if (++looked > kMaxSpecialWork) {
                     out.truncated = true;
-                    break;
+                    return false;
                 }
-                const std::optional<Cell> cell = s.cells.find(r, c);
-                if (up && !(cell && cell->hasFormula())) continue;
+                if (!cell.hasFormula()) return true;
+                if (++formulas > kMaxSpecialSources) {
+                    out.truncated = true;
+                    return false;
+                }
                 level.push_back({sheet, r, c});
                 seen.insert(key(sheet, r, c));
-            }
+                return true;
+            });
+        } else {
+            for (quint32 r = from.row1; r <= from.row2 && !out.truncated; ++r)
+                for (quint32 c = from.col1; c <= from.col2; ++c) {
+                    if (++looked > kMaxSpecialSources) {
+                        out.truncated = true;
+                        break;
+                    }
+                    level.push_back({sheet, r, c});
+                    seen.insert(key(sheet, r, c));
+                }
+        }
         std::unordered_set<quint64> found;
         qint64 followed = 0, visitedAll = 0;   // (visitedAll: every cell looked at in the blocks formulas read, on any sheet)
         auto room = [&] {
