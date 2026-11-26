@@ -800,8 +800,6 @@ public:
     qint64 observersLooked() const { return m_observersLooked; }     // places of those looked at by edits of lines, counted
     qint64 registrations() const { return m_registrations; }   // times a formula has told the graph what it reads (counted, so that a test can see that one that reads the same is not told again)
     qint64 alwaysListed() const { return qint64(m_always.size()); }   // formulas on the list of those worked out in every recalculation
-    // Formulas that were given to the graph and work themselves out again at every change (NOW, TODAY, RAND, RANDBETWEEN, OFFSET, INDIRECT, CELL, INFO), counted as they were met, also those kept at the result their file stored.
-    qint64 volatileSeen() const { return m_volatileSeen; }
     const jp::calc::DependencyGraph &graph() const { return *liveGraph(); }
     // The formulas the graph named as readers of the blocks that changed, over the life of the calculation (counted, so that a test can see a block asked again and again: docs/jeffcrunch-rowids.md, round 9).
     qint64 readersFound() const { return m_readersFound; }
@@ -1244,7 +1242,6 @@ private:
     jp::calc::NameTraitsCache m_nameTraits;   // what each defined name calls (by its scope and name)
     std::unordered_map<quint32, std::pair<qint32, qint32>> m_threeDSpan;   // the sheets a 3-D formula's blocks span, first to last
     std::unordered_set<quint32> m_threeD;     // formulas that read a block of several sheets (a node on it has ThreeD); one leaves it when its formula goes or reads no more than one sheet
-    qint64 m_volatileSeen = 0;
     std::vector<quint32> m_always;            // formulas worked out in every recalculation, each once (a node on it has AlwaysListed); those that are not, or are gone, are left out at the next
     void listAlways(quint32 id);
     std::vector<quint32> m_dirty;             // formulas to start from, and where in it the recalculation is

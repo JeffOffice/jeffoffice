@@ -1991,7 +1991,6 @@ private:
     qint64 m_compatStarted = 0;
     qint64 m_changesNoted = 0;             // the changes the worker has been sent that the window has taken note of (WorkbookLoader::changesMade)
     bool m_linksOnOpenPending = false;     // the links of a file that was just opened are looked at once its calculation is done
-    bool m_volatileOnOpenPending = false;  // a file that was just opened is marked as changed once its calculation is done, if a formula in it works itself out again at every change
     std::function<bool(int, int)> m_linksAsker;
     bool m_refreshOnOpenPending = false;   // pivot tables that say so are read again once the calculation of a file that was just opened is done
     int m_sheet = -1;                            // the sheet in the grid, by its place in the workbook

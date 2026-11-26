@@ -378,7 +378,6 @@ void CrunchWindow::onFinished(bool ok, const QString &message)
     m_haveCalc = true;
     m_refreshOnOpenPending = true;
     m_linksOnOpenPending = true;
-    m_volatileOnOpenPending = !m_blank;
     // (a workbook read from a file of another form: that file is the one never written, whatever the workbook is saved as)
     m_originalPath = m_loaded->book->isConverted() ? m_path : QString();
     // (opened as a copy: the workbook has no file of its own, so Save asks where; a workbook read from another form never writes its file, and has no need of this)
@@ -670,16 +669,6 @@ void CrunchWindow::onCalcBatch(const std::shared_ptr<crunch::CalcBatch> &batch)
             updateBars();
             m_longestBatchMicros = std::max(m_longestBatchMicros, jp::threadCpuMicros() - cpu0);
             Q_EMIT calculationFinished();
-            if (m_volatileOnOpenPending && m_session) {
-                // (a workbook that holds a formula whose value changes by itself, as NOW does, is a changed workbook as soon as it is open: closing it asks about saving)
-                m_volatileOnOpenPending = false;
-                if (m_session->calculation() && m_session->calculation()->volatileSeen() > 0 && !isReadOnly()) {
-                    m_protectionChanged = true;
-                    invalidateRecovery();
-                    setWindowModified(true);
-                    updateEditActions();
-                }
-            }
             if (m_linksOnOpenPending && m_session) {
                 // (the links to other workbooks: asked about, updated, or left as the file says; after the first screen is drawn)
                 m_linksOnOpenPending = false;
