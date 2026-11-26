@@ -1578,7 +1578,7 @@ Back page story	4</source>
         <translation type="unfinished">Редагування: %1</translation>
     </message>
     <message>
-        <location line="+532"/>
+        <location line="+533"/>
         <source>Create Text Box Link</source>
         <translation type="unfinished">Створити зв&apos;язок текстових полів</translation>
     </message>
@@ -1694,12 +1694,12 @@ Back page story	4</source>
         <translation type="unfinished">Копіювати формат</translation>
     </message>
     <message>
-        <location line="+448"/>
+        <location line="+387"/>
         <source>Insert Row</source>
         <translation type="unfinished">Вставити рядок</translation>
     </message>
     <message>
-        <location line="+114"/>
+        <location line="+99"/>
         <location line="+1"/>
         <location line="+1"/>
         <location line="+1"/>
@@ -1707,7 +1707,7 @@ Back page story	4</source>
         <translation type="unfinished">Зсунути</translation>
     </message>
     <message>
-        <location line="+162"/>
+        <location line="+163"/>
         <source>Place Extra Content</source>
         <translation type="unfinished">Розмістити додатковий вміст</translation>
     </message>
@@ -1863,15 +1863,15 @@ Back page story	4</source>
 <context>
     <name>Chart</name>
     <message>
-        <location filename="../libs/office/office/chart.cpp" line="+756"/>
+        <location filename="../libs/office/office/chart.cpp" line="+769"/>
         <location filename="../libs/office/sheet/chartdata.cpp" line="+440"/>
-        <location filename="../libs/office/sheet/chartedit.cpp" line="+1025"/>
-        <location filename="../libs/office/sheet/chartmake.cpp" line="+478"/>
+        <location filename="../libs/office/sheet/chartedit.cpp" line="+1026"/>
+        <location filename="../libs/office/sheet/chartmake.cpp" line="+490"/>
         <source>Series%1</source>
         <translation type="unfinished">Ряд%1</translation>
     </message>
     <message>
-        <location line="+349"/>
+        <location line="+367"/>
         <source>The part is not a chart.</source>
         <translation type="unfinished">Ця частина не є діаграмою.</translation>
     </message>
@@ -1881,9 +1881,9 @@ Back page story	4</source>
         <translation type="unfinished">Діаграма не містить малюнка.</translation>
     </message>
     <message>
-        <location line="+143"/>
-        <location filename="../libs/office/sheet/chartedit.cpp" line="-885"/>
-        <location filename="../libs/office/sheet/chartmake.cpp" line="-71"/>
+        <location line="+152"/>
+        <location filename="../libs/office/sheet/chartedit.cpp" line="-886"/>
+        <location filename="../libs/office/sheet/chartmake.cpp" line="-75"/>
         <location line="+9"/>
         <source>Chart Title</source>
         <translation type="unfinished">Назва діаграми</translation>
@@ -1945,7 +1945,7 @@ Back page story	4</source>
         <translation type="unfinished">Трильйони</translation>
     </message>
     <message>
-        <location filename="../libs/office/office/chart_svg.cpp" line="+2147"/>
+        <location filename="../libs/office/office/chart_svg.cpp" line="+2395"/>
         <source>Chart</source>
         <translation type="unfinished">Діаграма</translation>
     </message>
@@ -1980,7 +1980,7 @@ Back page story	4</source>
         <translation type="unfinished">Лінійна (%1)</translation>
     </message>
     <message>
-        <location filename="../libs/office/sheet/chartedit.cpp" line="+85"/>
+        <location filename="../libs/office/sheet/chartedit.cpp" line="+86"/>
         <source>The lowest value has to be less than the highest.</source>
         <translation type="unfinished">Найменше значення має бути меншим за найбільше.</translation>
     </message>
@@ -3695,33 +3695,33 @@ Back page story	4</source>
         <location line="+1"/>
         <location line="+1"/>
         <location line="+1"/>
-        <location line="+449"/>
+        <location line="+453"/>
         <location line="+599"/>
         <location filename="../apps/pub/app/dialogs.cpp" line="+421"/>
         <source>Font</source>
         <translation>Шрифт</translation>
     </message>
     <message>
-        <location line="-1179"/>
+        <location line="-1183"/>
         <source>Regular</source>
         <translation type="unfinished">Звичайний</translation>
     </message>
     <message>
         <location line="+0"/>
-        <location line="+1177"/>
+        <location line="+1181"/>
         <location filename="../apps/pub/app/dialogs.cpp" line="+739"/>
         <source>Italic</source>
         <translation type="unfinished">Курсив</translation>
     </message>
     <message>
-        <location line="-1177"/>
-        <location line="+1175"/>
+        <location line="-1181"/>
+        <location line="+1179"/>
         <location filename="../apps/pub/app/dialogs.cpp" line="+0"/>
         <source>Bold</source>
         <translation type="unfinished">Жирний</translation>
     </message>
     <message>
-        <location line="-1175"/>
+        <location line="-1179"/>
         <source>Bold Italic</source>
         <translation type="unfinished">Жирний курсив</translation>
     </message>
@@ -4329,18 +4329,18 @@ Back page story	4</source>
     </message>
     <message>
         <location line="+14"/>
-        <location line="+77"/>
+        <location line="+81"/>
         <source>Symbol</source>
         <translation type="unfinished">Символ</translation>
     </message>
     <message>
-        <location line="-77"/>
-        <location line="+267"/>
+        <location line="-81"/>
+        <location line="+271"/>
         <source>Click in a text box first.</source>
         <translation type="unfinished">Спочатку клацніть у текстовому полі.</translation>
     </message>
     <message>
-        <location line="-261"/>
+        <location line="-265"/>
         <location line="+5"/>
         <source>Insert Symbol</source>
         <translation type="unfinished">Вставлення символу</translation>
@@ -4366,7 +4366,7 @@ Back page story	4</source>
         <translation type="unfinished">Малюнок (PNG)</translation>
     </message>
     <message>
-        <location line="+39"/>
+        <location line="+43"/>
         <source>Nonbreaking Space</source>
         <translation type="unfinished">Нерозривний пробіл</translation>
     </message>
@@ -4589,7 +4589,7 @@ Back page story	4</source>
         <translation type="unfinished">Символи</translation>
     </message>
     <message>
-        <location line="-573"/>
+        <location line="-577"/>
         <source>Long dash</source>
         <translation type="unfinished">Довге тире</translation>
     </message>
@@ -4599,7 +4599,7 @@ Back page story	4</source>
         <translation type="unfinished">Комірки електронної таблиці як таблиця</translation>
     </message>
     <message>
-        <location line="+141"/>
+        <location line="+145"/>
         <source>Character</source>
         <translation>Символ</translation>
     </message>
@@ -5310,8 +5310,8 @@ Back page story	4</source>
         <translation type="unfinished">Зберігати пропорції</translation>
     </message>
     <message>
-        <location filename="../libs/page/app/textdialogs.cpp" line="-784"/>
-        <location line="+1137"/>
+        <location filename="../libs/page/app/textdialogs.cpp" line="-788"/>
+        <location line="+1141"/>
         <location filename="../apps/pub/app/dialogs.cpp" line="+27"/>
         <source>Size</source>
         <translation>Розмір</translation>
@@ -6227,7 +6227,7 @@ Back page story	4</source>
         <translation>Розташування файлів за замовчуванням</translation>
     </message>
     <message>
-        <location filename="../libs/page/app/textdialogs.cpp" line="-1125"/>
+        <location filename="../libs/page/app/textdialogs.cpp" line="-1129"/>
         <location filename="../apps/pub/app/dialogs.cpp" line="+6"/>
         <location filename="../apps/pub/app/mainwindow.cpp" line="+0"/>
         <location filename="../apps/write/app/writewindow.cpp" line="+0"/>
@@ -6846,7 +6846,7 @@ Back page story	4</source>
         <translation type="unfinished">Редагувати рівняння</translation>
     </message>
     <message>
-        <location filename="../libs/page/app/editor_text.cpp" line="+1120"/>
+        <location filename="../libs/page/app/editor_text.cpp" line="+1230"/>
         <source>Typing mode</source>
         <translation type="unfinished">Режим введення</translation>
     </message>
@@ -10376,7 +10376,7 @@ Download it from %2 now? (%3, once.)</source>
         <translation type="unfinished">Лише перші %1 діаграм буде намальовано; решту пропущено.</translation>
     </message>
     <message>
-        <location line="+218"/>
+        <location line="+227"/>
         <source>A chart has more points than a picture of it can show, so its picture is drawn from some of them.</source>
         <translation type="unfinished">Діаграма має більше точок, ніж її малюнок може показати, тому її малюнок побудовано з частини з них.</translation>
     </message>
@@ -12870,7 +12870,7 @@ Download it from %2 now? (%3, once.)</source>
 <context>
     <name>QCoreApplication</name>
     <message>
-        <location filename="../apps/write/app/writewindow_shapes.cpp" line="+1255"/>
+        <location filename="../apps/write/app/writewindow_shapes.cpp" line="+1258"/>
         <source>Some of the shapes have text. Merging removes the text of every shape but the first one you selected. Merge anyway?</source>
         <translation type="unfinished">Деякі фігури містять текст. Об&apos;єднання видалить текст з усіх фігур, окрім першої вибраної. Все одно об&apos;єднати?</translation>
     </message>
@@ -16615,20 +16615,20 @@ Open it in your email program, add recipients and send.</source>
     <name>Sheet</name>
     <message>
         <location filename="../libs/office/sheet/odschart.cpp" line="+241"/>
-        <location line="+619"/>
-        <location line="+265"/>
+        <location line="+625"/>
+        <location line="+270"/>
         <source>series past the %1 a chart may have</source>
         <translation type="unfinished">ряди понад %1, які може мати діаграма</translation>
     </message>
     <message>
-        <location line="-883"/>
-        <location line="+619"/>
-        <location line="+286"/>
+        <location line="-894"/>
+        <location line="+625"/>
+        <location line="+291"/>
         <source>points past the %1 a series may have</source>
         <translation type="unfinished">точки понад %1, які може мати ряд</translation>
     </message>
     <message>
-        <location line="-904"/>
+        <location line="-915"/>
         <source>points past the %1 a chart may have</source>
         <translation type="unfinished">точки понад %1, які може мати діаграма</translation>
     </message>
@@ -16645,12 +16645,12 @@ Open it in your email program, add recipients and send.</source>
     </message>
     <message>
         <location line="+2"/>
-        <location line="+197"/>
+        <location line="+201"/>
         <source>trendlines of charts past the %1 a series may have</source>
         <translation type="unfinished">тренди діаграм понад %1, які може мати ряд</translation>
     </message>
     <message>
-        <location line="-196"/>
+        <location line="-200"/>
         <source>gradient and pattern fills of charts (they are written as one color)</source>
         <translation type="unfinished">градієнтні та візерункові заливки діаграм (вони записуються як один колір)</translation>
     </message>
@@ -16680,7 +16680,7 @@ Open it in your email program, add recipients and send.</source>
         <translation type="unfinished">формати чисел понад 200, які має документ діаграми (вони відображатимуться як Загальний)</translation>
     </message>
     <message>
-        <location line="+143"/>
+        <location line="+147"/>
         <source>trendlines of a kind the format does not have</source>
         <translation type="unfinished">тренди виду, якого не має цей формат</translation>
     </message>
@@ -16700,12 +16700,12 @@ Open it in your email program, add recipients and send.</source>
         <translation type="unfinished">підзаголовки та нижні колонтитули діаграм</translation>
     </message>
     <message>
-        <location line="+269"/>
+        <location line="+276"/>
         <source>secondary axes of charts</source>
         <translation type="unfinished">допоміжні осі діаграм</translation>
     </message>
     <message>
-        <location line="+288"/>
+        <location line="+289"/>
         <source>error bars of charts that run by the variance</source>
         <translation type="unfinished">планки похибок діаграм, які обчислюються за дисперсією</translation>
     </message>
@@ -17951,7 +17951,7 @@ Open it in your email program, add recipients and send.</source>
     <message>
         <location filename="../libs/page/app/tableedit.cpp" line="+221"/>
         <location line="+354"/>
-        <location filename="../libs/page/canvas/canvas.cpp" line="-565"/>
+        <location filename="../libs/page/canvas/canvas.cpp" line="-551"/>
         <source>A table has at most %1 rows.</source>
         <translation type="unfinished">Таблиця може містити не більше %1 рядків.</translation>
     </message>
@@ -23914,7 +23914,7 @@ Source: %3</source>
 <context>
     <name>jp::ChangeChartTypeDialog</name>
     <message>
-        <location filename="../libs/page/app/chartdialogs.cpp" line="+742"/>
+        <location filename="../libs/page/app/chartdialogs.cpp" line="+745"/>
         <source>Chart Kind</source>
         <translation type="unfinished">Тип діаграми</translation>
     </message>
@@ -24024,6 +24024,21 @@ Source: %3</source>
         <location line="+1"/>
         <source>Scatter</source>
         <translation type="unfinished">Точкова</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Radar</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Radar with Markers</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Filled Radar</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <location line="+8"/>
@@ -24221,7 +24236,7 @@ Source: %3</source>
     </message>
     <message>
         <location line="+70"/>
-        <location filename="../libs/office/sheet/chartops.cpp" line="+322"/>
+        <location filename="../libs/office/sheet/chartops.cpp" line="+329"/>
         <source>This chart has no series.</source>
         <translation type="unfinished">Ця діаграма не має рядів.</translation>
     </message>
@@ -24952,7 +24967,7 @@ Source: %3</source>
 <context>
     <name>jp::ChartKinds</name>
     <message>
-        <location filename="../libs/page/app/chartdialogs.cpp" line="-730"/>
+        <location filename="../libs/page/app/chartdialogs.cpp" line="-733"/>
         <source>Columns</source>
         <translation>Стовпці</translation>
     </message>
@@ -25036,6 +25051,21 @@ Source: %3</source>
         <source>Columns with a line</source>
         <translation type="unfinished">Стовпчасті з лінією</translation>
     </message>
+    <message>
+        <location line="+1"/>
+        <source>Radar</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Radar with markers</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Filled radar</source>
+        <translation type="unfinished"></translation>
+    </message>
 </context>
 <context>
     <name>jp::ClipboardPane</name>
@@ -25077,7 +25107,7 @@ Source: %3</source>
     <message>
         <location line="+24"/>
         <location filename="../apps/pub/app/mainwindow_actions.cpp" line="+158"/>
-        <location filename="../apps/deck/app/deckwindow.cpp" line="+325"/>
+        <location filename="../apps/deck/app/deckwindow.cpp" line="+349"/>
         <location filename="../apps/crunch/app/crunchwindow_clip.cpp" line="+55"/>
         <source>Paste All</source>
         <translation type="unfinished">Вставити все</translation>
@@ -26825,7 +26855,7 @@ Source: %3</source>
     </message>
     <message>
         <location line="+9"/>
-        <location filename="../apps/crunch/app/crunchwindow_charts.cpp" line="+987"/>
+        <location filename="../apps/crunch/app/crunchwindow_charts.cpp" line="+991"/>
         <location filename="../apps/crunch/app/crunchwindow_file.cpp" line="-494"/>
         <location line="+112"/>
         <location line="+77"/>
@@ -28164,7 +28194,7 @@ Source: %3</source>
     </message>
     <message>
         <location line="+1"/>
-        <location filename="../apps/crunch/app/crunchwindow_charts.cpp" line="-939"/>
+        <location filename="../apps/crunch/app/crunchwindow_charts.cpp" line="-943"/>
         <location filename="../apps/crunch/app/crunchwindow_ops.cpp" line="+405"/>
         <source>Columns</source>
         <translation>Стовпці</translation>
@@ -28217,7 +28247,7 @@ Source: %3</source>
     </message>
     <message>
         <location line="+1"/>
-        <location line="+21"/>
+        <location line="+24"/>
         <location filename="../apps/crunch/app/crunchwindow_insertobjects.cpp" line="+65"/>
         <location filename="../apps/crunch/app/crunchwindow_quick.cpp" line="+246"/>
         <location filename="../apps/crunch/app/crunchwindow_sparklines.cpp" line="-34"/>
@@ -28225,7 +28255,7 @@ Source: %3</source>
         <translation type="unfinished">Лінія</translation>
     </message>
     <message>
-        <location line="-20"/>
+        <location line="-23"/>
         <source>Line with markers</source>
         <translation type="unfinished">Лінія з маркерами</translation>
     </message>
@@ -28236,23 +28266,23 @@ Source: %3</source>
     </message>
     <message>
         <location line="+1"/>
-        <location line="+18"/>
+        <location line="+21"/>
         <source>Pie</source>
         <translation type="unfinished">Кругова</translation>
     </message>
     <message>
-        <location line="-17"/>
+        <location line="-20"/>
         <source>Doughnut</source>
         <translation type="unfinished">Кільцева</translation>
     </message>
     <message>
         <location line="+1"/>
-        <location line="+17"/>
+        <location line="+20"/>
         <source>Area</source>
         <translation type="unfinished">Область</translation>
     </message>
     <message>
-        <location line="-16"/>
+        <location line="-19"/>
         <source>Stacked area</source>
         <translation type="unfinished">Накопичувальна область</translation>
     </message>
@@ -28270,6 +28300,22 @@ Source: %3</source>
         <location line="+1"/>
         <source>Scatter, smooth lines</source>
         <translation type="unfinished">Точкова, згладжені лінії</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <location line="+17"/>
+        <source>Radar</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-16"/>
+        <source>Radar with markers</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Filled radar</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <location line="+11"/>
@@ -28294,7 +28340,7 @@ Source: %3</source>
         <translation type="unfinished">Комбінована</translation>
     </message>
     <message>
-        <location line="+8"/>
+        <location line="+9"/>
         <source>More Charts…</source>
         <translation type="unfinished">Інші діаграми…</translation>
     </message>
@@ -38386,12 +38432,12 @@ The file can&apos;t be read.</source>
         <translation type="unfinished">Немає слайдів для друку.</translation>
     </message>
     <message>
-        <location filename="../apps/deck/app/deckwindow.cpp" line="-251"/>
+        <location filename="../apps/deck/app/deckwindow.cpp" line="-274"/>
         <source>Presentation1</source>
         <translation type="unfinished">Презентація 1</translation>
     </message>
     <message>
-        <location line="+196"/>
+        <location line="+219"/>
         <source>%1 (%2)</source>
         <translation type="unfinished">%1 (%2)</translation>
     </message>
@@ -38458,14 +38504,14 @@ The file can&apos;t be read.</source>
     <message>
         <location line="+5"/>
         <location filename="../apps/deck/app/deckwindow_pasteoffer.cpp" line="+80"/>
-        <location line="+81"/>
+        <location line="+82"/>
         <source>Keep Source Formatting</source>
         <translation type="unfinished">Зберегти вихідне форматування</translation>
     </message>
     <message>
         <location line="+1"/>
-        <location filename="../apps/deck/app/deckwindow_pasteoffer.cpp" line="-81"/>
-        <location line="+82"/>
+        <location filename="../apps/deck/app/deckwindow_pasteoffer.cpp" line="-82"/>
+        <location line="+83"/>
         <source>Keep Text Only</source>
         <translation type="unfinished">Зберегти лише текст</translation>
     </message>
@@ -38493,30 +38539,30 @@ The file can&apos;t be read.</source>
     </message>
     <message>
         <location line="+2"/>
-        <location line="+252"/>
+        <location line="+291"/>
         <source>New Slide</source>
         <translation type="unfinished">Створити слайд</translation>
     </message>
     <message>
-        <location line="-251"/>
-        <location line="+262"/>
+        <location line="-290"/>
+        <location line="+301"/>
         <source>Duplicate Slide</source>
         <translation type="unfinished">Дублювати слайд</translation>
     </message>
     <message>
-        <location line="-261"/>
-        <location line="+314"/>
+        <location line="-300"/>
+        <location line="+353"/>
         <source>Delete Slide</source>
         <translation type="unfinished">Видалити слайд</translation>
     </message>
     <message>
-        <location line="-313"/>
-        <location line="+324"/>
+        <location line="-352"/>
+        <location line="+363"/>
         <source>Hide Slide</source>
         <translation type="unfinished">Приховати слайд</translation>
     </message>
     <message>
-        <location line="-323"/>
+        <location line="-362"/>
         <source>Reset</source>
         <translation type="unfinished">Скинути</translation>
     </message>
@@ -38612,7 +38658,7 @@ The file can&apos;t be read.</source>
     </message>
     <message>
         <location line="+0"/>
-        <location filename="../apps/deck/app/deckwindow_views.cpp" line="+266"/>
+        <location filename="../apps/deck/app/deckwindow_views.cpp" line="+268"/>
         <source>Slide %1 of %2</source>
         <translation type="unfinished">Слайд %1 з %2</translation>
     </message>
@@ -38627,7 +38673,7 @@ The file can&apos;t be read.</source>
         <translation type="unfinished">Повторити %1 (Ctrl+Y)</translation>
     </message>
     <message>
-        <location line="+101"/>
+        <location line="+140"/>
         <source> (Read-Only)</source>
         <translation type="unfinished"> (лише для читання)</translation>
     </message>
@@ -38667,7 +38713,7 @@ The file can&apos;t be read.</source>
     </message>
     <message>
         <location line="+11"/>
-        <location filename="../apps/deck/app/deckwindow_format.cpp" line="+277"/>
+        <location filename="../apps/deck/app/deckwindow_format.cpp" line="+278"/>
         <location line="+213"/>
         <source>Shadow</source>
         <translation type="unfinished">Тінь</translation>
@@ -38745,7 +38791,7 @@ The file can&apos;t be read.</source>
     <message>
         <location line="+0"/>
         <location filename="../apps/deck/app/deckwindow_table.cpp" line="+114"/>
-        <location filename="../apps/deck/app/deckwindow_views.cpp" line="-200"/>
+        <location filename="../apps/deck/app/deckwindow_views.cpp" line="-202"/>
         <source>Normal</source>
         <translation type="unfinished">Звичайний</translation>
     </message>
@@ -39513,7 +39559,7 @@ The file can&apos;t be read.</source>
     <message>
         <location line="+1"/>
         <location filename="../apps/deck/app/deckwindow_compare.cpp" line="+13"/>
-        <location filename="../apps/deck/app/deckwindow_views.cpp" line="+186"/>
+        <location filename="../apps/deck/app/deckwindow_views.cpp" line="+188"/>
         <source>Previous</source>
         <translation type="unfinished">Попередній</translation>
     </message>
@@ -40127,7 +40173,7 @@ The file can&apos;t be read.</source>
         <translation type="unfinished">Жодного шрифту не було замінено.</translation>
     </message>
     <message>
-        <location filename="../apps/deck/app/deckwindow_format.cpp" line="-428"/>
+        <location filename="../apps/deck/app/deckwindow_format.cpp" line="-429"/>
         <source>Format Shape</source>
         <translation type="unfinished">Формат фігури</translation>
     </message>
@@ -40159,18 +40205,18 @@ The file can&apos;t be read.</source>
     </message>
     <message>
         <location line="+20"/>
-        <location line="+427"/>
+        <location line="+428"/>
         <location line="+2"/>
         <source>Change Shape</source>
         <translation type="unfinished">Змінити фігуру</translation>
     </message>
     <message>
-        <location line="-358"/>
+        <location line="-359"/>
         <source>Shape Style</source>
         <translation type="unfinished">Стиль фігури</translation>
     </message>
     <message>
-        <location line="+42"/>
+        <location line="+43"/>
         <location line="+4"/>
         <location line="+6"/>
         <location line="+6"/>
@@ -41178,12 +41224,13 @@ The file can&apos;t be read.</source>
         <translation type="unfinished">Після клацання</translation>
     </message>
     <message>
+        <location filename="../apps/deck/app/deckwindow.cpp" line="-322"/>
         <location filename="../apps/deck/app/deckwindow_menu.cpp" line="-9"/>
         <source>Paste Options</source>
         <translation type="unfinished">Параметри вставлення</translation>
     </message>
     <message>
-        <location line="+9"/>
+        <location filename="../apps/deck/app/deckwindow_menu.cpp" line="+9"/>
         <source>Format Picture…</source>
         <translation type="unfinished">Формат малюнка…</translation>
     </message>
@@ -43006,7 +43053,7 @@ The file can&apos;t be read.</source>
         <translation type="unfinished">Ширина стовпця</translation>
     </message>
     <message>
-        <location filename="../apps/deck/app/deckwindow_views.cpp" line="-187"/>
+        <location filename="../apps/deck/app/deckwindow_views.cpp" line="-189"/>
         <source>Outline View</source>
         <translation type="unfinished">Режим структури</translation>
     </message>
@@ -43041,7 +43088,7 @@ The file can&apos;t be read.</source>
         <translation type="unfinished">Головний зразок роздаткового матеріалу</translation>
     </message>
     <message>
-        <location line="+176"/>
+        <location line="+178"/>
         <source>Go back one step or slide</source>
         <translation type="unfinished">Повернутися на один крок або слайд назад</translation>
     </message>
@@ -43267,7 +43314,7 @@ The file can&apos;t be read.</source>
         <translation type="unfinished">Видалити об&apos;єкт</translation>
     </message>
     <message>
-        <location filename="../apps/deck/app/deckwindow_pasteoffer.cpp" line="-133"/>
+        <location filename="../apps/deck/app/deckwindow_pasteoffer.cpp" line="-134"/>
         <source>Paste Options. Use the arrow keys and Enter to choose, or Esc to leave them.</source>
         <translation type="unfinished">Параметри вставлення. Використовуйте клавіші зі стрілками та Enter, щоб вибрати, або Esc, щоб залишити їх без змін.</translation>
     </message>
@@ -43732,7 +43779,7 @@ The file can&apos;t be read.</source>
         <translation type="unfinished">Публікація1</translation>
     </message>
     <message>
-        <location line="+410"/>
+        <location line="+436"/>
         <source>Clear Cells</source>
         <translation type="unfinished">Очистити комірки</translation>
     </message>
@@ -43742,16 +43789,16 @@ The file can&apos;t be read.</source>
         <translation type="unfinished">Додати текст</translation>
     </message>
     <message>
-        <location line="+123"/>
+        <location line="+158"/>
         <source>Crop</source>
         <translation type="unfinished">Обрізати</translation>
     </message>
     <message>
         <location line="+38"/>
-        <location filename="../libs/page/app/editor_text.cpp" line="-192"/>
+        <location filename="../libs/page/app/editor_text.cpp" line="-302"/>
+        <location line="+23"/>
         <location line="+22"/>
-        <location line="+22"/>
-        <location line="+160"/>
+        <location line="+269"/>
         <source>Typing</source>
         <translation type="unfinished">Введення</translation>
     </message>
@@ -44001,7 +44048,7 @@ The file can&apos;t be read.</source>
         <translation type="unfinished">Вирізати</translation>
     </message>
     <message>
-        <location line="+98"/>
+        <location line="+99"/>
         <source>That table is too big to paste as a table (more than %1 rows, %2 columns, or %3 cells, or too much to read)</source>
         <translation type="unfinished">Ця таблиця занадто велика, щоб вставити її як таблицю (понад %1 рядків, %2 стовпців або %3 комірок, або занадто багато для читання)</translation>
     </message>
@@ -44056,8 +44103,8 @@ The file can&apos;t be read.</source>
         <translation type="unfinished">Вставити таблицю</translation>
     </message>
     <message>
-        <location line="+23"/>
-        <location line="+17"/>
+        <location line="+38"/>
+        <location line="+20"/>
         <source>Paste</source>
         <translation type="unfinished">Вставити</translation>
     </message>
@@ -44137,7 +44184,7 @@ The file can&apos;t be read.</source>
         <translation type="unfinished">Видалити головну сторінку</translation>
     </message>
     <message>
-        <location filename="../libs/page/app/editor_text.cpp" line="-810"/>
+        <location filename="../libs/page/app/editor_text.cpp" line="-920"/>
         <source>Bold</source>
         <translation type="unfinished">Жирний</translation>
     </message>
@@ -44279,12 +44326,12 @@ The file can&apos;t be read.</source>
         <translation type="unfinished">Буквиця</translation>
     </message>
     <message>
-        <location line="+93"/>
+        <location line="+94"/>
         <source>Insert Hyperlink</source>
         <translation type="unfinished">Вставити гіперпосилання</translation>
     </message>
     <message>
-        <location line="+26"/>
+        <location line="+135"/>
         <source>AutoFormat List</source>
         <translation type="unfinished">Автоформатування списку</translation>
     </message>
@@ -55145,23 +55192,22 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
 <context>
     <name>jp::NotesPane</name>
     <message>
-        <location filename="../apps/deck/app/notespane.cpp" line="+24"/>
-        <location line="+50"/>
+        <location filename="../apps/deck/app/notespane.cpp" line="+18"/>
         <source>Notes</source>
         <translation>Примітки</translation>
     </message>
     <message>
-        <location line="-49"/>
+        <location line="+1"/>
         <source>Click to add notes</source>
         <translation type="unfinished">Клацніть, щоб додати примітки</translation>
     </message>
     <message>
-        <location line="+82"/>
+        <location line="+58"/>
         <source>(Delete)</source>
         <translation type="unfinished">(Видалити)</translation>
     </message>
     <message>
-        <location line="+14"/>
+        <location line="+15"/>
         <source>Ignore This Issue</source>
         <translation type="unfinished">Ігнорувати цю проблему</translation>
     </message>
@@ -59707,7 +59753,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     </message>
     <message>
         <location line="+88"/>
-        <location filename="../apps/write/app/writewindow_shapes.cpp" line="-1031"/>
+        <location filename="../apps/write/app/writewindow_shapes.cpp" line="-1034"/>
         <source>Union</source>
         <translation type="unfinished">Об&apos;єднання</translation>
     </message>
@@ -59742,7 +59788,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     </message>
     <message>
         <location line="+4"/>
-        <location filename="../apps/write/app/writewindow_shapes.cpp" line="+1035"/>
+        <location filename="../apps/write/app/writewindow_shapes.cpp" line="+1038"/>
         <source>Merge</source>
         <translation>Об&apos;єднати</translation>
     </message>
@@ -64197,7 +64243,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     </message>
     <message>
         <location line="+2"/>
-        <location filename="../apps/write/app/writewindow_shapes.cpp" line="-1010"/>
+        <location filename="../apps/write/app/writewindow_shapes.cpp" line="-1013"/>
         <source>Align Left</source>
         <translation type="unfinished">Вирівняти за лівим краєм</translation>
     </message>
@@ -64726,7 +64772,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
         <location filename="../apps/write/app/writewindow_graphics.cpp" line="+170"/>
         <location filename="../apps/write/app/writewindow_insert.cpp" line="-34"/>
         <location filename="../apps/write/app/writewindow_pictures.cpp" line="+266"/>
-        <location filename="../apps/write/app/writewindow_shapes.cpp" line="+640"/>
+        <location filename="../apps/write/app/writewindow_shapes.cpp" line="+643"/>
         <location line="+59"/>
         <location filename="../apps/write/app/writewindow_themes.cpp" line="+44"/>
         <source>All Files (*)</source>
@@ -66021,7 +66067,7 @@ The password couldn&apos;t be put on the file.</source>
     </message>
     <message>
         <location line="+1"/>
-        <location filename="../apps/write/app/writewindow_shapes.cpp" line="-805"/>
+        <location filename="../apps/write/app/writewindow_shapes.cpp" line="-808"/>
         <source>Plain</source>
         <translation type="unfinished">Простий</translation>
     </message>
@@ -67271,7 +67317,7 @@ The password couldn&apos;t be put on the file.</source>
     </message>
     <message>
         <location line="+32"/>
-        <location filename="../apps/write/app/writewindow_shapes.cpp" line="+744"/>
+        <location filename="../apps/write/app/writewindow_shapes.cpp" line="+747"/>
         <location line="+59"/>
         <source>Pictures (*.png *.jpg *.jpeg *.gif *.bmp *.tif *.tiff *.webp *.svg)</source>
         <translation type="unfinished">Малюнки (*.png *.jpg *.jpeg *.gif *.bmp *.tif *.tiff *.webp *.svg)</translation>
@@ -67980,7 +68026,7 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished">Клавіші зі стрілками вліво і вправо зменшують і збільшують масштаб.</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/writewindow_shapes.cpp" line="-886"/>
+        <location filename="../apps/write/app/writewindow_shapes.cpp" line="-889"/>
         <location line="+295"/>
         <source>Line</source>
         <translation type="unfinished">Лінія</translation>
@@ -68150,12 +68196,12 @@ The password couldn&apos;t be put on the file.</source>
     </message>
     <message>
         <location line="+10"/>
-        <location line="+1142"/>
+        <location line="+1145"/>
         <source>Edit Points</source>
         <translation type="unfinished">Редагувати вузли</translation>
     </message>
     <message>
-        <location line="-1139"/>
+        <location line="-1142"/>
         <source>Drag a point to reshape. Ctrl+click a point to delete it, or the outline to add one. Press Esc when done.</source>
         <translation type="unfinished">Перетягніть вузол, щоб змінити форму. Ctrl+клацання на вузлі видаляє його, а на контурі додає новий. Натисніть Esc, коли закінчите.</translation>
     </message>
@@ -68430,6 +68476,21 @@ The password couldn&apos;t be put on the file.</source>
         <location line="+1"/>
         <source>Scatter</source>
         <translation type="unfinished">Точкова</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Radar</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Radar with Markers</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Filled Radar</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <location line="+19"/>
@@ -80436,12 +80497,12 @@ The password couldn&apos;t be put on the file.</source>
         </translation>
     </message>
     <message>
-        <location filename="../libs/office/sheet/odschart.cpp" line="-577"/>
+        <location filename="../libs/office/sheet/odschart.cpp" line="-585"/>
         <source>The chart is of a kind this program does not read.</source>
         <translation type="unfinished">Діаграма має тип, який ця програма не читає.</translation>
     </message>
     <message>
-        <location line="+648"/>
+        <location line="+656"/>
         <source>The chart is larger than this program reads.</source>
         <translation type="unfinished">Діаграма більша, ніж може прочитати ця програма.</translation>
     </message>
@@ -86481,12 +86542,12 @@ The password couldn&apos;t be put on the file.</source>
 <context>
     <name>jp::write::Pictures</name>
     <message>
-        <location filename="../libs/office/sheet/chartops.cpp" line="-267"/>
+        <location filename="../libs/office/sheet/chartops.cpp" line="-268"/>
         <source>Series %1</source>
         <translation type="unfinished">Ряд %1</translation>
     </message>
     <message>
-        <location line="+29"/>
+        <location line="+30"/>
         <source>Category 1</source>
         <translation type="unfinished">Категорія 1</translation>
     </message>
