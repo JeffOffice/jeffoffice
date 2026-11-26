@@ -2565,7 +2565,7 @@ Matéria da última página	4</translation>
 <context>
     <name>DeckCompare</name>
     <message>
-        <location filename="../apps/deck/core/deckcompare.cpp" line="+843"/>
+        <location filename="../apps/deck/core/deckcompare.cpp" line="+844"/>
         <source>Slide %1</source>
         <translation type="unfinished">Slide %1</translation>
     </message>
@@ -2585,7 +2585,7 @@ Matéria da última página	4</translation>
         <translation type="unfinished">Slide excluído: %1</translation>
     </message>
     <message>
-        <location line="+23"/>
+        <location line="+20"/>
         <source>Notes changed on %1</source>
         <translation type="unfinished">Anotações alteradas em %1</translation>
     </message>
@@ -26767,7 +26767,7 @@ Fonte: %3</translation>
         <location line="+73"/>
         <location line="+3"/>
         <location filename="../apps/crunch/app/crunchwindow_recover.cpp" line="+239"/>
-        <location filename="../apps/crunch/app/crunchwindow_text.cpp" line="+22"/>
+        <location filename="../apps/crunch/app/crunchwindow_text.cpp" line="+23"/>
         <source>Open</source>
         <translation type="unfinished">Abrir</translation>
     </message>
@@ -27721,7 +27721,7 @@ Fonte: %3</translation>
         <location line="+12"/>
         <location filename="../apps/crunch/app/crunchwindow_clip.cpp" line="+4"/>
         <location line="+313"/>
-        <location line="+136"/>
+        <location line="+138"/>
         <location line="+161"/>
         <location line="+3"/>
         <source>Paste</source>
@@ -30436,7 +30436,7 @@ Fonte: %3</translation>
         <translation type="unfinished">Esse local não existe mais nesta pasta de trabalho.</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow_clip.cpp" line="-673"/>
+        <location filename="../apps/crunch/app/crunchwindow_clip.cpp" line="-675"/>
         <location line="+305"/>
         <location line="+44"/>
         <location filename="../apps/crunch/app/crunchwindow_pasteoffer.cpp" line="+110"/>
@@ -30536,14 +30536,14 @@ Fonte: %3</translation>
     </message>
     <message>
         <location line="+1"/>
-        <location line="+426"/>
+        <location line="+428"/>
         <location line="+11"/>
         <source>Paste Link</source>
         <translation type="unfinished">Colar Link</translation>
     </message>
     <message>
-        <location line="-436"/>
-        <location line="+449"/>
+        <location line="-438"/>
+        <location line="+451"/>
         <location line="+2"/>
         <location line="+5"/>
         <location line="+14"/>
@@ -30554,7 +30554,7 @@ Fonte: %3</translation>
         <translation type="unfinished">Colar como Hiperlink</translation>
     </message>
     <message>
-        <location line="-486"/>
+        <location line="-488"/>
         <source>Set Default Paste…</source>
         <translation type="unfinished">Definir Colagem Padrão…</translation>
     </message>
@@ -30653,12 +30653,12 @@ Fonte: %3</translation>
     <message>
         <location line="+21"/>
         <location line="+11"/>
-        <location line="+25"/>
+        <location line="+27"/>
         <source>Paste Text Import</source>
         <translation type="unfinished">Colar Importação de Texto</translation>
     </message>
     <message>
-        <location line="-36"/>
+        <location line="-38"/>
         <source>The clipboard has no text to split. Copy some text, and try again.</source>
         <translation type="unfinished">A área de transferência não tem texto para dividir. Copie algum texto e tente novamente.</translation>
     </message>
@@ -30668,7 +30668,7 @@ Fonte: %3</translation>
         <translation type="unfinished">Esse texto é longo demais para ser dividido. Copie menos texto e tente novamente.</translation>
     </message>
     <message>
-        <location line="+64"/>
+        <location line="+66"/>
         <source>Copy some cells of this workbook first, and try again.</source>
         <translation type="unfinished">Copie primeiro algumas células desta pasta de trabalho e tente novamente.</translation>
     </message>
@@ -30698,19 +30698,19 @@ Fonte: %3</translation>
         <translation type="unfinished">Células recortadas só podem ser colocadas entre outras na planilha de origem. Para movê-las para outra planilha, use Colar.</translation>
     </message>
     <message>
-        <location line="-339"/>
+        <location line="-341"/>
         <location filename="../apps/crunch/app/crunchwindow_tables.cpp" line="-212"/>
         <source>None</source>
         <translation type="unfinished">Nenhum</translation>
     </message>
     <message>
         <location line="-329"/>
-        <location line="+630"/>
+        <location line="+632"/>
         <source>Insert Cut or Copied Cells</source>
         <translation type="unfinished">Inserir Células Recortadas ou Copiadas</translation>
     </message>
     <message>
-        <location line="-621"/>
+        <location line="-623"/>
         <source>Clipboard</source>
         <translation type="unfinished">Área de Transferência</translation>
     </message>
@@ -55066,18 +55066,18 @@ Seu navegador da Web abrirá o LibreTranslate, um serviço de tradução gratuit
 <context>
     <name>jp::NotesPane</name>
     <message>
-        <location filename="../apps/deck/app/notespane.cpp" line="+21"/>
-        <location line="+47"/>
+        <location filename="../apps/deck/app/notespane.cpp" line="+24"/>
+        <location line="+50"/>
         <source>Notes</source>
         <translation>Anotações</translation>
     </message>
     <message>
-        <location line="-46"/>
+        <location line="-49"/>
         <source>Click to add notes</source>
         <translation type="unfinished">Clique para adicionar anotações</translation>
     </message>
     <message>
-        <location line="+79"/>
+        <location line="+82"/>
         <source>(Delete)</source>
         <translation type="unfinished">(Excluir)</translation>
     </message>
@@ -57663,7 +57663,7 @@ Seu navegador da Web abrirá o LibreTranslate, um serviço de tradução gratuit
 <context>
     <name>jp::PresenterView</name>
     <message>
-        <location filename="../apps/deck/app/presenterview.cpp" line="+109"/>
+        <location filename="../apps/deck/app/presenterview.cpp" line="+110"/>
         <location line="+1"/>
         <source>Presenter View</source>
         <translation type="unfinished">Modo de Exibição do Apresentador</translation>
@@ -57675,12 +57675,12 @@ Seu navegador da Web abrirá o LibreTranslate, um serviço de tradução gratuit
     </message>
     <message>
         <location line="+5"/>
-        <location line="+268"/>
+        <location line="+271"/>
         <source>Pause</source>
         <translation type="unfinished">Pausar</translation>
     </message>
     <message>
-        <location line="-267"/>
+        <location line="-270"/>
         <source>Reset</source>
         <translation type="unfinished">Redefinir</translation>
     </message>
@@ -57801,7 +57801,7 @@ Seu navegador da Web abrirá o LibreTranslate, um serviço de tradução gratuit
         <translation type="unfinished">Slide %1 de %2</translation>
     </message>
     <message>
-        <location line="+74"/>
+        <location line="+77"/>
         <source>Resume</source>
         <translation type="unfinished">Continuar</translation>
     </message>
@@ -60929,7 +60929,7 @@ Seu navegador da Web abrirá o LibreTranslate, um serviço de tradução gratuit
         <translation type="unfinished">Chinês tradicional (950)</translation>
     </message>
     <message>
-        <location line="+8"/>
+        <location line="+15"/>
         <source>Open a Text File</source>
         <translation type="unfinished">Abrir um arquivo de texto</translation>
     </message>
@@ -60980,12 +60980,12 @@ Seu navegador da Web abrirá o LibreTranslate, um serviço de tradução gratuit
         <translation>Milhares</translation>
     </message>
     <message>
-        <location line="+18"/>
+        <location line="+19"/>
         <source>Begin at row</source>
         <translation>Iniciar na linha</translation>
     </message>
     <message>
-        <location line="-87"/>
+        <location line="-88"/>
         <source>Comma</source>
         <translation type="unfinished">Vírgula</translation>
     </message>
@@ -61105,7 +61105,7 @@ Seu navegador da Web abrirá o LibreTranslate, um serviço de tradução gratuit
         <translation type="unfinished">Um sinal de menos pode vir depois do número</translation>
     </message>
     <message>
-        <location line="+6"/>
+        <location line="+7"/>
         <source>Read formulas</source>
         <translation type="unfinished">Ler fórmulas</translation>
     </message>
@@ -61120,22 +61120,47 @@ Seu navegador da Web abrirá o LibreTranslate, um serviço de tradução gratuit
         <translation type="unfinished">Primeira linha a importar</translation>
     </message>
     <message>
-        <location line="+11"/>
+        <location line="+5"/>
+        <source>The first row has column names</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>The row of names is not used to guess what the columns hold.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+10"/>
         <source>Preview of the first rows</source>
         <translation type="unfinished">Visualização das primeiras linhas</translation>
     </message>
     <message>
-        <location line="+142"/>
+        <location line="+155"/>
         <source>Read as</source>
         <translation type="unfinished">Ler como</translation>
     </message>
     <message>
-        <location line="+15"/>
+        <location line="+16"/>
         <source>The preview shows the first %1 rows of the file. The whole file is opened.</source>
         <translation type="unfinished">A visualização mostra as primeiras %1 linhas do arquivo. O arquivo inteiro será aberto.</translation>
     </message>
     <message>
-        <location line="+12"/>
+        <location line="+2"/>
+        <source>What each column holds is guessed from its first %1 rows. Change any column above before you open the file.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Columns that could be dates, but not for certain, are not read as dates until you choose an order: %1.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>The columns after the first %1 are brought in as text.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+35"/>
         <source>How column %1 is read</source>
         <translation type="unfinished">Como a coluna %1 é lida</translation>
     </message>
@@ -79612,7 +79637,7 @@ A senha não pôde ser aplicada ao arquivo.</translation>
 <context>
     <name>jp::office::sheet::Csv</name>
     <message>
-        <location filename="../libs/office/sheet/csv.cpp" line="+723"/>
+        <location filename="../libs/office/sheet/csv.cpp" line="+726"/>
         <source>The sheet has more cells than any real file has.</source>
         <translation type="unfinished">A planilha tem mais células do que qualquer arquivo real.</translation>
     </message>
@@ -79622,12 +79647,12 @@ A senha não pôde ser aplicada ao arquivo.</translation>
         <translation type="unfinished">A planilha é maior do que a de qualquer arquivo real.</translation>
     </message>
     <message>
-        <location line="+8"/>
+        <location line="+9"/>
         <source>The read was stopped.</source>
         <translation type="unfinished">A leitura foi interrompida.</translation>
     </message>
     <message>
-        <location line="+277"/>
+        <location line="+278"/>
         <source>This file is not a text file of values separated by commas, semicolons, or tabs.</source>
         <translation type="unfinished">Este arquivo não é um arquivo de texto com valores separados por vírgulas, ponto e vírgula ou tabulações.</translation>
     </message>
