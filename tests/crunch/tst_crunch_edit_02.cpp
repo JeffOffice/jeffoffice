@@ -1313,6 +1313,49 @@ void CrunchEditTests::theWindowsQuestionsAboutACellReadNoNodeOfTheWorker()
     }
 }
 
+// The window reads the cells of a block while the worker makes it grow and shrink (the path of the nightly memory-checker finding of Nov 26: a read of the store in updateFormatState beside the worker's
+// insert of member cells). With the index on the worker makes no cell for the block, so the reads see no freed memory; the checked build (asancheck.sh) is what fails with the index off. Counted work: every
+// round makes a change and reads the whole block range at once.
+namespace {
+bool readsABlockWhileItGrowsAndShrinks(bool index)
+{
+    SpillIndexSwitch sw(index);
+    EditWindow e;
+    if (!e.openBlank()) return false;
+    EditSession *s = e.win.w.session();
+    e.select(QStringLiteral("A1"));
+    e.enter(QStringLiteral("3"));
+    e.select(QStringLiteral("B1"));
+    e.enter(QStringLiteral("=SEQUENCE(A1)"));
+    if (!e.settle()) return false;
+    const Calculation *calc = s->calculation();
+    qint64 reads = 0;
+    for (int round = 0; round < 40; ++round) {
+        e.select(QStringLiteral("A1"));
+        e.enter(QString::number(round % 2 ? 2500 : 3));
+        for (int pass = 0; pass < 20; ++pass)
+            for (quint32 r = 0; r < 2600; r += 7) {
+                const std::optional<jp::office::sheet::Cell> c = calc->sheet(0).cells.find(r, 1);
+                reads += c ? 1 : 0;
+            }
+    }
+    return e.settle() && reads > 0;
+}
+} // namespace
+
+void CrunchEditTests::aWindowReadingABlockWhileTheWorkerGrowsAndShrinksItReadsNoFreedCell()
+{
+    QVERIFY(readsABlockWhileItGrowsAndShrinks(true));
+}
+
+// The same with the index off, which the checked build finds the nightly finding in (the worker's inserts of member cells move the store's blocks under the reader): run only with JO_SPILL_OFF_CHECK set,
+// since an ordinary run cannot tell and the worker's change is what the index removes.
+void CrunchEditTests::aWindowReadingABlockWhileTheWorkerMakesCellsOfItIsFoundByTheCheckedBuild()
+{
+    if (qEnvironmentVariableIsEmpty("JO_SPILL_OFF_CHECK")) QSKIP("the memory-checked build runs this one with JO_SPILL_OFF_CHECK=1: it is the known race the index removes");
+    QVERIFY(readsABlockWhileItGrowsAndShrinks(false));
+}
+
 // A slice's blocks are staged by the worker and read by the window only when the batch of values sent after them is taken: between the two the window reads the block it had, with the values it has. Nothing
 // here lets the window's event loop run until the checks are made (the batch waits in its queue). Fails when staging makes the copy the one the window reads at once (the window reads B1:B5 with the
 // values of B1:B3).
