@@ -1,4 +1,5 @@
 // Tests of the first-release lines closed in round 13 of JeffCrunch: the built-in themed cell styles, Repeat, and the Undo history list.
+#include "app/crunchinfo.h"
 #include "app/crunchwindow.h"
 #include "core/editsession.h"
 #include "core/fonts.h"
@@ -429,6 +430,43 @@ private Q_SLOTS:
         QCOMPARE(e.win.w.undoStack()->count(), steps);   // (refused)
         QVERIFY(repeat->toolTip().contains(QStringLiteral("Italic")));
         QVERIFY(!repeat->toolTip().contains(QStringLiteral("Bold")));
+    }
+
+    // The keys of the commands are the original's (as this computer writes them), and no key belongs to two commands.
+    void theKeysAreTheOriginalsAndNoKeyBelongsToTwoCommands()
+    {
+        EditWindow e;
+        QVERIFY(e.openBlank());
+        QVERIFY(e.settle());
+        auto native = [](const QKeySequence &k) { return k.toString(QKeySequence::NativeText); };
+        const QList<QPair<const char *, QKeySequence>> expected = {
+            {"format.cells", QKeySequence(Qt::CTRL | Qt::Key_1)},          {"fill.down", QKeySequence(Qt::CTRL | Qt::Key_D)},
+            {"fill.right", QKeySequence(Qt::CTRL | Qt::Key_R)},            {"edit.repeat", QKeySequence(Qt::Key_F4)},
+            {"find.goto", QKeySequence(Qt::Key_F5)},                       {"review.spelling", QKeySequence(Qt::Key_F7)},
+            {"formulas.calculate", QKeySequence(Qt::Key_F9)},              {"formulas.calculateSheet", QKeySequence(Qt::SHIFT | Qt::Key_F9)},
+            {"notes.edit", QKeySequence(Qt::SHIFT | Qt::Key_F2)},          {"edit.autosum", crunch::autoSumKey()}};
+        for (const auto &one : expected) {
+            QAction *a = e.win.w.act(QString::fromLatin1(one.first));
+            QVERIFY2(a, one.first);
+            const QKeySequence want = QKeySequence(one.second);
+            bool found = false;
+            for (const QKeySequence &k : a->shortcuts()) found = found || native(k) == native(want);
+            QVERIFY2(found, one.first);
+        }
+        QCOMPARE(crunch::autoSumKey(false), QKeySequence(Qt::ALT | Qt::Key_Equal));
+        QCOMPARE(native(e.win.w.act(QStringLiteral("edit.undo"))->shortcut()), native(QKeySequence(QKeySequence::Undo)));
+        // (Ctrl+Y is both Redo and Repeat on some computers, and only one is ever enabled; see below)
+        QMap<QString, QStringList> byKey;
+        for (const QString &id : e.win.w.actionIds()) {
+            QAction *a = e.win.w.act(id);
+            if (!a) continue;
+            for (const QKeySequence &k : a->shortcuts())
+                if (!k.isEmpty()) byKey[native(k)] << id;
+        }
+        QStringList shared;
+        for (auto it = byKey.cbegin(); it != byKey.cend(); ++it)
+            if (it.value().size() > 1) shared << it.key() + QLatin1Char('=') + it.value().join(QLatin1Char('+'));
+        QVERIFY2(shared.isEmpty(), qPrintable(shared.join(QLatin1String("; "))));
     }
 
     // Ctrl+Y as a key: Redo while there is a step to redo; Repeat when there is none and something to repeat; nothing otherwise. Never both (the shortcut is not ambiguous).
