@@ -12,6 +12,7 @@
 #include "core/sections.h"
 
 #include <QAction>
+#include <QCoreApplication>
 #include <QDialog>
 #include <QDialogButtonBox>
 #include <QLabel>
