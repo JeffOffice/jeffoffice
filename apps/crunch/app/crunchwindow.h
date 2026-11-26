@@ -1195,6 +1195,7 @@ private:
     void refreshSlicerLooks();                                   // they are drawn again when a pivot table changed   // a button of a slicer was clicked (in the pane or on the sheet; `item` is the item's place)
     void updatePrintAreaAction();
     static const std::vector<const char *> &pivotSelectionActions();
+    static const std::vector<const char *> &pivotGuardedActions();
     void updatePivotFieldActions();                           // the commands that work on a pivot table's cell are on only with the cursor in one
     void updatePivotTab();                                     // the Pivot Table tab shows for a cell in a pivot table; the fields pane shows that table
     int selectedPivot() const;                                 // the pivot table the cursor is in, or -1

@@ -177,13 +177,13 @@ void CrunchWindow::updateEditActions()
     act("edit.undo")->setToolTip(jp::plainToolTip(u && m_session->canUndo() ? (KeyMap::shownKey(act("edit.undo")).isEmpty() ? tr("Undo %1").arg(u->undoText()) : tr("Undo %1 (%2)").arg(u->undoText(), KeyMap::shownKey(act("edit.undo")))) : tr("Undo")));
     act("edit.redo")->setToolTip(jp::plainToolTip(u && u->canRedo() ? (KeyMap::shownKey(act("edit.redo")).isEmpty() ? tr("Redo %1").arg(u->redoText()) : tr("Redo %1 (%2)").arg(u->redoText(), KeyMap::shownKey(act("edit.redo")))) : tr("Redo")));
     // (a chart sheet has no cells to work on: none of the commands that do is on while one is in view, and they are back on a sheet of cells)
-    const std::vector<const char *> &pivotOwned = pivotSelectionActions();
+    const std::vector<const char *> &pivotOwned = pivotSelectionActions(), &pivotGuarded = pivotGuardedActions();
     for (const QString &id : m_opsActions) {
         QAction *a = act(id);
         if (!a) continue;
         const bool allowed = (open || (m_session && !m_saving && isReadOnly() && commandAllowedReadOnly(id))) && m_loaded && m_loaded->problem.isEmpty() && !m_chartSheetShown;   // (Find and Go To work in a workbook open for reading only; Replace and the rest do not)
         // (Commands another update turns on from what it knows are only turned off here: turning them on, and that update off again, at every edit made Qt 6.11 slow in proportion to the edits so far; Delete Background was one of them, 210 s for 10,000 row edits.)
-        const bool owned = id == QLatin1String("pivot.reportPages") || id == QLatin1String("printarea.clear") || id == QLatin1String("page.deleteBackground") || std::any_of(pivotOwned.begin(), pivotOwned.end(), [&](const char *own) { return id == QLatin1String(own); });
+        const bool owned = id == QLatin1String("pivot.reportPages") || id == QLatin1String("printarea.clear") || id == QLatin1String("page.deleteBackground") || std::any_of(pivotOwned.begin(), pivotOwned.end(), [&](const char *own) { return id == QLatin1String(own); }) || std::any_of(pivotGuarded.begin(), pivotGuarded.end(), [&](const char *own) { return id == QLatin1String(own); });
         if (!owned || !allowed) a->setEnabled(allowed);
     }
     for (const char *id : {"edit.copy", "edit.selectAll", "view.formulas", "view.gridlines", "view.headings", "view.freeze", "view.freezeRow", "view.freezeCol", "view.unfreeze", "view.split"})

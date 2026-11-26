@@ -1416,16 +1416,28 @@ const std::vector<const char *> &CrunchWindow::pivotSelectionActions()
     return ids;
 }
 
+// The commands of the Pivot Table menu that work in the whole of a workbook, and are turned off by updatePivotFieldActions alone only inside a pivot table that can't be changed.
+const std::vector<const char *> &CrunchWindow::pivotGuardedActions()
+{
+    static const std::vector<const char *> ids = {"pivot.refresh", "pivot.valueSettings", "pivot.options"};
+    return ids;
+}
+
 void CrunchWindow::updatePivotFieldActions()
 {
-    // (a command that works on a pivot table's cell is dimmed away from one, not left to say so when it is used)
-    const bool open = m_session && !m_saving && m_loaded && m_loaded->problem.isEmpty() && !m_chartSheetShown;
+    using Allow = crunch::EditSession::Allow;
+    // (a command that works on a pivot table's cell is dimmed away from one, not left to say so when it is used; and each is on only when it can act: not in a workbook open for reading only, and not on a
+    // sheet whose protection leaves out pivot tables, the same rules the commands keep when they are used)
+    const bool open = m_session && !m_saving && !isReadOnly() && !m_argsDialog && m_loaded && m_loaded->problem.isEmpty() && !m_chartSheetShown;
     const bool inTable = selectedPivot() >= 0;
+    const bool mayChange = open && inTable && m_session->canEditSheet(m_sheet) && m_session->allows(m_sheet, Allow::Pivot);
     for (const char *id : pivotSelectionActions())
-        if (QAction *a = act(QString::fromLatin1(id))) a->setEnabled(open && inTable);
+        if (QAction *a = act(QString::fromLatin1(id))) a->setEnabled(mayChange);
+    for (const char *id : pivotGuardedActions())
+        if (QAction *a = act(QString::fromLatin1(id))) a->setEnabled(open && (!inTable || mayChange));
     {
         bool filtered = false;
-        if (open && inTable) {
+        if (mayChange) {
             const PivotTableEntry &entry = m_session->workbook()->pivots().table(selectedPivot());
             filtered = entry.table && !entry.table->pageFields.isEmpty();
         }

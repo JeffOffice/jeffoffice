@@ -1311,6 +1311,57 @@ private Q_SLOTS:
         delete e.win.w.findChild<QMenu *>(QStringLiteral("cellMenu"));
     }
 
+    // Each entry of the Pivot Table menu is on only when it can act: not outside a pivot table (for the ones that work on a cell of one), not in a workbook open for reading only, and not on a
+    // sheet whose protection leaves out pivot tables. (On a protected sheet only the field list, which just shows the fields, stays on.)
+    static QStringList pivotEntriesOn(EditWindow &e)
+    {
+        QStringList on;
+        for (const char *id : {"pivot.refresh", "pivot.showDetail", "pivot.fieldSettings", "pivot.valueSettings", "pivot.expandField", "pivot.collapseField", "pivot.group", "pivot.ungroup", "pivot.options", "pivot.fieldList"})
+            if (e.win.w.act(QString::fromLatin1(id))->isEnabled()) on << QString::fromLatin1(id);
+        on.sort();
+        return on;
+    }
+    void theEntriesOfThePivotTableMenuAreOnOnlyWhenTheyCanAct()
+    {
+        QStringList all = {"pivot.refresh", "pivot.showDetail", "pivot.fieldSettings", "pivot.valueSettings", "pivot.expandField", "pivot.collapseField", "pivot.group", "pivot.ungroup", "pivot.options", "pivot.fieldList"};
+        all.sort();
+        const QStringList viewOnly = {QStringLiteral("pivot.fieldList")};
+        {
+            EditWindow e;
+            QVERIFY(e.open(pivotWorkbook()));
+            QVERIFY(e.settle());
+            e.select(QStringLiteral("F5"));
+            QVERIFY(e.settle());
+            QCOMPARE(pivotEntriesOn(e), all);
+            // outside a pivot table: the commands that work on one of its cells are off (and the menu is not made)
+            e.select(QStringLiteral("A1"));
+            QVERIFY(e.settle());
+            for (const char *id : {"pivot.showDetail", "pivot.fieldSettings", "pivot.expandField", "pivot.collapseField", "pivot.group", "pivot.ungroup"}) QVERIFY2(!e.win.w.act(QString::fromLatin1(id))->isEnabled(), id);
+            // a protected sheet: all but the field list are off unless the protection allows pivot tables
+            e.select(QStringLiteral("F5"));
+            crunch::EditSession *s = e.win.w.session();
+            jp::office::sheet::SheetProtection on;
+            on.enabled = true;
+            QVERIFY(s->setSheetProtection(0, on, QStringLiteral("Protect")).ok);
+            QVERIFY(e.settle());
+            QCOMPARE(pivotEntriesOn(e), viewOnly);
+            on.allowPivot = true;
+            QVERIFY(s->setSheetProtection(0, on, QStringLiteral("Protect")).ok);
+            QVERIFY(e.settle());
+            QCOMPARE(pivotEntriesOn(e), all);
+        }
+        {
+            EditWindow e;
+            e.path = e.folder.write(QStringLiteral("book.xlsx"), pivotWorkbook());
+            QVERIFY(e.win.open(e.path, OpenHow::ReadOnly));
+            QVERIFY(e.win.w.isReadOnly());
+            QVERIFY(e.settle());
+            e.select(QStringLiteral("F5"));
+            QVERIFY(e.settle());
+            QVERIFY2(pivotEntriesOn(e).isEmpty(), qPrintable(pivotEntriesOn(e).join(QLatin1Char(' '))));   // (the field list is a command of the editing window: off with the rest)
+        }
+    }
+
     // The commands of the pivot table tab work on the table the cursor is in: Refresh, Change Data Source (the cells asked for), and Clear; the tab shows only inside a table.
     void theTabsCommandsWorkOnTheTableTheCursorIsIn()
     {
