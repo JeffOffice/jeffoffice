@@ -36,6 +36,11 @@ static auto keepGridSettings()
     });
 }
 
+// One line of text in a picture: where its ink starts and ends.
+struct InkLine {
+    int top, bottom, left, right;
+};
+
 class DeckWindowTests : public QObject {
     Q_OBJECT
 
@@ -3823,6 +3828,345 @@ private Q_SLOTS:
         const QString shown = key.toString(QKeySequence::NativeText);
         QVERIFY2(w.act(QStringLiteral("edit.redo"))->toolTip().endsWith(QStringLiteral("(%1)").arg(shown)), qPrintable(w.act(QStringLiteral("edit.redo"))->toolTip()));
         QVERIFY(!w.act(QStringLiteral("edit.redo"))->toolTip().contains(QStringLiteral("Ctrl+Y")));
+    }
+
+    // ---------------- Notes Page: the notes' box shows the note formatted, zoomed with the page (slice 3) ----------------
+    // The grab of a widget, and the printed page's rendering of the notes' place, as pictures at the same zoom, are read as lines of ink: where each line of text starts and ends.
+    static QVector<InkLine> inkLines(const QImage &shot, int gap = 0)
+    {
+        QImage flat(shot.size(), QImage::Format_RGB32);
+        flat.fill(Qt::white);
+        {
+            QPainter p(&flat);
+            p.drawImage(0, 0, shot);
+        }
+        QVector<InkLine> lines;
+        int open = -1, left = 0, right = 0;
+        for (int y = 0; y <= flat.height(); ++y) {
+            int l = flat.width(), r = -1;
+            if (y < flat.height())
+                for (int x = 0; x < flat.width(); ++x)
+                    if (qGray(flat.pixel(x, y)) < 150) {
+                        l = std::min(l, x);
+                        r = std::max(r, x);
+                    }
+            if (r >= 0) {
+                if (open < 0) {
+                    open = y;
+                    left = l;
+                    right = r;
+                }
+                left = std::min(left, l);
+                right = std::max(right, r);
+            } else if (open >= 0) {
+                // (a gap of a few rows is the same line: an underline sits apart from the letters above it)
+                int next = y;
+                while (next < flat.height() && next - y < gap) {
+                    bool ink = false;
+                    for (int x = 0; x < flat.width() && !ink; ++x) ink = qGray(flat.pixel(x, next)) < 150;
+                    if (ink) break;
+                    ++next;
+                }
+                if (next < flat.height() && next - y < gap) continue;
+                lines.push_back({open, y - 1, left, right});
+                open = -1;
+            }
+        }
+        return lines;
+    }
+    // The printed page's picture of the notes' place, at the view's zoom.
+    static QImage printedNotes(NotesPageView *v, Editor *ed)
+    {
+        QImage img(v->viewport()->size(), QImage::Format_ARGB32);
+        img.fill(Qt::white);
+        QPainter p(&img);
+        deck::OutputOptions o;
+        o.layout = deck::PrintLayout::NotesPages;
+        o.hiddenSlides = true;
+        o.slides = {0};
+        const double k = v->zoom() * v->logicalDpiX() / 72.0;
+        p.translate(v->pageRect().topLeft());
+        p.scale(k, k);
+        deck::paintOutputPage(&p, *ed->doc(), &ed->cache(), o, 0, v->paper());
+        p.end();
+        return img.copy(v->notesRect().toRect());
+    }
+    // A window in Notes Page view with a slide whose notes are the story `fill` makes, the box showing them at zoom 1.
+    static void notesPageWith(DeckWindow &w, NotesPane **out, const std::function<void(QTextCursor &)> &fill)
+    {
+        Editor *ed = w.editor();
+        w.resize(1440, 900);
+        w.show();
+        w.newSlide();
+        ed->setCurrentPage(0);
+        w.act(QStringLiteral("view.notesPage"))->trigger();
+        NotesPageView *v = w.notesPageView();
+        QTRY_VERIFY(v->notesBox()->isVisible() && v->viewport()->width() > 300);
+        QTextCursor c(notesStory(ed));
+        fill(c);
+        v->setZoom(1.0);
+        v->reload();
+        ed->undoStack()->clear();
+        *out = v->notesBox();
+    }
+    // The box shows the note formatted (bold, italic, underline, a link, a line break) and is as big as the printed page's words at every zoom; zooming changes only what is shown:
+    // the note's words, formats, default font, and revision stay as they were.
+    void theNotesPageBoxShowsTheNoteFormattedAndZoomsWithThePage()
+    {
+        DeckWindow w;
+        NotesPane *box = nullptr;
+        notesPageWith(w, &box, [](QTextCursor &c) {
+            QTextCharFormat bold;
+            bold.setFontWeight(QFont::Bold);
+            c.insertText(QStringLiteral("Plain "), QTextCharFormat());
+            c.insertText(QStringLiteral("bold"), bold);
+            c.insertText(QStringLiteral(" words"), QTextCharFormat());
+            c.insertText(QString(QChar::LineSeparator));
+            QTextCharFormat link;
+            link.setAnchor(true);
+            link.setAnchorHref(QStringLiteral("https://example.com/"));
+            c.insertText(QStringLiteral("a link"), link);
+        });
+        NotesPageView *v = w.notesPageView();
+        Editor *ed = w.editor();
+        const QTextDocument *story = notesStory(ed);
+        QVERIFY(box->document() == story);
+        QTextCursor at(box->document());
+        at.setPosition(8);
+        QVERIFY2(at.charFormat().fontWeight() > QFont::Normal, "the box's document is the formatted story");
+        const QString html = story->toHtml();
+        const QFont font = story->defaultFont();
+        const int revision = story->revision();
+        QCOMPARE(box->displayScale(), v->zoom() * v->notesFit());
+        auto height = [&] { return box->document()->size().height(); };
+        QTRY_VERIFY(height() > 1);
+        const double one = height();
+        v->setZoom(2.0);
+        QCOMPARE(box->displayScale(), 2.0 * v->notesFit());
+        QTRY_VERIFY2(height() > one * 1.8 && height() < one * 2.2, qPrintable(QStringLiteral("%1 -> %2").arg(one).arg(height())));
+        v->setZoom(0.5);
+        QTRY_VERIFY2(height() > one * 0.4 && height() < one * 0.6, qPrintable(QStringLiteral("%1 -> %2").arg(one).arg(height())));
+        QCOMPARE(story->toHtml(), html);
+        QCOMPARE(story->defaultFont(), font);
+        QCOMPARE(story->revision(), revision);
+    }
+
+    // What the notes page prints and exports is what the box shows: the same lines (each paragraph, each line break, the words with their marks and the link as words), at the same
+    // size and place, compared as pictures of the notes' place.
+    void thePrintedNotesPageAndTheBoxShowTheSameLines()
+    {
+        DeckWindow w;
+        NotesPane *box = nullptr;
+        notesPageWith(w, &box, [](QTextCursor &c) {
+            QTextCharFormat bold, italic, under, link;
+            bold.setFontWeight(QFont::Bold);
+            italic.setFontItalic(true);
+            under.setFontUnderline(true);
+            link.setAnchor(true);
+            link.setAnchorHref(QStringLiteral("https://example.com/"));
+            c.insertText(QStringLiteral("Opening line"), QTextCharFormat());
+            c.insertBlock();
+            c.insertText(QStringLiteral("Bold"), bold);
+            c.insertText(QStringLiteral(" and "), QTextCharFormat());
+            c.insertText(QStringLiteral("italic"), italic);
+            c.insertText(QStringLiteral(" and "), QTextCharFormat());
+            c.insertText(QStringLiteral("underlined"), under);
+            c.insertBlock();
+            c.insertText(QStringLiteral("See "), QTextCharFormat());
+            c.insertText(QStringLiteral("the link"), link);
+            c.insertText(QString(QChar::LineSeparator));
+            c.insertText(QStringLiteral("after a line break"), QTextCharFormat());
+            c.insertBlock();
+            c.insertText(QStringLiteral("Last"), QTextCharFormat());
+        });
+        NotesPageView *v = w.notesPageView();
+        Editor *ed = w.editor();
+        QCOMPARE(v->notesFit(), 1.0);
+        QTRY_VERIFY(box->document()->size().height() > 1);
+        const QVector<InkLine> shown = inkLines(box->grab().toImage(), 4), printed = inkLines(printedNotes(v, ed), 4);
+        QVERIFY(shown.size() >= 5);
+        QCOMPARE(shown.size(), printed.size());   // (one line for each paragraph and line break, in both)
+        const int span = std::max(1, printed.last().bottom - printed.first().top);
+        for (int i = 0; i < shown.size(); ++i) {
+            QVERIFY2(qAbs(shown[i].top - printed[i].top) <= std::max(8, span / 10), qPrintable(QStringLiteral("line %1: %2 and %3").arg(i).arg(shown[i].top).arg(printed[i].top)));
+            QVERIFY2(qAbs(shown[i].left - printed[i].left) <= 6, qPrintable(QStringLiteral("line %1 starts at %2 and %3").arg(i).arg(shown[i].left).arg(printed[i].left)));
+            const int width = std::max(1, printed[i].right - printed[i].left);
+            QVERIFY2(qAbs((shown[i].right - shown[i].left) - width) <= width / 4 + 6, qPrintable(QStringLiteral("line %1 is %2 wide and %3").arg(i).arg(shown[i].right - shown[i].left).arg(width)));
+        }
+    }
+
+    // A note longer than its place does what the printed page does (it is set a step smaller to fit, as the slides' text is; the page is never given another page): the box shows the
+    // words in the same step, all of them. The fit is asked for once typing pauses, not for each key.
+    void aLongNoteIsShownAsSmallAsThePrintedPageSetsIt()
+    {
+        DeckWindow w;
+        NotesPane *box = nullptr;
+        notesPageWith(w, &box, [](QTextCursor &c) {
+            for (int i = 0; i < 70; ++i) {
+                if (i) c.insertBlock();
+                c.insertText(QStringLiteral("Line %1 of a note that is long").arg(i));
+            }
+        });
+        NotesPageView *v = w.notesPageView();
+        Editor *ed = w.editor();
+        QTRY_VERIFY2(v->notesFit() < 1.0, "the printed page shrinks this note");
+        QCOMPARE(box->displayScale(), v->zoom() * v->notesFit());
+        QTRY_VERIFY2(box->document()->size().height() <= box->height() + 2, qPrintable(QString::number(box->document()->size().height()) + QStringLiteral(" in ") + QString::number(box->height())));
+        const QVector<InkLine> shown = inkLines(box->grab().toImage()), printed = inkLines(printedNotes(v, ed));
+        // (the lines are too close to tell apart at this size: the shown and the printed notes end at the same place, near the foot of the place, and neither has gone past it)
+        // (what is shown is the printed page's size step; the lines' own spacing is the text view's, so the two are not compared line by line here)
+        QVERIFY(!shown.isEmpty() && !printed.isEmpty());
+        QVERIFY2(shown.last().bottom < box->height(), qPrintable(QString::number(shown.last().bottom)));
+        deck::OutputOptions o;
+        o.layout = deck::PrintLayout::NotesPages;
+        o.hiddenSlides = true;
+        o.slides = {0};
+        QCOMPARE(deck::outputPageCount(*ed->doc(), o), 1);   // (no pagination: a long note is still one page)
+        // A note too long for even the smallest step is clipped on the page and in the box, which scrolls to the caret as it always has.
+        QTextCursor c(notesStory(ed));
+        c.movePosition(QTextCursor::End);
+        for (int i = 0; i < 400; ++i) {
+            c.insertBlock();
+            c.insertText(QStringLiteral("More %1").arg(i));
+        }
+        v->reload();
+        v->commit();
+        QTRY_COMPARE(v->notesFit(), 0.25);
+        QCOMPARE(deck::outputPageCount(*ed->doc(), o), 1);
+    }
+
+    // The fit is not worked out for each key: a run of keys in a long note makes only the layouts of the pauses, however many keys there are.
+    void theFitOfALongNoteIsNotMadeForEachKey()
+    {
+        DeckWindow w;
+        NotesPane *box = nullptr;
+        notesPageWith(w, &box, [](QTextCursor &c) {
+            for (int i = 0; i < 600; ++i) {
+                if (i) c.insertBlock();
+                c.insertText(QStringLiteral("Line %1 of a long note").arg(i));
+            }
+        });
+        NotesPageView *v = w.notesPageView();
+        QTRY_VERIFY(v->notesFit() < 1.0);
+        QTest::mouseClick(box->viewport(), Qt::LeftButton, Qt::NoModifier, QPoint(3, 3));
+        QVERIFY(w.editor()->editingStoryOnly());
+        for (int i = 0; i < 4; ++i) QCoreApplication::processEvents();
+        const int runs = NotesPageView::fitRuns();
+        const qint64 layouts = LayoutCache::layoutsMadeForTest();
+        for (int i = 0; i < 40; ++i) QTest::keyClick(box, Qt::Key_X);
+        QVERIFY2(NotesPageView::fitRuns() - runs <= 3, qPrintable(QString::number(NotesPageView::fitRuns() - runs)));   // (40 keys: a pause or two, never one for each)
+        QVERIFY2(LayoutCache::layoutsMadeForTest() - layouts <= 6, qPrintable(QString::number(LayoutCache::layoutsMadeForTest() - layouts)));
+        QTRY_VERIFY(NotesPageView::fitRuns() > runs);   // (and it is asked for once typing has paused)
+    }
+
+    // Only the shown view of a story holds its document, in every view and when the slide changes: Normal, Notes Page, Slide Sorter, Outline, and back.
+    void onlyTheShownViewOfTheNotesHoldsTheirDocument()
+    {
+        DeckWindow w;
+        NotesPane *pane = notesWith(w, QStringLiteral("first slide notes"));
+        Editor *ed = w.editor();
+        w.newSlide();
+        ed->setCurrentPage(0);
+        NotesPane *box = w.notesPageView()->notesBox();
+        auto holders = [&](const QTextDocument *story) { return int(pane->document() == story) + int(box->document() == story); };
+        const QTextDocument *first = notesStory(ed);
+        QTRY_COMPARE(holders(first), 1);
+        QVERIFY(pane->document() == first);
+        w.act(QStringLiteral("view.notesPage"))->trigger();
+        QTRY_VERIFY(box->isVisible());
+        QTRY_COMPARE(holders(first), 1);
+        QVERIFY(box->document() == first);
+        // A slide change in Notes Page view: the box has the other slide's story (if it has one), and the first story is held by no view.
+        QTest::keyClick(w.notesPageView(), Qt::Key_PageDown);
+        QCOMPARE(ed->currentPage(), 1);
+        QTRY_COMPARE(holders(first), 0);
+        QTest::keyClick(w.notesPageView(), Qt::Key_PageUp);
+        QTRY_COMPARE(holders(first), 1);
+        for (const char *id : {"view.sorter", "view.outline", "view.normal", "view.notesPage", "view.normal"}) {
+            w.act(QString::fromLatin1(id))->trigger();
+            QTRY_VERIFY2(holders(first) <= 1, id);
+            QCoreApplication::processEvents();
+            QVERIFY2(holders(first) <= 1, id);
+            if (pane->isVisible()) QTRY_VERIFY2(pane->document() == first, id);
+            if (box->isVisible()) QTRY_VERIFY2(box->document() == first, id);
+            if (!pane->isVisible()) QVERIFY2(pane->document() != first, id);
+            if (!box->isVisible()) QVERIFY2(box->document() != first, id);
+        }
+    }
+
+    // The sequence that crashed on main for the slide's text: caret in the notes box on the Notes Page, the presentation becomes read only, a key and then a format command are refused,
+    // nothing of the text edit is left.
+    void aReadOnlyPresentationRefusesEditsInTheNotesPageBox()
+    {
+        DeckWindow w;
+        NotesPane *box = nullptr;
+        notesPageWith(w, &box, [](QTextCursor &c) { c.insertText(QStringLiteral("alpha beta gamma")); });
+        Editor *ed = w.editor();
+        QTest::mouseDClick(box->viewport(), Qt::LeftButton, Qt::NoModifier, inNotes(box, 6));
+        QVERIFY(ed->editingStoryOnly());
+        w.setReadOnly(true);
+        QVERIFY(!ed->isEditingText());
+        QTest::keyClicks(box, QStringLiteral("zz"));
+        ed->typeText(QStringLiteral("zz"));
+        ed->toggleBold();
+        w.act(QStringLiteral("fmt.bold"))->trigger();
+        QTest::keyClick(box, Qt::Key_B, Qt::ControlModifier);
+        QCOMPARE(notesStory(ed)->toPlainText(), QStringLiteral("alpha beta gamma"));
+        QVERIFY(!ed->isEditingText());
+        w.setReadOnly(false);
+    }
+
+    // A slide object selected on the slide never gets a notes command, in the box on the Notes Page either: the words selected there are formatted, the slide is as it was.
+    void aSlideObjectNeverReceivesACommandFromTheNotesPageBox()
+    {
+        DeckWindow w;
+        Editor *ed = w.editor();
+        w.newSlide();
+        ed->setCurrentPage(0);
+        auto text = std::static_pointer_cast<TextItem>(ed->newTextBox(QRectF(72, 72, 400, 100), QStringLiteral("slide words")));
+        ed->addItem(text);
+        ed->select(text->id);
+        auto slide = [&] {
+            QByteArray out;
+            for (const ItemPtr &it : ed->doc()->pages[0]->items) {
+                out += QJsonDocument(it->toJson()).toJson(QJsonDocument::Compact);
+                if (it->type() == ItemType::Text) out += marked(ed->doc()->storyDoc(static_cast<TextItem *>(it.get())->storyId)).toUtf8();
+            }
+            return out;
+        };
+        const QByteArray before = slide();
+        NotesPane *box = nullptr;
+        notesPageWith(w, &box, [](QTextCursor &c) { c.insertText(QStringLiteral("alpha beta gamma")); });
+        ed->select(text->id);
+        QTest::mouseDClick(box->viewport(), Qt::LeftButton, Qt::NoModifier, inNotes(box, 6));
+        QCOMPARE(box->textCursor().selectedText(), QStringLiteral("beta"));
+        run(w, QStringLiteral("fmt.bold"));
+        QCOMPARE(marked(notesStory(ed)), QStringLiteral("alpha [B]beta[/B] gamma"));
+        run(w, QStringLiteral("fmt.italic"));
+        run(w, QStringLiteral("para.bullets"));
+        QVERIFY(notesStory(ed)->firstBlock().textList());
+        QCOMPARE(slide(), before);
+    }
+
+    // The window going away with the caret in the Notes Page box: nothing is left behind (the box, its document, the editor's edit).
+    void aWindowGoingWithTheCaretInTheNotesPageBoxLeavesNothing()
+    {
+        auto *w = new DeckWindow;
+        QPointer<NotesPane> box;
+        {
+            NotesPane *got = nullptr;
+            notesPageWith(*w, &got, [](QTextCursor &c) { c.insertText(QStringLiteral("alpha beta gamma")); });
+            box = got;
+            QTest::mouseDClick(box->viewport(), Qt::LeftButton, Qt::NoModifier, inNotes(box, 6));
+            QVERIFY(w->editor()->editingStoryOnly());
+            box->setFocus();
+            QTest::keyClicks(box, QStringLiteral("zz"));
+        }
+        const int steps = w->editor()->undoStack()->count();
+        Q_UNUSED(steps);
+        delete w;
+        QCoreApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete);
+        QVERIFY(box.isNull());
     }
 
     // ---- Notes Page, Notes Master, and Handout Master views (November 15, 2026)

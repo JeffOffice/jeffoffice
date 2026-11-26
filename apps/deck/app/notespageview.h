@@ -12,6 +12,7 @@
 #include <QAbstractScrollArea>
 #include <QColor>
 #include <QRectF>
+#include <QTimer>
 
 namespace jp {
 
@@ -47,6 +48,11 @@ public:
     static QString labelText(const QString &text, const QFont &font, const QRectF &box);
     // How many times the layout was read from the presentation (the layouts are kept while the document is as it was, so a drag does not read them for each move).
     int layoutReads() const { return m_reads; }
+    // The size the printed page gives the notes so that they fit their place (1 when they do): the same steps and the same layout the printed page and its PDF use, asked for when
+    // the page, the notes' place, or the notes' story changes and once typing pauses, never for each key. The box shows the notes at the zoom times this.
+    double notesFit() const { return m_fit; }
+    // How many times that fit was asked for (for the tests of cost).
+    static int fitRuns() { return s_fitRuns; }
     void commit();   // saves the notes typed
     void reload();
 
@@ -84,6 +90,7 @@ private:
     const deck::NotesMaster &notesNow() const;
     const deck::HandoutMaster &handoutNow() const;
     void paintMaster(QPainter &p);
+    void refit();
     void change(const QString &label, const std::function<void(Document &)> &fn);
 
     Editor *m_ed;
@@ -99,6 +106,9 @@ private:
     mutable deck::HandoutMaster m_handoutLayout;
     mutable int m_reads = 0;
     bool m_fitPending = false;
+    double m_fit = 1;
+    QTimer m_fitTimer;
+    static inline int s_fitRuns = 0;
 };
 
 } // namespace jp

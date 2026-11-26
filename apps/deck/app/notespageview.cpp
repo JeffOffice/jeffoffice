@@ -3,6 +3,8 @@
 #include "app/editor.h"
 #include "app/notespane.h"
 #include "core/deck.h"
+#include "core/items.h"
+#include "render/renderer.h"
 #include "core/printheaderfooter.h"
 #include "io/deckoutput.h"
 
@@ -67,14 +69,26 @@ NotesPageView::NotesPageView(Editor *ed, QWidget *parent) : QAbstractScrollArea(
     m_box->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
     m_box->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
     m_box->hide();
+    m_fitTimer.setSingleShot(true);
+    m_fitTimer.setInterval(300);
+    connect(&m_fitTimer, &QTimer::timeout, this, [this] {
+        refit();
+        layoutBox();
+        viewport()->update();
+    });
     connect(ed, &Editor::pageChanged, this, [this] {
         m_notesKept = m_handoutKept = false;
         m_box->reload();
+        refit();
+        layoutBox();
         viewport()->update();
     });
     connect(ed, &Editor::changed, this, [this] {
         m_notesKept = m_handoutKept = false;
-        if (m_mode == Mode::NotesPage) m_box->reload();
+        if (m_mode == Mode::NotesPage) {
+            m_box->reload();
+            m_fitTimer.start();   // (the fit is asked for when typing pauses: the work of a key does not grow with the notes)
+        }
         updateRanges();
         layoutBox();
         viewport()->update();
@@ -98,7 +112,10 @@ void NotesPageView::setMode(Mode mode)
     m_mode = mode;
     m_selected = -1;
     m_box->setVisible(mode == Mode::NotesPage);
-    if (mode == Mode::NotesPage) m_box->reload();
+    if (mode == Mode::NotesPage) {
+        m_box->reload();
+        refit();
+    }
     updateRanges();
     layoutBox();
     viewport()->update();
@@ -211,13 +228,37 @@ void NotesPageView::layoutBox()
 {
     if (m_mode != Mode::NotesPage || !m_ed->doc()) return;
     m_box->setGeometry(notesRect().toRect());
-    QFont f = m_box->font();
-    f.setPixelSize(std::max(6, int(std::lround(12 * scale()))));
-    m_box->setFont(f);
+    m_box->setDisplayScale(m_zoom * m_fit);   // (the words are as big as the printed page's, at the zoom: the notes themselves are never changed by it)
+}
+
+// What the printed page does when the notes are longer than their place (it sets them a step smaller, as the slides' text shrinks to fit) is shown in the box the same way: the
+// same layout of the same words, asked of the same cache.
+void NotesPageView::refit()
+{
+    m_fit = 1;
+    const Document *d = m_ed->doc();
+    const int slide = m_ed->currentPage();
+    if (!d || m_mode != Mode::NotesPage || slide < 0 || slide >= d->pages.size() || !d->story(d->pages[slide]->notesStoryId)) return;
+    ++s_fitRuns;
+    const deck::NotesPageGeometry g = deck::notesPageGeometry(notesNow(), paper(), d->pageSize());
+    TextItem box;
+    box.id = QStringLiteral("output-notes-") + d->pages[slide]->id;
+    box.storyId = d->pages[slide]->notesStoryId;
+    box.rect = QRectF(QPointF(0, 0), g.body.size());
+    box.insets = QMarginsF(0, 0, 0, 0);
+    box.autofit = TextItem::ShrinkOnOverflow;
+    RenderOptions o;
+    o.output = true;
+    m_fit = std::clamp(m_ed->cache().textFrame(*d, box, slide + 1, o).fitScale, 0.1, 1.0);
 }
 
 void NotesPageView::commit() { m_box->commit(); }
-void NotesPageView::reload() { m_box->reload(); }
+void NotesPageView::reload()
+{
+    m_box->reload();
+    refit();
+    layoutBox();
+}
 
 void NotesPageView::resizeEvent(QResizeEvent *e)
 {

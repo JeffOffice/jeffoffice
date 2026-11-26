@@ -8,6 +8,7 @@
 #include "core/export.h"
 #include "core/document.h"
 
+#include <QImage>
 #include <QTextEdit>
 #include <QTextOption>
 #include <array>
@@ -38,6 +39,15 @@ public:
     // Typed words are closed into one undo step (as a text box's are when the caret leaves or typing pauses).
     void flushTyping();
     bool hasTyping() const;
+
+    // How big the words are shown, as a multiple of the size the story gives them (1: as the story says, at the screen's resolution): the view's zoom, and the size a presenter
+    // chooses. It changes only how the words are laid out and drawn here: the story, its sizes, and its fonts are never changed. Cheap; the same scale again does nothing.
+    void setDisplayScale(double scale);
+    double displayScale() const { return m_scale; }
+    // Gives up the story's document while the host shows the words somewhere else (the other view then has it); the view shows nothing and takes no story until it is let go
+    // again (setYielding(false) shows the story it was given).
+    void setYielding(bool yield);
+    bool isYielding() const { return m_yield; }
 
     // The marks under the words: misspelled ones (red, wavy), and, where the host has them, others (a color and a style for each range, [start, end)).
     struct Mark {
@@ -87,12 +97,18 @@ private:
     void followEditor();   // the Editor's caret moved: the view's does too
     void followView();     // the view's caret moved: the Editor's does too
     void markWords();
+    void applyScale();
     Editor *m_ed;
     QString m_id;
     std::shared_ptr<Story> m_story;   // (kept: the document may drop its own while this view still shows the words)
     QTextDocument *m_none = nullptr;   // what is shown when there is no story
-    QSizeF m_page;                     // the page size and text option the shown document had before this view laid it out
+    QSizeF m_page;                     // the page size, default font, indent, and text option the shown document had before this view laid it out
     QTextOption m_option;
+    QFont m_font;
+    qreal m_indent = 40;
+    double m_scale = 1.0;
+    bool m_yield = false;
+    QImage m_device;                   // (only its resolution: the layout sizes the words by it when the display scale is not 1)
     bool m_syncing = false;
     QVector<Mark> m_marks;
     int m_markVersion = 0;

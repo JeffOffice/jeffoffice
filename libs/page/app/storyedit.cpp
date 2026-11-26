@@ -15,6 +15,8 @@
 #include <QScrollBar>
 #include <QTextBlock>
 #include <QTextDocument>
+#include <QAbstractTextDocumentLayout>
+#include <cmath>
 #include <algorithm>
 #include <array>
 
@@ -45,6 +47,8 @@ StoryEdit::~StoryEdit()
             m_story->doc->setDocumentLayout(nullptr);
             m_story->doc->setPageSize(m_page);
             m_story->doc->setDefaultTextOption(m_option);
+            m_story->doc->setDefaultFont(m_font);
+            m_story->doc->setIndentWidth(m_indent);
         }
     }
 }
@@ -54,7 +58,7 @@ void StoryEdit::setStory(const QString &storyId)
     m_id = storyId;
     std::shared_ptr<Story> found;
     // Only a view that is shown has the story's document: the document has one layout and one width, and a hidden view that kept it would give its own to the one shown.
-    if (Document *d = m_ed->doc(); d && !storyId.isEmpty() && isVisibleTo(window())) found = d->stories.value(storyId);
+    if (Document *d = m_ed->doc(); d && !storyId.isEmpty() && !m_yield && isVisibleTo(window())) found = d->stories.value(storyId);
     if (found.get() == m_story.get()) return;
     bind(found);
 }
@@ -67,20 +71,30 @@ void StoryEdit::bind(const std::shared_ptr<Story> &story)
     std::shared_ptr<Story> old = m_story;
     const QSizeF oldPage = m_page;
     const QTextOption oldOption = m_option;
+    const QFont oldFont = m_font;
+    const qreal oldIndent = m_indent;
     m_syncing = true;
     m_story = story;
     QTextDocument *d = story ? story->doc.get() : m_none;
     if (story) {
         m_page = d->pageSize();
         m_option = d->defaultTextOption();
+        m_font = d->defaultFont();
+        m_indent = d->indentWidth();
     }
     setDocument(d);
+    if (story) {
+        d->setDefaultFont(m_font);   // (the view's own font is never the story's)
+        applyScale();
+    }
     d->setUndoRedoEnabled(false);
     if (old && old->doc) {
         // (the old document gets back what it had: no layout, and its own sizes)
         old->doc->setDocumentLayout(nullptr);
         old->doc->setPageSize(oldPage);
         old->doc->setDefaultTextOption(oldOption);
+        old->doc->setDefaultFont(oldFont);
+        old->doc->setIndentWidth(oldIndent);
     }
     QTextCursor c(d);
     const int last = std::max(0, d->characterCount() - 1);
@@ -95,6 +109,45 @@ void StoryEdit::bind(const std::shared_ptr<Story> &story)
     markWords();
     if (isTarget()) followEditor();
     Q_EMIT storyShown();
+}
+
+void StoryEdit::setDisplayScale(double scale)
+{
+    scale = std::clamp(scale, 0.05, 16.0);
+    if (qFuzzyCompare(scale, m_scale)) return;
+    m_scale = scale;
+    applyScale();
+    markWords();
+}
+
+// The layout sizes the words (points) by the resolution of its paint device: a device of the scaled resolution shows them larger or smaller, with nothing in the story changed.
+// What is measured in pixels (the indent of a list) is scaled with them.
+void StoryEdit::applyScale()
+{
+    if (!m_story || !m_story->doc) return;
+    QTextDocument *d = m_story->doc.get();
+    QAbstractTextDocumentLayout *lay = d->documentLayout();
+    if (!lay) return;
+    if (qFuzzyCompare(m_scale, 1.0)) {
+        lay->setPaintDevice(viewport());
+        d->setIndentWidth(m_indent);
+    } else {
+        const int dpi = std::max(1, int(std::lround(viewport()->logicalDpiY() * m_scale)));
+        m_device = QImage(1, 1, QImage::Format_Mono);
+        m_device.setDotsPerMeterX(int(std::lround(dpi / 0.0254)));
+        m_device.setDotsPerMeterY(int(std::lround(dpi / 0.0254)));
+        lay->setPaintDevice(&m_device);
+        d->setIndentWidth(m_indent * m_scale);
+    }
+    d->markContentsDirty(0, d->characterCount());
+}
+
+void StoryEdit::setYielding(bool yield)
+{
+    if (m_yield == yield) return;
+    m_yield = yield;
+    if (yield) bind(nullptr);
+    else setStory(m_id);
 }
 
 bool StoryEdit::isTarget() const
