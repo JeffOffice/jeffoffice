@@ -926,6 +926,27 @@ private Q_SLOTS:
         }
     }
 
+    // The settings are read as XML: a comment that has a group or a setting in it is no group or setting, a setting written with an end tag is one setting, and the order of its attributes is its own.
+    void theCompatibilityModeOfTheSettingsIsFoundByReadingTheXml()
+    {
+        const QByteArray open = QByteArray("<?xml version=\"1.0\"?><w:settings ") + kNs;
+        const QByteArray set = "<w:compatSetting w:name=\"compatibilityMode\" w:uri=\"http://schemas.microsoft.com/office/word\" w:val=\"15\"/>";
+        // a group in a comment is not there
+        QCOMPARE(office::wml::settingsWithCompatibilityMode(open + "><!-- <w:compat/> --><w:rsids/></w:settings>", 15), open + "><!-- <w:compat/> --><w:compat>" + set + "</w:compat><w:rsids/></w:settings>");
+        // a setting in a comment is not there
+        const QByteArray commented = "<!-- <w:compatSetting w:name=\"compatibilityMode\" w:val=\"11\"/> -->";
+        QCOMPARE(office::wml::settingsWithCompatibilityMode(open + "><w:compat>" + commented + "</w:compat></w:settings>", 15), open + "><w:compat>" + commented + set + "</w:compat></w:settings>");
+        // one written with an end tag is changed, not doubled
+        const QByteArray ended = "<w:compatSetting w:name=\"compatibilityMode\" w:uri=\"u\" w:val=\"11\">x</w:compatSetting>";
+        QCOMPARE(office::wml::settingsWithCompatibilityMode(open + "><w:compat>" + ended + "</w:compat></w:settings>", 15),
+                 open + "><w:compat><w:compatSetting w:name=\"compatibilityMode\" w:uri=\"u\" w:val=\"15\"/></w:compat></w:settings>");
+        // the attributes come in any order, and another setting's value is left alone
+        QCOMPARE(office::wml::settingsWithCompatibilityMode(open + "><w:compat><w:compatSetting w:val=\"11\" w:name=\"compatibilityMode\" w:uri=\"u\"/><w:compatSetting w:name=\"other\" w:val=\"11\"/></w:compat></w:settings>", 15),
+                 open + "><w:compat><w:compatSetting w:val=\"15\" w:name=\"compatibilityMode\" w:uri=\"u\"/><w:compatSetting w:name=\"other\" w:val=\"11\"/></w:compat></w:settings>");
+        // text that is no settings is left as it is
+        QCOMPARE(office::wml::settingsWithCompatibilityMode(QByteArray("<w:settings"), 15), QByteArray("<w:settings"));
+    }
+
     // The settings with the mode put in: changed where it is, added to a group, a group made, a whole part made.
     void theCompatibilityModeOfTheSettingsIsPutIn()
     {

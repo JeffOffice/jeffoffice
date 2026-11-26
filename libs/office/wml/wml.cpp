@@ -466,57 +466,110 @@ QByteArray settingsWithCompatibilityMode(const QByteArray &settings, int mode)
 {
     mode = std::clamp(mode, 8, 99);
     const QByteArray value = QByteArray::number(mode);
-    QString text = QString::fromUtf8(settings);
-    // The setting is one element of the compat group: its value is changed where it is.
-    static const QRegularExpression own(QStringLiteral("<((?:[\\w.-]+:)?)compatSetting\\b[^>]*?\\bname=\"compatibilityMode\"[^>]*?/>"));
-    const QRegularExpressionMatch found = own.match(text);
-    if (found.hasMatch()) {
-        static const QRegularExpression val(QStringLiteral("(\\bval=\")[^\"]*(\")"));
-        QString element = found.captured(0);
-        element.replace(val, QStringLiteral("\\1%1\\2").arg(mode));
-        text.replace(found.capturedStart(), found.capturedLength(), element);
-        return text.toUtf8();
-    }
-    const QRegularExpressionMatch root = QRegularExpression(QStringLiteral("<((?:[\\w.-]+:)?)settings\\b[^>]*?(/?)>")).match(text);
-    if (!root.hasMatch()) {
-        if (!settings.trimmed().isEmpty()) return settings;
-        return QByteArray("<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?><w:settings xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\"><w:compat><w:compatSetting w:name=\"compatibilityMode\" w:uri=\"http://schemas.microsoft.com/office/word\" w:val=\"") + value + "\"/></w:compat></w:settings>";
-    }
-    const QString prefix = root.captured(1);
-    const QString setting = QStringLiteral("<%1compatSetting %1name=\"compatibilityMode\" %1uri=\"http://schemas.microsoft.com/office/word\" %1val=\"%2\"/>").arg(prefix, QString::number(mode));
-    // A compat group that is there takes it in at its end.
-    const QRegularExpressionMatch group = QRegularExpression(QStringLiteral("<%1compat\\b[^>]*?(/?)>").arg(QRegularExpression::escape(prefix))).match(text);
-    if (group.hasMatch()) {
-        if (group.captured(1) == QLatin1String("/")) {
-            QString open = group.captured(0);
-            open.chop(2);
-            text.replace(group.capturedStart(), group.capturedLength(), open + QLatin1Char('>') + setting + QStringLiteral("</%1compat>").arg(prefix));
-        } else {
-            const qsizetype close = text.indexOf(QStringLiteral("</%1compat>").arg(prefix), group.capturedEnd());
-            if (close < 0) return settings;
-            text.insert(close, setting);
-        }
-        return text.toUtf8();
-    }
-    // Else the group is made, before the elements the schema puts after it.
+    const QString text = QString::fromUtf8(settings);
+    auto escaped = [](QString v) { return v.replace(QLatin1Char('&'), QLatin1String("&amp;")).replace(QLatin1Char('<'), QLatin1String("&lt;")).replace(QLatin1Char('"'), QLatin1String("&quot;")); };
+    // The text is read as XML, token by token, keeping where each element begins and ends (a comment, an end tag, or another element's attributes are what they are, not text to search).
+    QXmlStreamReader xml(text);
+    struct Place {
+        qsizetype start = -1, end = -1;   // the element's start tag
+        qsizetype close = -1;             // where its end tag begins
+        bool empty = false;
+        QString prefix;
+    };
+    Place root, compat, own, firstLater;
+    QString ownQualified;
+    QVector<QPair<QString, QString>> ownAttributes;
+    QStringList ownNamespaces;
     static const QStringList later = {"docVars", "rsids", "mathPr", "attachedSchema", "themeFontLang", "clrSchemeMapping", "doNotIncludeSubdocsInStats", "doNotAutoCompressPictures", "forceUpgrade",
                                       "captions", "readModeInkLockDown", "smartTagType", "schemaLibrary", "shapeDefaults", "doNotEmbedSmartTags", "decimalSymbol", "listSeparator"};
-    const QString made = QStringLiteral("<%1compat>%2</%1compat>").arg(prefix, setting);
-    if (root.captured(2) == QLatin1String("/")) {
-        QString open = root.captured(0);
+    int depth = 0;
+    qsizetype previous = 0, ownStarted = -1;
+    bool inCompat = false, found = false;
+    auto prefixOf = [](const QXmlStreamReader &r) {
+        const QString q = r.qualifiedName().toString();
+        return q.size() > r.name().size() ? q.left(q.size() - r.name().size()) : QString();
+    };
+    while (!xml.atEnd()) {
+        const QXmlStreamReader::TokenType token = xml.readNext();
+        const qsizetype here = xml.characterOffset();
+        if (token == QXmlStreamReader::StartElement) {
+            const QString name = xml.name().toString();
+            if (depth == 0) {
+                if (name != QLatin1String("settings") || root.start >= 0) return settings;
+                root.start = previous;
+                root.end = here;
+                root.prefix = prefixOf(xml);
+            } else if (depth == 1) {
+                if (name == QLatin1String("compat") && compat.start < 0) {
+                    compat.start = previous;
+                    compat.end = here;
+                    compat.prefix = prefixOf(xml);
+                    inCompat = true;
+                } else if (firstLater.start < 0 && later.contains(name)) {
+                    firstLater.start = previous;
+                }
+            } else if (depth == 2 && inCompat && !found && name == QLatin1String("compatSetting")) {
+                for (const QXmlStreamAttribute &a : xml.attributes())
+                    if (a.name() == QLatin1String("name") && a.value() == QLatin1String("compatibilityMode")) found = true;
+                if (found) {
+                    own.start = previous;
+                    ownStarted = depth;
+                    ownQualified = xml.qualifiedName().toString();
+                    for (const QXmlStreamAttribute &a : xml.attributes()) ownAttributes.push_back({a.qualifiedName().toString(), a.name() == QLatin1String("val") ? QString::fromLatin1(value) : a.value().toString()});
+                    for (const QXmlStreamNamespaceDeclaration &n : xml.namespaceDeclarations()) ownNamespaces << (n.prefix().isEmpty() ? QStringLiteral(" xmlns=\"%1\"") : QStringLiteral(" xmlns:") + n.prefix() + QStringLiteral("=\"%1\"")).arg(escaped(n.namespaceUri().toString()));
+                }
+            }
+            ++depth;
+        } else if (token == QXmlStreamReader::EndElement) {
+            --depth;
+            // (an element with no content has its end token where its start ended)
+            const bool empty = previous == here || text.mid(previous, here - previous).endsWith(QLatin1String("/>"));
+            if (depth == 0) {
+                root.close = previous;
+                root.empty = empty;
+            } else if (depth == 1 && inCompat && compat.close < 0 && xml.name() == QLatin1String("compat")) {
+                compat.close = previous;
+                compat.empty = empty;
+                inCompat = false;
+            } else if (depth == 2 && found && own.end < 0 && ownStarted == 2) {
+                own.end = here;
+            }
+        }
+        previous = here;
+    }
+    if (xml.hasError() || root.start < 0 || root.close < 0) return settings.trimmed().isEmpty() ? QByteArray("<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?><w:settings xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\"><w:compat><w:compatSetting w:name=\"compatibilityMode\" w:uri=\"http://schemas.microsoft.com/office/word\" w:val=\"") + value + "\"/></w:compat></w:settings>" : settings;
+    QString out = text;
+    // The setting is one element of the compat group: its value is changed where it is.
+    if (found && own.start >= 0 && own.end > own.start) {
+        QString element = QLatin1Char('<') + ownQualified;
+        for (const QString &n : std::as_const(ownNamespaces)) element += n;
+        for (const auto &a : std::as_const(ownAttributes)) element += QLatin1Char(' ') + a.first + QStringLiteral("=\"") + escaped(a.second) + QLatin1Char('"');
+        element += QStringLiteral("/>");
+        out.replace(own.start, own.end - own.start, element);
+        return out.toUtf8();
+    }
+    const QString setting = QStringLiteral("<%1compatSetting %1name=\"compatibilityMode\" %1uri=\"http://schemas.microsoft.com/office/word\" %1val=\"%2\"/>").arg(root.prefix, QString::number(mode));
+    // A compat group that is there takes it in at its end.
+    if (compat.start >= 0 && compat.close >= 0) {
+        if (compat.empty) {
+            QString open = text.mid(compat.start, compat.end - compat.start);
+            open.chop(2);
+            out.replace(compat.start, compat.end - compat.start, open + QLatin1Char('>') + setting + QStringLiteral("</%1compat>").arg(compat.prefix));
+        } else {
+            out.insert(compat.close, setting);
+        }
+        return out.toUtf8();
+    }
+    // Else the group is made, before the elements the schema puts after it.
+    const QString made = QStringLiteral("<%1compat>%2</%1compat>").arg(root.prefix, setting);
+    if (root.empty) {
+        QString open = text.mid(root.start, root.end - root.start);
         open.chop(2);
-        text.replace(root.capturedStart(), root.capturedLength(), open + QLatin1Char('>') + made + QStringLiteral("</%1settings>").arg(prefix));
-        return text.toUtf8();
+        out.replace(root.start, root.end - root.start, open + QLatin1Char('>') + made + QStringLiteral("</%1settings>").arg(root.prefix));
+        return out.toUtf8();
     }
-    qsizetype at = -1;
-    for (const QString &name : later) {
-        const qsizetype k = text.indexOf(QStringLiteral("<%1%2").arg(prefix, name), root.capturedEnd());
-        if (k >= 0 && (at < 0 || k < at)) at = k;
-    }
-    if (at < 0) at = text.lastIndexOf(QStringLiteral("</%1settings>").arg(prefix));
-    if (at < 0) return settings;
-    text.insert(at, made);
-    return text.toUtf8();
+    out.insert(firstLater.start >= 0 ? firstLater.start : root.close, made);
+    return out.toUtf8();
 }
 
 QByteArray settingsWithTrackRevisions(const QByteArray &settings, bool on)
