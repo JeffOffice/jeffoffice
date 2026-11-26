@@ -286,9 +286,9 @@ void ReviewPane::rebuild()
         return item;
     };
     int made = 0;
-    const QSet<int> ofPerson = write::commentsOfPerson(all, person);   // (a thread with a comment by the reviewer chosen is listed whole)
+    const QSet<int> ofPerson = write::commentsOfPerson(all, person);   // (the comments by the reviewer chosen; a reply by them under a comment that is not listed is listed on its own)
     for (const write::Comment &c : all)
-        if (c.parent < 0 && ofPerson.contains(c.id) && made++ < kMostListed) make(c, nullptr);
+        if (ofPerson.contains(c.id) && (c.parent < 0 || !ofPerson.contains(c.parent)) && made++ < kMostListed) make(c, nullptr);
     for (int round = 0; round < 64; ++round) {
         bool grew = false;
         for (const write::Comment &c : all)

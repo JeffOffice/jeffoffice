@@ -65,10 +65,11 @@ bool setCommentDone(WriteDoc &doc, int id, bool done);
 bool setCommentText(WriteDoc &doc, int id, const QString &text);
 // Takes a comment and its replies out (the marks of their ranges and references). One step. Returns how many were taken out.
 int deleteComment(WriteDoc &doc, int id);
-// The comments that are shown (in the list, as the reviewer filter leaves them) go, each with its whole thread: a reply that is shown takes its thread with it. One step. Returns how many went.
+// The comments that are shown (in the list, as the reviewer filter leaves them) go, and each takes the replies under it with it (a reply is never left without the comment it answers); a comment that is
+// not shown, under none that goes, stays, in a thread whose first comment is not shown too. One step. Returns how many went.
 int deleteComments(WriteDoc &doc, const QSet<int> &shown);
 int deleteAllComments(WriteDoc &doc);
-// The Ids of the comments that belong to a person's threads: every comment of each thread that has a comment by `person` (all of them for an empty name).
+// The Ids of the comments by `person` (all of them for an empty name).
 QSet<int> commentsOfPerson(const QVector<Comment> &all, const QString &person);
 // Runs `edit` over the kept XML of each comment (the part's own bytes are the caller's): what Inspect Document changes inside the comments' part is changed in the copies the program writes them back from too.
 void editKeptCommentXml(WriteDoc &doc, const std::function<QByteArray(const QByteArray &)> &edit);

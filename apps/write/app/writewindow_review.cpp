@@ -176,7 +176,7 @@ void WriteWindow::createReviewActions()
         statusBar()->showMessage(n == 1 ? tr("1 comment deleted.") : tr("%1 comments deleted.").arg(n), 5000);
         m_view->setFocus(Qt::OtherFocusReason);
     });
-    // The comments shown: those Show Markup has on, of the reviewer chosen in the Reviewing pane when it is open; each goes with its replies.
+    // The comments shown: those Show Markup has on, by the reviewer chosen in the Reviewing pane when it is open; each goes with the replies under it.
     mk("review.deleteShownComments", tr("Delete All Comments Shown"), "message-square-x", QKeySequence(), [this] {
         if (!m_doc) return;
         const QString person = m_review && m_reviewDock && m_reviewDock->isVisible() ? m_review->chosenPerson() : QString();

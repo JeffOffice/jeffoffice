@@ -6,6 +6,7 @@
 #include "../withdialog.h"
 #include "../pub/threadscript.h"
 #include "core/proofops.h"
+#include "core/textboxops.h"
 #include "core/threads.h"
 #include "app/writeinfo.h"
 #include "app/homedialogs.h"
@@ -5407,8 +5408,8 @@ private Q_SLOTS:
         threadscript::run(w, QStringLiteral("Zed Ypsilon"));
     }
 
-    // Delete the comments that are shown: each with its whole thread (a reply that is shown takes its thread), the others stay.
-    void deletingTheCommentsShownTakesTheirThreadsAndNoOthers()
+    // Delete the comments that are shown: each with the replies under it (a reply that is shown goes alone when none is under it); the others stay.
+    void deletingTheCommentsShownTakesTheirRepliesAndNoOthers()
     {
         WriteThreads w;
         QVERIFY(w.start(QStringLiteral("One")));
@@ -5418,11 +5419,11 @@ private Q_SLOTS:
         QVERIFY(w.reply(1, 1, QStringLiteral("Two, reply to reply")));
         QVERIFY(w.reply(2, 0, QStringLiteral("Three, reply")));
         const int shownReply = w.idOf(1, 2), shownFirst = w.idOf(2, 0);
-        QCOMPARE(deleteComments(*w.doc, QSet<int>{shownReply, shownFirst}), 5);
-        QCOMPARE(w.state(), QStringList{QStringLiteral("One")});
+        QCOMPARE(deleteComments(*w.doc, QSet<int>{shownReply, shownFirst}), 3);   // (the reply to the reply; and Three with its reply)
+        QCOMPARE(w.state(), (QStringList{QStringLiteral("One"), QStringLiteral("Two | Two, reply")}));
         QCOMPARE(deleteComments(*w.doc, QSet<int>()), 0);
         QCOMPARE(deleteComments(*w.doc, QSet<int>{12345}), 0);
-        QCOMPARE(w.state(), QStringList{QStringLiteral("One")});
+        QCOMPARE(w.state(), (QStringList{QStringLiteral("One"), QStringLiteral("Two | Two, reply")}));
         QVERIFY(w.doc->undo());
         QCOMPARE(w.threadCount(), 3);
     }
@@ -5472,6 +5473,133 @@ private Q_SLOTS:
         QCOMPARE(authors().size(), 0);
         QVERIFY(doc->undo());
         QCOMPARE(authors().size(), 3);
+    }
+
+    // Delete All Comments Shown goes by the comments themselves: a comment goes when it is shown (by the reviewer chosen), a reply goes with its parent (never left without it), and a reply by another
+    // reviewer under a comment that stays is not touched; resolved comments follow the same rule; the number said is the number that went.
+    void deleteAllCommentsShownDeletesShownCommentsAndRepliesOfDeletedOnesOnly()
+    {
+        // Thread 1: Ann (1), a reply by Bob (2), a reply by Ann (3), a reply to Bob's by Carol (6). Thread 4: Carol (4), a reply by Bob (5), resolved. A resolved one by Bob alone (7).
+        const QByteArray cm = commentElement(1, "Ann", "one", "0000000A") + commentElement(2, "Bob", "two", "0000000B") + commentElement(3, "Ann", "three", "0000000C") + commentElement(4, "Carol", "four", "0000000D") +
+                              commentElement(5, "Bob", "five", "0000000E") + commentElement(6, "Carol", "six", "0000001F") + commentElement(7, "Bob", "seven", "00000020");
+        const QByteArray ext = "<w15:commentEx w15:paraId=\"0000000A\" w15:done=\"0\"/><w15:commentEx w15:paraId=\"0000000B\" w15:paraIdParent=\"0000000A\" w15:done=\"0\"/>"
+                               "<w15:commentEx w15:paraId=\"0000000C\" w15:paraIdParent=\"0000000A\" w15:done=\"0\"/><w15:commentEx w15:paraId=\"0000000D\" w15:done=\"1\"/>"
+                               "<w15:commentEx w15:paraId=\"0000000E\" w15:paraIdParent=\"0000000D\" w15:done=\"1\"/><w15:commentEx w15:paraId=\"0000001F\" w15:paraIdParent=\"0000000B\" w15:done=\"0\"/>"
+                               "<w15:commentEx w15:paraId=\"00000020\" w15:done=\"1\"/>";
+        const QByteArray body = para(run("x ") + commented(1, "a") + commented(2, "b") + commented(3, "c") + commented(4, "d") + commented(5, "e") + commented(6, "f") + commented(7, "g"));
+        auto remaining = [](WriteDoc &doc) {
+            QList<int> ids;
+            for (const Comment &c : comments(doc)) ids << c.id;
+            std::sort(ids.begin(), ids.end());
+            return ids;
+        };
+        auto run_ = [&](const char *person, const QList<int> &left, const QString &said) {
+            WriteWindow w;
+            w.setNotifier([](const QString &, const QString &) {});
+            w.show();
+            w.setDocument(open(makeDocxWithComments(body, cm, ext)), QString());
+            WriteDoc *doc = w.document();
+            QCOMPARE(remaining(*doc), (QList<int>{1, 2, 3, 4, 5, 6, 7}));
+            w.act(QStringLiteral("review.reviewingPane"))->trigger();
+            ReviewPane *pane = w.reviewPane();
+            QVERIFY(pane);
+            const int at = pane->personBox()->findData(QString::fromLatin1(person));
+            QVERIFY(at > 0);
+            pane->personBox()->setCurrentIndex(at);
+            if (QByteArray(person) == "Bob") QCOMPARE(pane->commentList()->topLevelItemCount(), 3);   // (2, 5, and 7: each on its own, as the comment it answers is by another)
+            w.act(QStringLiteral("review.deleteShownComments"))->trigger();
+            QCOMPARE(remaining(*doc), left);
+            QCOMPARE(w.statusBar()->currentMessage(), said);
+            // No reply is left without its parent.
+            for (const Comment &c : comments(*doc))
+                if (c.parent >= 0) QVERIFY(remaining(*doc).contains(c.parent));
+            QVERIFY(doc->undo());
+            QCOMPARE(remaining(*doc), (QList<int>{1, 2, 3, 4, 5, 6, 7}));
+        };
+        // Bob: his comments (2, 5, 7) go, with the reply of Carol under 2 (6); Ann's first comment and her reply, and Carol's, stay.
+        run_("Bob", {1, 3, 4}, QStringLiteral("4 comments deleted."));
+        // Ann: 1 and 3 go; 1's replies by Bob and Carol (2, 6) go with it.
+        run_("Ann", {4, 5, 7}, QStringLiteral("4 comments deleted."));
+        // Carol: 4 and 6 go; 4's resolved reply by Bob (5) goes with it; 6 had no replies.
+        run_("Carol", {1, 2, 3, 7}, QStringLiteral("3 comments deleted."));
+        // All reviewers: everything.
+        {
+            WriteWindow w;
+            w.setNotifier([](const QString &, const QString &) {});
+            w.show();
+            w.setDocument(open(makeDocxWithComments(body, cm, ext)), QString());
+            w.act(QStringLiteral("review.deleteShownComments"))->trigger();
+            QCOMPARE(remaining(*w.document()), QList<int>());
+            QCOMPARE(w.statusBar()->currentMessage(), QStringLiteral("7 comments deleted."));
+        }
+    }
+
+    // The command run with the caret in a header, in a note, or in a text box, with Track Changes on, and in a document protected each way: it deletes the comments of the text in one step that Undo takes back,
+    // changes nothing in the story being edited, records no tracked change, and is refused (the comments stay) in a document protected as read only or for forms.
+    void deleteAllCommentsShownInHeaderNoteTextBoxTrackingAndProtection()
+    {
+        const QByteArray cm = commentElement(1, "Ann", "one", "0000000A") + commentElement(2, "Bob", "two", "0000000B");
+        const QByteArray ext = "<w15:commentEx w15:paraId=\"0000000A\" w15:done=\"0\"/><w15:commentEx w15:paraId=\"0000000B\" w15:paraIdParent=\"0000000A\" w15:done=\"0\"/>";
+        const QByteArray body = para(run("x ") + commented(1, "a") + commented(2, "b"));
+        auto window = [&](WriteWindow &w, const QString &protection = QString()) {
+            w.setNotifier([](const QString &, const QString &) {});
+            w.resize(900, 700);
+            w.show();
+            if (protection.isEmpty()) {
+                w.setDocument(open(makeDocxWithComments(body, cm, ext)), QString());
+            } else {
+                auto d = open(makeDocxWithComments(body, cm, ext));
+                d->setProtection(office::wml::makeDocumentProtection(protection, QString()));
+                w.setDocument(open(d->toDocx()), QString());
+            }
+            w.view()->paginateAll();
+        };
+        auto count = [](WriteWindow &w) { return int(comments(*w.document()).size()); };
+        const QString command = QStringLiteral("review.deleteShownComments");
+        for (const QString &where : {QStringLiteral("header"), QStringLiteral("note"), QStringLiteral("box"), QStringLiteral("tracked")}) {
+            WriteWindow w;
+            window(w);
+            WriteDoc *doc = w.document();
+            if (where == QLatin1String("header")) {
+                QVERIFY(w.view()->enterHeaderFooter(0, false, true));
+                QVERIFY(w.view()->inHeaderFooter());
+            } else if (where == QLatin1String("note")) {
+                QTextCursor c(doc->story());
+                c.setPosition(doc->story()->characterCount() - 1);
+                QVERIFY(insertFootnote(*doc, c));
+                QVERIFY(w.view()->enterFootnote(doc->citedFootnotes().last()));
+                QVERIFY(w.view()->inNote());
+            } else if (where == QLatin1String("box")) {
+                QTextCursor c(doc->story());
+                c.setPosition(0);
+                QCOMPARE(insertTextBoxAt(*doc, c, QPointF(150, 200), QPointF(310, 262)), PictureResult::Ok);
+                w.view()->selectPicture(0);
+                QVERIFY(w.view()->beginShapeTextEdit());
+                QVERIFY(w.view()->shapeEditor());
+            } else {
+                doc->setTrackChanges(true);
+            }
+            const QString before = doc->story()->toPlainText();
+            const int revisions = int(documentRevisions(*doc, 100).size());
+            w.act(command)->trigger();
+            QCOMPARE(count(w), 0);
+            QCOMPARE(w.statusBar()->currentMessage(), QStringLiteral("2 comments deleted."));
+            QCOMPARE(QString(doc->story()->toPlainText()).remove(QChar(0xFFFC)), QString(before).remove(QChar(0xFFFC)));   // (the marks of the comments went, the words stayed)
+            QCOMPARE(int(documentRevisions(*doc, 100).size()), revisions);
+            QVERIFY(doc->undo());
+            QCOMPARE(count(w), 2);
+            QCOMPARE(doc->story()->toPlainText(), before);
+        }
+        // Protection: comments only and tracked changes allow it; read only and forms refuse it, and the comments stay.
+        for (const QString &kind : {QStringLiteral("comments"), QStringLiteral("trackedChanges"), QStringLiteral("readOnly"), QStringLiteral("forms")}) {
+            WriteWindow w;
+            window(w, kind);
+            QCOMPARE(count(w), 2);
+            w.act(command)->trigger();
+            const bool allowed = kind == QLatin1String("comments") || kind == QLatin1String("trackedChanges");
+            QCOMPARE(count(w), allowed ? 0 : 2);
+            QCOMPARE(w.statusBar()->currentMessage().contains(QLatin1String("reading only")), !allowed);
+        }
     }
 
     // The file keeps a thread with its replies both ways; and a file whose comments are not touched is written with the same comment parts.

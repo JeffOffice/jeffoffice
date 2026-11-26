@@ -30,7 +30,7 @@ When a question is answered, click **Resolve** in the **Reviewing** pane (or cho
 ## Change or delete a comment
 
 - Double-click a comment in the **Reviewing** pane to change what it says.
-- **Review > Delete** deletes the comment the caret is in, with its replies. Click the arrow under it and choose **Delete All Comments Shown** to remove the comments that are showing, or **Delete All Comments in Document** to remove every comment. "Showing" means the **Comments** choice in **Show Markup** is on and, when the **Reviewing** pane is open, the comments are in a thread that has a comment by the reviewer chosen there. Each deleted comment takes its replies with it.
+- **Review > Delete** deletes the comment the caret is in, with its replies. Click the arrow under it and choose **Delete All Comments Shown** to remove the comments that are showing, or **Delete All Comments in Document** to remove every comment. "Showing" means the **Comments** choice in **Show Markup** is on and, when the **Reviewing** pane is open, the comment is by the reviewer chosen there. Each deleted comment takes the replies under it with it, so no reply is left without the comment it answers. A comment by another reviewer that is not under a deleted comment stays, even in the same thread: if the first comment of a thread is by someone else, only the replies by the chosen reviewer go. Resolved comments count the same way as the others. Comments inside text boxes, headers, and notes are not listed and are not deleted by this command.
 
 Deleting a comment is one step, so **Ctrl+Z** brings it back.
 

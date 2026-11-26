@@ -769,25 +769,8 @@ int threadRootOf(const QVector<Comment> &all, int id)
 QSet<int> commentsOfPerson(const QVector<Comment> &all, const QString &person)
 {
     QSet<int> out;
-    if (person.isEmpty()) {
-        for (const Comment &c : all) out.insert(c.id);
-        return out;
-    }
-    QHash<int, int> parentOf;
-    for (const Comment &c : all) parentOf.insert(c.id, c.parent);
-    auto rootOf = [&](int id) {
-        for (int step = 0; step <= all.size(); ++step) {
-            const int up = parentOf.value(id, -1);
-            if (up < 0 || !parentOf.contains(up)) break;
-            id = up;
-        }
-        return id;
-    };
-    QSet<int> roots;
     for (const Comment &c : all)
-        if (c.author == person) roots.insert(rootOf(c.id));
-    for (const Comment &c : all)
-        if (roots.contains(rootOf(c.id))) out.insert(c.id);
+        if (person.isEmpty() || c.author == person) out.insert(c.id);
     return out;
 }
 
@@ -875,14 +858,26 @@ int deleteComment(WriteDoc &doc, int id)
 
 int deleteComments(WriteDoc &doc, const QSet<int> &shown)
 {
-    // (the threads the comments belong to, whole: a reply that is shown takes its thread, as the first comment's does)
+    // (each comment that is shown, and the replies under it, and theirs: a reply is never left without the comment it answers; a comment that is not shown, under none that goes, stays)
     const QVector<Comment> all = comments(doc);
-    QSet<int> roots, ids;
+    QHash<int, QVector<int>> repliesOf;
     for (const Comment &c : all)
-        if (shown.contains(c.id))
-            roots.insert(threadRootOf(all, c.id));
-    for (const int root : roots)
-        for (const Comment &t : threadOf(all, root)) ids.insert(t.id);
+        if (c.parent >= 0) repliesOf[c.parent].push_back(c.id);
+    QSet<int> ids;
+    QVector<int> pending;
+    for (const Comment &c : all)
+        if (shown.contains(c.id) && !ids.contains(c.id)) {
+            ids.insert(c.id);
+            pending.push_back(c.id);
+        }
+    while (!pending.isEmpty()) {
+        const int id = pending.takeLast();
+        for (const int reply : repliesOf.value(id))
+            if (!ids.contains(reply)) {
+                ids.insert(reply);
+                pending.push_back(reply);
+            }
+    }
     if (ids.isEmpty()) return 0;
     removeMarksOf(doc, ids);
     return int(ids.size());
