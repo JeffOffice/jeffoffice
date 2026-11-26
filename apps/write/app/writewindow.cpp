@@ -231,18 +231,20 @@ QAction *WriteWindow::mk(const QString &id, const QString &text, const QString &
         // (Select Objects ends when another command runs; Select All chooses the objects while it is on.)
         if (m_view && id != QLatin1String("edit.selectObjects") && id != QLatin1String("edit.selectAll")) m_view->setSelectObjectsMode(false);
         const quint64 document = m_repeat->document();
-        if (m_doc) m_doc->setStepName(label);
         const QPointer<WriteWindow> self(this);   // (a command may close the window)
-        fn();
+        {
+            std::optional<write::WriteDoc::StepName> stepName;
+            if (m_doc && id != QLatin1String("edit.repeat")) stepName.emplace(*m_doc, label);   // (a repeat is named for the command it does again)
+            fn();
+        }
         if (!self) return;
-        if (m_doc) m_doc->setStepName(QString());
-        if (m_doc && repeatableCommand(id)) {
-            recordRepeat(label, [this, id, fn, label] {
-                if (refuseCommand(id)) return;
-                const write::WriteDoc::StepGroup group(*m_doc);
-                m_doc->setStepName(label);
-                fn();
-                m_doc->setStepName(QString());
+        if (m_doc && (repeatableCommand(id) || m_testRepeatable.contains(id))) {
+            // (A command that turns something on or off is repeated as the state it made, not as a toggle: bold on one word is bold on the next, whatever that has.)
+            const std::optional<bool> made = toggleResult(id);
+            recordRepeat(label, [this, id, fn, label, made] {
+                if (refuseCommand(id) || refuseInBox(boxTakesCommand(id))) return;
+                if (made) runRepeatStep(label, [this, id, made] { applyToggle(id, *made); });
+                else runRepeatStep(label, fn);
             }, document);
         }
     });
@@ -313,7 +315,8 @@ void WriteWindow::setDocument(std::unique_ptr<write::WriteDoc> doc, const QStrin
     m_view->setDocument(nullptr);
     m_doc = std::move(doc);
     m_path = path;
-    if (m_repeat) m_repeat->setDocument(++m_documentCounter);   // (what was repeatable in the document that goes is not for this one)
+    if (m_repeat) m_repeat->setDocument(++m_documentCounter);
+    if (m_doc) connect(m_doc.get(), &write::WriteDoc::historyChanged, this, [this] { syncHistoryActions(); });   // (what was repeatable in the document that goes is not for this one)
     if (!m_mini) createMiniToolbar();
     if (m_doc) {
         m_doc->filePath = path;

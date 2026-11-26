@@ -210,6 +210,12 @@ void moveCursor(QTextCursor &c, QTextCursor::MoveOperation op, bool select, int 
 // Gives the characters selected (the text typed next, with none selected) the format that `change` makes of theirs.
 void changeCharFormat(WriteDoc &doc, QTextCursor &c, const std::function<void(QTextCharFormat &)> &change);
 bool allSelected(const QTextCursor &c, const std::function<bool(const QTextCharFormat &)> &test);
+// The looks that are on or off. A toggle turns them on unless all the selection has them; Repeat sets the state a command made, whatever the selection has (setCharToggle), and asks
+// whether all of it has the look (selectionHasLook).
+enum class CharToggle { Bold, Italic, Underline, Strike, Subscript, Superscript, Border };
+bool selectionHasLook(const QTextCursor &c, CharToggle which);
+void setCharToggle(WriteDoc &doc, QTextCursor &c, CharToggle which, bool on);
+void toggleCharLook(WriteDoc &doc, QTextCursor &c, CharToggle which);
 void toggleBold(WriteDoc &doc, QTextCursor &c);
 void toggleItalic(WriteDoc &doc, QTextCursor &c);
 void toggleUnderline(WriteDoc &doc, QTextCursor &c);
@@ -258,6 +264,8 @@ void setLineSpacing(WriteDoc &doc, QTextCursor &c, QTextBlockFormat::LineHeightT
 enum class ListKind { None, Bullets, Numbers };
 ListKind listKindOf(const WriteDoc &doc, const QTextBlock &block);
 void toggleList(WriteDoc &doc, QTextCursor &c, bool numbered);
+// Sets the list the paragraphs selected have: with `on` true they all have it, false they have none of this kind; unset is a toggle.
+void setList(WriteDoc &doc, QTextCursor &c, bool numbered, std::optional<bool> on);
 // Puts a paragraph in the list of the numbering `numId` at `level` (the list before it that is the same, else a new one), or takes it out of its list, as the list commands do. The caller
 // holds an EditScope, which numbers the items again. False where the document has no such numbering.
 bool putBlockInList(WriteDoc &doc, QTextBlock block, int numId, int level);

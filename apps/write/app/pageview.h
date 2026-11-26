@@ -933,7 +933,8 @@ private:
     write::AutoFix m_autoFix;
     QString m_typedRun;
     QTextDocument *m_typedStory = nullptr;
-    int m_typedEnd = -1;
+    int m_typedStart = 0, m_typedEnd = -1;
+    QString typedText() const;
     bool m_typedOpen = false, m_repeatingTyping = false;
     int m_autoFixCaret = -1;
     QPointer<QTextDocument> m_autoFixStory;

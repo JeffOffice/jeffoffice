@@ -491,6 +491,8 @@ protected:
     bool eventFilter(QObject *o, QEvent *e) override;
 
 public:
+    // For tests: a command of the window, with the id given, that Repeat does again.
+    QAction *addRepeatableCommandForTest(const QString &id, const std::function<void()> &fn);
     // Whether Repeat does the command again: formatting, paragraph, style, list, table, and insert commands that take nothing from a box; not file, view, find, review, or clipboard ones.
     static bool repeatableCommand(const QString &id);
 
@@ -500,12 +502,19 @@ private:
     bool refuseCommand(const QString &id);
     void recordRepeat(const QString &name, std::function<void()> again, quint64 document = 0);
     // A change whose value was chosen in a box of the ribbon: done now, and recorded so that Repeat does it again on the selection of then. False when it was refused.
-    bool changeAndRepeat(const QString &name, const std::function<void()> &change);
+    bool changeAndRepeat(const QString &name, const std::function<void()> &change, bool boxTakesIt = false);
+    static bool boxTakesCommand(const QString &id);
+    bool refuseInBox(bool boxTakesIt);
+    void syncHistoryActions();
+    std::optional<bool> toggleResult(const QString &id) const;
+    void applyToggle(const QString &id, bool on);
     void runRepeat();
+    void runRepeatStep(const QString &name, const std::function<void()> &fn);
     void createRepeatActions();
     void updateRepeatActions();
     QMenu *buildHistoryMenu(QWidget *owner, bool redo);
     jp::RepeatCommand *m_repeat = nullptr;
+    QSet<QString> m_testRepeatable;
     QAction *m_repeatCtrlY = nullptr;
     quint64 m_documentCounter = 0;
     bool m_repeatIsTyping = false;

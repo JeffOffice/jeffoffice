@@ -13,13 +13,16 @@
 #include "core/appinfo.h"
 #include "core/editops.h"
 #include "core/fonts.h"
+#include "app/shapetextedit.h"
 #include "core/reviewops.h"
+#include "core/textboxops.h"
 #include "core/writedoc.h"
 #include "core/writeprops.h"
 #include "office/package.h"
 
 #include <QAction>
 #include <QMenu>
+#include <QPointer>
 #include <QToolButton>
 #include <QSignalSpy>
 #include <QTest>
@@ -259,7 +262,7 @@ private Q_SLOTS:
         win.w.view()->setCursor(c);
         QTest::keyClicks(win.w.view(), QStringLiteral("teh "));
         QCOMPARE(win.text(), QStringLiteral("Go to the "));
-        QCOMPARE(win.w.view()->typedRun(), QStringLiteral("teh "));
+        QCOMPARE(win.w.view()->typedRun(), QStringLiteral("the "));   // (what the corrections made of it: Repeat puts it in as it is)
         const int before = win.steps();
         win.settle();
         win.act("edit.repeat")->trigger();
@@ -487,6 +490,523 @@ private Q_SLOTS:
         QVERIFY(!win.boldAt(QStringLiteral("three")));
         QVERIFY(!win.boldAt(QStringLiteral("two")));
         QVERIFY(win.boldAt(QStringLiteral("one")));
+    }
+    // A repeat is always a step of its own, wherever the caret is (typing after typing joins the step before it, so it is made not to).
+    void aRepeatOfTypingAtTheEndOfTheRunIsItsOwnStep()
+    {
+        Win win({"start"});
+        win.w.view()->setFocus();
+        QTextCursor c(win.story());
+        c.movePosition(QTextCursor::End);
+        win.w.view()->setCursor(c);
+        QTest::keyClicks(win.w.view(), QStringLiteral("abc"));
+        win.settle();
+        QCOMPARE(win.steps(), 1);
+        win.act("edit.repeat")->trigger();   // (the caret is still where the typing left it)
+        QCOMPARE(win.text(), QStringLiteral("startabcabc"));
+        QCOMPARE(win.steps(), 2);
+        win.act("edit.repeat")->trigger();
+        QCOMPARE(win.text(), QStringLiteral("startabcabcabc"));
+        QCOMPARE(win.steps(), 3);
+        QCOMPARE(win.w.document()->undoNames(10), (QStringList{"Typing", "Typing", "Typing"}));
+        win.w.view()->undo();
+        QCOMPARE(win.text(), QStringLiteral("startabcabc"));
+        win.w.view()->undo();
+        QCOMPARE(win.text(), QStringLiteral("startabc"));
+        // Typing after a repeat is a step of its own too.
+        win.act("edit.repeat")->trigger();
+        QTest::keyClicks(win.w.view(), QStringLiteral("z"));
+        QCOMPARE(win.steps(), 3);
+        win.w.view()->undo();
+        QCOMPARE(win.text(), QStringLiteral("startabcabc"));
+    }
+
+    // A command that closes the window leaves the window alone when it is repeated (the window may be gone when it ends).
+    void aRepeatedCommandThatClosesTheWindowLeavesItAlone()
+    {
+        QPointer<WriteWindow> w = new WriteWindow;
+        w->setNotifier([](const QString &, const QString &) {});
+        w->show();
+        w->setDocument(open(makeDocx(para("one two"))), QString());
+        int runs = 0;
+        bool closeNow = false;
+        QPointer<WriteWindow> raw = w;
+        QAction *a = w->addRepeatableCommandForTest(QStringLiteral("test.closer"), [&runs, &closeNow, raw] {
+            ++runs;
+            if (closeNow) delete raw.data();
+        });
+        a->trigger();
+        QCOMPARE(runs, 1);
+        QVERIFY(w);
+        closeNow = true;
+        w->refreshForTest();
+        w->act(QStringLiteral("edit.repeat"))->trigger();
+        QCOMPARE(runs, 2);
+        QVERIFY(!w);
+    }
+    // The commands that turn a look on or off are repeated as the state they made: on is on, off is off, a selection that has part of it gets all of it or none, and one that has it already
+    // is left alone with no step.
+    void aToggleIsRepeatedAsTheStateItMadeNotAsAToggle()
+    {
+        struct Look { const char *id; CharToggle which; };
+        for (const Look &look : {Look{"fmt.bold", CharToggle::Bold}, Look{"fmt.italic", CharToggle::Italic}, Look{"fmt.underline", CharToggle::Underline}, Look{"fmt.strike", CharToggle::Strike},
+                                 Look{"fmt.subscript", CharToggle::Subscript}, Look{"fmt.superscript", CharToggle::Superscript}, Look{"fmt.charBorder", CharToggle::Border}}) {
+            Win win({"one two three four"});
+            auto has = [&win, &look](const QString &words) {
+                win.select(words);
+                return selectionHasLook(win.w.view()->cursor(), look.which);
+            };
+            auto repeat = [&win] { win.act("edit.repeat")->trigger(); };
+            const QString where = QString::fromLatin1(look.id);
+            // On: the command made it on, so Repeat makes the next selection have it, whatever it had.
+            win.select(QStringLiteral("one"));
+            win.act(look.id)->trigger();
+            QVERIFY2(has(QStringLiteral("one")), qPrintable(where));
+            int steps = win.steps();
+            win.select(QStringLiteral("two"));
+            repeat();
+            QVERIFY2(has(QStringLiteral("two")), qPrintable(where));
+            QCOMPARE(win.steps(), steps + 1);
+            // Mixed: one and two have it, three has not: all of them have it after.
+            win.select(QStringLiteral("two three"));
+            repeat();
+            QVERIFY2(has(QStringLiteral("two three")), qPrintable(where));
+            QCOMPARE(win.steps(), steps + 2);
+            // Already in the state: nothing changes and there is no step.
+            win.select(QStringLiteral("one"));
+            repeat();
+            QVERIFY2(has(QStringLiteral("one")), qPrintable(where + " stays on"));
+            QCOMPARE(win.steps(), steps + 2);
+            // Off: the command made it off, so Repeat takes it off a selection that has it.
+            win.select(QStringLiteral("one two three"));
+            win.act(look.id)->trigger();   // (the spaces had not: all of it has it now)
+            QVERIFY2(has(QStringLiteral("one two three")), qPrintable(where));
+            win.act(look.id)->trigger();   // (all have it: it comes off)
+            QVERIFY2(!has(QStringLiteral("one")) && !has(QStringLiteral("three")), qPrintable(where));
+            win.select(QStringLiteral("four"));
+            win.act(look.id)->trigger();   // (on)
+            win.select(QStringLiteral("two"));
+            win.act(look.id)->trigger();   // (on: two has it, then it is off)
+            QVERIFY2(has(QStringLiteral("two")), qPrintable(where));
+            win.select(QStringLiteral("two"));
+            win.act(look.id)->trigger();
+            QVERIFY2(!has(QStringLiteral("two")), qPrintable(where));
+            // (The last command made it off.) A selection that has it all, and one that has part of it, lose it.
+            win.select(QStringLiteral("four"));
+            QVERIFY2(has(QStringLiteral("four")), qPrintable(where));
+            repeat();
+            QVERIFY2(!has(QStringLiteral("four")), qPrintable(where + " off"));
+            win.select(QStringLiteral("one"));
+            setCharToggle(*win.w.document(), win.w.view()->cursor(), look.which, true);
+            win.select(QStringLiteral("one two"));
+            QVERIFY2(!selectionHasLook(win.w.view()->cursor(), look.which), qPrintable(where));
+            steps = win.steps();
+            repeat();
+            QVERIFY2(!has(QStringLiteral("one")) && !has(QStringLiteral("two")), qPrintable(where + " mixed off"));
+            QCOMPARE(win.steps(), steps + 1);
+            // Already off: nothing changes and there is no step.
+            win.select(QStringLiteral("three four"));
+            repeat();
+            QCOMPARE(win.steps(), steps + 1);
+        }
+    }
+
+    // Bullets and numbering are repeated as the state they made, the same way.
+    void aListCommandIsRepeatedAsTheStateItMade()
+    {
+        for (const bool numbered : {false, true}) {
+            Win win({"aa", "bb", "cc", "dd"});
+            const char *id = numbered ? "para.numbers" : "para.bullets";
+            const ListKind kind = numbered ? ListKind::Numbers : ListKind::Bullets;
+            auto in = [&win, kind](int block) { return listKindOf(*win.w.document(), win.story()->findBlockByNumber(block)) == kind; };
+            win.select(QStringLiteral("aa"));
+            win.act(id)->trigger();
+            QVERIFY(in(0));
+            int steps = win.steps();
+            win.select(QStringLiteral("bb"));
+            win.act("edit.repeat")->trigger();
+            QVERIFY(in(1));
+            QCOMPARE(win.steps(), steps + 1);
+            // Already in a list: no step.
+            win.select(QStringLiteral("aa"));
+            win.act("edit.repeat")->trigger();
+            QVERIFY(in(0));
+            QCOMPARE(win.steps(), steps + 1);
+            // Mixed: all get the list.
+            win.select(QStringLiteral("bb"));
+            win.w.view()->cursor().movePosition(QTextCursor::NextBlock, QTextCursor::KeepAnchor);
+            QTextCursor c(win.story());
+            c.setPosition(win.story()->findBlockByNumber(1).position());
+            c.setPosition(win.story()->findBlockByNumber(2).position() + 1, QTextCursor::KeepAnchor);
+            win.w.view()->setCursor(c);
+            win.act("edit.repeat")->trigger();
+            QVERIFY(in(1) && in(2));
+            // Off: taken off all of a selection that has it, and off one that has part of it.
+            win.select(QStringLiteral("aa"));
+            win.act(id)->trigger();
+            QVERIFY(!in(0));
+            QVERIFY(in(1));
+            steps = win.steps();
+            c.setPosition(win.story()->findBlockByNumber(1).position());
+            c.setPosition(win.story()->findBlockByNumber(3).position() + 1, QTextCursor::KeepAnchor);
+            win.w.view()->setCursor(c);
+            win.act("edit.repeat")->trigger();
+            QVERIFY(!in(1) && !in(2) && !in(3));
+            QCOMPARE(win.steps(), steps + 1);
+            win.select(QStringLiteral("dd"));
+            win.act("edit.repeat")->trigger();
+            QCOMPARE(win.steps(), steps + 1);
+        }
+    }
+
+    // Every command that Repeat does that has a check mark is a toggle that is repeated as a state (a command added later that is checkable has to be named here, or it would toggle).
+    void everyCheckableRepeatedCommandIsRepeatedAsAState()
+    {
+        Win win({"one"});
+        const QSet<QString> states = {"fmt.bold", "fmt.italic", "fmt.underline", "fmt.strike", "fmt.subscript", "fmt.superscript", "fmt.charBorder", "para.bullets", "para.numbers",
+                                      "fmt.alignLeft", "fmt.alignCenter", "fmt.alignRight", "fmt.justify"};   // (the alignments set a value: they are states already)
+        for (QAction *a : win.w.findChildren<QAction *>()) {
+            if (!a->isCheckable() || !WriteWindow::repeatableCommand(a->objectName())) continue;
+            QVERIFY2(states.contains(a->objectName()), qPrintable(a->objectName()));
+        }
+    }
+
+    // Repeating where the person is editing: in a box of text, the repeat goes into the box (never into the text behind it), and a command the box cannot take is refused.
+    void aRepeatInABoxGoesIntoTheBoxOrIsRefused()
+    {
+        Win win({"outside words"});
+        win.w.view()->setFocus();
+        QTextCursor c(win.story());
+        c.setPosition(3);
+        QCOMPARE(insertTextBoxAt(*win.w.document(), c, QPointF(300, 200), QPointF(400, 260)), PictureResult::Ok);
+        QTextCursor end(win.story());
+        end.movePosition(QTextCursor::End);
+        win.w.view()->setCursor(end);
+        QTest::keyClicks(win.w.view(), QStringLiteral("QQ"));
+        win.select(QStringLiteral("words"));
+        win.act("fmt.strike")->trigger();
+        win.w.view()->setCursor(end);
+        QTest::keyClicks(win.w.view(), QStringLiteral("QQ"));
+        win.w.view()->setCursor(end);
+        const int box = win.story()->toPlainText().indexOf(QChar(0xFFFC));
+        QVERIFY(box >= 0);
+        win.w.view()->selectPicture(box);
+        QVERIFY(win.w.view()->beginShapeTextEdit());
+        ShapeTextEdit *editor = win.w.view()->shapeEditor();
+        QVERIFY(editor);
+        const QString body = win.text();
+        const int steps = win.steps();
+        win.settle();
+        // The typing goes into the box.
+        QVERIFY(win.act("edit.repeat")->toolTip().contains(QLatin1String("Repeat Typing")));
+        win.act("edit.repeat")->trigger();
+        QCOMPARE(editor->toPlainText(), QStringLiteral("QQ"));
+        QCOMPARE(win.text(), body);
+        QCOMPARE(win.steps(), steps);
+        // A command the box has is done in the box.
+        win.select(QStringLiteral("words"));
+        win.act("fmt.bold")->trigger();   // (the box is being edited: it is the box that this does)
+        editor->selectAll();
+        win.act("fmt.bold")->trigger();
+        QVERIFY(editor->charFormat().font().bold());
+        editor->moveCursor(QTextCursor::Start);
+        editor->moveCursor(QTextCursor::End, QTextCursor::KeepAnchor);
+        editor->setBold(false);
+        win.act("edit.repeat")->trigger();
+        QVERIFY(editor->charFormat().font().bold());
+        QCOMPARE(win.text(), body);
+        // A command the box cannot take is refused with the reason, and does nothing behind it.
+        win.act("fmt.strike")->trigger();   // (it is recorded; the box does not take it)
+        win.w.statusBar()->clearMessage();
+        win.act("edit.repeat")->trigger();
+        QVERIFY2(win.w.statusBar()->currentMessage().contains(QLatin1String("box")), qPrintable(win.w.statusBar()->currentMessage()));
+        QCOMPARE(win.text(), body);
+        win.w.view()->endShapeTextEdit(false);
+    }
+
+    // Repeating in a header or footer, a note, or a cell of a table goes where the caret is.
+    void aRepeatInAHeaderANoteAndATableCellGoesWhereTheCaretIs()
+    {
+        // A header.
+        {
+            Win win({"body words"});
+            win.w.view()->setFocus();
+            QTextCursor c(win.story());
+            c.movePosition(QTextCursor::End);
+            win.w.view()->setCursor(c);
+            QTest::keyClicks(win.w.view(), QStringLiteral("qq"));
+            const QString body = win.text();
+            QVERIFY(win.w.view()->enterHeaderFooter(0, false, true));
+            QVERIFY(win.w.view()->inHeaderFooter());
+            win.settle();
+            win.act("edit.repeat")->trigger();
+            QVERIFY2(win.w.view()->cursor().document()->toPlainText().contains(QLatin1String("qq")), qPrintable(win.w.view()->cursor().document()->toPlainText()));
+            QCOMPARE(win.text(), body);
+        }
+        // A note.
+        {
+            Win win({"body words"});
+            win.w.view()->setFocus();
+            QTextCursor c(win.story());
+            c.setPosition(4);
+            win.w.view()->setCursor(c);
+            win.act("refs.footnote")->trigger();
+            QVERIFY(win.w.view()->inNote());
+            QTest::keyClicks(win.w.view(), QStringLiteral("nn"));
+            const QString body = win.text();
+            win.settle();
+            win.act("edit.repeat")->trigger();
+            QVERIFY(win.w.view()->cursor().document()->toPlainText().contains(QLatin1String("nnnn")));
+            QCOMPARE(win.text(), body);
+        }
+        // A cell.
+        {
+            WriteWindow w;
+            w.setNotifier([](const QString &, const QString &) {});
+            w.show();
+            const QByteArray table = "<w:tbl><w:tblPr/><w:tblGrid><w:gridCol w:w=\"3000\"/><w:gridCol w:w=\"3000\"/></w:tblGrid><w:tr><w:tc><w:p><w:r><w:t>a1</w:t></w:r></w:p></w:tc>"
+                                     "<w:tc><w:p><w:r><w:t>b1</w:t></w:r></w:p></w:tc></w:tr></w:tbl><w:p><w:r><w:t>after</w:t></w:r></w:p>";
+            w.setDocument(open(makeDocx(table)), QString());
+            w.view()->setFocus();
+            QTextDocument *story = w.document()->story();
+            QTextCursor c(story);
+            c.setPosition(story->toPlainText().indexOf(QLatin1String("a1")) + 2);
+            w.view()->setCursor(c);
+            QTest::keyClicks(w.view(), QStringLiteral("xy"));
+            QVERIFY(story->toPlainText().contains(QLatin1String("a1xy")));
+            w.refreshForTest();
+            w.act(QStringLiteral("edit.repeat"))->trigger();
+            QVERIFY2(story->toPlainText().contains(QLatin1String("a1xyxy")), qPrintable(story->toPlainText()));
+            QVERIFY(story->toPlainText().contains(QLatin1String("b1")) && !story->toPlainText().contains(QLatin1String("b1x")));
+        }
+    }
+
+    // A long run is put in as one edit: one caret update for the whole repeat, not one for each letter.
+    void aLongRunIsRepeatedAsOneEditWithOneCaretUpdate()
+    {
+        Win win({"x"});
+        win.w.view()->setFocus();
+        QTextCursor c(win.story());
+        c.movePosition(QTextCursor::End);
+        win.w.view()->setCursor(c);
+        for (int i = 0; i < 1000; ++i) win.w.view()->insertText(QStringLiteral("a"));
+        QCOMPARE(win.w.view()->typedRun().size(), 1000);
+        win.settle();
+        QSignalSpy carets(win.w.view(), &PageView::caretChanged);
+        win.act("edit.repeat")->trigger();
+        QCOMPARE(win.text().size(), 2001);
+        QCOMPARE(carets.count(), 1);
+        QCOMPARE(win.steps(), 2);
+    }
+
+    // A command that types inside itself, or runs another command, keeps its own name for the whole step.
+    void aCompoundCommandKeepsItsNameForTheWholeStep()
+    {
+        Win win({"one two three"});
+        win.w.view()->setFocus();
+        WriteWindow *w = &win.w;
+        QAction *compound = win.w.addRepeatableCommandForTest(QStringLiteral("Compound"), [w] {
+            w->view()->insertText(QStringLiteral("zz"));
+            w->view()->selectAll();
+            w->act(QStringLiteral("fmt.italic"))->trigger();
+        });
+        win.select(QStringLiteral("two"));
+        compound->trigger();
+        QCOMPARE(win.w.document()->undoNames(10), (QStringList{"Compound", "Compound"}));
+        win.select(QStringLiteral("three"));
+        win.act("edit.repeat")->trigger();
+        QVERIFY(win.w.document()->undoNames(1).first() == QLatin1String("Compound"));
+        for (const QString &name : win.w.document()->undoNames(10)) QCOMPARE(name, QStringLiteral("Compound"));
+        // The command that is named for a step by a command outside it does not leave its name behind.
+        win.select(QStringLiteral("one"));
+        win.act("fmt.italic")->trigger();
+        QCOMPARE(win.w.document()->undoNames(1).first(), QStringLiteral("Italic"));
+    }
+
+    // Ctrl+Y is Redo while the history has a step to redo, by the history as it is that moment (not by a state that follows it later).
+    void ctrlYFollowsTheHistoryAtOnceAfterUndoAndRedo()
+    {
+        Win win({"one two three"});
+        win.select(QStringLiteral("one"));
+        win.act("fmt.bold")->trigger();
+        win.settle();
+        QVERIFY(win.ctrlY()->isEnabled());
+        win.w.view()->undo();   // (no settling: a key pressed now finds the commands as they are)
+        QVERIFY(win.act("edit.redo")->isEnabled());
+        QVERIFY(!win.ctrlY()->isEnabled());
+        win.w.view()->redo();
+        QVERIFY(!win.act("edit.redo")->isEnabled());
+        QVERIFY(win.ctrlY()->isEnabled());
+        win.w.view()->undo();
+        win.w.document()->redo();
+        QVERIFY(!win.act("edit.redo")->isEnabled());
+        QVERIFY(win.ctrlY()->isEnabled());
+    }
+
+    // The run is what was typed: arrow keys do not take it away, and Backspace takes off it the letters it deletes.
+    void backspaceShortensTheRunAndArrowKeysLeaveIt()
+    {
+        Win win({"start"});
+        win.w.view()->setFocus();
+        QTextCursor c(win.story());
+        c.movePosition(QTextCursor::End);
+        win.w.view()->setCursor(c);
+        QTest::keyClicks(win.w.view(), QStringLiteral("abcd"));
+        QTest::keyClick(win.w.view(), Qt::Key_Backspace);
+        QCOMPARE(win.w.view()->typedRun(), QStringLiteral("abc"));
+        QTest::keyClick(win.w.view(), Qt::Key_Backspace);
+        QCOMPARE(win.w.view()->typedRun(), QStringLiteral("ab"));
+        QTest::keyClicks(win.w.view(), QStringLiteral("e"));   // (typing goes on from there)
+        QCOMPARE(win.w.view()->typedRun(), QStringLiteral("abe"));
+        QTest::keyClick(win.w.view(), Qt::Key_Left);
+        QTest::keyClick(win.w.view(), Qt::Key_Right);
+        QCOMPARE(win.w.view()->typedRun(), QStringLiteral("abe"));
+        QTest::keyClick(win.w.view(), Qt::Key_Left);
+        QTest::keyClick(win.w.view(), Qt::Key_Backspace);   // (not at the end of the run: it is not the run's letter)
+        QCOMPARE(win.w.view()->typedRun(), QStringLiteral("abe"));
+        QTextCursor end(win.story());
+        end.movePosition(QTextCursor::End);
+        win.w.view()->setCursor(end);
+        win.settle();
+        win.act("edit.repeat")->trigger();
+        QVERIFY2(win.text().endsWith(QLatin1String("abe")), qPrintable(win.text()));
+        // All of it deleted: nothing is left to repeat.
+        Win other({"start"});
+        other.w.view()->setFocus();
+        QTextCursor oc(other.story());
+        oc.movePosition(QTextCursor::End);
+        other.w.view()->setCursor(oc);
+        QTest::keyClicks(other.w.view(), QStringLiteral("xy"));
+        QTest::keyClick(other.w.view(), Qt::Key_Backspace);
+        QTest::keyClick(other.w.view(), Qt::Key_Backspace);
+        QVERIFY(other.w.view()->typedRun().isEmpty());
+        other.settle();
+        QVERIFY(!other.act("edit.repeat")->isEnabled());
+    }
+
+    // Protection that lets nothing through, and a search that holds the text, refuse a repeat with the reason, and leave the text as it is.
+    void everyKindOfProtectionAndASearchRefuseARepeat()
+    {
+        for (const char *kind : {"forms", "comments", "readOnly"}) {
+            Win win({"one two three"});
+            win.select(QStringLiteral("one"));
+            win.act("fmt.bold")->trigger();
+            win.settle();
+            win.w.document()->setProtection(office::wml::makeDocumentProtection(QString::fromLatin1(kind), QString()));
+            QVERIFY2(win.w.isReadOnly(), kind);
+            win.select(QStringLiteral("three"));
+            const int steps = win.steps();
+            win.w.statusBar()->clearMessage();
+            win.act("edit.repeat")->trigger();
+            QVERIFY2(!win.boldAt(QStringLiteral("three")), kind);
+            QCOMPARE(win.steps(), steps);
+            QVERIFY2(!win.w.statusBar()->currentMessage().isEmpty(), kind);
+        }
+        // Tracked changes only: the repeat goes through, and is tracked.
+        {
+            Win win({"one two three"});
+            win.select(QStringLiteral("one"));
+            win.act("fmt.bold")->trigger();
+            win.w.document()->setProtection(office::wml::makeDocumentProtection(QStringLiteral("trackedChanges"), QString()));
+            QVERIFY(!win.w.isReadOnly());
+            QVERIFY(win.w.document()->trackChanges());
+            win.select(QStringLiteral("three"));
+            win.act("edit.repeat")->trigger();
+            QVERIFY(win.boldAt(QStringLiteral("three")));
+            QString err;
+            office::Package p;
+            p.read(win.w.document()->toDocx(&err));
+            QVERIFY(QString::fromUtf8(p.part(QStringLiteral("/word/document.xml"))).contains(QLatin1String("<w:rPrChange")));
+        }
+        // A search that holds the text.
+        {
+            Win win({"one two three"});
+            win.select(QStringLiteral("one"));
+            win.act("fmt.bold")->trigger();
+            win.w.beginSearchBlock();
+            win.w.view()->beginSearchBlock();
+            win.select(QStringLiteral("three"));
+            const int steps = win.steps();
+            win.w.statusBar()->clearMessage();
+            win.act("edit.repeat")->trigger();
+            QVERIFY(!win.boldAt(QStringLiteral("three")));
+            QCOMPARE(win.steps(), steps);
+            QVERIFY(!win.w.statusBar()->currentMessage().isEmpty());
+            win.w.view()->endSearchBlock();
+            win.w.endSearchBlock();
+        }
+        // Words kept locked by a control are left alone.
+        {
+            const QByteArray locked = "<w:p><w:r><w:t>free</w:t></w:r></w:p><w:sdt><w:sdtPr><w:lock w:val=\"sdtContentLocked\"/></w:sdtPr><w:sdtContent><w:p><w:r><w:t>kept words</w:t></w:r></w:p></w:sdtContent></w:sdt>";
+            WriteWindow w;
+            w.setNotifier([](const QString &, const QString &) {});
+            w.show();
+            w.setDocument(open(makeDocx(locked)), QString());
+            QTextDocument *story = w.document()->story();
+            auto select = [&](const QString &words) {
+                QTextCursor c(story);
+                const int at = story->toPlainText().indexOf(words);
+                c.setPosition(at);
+                c.setPosition(at + int(words.size()), QTextCursor::KeepAnchor);
+                w.view()->setCursor(c);
+            };
+            select(QStringLiteral("free"));
+            w.act(QStringLiteral("fmt.bold"))->trigger();
+            select(QStringLiteral("kept"));
+            const int steps = int(w.document()->undoNames(1000).size());
+            w.act(QStringLiteral("edit.repeat"))->trigger();
+            QTextCursor probe(story);
+            probe.setPosition(story->toPlainText().indexOf(QLatin1String("kept")) + 1);
+            QVERIFY(probe.charFormat().fontWeight() < QFont::DemiBold);
+            QCOMPARE(int(w.document()->undoNames(1000).size()), steps);
+        }
+    }
+
+    // The window a command came from closed, and the object a command worked on deleted.
+    void aRepeatAfterTheDocumentOrTheObjectIsGoneDoesNothingHarmful()
+    {
+        Win b({"alpha beta"});
+        {
+            WriteWindow *a = new WriteWindow;
+            a->setNotifier([](const QString &, const QString &) {});
+            a->show();
+            a->setDocument(open(makeDocx(para("one two three"))), QString());
+            QTextCursor c(a->document()->story());
+            c.setPosition(0);
+            c.setPosition(3, QTextCursor::KeepAnchor);
+            a->view()->setCursor(c);
+            a->act(QStringLiteral("fmt.bold"))->trigger();
+            delete a;
+        }
+        b.settle();
+        QVERIFY(!b.act("edit.repeat")->isEnabled());
+        b.select(QStringLiteral("beta"));
+        b.act("edit.repeat")->trigger();
+        QVERIFY(!b.boldAt(QStringLiteral("beta")));
+        QCOMPARE(b.steps(), 0);
+        // A table command, then the table deleted, then Repeat where there is no table: nothing breaks, and nothing is made.
+        WriteWindow w;
+        w.setNotifier([](const QString &, const QString &) {});
+        w.show();
+        const QByteArray table = "<w:tbl><w:tblPr/><w:tblGrid><w:gridCol w:w=\"3000\"/><w:gridCol w:w=\"3000\"/></w:tblGrid><w:tr><w:tc><w:p><w:r><w:t>a1</w:t></w:r></w:p></w:tc>"
+                                 "<w:tc><w:p><w:r><w:t>b1</w:t></w:r></w:p></w:tc></w:tr></w:tbl><w:p><w:r><w:t>after</w:t></w:r></w:p>";
+        w.setDocument(open(makeDocx(table)), QString());
+        QTextDocument *story = w.document()->story();
+        QTextCursor c(story);
+        c.setPosition(story->toPlainText().indexOf(QLatin1String("a1")) + 1);
+        w.view()->setCursor(c);
+        w.act(QStringLiteral("table.insertBelow"))->trigger();
+        w.act(QStringLiteral("table.deleteTable"))->trigger();
+        QVERIFY(!story->toPlainText().contains(QLatin1String("a1")));
+        w.act(QStringLiteral("table.insertBelow"))->trigger();   // (the repeated command, now with no table at the caret, is the last one given)
+        const QString text = story->toPlainText();
+        const int steps = int(w.document()->undoNames(1000).size());
+        QTextCursor out(story);
+        out.setPosition(text.indexOf(QLatin1String("after")) + 1);
+        w.view()->setCursor(out);
+        w.act(QStringLiteral("edit.repeat"))->trigger();
+        QCOMPARE(story->toPlainText(), text);
+        QVERIFY(int(w.document()->undoNames(1000).size()) <= steps + 1);
     }
 };
 

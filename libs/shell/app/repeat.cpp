@@ -1,6 +1,7 @@
 #include "app/repeat.h"
 
 #include <QCoreApplication>
+#include <QPointer>
 
 namespace jp {
 
@@ -34,9 +35,10 @@ bool RepeatCommand::run()
 {
     if (!m_again || m_running) return false;
     m_running = true;
+    const QPointer<RepeatCommand> self(this);   // (the function may close the window that owns this)
     const std::function<void()> again = m_again;   // (a copy: the function may be replaced while it runs)
     again();
-    m_running = false;
+    if (self) m_running = false;
     return true;
 }
 

@@ -2517,62 +2517,87 @@ void changeCharFormat(WriteDoc &doc, QTextCursor &c, const std::function<void(QT
     c.endEditBlock();
 }
 
-void toggleBold(WriteDoc &doc, QTextCursor &c)
+namespace {
+
+void dropKeptRunProperty(QTextCharFormat &f, const char *tag);
+
+// What each of the on-and-off character looks tests, and does.
+bool hasLook(CharToggle which, const QTextCharFormat &f)
 {
-    const NoteScopeGuard scopeGuard(doc, c);
-    if (!intoBody(c)) return;
-    const bool on = !allSelected(c, [](const QTextCharFormat &f) { return f.fontWeight() >= QFont::DemiBold; });
-    changeCharFormat(doc, c, [on](QTextCharFormat &f) { f.setFontWeight(on ? QFont::Bold : QFont::Normal); });
+    switch (which) {
+    case CharToggle::Bold: return f.fontWeight() >= QFont::DemiBold;
+    case CharToggle::Italic: return f.fontItalic();
+    case CharToggle::Underline: return f.underlineStyle() != QTextCharFormat::NoUnderline;
+    case CharToggle::Strike: return f.fontStrikeOut();
+    case CharToggle::Subscript: return f.verticalAlignment() == QTextCharFormat::AlignSubScript;
+    case CharToggle::Superscript: return f.verticalAlignment() == QTextCharFormat::AlignSuperScript;
+    case CharToggle::Border: return f.hasProperty(tp::RunBorder);
+    }
+    return false;
 }
 
-void toggleItalic(WriteDoc &doc, QTextCursor &c)
+void giveLook(CharToggle which, QTextCharFormat &f, bool on)
 {
-    const NoteScopeGuard scopeGuard(doc, c);
-    if (!intoBody(c)) return;
-    const bool on = !allSelected(c, [](const QTextCharFormat &f) { return f.fontItalic(); });
-    changeCharFormat(doc, c, [on](QTextCharFormat &f) { f.setFontItalic(on); });
-}
-
-void toggleUnderline(WriteDoc &doc, QTextCursor &c)
-{
-    const NoteScopeGuard scopeGuard(doc, c);
-    if (!intoBody(c)) return;
-    const bool on = !allSelected(c, [](const QTextCharFormat &f) { return f.underlineStyle() != QTextCharFormat::NoUnderline; });
-    changeCharFormat(doc, c, [on](QTextCharFormat &f) {
+    switch (which) {
+    case CharToggle::Bold: f.setFontWeight(on ? QFont::Bold : QFont::Normal); break;
+    case CharToggle::Italic: f.setFontItalic(on); break;
+    case CharToggle::Underline:
         f.setUnderlineStyle(on ? QTextCharFormat::SingleUnderline : QTextCharFormat::NoUnderline);
         f.clearProperty(tp::UnderlineKind);
         f.clearProperty(prop::UnderlineAttrs);
         if (!on) f.clearProperty(QTextFormat::TextUnderlineColor);
         f.clearProperty(QTextFormat::FontUnderline);
-    });
-}
-
-void toggleStrike(WriteDoc &doc, QTextCursor &c)
-{
-    const NoteScopeGuard scopeGuard(doc, c);
-    if (!intoBody(c)) return;
-    const bool on = !allSelected(c, [](const QTextCharFormat &f) { return f.fontStrikeOut(); });
-    changeCharFormat(doc, c, [on](QTextCharFormat &f) {
+        break;
+    case CharToggle::Strike:
         f.setFontStrikeOut(on);
         f.clearProperty(prop::DoubleStrike);
-    });
+        break;
+    case CharToggle::Subscript: f.setVerticalAlignment(on ? QTextCharFormat::AlignSubScript : QTextCharFormat::AlignNormal); break;
+    case CharToggle::Superscript: f.setVerticalAlignment(on ? QTextCharFormat::AlignSuperScript : QTextCharFormat::AlignNormal); break;
+    case CharToggle::Border:
+        dropKeptRunProperty(f, "<w:bdr");
+        if (on) {
+            const QString border = QStringLiteral("single;4;0;");   // (a half-point line, automatic color, close to the letters)
+            f.setProperty(tp::RunBorder, border);
+            f.setProperty(prop::CharBorder, border);
+        } else {
+            f.clearProperty(tp::RunBorder);
+            f.clearProperty(prop::CharBorder);
+        }
+        break;
+    }
 }
 
-void toggleSubscript(WriteDoc &doc, QTextCursor &c)
+} // namespace
+
+bool selectionHasLook(const QTextCursor &c, CharToggle which)
+{
+    return allSelected(c, [which](const QTextCharFormat &f) { return hasLook(which, f); });
+}
+
+void setCharToggle(WriteDoc &doc, QTextCursor &c, CharToggle which, bool on)
 {
     const NoteScopeGuard scopeGuard(doc, c);
     if (!intoBody(c)) return;
-    const bool on = !allSelected(c, [](const QTextCharFormat &f) { return f.verticalAlignment() == QTextCharFormat::AlignSubScript; });
-    changeCharFormat(doc, c, [on](QTextCharFormat &f) { f.setVerticalAlignment(on ? QTextCharFormat::AlignSubScript : QTextCharFormat::AlignNormal); });
+    // (Already as asked: all of it has the look, or none of it has: nothing is changed and no step is made.)
+    if (allSelected(c, [which, on](const QTextCharFormat &f) { return hasLook(which, f) == on; })) return;
+    changeCharFormat(doc, c, [which, on](QTextCharFormat &f) { giveLook(which, f, on); });
 }
 
-void toggleSuperscript(WriteDoc &doc, QTextCursor &c)
+void toggleCharLook(WriteDoc &doc, QTextCursor &c, CharToggle which)
 {
     const NoteScopeGuard scopeGuard(doc, c);
     if (!intoBody(c)) return;
-    const bool on = !allSelected(c, [](const QTextCharFormat &f) { return f.verticalAlignment() == QTextCharFormat::AlignSuperScript; });
-    changeCharFormat(doc, c, [on](QTextCharFormat &f) { f.setVerticalAlignment(on ? QTextCharFormat::AlignSuperScript : QTextCharFormat::AlignNormal); });
+    const bool on = !allSelected(c, [which](const QTextCharFormat &f) { return hasLook(which, f); });
+    changeCharFormat(doc, c, [which, on](QTextCharFormat &f) { giveLook(which, f, on); });
 }
+
+void toggleBold(WriteDoc &doc, QTextCursor &c) { toggleCharLook(doc, c, CharToggle::Bold); }
+void toggleItalic(WriteDoc &doc, QTextCursor &c) { toggleCharLook(doc, c, CharToggle::Italic); }
+void toggleUnderline(WriteDoc &doc, QTextCursor &c) { toggleCharLook(doc, c, CharToggle::Underline); }
+void toggleStrike(WriteDoc &doc, QTextCursor &c) { toggleCharLook(doc, c, CharToggle::Strike); }
+void toggleSubscript(WriteDoc &doc, QTextCursor &c) { toggleCharLook(doc, c, CharToggle::Subscript); }
+void toggleSuperscript(WriteDoc &doc, QTextCursor &c) { toggleCharLook(doc, c, CharToggle::Superscript); }
 
 void setFontFamily(WriteDoc &doc, QTextCursor &c, const QString &family)
 {
@@ -2823,19 +2848,7 @@ void setCharShading(WriteDoc &doc, QTextCursor &c, const QColor &color)
 
 void setCharBorder(WriteDoc &doc, QTextCursor &c, bool on)
 {
-    const NoteScopeGuard scopeGuard(doc, c);
-    if (!intoBody(c)) return;
-    changeCharFormat(doc, c, [on](QTextCharFormat &f) {
-        dropKeptRunProperty(f, "<w:bdr");
-        if (on) {
-            const QString border = QStringLiteral("single;4;0;");   // (a half-point line, automatic color, close to the letters)
-            f.setProperty(tp::RunBorder, border);
-            f.setProperty(prop::CharBorder, border);
-        } else {
-            f.clearProperty(tp::RunBorder);
-            f.clearProperty(prop::CharBorder);
-        }
-    });
+    setCharToggle(doc, c, CharToggle::Border, on);
 }
 
 namespace {
@@ -3075,6 +3088,11 @@ void takeBlockOutOfList(WriteDoc &doc, QTextBlock block) { removeFromList(doc, b
 
 void toggleList(WriteDoc &doc, QTextCursor &c, bool numbered)
 {
+    setList(doc, c, numbered, std::nullopt);
+}
+
+void setList(WriteDoc &doc, QTextCursor &c, bool numbered, std::optional<bool> on)
+{
     const NoteScopeGuard scopeGuard(doc, c);
     if (!intoBody(c)) return;
     NumberGuard numbers(doc, c.document());
@@ -3087,6 +3105,17 @@ void toggleList(WriteDoc &doc, QTextCursor &c, bool numbered)
         all = all && listKindOf(doc, b) == want;
     }
     if (!any) return;
+    if (on && *on && all) return;   // (already as asked)
+    if (on && !*on) {   // (taken off: the paragraphs that have this kind of list lose it, and no other does)
+        bool some = false;
+        for (const QTextBlock &b : blocks) some = some || (!isLocked(b) && listKindOf(doc, b) == want);
+        if (!some) return;
+        c.beginEditBlock();
+        for (const QTextBlock &b : blocks)
+            if (!isLocked(b) && listKindOf(doc, b) == want) removeFromList(doc, b);
+        c.endEditBlock();
+        return;
+    }
     c.beginEditBlock();
     if (all) {
         for (const QTextBlock &b : blocks)

@@ -789,25 +789,38 @@ void PageView::insertText(const QString &text)
     if (m_overtype) auto_ = write::AutoOptions{false, false, false, false};
     auto_.record = &m_autoFix;
     const bool continues = m_typedOpen && !m_repeatingTyping && !m_cursor.hasSelection() && m_cursor.position() == m_typedEnd && m_cursor.document() == m_typedStory;
-    m_doc->setStepName(tr("Typing"));
-    write::typeText(*m_doc, m_cursor, text, auto_);
-    m_doc->setStepName(QString());
+    const int from = m_cursor.hasSelection() ? m_cursor.selectionStart() : m_cursor.position();
+    if (m_repeatingTyping) auto_ = write::AutoOptions{false, false, false, false};   // (the run holds what typing made of the words: they go in as they are)
+    {
+        const WriteDoc::StepName stepName(*m_doc, tr("Typing"));
+        write::typeText(*m_doc, m_cursor, text, auto_);
+    }
     noteAutoFix();
     if (!m_repeatingTyping) {
         m_typedEnd = m_cursor.position();
         m_typedStory = m_cursor.document();
         m_typedOpen = true;
-        if (!continues) {
-            m_typedRun = text;
-            Q_EMIT typedRunChanged();
-        } else if (!m_typedRun.isEmpty() && m_typedRun.size() + text.size() <= kMaxTypedRun) {
-            m_typedRun += text;
-        } else if (!m_typedRun.isEmpty()) {
-            m_typedRun.clear();   // (too long to be kept)
-            Q_EMIT typedRunChanged();
+        if (!continues) m_typedStart = from;
+        // The run is kept as the text came out (a word the corrections changed is what they made it), so that Repeat puts it in as one edit.
+        const bool had = !m_typedRun.isEmpty();
+        if (!continues || had) {
+            m_typedRun = typedText();
+            if (!continues || m_typedRun.isEmpty()) Q_EMIT typedRunChanged();
         }
     }
     caretMoved();
+}
+
+QString PageView::typedText() const
+{
+    if (!m_typedStory || m_typedEnd <= m_typedStart || m_typedEnd - m_typedStart > kMaxTypedRun) return QString();
+    QTextCursor t(m_typedStory);
+    t.setPosition(m_typedStart);
+    t.setPosition(m_typedEnd, QTextCursor::KeepAnchor);
+    const QString words = t.selectedText();
+    // (Only letters: a run with a paragraph break or a piece kept as XML in it is not kept.)
+    if (words.size() != m_typedEnd - m_typedStart || words.contains(QChar::ParagraphSeparator) || words.contains(QChar::ObjectReplacementCharacter)) return QString();
+    return words;
 }
 
 void PageView::endTypedRun()
@@ -819,16 +832,28 @@ void PageView::endTypedRun()
 void PageView::repeatTyping(const QString &run)
 {
     if (editsBlocked() || !m_doc || run.isEmpty() || run.size() > kMaxTypedRun) return;
-    const WriteDoc::StepGroup group(*m_doc);
-    m_repeatingTyping = true;
-    for (const QChar ch : run) insertText(QString(ch));
-    m_repeatingTyping = false;
+    if (m_shapeEditor) {   // (typing goes where the person is editing)
+        m_shapeEditor->insertPlainText(run);
+        return;
+    }
+    m_doc->startNewStep();
+    {
+        const WriteDoc::StepGroup group(*m_doc);
+        m_repeatingTyping = true;
+        insertText(run);
+        m_repeatingTyping = false;
+    }
+    m_doc->startNewStep();
 }
 
 // ---- the keyboard
 
 void PageView::typeKey(int key, Qt::KeyboardModifiers m)
 {
+    // (A Backspace at the end of the run takes letters off it; every other key ends it.)
+    const bool shorten = key == Qt::Key_Backspace && !(m & Qt::ControlModifier) && !m_typedRun.isEmpty() && m_typedOpen && !m_cursor.hasSelection() && m_cursor.position() == m_typedEnd && m_cursor.document() == m_typedStory;
+    const int runEnd = m_typedEnd;
+    QTextDocument *runStory = m_typedStory;
     endTypedRun();
     if (editsBlocked()) {   // (only the keys that move the caret)
         switch (key) {
@@ -913,6 +938,16 @@ void PageView::typeKey(int key, Qt::KeyboardModifiers m)
     case Qt::Key_Backspace:
         deleteBack(*m_doc, m_cursor, ctrl);
         write::restoreEmptyPlaceholder(*m_doc, m_cursor.position());
+        if (shorten) {
+            const int gone = runEnd - m_cursor.position();
+            if (gone > 0 && gone <= m_typedRun.size() && m_cursor.document() == runStory) {
+                m_typedRun.chop(gone);
+                m_typedEnd = m_cursor.position();
+                m_typedStory = runStory;
+                m_typedOpen = !m_typedRun.isEmpty();
+                if (m_typedRun.isEmpty()) Q_EMIT typedRunChanged();
+            }
+        }
         caretMoved();
         break;
     case Qt::Key_Delete:

@@ -18,6 +18,7 @@
 #include <QHash>
 #include <QSet>
 #include <QObject>
+#include <QPointer>
 #include <QTextBlockFormat>
 #include <QTextCharFormat>
 #include <QTextListFormat>
@@ -374,6 +375,26 @@ public:
     QTextDocument *redo(QTextCursor *cursor = nullptr);
     // The name the steps logged from now on are given (a command's name; none is "Edit"): what the history lists on Undo and Redo show.
     void setStepName(const QString &name) { m_stepName = name; }
+    // Names the steps made while it lives, unless an outer one has named them already: a command that types inside itself, or runs another, keeps its own name for the whole step.
+    class StepName {
+    public:
+        StepName(WriteDoc &doc, const QString &name) : m_doc(&doc), m_was(doc.m_stepName)
+        {
+            if (doc.m_stepName.isEmpty()) doc.m_stepName = name;
+        }
+        ~StepName()
+        {
+            if (m_doc) m_doc->m_stepName = m_was;
+        }
+        StepName(const StepName &) = delete;
+        StepName &operator=(const StepName &) = delete;
+
+    private:
+        QPointer<WriteDoc> m_doc;
+        QString m_was;
+    };
+    // The next edit starts a step of its own, even right after one it would have joined (typing a letter after typing).
+    void startNewStep() { sealStories(); }
     // The names of what each Undo takes back, newest first (at most `limit`), and of what each Redo does again, nearest first. A step that joined others (a group, or an edit that joined the
     // block before it) is one name, so n names are n Undos or n Redos.
     QStringList undoNames(int limit) const;
@@ -416,19 +437,19 @@ public:
     // The edits made while one of these lives, in any of the document's stories, are one step of the history: an Undo takes all of them back, and a Redo does all again.
     class StepGroup {
     public:
-        explicit StepGroup(WriteDoc &doc) : m_doc(doc)
+        explicit StepGroup(WriteDoc &doc) : m_doc(&doc)
         {
-            if (m_doc.m_groupDepth++ == 0) m_doc.m_openGroup = m_doc.m_nextGroup++;
+            if (doc.m_groupDepth++ == 0) doc.m_openGroup = doc.m_nextGroup++;
         }
         ~StepGroup()
         {
-            if (--m_doc.m_groupDepth == 0) m_doc.m_openGroup = 0;
+            if (m_doc && --m_doc->m_groupDepth == 0) m_doc->m_openGroup = 0;   // (a document that went while the group lived has nothing to close)
         }
         StepGroup(const StepGroup &) = delete;
         StepGroup &operator=(const StepGroup &) = delete;
 
     private:
-        WriteDoc &m_doc;
+        QPointer<WriteDoc> m_doc;
     };
     // The stories besides the text that hold tracked changes: the headers and footers and the footnotes (each made editable if it was not), in a fixed order. The endnotes' words are in the text.
     // With `every`, the stories that hold no change too (the headers and footers the file names, and every footnote).

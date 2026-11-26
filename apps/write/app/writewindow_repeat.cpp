@@ -10,8 +10,13 @@
 #include <QAction>
 #include <QApplication>
 #include <QLineEdit>
+#include <QPointer>
 #include <QPlainTextEdit>
+#include <QHash>
 #include <QSet>
+#include <optional>
+#include "app/shapetextedit.h"
+#include "core/editops.h"
 #include <QTextEdit>
 
 namespace jp {
@@ -38,6 +43,91 @@ bool WriteWindow::repeatableCommand(const QString &id)
     return false;
 }
 
+namespace {
+
+// The commands that turn a look on or off: Repeat does not toggle again, it sets the state the command made.
+struct ToggleKind {
+    bool list = false, numbered = false;
+    write::CharToggle look = write::CharToggle::Bold;
+};
+
+std::optional<ToggleKind> toggleKindOf(const QString &id)
+{
+    static const QHash<QString, ToggleKind> kinds = {
+        {QStringLiteral("fmt.bold"), {false, false, write::CharToggle::Bold}},
+        {QStringLiteral("fmt.italic"), {false, false, write::CharToggle::Italic}},
+        {QStringLiteral("fmt.underline"), {false, false, write::CharToggle::Underline}},
+        {QStringLiteral("fmt.strike"), {false, false, write::CharToggle::Strike}},
+        {QStringLiteral("fmt.subscript"), {false, false, write::CharToggle::Subscript}},
+        {QStringLiteral("fmt.superscript"), {false, false, write::CharToggle::Superscript}},
+        {QStringLiteral("fmt.charBorder"), {false, false, write::CharToggle::Border}},
+        {QStringLiteral("para.bullets"), {true, false, write::CharToggle::Bold}},
+        {QStringLiteral("para.numbers"), {true, true, write::CharToggle::Bold}},
+    };
+    const auto it = kinds.constFind(id);
+    if (it == kinds.constEnd()) return std::nullopt;
+    return *it;
+}
+
+} // namespace
+
+// What a toggle command made of the selection now: on when all of it has the look (or is in the list), else off.
+std::optional<bool> WriteWindow::toggleResult(const QString &id) const
+{
+    const std::optional<ToggleKind> kind = toggleKindOf(id);
+    if (!kind || !m_doc) return std::nullopt;
+    if (ShapeTextEdit *box = m_view->shapeEditor()) {   // (the box that is being edited takes the commands that it has)
+        if (id == QLatin1String("fmt.bold")) return box->charFormat().font().bold();
+        if (id == QLatin1String("fmt.italic")) return box->charFormat().font().italic();
+        if (id == QLatin1String("fmt.underline")) return box->charFormat().font().underline();
+        if (id == QLatin1String("para.bullets")) return box->hasBullets();
+        return std::nullopt;
+    }
+    const QTextCursor &c = m_view->cursor();
+    if (!kind->list) return write::selectionHasLook(c, kind->look);
+    const write::ListKind want = kind->numbered ? write::ListKind::Numbers : write::ListKind::Bullets;
+    const int last = c.hasSelection() ? c.selectionEnd() - 1 : c.position();
+    bool all = true;
+    for (QTextBlock b = c.document()->findBlock(c.selectionStart()); b.isValid() && b.position() <= std::max(last, c.selectionStart()); b = b.next()) all = all && write::listKindOf(*m_doc, b) == want;
+    return all;
+}
+
+// Sets the state a toggle command made, on the selection of now: a selection that has it already is left as it is, and one that has part of it gets all of it.
+void WriteWindow::applyToggle(const QString &id, bool on)
+{
+    const std::optional<ToggleKind> kind = toggleKindOf(id);
+    if (!kind || !m_doc) return;
+    if (ShapeTextEdit *box = m_view->shapeEditor()) {
+        if (id == QLatin1String("fmt.bold")) box->setBold(on);
+        else if (id == QLatin1String("fmt.italic")) box->setItalic(on);
+        else if (id == QLatin1String("fmt.underline")) box->setUnderline(on);
+        else if (id == QLatin1String("para.bullets")) box->setBullets(on);
+        return;
+    }
+    m_doc->takeFormattingRefused();
+    if (kind->list) write::setList(*m_doc, m_view->cursor(), kind->numbered, on);
+    else write::setCharToggle(*m_doc, m_view->cursor(), kind->look, on);
+    if (m_doc->takeFormattingRefused()) statusBar()->showMessage(tr("Formatting is limited in this document. Only styles that are not locked can be used."), 6000);
+    m_view->setFocus(Qt::OtherFocusReason);
+    m_view->viewport()->update();
+}
+
+// The commands that do their work in the box of text being edited, when there is one; Repeat does no other command there (it would change the text behind the box, where nobody is typing).
+bool WriteWindow::boxTakesCommand(const QString &id)
+{
+    static const QSet<QString> ids = {QStringLiteral("fmt.bold"), QStringLiteral("fmt.italic"), QStringLiteral("fmt.underline"), QStringLiteral("fmt.grow"), QStringLiteral("fmt.shrink"),
+                                      QStringLiteral("fmt.alignLeft"), QStringLiteral("fmt.alignCenter"), QStringLiteral("fmt.alignRight"), QStringLiteral("fmt.justify"),
+                                      QStringLiteral("para.bullets"), QStringLiteral("para.indentInc"), QStringLiteral("para.indentDec")};
+    return ids.contains(id);
+}
+
+bool WriteWindow::refuseInBox(bool boxTakesIt)
+{
+    if (!m_view->shapeEditor() || boxTakesIt) return false;
+    statusBar()->showMessage(tr("This cannot be repeated while the text of a box or shape is being edited."), 6000);
+    return true;
+}
+
 // A command that can't be run now (the document is read-only or protected, or a search holds the text) is refused with the reason, as the command was when it was given.
 bool WriteWindow::refuseCommand(const QString &id)
 {
@@ -52,6 +142,12 @@ bool WriteWindow::refuseCommand(const QString &id)
     return false;
 }
 
+QAction *WriteWindow::addRepeatableCommandForTest(const QString &id, const std::function<void()> &fn)
+{
+    m_testRepeatable.insert(id);
+    return mk(id, id, QString(), QKeySequence(), fn);
+}
+
 void WriteWindow::recordRepeat(const QString &name, std::function<void()> again, quint64 document)
 {
     if (!m_repeat || !m_doc) return;
@@ -60,19 +156,33 @@ void WriteWindow::recordRepeat(const QString &name, std::function<void()> again,
     m_repeat->record(name, std::move(again), document);
 }
 
-bool WriteWindow::changeAndRepeat(const QString &name, const std::function<void()> &change)
+// A repeat is always a step of its own, and exactly one, wherever the caret is (typing right after typing would otherwise join the step before it).
+void WriteWindow::runRepeatStep(const QString &name, const std::function<void()> &fn)
+{
+    if (!m_doc) return;
+    const QPointer<WriteWindow> self(this);   // (a command may close the window)
+    m_doc->startNewStep();
+    {
+        const write::WriteDoc::StepGroup group(*m_doc);
+        const write::WriteDoc::StepName stepName(*m_doc, name);
+        fn();
+    }
+    if (self && m_doc) m_doc->startNewStep();
+}
+
+bool WriteWindow::changeAndRepeat(const QString &name, const std::function<void()> &change, bool boxTakesIt)
 {
     if (!m_doc || refuseIfReadOnly()) return false;
     const quint64 document = m_repeat->document();
-    m_doc->setStepName(name);
-    change();
-    if (m_doc) m_doc->setStepName(QString());
-    recordRepeat(name, [this, name, change] {
-        if (!m_doc || refuseIfReadOnly()) return;
-        const write::WriteDoc::StepGroup group(*m_doc);
-        m_doc->setStepName(name);
+    const QPointer<WriteWindow> self(this);
+    {
+        const write::WriteDoc::StepName stepName(*m_doc, name);
         change();
-        m_doc->setStepName(QString());
+    }
+    if (!self) return true;
+    recordRepeat(name, [this, name, change, boxTakesIt] {
+        if (!m_doc || refuseIfReadOnly() || refuseInBox(boxTakesIt)) return;
+        runRepeatStep(name, change);
     }, document);
     return true;
 }
@@ -99,9 +209,10 @@ void WriteWindow::createRepeatActions()
         }
         const quint64 document = m_repeat->document();
         m_repeat->record(tr("Typing"), [this] {
-            if (refuseCommand(QStringLiteral("edit.repeat"))) return;
-            m_view->repeatTyping(m_view->typedRun());
-            m_view->setFocus(Qt::OtherFocusReason);
+            if (refuseCommand(QStringLiteral("edit.repeat"))) return;   // (typing goes where the person is editing: the box, the header or footer, the note, or the text)
+            const QPointer<WriteWindow> self(this);
+            runRepeatStep(tr("Typing"), [this] { m_view->repeatTyping(m_view->typedRun()); });
+            if (self) m_view->setFocus(Qt::OtherFocusReason);
         }, document);
         m_repeatIsTyping = true;
     });
@@ -113,6 +224,16 @@ void WriteWindow::runRepeat()
     // (F4 is the text's: a box of text elsewhere in the window, the find box or a field of the ribbon, keeps its key.)
     if (QWidget *w = QApplication::focusWidget(); w && w != m_view && !m_view->isAncestorOf(w) && (qobject_cast<QLineEdit *>(w) || qobject_cast<QTextEdit *>(w) || qobject_cast<QPlainTextEdit *>(w) || qobject_cast<QAbstractSpinBox *>(w))) return;
     m_repeat->run();
+}
+
+// Undo, Redo, and the keys that follow them are as the history is the moment it changes (Ctrl+Y is Redo while there is a step to redo, so it must never be taken from a state that is a moment old).
+void WriteWindow::syncHistoryActions()
+{
+    if (!m_doc || !m_repeat) return;
+    if (QAction *undo = act("edit.undo")) undo->setEnabled(m_doc->canUndo());
+    if (QAction *redo = act("edit.redo")) redo->setEnabled(m_doc->canRedo());
+    m_repeat->setRedoAvailable(m_doc->canRedo());
+    updateRepeatActions();
 }
 
 void WriteWindow::updateRepeatActions()

@@ -126,7 +126,7 @@ void WriteWindow::ribbonParts(RibbonParts &parts)
                 if (auto *typing = m_view->shapeEditor()) typing->setFontFamilyName(f);
                 else if (m_doc) write::setFontFamily(*m_doc, m_view->cursor(), f);
                 m_view->focusText();
-            });
+            }, true);
         });
         m_fontCombos << font;
         return font;
@@ -138,7 +138,7 @@ void WriteWindow::ribbonParts(RibbonParts &parts)
                 if (auto *typing = m_view->shapeEditor()) typing->setFontSizePt(s);
                 else if (m_doc) write::setFontSize(*m_doc, m_view->cursor(), s);
                 m_view->focusText();
-            });
+            }, true);
         });
         m_sizeCombos << size;
         return size;
@@ -153,7 +153,7 @@ void WriteWindow::ribbonParts(RibbonParts &parts)
                 if (auto *typing = m_view->shapeEditor()) typing->setColor(color.isValid() ? color : QColor(Qt::black));
                 else write::setTextColorRef(*m_doc, m_view->cursor(), c);
                 m_view->focusText();
-            });
+            }, true);
         });
         m_colorButtons << b;
         m_fontColorButtons << b;
