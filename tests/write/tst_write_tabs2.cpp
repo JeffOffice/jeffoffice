@@ -1697,8 +1697,8 @@ private Q_SLOTS:
         QVERIFY(tablePropsAt(*doc, c).wrapAround);
     }
 
-    // Delete Cells, Shift Left and Shift Up change no words quietly with Track Changes on: both are refused, with a word in the status bar; with it off they work.
-    void deletingCellsAndShiftingIsRefusedWhileTrackChangesIsOn()
+    // Delete Cells, Shift Left and Shift Up work with Track Changes on as they do with it off, and the status bar says the change was not recorded.
+    void deletingCellsAndShiftingWorksWhileTrackChangesIsOnAndSaysItWasNotRecorded()
     {
         auto cell = [](const char *t) { return QByteArray("<w:tc><w:tcPr><w:tcW w:w=\"1000\" w:type=\"dxa\"/></w:tcPr><w:p><w:r><w:t>") + t + "</w:t></w:r></w:p></w:tc>"; };
         const QByteArray table = "<w:tbl><w:tblPr><w:tblW w:w=\"3000\" w:type=\"dxa\"/></w:tblPr><w:tblGrid><w:gridCol w:w=\"1000\"/><w:gridCol w:w=\"1000\"/><w:gridCol w:w=\"1000\"/></w:tblGrid>"
@@ -1721,13 +1721,8 @@ private Q_SLOTS:
                 QTRY_VERIFY(w.act(QString::fromLatin1(command))->isEnabled());
                 const QString before = w.document()->story()->toPlainText();
                 w.act(QString::fromLatin1(command))->trigger();
-                if (tracking) {
-                    QCOMPARE(w.document()->story()->toPlainText(), before);
-                    QVERIFY(!w.isModified());
-                    QVERIFY2(w.statusBar()->currentMessage().contains(QLatin1String("Track Changes")), qPrintable(w.statusBar()->currentMessage()));
-                } else {
-                    QVERIFY(w.document()->story()->toPlainText() != before);
-                }
+                QVERIFY(w.document()->story()->toPlainText() != before);
+                if (tracking) QVERIFY2(w.statusBar()->currentMessage().contains(QLatin1String("not recorded")), qPrintable(w.statusBar()->currentMessage()));
             }
     }
 
