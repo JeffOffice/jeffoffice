@@ -185,9 +185,18 @@ FormField formFieldAt(QTextDocument *story, int position)
 {
     const QVector<FormField> all = formFields(story);
     FormField best;
+    // (A caret before the begin mark, or after the end mark, is outside the field.)
     for (const FormField &f : all)
-        if (position >= f.begin && position <= f.end + 1 && (!best.valid() || f.begin >= best.begin)) best = f;
+        if (position > f.begin && position <= f.end && (!best.valid() || f.begin >= best.begin)) best = f;
     return best;
+}
+
+FormField formFieldAtSelection(QTextDocument *story, int from, int to)
+{
+    FormField f = formFieldAt(story, from);
+    // (The begin mark alone, selected, is the field: it is what shows a field with nothing in it.)
+    if (!f.valid() && to == from + 1) f = formFieldBeginningAt(story, from);
+    return f;
 }
 
 namespace {
@@ -462,7 +471,7 @@ void selectFormField(QTextCursor &c, const FormField &field)
             c.setPosition(field.begin + 1, QTextCursor::KeepAnchor);
         }
     } else {
-        c.setPosition(field.begin);
+        c.setPosition(field.begin + 1);   // (inside the field: after its begin mark)
     }
 }
 
@@ -499,7 +508,7 @@ bool formsEditableAt(WriteDoc &doc, QTextDocument *story, int position)
 {
     if (story == doc.story() && formsSectionOpenAt(doc, position)) return true;
     const FormField f = formFieldAt(story, position);
-    return f.valid() && f.fillable() && position >= f.begin && position <= f.end + 1;
+    return f.valid() && f.fillable();
 }
 
 } // namespace jp::write

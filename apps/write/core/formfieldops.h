@@ -50,6 +50,8 @@ FormField formFieldFromData(const QByteArray &beginRaw, bool *ok = nullptr);
 // The form fields of a story in the order they begin (at most kMostFormFields), and the one that holds a place (the caret) or begins at it; none valid where there is none.
 QVector<FormField> formFields(QTextDocument *story);
 FormField formFieldAt(QTextDocument *story, int position);
+// The field a selection is in: the one that holds its start, or the one whose begin mark alone is selected (how a field with nothing in it is shown selected).
+FormField formFieldAtSelection(QTextDocument *story, int from, int to);
 
 // The field whose begin mark is at the place, none valid where there is none.
 FormField formFieldBeginningAt(QTextDocument *story, int begin);

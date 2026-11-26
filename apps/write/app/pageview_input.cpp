@@ -2129,7 +2129,9 @@ bool PageView::formKey(QKeyEvent *e)
     // Tab and Shift+Tab go from field to field in a document protected for forms (the one left is finished: a number or a date in its picture).
     if (m_formsOnly && (key == Qt::Key_Tab || key == Qt::Key_Backtab) && !(mods & (Qt::ControlModifier | Qt::AltModifier | Qt::MetaModifier))) {
         const bool backward = key == Qt::Key_Backtab || (mods & Qt::ShiftModifier);
-        const write::FormField here = write::formFieldAt(story, m_cursor.selectionStart());
+        const write::FormField here = write::formFieldAtSelection(story, m_cursor.selectionStart(), m_cursor.selectionEnd());
+        // (In text the protection leaves out, and not in a field, Tab is the ordinary key: a tab, or the next cell.)
+        if (!here.valid() && !editsBlockedAtSelection()) return false;
         if (here.valid() && here.kind == write::FormKind::Text && here.fillable() && here.separate >= 0) {
             bool fits = true;
             const QString finished = write::finishedFormText(here, here.result, &fits);
@@ -2153,8 +2155,8 @@ bool PageView::formKey(QKeyEvent *e)
     const bool acts = key == Qt::Key_Space || key == Qt::Key_Return || key == Qt::Key_Enter || (key == Qt::Key_Down && (mods & Qt::AltModifier)) || key == Qt::Key_F4;
     if (!editing && !acts) return false;
     if (!write::fieldsNearSelection(story, m_cursor).any) return false;
-    const write::FormField f = write::formFieldAt(story, m_cursor.selectionStart());
-    if (!f.valid() || m_cursor.selectionEnd() > f.end + 1) return false;
+    const write::FormField f = write::formFieldAtSelection(story, m_cursor.selectionStart(), m_cursor.selectionEnd());
+    if (!f.valid() || m_cursor.selectionEnd() > f.end) return false;
     auto counted = [this](bool done) {
         if (done && m_formsOnly) {
             ++m_formUndo;

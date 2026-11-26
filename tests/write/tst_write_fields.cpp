@@ -1538,7 +1538,7 @@ private Q_SLOTS:
         QString shown;
         QVERIFY(fillFormText(*doc, doc->story(), f.begin, QStringLiteral("alexander"), false, &shown));
         QCOMPARE(shown, QStringLiteral("ALEXANDER").left(8));   // (cut to its longest text, in its case)
-        QCOMPARE(formFieldAt(doc->story(), f.begin).result, QStringLiteral("ALEXANDE"));
+        QCOMPARE(formFieldBeginningAt(doc->story(), f.begin).result, QStringLiteral("ALEXANDE"));
         QCOMPARE(shownAt(*doc, f.begin), QStringLiteral("raw:"));
         QVERIFY(!fillFormText(*doc, doc->story(), f.begin, QStringLiteral("alexande")));   // (the same: no step)
         updateFields(*doc, UpdateOptions());
@@ -1549,11 +1549,11 @@ private Q_SLOTS:
         // The reference to its bookmark follows, in the same step.
         QVERIFY(lines(*doc)[0].endsWith(QStringLiteral("ALEXANDE")));
         QVERIFY(doc->undo());
-        QCOMPARE(formFieldAt(doc->story(), f.begin).result.trimmed(), QString());
+        QCOMPARE(formFieldBeginningAt(doc->story(), f.begin).result.trimmed(), QString());
         QCOMPARE(shownAt(*doc, f.begin), QStringLiteral("raw:Name here"));
         QCOMPARE(documentXml(doc->toDocx()), original);
         QVERIFY(doc->redo());
-        QCOMPARE(formFieldAt(doc->story(), f.begin).result, QStringLiteral("ALEXANDE"));
+        QCOMPARE(formFieldBeginningAt(doc->story(), f.begin).result, QStringLiteral("ALEXANDE"));
     }
 
     void aFilledTextFieldIsNotATrackedChangeAndALockedOneIsRefused()
@@ -1726,7 +1726,7 @@ private Q_SLOTS:
         QCOMPARE(c.selectionStart(), all[0].separate + 1);
         QCOMPARE(c.selectionEnd(), all[0].end);
         selectFormField(c, all[2]);
-        QCOMPARE(c.position(), all[2].begin);
+        QCOMPARE(c.position(), all[2].begin + 1);
         QVERIFY(!c.hasSelection());
         auto none = open(makeDocx(para(run("no fields"))));
         QVERIFY(!nextFormField(none->story(), 0, false).valid());
@@ -1771,7 +1771,7 @@ private Q_SLOTS:
         QCOMPARE(formFields(doc->story())[0].result, QStringLiteral("ABCDEFG"));
         // The check box: Tab, then Space.
         QTest::keyClick(view, Qt::Key_Tab);
-        QCOMPARE(view->cursor().position(), formFields(doc->story())[1].begin);
+        QCOMPARE(view->cursor().position(), formFields(doc->story())[1].begin + 1);
         QTest::keyClick(view, Qt::Key_Space);
         QVERIFY(formFields(doc->story())[1].checked);
         QTest::keyClick(view, Qt::Key_Tab);
@@ -2011,6 +2011,75 @@ private Q_SLOTS:
         pane->replaceBox()->setText(QStringLiteral("cow"));
         pane->replaceOne();
         QCOMPARE(lines(*doc)[0], QStringLiteral("cat in the closed"));
+    }
+
+    void tabInAnOpenSectionIsAnOrdinaryTabAndInAClosedOneItGoesFromFieldToField()
+    {
+        const QByteArray body = para(run("Closed ") + formField("A", "<w:textInput/>", "FORMTEXT", run("a")) + run(" ") + formField("B", "<w:textInput/>", "FORMTEXT", run("b")), "<w:sectPr/>") +
+                                "<w:p><w:r><w:t>Open</w:t></w:r></w:p><w:sectPr><w:formProt w:val=\"false\"/></w:sectPr>";
+        auto w = windowOn(body, kFormsProtection);
+        QVERIFY(w);
+        PageView *view = w->view();
+        WriteDoc *doc = w->document();
+        const QVector<FormField> all = formFields(doc->story());
+        QCOMPARE(int(all.size()), 2);
+        // Closed text: Tab goes to the first field, then the second; Shift+Tab goes back.
+        caretAt(view, 0);
+        QTest::keyClick(view, Qt::Key_Tab);
+        QCOMPARE(formFieldAt(doc->story(), view->cursor().selectionStart()).name, QStringLiteral("A"));
+        QTest::keyClick(view, Qt::Key_Tab);
+        QCOMPARE(formFieldAt(doc->story(), view->cursor().selectionStart()).name, QStringLiteral("B"));
+        QTest::keyClick(view, Qt::Key_Tab, Qt::ShiftModifier);
+        QCOMPARE(formFieldAt(doc->story(), view->cursor().selectionStart()).name, QStringLiteral("A"));
+        // Open text: Tab and Shift+Tab are the ordinary keys (a tab is typed; Shift+Tab with nothing to take back changes nothing).
+        const int end = doc->story()->characterCount() - 1;
+        caretAt(view, end);
+        const QString before = doc->story()->toPlainText();
+        QTest::keyClick(view, Qt::Key_Tab);
+        QVERIFY(doc->story()->toPlainText() != before);
+        QVERIFY(doc->story()->toPlainText().endsWith(QLatin1Char('\t')) || doc->story()->toPlainText().contains(QLatin1Char('\t')));
+        QVERIFY(formFieldAt(doc->story(), view->cursor().selectionStart()).name.isEmpty());
+        const QString typed = doc->story()->toPlainText();
+        QTest::keyClick(view, Qt::Key_Tab, Qt::ShiftModifier);
+        QVERIFY(formFieldAt(doc->story(), view->cursor().selectionStart()).name.isEmpty());
+    }
+
+    void aCaretBesideAFieldIsOutsideItBeforeTheBeginMarkAndAfterTheEndMark()
+    {
+        const QByteArray tx = "<w:textInput><w:maxLength w:val=\"6\"/></w:textInput>";
+        const QByteArray body = para(run("pre") + formField("A", tx, "FORMTEXT", run("abc")) + run("post"));
+        for (int protectedForForms = 0; protectedForForms < 2; ++protectedForForms) {
+            auto w = windowOn(body, protectedForForms ? kFormsProtection : QByteArray());
+            QVERIFY(w);
+            PageView *view = w->view();
+            WriteDoc *doc = w->document();
+            const FormField f = formFields(doc->story())[0];
+            QVERIFY(!formFieldAt(doc->story(), f.begin).valid());
+            QVERIFY(!formFieldAt(doc->story(), f.end + 1).valid());
+            QVERIFY(formFieldAt(doc->story(), f.separate + 1).valid() && formFieldAt(doc->story(), f.end).valid());
+            // Typing just before the field, and just after it, goes in the text round it (and in a protected document nowhere).
+            caretAt(view, f.begin);
+            QTest::keyClicks(view, "Z");
+            QCOMPARE(formFields(doc->story())[0].result, QStringLiteral("abc"));
+            QCOMPARE(lines(*doc)[0], protectedForForms ? QStringLiteral("preabcpost") : QStringLiteral("preZabcpost"));
+            caretAt(view, formFields(doc->story())[0].end + 1);
+            QTest::keyClicks(view, "Y");
+            QCOMPARE(formFields(doc->story())[0].result, QStringLiteral("abc"));
+            QCOMPARE(lines(*doc)[0], protectedForForms ? QStringLiteral("preabcpost") : QStringLiteral("preZabcYpost"));
+            // Inside the result, at both of its ends, it is the field's.
+            caretAt(view, formFields(doc->story())[0].end);
+            QTest::keyClicks(view, "d");
+            QCOMPARE(formFields(doc->story())[0].result, QStringLiteral("abcd"));
+            caretAt(view, formFields(doc->story())[0].separate + 1);
+            QTest::keyClicks(view, "e");
+            QCOMPARE(formFields(doc->story())[0].result, QStringLiteral("eabcd"));
+            // A field that is selected whole by Tab is typed over, not its begin mark taken out.
+            if (protectedForForms) {
+                QTest::keyClick(view, Qt::Key_Tab);
+                QTest::keyClicks(view, "q");
+                QCOMPARE(formFields(doc->story())[0].result, QStringLiteral("q"));
+            }
+        }
     }
 };
 
