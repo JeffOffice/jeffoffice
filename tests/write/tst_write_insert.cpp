@@ -1790,6 +1790,31 @@ private Q_SLOTS:
         QCOMPARE(win.text(), text);
     }
 
+    // A saved cover page put in leaves no empty paragraph at the top of the next page (as a built-in design leaves none).
+    void aSavedCoverPageLeavesNoEmptyParagraphAfterItsBreak()
+    {
+        Win win({"Body text"});
+        jp::BlockInfo info;
+        info.gallery = jp::kCoverPagesGallery;
+        info.format = QStringLiteral("docx");
+        info.insertAs = jp::BlockInsert::Page;
+        std::unique_ptr<WriteDoc> mine = WriteDoc::blank();
+        QTextCursor in(mine->story());
+        insertText(*mine, in, QStringLiteral("Mine\nTwo"));
+        QTextCursor sel(mine->story());
+        sel.select(QTextCursor::Document);
+        QString why;
+        const QByteArray block = write::blockFromSelection(*mine, sel, &why, nullptr);
+        QVERIFY2(!block.isEmpty(), qPrintable(why));
+        QVERIFY(win.w.insertOwnBlock(info, block));
+        const QString all = win.text();
+        const int ff = all.indexOf(QChar(flow::kPageBreak));
+        QVERIFY(ff > 0);
+        QTextBlock after = win.w.document()->story()->findBlock(ff).next();
+        QVERIFY(after.isValid());
+        QCOMPARE(after.text(), QStringLiteral("Body text"));
+    }
+
     void aTableOfTheirOwnIsSavedAndPutInAgain()
     {
         QTemporaryDir dir;

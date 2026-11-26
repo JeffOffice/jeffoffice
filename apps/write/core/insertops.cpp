@@ -142,7 +142,7 @@ bool insertCoverPageBlock(WriteDoc &doc, const QByteArray &block, QString *probl
     c.setPosition(0);
     // (In paragraphs of its own at the start; a cover saved with the break that ends its page has it, and one saved without gets one, so that what follows goes to the next page.)
     if (!insertBlock(doc, c, block, BlockInsert::Paragraph, problem)) return false;
-    if (story->characterAt(std::max(0, c.position() - 1)) != flow::kPageBreak) insertPageBreak(doc, c);
+    if (story->characterAt(std::max(0, c.position() - 1)) != flow::kPageBreak) insertText(doc, c, QString(flow::kPageBreak));   // (as the built-in designs have it: the break ends the last paragraph, and no empty paragraph is made)
     QTextCursor all(story);
     all.setPosition(0);
     all.setPosition(std::max(1, story->findBlock(std::max(0, c.position() - 1)).position() + story->findBlock(std::max(0, c.position() - 1)).length() - 1), QTextCursor::KeepAnchor);
