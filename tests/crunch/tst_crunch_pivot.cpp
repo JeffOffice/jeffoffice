@@ -373,7 +373,6 @@ private Q_SLOTS:
         QCOMPARE(s->pivotSourceText(0), QStringLiteral("Sheet1!A1:C7"));
     }
 
-    // Refresh with the data as it was: no cell changes, and the table shows what the file stored.
     // Clear Rules from This Pivot Table takes the rules off the pivot table the selection is in, and leaves the rest of the sheet (here the second table, and the data) as it was.
     void clearRulesFromAPivotTableLeavesTheRestOfTheSheet()
     {
@@ -406,6 +405,7 @@ private Q_SLOTS:
         QCOMPARE(int(w.session()->condRules(0).size()), 3);
     }
 
+    // Refresh with the data as it was: no cell changes, and the table shows what the file stored.
     void refreshOfDataThatDidNotChangeChangesNoCell()
     {
         EditWindow e;
