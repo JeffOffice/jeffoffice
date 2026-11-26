@@ -81,6 +81,8 @@ public:
     // there only: a range that reaches into a section it holds is refused). Every edit asks for the place it will change, never where the caret is.
     bool editsBlockedAt(QTextDocument *story, int from, int to) const;
     bool keyEditsBlocked(int key, Qt::KeyboardModifiers m) const;
+    // The tools that put something where a press lands (a shape, a table line) are held as above; in a document protected for forms each press is judged at the place it begins.
+    bool toolsBlocked() const { return m_searchBlocks > 0 || (m_readOnly && !m_formsOnly); }
     bool editsBlockedAtSelection() const { return editsBlockedAt(m_cursor.document(), m_cursor.selectionStart(), m_cursor.selectionEnd()); }
     // A document protected for filling in forms: the text is held read only, but the form fields can be filled in (typing, Space on a check box, a click on a drop-down, and Tab and
     // Shift+Tab from field to field), and so can a section the protection leaves out. Undo and Redo take back and do again the fills made since (and only those).

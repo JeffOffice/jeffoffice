@@ -226,7 +226,8 @@ QAction *WriteWindow::mk(const QString &id, const QString &text, const QString &
     // Each command counts by its id for the usage statistics (when they're on).
     const QString label = QString(text).remove(QLatin1Char('&')).remove(QChar(0x2026));
     connect(a, &QAction::triggered, this, [this, fn, id, label] {
-        if (refuseCommand(id)) return;
+        bool openHere = false;
+        if (refuseCommand(id, &openHere)) return;
         telemetry::count(id);
         // (Select Objects ends when another command runs; Select All chooses the objects while it is on.)
         if (m_view && id != QLatin1String("edit.selectObjects") && id != QLatin1String("edit.selectAll")) m_view->setSelectObjectsMode(false);
@@ -235,16 +236,17 @@ QAction *WriteWindow::mk(const QString &id, const QString &text, const QString &
         {
             std::optional<write::WriteDoc::StepName> stepName;
             if (m_doc && id != QLatin1String("edit.repeat")) stepName.emplace(*m_doc, label);   // (a repeat is named for the command it does again)
-            fn();
+            runWhereOpen(openHere, fn);
         }
         if (!self) return;
         if (m_doc && (repeatableCommand(id) || m_testRepeatable.contains(id))) {
             // (A command that turns something on or off is repeated as the state it made, not as a toggle: bold on one word is bold on the next, whatever that has.)
             const std::optional<bool> made = toggleResult(id);
             recordRepeat(label, [this, id, fn, label, made] {
-                if (refuseCommand(id) || refuseInBox(boxTakesCommand(id))) return;
-                if (made) runRepeatStep(label, [this, id, made] { applyToggle(id, *made); });
-                else runRepeatStep(label, fn);
+                bool openNow = false;   // (the same checks as when the command was given, at the place the repeat acts now)
+                if (refuseCommand(id, &openNow) || refuseInBox(boxTakesCommand(id))) return;
+                if (made) runRepeatStep(label, [this, id, made, openNow] { runWhereOpen(openNow, [this, id, made] { applyToggle(id, *made); }); });
+                else runRepeatStep(label, [this, fn, openNow] { runWhereOpen(openNow, fn); });
             }, document);
         }
     });

@@ -14,7 +14,7 @@ namespace jp::write {
 
 bool PageView::insertObjectAtCaret(const office::ole::EmbeddedObject &object)
 {
-    if (!m_doc || editsBlocked()) return false;
+    if (!m_doc || editsBlockedAtSelection()) return false;
     m_doc->pictureNotice.clear();
     QTextCursor c = m_cursor;
     const PictureResult result = insertObject(*m_doc, c, object);
@@ -73,7 +73,7 @@ bool PageView::replaceObject(int position, const office::ole::EmbeddedObject &ob
 
 bool PageView::convertObjectToPicture(int position)
 {
-    if (!m_doc || editsBlocked()) return false;
+    if (!m_doc || editsBlockedAtSelection()) return false;
     const auto object = objectAt(*m_doc, position);
     if (!object || object->previewPng.isEmpty()) return false;
     const double width = double(object->widthEmu) / office::ole::kEmuPerPoint, height = double(object->heightEmu) / office::ole::kEmuPerPoint;
@@ -92,7 +92,7 @@ bool PageView::convertObjectToPicture(int position)
 
 bool PageView::deleteObject(int position)
 {
-    if (!m_doc || editsBlocked()) return false;
+    if (!m_doc || editsBlockedAtSelection()) return false;
     return changeObjects([&](WriteDoc &doc) {
         QTextCursor c(doc.story());
         c.setPosition(position);

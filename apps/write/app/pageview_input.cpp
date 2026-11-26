@@ -868,7 +868,7 @@ void PageView::endTypedRun()
 
 void PageView::repeatTyping(const QString &run)
 {
-    if (editsBlocked() || !m_doc || run.isEmpty() || run.size() > kMaxTypedRun) return;
+    if ((m_formsOnly ? m_searchBlocks > 0 : editsBlocked()) || !m_doc || run.isEmpty() || run.size() > kMaxTypedRun) return;   // (under protection for forms, insertText judges the place the run lands)
     if (m_shapeEditor) {   // (typing goes where the person is editing)
         m_shapeEditor->insertPlainText(run);
         return;
@@ -1283,11 +1283,11 @@ void PageView::mousePressEvent(QMouseEvent *e)
             return;
         }
     }
-    if (!m_shapeDraw.isEmpty() && e->button() == Qt::LeftButton && !m_hf.active && !m_note.active && !editsBlocked()) {
+    if (!m_shapeDraw.isEmpty() && e->button() == Qt::LeftButton && !m_hf.active && !m_note.active && !toolsBlocked()) {
         // Insert > Shapes is waiting for a drag: it begins here, on the page, at a place of the text.
         const Hit hit = hitAt(e->position().toPoint());
         const int at = positionAt(hit);
-        if (hit.page >= 0 && at >= 0) {
+        if (hit.page >= 0 && at >= 0 && !editsBlockedAt(m_doc->story(), at, at)) {   // (judged at the place the tool begins)
             m_toolDrag = {true, hit.page, at, hit.point, hit.point};
             viewport()->update();
             e->accept();
@@ -1299,10 +1299,10 @@ void PageView::mousePressEvent(QMouseEvent *e)
         return;
     }
     m_columnDrag.pending = false;
-    if (m_tableTool != TableTool::None && e->button() == Qt::LeftButton && !m_hf.active && !m_note.active && !editsBlocked()) {
+    if (m_tableTool != TableTool::None && e->button() == Qt::LeftButton && !m_hf.active && !m_note.active && !toolsBlocked()) {
         const Hit hit = hitAt(e->position().toPoint());
         const int at = positionAt(hit);
-        if (hit.page >= 0 && at >= 0) {
+        if (hit.page >= 0 && at >= 0 && !editsBlockedAt(m_doc->story(), at, at)) {
             m_toolDrag = {true, hit.page, at, hit.point, hit.point, {hit.point}};
             viewport()->update();
             e->accept();
@@ -1316,7 +1316,7 @@ void PageView::mousePressEvent(QMouseEvent *e)
             e->accept();
             return;
         }
-        if (QRect mh; !editsBlocked() && moveHandleInView(&mh) && mh.adjusted(-2, -2, 2, 2).contains(e->position().toPoint())) {
+        if (QRect mh; !editsBlockedAtSelection() && moveHandleInView(&mh) && mh.adjusted(-2, -2, 2, 2).contains(e->position().toPoint())) {
             QRectF box, table;
             int page = 0, position = 0;
             if (moveHandle(&box, &page, &position, &table)) {
@@ -1566,7 +1566,7 @@ void PageView::setTableTool(TableTool tool)
 
 void PageView::beginShapeDraw(const QString &preset)
 {
-    if (!m_doc || editsBlocked()) return;
+    if (!m_doc || toolsBlocked()) return;
     setTableTool(TableTool::None);
     m_shapeDraw = preset;
     m_toolDrag = ToolDrag();
@@ -1584,7 +1584,7 @@ void PageView::finishShapeDraw(const QPoint &viewportPos, Qt::KeyboardModifiers 
     m_hoverCursorShape = -1;
     viewport()->setCursor(Qt::IBeamCursor);
     viewport()->update();
-    if (!m_doc || d.position < 0 || d.position >= m_doc->story()->characterCount()) return;
+    if (!m_doc || d.position < 0 || d.position >= m_doc->story()->characterCount() || editsBlockedAt(m_doc->story(), d.position, d.position)) return;
     const Hit hit = hitAt(viewportPos);
     const QPointF to = hit.page == d.page ? hit.point : d.to;
     QTextCursor c(m_doc->story());

@@ -41,6 +41,18 @@ bool WriteWindow::protectionAllows(const QString &id) const
     return m_protectKind == QLatin1String("comments") && allowedWithComments(id);
 }
 
+// Whether a command that a document protected for forms holds is let run: Undo, Redo, Cut, and the pastes (the view judges the place each changes), and the commands for pictures, shapes, tables, and
+// the like where the caret and the selection are in text the protection leaves out.
+bool WriteWindow::formsAllows(const QString &id) const
+{
+    if (!formsHeld() || !m_view) return false;
+    if (id == QLatin1String("edit.undo") || id == QLatin1String("edit.redo") || id == QLatin1String("edit.cut") || id.startsWith(QLatin1String("edit.paste"))) return true;
+    static const char *const prefixes[] = {"picture.", "shape.", "table.", "arrange.", "insert.picture", "insert.icons", "insert.table", "insert.ready.", "insert.textBox", "insert.shape"};
+    for (const char *prefix : prefixes)
+        if (id.startsWith(QLatin1String(prefix))) return !m_view->editsBlockedAtSelection();
+    return false;
+}
+
 namespace {
 
 // The check of a password against the protection's hash, which takes a moment for a file that asks for many rounds: done in a thread of its own, with a box that can be canceled when it takes long.

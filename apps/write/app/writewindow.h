@@ -499,7 +499,8 @@ public:
 private:
     // Repeat (F4): the last command done again on the selection of now. A command that can be repeated is recorded by mk (by its id) or by recordRepeat (one whose value is chosen elsewhere);
     // the typing of a run of words is recorded when the run begins. Nothing is kept for a document that is gone, and a command is refused as it was when it was given.
-    bool refuseCommand(const QString &id);
+    bool refuseCommand(const QString &id, bool *openHere = nullptr);
+    void runWhereOpen(bool openHere, const std::function<void()> &fn);
     void recordRepeat(const QString &name, std::function<void()> again, quint64 document = 0);
     // A change whose value was chosen in a box of the ribbon: done now, and recorded so that Repeat does it again on the selection of then. False when it was refused.
     bool changeAndRepeat(const QString &name, const std::function<void()> &change, bool boxTakesIt = false);
@@ -836,6 +837,7 @@ private:
     bool m_readOnlyByProtection = false;
 public:
     // The document is protected for filling in forms: the window holds it read only, but the text that the protection leaves out can be replaced.
+    bool formsAllows(const QString &id) const;
     bool formsHeld() const { return m_readOnlyByProtection && m_protectKind == QLatin1String("forms"); }
 private:
     QString m_titledKind;

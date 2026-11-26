@@ -128,18 +128,42 @@ bool WriteWindow::refuseInBox(bool boxTakesIt)
     return true;
 }
 
-// A command that can't be run now (the document is read-only or protected, or a search holds the text) is refused with the reason, as the command was when it was given.
-bool WriteWindow::refuseCommand(const QString &id)
+// A command that can't be run now (the document is read-only or protected, or a search holds the text) is refused with the reason, as the command was when it was given. Each reason is its own
+// test, and only the first is the one forms protection may lift: *openHere is set when the document is read only only because it is protected for forms and the command is one formsAllows lets
+// act where the caret and the selection are (text the protection leaves out); the command then runs through runWhereOpen, and the view still judges each place it changes.
+bool WriteWindow::refuseCommand(const QString &id, bool *openHere)
 {
-    if (isReadOnly() && !commandAllowedReadOnly(id) && !protectionAllows(id)) {
+    if (openHere) *openHere = false;
+    // Held by read-only or by a protection kind that does not allow the command (formsAllows is false for a read-only file, a search that holds the text, and every other kind).
+    const bool held = isReadOnly() && !commandAllowedReadOnly(id) && !protectionAllows(id);
+    // Held only by forms protection, and the caret and selection are where the protection leaves the text open: not held after all.
+    const bool openByForms = held && formsAllows(id);
+    // Repeat itself is held only as the command it repeats is (it checks that one again, where it acts now), so under forms protection it is let through, and never as an open place.
+    const bool repeatGoesOn = held && id == QLatin1String("edit.repeat") && formsHeld();
+    if (held && !openByForms && !repeatGoesOn) {
         refuseReadOnlyChange();
         return true;
     }
+    // A search that holds the text refuses every command but those allowed while read only, in an open section too.
     if (searchBlocked() && !commandAllowedReadOnly(id)) {
         refuseSearchBlockedChange();
         return true;
     }
+    if (openHere) *openHere = openByForms;
     return false;
+}
+
+// Runs a command in text a forms-protected document leaves open: the window is not read only for the length of the command.
+void WriteWindow::runWhereOpen(bool openHere, const std::function<void()> &fn)
+{
+    if (!openHere) {
+        fn();
+        return;
+    }
+    const QPointer<WriteWindow> self(this);   // (a command may close the window)
+    m_readOnly = false;
+    fn();
+    if (self && m_readOnlyByProtection) m_readOnly = true;
 }
 
 QAction *WriteWindow::addRepeatableCommandForTest(const QString &id, const std::function<void()> &fn)
@@ -240,7 +264,7 @@ void WriteWindow::updateRepeatActions()
 {
     QAction *repeat = act("edit.repeat");
     if (!m_repeat || !repeat) return;
-    const bool open = m_doc && mayEdit();
+    const bool open = m_doc && (mayEdit() || (formsHeld() && !searchBlocked()));   // (under forms protection Repeat is judged where it acts)
     repeat->setEnabled(open && m_repeat->available());
     m_repeatCtrlY->setEnabled(open && m_repeat->ctrlYEnabled());
     repeat->setToolTip(jp::plainToolTip(m_repeat->tip()));

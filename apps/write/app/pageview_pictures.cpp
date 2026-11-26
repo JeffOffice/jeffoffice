@@ -203,7 +203,7 @@ void PageView::finishMarquee()
 
 bool PageView::distributeSelectedObjects(bool horizontal)
 {
-    if (!m_doc || editsBlocked()) return false;
+    if (!m_doc || editsBlockedAtSelection()) return false;
     const QVector<int> positions = selectedObjects();
     if (positions.size() < 3) {
         Q_EMIT notice(tr("Select three or more objects first: click one, then hold Ctrl and click the others."));
@@ -237,7 +237,7 @@ bool PageView::groupSelectedObjects()
 
 bool PageView::groupSelected(const std::shared_ptr<const GroupLook> &look)
 {
-    if (!m_doc || editsBlocked()) return false;
+    if (!m_doc || editsBlockedAtSelection()) return false;
     const QVector<int> positions = selectedObjects();
     if (positions.size() < 2) {
         Q_EMIT notice(tr("Select two or more objects first: click one, then hold Ctrl and click the others."));
@@ -274,7 +274,7 @@ bool PageView::groupSelected(const std::shared_ptr<const GroupLook> &look)
 
 bool PageView::connectSelectedObjects(const QString &preset)
 {
-    if (!m_doc || editsBlocked()) return false;
+    if (!m_doc || editsBlockedAtSelection()) return false;
     const QVector<int> positions = selectedObjects();
     if (positions.size() != 2) {
         Q_EMIT notice(tr("Select two shapes first: click one, then hold Ctrl and click the other."));
@@ -316,7 +316,7 @@ void PageView::rerouteGluedConnectors(const QVector<std::pair<int, QRectF>> &mov
 bool PageView::ungroupSelectedObject()
 {
     const int position = selectedPicture();
-    if (!m_doc || editsBlocked() || position < 0 || !isGroupAt(*m_doc, position)) return false;
+    if (!m_doc || editsBlockedAtSelection() || position < 0 || !isGroupAt(*m_doc, position)) return false;
     QRectF onPage;
     int page = 0;
     if (!floatingPictureRect(position, &onPage, &page)) return false;
@@ -340,7 +340,7 @@ bool PageView::ungroupSelectedObject()
 
 bool PageView::canRegroup()
 {
-    if (!m_doc || editsBlocked() || m_regroupDoc != m_doc || m_regroupIds.size() < 2) return false;
+    if (!m_doc || editsBlockedAtSelection() || m_regroupDoc != m_doc || m_regroupIds.size() < 2) return false;
     const QVector<int> where = objectPositionsOfIds(*m_doc, m_regroupIds);
     if (where.size() != m_regroupIds.size()) return false;
     for (const int p : where)
@@ -350,7 +350,7 @@ bool PageView::canRegroup()
 
 bool PageView::regroupObjects()
 {
-    if (!m_doc || editsBlocked()) return false;
+    if (!m_doc || editsBlockedAtSelection()) return false;
     if (!canRegroup()) {
         Q_EMIT notice(tr("There is no group to put back. Regroup works after Ungroup, while its objects are still there."));
         return false;
@@ -361,7 +361,7 @@ bool PageView::regroupObjects()
 
 bool PageView::flipSelectedObjects(bool horizontal)
 {
-    if (!m_doc || editsBlocked()) return false;
+    if (!m_doc || editsBlockedAtSelection()) return false;
     const QVector<int> positions = selectedObjects();
     if (positions.isEmpty()) return false;
     const bool changed = changeObjects([&](WriteDoc &d) {
@@ -624,7 +624,7 @@ const PageView::ShapeCache &PageView::shapeCache() const
     c.revision = revision;
     c.editPoints = m_editPoints;
     c.editWrap = m_editWrap;
-    if (m_doc && position >= 0 && !editsBlocked()) {
+    if (m_doc && position >= 0 && !editsBlockedAtSelection()) {
         c.info = pictureAt(*m_doc, m_doc->story(), position);
         if (c.info.valid && c.info.editable && (c.info.kind == DrawnKind::Shape || c.info.kind == DrawnKind::TextBox)) {
             if (!m_editWrap) c.handles = shapeAdjustHandles(*m_doc, position);
@@ -642,7 +642,7 @@ const PageView::ShapeCache &PageView::shapeCache() const
 
 bool PageView::pointsActive() const
 {
-    return (m_editPoints || m_editWrap) && m_doc && !editsBlocked() && !m_hf.active && !m_note.active && !shapeCache().points.isEmpty();
+    return (m_editPoints || m_editWrap) && m_doc && !editsBlockedAtSelection() && !m_hf.active && !m_note.active && !shapeCache().points.isEmpty();
 }
 
 void PageView::setEditWrap(bool on)
@@ -688,7 +688,7 @@ QVector<std::pair<int, QPointF>> PageView::adjustHandlePoints()
 {
     QVector<std::pair<int, QPointF>> out;
     const int position = selectedPicture();
-    if (!m_doc || position < 0 || editsBlocked() || m_hf.active || m_note.active) return out;
+    if (!m_doc || position < 0 || editsBlockedAtSelection() || m_hf.active || m_note.active) return out;
     const PictureInfo &info = shapeCache().info;
     if (!info.valid || !info.editable || (info.kind != DrawnKind::Shape && info.kind != DrawnKind::TextBox)) return out;
     QRectF r;
@@ -706,7 +706,7 @@ QVector<std::pair<int, QPointF>> PageView::adjustHandlePoints()
 bool PageView::rotateHandlePoint(QPointF *point)
 {
     const int position = selectedPicture();
-    if (!m_doc || position < 0 || editsBlocked() || m_hf.active || m_note.active) return false;
+    if (!m_doc || position < 0 || editsBlockedAtSelection() || m_hf.active || m_note.active) return false;
     const PictureInfo &info = shapeCache().info;
     if (!info.valid || !info.editable || (info.kind != DrawnKind::Shape && info.kind != DrawnKind::TextBox)) return false;
     QRectF r;
@@ -760,7 +760,7 @@ int PageView::pictureAtPoint(const QPoint &pos)
 
 bool PageView::beginPictureDrag(QMouseEvent *e)
 {
-    if (!m_doc || editsBlocked() || m_hf.active || m_note.active || e->button() != Qt::LeftButton) return false;
+    if (!m_doc || editsBlockedAtSelection() || m_hf.active || m_note.active || e->button() != Qt::LeftButton) return false;
     const QPoint pos = e->position().toPoint();
     int target = selectedPicture();
     // Ctrl+click on another object adds it to the selection (or takes it out).
@@ -1096,7 +1096,7 @@ bool PageView::insertBarcodeSettings(const QJsonObject &settings)
 
 bool PageView::insertOnlinePictureBytes(const QByteArray &bytes, const QString &title, const QString &credit)
 {
-    if (!m_doc || editsBlocked()) return false;
+    if (!m_doc || editsBlockedAtSelection()) return false;
     m_doc->pictureNotice.clear();
     QTextCursor c = m_cursor;
     const int at = c.hasSelection() ? c.selectionStart() : c.position();
@@ -1115,7 +1115,7 @@ bool PageView::insertOnlinePictureBytes(const QByteArray &bytes, const QString &
 
 bool PageView::insertPictureImage(const QImage &image, PictureWrap wrap)
 {
-    if (!m_doc) return false;
+    if (!m_doc || editsBlockedAtSelection()) return false;   // (a picture goes where the caret or the selection is: held text takes none)
     m_doc->pictureNotice.clear();
     QTextCursor c = m_cursor;
     const PictureWrapDefault layout = pictureWrapDefault();
@@ -1218,7 +1218,7 @@ bool PageView::insertTextBoxObject(const TextBoxDesign &design)
 void PageView::beginTextBoxLink()
 {
     const int from = selectedPicture();
-    if (!m_doc || editsBlocked() || from < 0 || !canLinkTextBoxFrom(*m_doc, from)) return;
+    if (!m_doc || editsBlockedAtSelection() || from < 0 || !canLinkTextBoxFrom(*m_doc, from)) return;
     m_linkFrom = from;
     viewport()->setCursor(Qt::PointingHandCursor);
 }
@@ -1247,7 +1247,7 @@ bool PageView::insertChartObject(ChartForm form)
 bool PageView::changeSelectedPicture(const std::function<bool(WriteDoc &, int)> &change)
 {
     const int position = selectedPicture();
-    if (position < 0 || !m_doc || editsBlocked()) return false;
+    if (position < 0 || !m_doc || editsBlockedAtSelection()) return false;
     m_doc->pictureNotice.clear();
     const bool changed = change(*m_doc, position);
     if (!changed && !m_doc->pictureNotice.isEmpty()) Q_EMIT notice(m_doc->pictureNotice);
@@ -1262,7 +1262,7 @@ bool PageView::changeSelectedPicture(const std::function<bool(WriteDoc &, int)> 
 
 bool PageView::changeObjects(const std::function<bool(WriteDoc &)> &change)
 {
-    if (!m_doc || editsBlocked()) return false;
+    if (!m_doc || editsBlockedAtSelection()) return false;
     m_doc->pictureNotice.clear();
     const bool changed = change(*m_doc);
     if (!changed && !m_doc->pictureNotice.isEmpty()) Q_EMIT notice(m_doc->pictureNotice);
@@ -1381,7 +1381,7 @@ namespace jp::write {
 bool PageView::beginShapeTextEdit(const QString &typed)
 {
     const int position = selectedPicture();
-    if (m_shapeEditor || !m_doc || editsBlocked() || m_hf.active || m_note.active || position < 0) return false;
+    if (m_shapeEditor || !m_doc || editsBlockedAtSelection() || m_hf.active || m_note.active || position < 0) return false;
     const PictureInfo info = pictureAt(*m_doc, m_doc->story(), position);
     if (!info.valid || !info.editable || (info.kind != DrawnKind::Shape && info.kind != DrawnKind::TextBox)) return false;
     bool tooBig = false;

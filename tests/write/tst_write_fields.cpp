@@ -2485,6 +2485,49 @@ private Q_SLOTS:
             }
         }
     }
+
+    void picturesAndTablesWorkInAnOpenSectionOfAProtectedDocumentAndNotInAClosedOne()
+    {
+        const QByteArray table = "<w:tbl><w:tblPr/><w:tblGrid><w:gridCol w:w=\"3000\"/></w:tblGrid><w:tr><w:tc><w:tcPr><w:tcW w:w=\"3000\" w:type=\"dxa\"/></w:tcPr><w:p><w:r><w:t>cell</w:t></w:r></w:p></w:tc></w:tr></w:tbl>";
+        const QByteArray body = table + "<w:p><w:pPr><w:sectPr/></w:pPr><w:r><w:t>Closed</w:t></w:r></w:p>" + table + "<w:p><w:r><w:t>Open</w:t></w:r></w:p><w:sectPr><w:formProt w:val=\"false\"/></w:sectPr>";
+        auto w = windowOn(body, kFormsProtection);
+        QVERIFY(w);
+        PageView *view = w->view();
+        WriteDoc *doc = w->document();
+        QVERIFY(view->formsOnly() && w->isReadOnly());
+        auto rows = [&] { return int(documentXml(doc->toDocx()).count("<w:tr>") + documentXml(doc->toDocx()).count("<w:tr ")); };
+        auto pictures = [&] { return int(documentXml(doc->toDocx()).count("<w:drawing")); };
+        QImage image(20, 20, QImage::Format_RGB32);
+        image.fill(Qt::red);
+        const int closedCell = 3, openCell = doc->story()->toPlainText().indexOf(QLatin1String("cell"), doc->story()->toPlainText().indexOf(QLatin1String("Closed")));
+        QVERIFY(openCell > closedCell);
+        QCOMPARE(rows(), 2);
+        // Closed section: a picture and a row are refused, in the view and by the commands of the window.
+        QApplication::clipboard()->setImage(image);
+        caretAt(view, closedCell);
+        QVERIFY(!view->insertPictureImage(image));
+        w->act("insert.pictureClipboard")->trigger();
+        w->act("table.insertBelow")->trigger();
+        QCOMPARE(pictures(), 0);
+        QCOMPARE(rows(), 2);
+        // Open section: both work as in an ordinary document.
+        caretAt(view, openCell);
+        w->act("table.insertBelow")->trigger();
+        QCOMPARE(rows(), 3);
+        caretAt(view, doc->story()->characterCount() - 1);
+        QVERIFY(view->insertPictureImage(image));
+        QCOMPARE(pictures(), 1);
+        caretAt(view, doc->story()->characterCount() - 1);
+        w->act("insert.pictureClipboard")->trigger();   // (the window's command too)
+        QCOMPARE(pictures(), 2);
+        QApplication::clipboard()->clear();
+        // A selection that reaches from the open section into the closed one is refused.
+        caretAt(view, openCell, closedCell);
+        w->act("table.insertBelow")->trigger();
+        QCOMPARE(rows(), 3);
+        // Text outside both is still held, and the window is still read only.
+        QVERIFY(w->isReadOnly());
+    }
 };
 
 QTEST_MAIN(FieldTests)
