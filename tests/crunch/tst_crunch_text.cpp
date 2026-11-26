@@ -453,6 +453,52 @@ private Q_SLOTS:
         QVERIFY(!dates.findChild<QLabel *>(QStringLiteral("textImportNote"))->text().contains(QStringLiteral("not for certain")));
     }
 
+    // The guess never switches "Read formulas" off: ticked, a value that begins with = is a formula as in a window that does not guess, through File > Open and through Paste Text Import; not ticked, it is text.
+    void theGuessKeepsReadFormulasWorkingInOpenAndInPaste()
+    {
+        const QByteArray file = "f,g\n=1+1,1\n=2+2,2\n";
+        for (const bool formulas : {true, false}) {
+            QStringList guessed, notGuessed;
+            for (const bool guess : {true, false}) {
+                EditWindow e;
+                e.win.w.setPromptForText(true);
+                e.win.w.anchorHooks().textImportAsker = [guess, formulas](TextImportRequest *r) {
+                    r->guessKinds = guess;
+                    r->choices.readFormulas = formulas;
+                    TextImportDialog d(*r);
+                    r->choices = d.choices();
+                    return true;
+                };
+                QVERIFY(e.open(file, QStringLiteral("g.csv")));
+                (guess ? guessed : notGuessed) << e.shownAt(QStringLiteral("A2")) << e.shownAt(QStringLiteral("A3"));
+            }
+            QCOMPARE(guessed, notGuessed);
+            QCOMPARE(guessed.first(), formulas ? QStringLiteral("2") : QStringLiteral("=1+1"));
+            // pasted
+            QStringList pasted, pastedPlain;
+            for (const bool guess : {true, false}) {
+                EditWindow e;
+                QVERIFY(e.open(editBook()));
+                auto *md = new QMimeData;
+                md->setText(QStringLiteral("=1+1,1\n=2+2,2\n"));
+                QApplication::clipboard()->setMimeData(md);
+                e.win.w.anchorHooks().textImportAsker = [guess, formulas](TextImportRequest *r) {
+                    r->guessKinds = guess;
+                    r->choices.readFormulas = formulas;
+                    TextImportDialog d(*r);
+                    r->choices = d.choices();
+                    return true;
+                };
+                e.select(QStringLiteral("D5"));
+                e.win.w.act(QStringLiteral("paste.textImport"))->trigger();
+                QVERIFY(e.settle());
+                (guess ? pasted : pastedPlain) << e.shownAt(QStringLiteral("D5"));
+            }
+            QCOMPARE(pasted.first(), formulas ? QStringLiteral("2") : QStringLiteral("=1+1"));
+            QCOMPARE(pastedPlain.first(), QStringLiteral("2"));   // (pasting as typed always reads a formula; the box is what the guess respects)
+        }
+    }
+
     // A kind the person set stays through every later change (separator, marks, names), and a column they did not set is guessed again from the new split.
     void aKindThePersonSetIsNeverReplacedByALaterGuess()
     {

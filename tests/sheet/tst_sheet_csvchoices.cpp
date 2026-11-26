@@ -577,6 +577,25 @@ private Q_SLOTS:
         // a column of such dates is not offered a choice of order when its values are not all alike
         QVERIFY(!usGuess("13.05.2024\n13.05.24\n").dateOrderUnclear.value(0));
     }
+
+    // "Read formulas" is the person's: when it is ticked a value that begins with = leaves its column as typed (so it is read as a formula); when it is not, the column is text.
+    void theGuessNeverOverridesTheReadFormulasBox()
+    {
+        LocaleScope locale(QLocale(QLocale::English, QLocale::UnitedStates));
+        const QByteArray files[] = {"=1+1\n=SUM(A1:A1)\n", "=1+1\n5\n", "5\n=1+1\nabc\n", "007\n=1+1\n"};
+        for (const QByteArray &file : files) {
+            QCOMPARE(kindOf(usGuess(file, true), 0), QStringLiteral("number"));   // (as typed)
+            QCOMPARE(kindOf(usGuess(file, false), 0), QStringLiteral("text"));
+            // with the guess's columns, a ticked box still reads the formula: the same cells as a window that does not guess
+            QCOMPARE(imported(file, usGuess(file, true).columns, true), imported(file, QVector<CsvColumn>(), true));
+        }
+        auto c = choices();
+        c->readFormulas = true;
+        c->columns = usGuess("=1+1\n", true).columns;
+        Workbook wb;
+        QVERIFY(openWith("=1+1\n", c, &wb));
+        QCOMPARE(formulaOf(read(wb), QStringLiteral("A1")), QStringLiteral("1+1"));
+    }
 };
 
 JP_TEST_CLASS(SheetCsvChoicesTests)

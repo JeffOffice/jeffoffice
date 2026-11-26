@@ -1269,11 +1269,11 @@ namespace {
 constexpr int kOrderMDY = 1, kOrderDMY = 2, kOrderYMD = 4;
 
 // What a value is, as far as the guess is concerned.
-enum class Seen { Empty, Number, Date, Text, Plain };
+enum class Seen { Empty, Number, Date, Text, Plain, Formula };
 
 // What one column's values have shown so far.
 struct ColumnSeen {
-    bool any = false, allNumber = true, allDate = true, text = false, plain = false;
+    bool any = false, allNumber = true, allDate = true, text = false, plain = false, formula = false;
     int orders = kOrderMDY | kOrderDMY | kOrderYMD;
     int shortOrders = kOrderMDY | kOrderDMY | kOrderYMD;   // (the orders a value with no four-digit year could be a date in, for the values that have none)
     qint64 values = 0, shorts = 0;
@@ -1284,6 +1284,7 @@ struct ColumnSeen {
         ++values;
         if (what == Seen::Text) text = true;
         if (what == Seen::Plain) plain = true;
+        if (what == Seen::Formula) formula = true;
         if (what != Seen::Number) allNumber = false;
         if (what != Seen::Date) allDate = false;
         else orders &= mask;
@@ -1298,6 +1299,10 @@ struct ColumnSeen {
         k.kind = CsvColumn::Kind::Text;
         // (a column of version numbers or the like, which as typed keeps as the text it is, is left as typed; one that could be dates with two-digit years is offered the choice)
         if (unclear && shorts == values && shortOrders != 0) *unclear = true;
+        if (formula) {   // (a value the person asked to be read as a formula: the person's box is not overridden)
+            k.kind = CsvColumn::Kind::General;
+            return k;
+        }
         if (!any || text) return k;
         if (allNumber || (plain && !allDate && orders == (kOrderMDY | kOrderDMY | kOrderYMD))) {
             k.kind = CsvColumn::Kind::General;
@@ -1406,6 +1411,8 @@ private:
         static const QRegularExpression leadingZero(QStringLiteral("^-?0[0-9]")), exponent(QStringLiteral("[0-9][eE][+-]?[0-9]")),
             separated(QStringLiteral("^(\\d{1,4})[\\s/.\\-](\\d{1,2})[\\s/.\\-](\\d{1,4})$"));
         // (what a number would damage or a sign would lose stays text)
+        // (a value that begins with = is a formula only when the person ticked "Read formulas": then the column stays as typed; if not, it is text)
+        if (s.front() == QLatin1Char('=') && s.size() > 1) return m_choices.readFormulas ? Seen::Formula : Seen::Text;
         if (s.front() == QLatin1Char('+') || keepsAsText(s)) return Seen::Text;
         const QString text = s.toString();
         if (const QRegularExpressionMatch parts = separated.match(text); parts.hasMatch()) {
