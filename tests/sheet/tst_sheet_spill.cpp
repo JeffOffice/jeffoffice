@@ -8,6 +8,7 @@
 #include "core/workthread.h"
 
 #include <QThread>
+#include <thread>
 
 #include <atomic>
 
@@ -1091,20 +1092,30 @@ private Q_SLOTS:
         MutationGuard &guard = b.calc->mutationGuard();
         const quintptr me = quintptr(QThread::currentThreadId());
         guard.setWorker(me + 1);   // (a worker that is another thread: this one is the window's)
-        std::atomic<bool> done{false};
+        // The overlap is made, not hoped for: the worker says it is in flight and then is held until this thread has read every cell the block filled, a whole pass, while it is in flight; only then
+        // is it let go to take the spill's formula away, and this thread goes on reading until the worker is done. (The waits are counted spins, only so that a broken run ends.)
+        std::atomic<bool> started{false}, go{false}, done{false};
         bool ok = false;
         jp::WorkThread worker([&] {
             guard.setWorker(quintptr(QThread::currentThreadId()));
+            started.store(true, std::memory_order_release);
+            for (int spin = 0; spin < 200000000 && !go.load(std::memory_order_acquire); ++spin) std::this_thread::yield();
             ok = b.calc->setValue(0, 0, 0, Value::number(7));
             done.store(true, std::memory_order_release);
         });
-        qint64 reads = 0;
+        for (int spin = 0; spin < 200000000 && !started.load(std::memory_order_acquire); ++spin) std::this_thread::yield();
+        qint64 readsWhileHeld = 0, readsAfterRelease = 0;
+        const bool inFlight = started.load(std::memory_order_acquire);
+        for (quint32 row = 1; row < 40; ++row)
+            if (cells.find(row, 0)) ++readsWhileHeld;
+        go.store(true, std::memory_order_release);
         for (int pass = 0; pass < 2000000 && !done.load(std::memory_order_acquire); ++pass)
             for (quint32 row = 1; row < 40; ++row)
-                if (cells.find(row, 0)) ++reads;
+                if (cells.find(row, 0)) ++readsAfterRelease;
         worker.join();
+        QVERIFY(inFlight);
+        QCOMPARE(readsWhileHeld, qint64(39));   // (counted: a whole pass of reads was made with the worker in flight and not yet let go; the reads after the release overlap its work as far as it takes it)
         QVERIFY(ok);
-        QVERIFY(reads > 0);
         QVERIFY(b.calc->hasStrays());
         QCOMPARE(b.calc->straysReleased(), qint64(0));
         for (quint32 row = 1; row < 40; ++row) QVERIFY(realAt(cells, row, 0));
