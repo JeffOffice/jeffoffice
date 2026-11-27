@@ -5927,6 +5927,47 @@ private Q_SLOTS:
         QVERIFY(resolved(r.saved, true).texts.join(QLatin1Char('|')).contains(QStringLiteral("new  words")));   // (the words are put in; the mark and the picture are not)
     }
 
+    // The status of a compare through the window of two documents that both have `marked`'s paragraph (only the second does); with `whole`, 2,200 unrelated paragraphs each: too many for the compare to line up, so they are taken out and put in whole.
+    QString droppedStatus(const QByteArray &marked, bool whole)
+    {
+        auto filler = [](const char *tag, int n) {
+            QByteArray b;
+            for (int i = 0; i < n; ++i) b += para(run(qPrintable(QStringLiteral("%1 filler %2 words").arg(QLatin1String(tag)).arg(i))));
+            return b;
+        };
+        const QByteArray one = para(run("FIRST")) + (whole ? filler("A", 2200) : QByteArray()) + para(run("LAST"));
+        const QByteArray two = para(run("FIRST")) + marked + (whole ? filler("B", 2200) : QByteArray()) + para(run("LAST"));
+        const AppCompared r = compareInApp(makeDocx(one), makeDocx(two));
+        return r.status;
+    }
+    static QByteArray lostKindsParagraph()
+    {
+        const QByteArray picture = "<w:r><w:drawing><wp:inline xmlns:wp=\"http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing\"><wp:extent cx=\"100\" cy=\"100\"/></wp:inline></w:drawing></w:r>";
+        const QByteArray field = "<w:fldSimple w:instr=\"PAGE\"><w:r><w:t>7</w:t></w:r></w:fldSimple>";
+        const QByteArray link = "<w:hyperlink w:anchor=\"x\"><w:r><w:t>LNK</w:t></w:r></w:hyperlink>";
+        return para(run("before ") + fnRef(2) + fnRef(2) + run(" mid ") + field + picture + picture + link + run(" after"));
+    }
+    void aStretchPutInWholeCountsTheMarksFieldsPicturesAndLinksOfTheNewText()
+    {
+        const QString status = droppedStatus(lostKindsParagraph(), true);
+        QVERIFY2(status.contains(QStringLiteral("taken out and put in whole")), qPrintable(status));
+        QVERIFY2(status.contains(QStringLiteral("6 part")), qPrintable(status));   // (two note marks, a field, two pictures, a link)
+        for (const char *kind : {"footnote and endnote marks", "fields", "pictures", "links"}) QVERIFY2(status.contains(QLatin1String(kind)), qPrintable(status));
+    }
+    void aLoneLinkIsCountedAsALinkAndNotAField()
+    {
+        const QString status = droppedStatus(para(run("see ") + "<w:hyperlink w:anchor=\"x\"><w:r><w:t>LNK</w:t></w:r></w:hyperlink>"), false);
+        QVERIFY2(status.contains(QStringLiteral("1 part of the new text could not be shown (links)")), qPrintable(status));
+        QVERIFY2(!status.contains(QStringLiteral("fields")), qPrintable(status));
+    }
+    void everyLostPictureAndNoteMarkOfAParagraphIsCounted()
+    {
+        const QByteArray picture = "<w:r><w:drawing><wp:inline xmlns:wp=\"http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing\"><wp:extent cx=\"100\" cy=\"100\"/></wp:inline></w:drawing></w:r>";
+        const QByteArray two = para(picture + picture + fnRef(2) + fnRef(2));
+        const QString status = droppedStatus(two, false);
+        QVERIFY2(status.contains(QStringLiteral("4 part")), qPrintable(status));
+    }
+
     void aContentControlInANewRowIsNeverDroppedSilentlyItIsMarkedWithItsControlOrCounted()
     {
         const QByteArray sdt = "<w:sdt><w:sdtPr><w:alias w:val=\"quarter\"/></w:sdtPr><w:sdtContent>" + para(run("inControl")) + "</w:sdtContent></w:sdt>";

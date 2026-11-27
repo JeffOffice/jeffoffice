@@ -384,17 +384,27 @@ void giveLook(QTextCharFormat &f, const QTextCharFormat &from)
 // are tracked insertions; the look given to them is part of the insertion (not a change of its own).
 // The words of the revised paragraph `srcBlock`, each piece in its own look, put in at `c` (which ends after them). `inOwnRow`: it is a paragraph of a row that is put in, whose words are not changes of their own (they
 // take the paragraph mark's record of the row's insertion, which is let go).
-void countDropped(CompareWork *work, const QTextCharFormat &cf)
+void countDropped(CompareWork *work, const QTextCharFormat &cf, int n = 1)
 {
     if (!work) return;
     const office::wml::Inline a = unpackAtom(storedBytes(cf, prop::Atom));
     if (a.role == office::wml::Inline::Close) return;   // (the end of a pair is counted with its start)
     const QString &t = a.tag;
-    if (t == QLatin1String("footnoteReference") || t == QLatin1String("endnoteReference")) ++work->dropped[CompareWork::NoteMarks];
-    else if (t == QLatin1String("drawing") || t == QLatin1String("pict") || t == QLatin1String("object")) ++work->dropped[CompareWork::Pictures];
-    else if (cf.hasProperty(tp::Field) || t.startsWith(QLatin1String("fld")) || t == QLatin1String("instrText")) ++work->dropped[CompareWork::Fields];
-    else if (t == QLatin1String("hyperlink")) ++work->dropped[CompareWork::Links];
-    else ++work->dropped[CompareWork::OtherParts];
+    if (t == QLatin1String("footnoteReference") || t == QLatin1String("endnoteReference")) work->dropped[CompareWork::NoteMarks] += n;
+    else if (t == QLatin1String("drawing") || t == QLatin1String("pict") || t == QLatin1String("object")) work->dropped[CompareWork::Pictures] += n;
+    else if (t == QLatin1String("hyperlink")) work->dropped[CompareWork::Links] += n;
+    else if (cf.hasProperty(tp::Field) || t.startsWith(QLatin1String("fld")) || t == QLatin1String("instrText")) work->dropped[CompareWork::Fields] += n;
+    else work->dropped[CompareWork::OtherParts] += n;
+}
+
+// What the words of a paragraph of the revised text hold that new text can't carry: counted (one pass over its pieces; a piece of equal atoms is one fragment, so each mark in it counts).
+void countDroppedIn(CompareWork *work, const QTextBlock &block)
+{
+    for (QTextBlock::iterator it = block.begin(); !it.atEnd(); ++it) {
+        const QTextFragment f = it.fragment();
+        const QTextCharFormat cf = f.charFormat();
+        if (isAtom(cf) && !cf.hasProperty(prop::TrackedDeleted)) countDropped(work, cf, std::max(1, int(f.text().count(QChar::ObjectReplacementCharacter))));
+    }
 }
 
 void putRevisedWords(WriteDoc &out, QTextDocument *ostory, QTextCursor &c, const QTextBlock &srcBlock, bool inOwnRow = false, CompareWork *work = nullptr)
@@ -403,7 +413,7 @@ void putRevisedWords(WriteDoc &out, QTextDocument *ostory, QTextCursor &c, const
         const QTextFragment f = it.fragment();
         const QTextCharFormat cf = f.charFormat();
         if (isAtom(cf)) {
-            if (!cf.hasProperty(prop::TrackedDeleted)) countDropped(work, cf);
+            if (!cf.hasProperty(prop::TrackedDeleted)) countDropped(work, cf, std::max(1, int(f.text().count(QChar::ObjectReplacementCharacter))));
             continue;
         }
         if (cf.hasProperty(prop::TrackedDeleted)) continue;
@@ -1514,7 +1524,10 @@ Outcome compareStory(CompareContext &context, WriteDoc *out, QTextDocument *stor
             all = all && tablesA.tableOfBlock.value(g.a0 - 1, -1) < 0 && tablesA.tableOfBlock.value(g.a1, -1) < 0;
             if (all) {
                 QString text;
-                for (int j = g.b0; j < g.b1; ++j) text += QLatin1Char('\n') + b.at(j).text;
+                for (int j = g.b0; j < g.b1; ++j) {
+                    text += QLatin1Char('\n') + b.at(j).text;
+                    countDroppedIn(&context.work, rstory->findBlock(b.at(j).blockFrom));
+                }
                 QTextCursor c(story);
                 c.setPosition(a.at(g.a1 - 1).blockEnd);
                 insertText(*out, c, text);
