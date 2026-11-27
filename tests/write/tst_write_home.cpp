@@ -4035,13 +4035,14 @@ private Q_SLOTS:
     // The bands stay in Draft and Read Mode and at another zoom, and stay when the Find pane closes until they are cleared.
     void findHighlightsFollowTheViewAndEndWithThePane()
     {
+        // (the band's own color, closely: where text is drawn with colored fringes, as in the CI runners' image, a few hundred edge pixels of dark letters pass for "yellowish", and they move with the scrolling)
         auto yellow = [](QWidget *view) {
             const QImage img = view->grab().toImage();
             int n = 0;
             for (int y = 0; y < img.height(); ++y)
                 for (int x = 0; x < img.width(); ++x) {
                     const QColor c = img.pixelColor(x, y);
-                    if (c.red() > 200 && c.green() > 200 && c.blue() < 170) ++n;
+                    if (qAbs(c.red() - 255) <= 4 && qAbs(c.green() - 240) <= 4 && qAbs(c.blue() - 145) <= 8) ++n;
                 }
             return n;
         };
