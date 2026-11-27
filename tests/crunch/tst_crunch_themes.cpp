@@ -761,6 +761,7 @@ private Q_SLOTS:
             if (b->text().contains(QLatin1String("More Colors"))) more = b;
         withDialog([more] { more->click(); }, QString(), [](QDialog *) {}, false);
         QCOMPARE(fillAt(e, QStringLiteral("H2")), before);
+        QTRY_VERIFY(!pop);   // (the popup is gone with its dialog, cancelled or not)
         QVERIFY(saveNow(e));
         const QByteArray styles = partsOf(e.path).value(QStringLiteral("xl/styles.xml"));
         QVERIFY2(styles.contains("FF00B050") && styles.contains("FF0070C0") && styles.contains("FF123456"), styles.constData());

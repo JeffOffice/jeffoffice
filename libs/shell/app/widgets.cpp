@@ -153,12 +153,15 @@ ColorPopup::ColorPopup(const ColorScheme &s, bool allowNone, const QString &none
     auto *more = new QPushButton(icon("palette"), tr("More Colors…"), this);
     more->setFlat(true);
     connect(more, &QPushButton::clicked, this, [this] {
+        // (the popup is hidden, not closed, while the dialog is open: opening a window closes a popup, and one that deletes itself on close was gone under this handler)
+        setAttribute(Qt::WA_DeleteOnClose, false);
+        hide();
         const QColor c = colorsDialog(parentWidget(), Qt::black);
         if (c.isValid()) {
             addRecent(c);
             Q_EMIT picked(ColorRef::rgb(c));
         }
-        close();
+        deleteLater();
     });
     v->addWidget(more);
     auto *drop = new QPushButton(icon("pipette"), tr("Eyedropper"), this);
