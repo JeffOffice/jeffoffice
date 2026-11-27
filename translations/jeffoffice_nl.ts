@@ -24009,22 +24009,22 @@ Bron: %3</translation>
     <message>
         <location line="+1"/>
         <source>High-Low-Close</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Hoog-laag-slot</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Open-High-Low-Close</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Open-hoog-laag-slot</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Volume-High-Low-Close</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Volume-hoog-laag-slot</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Volume-Open-High-Low-Close</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Volume-open-hoog-laag-slot</translation>
     </message>
     <message>
         <location line="+50"/>
@@ -24793,7 +24793,7 @@ Bron: %3</translation>
     <message>
         <location line="-11"/>
         <source>The series of a stock chart can&apos;t be left out: the kind is made of all of them, in their order.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">De reeksen van een koersgrafiek kunnen niet worden weggelaten: het type bestaat uit alle reeksen, in hun volgorde.</translation>
     </message>
     <message>
         <location line="+8"/>
@@ -25061,42 +25061,42 @@ Bron: %3</translation>
     <message>
         <location line="+1"/>
         <source>High-low-close</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Hoog-laag-slot</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Open-high-low-close</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Open-hoog-laag-slot</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Volume-high-low-close</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Volume-hoog-laag-slot</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Volume-open-high-low-close</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Volume-open-hoog-laag-slot</translation>
     </message>
     <message>
         <location filename="../libs/office/sheet/chartmake.cpp" line="+176"/>
         <source>A high-low-close chart needs exactly three series, in this order: high, low, and close. Select the cells again, with one column or row for each, in that order.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Een hoog-laag-slotgrafiek heeft precies drie reeksen nodig, in deze volgorde: hoog, laag en slot. Selecteer de cellen opnieuw, met één kolom of rij voor elke reeks, in die volgorde.</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>An open-high-low-close chart needs exactly four series, in this order: open, high, low, and close. Select the cells again, with one column or row for each, in that order.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Een open-hoog-laag-slotgrafiek heeft precies vier reeksen nodig, in deze volgorde: open, hoog, laag en slot. Selecteer de cellen opnieuw, met één kolom of rij voor elke reeks, in die volgorde.</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>A volume-high-low-close chart needs exactly four series, in this order: volume, high, low, and close. Select the cells again, with one column or row for each, in that order.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Een volume-hoog-laag-slotgrafiek heeft precies vier reeksen nodig, in deze volgorde: volume, hoog, laag en slot. Selecteer de cellen opnieuw, met één kolom of rij voor elke reeks, in die volgorde.</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>A volume-open-high-low-close chart needs exactly five series, in this order: volume, open, high, low, and close. Select the cells again, with one column or row for each, in that order.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Een volume-open-hoog-laag-slotgrafiek heeft precies vijf reeksen nodig, in deze volgorde: volume, open, hoog, laag en slot. Selecteer de cellen opnieuw, met één kolom of rij voor elke reeks, in die volgorde.</translation>
     </message>
 </context>
 <context>
@@ -27440,27 +27440,27 @@ Bron: %3</translation>
     <message>
         <location line="+1"/>
         <source>High-low-close</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Hoog-laag-slot</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Open-high-low-close</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Open-hoog-laag-slot</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Volume-high-low-close</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Volume-hoog-laag-slot</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Volume-open-high-low-close</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Volume-open-hoog-laag-slot</translation>
     </message>
     <message>
         <location line="+16"/>
         <source>Stock</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Koersgrafiek</translation>
     </message>
     <message>
         <location line="+10"/>
@@ -27708,7 +27708,7 @@ Bron: %3</translation>
     <message>
         <location line="+17"/>
         <source>A slicer can&apos;t be cut or copied yet.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Een slicer kan nog niet worden geknipt of gekopieerd.</translation>
     </message>
     <message>
         <location line="+37"/>
@@ -31281,7 +31281,7 @@ Het bestand bestaat niet.</translation>
     <message>
         <location line="+125"/>
         <source>Saved %1. Rows, columns, cells, and objects deleted before this save can&apos;t be undone now, nor can what you did before that.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">%1 opgeslagen. Rijen, kolommen, cellen en objecten die vóór dit opslaan zijn verwijderd, kunnen nu niet meer ongedaan worden gemaakt, evenmin als wat je daarvóór deed.</translation>
     </message>
     <message>
         <location filename="../apps/crunch/app/crunchwindow.cpp" line="-803"/>
@@ -31495,7 +31495,7 @@ Het bestaande bestand is ongewijzigd gebleven.</translation>
     <message>
         <location line="+20"/>
         <source>Delete Slicer</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Slicer verwijderen</translation>
     </message>
     <message>
         <location line="+11"/>
@@ -31902,17 +31902,17 @@ Het bestaande bestand is ongewijzigd gebleven.</translation>
     <message>
         <location line="+11"/>
         <source>&amp;To workbook</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">&amp;Naar werkmap</translation>
     </message>
     <message>
         <location line="+5"/>
         <source>(this workbook)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">(deze werkmap)</translation>
     </message>
     <message>
         <location line="+12"/>
         <source>That workbook has been closed.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Die werkmap is gesloten.</translation>
     </message>
     <message>
         <location line="+40"/>
@@ -31938,27 +31938,27 @@ Het bestaande bestand is ongewijzigd gebleven.</translation>
     <message>
         <location line="-42"/>
         <source>Moving a sheet to another workbook is not done yet. Choose Copy, and then delete the sheet here if you do not need it.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Een blad verplaatsen naar een andere werkmap is nog niet mogelijk. Kies Kopiëren en verwijder daarna het blad hier als je het niet nodig hebt.</translation>
     </message>
     <message>
         <location line="+5"/>
         <source>The other workbook was closed, so nothing was copied.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">De andere werkmap is gesloten, dus er is niets gekopieerd.</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>The other workbook can&apos;t be changed now. It may be open for reading only, or still opening.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">De andere werkmap kan nu niet worden gewijzigd. Mogelijk is hij alleen-lezen geopend of wordt hij nog geopend.</translation>
     </message>
     <message>
         <location line="+15"/>
         <source>Copy Sheets to Another Workbook</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Bladen naar een andere werkmap kopiëren</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Copy Sheet to Another Workbook</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Blad naar een andere werkmap kopiëren</translation>
     </message>
     <message>
         <location line="+33"/>
@@ -31968,17 +31968,17 @@ Het bestaande bestand is ongewijzigd gebleven.</translation>
     <message>
         <location line="+3"/>
         <source>shapes, text boxes, and lines</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">vormen, tekstvakken en lijnen</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>diagrams</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">diagrammen</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>other objects over the cells</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">andere objecten over de cellen</translation>
     </message>
     <message>
         <location line="+17"/>
@@ -65363,22 +65363,22 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
     <message>
         <location line="+1"/>
         <source>High-Low-Close</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Hoog-laag-slot</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Open-High-Low-Close</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Open-hoog-laag-slot</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Volume-High-Low-Close</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Volume-hoog-laag-slot</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Volume-Open-High-Low-Close</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Volume-open-hoog-laag-slot</translation>
     </message>
     <message>
         <location line="+19"/>
@@ -67308,7 +67308,7 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
     <message>
         <location line="+1"/>
         <source>Clear Find Highlights</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Zoekmarkeringen wissen</translation>
     </message>
     <message>
         <location line="+3"/>
@@ -73807,38 +73807,38 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
         <location line="+1"/>
         <source>%1, and %2</source>
         <comment>the last item of a list of three or more</comment>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">%1 en %2</translation>
     </message>
     <message>
         <location line="+21"/>
         <source>The workbook is still being opened. It can be copied from when it is open.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">De werkmap wordt nog geopend. Er kan worden gekopieerd vanaf het moment dat hij geopend is.</translation>
     </message>
     <message>
         <location line="+13"/>
         <source>This sheet has a table. JeffCrunch does not yet copy tables to another workbook.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Dit blad heeft een tabel. JeffCrunch kan tabellen nog niet naar een andere werkmap kopiëren.</translation>
     </message>
     <message>
         <location line="+4"/>
         <location line="+269"/>
         <source>This sheet has more merged cells than JeffCrunch copies to another workbook at once.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Dit blad heeft meer samengevoegde cellen dan JeffCrunch in één keer naar een andere werkmap kopieert.</translation>
     </message>
     <message>
         <location line="-197"/>
         <source>A formula of this sheet adds up a block of sheets (such as Sheet1:Sheet3). JeffCrunch does not yet copy such a sheet to another workbook.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Een formule op dit blad telt een reeks bladen op (zoals Blad1:Blad3). JeffCrunch kan zo&apos;n blad nog niet naar een andere werkmap kopiëren.</translation>
     </message>
     <message>
         <location line="+54"/>
         <source>This sheet has more cells than JeffCrunch copies to another workbook at once (%1). Copy part of it with Copy and Paste.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Dit blad heeft meer cellen dan JeffCrunch in één keer naar een andere werkmap kopieert (%1). Kopieer een deel ervan met Kopiëren en Plakken.</translation>
     </message>
     <message>
         <location line="+31"/>
         <source>This sheet has more rows with a size of their own than JeffCrunch copies to another workbook at once.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Dit blad heeft meer rijen met een eigen hoogte dan JeffCrunch in één keer naar een andere werkmap kopieert.</translation>
     </message>
     <message>
         <location line="+32"/>
@@ -73848,122 +73848,122 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
     <message>
         <location line="+1"/>
         <source>rules for what can be typed</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">regels voor wat getypt kan worden</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>protection</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">beveiliging</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>filter</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">filter</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>links to web pages and places</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">koppelingen naar webpagina&apos;s en plaatsen</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>color of the tab</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">kleur van het tabblad</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>names of the cell styles (the cells look the same)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">namen van de celstijlen (de cellen zien er hetzelfde uit)</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>page setup and print settings</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">pagina-instelling en afdrukinstellingen</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>use names of the other workbook</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">gebruik namen van de andere werkmap</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>use tables or spilled ranges</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">gebruik tabellen of overloopbereiken</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>read cells of a third workbook</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">lees cellen van een derde werkmap</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>are part of an array or a spill</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">zijn onderdeel van een matrix of een overloop</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>have formulas that protection hides</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">hebben formules die beveiliging verbergt</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>have formulas JeffCrunch could not read</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">hebben formules die JeffCrunch niet kon lezen</translation>
     </message>
     <message>
         <location line="+17"/>
         <source>The two workbooks count dates from different years (1900 and 1904), so a sheet can&apos;t be copied between them yet.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">De twee werkmappen tellen datums vanaf verschillende jaren (1900 en 1904), dus een blad kan er nog niet tussen worden gekopieerd.</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>the workbook it comes from</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">de werkmap waaruit het komt</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Formulas on this sheet read other sheets of %1, so the copy has to keep a link to its file. Save %1 as a file of the .xlsx kind first, and then copy the sheet.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Formules op dit blad verwijzen naar andere bladen van %1, dus de kopie moet een koppeling naar het bestand behouden. Sla %1 eerst op als bestand van het type .xlsx en kopieer daarna het blad.</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>The formats of this sheet (fonts, colors, borders, and so on, %1 in all) do not fit in this workbook, which is close to the most it can hold. Nothing was copied.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">De opmaak van dit blad (lettertypen, kleuren, randen enzovoort, %1 in totaal) past niet in deze werkmap, die bijna het maximum bereikt. Er is niets gekopieerd.</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>These will not be copied: %1.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Deze worden niet gekopieerd: %1.</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>The formulas that read other sheets of %1 become links to its file. The copy shows the values %1 has now. They change when the links are updated, with Update Values in Edit Links.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">De formules die naar andere bladen van %1 verwijzen, worden koppelingen naar het bestand. De kopie toont de waarden die %1 nu heeft. Ze veranderen wanneer de koppelingen worden bijgewerkt, met Waarden bijwerken in Koppelingen bewerken.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>The links read the saved file once they are updated, so save %1 to keep these values.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">De koppelingen lezen het opgeslagen bestand zodra ze worden bijgewerkt, dus sla %1 op om deze waarden te behouden.</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>This workbook has no formats to build on, so the copy does not have the fonts, colors, and borders of the sheet.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Deze werkmap heeft geen opmaak waarop kan worden voortgebouwd, dus de kopie heeft niet de lettertypen, kleuren en randen van het blad.</translation>
     </message>
     <message numerus="yes">
         <location line="+4"/>
         <source>%n cell comes as the value it shows, not as a formula.</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
+            <numerusform>%n cel wordt gekopieerd als de waarde die hij toont, niet als formule.</numerusform>
+            <numerusform>%n cellen worden gekopieerd als de waarden die ze tonen, niet als formules.</numerusform>
         </translation>
     </message>
     <message numerus="yes">
         <location line="+1"/>
         <source>%n cell comes as the value it shows, not as a formula: one of those that %1.</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
+            <numerusform>%n cel wordt weergegeven als de waarde die hij toont, niet als formule: een van de cellen die %1.</numerusform>
+            <numerusform>%n cellen worden weergegeven als de waarden die ze tonen, niet als formules: van die cellen %1.</numerusform>
         </translation>
     </message>
     <message>
@@ -73972,12 +73972,12 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
         <location line="+31"/>
         <location line="+26"/>
         <source>Copy Sheet to Another Workbook</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Blad naar een andere werkmap kopiëren</translation>
     </message>
     <message>
         <location line="-118"/>
         <source>This workbook can&apos;t take more formats. Nothing was copied.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Deze werkmap kan geen extra opmaak meer aannemen. Er is niets gekopieerd.</translation>
     </message>
 </context>
 <context>
@@ -82280,7 +82280,7 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
     <message>
         <location line="-83"/>
         <source>Too much text to line up the tables, so they are not compared.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Te veel tekst om de tabellen uit te lijnen, dus ze worden niet vergeleken.</translation>
     </message>
     <message>
         <location line="+134"/>
@@ -82300,27 +82300,27 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
     <message>
         <location line="+1"/>
         <source>footnotes</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">voetnoten</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>endnotes</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">eindnoten</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>text boxes</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">tekstvakken</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>headers or footers</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">koptekst of voettekst</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>parts kept as they were written</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">onderdelen die behouden blijven zoals ze geschreven zijn</translation>
     </message>
     <message>
         <location line="+5"/>
@@ -82330,29 +82330,29 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
     <message>
         <location line="+1"/>
         <source>%1, and %2</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">%1 en %2</translation>
     </message>
     <message>
         <location line="+22"/>
         <source>Too many pictures and shapes to look for all the text boxes among them.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Te veel afbeeldingen en vormen om daartussen alle tekstvakken te zoeken.</translation>
     </message>
     <message>
         <location line="+7"/>
         <source>Too many text boxes to compare them all.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Te veel tekstvakken om ze allemaal te vergelijken.</translation>
     </message>
     <message>
         <location line="+129"/>
         <source>Too many notes, headers, and footers to compare them all.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Te veel notities, koptekst- en voetteksten om ze allemaal te vergelijken.</translation>
     </message>
     <message numerus="yes">
         <location line="+33"/>
         <source>%n difference is in a place that Compare can&apos;t mark yet (%1), so it is not shown.</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
+            <numerusform>%n verschil bevindt zich op een plek die Vergelijken nog niet kan markeren (%1), dus het wordt niet getoond.</numerusform>
+            <numerusform>%n verschillen bevinden zich op een plek die Vergelijken nog niet kan markeren (%1), dus ze worden niet getoond.</numerusform>
         </translation>
     </message>
 </context>
@@ -87187,22 +87187,22 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
     <message>
         <location line="+11"/>
         <source>Day 1</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Dag 1</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Day 2</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Dag 2</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Day 3</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Dag 3</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Day 4</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Dag 4</translation>
     </message>
     <message>
         <location line="+3"/>
@@ -87227,7 +87227,7 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
     <message>
         <location line="+0"/>
         <source>Close</source>
-        <translation type="unfinished">Sluiten</translation>
+        <translation type="unfinished">Slot</translation>
     </message>
     <message>
         <location line="+149"/>
@@ -88154,7 +88154,7 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
     <message>
         <location line="+297"/>
         <source>This change was not made: the rows hold too many tables to mark as deleted.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Deze wijziging is niet doorgevoerd: de rijen bevatten te veel tabellen om als verwijderd te markeren.</translation>
     </message>
     <message>
         <location filename="../apps/write/app/pageview_input.cpp" line="-1047"/>
@@ -88176,12 +88176,12 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
     <message>
         <location filename="../apps/write/core/trackpolicy.cpp" line="+100"/>
         <source>This change was not recorded as a tracked change.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Deze wijziging is niet vastgelegd als bijgehouden wijziging.</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>This change was not made: it would take part of a row that has tracked changes. Accept or reject them first.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Deze wijziging is niet doorgevoerd: ze zou een deel van een rij bevatten die bijgehouden wijzigingen heeft. Accepteer of weiger deze eerst.</translation>
     </message>
 </context>
 <context>

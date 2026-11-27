@@ -24051,22 +24051,22 @@ Source: %3</source>
     <message>
         <location line="+1"/>
         <source>High-Low-Close</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Максимум-мінімум-закриття</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Open-High-Low-Close</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Відкриття-максимум-мінімум-закриття</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Volume-High-Low-Close</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Обсяг-максимум-мінімум-закриття</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Volume-Open-High-Low-Close</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Обсяг-відкриття-максимум-мінімум-закриття</translation>
     </message>
     <message>
         <location line="+8"/>
@@ -24835,7 +24835,7 @@ Source: %3</source>
     <message>
         <location line="-11"/>
         <source>The series of a stock chart can&apos;t be left out: the kind is made of all of them, in their order.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Ряди біржової діаграми не можна пропустити: тип складається з усіх них у їхньому порядку.</translation>
     </message>
     <message>
         <location line="+8"/>
@@ -25103,42 +25103,42 @@ Source: %3</source>
     <message>
         <location line="+1"/>
         <source>High-low-close</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Максимум-мінімум-закриття</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Open-high-low-close</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Відкриття-максимум-мінімум-закриття</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Volume-high-low-close</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Обсяг-максимум-мінімум-закриття</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Volume-open-high-low-close</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Обсяг-відкриття-максимум-мінімум-закриття</translation>
     </message>
     <message>
         <location filename="../libs/office/sheet/chartmake.cpp" line="+176"/>
         <source>A high-low-close chart needs exactly three series, in this order: high, low, and close. Select the cells again, with one column or row for each, in that order.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Діаграма «максимум-мінімум-закриття» потребує рівно трьох рядів у такому порядку: максимум, мінімум і закриття. Виділіть комірки знову, з одним стовпцем або рядком для кожного, у тому самому порядку.</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>An open-high-low-close chart needs exactly four series, in this order: open, high, low, and close. Select the cells again, with one column or row for each, in that order.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Діаграма «відкриття-максимум-мінімум-закриття» потребує рівно чотирьох рядів у такому порядку: відкриття, максимум, мінімум і закриття. Виділіть комірки знову, з одним стовпцем або рядком для кожного, у тому самому порядку.</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>A volume-high-low-close chart needs exactly four series, in this order: volume, high, low, and close. Select the cells again, with one column or row for each, in that order.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Діаграма «обсяг-максимум-мінімум-закриття» потребує рівно чотирьох рядів у такому порядку: обсяг, максимум, мінімум і закриття. Виділіть комірки знову, з одним стовпцем або рядком для кожного, у тому самому порядку.</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>A volume-open-high-low-close chart needs exactly five series, in this order: volume, open, high, low, and close. Select the cells again, with one column or row for each, in that order.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Діаграма «обсяг-відкриття-максимум-мінімум-закриття» потребує рівно п&apos;яти рядів у такому порядку: обсяг, відкриття, максимум, мінімум і закриття. Виділіть комірки знову, з одним стовпцем або рядком для кожного, у тому самому порядку.</translation>
     </message>
 </context>
 <context>
@@ -28395,22 +28395,22 @@ Source: %3</source>
     <message>
         <location line="+1"/>
         <source>High-low-close</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Максимум-мінімум-закриття</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Open-high-low-close</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Відкриття-максимум-мінімум-закриття</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Volume-high-low-close</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Обсяг-максимум-мінімум-закриття</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Volume-open-high-low-close</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Обсяг-відкриття-максимум-мінімум-закриття</translation>
     </message>
     <message>
         <location line="+11"/>
@@ -28437,7 +28437,7 @@ Source: %3</source>
     <message>
         <location line="+2"/>
         <source>Stock</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Біржова</translation>
     </message>
     <message>
         <location line="+8"/>
@@ -28865,7 +28865,7 @@ Source: %3</source>
     <message>
         <location line="+17"/>
         <source>A slicer can&apos;t be cut or copied yet.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Зріз поки що не можна вирізати чи копіювати.</translation>
     </message>
     <message>
         <location line="+37"/>
@@ -30296,7 +30296,7 @@ The file that was there is as it was.</source>
     <message>
         <location line="+20"/>
         <source>Delete Slicer</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Видалити зріз</translation>
     </message>
     <message>
         <location line="+11"/>
@@ -34921,7 +34921,7 @@ This file is protected with a password. Password:</source>
     <message>
         <location line="+111"/>
         <source>Saved %1. Rows, columns, cells, and objects deleted before this save can&apos;t be undone now, nor can what you did before that.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Збережено %1. Рядки, стовпці, комірки й об&apos;єкти, видалені до цього збереження, тепер не можна відмінити, як і дії, виконані раніше.</translation>
     </message>
     <message>
         <location filename="../apps/crunch/app/crunchwindow_copy.cpp" line="-177"/>
@@ -35228,17 +35228,17 @@ This file is protected with a password. Password:</source>
     <message>
         <location line="+11"/>
         <source>&amp;To workbook</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">&amp;До книги</translation>
     </message>
     <message>
         <location line="+5"/>
         <source>(this workbook)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">(ця книга)</translation>
     </message>
     <message>
         <location line="+12"/>
         <source>That workbook has been closed.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Ту книгу закрито.</translation>
     </message>
     <message>
         <location line="+40"/>
@@ -35264,27 +35264,27 @@ This file is protected with a password. Password:</source>
     <message>
         <location line="-42"/>
         <source>Moving a sheet to another workbook is not done yet. Choose Copy, and then delete the sheet here if you do not need it.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Переміщення аркуша до іншої книги ще не реалізовано. Виберіть «Копіювати», а потім видаліть аркуш тут, якщо він вам не потрібен.</translation>
     </message>
     <message>
         <location line="+5"/>
         <source>The other workbook was closed, so nothing was copied.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Другу книгу було закрито, тож нічого не скопійовано.</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>The other workbook can&apos;t be changed now. It may be open for reading only, or still opening.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Іншу книгу не можна змінити. Вона може бути відкрита лише для читання або ще відкривається.</translation>
     </message>
     <message>
         <location line="+15"/>
         <source>Copy Sheets to Another Workbook</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Копіювати аркуші до іншої книги</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Copy Sheet to Another Workbook</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Копіювати аркуш до іншої книги</translation>
     </message>
     <message>
         <location line="+33"/>
@@ -35294,17 +35294,17 @@ This file is protected with a password. Password:</source>
     <message>
         <location line="+3"/>
         <source>shapes, text boxes, and lines</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">фігури, текстові поля й лінії</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>diagrams</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">діаграми</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>other objects over the cells</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">інші об&apos;єкти над комірками</translation>
     </message>
     <message>
         <location line="+17"/>
@@ -65363,7 +65363,7 @@ The password couldn&apos;t be put on the file.</source>
     <message>
         <location line="+1"/>
         <source>Clear Find Highlights</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Очистити підсвічування пошуку</translation>
     </message>
     <message>
         <location line="+3"/>
@@ -68729,22 +68729,22 @@ The password couldn&apos;t be put on the file.</source>
     <message>
         <location line="+1"/>
         <source>High-Low-Close</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Максимум-мінімум-закриття</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Open-High-Low-Close</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Відкриття-максимум-мінімум-закриття</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Volume-High-Low-Close</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Обсяг-максимум-мінімум-закриття</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Volume-Open-High-Low-Close</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Обсяг-відкриття-максимум-мінімум-закриття</translation>
     </message>
     <message>
         <location line="+19"/>
@@ -73914,38 +73914,38 @@ The password couldn&apos;t be put on the file.</source>
         <location line="+1"/>
         <source>%1, and %2</source>
         <comment>the last item of a list of three or more</comment>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">%1 і %2</translation>
     </message>
     <message>
         <location line="+21"/>
         <source>The workbook is still being opened. It can be copied from when it is open.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Книгу ще відкривають. Її можна копіювати після відкриття.</translation>
     </message>
     <message>
         <location line="+13"/>
         <source>This sheet has a table. JeffCrunch does not yet copy tables to another workbook.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Цей аркуш містить таблицю. JeffCrunch поки що не копіює таблиці до іншої книги.</translation>
     </message>
     <message>
         <location line="+4"/>
         <location line="+269"/>
         <source>This sheet has more merged cells than JeffCrunch copies to another workbook at once.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">На цьому аркуші більше об&apos;єднаних комірок, ніж JeffCrunch копіює до іншої книги за раз.</translation>
     </message>
     <message>
         <location line="-197"/>
         <source>A formula of this sheet adds up a block of sheets (such as Sheet1:Sheet3). JeffCrunch does not yet copy such a sheet to another workbook.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Формула цього аркуша підсумовує блок аркушів (наприклад, Аркуш1:Аркуш3). JeffCrunch поки що не копіює такий аркуш до іншої книги.</translation>
     </message>
     <message>
         <location line="+54"/>
         <source>This sheet has more cells than JeffCrunch copies to another workbook at once (%1). Copy part of it with Copy and Paste.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">На цьому аркуші більше комірок, ніж JeffCrunch копіює до іншої книги за раз (%1). Скопіюйте частину його за допомогою команд «Копіювати» та «Вставити».</translation>
     </message>
     <message>
         <location line="+31"/>
         <source>This sheet has more rows with a size of their own than JeffCrunch copies to another workbook at once.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">На цьому аркуші більше рядків з окремим розміром, ніж JeffCrunch копіює до іншої книги за раз.</translation>
     </message>
     <message>
         <location line="+32"/>
@@ -73955,124 +73955,124 @@ The password couldn&apos;t be put on the file.</source>
     <message>
         <location line="+1"/>
         <source>rules for what can be typed</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">правила для введення даних</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>protection</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">захист</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>filter</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">фільтр</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>links to web pages and places</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">посилання на веб-сторінки та місця</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>color of the tab</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">колір ярлика</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>names of the cell styles (the cells look the same)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">назви стилів комірок (комірки виглядають однаково)</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>page setup and print settings</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">параметри сторінки й друку</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>use names of the other workbook</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">використовувати назви іншої книги</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>use tables or spilled ranges</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">використовувати таблиці або розлиті діапазони</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>read cells of a third workbook</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">читати комірки третьої книги</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>are part of an array or a spill</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">є частиною масиву або розливу</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>have formulas that protection hides</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">містять формули, які приховує захист</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>have formulas JeffCrunch could not read</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">містять формули, які JeffCrunch не зміг прочитати</translation>
     </message>
     <message>
         <location line="+17"/>
         <source>The two workbooks count dates from different years (1900 and 1904), so a sheet can&apos;t be copied between them yet.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Дві книги відраховують дати від різних років (1900 і 1904), тож аркуш поки що не можна скопіювати між ними.</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>the workbook it comes from</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">книгу, з якої його взято</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Formulas on this sheet read other sheets of %1, so the copy has to keep a link to its file. Save %1 as a file of the .xlsx kind first, and then copy the sheet.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Формули на цьому аркуші читають інші аркуші %1, тому копія має зберегти посилання на їхній файл. Спочатку збережіть %1 у файлі типу .xlsx, а потім скопіюйте аркуш.</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>The formats of this sheet (fonts, colors, borders, and so on, %1 in all) do not fit in this workbook, which is close to the most it can hold. Nothing was copied.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Формати цього аркуша (шрифти, кольори, рамки тощо, усього %1) не вміщуються в цій книзі, яка майже досягла максимуму. Нічого не скопійовано.</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>These will not be copied: %1.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Це не буде скопійовано: %1.</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>The formulas that read other sheets of %1 become links to its file. The copy shows the values %1 has now. They change when the links are updated, with Update Values in Edit Links.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Формули, які читають інші аркуші %1, стають посиланнями на його файл. Копія показує значення, які %1 має зараз. Вони змінюються під час оновлення посилань командою «Оновити значення» в «Змінити посилання».</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>The links read the saved file once they are updated, so save %1 to keep these values.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Посилання читають збережений файл після оновлення, тож збережіть %1, щоб зберегти ці значення.</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>This workbook has no formats to build on, so the copy does not have the fonts, colors, and borders of the sheet.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">У цій книзі немає форматів, на які можна спиратися, тож копія не матиме шрифтів, кольорів і рамок аркуша.</translation>
     </message>
     <message numerus="yes">
         <location line="+4"/>
         <source>%n cell comes as the value it shows, not as a formula.</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
+            <numerusform>%n комірка надходить як показане значення, а не як формула.</numerusform>
+            <numerusform>%n комірки надходять як показане значення, а не як формула.</numerusform>
+            <numerusform>%n комірок надходять як показане значення, а не як формула.</numerusform>
         </translation>
     </message>
     <message numerus="yes">
         <location line="+1"/>
         <source>%n cell comes as the value it shows, not as a formula: one of those that %1.</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
+            <numerusform>%n комірка надходить як показане значення, а не як формула: одна з тих, що %1.</numerusform>
+            <numerusform>%n комірки надходять як показане значення, а не як формула: одна з тих, що %1.</numerusform>
+            <numerusform>%n комірок надходять як показане значення, а не як формула: одна з тих, що %1.</numerusform>
         </translation>
     </message>
     <message>
@@ -74081,12 +74081,12 @@ The password couldn&apos;t be put on the file.</source>
         <location line="+31"/>
         <location line="+26"/>
         <source>Copy Sheet to Another Workbook</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Скопіювати аркуш до іншої книги</translation>
     </message>
     <message>
         <location line="-118"/>
         <source>This workbook can&apos;t take more formats. Nothing was copied.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Ця книга не може містити більше форматів. Нічого не скопійовано.</translation>
     </message>
 </context>
 <context>
@@ -82410,7 +82410,7 @@ The password couldn&apos;t be put on the file.</source>
     <message>
         <location line="-83"/>
         <source>Too much text to line up the tables, so they are not compared.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Забагато тексту, щоб вирівняти таблиці, тому їх не порівнюються.</translation>
     </message>
     <message>
         <location line="+134"/>
@@ -82430,27 +82430,27 @@ The password couldn&apos;t be put on the file.</source>
     <message>
         <location line="+1"/>
         <source>footnotes</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">виноски</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>endnotes</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">кінцеві виноски</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>text boxes</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">текстові поля</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>headers or footers</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">верхні або нижні колонтитули</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>parts kept as they were written</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">частини, збережені в початковому вигляді</translation>
     </message>
     <message>
         <location line="+5"/>
@@ -82460,30 +82460,30 @@ The password couldn&apos;t be put on the file.</source>
     <message>
         <location line="+1"/>
         <source>%1, and %2</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">%1 і %2</translation>
     </message>
     <message>
         <location line="+22"/>
         <source>Too many pictures and shapes to look for all the text boxes among them.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Забагато малюнків і фігур, щоб знайти серед них усі текстові поля.</translation>
     </message>
     <message>
         <location line="+7"/>
         <source>Too many text boxes to compare them all.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Забагато текстових полів, щоб порівняти їх усі.</translation>
     </message>
     <message>
         <location line="+129"/>
         <source>Too many notes, headers, and footers to compare them all.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Забагато приміток, колонтитулів, щоб порівняти їх усі.</translation>
     </message>
     <message numerus="yes">
         <location line="+33"/>
         <source>%n difference is in a place that Compare can&apos;t mark yet (%1), so it is not shown.</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
+            <numerusform>%n відмінність знаходиться в місці, яке Порівняння ще не може позначити (%1), тому її не показано.</numerusform>
+            <numerusform>%n відмінності знаходяться в місцях, які Порівняння ще не може позначити (%1), тому їх не показано.</numerusform>
+            <numerusform>%n відмінностей знаходяться в місцях, які Порівняння ще не може позначити (%1), тому їх не показано.</numerusform>
         </translation>
     </message>
 </context>
@@ -87132,22 +87132,22 @@ The password couldn&apos;t be put on the file.</source>
     <message>
         <location line="+11"/>
         <source>Day 1</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">День 1</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Day 2</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">День 2</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Day 3</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">День 3</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Day 4</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">День 4</translation>
     </message>
     <message>
         <location line="+3"/>
@@ -87162,17 +87162,17 @@ The password couldn&apos;t be put on the file.</source>
     <message>
         <location line="+1"/>
         <source>High</source>
-        <translation type="unfinished">Висока</translation>
+        <translation type="unfinished">Максимум</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Low</source>
-        <translation type="unfinished">Низька</translation>
+        <translation type="unfinished">Мінімум</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Close</source>
-        <translation type="unfinished">Закрити</translation>
+        <translation type="unfinished">Закриття</translation>
     </message>
     <message>
         <location line="+149"/>
@@ -88288,7 +88288,7 @@ The password couldn&apos;t be put on the file.</source>
     <message>
         <location line="+297"/>
         <source>This change was not made: the rows hold too many tables to mark as deleted.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Цю зміну не внесено: у рядках міститься забагато таблиць, щоб позначити їх як видалені.</translation>
     </message>
     <message>
         <location filename="../apps/write/app/pageview_input.cpp" line="-1047"/>
@@ -88310,12 +88310,12 @@ The password couldn&apos;t be put on the file.</source>
     <message>
         <location filename="../apps/write/core/trackpolicy.cpp" line="+100"/>
         <source>This change was not recorded as a tracked change.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Цю зміну не записано як відстежувану зміну.</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>This change was not made: it would take part of a row that has tracked changes. Accept or reject them first.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Цю зміну не внесено: вона торкнулася б частини рядка з відстежуваними змінами. Спочатку прийміть або відхиліть їх.</translation>
     </message>
 </context>
 <context>

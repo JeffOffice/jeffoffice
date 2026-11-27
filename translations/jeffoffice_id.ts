@@ -23967,22 +23967,22 @@ Sumber: %3</translation>
     <message>
         <location line="+1"/>
         <source>High-Low-Close</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Tinggi-Rendah-Tutup</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Open-High-Low-Close</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Buka-Tinggi-Rendah-Tutup</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Volume-High-Low-Close</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Volume-Tinggi-Rendah-Tutup</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Volume-Open-High-Low-Close</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Volume-Buka-Tinggi-Rendah-Tutup</translation>
     </message>
     <message>
         <location line="+50"/>
@@ -24751,7 +24751,7 @@ Sumber: %3</translation>
     <message>
         <location line="-11"/>
         <source>The series of a stock chart can&apos;t be left out: the kind is made of all of them, in their order.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Seri bagan saham tidak boleh dihilangkan: jenisnya terdiri dari semuanya, sesuai urutannya.</translation>
     </message>
     <message>
         <location line="+8"/>
@@ -25019,42 +25019,42 @@ Sumber: %3</translation>
     <message>
         <location line="+1"/>
         <source>High-low-close</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Tinggi-rendah-tutup</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Open-high-low-close</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Buka-tinggi-rendah-tutup</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Volume-high-low-close</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Volume-tinggi-rendah-tutup</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Volume-open-high-low-close</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Volume-buka-tinggi-rendah-tutup</translation>
     </message>
     <message>
         <location filename="../libs/office/sheet/chartmake.cpp" line="+176"/>
         <source>A high-low-close chart needs exactly three series, in this order: high, low, and close. Select the cells again, with one column or row for each, in that order.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Bagan tinggi-rendah-tutup memerlukan tepat tiga seri, dalam urutan ini: tinggi, rendah, dan tutup. Pilih kembali sel-selnya, dengan satu kolom atau baris untuk masing-masing, sesuai urutan tersebut.</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>An open-high-low-close chart needs exactly four series, in this order: open, high, low, and close. Select the cells again, with one column or row for each, in that order.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Bagan buka-tinggi-rendah-tutup memerlukan tepat empat seri, dalam urutan ini: buka, tinggi, rendah, dan tutup. Pilih kembali sel-selnya, dengan satu kolom atau baris untuk masing-masing, sesuai urutan tersebut.</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>A volume-high-low-close chart needs exactly four series, in this order: volume, high, low, and close. Select the cells again, with one column or row for each, in that order.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Bagan volume-tinggi-rendah-tutup memerlukan tepat empat seri, dalam urutan ini: volume, tinggi, rendah, dan tutup. Pilih kembali sel-selnya, dengan satu kolom atau baris untuk masing-masing, sesuai urutan tersebut.</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>A volume-open-high-low-close chart needs exactly five series, in this order: volume, open, high, low, and close. Select the cells again, with one column or row for each, in that order.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Bagan volume-buka-tinggi-rendah-tutup memerlukan tepat lima seri, dalam urutan ini: volume, buka, tinggi, rendah, dan tutup. Pilih kembali sel-selnya, dengan satu kolom atau baris untuk masing-masing, sesuai urutan tersebut.</translation>
     </message>
 </context>
 <context>
@@ -28155,22 +28155,22 @@ Sumber: %3</translation>
     <message>
         <location line="+1"/>
         <source>High-low-close</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Tinggi-rendah-tutup</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Open-high-low-close</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Buka-tinggi-rendah-tutup</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Volume-high-low-close</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Volume-tinggi-rendah-tutup</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Volume-open-high-low-close</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Volume-buka-tinggi-rendah-tutup</translation>
     </message>
     <message>
         <location line="+11"/>
@@ -28190,7 +28190,7 @@ Sumber: %3</translation>
     <message>
         <location line="+2"/>
         <source>Stock</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Saham</translation>
     </message>
     <message>
         <location line="+8"/>
@@ -28601,7 +28601,7 @@ Sumber: %3</translation>
     <message>
         <location line="+17"/>
         <source>A slicer can&apos;t be cut or copied yet.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Pengiris belum dapat dipotong atau disalin.</translation>
     </message>
     <message>
         <location line="+37"/>
@@ -29841,7 +29841,7 @@ File yang ada sebelumnya tidak berubah.</translation>
     <message>
         <location line="+20"/>
         <source>Delete Slicer</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Hapus Pengiris</translation>
     </message>
     <message>
         <location line="+11"/>
@@ -34361,7 +34361,7 @@ Berkas ini dilindungi kata sandi. Kata sandi:</translation>
     <message>
         <location line="+111"/>
         <source>Saved %1. Rows, columns, cells, and objects deleted before this save can&apos;t be undone now, nor can what you did before that.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">%1 telah disimpan. Baris, kolom, sel, dan objek yang dihapus sebelum penyimpanan ini tidak dapat dibatalkan sekarang, begitu pula yang Anda lakukan sebelumnya.</translation>
     </message>
     <message>
         <location filename="../apps/crunch/app/crunchwindow_copy.cpp" line="-177"/>
@@ -34534,17 +34534,17 @@ Berkas ini dilindungi kata sandi. Kata sandi:</translation>
     <message>
         <location line="+11"/>
         <source>&amp;To workbook</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">&amp;Ke buku kerja</translation>
     </message>
     <message>
         <location line="+5"/>
         <source>(this workbook)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">(buku kerja ini)</translation>
     </message>
     <message>
         <location line="+12"/>
         <source>That workbook has been closed.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Buku kerja tersebut telah ditutup.</translation>
     </message>
     <message>
         <location line="+40"/>
@@ -34570,27 +34570,27 @@ Berkas ini dilindungi kata sandi. Kata sandi:</translation>
     <message>
         <location line="-42"/>
         <source>Moving a sheet to another workbook is not done yet. Choose Copy, and then delete the sheet here if you do not need it.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Memindahkan lembar ke buku kerja lain belum tersedia. Pilih Salin, lalu hapus lembar di sini jika Anda tidak memerlukannya.</translation>
     </message>
     <message>
         <location line="+5"/>
         <source>The other workbook was closed, so nothing was copied.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Buku kerja lain telah ditutup, jadi tidak ada yang disalin.</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>The other workbook can&apos;t be changed now. It may be open for reading only, or still opening.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Buku kerja lain tidak dapat diubah sekarang. Mungkin dibuka hanya untuk dibaca, atau masih dibuka.</translation>
     </message>
     <message>
         <location line="+15"/>
         <source>Copy Sheets to Another Workbook</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Salin Lembar ke Buku Kerja Lain</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Copy Sheet to Another Workbook</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Salin Lembar ke Buku Kerja Lain</translation>
     </message>
     <message>
         <location line="+33"/>
@@ -34600,17 +34600,17 @@ Berkas ini dilindungi kata sandi. Kata sandi:</translation>
     <message>
         <location line="+3"/>
         <source>shapes, text boxes, and lines</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">bentuk, kotak teks, dan garis</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>diagrams</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">diagram</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>other objects over the cells</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">objek lain di atas sel</translation>
     </message>
     <message>
         <location line="+17"/>
@@ -65130,7 +65130,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
     <message>
         <location line="+1"/>
         <source>Clear Find Highlights</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Hapus Sorotan Pencarian</translation>
     </message>
     <message>
         <location line="+3"/>
@@ -68767,22 +68767,22 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
     <message>
         <location line="+1"/>
         <source>High-Low-Close</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Tinggi-Rendah-Tutup</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Open-High-Low-Close</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Buka-Tinggi-Rendah-Tutup</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Volume-High-Low-Close</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Volume-Tinggi-Rendah-Tutup</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Volume-Open-High-Low-Close</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Volume-Buka-Tinggi-Rendah-Tutup</translation>
     </message>
     <message>
         <location line="+19"/>
@@ -73700,38 +73700,38 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
         <location line="+1"/>
         <source>%1, and %2</source>
         <comment>the last item of a list of three or more</comment>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">%1, dan %2</translation>
     </message>
     <message>
         <location line="+21"/>
         <source>The workbook is still being opened. It can be copied from when it is open.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Buku kerja masih dibuka. Lembar dapat disalin setelah terbuka.</translation>
     </message>
     <message>
         <location line="+13"/>
         <source>This sheet has a table. JeffCrunch does not yet copy tables to another workbook.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Lembar ini memiliki tabel. JeffCrunch belum dapat menyalin tabel ke buku kerja lain.</translation>
     </message>
     <message>
         <location line="+4"/>
         <location line="+269"/>
         <source>This sheet has more merged cells than JeffCrunch copies to another workbook at once.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Lembar ini memiliki lebih banyak sel gabungan daripada yang dapat disalin JeffCrunch ke buku kerja lain sekaligus.</translation>
     </message>
     <message>
         <location line="-197"/>
         <source>A formula of this sheet adds up a block of sheets (such as Sheet1:Sheet3). JeffCrunch does not yet copy such a sheet to another workbook.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Sebuah rumus di lembar ini menjumlahkan sekumpulan lembar (seperti Sheet1:Sheet3). JeffCrunch belum dapat menyalin lembar seperti itu ke buku kerja lain.</translation>
     </message>
     <message>
         <location line="+54"/>
         <source>This sheet has more cells than JeffCrunch copies to another workbook at once (%1). Copy part of it with Copy and Paste.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Lembar ini memiliki lebih banyak sel daripada yang dapat disalin JeffCrunch ke buku kerja lain sekaligus (%1). Salin sebagian darinya dengan Salin dan Tempel.</translation>
     </message>
     <message>
         <location line="+31"/>
         <source>This sheet has more rows with a size of their own than JeffCrunch copies to another workbook at once.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Lembar ini memiliki lebih banyak baris dengan ukurannya sendiri daripada yang dapat disalin JeffCrunch ke buku kerja lain sekaligus.</translation>
     </message>
     <message>
         <location line="+32"/>
@@ -73741,120 +73741,120 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
     <message>
         <location line="+1"/>
         <source>rules for what can be typed</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">aturan untuk apa yang dapat diketik</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>protection</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">proteksi</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>filter</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">filter</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>links to web pages and places</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">tautan ke halaman web dan lokasi</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>color of the tab</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">warna tab</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>names of the cell styles (the cells look the same)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">nama gaya sel (sel tampak sama)</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>page setup and print settings</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">pengaturan halaman dan pengaturan cetak</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>use names of the other workbook</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">menggunakan nama dari buku kerja lain</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>use tables or spilled ranges</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">menggunakan tabel atau rentang tumpahan</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>read cells of a third workbook</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">membaca sel dari buku kerja ketiga</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>are part of an array or a spill</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">merupakan bagian dari larik atau tumpahan</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>have formulas that protection hides</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">memiliki rumus yang disembunyikan proteksi</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>have formulas JeffCrunch could not read</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">memiliki rumus yang tidak dapat dibaca JeffCrunch</translation>
     </message>
     <message>
         <location line="+17"/>
         <source>The two workbooks count dates from different years (1900 and 1904), so a sheet can&apos;t be copied between them yet.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Kedua buku kerja menghitung tanggal dari tahun yang berbeda (1900 dan 1904), sehingga lembar belum dapat disalin di antara keduanya.</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>the workbook it comes from</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">buku kerja asalnya</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Formulas on this sheet read other sheets of %1, so the copy has to keep a link to its file. Save %1 as a file of the .xlsx kind first, and then copy the sheet.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Rumus di lembar ini membaca lembar lain dari %1, sehingga salinan harus mempertahankan tautan ke berkasnya. Simpan %1 sebagai berkas jenis .xlsx terlebih dahulu, lalu salin lembar tersebut.</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>The formats of this sheet (fonts, colors, borders, and so on, %1 in all) do not fit in this workbook, which is close to the most it can hold. Nothing was copied.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Format lembar ini (font, warna, bingkai, dan sebagainya, %1 seluruhnya) tidak muat di buku kerja ini, yang hampir mencapai batas maksimumnya. Tidak ada yang disalin.</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>These will not be copied: %1.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Berikut ini tidak akan disalin: %1.</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>The formulas that read other sheets of %1 become links to its file. The copy shows the values %1 has now. They change when the links are updated, with Update Values in Edit Links.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Rumus yang membaca lembar lain dari %1 menjadi tautan ke berkasnya. Salinan menampilkan nilai yang saat ini ada di %1. Nilai tersebut berubah saat tautan diperbarui, dengan Perbarui Nilai di Edit Tautan.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>The links read the saved file once they are updated, so save %1 to keep these values.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Tautan membaca berkas yang tersimpan setelah diperbarui, jadi simpan %1 untuk mempertahankan nilai ini.</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>This workbook has no formats to build on, so the copy does not have the fonts, colors, and borders of the sheet.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Buku kerja ini tidak memiliki format yang dapat dijadikan dasar, sehingga salinan tidak memiliki font, warna, dan bingkai dari lembar tersebut.</translation>
     </message>
     <message numerus="yes">
         <location line="+4"/>
         <source>%n cell comes as the value it shows, not as a formula.</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
+            <numerusform>%n sel ditampilkan sebagai nilai yang tampak, bukan sebagai rumus.</numerusform>
         </translation>
     </message>
     <message numerus="yes">
         <location line="+1"/>
         <source>%n cell comes as the value it shows, not as a formula: one of those that %1.</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
+            <numerusform>%n sel tampil sebagai nilai yang ditampilkan, bukan sebagai rumus: salah satu sel yang %1.</numerusform>
         </translation>
     </message>
     <message>
@@ -73863,12 +73863,12 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
         <location line="+31"/>
         <location line="+26"/>
         <source>Copy Sheet to Another Workbook</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Salin Lembar ke Buku Kerja Lain</translation>
     </message>
     <message>
         <location line="-118"/>
         <source>This workbook can&apos;t take more formats. Nothing was copied.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Buku kerja ini tidak dapat menampung format lagi. Tidak ada yang disalin.</translation>
     </message>
 </context>
 <context>
@@ -82150,7 +82150,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
     <message>
         <location line="-83"/>
         <source>Too much text to line up the tables, so they are not compared.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Teks terlalu banyak untuk menyejajarkan tabel, jadi tabel tidak dibandingkan.</translation>
     </message>
     <message>
         <location line="+134"/>
@@ -82170,27 +82170,27 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
     <message>
         <location line="+1"/>
         <source>footnotes</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">catatan kaki</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>endnotes</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">catatan akhir</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>text boxes</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">kotak teks</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>headers or footers</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">header atau footer</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>parts kept as they were written</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">bagian yang dipertahankan seperti aslinya</translation>
     </message>
     <message>
         <location line="+5"/>
@@ -82200,28 +82200,28 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
     <message>
         <location line="+1"/>
         <source>%1, and %2</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">%1, dan %2</translation>
     </message>
     <message>
         <location line="+22"/>
         <source>Too many pictures and shapes to look for all the text boxes among them.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Terlalu banyak gambar dan bentuk untuk mencari semua kotak teks di antaranya.</translation>
     </message>
     <message>
         <location line="+7"/>
         <source>Too many text boxes to compare them all.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Terlalu banyak kotak teks untuk membandingkan semuanya.</translation>
     </message>
     <message>
         <location line="+129"/>
         <source>Too many notes, headers, and footers to compare them all.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Terlalu banyak catatan, header, dan footer untuk dibandingkan semuanya.</translation>
     </message>
     <message numerus="yes">
         <location line="+33"/>
         <source>%n difference is in a place that Compare can&apos;t mark yet (%1), so it is not shown.</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
+            <numerusform>%n perbedaan berada di tempat yang belum dapat ditandai oleh Bandingkan (%1), sehingga tidak ditampilkan.</numerusform>
         </translation>
     </message>
 </context>
@@ -87055,22 +87055,22 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
     <message>
         <location line="+11"/>
         <source>Day 1</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Hari 1</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Day 2</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Hari 2</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Day 3</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Hari 3</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Day 4</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Hari 4</translation>
     </message>
     <message>
         <location line="+3"/>
@@ -88020,7 +88020,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
     <message>
         <location line="+297"/>
         <source>This change was not made: the rows hold too many tables to mark as deleted.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Perubahan ini tidak dilakukan: baris berisi terlalu banyak tabel untuk ditandai sebagai dihapus.</translation>
     </message>
     <message>
         <location filename="../apps/write/app/pageview_input.cpp" line="-1047"/>
@@ -88042,12 +88042,12 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
     <message>
         <location filename="../apps/write/core/trackpolicy.cpp" line="+100"/>
         <source>This change was not recorded as a tracked change.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Perubahan ini tidak dicatat sebagai perubahan yang dilacak.</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>This change was not made: it would take part of a row that has tracked changes. Accept or reject them first.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Perubahan ini tidak dilakukan: perubahan ini akan mengambil sebagian baris yang memiliki perubahan yang dilacak. Terima atau tolak perubahan tersebut terlebih dahulu.</translation>
     </message>
 </context>
 <context>

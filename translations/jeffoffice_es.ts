@@ -24009,22 +24009,22 @@ Origen: %3</translation>
     <message>
         <location line="+1"/>
         <source>High-Low-Close</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Máximo-mínimo-cierre</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Open-High-Low-Close</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Apertura-máximo-mínimo-cierre</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Volume-High-Low-Close</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Volumen-máximo-mínimo-cierre</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Volume-Open-High-Low-Close</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Volumen-apertura-máximo-mínimo-cierre</translation>
     </message>
     <message>
         <location line="+50"/>
@@ -24793,7 +24793,7 @@ Origen: %3</translation>
     <message>
         <location line="-11"/>
         <source>The series of a stock chart can&apos;t be left out: the kind is made of all of them, in their order.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Las series de un gráfico bursátil no se pueden omitir: el tipo se forma con todas ellas, en su orden.</translation>
     </message>
     <message>
         <location line="+8"/>
@@ -25061,42 +25061,42 @@ Origen: %3</translation>
     <message>
         <location line="+1"/>
         <source>High-low-close</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Máximo-mínimo-cierre</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Open-high-low-close</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Apertura-máximo-mínimo-cierre</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Volume-high-low-close</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Volumen-máximo-mínimo-cierre</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Volume-open-high-low-close</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Volumen-apertura-máximo-mínimo-cierre</translation>
     </message>
     <message>
         <location filename="../libs/office/sheet/chartmake.cpp" line="+176"/>
         <source>A high-low-close chart needs exactly three series, in this order: high, low, and close. Select the cells again, with one column or row for each, in that order.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Un gráfico de máximo-mínimo-cierre necesita exactamente tres series, en este orden: máximo, mínimo y cierre. Seleccione las celdas de nuevo, con una columna o fila para cada una, en ese orden.</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>An open-high-low-close chart needs exactly four series, in this order: open, high, low, and close. Select the cells again, with one column or row for each, in that order.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Un gráfico de apertura-máximo-mínimo-cierre necesita exactamente cuatro series, en este orden: apertura, máximo, mínimo y cierre. Seleccione las celdas de nuevo, con una columna o fila para cada una, en ese orden.</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>A volume-high-low-close chart needs exactly four series, in this order: volume, high, low, and close. Select the cells again, with one column or row for each, in that order.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Un gráfico de volumen-máximo-mínimo-cierre necesita exactamente cuatro series, en este orden: volumen, máximo, mínimo y cierre. Seleccione las celdas de nuevo, con una columna o fila para cada una, en ese orden.</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>A volume-open-high-low-close chart needs exactly five series, in this order: volume, open, high, low, and close. Select the cells again, with one column or row for each, in that order.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Un gráfico de volumen-apertura-máximo-mínimo-cierre necesita exactamente cinco series, en este orden: volumen, apertura, máximo, mínimo y cierre. Seleccione las celdas de nuevo, con una columna o fila para cada una, en ese orden.</translation>
     </message>
 </context>
 <context>
@@ -27440,27 +27440,27 @@ Origen: %3</translation>
     <message>
         <location line="+1"/>
         <source>High-low-close</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Máximo-mínimo-cierre</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Open-high-low-close</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Apertura-máximo-mínimo-cierre</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Volume-high-low-close</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Volumen-máximo-mínimo-cierre</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Volume-open-high-low-close</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Volumen-apertura-máximo-mínimo-cierre</translation>
     </message>
     <message>
         <location line="+16"/>
         <source>Stock</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Bursátil</translation>
     </message>
     <message>
         <location line="+10"/>
@@ -27708,7 +27708,7 @@ Origen: %3</translation>
     <message>
         <location line="+17"/>
         <source>A slicer can&apos;t be cut or copied yet.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Una segmentación de datos no se puede cortar ni copiar todavía.</translation>
     </message>
     <message>
         <location line="+37"/>
@@ -31281,7 +31281,7 @@ El archivo no existe.</translation>
     <message>
         <location line="+125"/>
         <source>Saved %1. Rows, columns, cells, and objects deleted before this save can&apos;t be undone now, nor can what you did before that.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Se guardó %1. Las filas, columnas, celdas y objetos eliminados antes de este guardado no se pueden deshacer ahora, ni tampoco lo que hizo antes de eso.</translation>
     </message>
     <message>
         <location filename="../apps/crunch/app/crunchwindow.cpp" line="-803"/>
@@ -31495,7 +31495,7 @@ El archivo existente no se ha modificado.</translation>
     <message>
         <location line="+20"/>
         <source>Delete Slicer</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Eliminar segmentación de datos</translation>
     </message>
     <message>
         <location line="+11"/>
@@ -31902,17 +31902,17 @@ El archivo existente no se ha modificado.</translation>
     <message>
         <location line="+11"/>
         <source>&amp;To workbook</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Al &amp;libro de trabajo</translation>
     </message>
     <message>
         <location line="+5"/>
         <source>(this workbook)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">(este libro de trabajo)</translation>
     </message>
     <message>
         <location line="+12"/>
         <source>That workbook has been closed.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Ese libro de trabajo se ha cerrado.</translation>
     </message>
     <message>
         <location line="+40"/>
@@ -31938,27 +31938,27 @@ El archivo existente no se ha modificado.</translation>
     <message>
         <location line="-42"/>
         <source>Moving a sheet to another workbook is not done yet. Choose Copy, and then delete the sheet here if you do not need it.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Mover una hoja a otro libro de trabajo todavía no está disponible. Elija Copiar y, después, elimine aquí la hoja si no la necesita.</translation>
     </message>
     <message>
         <location line="+5"/>
         <source>The other workbook was closed, so nothing was copied.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">El otro libro de trabajo se cerró, así que no se copió nada.</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>The other workbook can&apos;t be changed now. It may be open for reading only, or still opening.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">El otro libro de trabajo no se puede modificar ahora. Puede estar abierto solo para lectura o todavía abriéndose.</translation>
     </message>
     <message>
         <location line="+15"/>
         <source>Copy Sheets to Another Workbook</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Copiar hojas a otro libro de trabajo</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Copy Sheet to Another Workbook</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Copiar hoja a otro libro de trabajo</translation>
     </message>
     <message>
         <location line="+33"/>
@@ -31968,17 +31968,17 @@ El archivo existente no se ha modificado.</translation>
     <message>
         <location line="+3"/>
         <source>shapes, text boxes, and lines</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">formas, cuadros de texto y líneas</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>diagrams</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">diagramas</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>other objects over the cells</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">otros objetos sobre las celdas</translation>
     </message>
     <message>
         <location line="+17"/>
@@ -65363,22 +65363,22 @@ Su explorador web abrirá LibreTranslate, un servicio de traducción gratuito y 
     <message>
         <location line="+1"/>
         <source>High-Low-Close</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Máximo-mínimo-cierre</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Open-High-Low-Close</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Apertura-máximo-mínimo-cierre</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Volume-High-Low-Close</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Volumen-máximo-mínimo-cierre</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Volume-Open-High-Low-Close</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Volumen-apertura-máximo-mínimo-cierre</translation>
     </message>
     <message>
         <location line="+19"/>
@@ -67308,7 +67308,7 @@ No se pudo aplicar la contraseña al archivo.</translation>
     <message>
         <location line="+1"/>
         <source>Clear Find Highlights</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Borrar resaltados de búsqueda</translation>
     </message>
     <message>
         <location line="+3"/>
@@ -73807,38 +73807,38 @@ No se pudo aplicar la contraseña al archivo.</translation>
         <location line="+1"/>
         <source>%1, and %2</source>
         <comment>the last item of a list of three or more</comment>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">%1 y %2</translation>
     </message>
     <message>
         <location line="+21"/>
         <source>The workbook is still being opened. It can be copied from when it is open.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">El libro de trabajo todavía se está abriendo. Se podrá copiar cuando esté abierto.</translation>
     </message>
     <message>
         <location line="+13"/>
         <source>This sheet has a table. JeffCrunch does not yet copy tables to another workbook.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Esta hoja tiene una tabla. JeffCrunch todavía no copia tablas a otro libro de trabajo.</translation>
     </message>
     <message>
         <location line="+4"/>
         <location line="+269"/>
         <source>This sheet has more merged cells than JeffCrunch copies to another workbook at once.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Esta hoja tiene más celdas combinadas de las que JeffCrunch copia a otro libro de trabajo de una vez.</translation>
     </message>
     <message>
         <location line="-197"/>
         <source>A formula of this sheet adds up a block of sheets (such as Sheet1:Sheet3). JeffCrunch does not yet copy such a sheet to another workbook.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Una fórmula de esta hoja suma un bloque de hojas (como Hoja1:Hoja3). JeffCrunch todavía no copia una hoja así a otro libro de trabajo.</translation>
     </message>
     <message>
         <location line="+54"/>
         <source>This sheet has more cells than JeffCrunch copies to another workbook at once (%1). Copy part of it with Copy and Paste.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Esta hoja tiene más celdas de las que JeffCrunch copia a otro libro de trabajo de una vez (%1). Copie una parte con Copiar y Pegar.</translation>
     </message>
     <message>
         <location line="+31"/>
         <source>This sheet has more rows with a size of their own than JeffCrunch copies to another workbook at once.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Esta hoja tiene más filas con un tamaño propio de las que JeffCrunch copia a otro libro de trabajo de una vez.</translation>
     </message>
     <message>
         <location line="+32"/>
@@ -73848,122 +73848,122 @@ No se pudo aplicar la contraseña al archivo.</translation>
     <message>
         <location line="+1"/>
         <source>rules for what can be typed</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">reglas de validación de datos</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>protection</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">protección</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>filter</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">filtro</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>links to web pages and places</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">vínculos a páginas web y lugares</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>color of the tab</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">color de la pestaña</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>names of the cell styles (the cells look the same)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">nombres de los estilos de celda (las celdas se ven igual)</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>page setup and print settings</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">configuración de página y de impresión</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>use names of the other workbook</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">usan nombres del otro libro de trabajo</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>use tables or spilled ranges</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">usan tablas o rangos derramados</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>read cells of a third workbook</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">leen celdas de un tercer libro de trabajo</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>are part of an array or a spill</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">forman parte de una matriz o de un derrame</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>have formulas that protection hides</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">tienen fórmulas que la protección oculta</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>have formulas JeffCrunch could not read</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">tienen fórmulas que JeffCrunch no pudo leer</translation>
     </message>
     <message>
         <location line="+17"/>
         <source>The two workbooks count dates from different years (1900 and 1904), so a sheet can&apos;t be copied between them yet.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Los dos libros de trabajo cuentan las fechas desde años distintos (1900 y 1904), así que todavía no se puede copiar una hoja entre ellos.</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>the workbook it comes from</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">el libro de trabajo de origen</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Formulas on this sheet read other sheets of %1, so the copy has to keep a link to its file. Save %1 as a file of the .xlsx kind first, and then copy the sheet.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Las fórmulas de esta hoja leen otras hojas de %1, así que la copia debe conservar un vínculo a su archivo. Guarde primero %1 como archivo de tipo .xlsx y luego copie la hoja.</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>The formats of this sheet (fonts, colors, borders, and so on, %1 in all) do not fit in this workbook, which is close to the most it can hold. Nothing was copied.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Los formatos de esta hoja (fuentes, colores, bordes, etc., %1 en total) no caben en este libro de trabajo, que está cerca del máximo que admite. No se copió nada.</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>These will not be copied: %1.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">No se copiarán: %1.</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>The formulas that read other sheets of %1 become links to its file. The copy shows the values %1 has now. They change when the links are updated, with Update Values in Edit Links.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Las fórmulas que leen otras hojas de %1 se convierten en vínculos a su archivo. La copia muestra los valores que %1 tiene ahora. Cambian al actualizar los vínculos con Actualizar valores en Editar vínculos.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>The links read the saved file once they are updated, so save %1 to keep these values.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Los vínculos leen el archivo guardado al actualizarlos, así que guarde %1 para conservar estos valores.</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>This workbook has no formats to build on, so the copy does not have the fonts, colors, and borders of the sheet.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Este libro de trabajo no tiene formatos en los que basarse, así que la copia no tendrá las fuentes, colores y bordes de la hoja.</translation>
     </message>
     <message numerus="yes">
         <location line="+4"/>
         <source>%n cell comes as the value it shows, not as a formula.</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
+            <numerusform>%n celda se copia con el valor que muestra, no como fórmula.</numerusform>
+            <numerusform>%n celdas se copian con el valor que muestran, no como fórmula.</numerusform>
         </translation>
     </message>
     <message numerus="yes">
         <location line="+1"/>
         <source>%n cell comes as the value it shows, not as a formula: one of those that %1.</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
+            <numerusform>%n celda se muestra como su valor, no como fórmula: una de las que %1.</numerusform>
+            <numerusform>%n celdas se muestran como su valor, no como fórmula: una de las que %1.</numerusform>
         </translation>
     </message>
     <message>
@@ -73972,12 +73972,12 @@ No se pudo aplicar la contraseña al archivo.</translation>
         <location line="+31"/>
         <location line="+26"/>
         <source>Copy Sheet to Another Workbook</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Copiar hoja a otro libro</translation>
     </message>
     <message>
         <location line="-118"/>
         <source>This workbook can&apos;t take more formats. Nothing was copied.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Este libro no admite más formatos. No se copió nada.</translation>
     </message>
 </context>
 <context>
@@ -82280,7 +82280,7 @@ No se pudo aplicar la contraseña al archivo.</translation>
     <message>
         <location line="-83"/>
         <source>Too much text to line up the tables, so they are not compared.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Hay demasiado texto para alinear las tablas, así que no se comparan.</translation>
     </message>
     <message>
         <location line="+134"/>
@@ -82300,27 +82300,27 @@ No se pudo aplicar la contraseña al archivo.</translation>
     <message>
         <location line="+1"/>
         <source>footnotes</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">notas al pie</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>endnotes</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">notas al final</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>text boxes</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">cuadros de texto</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>headers or footers</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">encabezados o pies de página</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>parts kept as they were written</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">partes conservadas tal como se escribieron</translation>
     </message>
     <message>
         <location line="+5"/>
@@ -82330,29 +82330,29 @@ No se pudo aplicar la contraseña al archivo.</translation>
     <message>
         <location line="+1"/>
         <source>%1, and %2</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">%1 y %2</translation>
     </message>
     <message>
         <location line="+22"/>
         <source>Too many pictures and shapes to look for all the text boxes among them.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Hay demasiadas imágenes y formas para buscar entre ellas todos los cuadros de texto.</translation>
     </message>
     <message>
         <location line="+7"/>
         <source>Too many text boxes to compare them all.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Hay demasiados cuadros de texto para compararlos todos.</translation>
     </message>
     <message>
         <location line="+129"/>
         <source>Too many notes, headers, and footers to compare them all.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Hay demasiadas notas, encabezados y pies de página para compararlos todos.</translation>
     </message>
     <message numerus="yes">
         <location line="+33"/>
         <source>%n difference is in a place that Compare can&apos;t mark yet (%1), so it is not shown.</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
+            <numerusform>%n diferencia está en un lugar que Comparar aún no puede marcar (%1), por lo que no se muestra.</numerusform>
+            <numerusform>%n diferencias están en lugares que Comparar aún no puede marcar (%1), por lo que no se muestran.</numerusform>
         </translation>
     </message>
 </context>
@@ -87187,22 +87187,22 @@ No se pudo aplicar la contraseña al archivo.</translation>
     <message>
         <location line="+11"/>
         <source>Day 1</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Día 1</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Day 2</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Día 2</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Day 3</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Día 3</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Day 4</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Día 4</translation>
     </message>
     <message>
         <location line="+3"/>
@@ -87217,17 +87217,17 @@ No se pudo aplicar la contraseña al archivo.</translation>
     <message>
         <location line="+1"/>
         <source>High</source>
-        <translation type="unfinished">Alto</translation>
+        <translation type="unfinished">Máximo</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Low</source>
-        <translation type="unfinished">Bajo</translation>
+        <translation type="unfinished">Mínimo</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Close</source>
-        <translation type="unfinished">Cerrar</translation>
+        <translation type="unfinished">Cierre</translation>
     </message>
     <message>
         <location line="+149"/>
@@ -88154,7 +88154,7 @@ No se pudo aplicar la contraseña al archivo.</translation>
     <message>
         <location line="+297"/>
         <source>This change was not made: the rows hold too many tables to mark as deleted.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Este cambio no se realizó: las filas contienen demasiadas tablas para marcarlas como eliminadas.</translation>
     </message>
     <message>
         <location filename="../apps/write/app/pageview_input.cpp" line="-1047"/>
@@ -88176,12 +88176,12 @@ No se pudo aplicar la contraseña al archivo.</translation>
     <message>
         <location filename="../apps/write/core/trackpolicy.cpp" line="+100"/>
         <source>This change was not recorded as a tracked change.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Este cambio no se registró como cambio controlado.</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>This change was not made: it would take part of a row that has tracked changes. Accept or reject them first.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Este cambio no se realizó: afectaría a parte de una fila que tiene cambios controlados. Acepte o rechace antes esos cambios.</translation>
     </message>
 </context>
 <context>

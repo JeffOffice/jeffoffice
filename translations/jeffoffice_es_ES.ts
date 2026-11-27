@@ -2883,6 +2883,18 @@ No se pudo aplicar la contraseña al fichero.</translation>
         <source>A workbook opened from a text or web page file has no notes to search.</source>
         <translation type="unfinished">Un libro abierto desde un fichero de texto o de página web no tiene comentarios en los que buscar.</translation>
     </message>
+    <message>
+        <source>Formulas on this sheet read other sheets of %1, so the copy has to keep a link to its file. Save %1 as a file of the .xlsx kind first, and then copy the sheet.</source>
+        <translation type="unfinished">Las fórmulas de esta hoja leen otras hojas de %1, así que la copia debe conservar un vínculo a su fichero. Guarde primero %1 como fichero de tipo .xlsx y luego copie la hoja.</translation>
+    </message>
+    <message>
+        <source>The formulas that read other sheets of %1 become links to its file. The copy shows the values %1 has now. They change when the links are updated, with Update Values in Edit Links.</source>
+        <translation type="unfinished">Las fórmulas que leen otras hojas de %1 se convierten en vínculos a su fichero. La copia muestra los valores que %1 tiene ahora. Cambian al actualizar los vínculos con Actualizar valores en Editar vínculos.</translation>
+    </message>
+    <message>
+        <source>The links read the saved file once they are updated, so save %1 to keep these values.</source>
+        <translation type="unfinished">Los vínculos leen el fichero guardado al actualizarlos, así que guarde %1 para conservar estos valores.</translation>
+    </message>
 </context>
 <context>
     <name>jp::crunch::Functions</name>
