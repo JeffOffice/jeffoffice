@@ -4541,7 +4541,7 @@ private Q_SLOTS:
                 const QImage img = pane->viewport()->grab().toImage();
                 int n = 0;
                 for (int y = ra.top(); y <= ra.bottom() + 2; ++y)
-                    for (int x = ra.left(); x < rb.left() && x < img.width(); ++x) n += near(img.pixelColor(x, y));
+                    for (int x = ra.left() + 2; x < rb.left() - 2 && x < img.width(); ++x) n += near(img.pixelColor(x, y));   // (an underline's end rounds one pixel into the next letter's gap)
                 return n;
             };
             const QString tag = QStringLiteral("pane");

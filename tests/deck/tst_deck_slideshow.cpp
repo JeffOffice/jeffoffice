@@ -2028,7 +2028,7 @@ private Q_SLOTS:
         const QImage img = e->viewport()->grab().toImage();
         int n = 0;
         for (int y = ra.top(); y <= ra.bottom() + 3; ++y)
-            for (int x = ra.left(); x < rb.left() && x < img.width(); ++x) {
+            for (int x = ra.left() + 2; x < rb.left() - 2 && x < img.width(); ++x) {   // (an underline's end rounds one pixel into the next letter's gap: Windows put two pixels at the link's start)
                 const QColor c = img.pixelColor(x, y);
                 n += qAbs(c.red() - want.red()) + qAbs(c.green() - want.green()) + qAbs(c.blue() - want.blue()) < 90;
             }
