@@ -500,7 +500,11 @@ StoryWords *WriteFindPane::sideWords(const QTextDocument *story)
 
 QVector<QPair<int, int>> WriteFindPane::matchesInSideStory(const QTextDocument *story)
 {
-    if (!story || !isVisible() || !searching() || m_find->text().isEmpty()) return {};
+    if (!story || (!isVisible() && !m_kept) || !searching() || m_find->text().isEmpty()) return {};
+    if (m_kept && !isVisible()) {   // (a header, footer, or note that was edited since it was searched has no bands any more)
+        const auto seen = m_side.constFind(story);
+        if (seen != m_side.constEnd() && seen->revision != -1 && seen->revision != story->revision()) return {};
+    }
     const struct Inline { bool &flag; bool was; Inline(bool &f) : flag(f), was(f) { flag = true; } ~Inline() { flag = was; } } inlineScans(m_inlineScans);   // (the pages are drawing: no box over them)
     Side &side = m_side[story];
     StoryWords *words = sideWords(story);
@@ -521,12 +525,35 @@ QVector<QPair<int, int>> WriteFindPane::matchesInSideStory(const QTextDocument *
 void WriteFindPane::hideEvent(QHideEvent *e)
 {
     QWidget::hideEvent(e);
+    // (The bands stay while the person reads on; an edit or Clear Highlighting ends them.)
+    if (!m_matches.isEmpty() && searching() && !m_job) {
+        setKept(true);
+        return;
+    }
     m_win->view()->setFindHighlights({});
+}
+
+void WriteFindPane::setKept(bool kept)
+{
+    if (m_kept == kept) return;
+    m_kept = kept;
+    Q_EMIT highlightsKeptChanged(kept);
+}
+
+void WriteFindPane::clearHighlights()
+{
+    if (isVisible()) return;   // (an open pane shows the bands of its box: clear the box)
+    setKept(false);
+    m_matches.clear();
+    ++m_generation;
+    m_win->view()->setFindHighlights({});
+    m_win->view()->viewport()->update();
 }
 
 void WriteFindPane::showEvent(QShowEvent *e)
 {
     QWidget::showEvent(e);
+    setKept(false);
     m_refresh->start();
 }
 
@@ -898,6 +925,10 @@ void WriteFindPane::refreshMatches()
         return;
     }
     ++m_refreshesRun;
+    if (m_kept) {   // (the document changed while the bands were kept: they end)
+        clearHighlights();
+        return;
+    }
     if (m_keepNotice) return;   // (the message of a search that was cancelled or stopped stays until the person does something)
     m_wait = false;
     m_matches.clear();

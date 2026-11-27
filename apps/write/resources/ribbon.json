@@ -296,6 +296,10 @@
               "keytip": "RP"
             },
             {
+              "small": "edit.clearHighlighting",
+              "keytip": "XH"
+            },
+            {
               "small": "edit.replaceFonts",
               "keytip": "RF"
             },

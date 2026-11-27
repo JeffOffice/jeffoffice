@@ -46,7 +46,7 @@ TrackPolicy trackPolicyOf(const QString &id, bool *known)
                                                 QStringLiteral("help."), QStringLiteral("find."), QStringLiteral("show."), QStringLiteral("review."), QStringLiteral("outline.level."),
                                                 QStringLiteral("hf.go"), QStringLiteral("comment."), QStringLiteral("layout.hyphenation."), QStringLiteral("mail.recipients."),
                                                 QStringLiteral("mail.finish."), QStringLiteral("mail.type.")};
-    static const QSet<QString> neutral = setOf({"edit.copy", "edit.copyFormat", "edit.repeat", "edit.find", "edit.formatPainter", "edit.goTo", "edit.lastPlace", "edit.selectAll", "edit.selectObjects",
+    static const QSet<QString> neutral = setOf({"edit.copy", "edit.copyFormat", "edit.repeat", "edit.find", "edit.clearHighlighting", "edit.formatPainter", "edit.goTo", "edit.lastPlace", "edit.selectAll", "edit.selectObjects",
         "edit.clipboardPane", "edit.undo", "edit.redo", "edit.replace", "outline.close", "outline.collapse", "outline.expand", "outline.firstLineOnly", "outline.showFormatting", "outline.showLevel",
         "style.pane", "style.inspector", "style.inspectorPane", "style.manage", "style.modify", "style.new", "style.update", "refs.nextFootnote", "refs.previousFootnote", "refs.nextEndnote",
         "refs.previousEndnote", "refs.showNotes", "refs.citationStyle", "refs.manageSources", "hf.close", "hf.showDocumentText", "hf.previousSection", "hf.nextSection", "fields.toggleCode",

@@ -49,11 +49,17 @@ public:
     // How many places the search text is found in the document now (at most kMostMatches), and where: ranges of the story. The count and the yellow bands on the pages follow the text of
     // the box, the two choices, and the document as they change.
     int matchCount() const { return m_matches.size(); }
+    // The bands stay on the pages when the pane is closed (Read Mode closes it too) until the person clears them or edits the document.
+    bool keepsHighlights() const { return m_kept; }
+    void clearHighlights();
     // How many times a story has been searched for a match (a count for tests of the work a search up does).
     int scansMade() const { return m_scans; }
     // How many times the count has been made again (for tests that wait for a refresh to have come).
     int refreshesRun() const { return m_refreshesRun; }
     static constexpr int kMostMatches = 20000;
+Q_SIGNALS:
+    void highlightsKeptChanged(bool kept);
+public:
     static constexpr int kMostBoxesChanged = 500;   // (the text boxes one Replace All changes: past that the person is told to run it again)
     QLineEdit *findBox() const { return m_find; }
     QLineEdit *replaceBox() const { return m_replace; }
@@ -121,6 +127,7 @@ private:
     QString searchSignature() const;
     void waitThen(const std::function<void()> &again, bool againWhenStale = false, bool replaces = false);
     static int nextPlace(const QTextCursor &match, int at);
+    void setKept(bool kept);
     void hideEvent(QHideEvent *e) override;
     void showEvent(QShowEvent *e) override;
     // The story's words as they are now (made again when the story has changed), and the search's way to them.
@@ -158,6 +165,7 @@ private:
     static bool holdsMark(const QString &plain, const QTextCursor &match);
     WriteWindow *m_win;
     int m_scans = 0, m_refreshesRun = 0;
+    bool m_kept = false;   // the pane is closed and its bands are still shown
     bool m_keepNotice = false;   // the status says a search was cancelled or stopped: a count made again for no act of the person leaves it
     std::unique_ptr<StoryWords> m_text;
     QLineEdit *m_find, *m_replace;

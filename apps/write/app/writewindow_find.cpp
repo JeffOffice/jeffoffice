@@ -15,6 +15,9 @@ void WriteWindow::createEditingActions()
 {
     mk("edit.find", tr("Find"), "search", QKeySequence::Find, [this] { showFindPane(false); });
     mk("edit.replace", tr("Replace"), "replace", QKeySequence(Qt::CTRL | Qt::Key_H), [this] { showFindPane(true); });
+    mk("edit.clearHighlighting", tr("Clear Highlighting"), "eraser", QKeySequence(), [this] {
+        if (m_find) m_find->clearHighlights();
+    })->setEnabled(false);
     mk("edit.replaceFonts", tr("Replace Fonts…"), "a-large-small", QKeySequence(), [this] { replaceFonts(); });
 }
 
@@ -31,6 +34,7 @@ void WriteWindow::showFindPane(bool replace)
         m_findDock->setWidget(m_find);
         addDockWidget(Qt::RightDockWidgetArea, m_findDock);
         resizeDocks({m_findDock}, {300}, Qt::Horizontal);
+        connect(m_find, &WriteFindPane::highlightsKeptChanged, this, [this](bool kept) { act("edit.clearHighlighting")->setEnabled(kept); });
     }
     m_findDock->show();
     m_findDock->raise();

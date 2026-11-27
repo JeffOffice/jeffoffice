@@ -54,6 +54,11 @@
    "search",
    "locate"
   ],
+  "edit.clearHighlighting": [
+   "remove highlights",
+   "find highlights",
+   "unhighlight"
+  ],
   "edit.replace": [
    "substitute",
    "change text"

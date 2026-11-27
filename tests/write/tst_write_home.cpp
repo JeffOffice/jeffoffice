@@ -3987,6 +3987,171 @@ private Q_SLOTS:
         QTRY_COMPARE(pane->matchCount(), 2);
     }
 
+    // The yellow bands are only what the window paints: no layout again for them, nothing in the saved file, no undo step, and none on a printed or exported page.
+    void findHighlightsArePaintedOnlyAndCostNoLayout()
+    {
+        auto yellow = [](const QImage &img) {
+            int n = 0;
+            for (int y = 0; y < img.height(); ++y)
+                for (int x = 0; x < img.width(); ++x) {
+                    const QColor c = img.pixelColor(x, y);
+                    if (c.red() > 200 && c.green() > 200 && c.blue() < 170) ++n;
+                }
+            return n;
+        };
+        WriteWindow w;
+        w.setNotifier([](const QString &, const QString &) {});
+        w.resize(1100, 800);
+        w.show();
+        w.setDocument(open(makeDocx(para(run("The needle and the thread, a needle again.")) + para(run("Nothing here.")) + para(run("One more needle.")))), QString());
+        QTRY_VERIFY(w.view()->pageCount() >= 1);
+        const QByteArray before = w.document()->toDocx();
+        w.act(QStringLiteral("edit.find"))->trigger();
+        WriteFindPane *pane = w.findPane();
+        QVERIFY(pane);
+        const int none = yellow(w.view()->viewport()->grab().toImage());
+        QTest::keyClicks(pane->findBox(), QStringLiteral("needle"));
+        QTRY_COMPARE(pane->matchCount(), 3);
+        QCOMPARE(w.view()->findHighlights().size(), 3);
+        QTRY_VERIFY(yellow(w.view()->viewport()->grab().toImage()) > none + 100);
+        // Painting again, scrolling, and zooming lay the pages out no more: the copies of the pages' text are made once.
+        const qint64 copied = w.document()->pager().charsCopiedForTest();
+        for (int i = 0; i < 5; ++i) w.view()->viewport()->grab();
+        w.view()->verticalScrollBar()->setValue(w.view()->verticalScrollBar()->value() + 5);
+        w.view()->viewport()->grab();
+        QCOMPARE(w.document()->pager().charsCopiedForTest(), copied);
+        // The file, the undo list, and the modified mark are as they were.
+        QCOMPARE(w.document()->toDocx(), before);
+        QVERIFY(!w.document()->canUndo());
+        QVERIFY(!w.isModified());
+        // A picture of the page (as a printer or a PDF gets it) has no band.
+        const int printed = yellow(w.view()->pageImage(0, 700));
+        pane->findBox()->clear();
+        QTRY_COMPARE(pane->matchCount(), 0);
+        QCOMPARE(yellow(w.view()->pageImage(0, 700)), printed);
+    }
+
+    // The bands stay in Draft and Read Mode and at another zoom, and stay when the Find pane closes until they are cleared.
+    void findHighlightsFollowTheViewAndEndWithThePane()
+    {
+        auto yellow = [](QWidget *view) {
+            const QImage img = view->grab().toImage();
+            int n = 0;
+            for (int y = 0; y < img.height(); ++y)
+                for (int x = 0; x < img.width(); ++x) {
+                    const QColor c = img.pixelColor(x, y);
+                    if (c.red() > 200 && c.green() > 200 && c.blue() < 170) ++n;
+                }
+            return n;
+        };
+        QByteArray body;
+        for (int i = 0; i < 90; ++i) body += para(run(i % 9 == 0 ? "A line with a needle in it." : "A plain line of text."));
+        WriteWindow w;
+        w.setNotifier([](const QString &, const QString &) {});
+        w.resize(1100, 800);
+        w.show();
+        w.setDocument(open(makeDocx(body)), QString());
+        w.act(QStringLiteral("edit.find"))->trigger();
+        WriteFindPane *pane = w.findPane();
+        QTRY_VERIFY(w.view()->pageCount() >= 1);
+        const int none = yellow(w.view()->viewport());
+        pane->findBox()->setText(QStringLiteral("needle"));
+        QTRY_COMPARE(pane->matchCount(), 10);
+        QTRY_VERIFY(yellow(w.view()->viewport()) > none + 100);
+        shot(&w, QStringLiteral("find-all-print-layout.png"));
+        // Scrolled down, the bands of the lines on show are there.
+        w.view()->verticalScrollBar()->setValue(w.view()->verticalScrollBar()->maximum() / 2);
+        QTRY_VERIFY(yellow(w.view()->viewport()) > none + 100);
+        shot(&w, QStringLiteral("find-all-scrolled.png"));
+        w.view()->setZoom(1.6);
+        QTRY_VERIFY(yellow(w.view()->viewport()) > none + 100);
+        shot(&w, QStringLiteral("find-all-zoomed.png"));
+        w.view()->setZoom(1.0);
+        w.act(QStringLiteral("view.draft"))->trigger();
+        QVERIFY(w.view()->draft());
+        QTRY_VERIFY(yellow(w.view()->viewport()) > none / 2 + 100);
+        shot(&w, QStringLiteral("find-all-draft.png"));
+        w.act(QStringLiteral("view.printLayout"))->trigger();
+        w.act(QStringLiteral("view.readMode"))->trigger();
+        // (Read Mode closes the pane: the bands stay for reading.)
+        QVERIFY(!pane->isVisible());
+        QVERIFY(pane->keepsHighlights());
+        QCOMPARE(w.view()->findHighlights().size(), 10);
+        QTRY_VERIFY(yellow(w.view()->viewport()) > none + 100);
+        shot(&w, QStringLiteral("find-all-read.png"));
+        w.act(QStringLiteral("view.readMode"))->trigger();
+        QTRY_VERIFY(pane->isVisible());
+        QTRY_COMPARE(pane->matchCount(), 10);
+        QVERIFY(!pane->keepsHighlights());
+        // Closing the pane keeps the bands, and Clear Highlighting takes them away; the document is as it was.
+        pane->hide();
+        QVERIFY(pane->keepsHighlights());
+        QCOMPARE(w.view()->findHighlights().size(), 10);
+        QVERIFY(w.act(QStringLiteral("edit.clearHighlighting"))->isEnabled());
+        QTRY_VERIFY(yellow(w.view()->viewport()) > none + 100);
+        w.act(QStringLiteral("edit.clearHighlighting"))->trigger();
+        QVERIFY(w.view()->findHighlights().isEmpty());
+        QVERIFY(!pane->keepsHighlights());
+        QVERIFY(!w.act(QStringLiteral("edit.clearHighlighting"))->isEnabled());
+        QTRY_VERIFY(yellow(w.view()->viewport()) <= none + 20);
+    }
+
+    // The kept bands end at the first edit, and reopening the pane shows the box's own bands again.
+    void keptFindHighlightsEndWithAnEditOrAReopenedPane()
+    {
+        WriteWindow w;
+        w.setNotifier([](const QString &, const QString &) {});
+        w.resize(1100, 800);
+        w.show();
+        w.setDocument(open(docWithSideNeedles(true)), QString());
+        w.act(QStringLiteral("edit.find"))->trigger();
+        WriteFindPane *pane = w.findPane();
+        QTRY_VERIFY(w.view()->pageCount() >= 1);
+        QVERIFY(!w.act(QStringLiteral("edit.clearHighlighting"))->isEnabled());
+        pane->findBox()->setText(QStringLiteral("needle"));
+        QTRY_COMPARE(pane->matchCount(), 1);
+        pane->hide();
+        QVERIFY(pane->keepsHighlights());
+        // (The header and footer still ask the pane for their bands.)
+        QVERIFY(!pane->matchesInSideStory(w.document()->headerFooterStory(0, false, 0)).isEmpty());
+        w.view()->insertText(QStringLiteral("x"));
+        QTRY_VERIFY(!pane->keepsHighlights());
+        QVERIFY(w.view()->findHighlights().isEmpty());
+        QVERIFY(pane->matchesInSideStory(w.document()->headerFooterStory(0, false, 0)).isEmpty());
+        QVERIFY(!w.act(QStringLiteral("edit.clearHighlighting"))->isEnabled());
+        // Closed with nothing found: nothing is kept.
+        pane->show();
+        pane->findBox()->setText(QStringLiteral("zzzz"));
+        QTRY_COMPARE(pane->matchCount(), 0);
+        pane->hide();
+        QVERIFY(!pane->keepsHighlights());
+        // Reopened, the pane shows the bands of its box again.
+        pane->findBox()->setText(QStringLiteral("needle"));
+        pane->show();
+        QTRY_VERIFY(pane->matchCount() >= 1);
+        QVERIFY(!pane->keepsHighlights());
+        QVERIFY(!w.view()->findHighlights().isEmpty());
+    }
+
+    // A one-letter search of a huge text counts to a limit and says so; the bands are as many as are counted.
+    void findHighlightsAreBoundedAndTheCountSaysSo()
+    {
+        QByteArray body;
+        for (int i = 0; i < 25; ++i) body += para(run(QByteArray(1000, 'e')));
+        WriteWindow w;
+        w.setNotifier([](const QString &, const QString &) {});
+        w.resize(1100, 800);
+        w.show();
+        w.setDocument(open(makeDocx(body)), QString());
+        w.act(QStringLiteral("edit.find"))->trigger();
+        WriteFindPane *pane = w.findPane();
+        QTest::keyClicks(pane->findBox(), QStringLiteral("e"));
+        QTRY_COMPARE(pane->matchCount(), int(WriteFindPane::kMostMatches));
+        QCOMPARE(w.view()->findHighlights().size(), int(WriteFindPane::kMostMatches));
+        QVERIFY2(pane->status().contains(QStringLiteral("or more")), qPrintable(pane->status()));
+        QVERIFY2(pane->status().contains(QString::number(WriteFindPane::kMostMatches)), qPrintable(pane->status()));
+    }
+
     void wildcardsAndSpecialCodesMakeAPatternAndTheReplacementCanUseTheGroups()
     {
         auto all = [](const QString &pattern, const QString &text, bool matchCase = false) {
