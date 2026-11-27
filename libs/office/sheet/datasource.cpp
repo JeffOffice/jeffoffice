@@ -145,7 +145,7 @@ struct JNode {
     std::vector<JNode> items;                         // an Array
 };
 
-constexpr int kMaxConnectionChars = 80000;   // (the names of 256 columns, with the file's path and choices)
+constexpr int kMaxConnectionChars = kMaxDataSourceChars;   // (the names of 256 columns, with the file's path, choices, and steps)
 constexpr int kMaxJsonDepth = 64;
 constexpr qint64 kMaxJsonNodes = 4000000;
 
@@ -802,7 +802,15 @@ bool dataPathIsRemote(const QString &path)
 QString DataConnection::text() const
 {
     auto enc = [](const QString &v) { return QString::fromLatin1(v.toUtf8().toPercentEncoding()); };
-    QString text = QStringLiteral("jo-data:1?kind=%1&path=%2&list=%3&mode=%4&text=%5").arg(enc(kind), enc(path), enc(list), mode == ArrayMode::Columns ? QStringLiteral("columns") : QStringLiteral("join"), asText ? QStringLiteral("1") : QStringLiteral("0"));
+    // (steps that were read are written as they were read, so that a query from a newer version is never changed by being saved)
+    const QString stepsJson = !stepsProblem.isEmpty() ? stepsText : steps.isEmpty() ? QString() : dataStepsToJson(steps);
+    QString text = QStringLiteral("jo-data:%1?kind=%2&path=%3&list=%4&mode=%5&text=%6")
+                       .arg(stepsJson.isEmpty() ? 1 : 2)
+                       .arg(enc(kind), enc(path), enc(list), mode == ArrayMode::Columns ? QStringLiteral("columns") : QStringLiteral("join"), asText ? QStringLiteral("1") : QStringLiteral("0"));
+    if (!name.isEmpty()) text += QStringLiteral("&name=") + enc(name.left(kMaxDataStepChars));
+    if (ranAt > 0) text += QStringLiteral("&ran=") + QString::number(ranAt);
+    if (rowCount >= 0) text += QStringLiteral("&rows=") + QString::number(rowCount);
+    if (!stepsJson.isEmpty()) text += QStringLiteral("&steps=") + enc(stepsJson);
     if (!columns.isEmpty()) {
         QStringList names;
         for (const QString &c : columns) names << enc(c);
@@ -814,7 +822,7 @@ QString DataConnection::text() const
 
 bool DataConnection::parse(const QString &text, DataConnection *out)
 {
-    if (!text.startsWith(QLatin1String("jo-data:1?")) || text.size() > kMaxConnectionChars) return false;
+    if ((!text.startsWith(QLatin1String("jo-data:1?")) && !text.startsWith(QLatin1String("jo-data:2?"))) || text.size() > kMaxConnectionChars) return false;
     DataConnection c;
     const QStringList parts = text.mid(10).split(QLatin1Char('&'));
     for (const QString &part : parts) {
@@ -827,6 +835,13 @@ bool DataConnection::parse(const QString &text, DataConnection *out)
         else if (key == QLatin1String("list")) c.list = value;
         else if (key == QLatin1String("mode")) c.mode = value == QLatin1String("columns") ? ArrayMode::Columns : ArrayMode::Join;
         else if (key == QLatin1String("text")) c.asText = value == QLatin1String("1");
+        else if (key == QLatin1String("name")) c.name = value.left(kMaxDataStepChars);
+        else if (key == QLatin1String("ran")) c.ranAt = std::max<qint64>(0, value.toLongLong());
+        else if (key == QLatin1String("rows")) {
+            bool ok = false;
+            const qint64 n = value.toLongLong(&ok);
+            c.rowCount = ok && n >= 0 ? n : -1;
+        } else if (key == QLatin1String("steps")) c.stepsText = value;
         else if (key == QLatin1String("cols")) {
             for (const QString &name : value.split(QLatin1Char(','))) c.columns << QUrl::fromPercentEncoding(name.toLatin1());
             if (c.columns.size() > 4096) return false;
@@ -834,6 +849,7 @@ bool DataConnection::parse(const QString &text, DataConnection *out)
     }
     if (c.kind != QLatin1String("json") && c.kind != QLatin1String("xml") && c.kind != QLatin1String("workbook")) return false;
     if (c.path.isEmpty()) return false;
+    if (!c.stepsText.isEmpty() && !parseDataSteps(c.stepsText, &c.steps, &c.stepsProblem)) c.steps.clear();
     *out = c;
     return true;
 }

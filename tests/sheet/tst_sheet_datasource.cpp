@@ -2,6 +2,7 @@
 #include "sheethelpers.h"
 #include "sheet/datasource.h"
 #include "sheet/datasourcebook.h"
+#include "sheet/datasteps.h"
 #include "sheet/tables.h"
 
 #include <QTemporaryDir>
@@ -20,6 +21,24 @@ class SheetDataSourceTests : public QObject {
         const int c = t.header.indexOf(column);
         return c < 0 ? QStringLiteral("<no column>") : t.rows.value(row).value(c).text;
     }
+
+    static DataRows peopleRows()
+    {
+        DataRows t;
+        t.header = {QStringLiteral("Name"), QStringLiteral("Qty"), QStringLiteral("Day")};
+        auto row = [](const char *name, const char *qty, const char *day) {
+            return QVector<DataCell>{{QString::fromLatin1(name), name[0] ? 's' : char(0)}, {QString::fromLatin1(qty), qty[0] ? 'n' : char(0)}, {QString::fromLatin1(day), day[0] ? 's' : char(0)}};
+        };
+        t.rows = {row("pear", "10", "3/4/2024"), row("Apple", "2", "12/1/2023"), row("fig", "", ""), row("apple pie", "7.5", "1/31/2024"), row("Plum", "10", "2/29/2024")};
+        return t;
+    }
+    static QStringList column(const DataRows &t, int c)
+    {
+        QStringList out;
+        for (const auto &r : t.rows) out << r.value(c).text;
+        return out;
+    }
+
 
 private Q_SLOTS:
     void jsonListsAreFound()
@@ -543,6 +562,262 @@ private Q_SLOTS:
         bad.close();
         QVERIFY(dataBookLists(bad.fileName(), DataLimits(), nullptr, &why).isEmpty());
         QVERIFY(!why.isEmpty());
+    }
+    // ---- The steps of a query (datasteps.h)
+    void everyStepKindDoesItsWork()
+    {
+        DataRows t = peopleRows();
+        DataStep filter;
+        filter.op = DataStep::Op::Filter;
+        filter.col = QStringLiteral("qty");   // (any case)
+        filter.cmp = QStringLiteral("ge");
+        filter.value = QStringLiteral("7.5");
+        DataStep sort;
+        sort.op = DataStep::Op::Sort;
+        sort.col = QStringLiteral("Name");
+        DataStep rename;
+        rename.op = DataStep::Op::Rename;
+        rename.col = QStringLiteral("Qty");
+        rename.to = QStringLiteral("Amount");
+        DataStep keep;
+        keep.op = DataStep::Op::Keep;
+        keep.cols = {QStringLiteral("Amount"), QStringLiteral("Name")};
+        const DataStepsRun run = applyDataSteps({filter, sort, rename, keep}, &t, nullptr);
+        QVERIFY2(run.ok, qPrintable(run.why));
+        QCOMPARE(t.header, (QStringList{QStringLiteral("Amount"), QStringLiteral("Name")}));
+        QCOMPARE(column(t, 1), (QStringList{QStringLiteral("apple pie"), QStringLiteral("pear"), QStringLiteral("Plum")}));   // (the filter keeps 10, 7.5, 10; the sort ignores case)
+        QCOMPARE(column(t, 0), (QStringList{QStringLiteral("7.5"), QStringLiteral("10"), QStringLiteral("10")}));
+        // remove, the other way to choose; and the comparisons
+        t = peopleRows();
+        DataStep remove;
+        remove.op = DataStep::Op::Remove;
+        remove.cols = {QStringLiteral("Day")};
+        QVERIFY(applyDataSteps({remove}, &t, nullptr).ok);
+        QCOMPARE(t.header, (QStringList{QStringLiteral("Name"), QStringLiteral("Qty")}));
+        auto count = [](const QString &col, const QString &cmp, const QString &value) {
+            DataRows rows = peopleRows();
+            DataStep f;
+            f.op = DataStep::Op::Filter;
+            f.col = col;
+            f.cmp = cmp;
+            f.value = value;
+            return applyDataSteps({f}, &rows, nullptr).ok ? int(rows.rows.size()) : -1;
+        };
+        QCOMPARE(count(QStringLiteral("Name"), QStringLiteral("eq"), QStringLiteral("FIG")), 1);
+        QCOMPARE(count(QStringLiteral("Name"), QStringLiteral("ne"), QStringLiteral("fig")), 4);
+        QCOMPARE(count(QStringLiteral("Name"), QStringLiteral("contains"), QStringLiteral("APPLE")), 2);
+        QCOMPARE(count(QStringLiteral("Name"), QStringLiteral("notcontains"), QStringLiteral("apple")), 3);
+        QCOMPARE(count(QStringLiteral("Qty"), QStringLiteral("gt"), QStringLiteral("9")), 2);   // (as numbers: 10 is more than 9, not less as text)
+        QCOMPARE(count(QStringLiteral("Qty"), QStringLiteral("lt"), QStringLiteral("9")), 2);
+        QCOMPARE(count(QStringLiteral("Qty"), QStringLiteral("le"), QStringLiteral("10")), 4);   // (the blank is not less than anything)
+        QCOMPARE(count(QStringLiteral("Qty"), QStringLiteral("blank"), QString()), 1);
+        QCOMPARE(count(QStringLiteral("Qty"), QStringLiteral("notblank"), QString()), 4);
+        QCOMPARE(count(QStringLiteral("Qty"), QStringLiteral("eq"), QStringLiteral("10.0")), 2);
+        // a sort puts the blank last in both directions, numbers before text, and keeps the order of equals
+        t = peopleRows();
+        DataStep byQty;
+        byQty.op = DataStep::Op::Sort;
+        byQty.col = QStringLiteral("Qty");
+        byQty.descending = true;
+        QVERIFY(applyDataSteps({byQty}, &t, nullptr).ok);
+        QCOMPARE(column(t, 0), (QStringList{QStringLiteral("pear"), QStringLiteral("Plum"), QStringLiteral("apple pie"), QStringLiteral("Apple"), QStringLiteral("fig")}));
+    }
+
+    void changingAColumnsKindReadsTheLocaleAndNamesWhatItCannot()
+    {
+        DataRows t;
+        t.header = {QStringLiteral("Price"), QStringLiteral("Day")};
+        t.rows = {{{QStringLiteral("1.234,50"), 's'}, {QStringLiteral("31/12/2023"), 's'}}, {{QString(), 0}, {QString(), 0}}, {{QStringLiteral(" 7 "), 's'}, {QStringLiteral("1.2.2024"), 's'}}};
+        DataStep price;
+        price.op = DataStep::Op::Kind;
+        price.col = QStringLiteral("Price");
+        price.kind = QStringLiteral("number");
+        price.decimal = QStringLiteral(",");
+        price.group = QStringLiteral(".");
+        DataStep day;
+        day.op = DataStep::Op::Kind;
+        day.col = QStringLiteral("Day");
+        day.kind = QStringLiteral("date");
+        day.order = QStringLiteral("DMY");
+        const DataStepsRun run = applyDataSteps({price, day}, &t, nullptr);
+        QVERIFY2(run.ok, qPrintable(run.why));
+        QCOMPARE(column(t, 0), (QStringList{QStringLiteral("1234.5"), QString(), QStringLiteral("7")}));
+        QCOMPARE(column(t, 1), (QStringList{QStringLiteral("2023-12-31"), QString(), QStringLiteral("2024-02-01")}));
+        QCOMPARE(run.forcedKinds, (QVector<char>{'n', 'd'}));
+        // month first reads the same text as another day; a day that is not there is refused, in words that name the step, the row, and the value
+        t.rows = {{{QStringLiteral("1"), 's'}, {QStringLiteral("2/30/2024"), 's'}}};
+        day.order = QStringLiteral("MDY");
+        const DataStepsRun bad = applyDataSteps({day}, &t, nullptr);
+        QVERIFY(!bad.ok);
+        QCOMPARE(bad.failedStep, 0);
+        QVERIFY(bad.why.startsWith(QLatin1String("Step 1 (Change Day to date): The value \"2/30/2024\" in row 1")));
+        // text keeps the text a number was read as
+        t.rows = {{{QStringLiteral("007"), 'n'}, {QStringLiteral("x"), 's'}}};
+        DataStep text;
+        text.op = DataStep::Op::Kind;
+        text.col = QStringLiteral("Price");
+        text.kind = QStringLiteral("text");
+        QVERIFY(applyDataSteps({text}, &t, nullptr).ok);
+        QCOMPARE(t.rows[0][0].kind, 's');
+    }
+
+    void aStepThatCannotRunNamesItself()
+    {
+        DataRows t = peopleRows();
+        DataStep keep;
+        keep.op = DataStep::Op::Keep;
+        keep.cols = {QStringLiteral("Name")};
+        DataStep filter;
+        filter.op = DataStep::Op::Filter;
+        filter.col = QStringLiteral("Qty");   // (not there after the first step)
+        filter.cmp = QStringLiteral("gt");
+        filter.value = QStringLiteral("1");
+        const DataStepsRun run = applyDataSteps({keep, filter}, &t, nullptr);
+        QVERIFY(!run.ok);
+        QCOMPARE(run.failedStep, 1);
+        QCOMPARE(run.why, QStringLiteral("Step 2 (Keep rows where Qty is greater than 1): The column \"Qty\" is not there. The columns are: Name."));
+        DataStep twice;
+        twice.op = DataStep::Op::Keep;
+        twice.cols = {QStringLiteral("Name"), QStringLiteral("name")};
+        t = peopleRows();
+        QVERIFY(applyDataSteps({twice}, &t, nullptr).why.contains(QLatin1String("named twice")));
+        DataStep none;
+        none.op = DataStep::Op::Remove;
+        none.cols = {QStringLiteral("Name"), QStringLiteral("Qty"), QStringLiteral("Day")};
+        t = peopleRows();
+        QVERIFY(applyDataSteps({none}, &t, nullptr).why.contains(QLatin1String("no columns")));
+        DataStep clash;
+        clash.op = DataStep::Op::Rename;
+        clash.col = QStringLiteral("Qty");
+        clash.to = QStringLiteral("name");
+        t = peopleRows();
+        QVERIFY(applyDataSteps({clash}, &t, nullptr).why.contains(QLatin1String("already called")));
+    }
+
+    void theStepsLimitsAreCounted()
+    {
+        // the work: a limit smaller than the rows of one step stops it before the step runs; at the limit it runs
+        DataRows t = peopleRows();
+        DataStep filter;
+        filter.op = DataStep::Op::Filter;
+        filter.col = QStringLiteral("Name");
+        filter.cmp = QStringLiteral("notblank");
+        DataStepsRun run = applyDataSteps({filter, filter, filter}, &t, nullptr, 14);   // (5 rows each: 15 visits)
+        QVERIFY(!run.ok);
+        QCOMPARE(run.failedStep, 2);
+        QCOMPARE(run.work, qint64(15));
+        QVERIFY(run.why.contains(QLatin1String("too long")));
+        t = peopleRows();
+        QVERIFY(applyDataSteps({filter, filter, filter}, &t, nullptr, 15).ok);
+        // the number of steps
+        QVector<DataStep> many(kMaxDataSteps + 1, filter);
+        QVERIFY(!applyDataSteps(many, &t, nullptr).ok);
+        QVector<DataStep> back;
+        QString why;
+        QVERIFY(!parseDataSteps(dataStepsToJson(many), &back, &why));
+        QVERIFY(why.contains(QLatin1String("more steps")));
+        many.resize(kMaxDataSteps);
+        QVERIFY(parseDataSteps(dataStepsToJson(many), &back, &why));
+        QCOMPARE(back.size(), kMaxDataSteps);
+        // a name or a value past its limit, and a column list past 256
+        DataStep long1 = filter;
+        long1.value = QString(kMaxDataStepChars + 1, QLatin1Char('x'));
+        QVERIFY(!parseDataSteps(dataStepsToJson({long1}), &back, &why));
+        DataStep wide;
+        wide.op = DataStep::Op::Keep;
+        for (int i = 0; i < 257; ++i) wide.cols << QStringLiteral("c%1").arg(i);
+        QVERIFY(!parseDataSteps(dataStepsToJson({wide}), &back, &why));
+        // cancel: asked as it goes, and the run says it was stopped
+        t = peopleRows();
+        int asked = 0;
+        run = applyDataSteps({filter}, &t, [&] { ++asked; return true; });
+        QVERIFY(!run.ok);
+        QVERIFY(asked >= 1);
+        QVERIFY(run.why.contains(QLatin1String("stopped")));
+    }
+
+    void stepsAreSavedInTheConnectionTextAndANewerOneIsKeptAsItWas()
+    {
+        DataConnection c;
+        c.kind = QStringLiteral("json");
+        c.path = QStringLiteral("/home/ann & bob/rows+1.json");
+        c.name = QStringLiteral("Rows \"1\"");
+        c.ranAt = 1795000000;
+        c.rowCount = 12;
+        DataStep f;
+        f.op = DataStep::Op::Filter;
+        f.col = QStringLiteral("a&b");
+        f.cmp = QStringLiteral("contains");
+        f.value = QStringLiteral("line\none\t\"two\" <x> % + \u2713");
+        DataStep k;
+        k.op = DataStep::Op::Kind;
+        k.col = QStringLiteral("d");
+        k.kind = QStringLiteral("date");
+        k.order = QStringLiteral("YMD");
+        k.label = QStringLiteral("Make dates");
+        c.steps = {f, k};
+        const QString text = c.text();
+        QVERIFY(text.startsWith(QLatin1String("jo-data:2?")));
+        DataConnection back;
+        QVERIFY(DataConnection::parse(text, &back));
+        QCOMPARE(back.steps, c.steps);
+        QCOMPARE(back.name, c.name);
+        QCOMPARE(back.ranAt, c.ranAt);
+        QCOMPARE(back.rowCount, c.rowCount);
+        QCOMPARE(back.path, c.path);
+        QCOMPARE(back.text(), text);
+        // through a table part
+        Table t;
+        t.name = QStringLiteral("T");
+        t.row1 = 0;
+        t.col1 = 0;
+        t.row2 = 1;
+        t.col2 = 0;
+        t.columns = QStringList{QStringLiteral("a")};
+        t.info.resize(1);
+        t.info[0].id = 1;
+        t.id = 1;
+        t.dataSource = text;
+        Table read;
+        read.columns = t.columns;
+        QVERIFY(readTableModel(writeTablePart(t, QByteArray()), &read));
+        QCOMPARE(read.dataSource, text);
+        // without steps, the text is the one of version 1, with no steps in it
+        c.steps.clear();
+        QVERIFY(c.text().startsWith(QLatin1String("jo-data:1?")));
+        QVERIFY(!c.text().contains(QLatin1String("steps=")));
+        // a step of a kind this version does not have: the query reads, can't run, and is written as it was
+        const QString newer = QString(text).replace(QStringLiteral("%22filter%22"), QStringLiteral("%22pivot%22"));
+        QVERIFY(newer != text);
+        DataConnection future;
+        QVERIFY(DataConnection::parse(newer, &future));
+        QVERIFY(!future.stepsProblem.isEmpty());
+        QVERIFY(future.stepsProblem.contains(QLatin1String("newer version")));
+        QVERIFY(future.steps.isEmpty());
+        QCOMPARE(future.text(), newer);
+        // a later version of the text itself is not read at all (the table keeps the string)
+        QVERIFY(!DataConnection::parse(QString(newer).replace(QStringLiteral("jo-data:2"), QStringLiteral("jo-data:3")), &future));
+    }
+
+    void aLongQueryTextIsKeptWholeAndNeverCut()
+    {
+        Table t;
+        t.name = QStringLiteral("T");
+        t.row2 = 1;
+        t.columns = QStringList{QStringLiteral("a")};
+        t.info.resize(1);
+        t.info[0].id = 1;
+        t.id = 1;
+        t.dataSource = QStringLiteral("jo-data:2?kind=json&path=p&steps=") + QString(kMaxDataSourceChars - 40, QLatin1Char('a'));
+        Table read;
+        read.columns = t.columns;
+        QVERIFY(readTableModel(writeTablePart(t, QByteArray()), &read));
+        QCOMPARE(read.dataSource, t.dataSource);
+        QVERIFY(read.dataSource.size() > 80000);
+        // past the limit it is cut at the limit (a table made by the program refuses such a text before it is saved)
+        t.dataSource += QString(1000, QLatin1Char('b'));
+        QVERIFY(readTableModel(writeTablePart(t, QByteArray()), &read));
+        QCOMPARE(read.dataSource.size(), kMaxDataSourceChars);
     }
 };
 

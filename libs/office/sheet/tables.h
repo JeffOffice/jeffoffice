@@ -6,6 +6,7 @@
 
 #include "sheet/refshift.h"
 #include "sheet/sheetmodel.h"
+#include "sheet/datastepmodel.h"
 
 #include <QByteArray>
 #include <QString>
@@ -39,8 +40,6 @@ struct TableColumnInfo {
     }
 };
 
-// The most characters of a table's data source kept in its part.
-constexpr int kMaxDataSourceChars = 80000;
 
 struct Table {
     QString part;                   // the table's part, as the package names it

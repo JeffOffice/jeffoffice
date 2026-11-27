@@ -4,6 +4,8 @@
 // joined into one cell or spread over columns. XML: an element that repeats under the same parent is a list; its attributes and its child elements that hold only text are the columns.
 // An XML file with a document type or an entity is refused (nothing is looked up, nothing is expanded).
 
+#include "sheet/datastepmodel.h"
+
 #include <QByteArray>
 #include <QString>
 #include <QStringList>
@@ -52,6 +54,12 @@ struct DataConnection {
     QString kind, path, list;
     ArrayMode mode = ArrayMode::Join;
     bool asText = false;
+    QString name;          // what the person calls the query (empty: the name of its table)
+    qint64 ranAt = 0;      // when it last ran (seconds since 1970, UTC); 0 when not known
+    qint64 rowCount = -1;  // the rows it gave then; -1 when not known
+    QVector<DataStep> steps;   // what is done to the rows the file gives, in order (datasteps.h)
+    QString stepsText;     // the steps as they were saved (JSON); kept as they were when they can't be read
+    QString stepsProblem;  // why the steps can't be run, in words; empty when they can
     QStringList columns;   // the names the file's columns had in the table when it was made, so that Refresh knows which columns are the file's and which the person added (left out when too many to keep)
     QString text() const;
     static bool parse(const QString &text, DataConnection *out);
