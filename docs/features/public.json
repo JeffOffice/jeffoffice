@@ -591,7 +591,7 @@
         },
         {
          "status": "partly",
-         "text": "c25be5a10ba0ee26d151105eeca60f43a86aa7a5b870983bde3d5aff8799bd59"
+         "text": "8863143439eb62e79c08359975c24f8b635bdfb1985c1b75cd99ec840fecebf3"
         },
         {
          "hide_soon": true,
@@ -18407,6 +18407,18 @@
     "fr": ""
    }
   },
+  "8863143439eb62e79c08359975c24f8b635bdfb1985c1b75cd99ec840fecebf3": {
+   "drop": false,
+   "en": "Rename a sheet, move or copy it within the workbook (or drag its tab), and set a tab color. Formulas that name a renamed sheet follow the new name. A sheet can also be copied to another open workbook.",
+   "es": "Cambie el nombre de una hoja, muévala o cópiela dentro del libro (o arrastre su pestaña) y asigne un color a la pestaña. Las fórmulas que nombran una hoja renombrada siguen el nuevo nombre. También se puede copiar una hoja a otro libro abierto.",
+   "fr": "Renommez une feuille, déplacez-la ou copiez-la dans le classeur (ou faites glisser son onglet) et définissez une couleur d’onglet. Les formules qui nomment une feuille renommée suivent le nouveau nom. Une feuille peut aussi être copiée vers un autre classeur ouvert.",
+   "soon": {
+    "drop": false,
+    "en": "Move a sheet to another workbook, or copy it to a new workbook",
+    "es": "Mover una hoja a otro libro o copiarla a un libro nuevo",
+    "fr": "Déplacement d’une feuille vers un autre classeur, ou copie vers un nouveau classeur"
+   }
+  },
   "886781a9eaa9d8438a36af8adb5a94d9567b95efb8ed74cf0324a107dac5e371": {
    "drop": false,
    "en": "The arrow under Paste lists Paste Special choices as commands: No Borders, Formulas and Number Formatting, Values and Number Formatting, Keep Source Column Widths, and Comments and Notes. It also has Paste Link, which makes each cell a formula pointing at the copied cell, Paste as Hyperlink, and Paste Text Import for text from another program.",
@@ -22257,18 +22269,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "c25be5a10ba0ee26d151105eeca60f43a86aa7a5b870983bde3d5aff8799bd59": {
-   "drop": false,
-   "en": "Rename a sheet, with every formula that names it following. Move or copy a sheet within the workbook, or drag its tab, and set Tab Color. A copy keeps the sheet’s protection, filter, links, page setup, page breaks, row and column groups, and data bar looks, and says it leaves out pictures, charts, notes, pivot tables, sparklines, and names that belong to the sheet alone. A workbook holds up to 1,000 sheets.",
-   "es": "Cambie el nombre de una hoja, con todas las fórmulas que la nombran ajustadas. Mueva o copie una hoja dentro del libro, o arrastre su pestaña, y defina el color de la pestaña. Una copia conserva la protección, el filtro, los vínculos, la configuración de página, los saltos de página, los grupos de filas y columnas y el aspecto de las barras de datos de la hoja, e indica que omite imágenes, gráficos, notas, tablas dinámicas, minigráficos y los nombres propios de la hoja. Un libro admite hasta 1000 hojas.",
-   "fr": "Renommez une feuille, toutes les formules qui la nomment suivant le changement. Déplacez ou copiez une feuille dans le classeur, ou faites glisser son onglet, et définissez la couleur d’onglet. Une copie conserve la protection, le filtre, les liens, la mise en page, les sauts de page, les groupes de lignes et de colonnes et l’aspect des barres de données de la feuille, et signale qu’elle omet les images, graphiques, notes, tableaux croisés dynamiques, graphiques sparkline et noms propres à la feuille. Un classeur peut contenir jusqu’à 1 000 feuilles.",
-   "soon": {
-    "drop": false,
-    "en": "Move or copy a sheet to another open workbook or a new one",
-    "es": "Mover o copiar una hoja a otro libro abierto o a uno nuevo",
-    "fr": "Déplacement ou copie d’une feuille vers un autre classeur ouvert ou un nouveau classeur"
    }
   },
   "c27e688647cb90eaf19078e47a031862418dfd905cb644709e5245a3a4efbbd0": {
