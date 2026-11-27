@@ -1558,6 +1558,11 @@ private Q_SLOTS:
     // line is still drawn, at each text size A+ and A- give (the whole first paragraph vanished from the screen, though the note kept its words).
     void formattingTheFirstWordInPresenterViewKeepsTheFirstParagraphOnScreen()
     {
+        const QVariant sizeSetting = Settings::get().value(QStringLiteral("show/notesSize"));   // (A+ and A- are remembered: the setting is put back, for the tests after)
+        const auto putBack = qScopeGuard([sizeSetting] {
+            if (sizeSetting.isValid()) Settings::get().setValue(QStringLiteral("show/notesSize"), sizeSetting);
+            else Settings::get().remove(QStringLiteral("show/notesSize"));
+        });
         for (int steps : {0, 3, -4, -9}) {
             DeckWindow w;
             Editor *ed = w.editor();
