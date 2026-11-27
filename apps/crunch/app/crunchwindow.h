@@ -557,6 +557,7 @@ public:
         QVector<int> sheets;
         int before = -1;
         bool copy = false;
+        CrunchWindow *toBook = nullptr;   // another open workbook to put the sheets in (null: this one)
     };
     bool readyToQuit() override;
     void setOutlineReplaceAsker(const std::function<bool()> &asker) { m_outlineReplaceAsker = asker; }
@@ -565,6 +566,7 @@ public:
     // Merge Styles with styles of the same name that look different: whether to replace them (a test answers here; `count` is how many).
     void setStyleMergeAsker(const std::function<bool(int count)> &asker) { m_styleMergeAsker = asker; }
     void setWindowPicker(const std::function<int(const QStringList &)> &picker) { m_windowPicker = picker; }
+    void copySheetsToWorkbook(const MoveCopyRequest &request);
     void setMoveCopyAsker(const std::function<bool(MoveCopyRequest *)> &asker) { m_moveCopyAsker = asker; }
     // The sheets the tabs have picked (their places in the workbook), the one with the cursor among them.
     QVector<int> selectedSheets() const;

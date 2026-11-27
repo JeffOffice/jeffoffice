@@ -157,6 +157,13 @@ int EditSession::copiedFrom(int sheet) const
 // extensions of its file that the program keeps no model of, and the names that belong to the sheet alone.
 QString EditSession::notCopiedNote(int sheet) const
 {
+    const QStringList left = notCopiedKinds(sheet);
+    if (left.isEmpty()) return QString();
+    return tr("The copy does not have the %1: those are not copied yet.").arg(QLocale().createSeparatedList(left));
+}
+
+QStringList EditSession::notCopiedKinds(int sheet) const
+{
     const Workbook &book = *m_book->book;
     QStringList left;
     auto add = [&left](const QString &what) {
@@ -197,8 +204,7 @@ QString EditSession::notCopiedNote(int sheet) const
             add(tr("names that belong to the sheet alone (a print area, say)"));
             break;
         }
-    if (left.isEmpty()) return QString();
-    return tr("The copy does not have the %1: those are not copied yet.").arg(QLocale().createSeparatedList(left));
+    return left;
 }
 
 bool EditSession::canChangeSheetList(bool adding, QString *why)

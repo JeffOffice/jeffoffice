@@ -639,6 +639,46 @@ QString renameSheetInFormula(const QString &formula, const QString &oldName, con
     return out;
 }
 
+QString linkSheetsInFormula(const QString &formula, const QString &ownName, const QString &newOwnName, int link, SheetLinkFacts *facts, const jp::calc::ParseLimits &limits)
+{
+    SheetLinkFacts none;
+    SheetLinkFacts &f = facts ? *facts : none;
+    f = SheetLinkFacts();
+    if (!formula.contains(QLatin1Char('!'))) return formula;
+    jp::calc::ParseOptions po;
+    po.limits = limits;
+    std::vector<jp::calc::ReferenceAt> refs;
+    if (!jp::calc::findReferences(formula, po, &refs, true)) {
+        f.unreadable = true;
+        return formula;
+    }
+    QString out;
+    int at = 0;
+    for (const jp::calc::ReferenceAt &r : refs) {
+        if (r.afterWorkbook) {
+            f.readsLinks = true;
+            continue;
+        }
+        if (r.sheet1.isEmpty()) continue;
+        const bool block = !r.sheet2.isEmpty() && !sameSheet(r.sheet1, r.sheet2);
+        if (block) {
+            f.threeD = true;
+            continue;
+        }
+        out += formula.mid(at, r.start - at);
+        at = r.body;
+        if (sameSheet(r.sheet1, ownName)) {
+            out += sheetPrefix(newOwnName);
+            continue;
+        }
+        const QString plain = sheetPrefix(r.sheet1);
+        out += plain.startsWith(QLatin1Char('\'')) ? QStringLiteral("'[%1]").arg(link) + plain.mid(1) : QStringLiteral("[%1]").arg(link) + plain;
+        f.readsOthers = true;
+    }
+    out += formula.mid(at);
+    return out;
+}
+
 QString deleteSheetInFormula(const QString &formula, const QString &name, bool *changed, bool definedName, const jp::calc::ParseLimits &limits)
 {
     if (changed) *changed = false;

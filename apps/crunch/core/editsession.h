@@ -1050,6 +1050,43 @@ public:
     // Whether a sheet can be added (or, with `adding` false, deleted) now: the checks those steps make, asked before a group of steps is begun; else why.
     bool canChangeSheetList(bool adding, QString *why = nullptr);
     Outcome copySheet(int sheet, int before, const QString &name, int *made = nullptr);
+    // ---- a sheet copied to ANOTHER workbook (sheettransfer.cpp). The first workbook's session makes a snapshot of the sheet (plain data: nothing in it points into the first workbook), and the
+    // second's puts it in as a new sheet, in one step of Undo. The two never hold each other's cells: the snapshot is made with the first held back and let go, and then the second is held.
+    struct TransferCell {
+        quint32 row = 0, col = 0;
+        jp::office::sheet::Calculation::CellContent content;   // a formula is as the first workbook writes it; `style` is its place THERE
+        jp::calc::Value shown;                                // what the cell showed (a formula's result)
+        qint32 look = -1;                                     // the place in `SheetExport::looks` of its format (-1: the first format)
+        bool freeze = false;                                  // the cell comes as the value it shows (it uses a name, a table, or is part of an array)
+    };
+    struct SheetExport {
+        QString bookName;               // the first workbook's file name (empty when it has never been saved)
+        QString bookPath;               // and the file (empty when it has never been saved)
+        QString sheetName;
+        QString themeKey;               // the first workbook's theme as text (themeKeyOf)
+        bool date1904 = false;
+        bool bookChanged = false;       // it has changes that are not saved
+        bool readsOtherSheets = false;  // some formula reads another sheet of the first workbook (it becomes a link, which needs the file)
+        std::vector<TransferCell> cells;
+        std::vector<jp::office::sheet::FormatChange> looks, resolvedLooks;   // each distinct format of the cells, as it is and with its colors given as the colors they show
+        QVector<jp::office::sheet::CellRange> merges;
+        std::vector<jp::office::sheet::ColumnSpan> columns;
+        std::vector<jp::office::sheet::RowSpec> rows;
+        std::vector<qint32> columnLook, rowLook;   // the place in `looks` of each column's and row's own format, by place in `columns` and `rows` (-1: none)
+        QStringList notCopied;          // what the copy will not have, as words
+        qint64 frozen = 0;              // the cells that come as values
+        quint32 usedRows = 0, usedCols = 0;
+        bool ok = true;
+        QString problem;                // when not ok: why
+    };
+    // The most cells a sheet may have to be copied to another workbook (a test lowers it; 0 puts it back to kMaxCellsPerEdit).
+    static void setTransferCapForTest(qint64 cells);
+    // Takes the snapshot (`filePath` is the file of the workbook, from the window). Not ok, with the reason, when the sheet can't be copied.
+    SheetExport exportSheet(int sheet, const QString &filePath) const;
+    // What copying the sheet to the workbook the session has would say before it is done: the reason it can't be (ok false), else what it leaves out and what it makes links of.
+    Outcome checkImport(const SheetExport &data) const;
+    // Puts the snapshot in as a new sheet (named `name`, else the sheet's own name made fit) before the sheet `before` (-1: last). The outcome's `problem` says what was left out.
+    Outcome importSheet(const SheetExport &data, int before, const QString &name, int *made = nullptr);
     // Deletes a sheet (the last that is shown can't be); the sheet and everything in it, its tables too, are kept for Undo, and what named a table of it on another sheet is #REF!.
     Outcome deleteSheet(int sheet);
     Outcome renameSheet(int sheet, const QString &name);
@@ -1670,6 +1707,7 @@ private:
     std::vector<CopyPoint> m_copies;
     const CopyPoint *copyPointOf(int sheet) const;
     QString notCopiedNote(int sheet) const;
+    QStringList notCopiedKinds(int sheet) const;
     void applyPermute(jp::office::sheet::CellPermute &p, bool forward);
     void forgetNotes();
     // Threads (editcomments.cpp): not ok, with the reason, if the notes of the cell cannot be changed; and the changes to cells' notes put as one step.

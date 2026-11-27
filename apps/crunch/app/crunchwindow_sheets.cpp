@@ -10,9 +10,12 @@
 #include "app/sheettabs.h"
 
 #include <QAction>
+#include <QApplication>
 #include <QCheckBox>
+#include <QComboBox>
 #include <QDialog>
 #include <QDialogButtonBox>
+#include <QFileInfo>
 #include <QLabel>
 #include <QListWidget>
 #include <QMenu>
@@ -213,7 +216,9 @@ void CrunchWindow::deleteSheetsCommand()
 void CrunchWindow::moveCopyCommand()
 {
     if (m_edit.active && !commitEdit(CellEditor::Way::Stay)) return;
-    if (!editingAllowed()) return;
+    if (!m_session || !isReadOnly()) {
+        if (!editingAllowed()) return;   // (a workbook open for reading only can still be copied from)
+    }
     MoveCopyRequest request;
     request.sheets = selectedSheets();
     const WorkbookInfo &info = m_loaded->book->info();
@@ -243,6 +248,46 @@ void CrunchWindow::moveCopyCommand()
         auto *copy = new QCheckBox(tr("&Copy them, and leave the originals where they are"));
         copy->setObjectName(QStringLiteral("makeCopy"));
         layout->addWidget(copy);
+        // (the other workbooks that are open: a copy can go to one of them)
+        QVector<CrunchWindow *> others;
+        for (QWidget *top : QApplication::topLevelWidgets())
+            if (auto *w = qobject_cast<CrunchWindow *>(top))
+                if (w != this && w->m_session && w->isVisible()) others.push_back(w);
+        QComboBox *toBook = nullptr;
+        QLabel *toNote = nullptr;
+        if (!others.isEmpty()) {
+            auto *toLabel = new QLabel(tr("&To workbook"));
+            layout->addWidget(toLabel);
+            toBook = new QComboBox;
+            toBook->setObjectName(QStringLiteral("toBook"));
+            toLabel->setBuddy(toBook);
+            toBook->addItem(tr("(this workbook)"));
+            for (CrunchWindow *w : others) toBook->addItem(w->filePath().isEmpty() ? w->windowTitle() : QFileInfo(w->filePath()).fileName());
+            layout->addWidget(toBook);
+            toNote = plainLabel(new QLabel);
+            toNote->setObjectName(QStringLiteral("toBookNote"));
+            toNote->setWordWrap(true);
+            layout->addWidget(toNote);
+            // (said before it happens: what the copy will not have, and what becomes a link)
+            auto explain = [&, toBook, toNote] {
+                const int at = toBook->currentIndex() - 1;
+                toNote->clear();
+                if (at < 0) {
+                    copy->setEnabled(true);
+                    return;
+                }
+                copy->setChecked(true);
+                copy->setEnabled(false);   // (moving a sheet to another workbook is not done yet)
+                QStringList said;
+                for (const int s : request.sheets) {
+                    const crunch::EditSession::SheetExport data = m_session->exportSheet(s, filePath());
+                    const crunch::EditSession::Outcome o = others[at]->m_session->checkImport(data);
+                    said << (request.sheets.size() > 1 ? info.sheets[s].name + QStringLiteral(": ") : QString()) + o.problem;
+                }
+                toNote->setText(said.join(QLatin1Char('\n')));
+            };
+            connect(toBook, QOverload<int>::of(&QComboBox::currentIndexChanged), &dialog, explain);
+        }
         auto *buttons = new jp::ButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel);
         layout->addWidget(buttons);
         connect(buttons, &QDialogButtonBox::accepted, &dialog, &QDialog::accept);
@@ -250,7 +295,13 @@ void CrunchWindow::moveCopyCommand()
         if (dialog.exec() != QDialog::Accepted) return;
         request.before = list->currentItem() ? list->currentItem()->data(Qt::UserRole).toInt() : -1;
         request.copy = copy->isChecked();
+        if (toBook && toBook->currentIndex() > 0) request.toBook = others[toBook->currentIndex() - 1];
     }
+    if (request.toBook && request.toBook != this) {
+        copySheetsToWorkbook(request);
+        return;
+    }
+    if (isReadOnly() && !editingAllowed()) return;
     // (a sheet is not put before itself or before one of those that go with it)
     if (request.sheets.contains(request.before)) request.before = -1;
     QUndoStack *u = m_session->undoStack();
@@ -269,6 +320,38 @@ void CrunchWindow::moveCopyCommand()
     }
     if (request.sheets.size() > 1) u->endMacro();
     if (last >= 0) setActiveSheet(last);
+}
+
+// Copies the sheets to another open workbook, as one step of Undo there (the first workbook is only read). Moving a sheet there is not done yet.
+void CrunchWindow::copySheetsToWorkbook(const MoveCopyRequest &request)
+{
+    CrunchWindow *target = request.toBook;
+    if (!request.copy) {
+        notice(tr("Move Sheet"), tr("Moving a sheet to another workbook is not done yet. Choose Copy, and then delete the sheet here if you do not need it."));
+        return;
+    }
+    if (!target->m_session || !target->editingAllowed()) {
+        notice(tr("Copy Sheet"), tr("The other workbook can't be changed now. It may be open for reading only, or still opening."));
+        return;
+    }
+    QUndoStack *u = target->m_session->undoStack();
+    if (request.sheets.size() > 1) u->beginMacro(tr("Copy Sheets to Another Workbook"));
+    int last = -1;
+    QStringList said;
+    for (const int s : request.sheets) {
+        const crunch::EditSession::SheetExport data = m_session->exportSheet(s, filePath());
+        int made = -1;
+        const crunch::EditSession::Outcome o = target->m_session->importSheet(data, -1, QString(), &made);
+        if (!o.ok) {
+            notice(tr("Copy Sheet"), o.problem);
+            break;
+        }
+        if (!o.problem.isEmpty()) said << o.problem;
+        if (made >= 0) last = made;
+    }
+    if (request.sheets.size() > 1) u->endMacro();
+    if (last >= 0) target->setActiveSheet(last);
+    if (!said.isEmpty()) notice(tr("Copy Sheet"), said.join(QLatin1Char('\n')), false);
 }
 
 void CrunchWindow::hideSheetsCommand()

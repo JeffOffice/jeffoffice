@@ -105,6 +105,15 @@ QString sheetNamePrefix(const QString &name);
 // name. Both leave a text as it is when nothing in it names the sheet.
 QString renameSheetInFormula(const QString &formula, const QString &oldName, const QString &newName, bool *changed = nullptr, bool definedName = false, const jp::calc::ParseLimits &limits = jp::calc::ParseLimits());
 QString deleteSheetInFormula(const QString &formula, const QString &name, bool *changed = nullptr, bool definedName = false, const jp::calc::ParseLimits &limits = jp::calc::ParseLimits());
+// What `linkSheetsInFormula` found: a reference through a block of sheets (`Sheet1:Sheet3!A1`: the text is left as it was), one that already reads another workbook (`[1]Data!A1`), a formula that
+// could not be read, and whether any reference named a sheet other than the sheet's own.
+struct SheetLinkFacts {
+    bool threeD = false, readsLinks = false, unreadable = false, readsOthers = false;
+};
+// The formula of a cell of the sheet `ownName` as the same cell has it in ANOTHER workbook, where the sheet is called `newOwnName`: a reference that names the sheet itself names `newOwnName`
+// (it stays on the copied sheet), a reference that names another sheet of the first workbook becomes a link to it (`[link]Sheet2!A1`, `'[link]My Sheet'!A1`), and a reference with no sheet is
+// as it was (it reads the sheet it is on). Cells of other workbooks and blocks of sheets are left as they are and told in `facts`.
+QString linkSheetsInFormula(const QString &formula, const QString &ownName, const QString &newOwnName, int link, SheetLinkFacts *facts = nullptr, const jp::calc::ParseLimits &limits = jp::calc::ParseLimits());
 // Whether a formula has a reference through several sheets ("Sheet1:Sheet3!A1"): what moving or inserting a sheet would change the meaning of.
 bool formulaHasThreeD(const QString &formula, bool definedName = false);
 
