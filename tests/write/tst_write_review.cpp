@@ -5913,6 +5913,21 @@ private Q_SLOTS:
         QVERIFY2(problems.isEmpty(), qPrintable(problems.join(QLatin1Char('\n'))));
     }
 
+    void aNoteMarkAndAPictureInNewTextAreCountedInTheSummaryAndNotDroppedSilently()
+    {
+        const QByteArray picture = "<w:r><w:drawing><wp:inline xmlns:wp=\"http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing\"><wp:extent cx=\"100\" cy=\"100\"/></wp:inline></w:drawing></w:r>";
+        NoteDoc one, two;
+        one.body = para(run("intro"));
+        two.body = para(run("intro")) + para(run("new ") + fnRef(2) + picture + run(" words"));
+        two.notes = {"the note"};
+        const AppCompared r = compareInApp(noteDocx(one), noteDocx(two));
+        QVERIFY2(r.status.contains(QStringLiteral("of the new text could not be shown")), qPrintable(r.status));
+        QVERIFY2(r.status.contains(QStringLiteral("footnote and endnote marks and pictures")), qPrintable(r.status));
+        QVERIFY2(!resolved(r.saved, true).tracked && !resolved(r.saved, false).tracked, "a change is left");
+        QVERIFY(resolved(r.saved, true).texts.join(QLatin1Char('|')).contains(QStringLiteral("new  words")));   // (the words are put in; the mark and the picture are not)
+    }
+
+
     // ---- Compare, slice 2: tables by row and cell
     static QByteArray gridOfRows(const QVector<QStringList> &rows)
     {

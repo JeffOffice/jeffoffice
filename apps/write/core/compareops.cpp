@@ -384,12 +384,29 @@ void giveLook(QTextCharFormat &f, const QTextCharFormat &from)
 // are tracked insertions; the look given to them is part of the insertion (not a change of its own).
 // The words of the revised paragraph `srcBlock`, each piece in its own look, put in at `c` (which ends after them). `inOwnRow`: it is a paragraph of a row that is put in, whose words are not changes of their own (they
 // take the paragraph mark's record of the row's insertion, which is let go).
-void putRevisedWords(WriteDoc &out, QTextDocument *ostory, QTextCursor &c, const QTextBlock &srcBlock, bool inOwnRow = false)
+void countDropped(CompareWork *work, const QTextCharFormat &cf)
+{
+    if (!work) return;
+    const office::wml::Inline a = unpackAtom(storedBytes(cf, prop::Atom));
+    if (a.role == office::wml::Inline::Close) return;   // (the end of a pair is counted with its start)
+    const QString &t = a.tag;
+    if (t == QLatin1String("footnoteReference") || t == QLatin1String("endnoteReference")) ++work->dropped[CompareWork::NoteMarks];
+    else if (t == QLatin1String("drawing") || t == QLatin1String("pict") || t == QLatin1String("object")) ++work->dropped[CompareWork::Pictures];
+    else if (cf.hasProperty(tp::Field) || t.startsWith(QLatin1String("fld")) || t == QLatin1String("instrText")) ++work->dropped[CompareWork::Fields];
+    else if (t == QLatin1String("hyperlink")) ++work->dropped[CompareWork::Links];
+    else ++work->dropped[CompareWork::OtherParts];
+}
+
+void putRevisedWords(WriteDoc &out, QTextDocument *ostory, QTextCursor &c, const QTextBlock &srcBlock, bool inOwnRow = false, CompareWork *work = nullptr)
 {
     for (QTextBlock::iterator it = srcBlock.begin(); !it.atEnd(); ++it) {
         const QTextFragment f = it.fragment();
         const QTextCharFormat cf = f.charFormat();
-        if (isAtom(cf) || cf.hasProperty(prop::TrackedDeleted)) continue;
+        if (isAtom(cf)) {
+            if (!cf.hasProperty(prop::TrackedDeleted)) countDropped(work, cf);
+            continue;
+        }
+        if (cf.hasProperty(prop::TrackedDeleted)) continue;
         QString piece = f.text();
         piece.remove(QChar::ObjectReplacementCharacter);
         if (piece.isEmpty()) continue;
@@ -429,18 +446,18 @@ void dressLikeRevised(WriteDoc &out, QTextDocument *ostory, int blockStart, Writ
     if (kind != ListKind::None && listKindOf(out, ostory->findBlock(blockStart)) == ListKind::None) toggleList(out, at, kind == ListKind::Numbers);
 }
 
-int insertRevisedParagraph(WriteDoc &out, QTextDocument *ostory, QTextCursor &c, WriteDoc &revised, QTextDocument *rstory, const Para &source, bool before, bool inOwnRow = false)
+int insertRevisedParagraph(WriteDoc &out, QTextDocument *ostory, QTextCursor &c, WriteDoc &revised, QTextDocument *rstory, const Para &source, bool before, bool inOwnRow = false, CompareWork *work = nullptr)
 {
     const QTextBlock srcBlock = rstory->findBlock(source.blockFrom);
     int blockStart = 0;
     if (before) {
-        putRevisedWords(out, ostory, c, srcBlock, inOwnRow);
+        putRevisedWords(out, ostory, c, srcBlock, inOwnRow, work);
         insertParagraph(out, c);
         blockStart = ostory->findBlock(c.position()).previous().position();
     } else {
         insertParagraph(out, c);
         blockStart = ostory->findBlock(c.position()).position();
-        putRevisedWords(out, ostory, c, srcBlock, inOwnRow);
+        putRevisedWords(out, ostory, c, srcBlock, inOwnRow, work);
     }
     dressLikeRevised(out, ostory, blockStart, revised, srcBlock);
     return blockStart;
@@ -1193,7 +1210,7 @@ bool putWholeTable(WriteDoc &out, QTextCursor &c, WriteDoc &revised, QTextDocume
 
 // The rows `srcs` of the revised table (top to bottom) put in beside the row of the original's table whose first paragraph `refAt` holds (under it, or above it), as Insert Row Below and Above make
 // them (tracked, all in one command with one layout of the table), with the words of each revised row put in its cells. Returns how many rows were made with their words (0: none was made).
-int putRows(WriteDoc &out, QTextDocument *story, const QTextCursor &refAt, bool below, WriteDoc &revised, QTextDocument *rstory, const QVector<const RowInfo *> &srcs)
+int putRows(CompareWork *work, WriteDoc &out, QTextDocument *story, const QTextCursor &refAt, bool below, WriteDoc &revised, QTextDocument *rstory, const QVector<const RowInfo *> &srcs)
 {
     const int count = int(srcs.size());
     QTextCursor c(story);
@@ -1238,12 +1255,12 @@ int putRows(WriteDoc &out, QTextDocument *story, const QTextCursor &refAt, bool 
             for (int k = 0; k < src.cellParas.at(ci); ++k, ++n) {
                 const QTextBlock sb = rstory->findBlockByNumber(src.firstBlock + n);
                 if (k == 0) {
-                    putRevisedWords(out, story, cur, sb, true);
+                    putRevisedWords(out, story, cur, sb, true, work);
                     dressLikeRevised(out, story, story->findBlock(cur.position()).position(), revised, sb);
                 } else {
                     Para fake;
                     fake.blockFrom = sb.position();
-                    insertRevisedParagraph(out, story, cur, revised, rstory, fake, false, true);
+                    insertRevisedParagraph(out, story, cur, revised, rstory, fake, false, true, work);
                 }
             }
         }
@@ -1334,7 +1351,7 @@ Outcome compareStory(CompareContext &context, WriteDoc *out, QTextDocument *stor
         }
         gaps.push_back(g);
     }
-    if (context.work.matchLeft > 0) addNote(notes, QCoreApplication::translate("jp::write::Compare", "Too much changed to line up all the paragraphs, so a stretch of them is shown as taken out and put in whole, without the formatting of the new text."));
+    if (context.work.matchLeft > 0) addNote(notes, QCoreApplication::translate("jp::write::Compare", "Too much changed to line up all the paragraphs, so a stretch of them is shown as taken out and put in whole. The new text keeps its styles, lists, bold, and italic, but not its text colors, shading, or the spacing between paragraphs."));
     // Paragraphs that only moved.
     QVector<int> movedA(a.size(), -1), movedB(b.size(), -1);
     QStringList moveNames;
@@ -1593,12 +1610,12 @@ Outcome compareStory(CompareContext &context, WriteDoc *out, QTextDocument *stor
                 if (fillLast && movedB.at(t) < 0) {
                     fillLast = false;
                     const QTextBlock src = rstory->findBlock(b.at(t).blockFrom);
-                    putRevisedWords(*out, story, c, src);
+                    putRevisedWords(*out, story, c, src, false, &context.work);
                     dressLikeRevised(*out, story, story->findBlock(c.position()).position(), revised, src);
                     ++made;
                     continue;
                 }
-                const int at = insertRevisedParagraph(*out, story, c, revised, rstory, b.at(t), atStart);
+                const int at = insertRevisedParagraph(*out, story, c, revised, rstory, b.at(t), atStart, false, &context.work);
                 if (movedB.at(t) >= 0) {
                     makeMove(*out, at, atStart ? at : story->findBlock(at).previous().position(), moveNames.at(movedB.at(t)), false);
                     markMovedEdits(*out, at, moveFromTexts.at(movedB.at(t)), moveEdits.at(movedB.at(t)));
@@ -1618,6 +1635,7 @@ Outcome compareStory(CompareContext &context, WriteDoc *out, QTextDocument *stor
         for (int i = g.a0; i < g.a1; ++i)
             if (movedA.at(i) >= 0) ops.push_back({i, -1});
         std::sort(ops.begin(), ops.end(), [](const Op &x, const Op &y) { return x.a > y.a; });
+        QVector<QTextCursor> beforeTables;
         for (const Op &op : std::as_const(ops)) {
             if (op.pair < 0) {
                 const int t = op.a;
@@ -1635,7 +1653,6 @@ Outcome compareStory(CompareContext &context, WriteDoc *out, QTextDocument *stor
                 // paragraph with its own mark deleted that has them left can't be joined to the next, where this one's mark is the one that is left.)
                 const bool lastWay = !blk.next().isValid() || movedA.at(t) >= 0;
                 if (lastWay && blk.previous().isValid() && tablesA.tableOfBlock.value(t - 1, -1) >= 0) {   // (the last paragraph, after a table: its mark is not the one that can go)
-        QVector<QTextCursor> beforeTables;
                     const int before = tablesA.tableOfBlock.value(t - 1, -1);
                     if (plan.partnerA.value(before, -1) >= 0 || plan.stateA.value(before) == TablePlan::Whole) context.work.countUnmarked(CompareWork::Tables);   // (after a table that is not marked, it is that table's difference, counted already)
                     continue;
@@ -1652,6 +1669,9 @@ Outcome compareStory(CompareContext &context, WriteDoc *out, QTextDocument *stor
                 }
                 if (c.hasSelection()) {
                     removeSelection(*out, c);
+                    // (A paragraph before a table: its mark is not one a deletion records, as nothing joins a paragraph to a table; it is marked as taken out all the same, after the paragraphs before it are dealt
+                    // with, and Accept All takes the empty paragraph out.)
+                    if (!lastWay && blk.next().isValid() && cellKeyOf(blk.next()) && !cellKeyOf(blk)) beforeTables.push_back(QTextCursor(story->findBlock(a.at(t).blockFrom)));
                     if (movedA.at(t) >= 0) makeMove(*out, a.at(t).blockFrom, markPos, moveNames.at(movedA.at(t)), true);
                     ++made;
                 }
@@ -1669,9 +1689,6 @@ Outcome compareStory(CompareContext &context, WriteDoc *out, QTextDocument *stor
                 for (int end = to; end > from;) {
                     int begin = end - 1;
                     while (begin > from && pa.places.at(begin - 1) + 1 == pa.places.at(begin)) --begin;
-                    // (A paragraph before a table: its mark is not one a deletion records, as nothing joins a paragraph to a table; it is marked as taken out all the same, after the paragraphs before it are dealt
-                    // with, and Accept All takes the empty paragraph out.)
-                    if (!lastWay && blk.next().isValid() && cellKeyOf(blk.next()) && !cellKeyOf(blk)) beforeTables.push_back(QTextCursor(story->findBlock(a.at(t).blockFrom)));
                     QTextCursor c(story);
                     c.setPosition(pa.places.at(begin));
                     c.setPosition(pa.places.at(end - 1) + 1, QTextCursor::KeepAnchor);
@@ -1686,8 +1703,12 @@ Outcome compareStory(CompareContext &context, WriteDoc *out, QTextDocument *stor
                 ++made;
             }
         }
+        for (const QTextCursor &at : std::as_const(beforeTables)) {
+            const QTextBlock blk = at.block();
+            if (blk.isValid() && !markFormat(blk).hasProperty(prop::TrackedDeleted)) markParagraphMark(*out, blk, "del");
+        }
         for (const int t : std::as_const(preInserts)) {
-            insertRevisedParagraph(*out, story, preAt, revised, rstory, b.at(t), false);
+            insertRevisedParagraph(*out, story, preAt, revised, rstory, b.at(t), false, false, &context.work);
             ++made;
         }
     }
@@ -1703,10 +1724,6 @@ Outcome compareStory(CompareContext &context, WriteDoc *out, QTextDocument *stor
         }
         const QVector<int> &gone = job.edit.deleted;
         for (int hi = int(gone.size()) - 1; hi >= 0;) {   // (the runs of rows that go, the last first)
-        for (const QTextCursor &at : std::as_const(beforeTables)) {
-            const QTextBlock blk = at.block();
-            if (blk.isValid() && !markFormat(blk).hasProperty(prop::TrackedDeleted)) markParagraphMark(*out, blk, "del");
-        }
             int lo = hi;
             while (lo > 0 && gone.at(lo - 1) == gone.at(lo) - 1) --lo;
             QTextCursor c(story);
@@ -1724,7 +1741,7 @@ Outcome compareStory(CompareContext &context, WriteDoc *out, QTextDocument *stor
             while (hi + 1 < put.size() && put.at(hi + 1).ref == put.at(lo).ref && put.at(hi + 1).below == put.at(lo).below) ++hi;
             QVector<const RowInfo *> srcs;   // (top to bottom: those that go under a row go in order, as do those that go above it)
             for (int t = lo; t <= hi; ++t) srcs.push_back(&partner.rows.at(put.at(t).row));
-            const int madeRows = putRows(*out, story, job.rowAt.value(put.at(lo).ref), put.at(lo).below, revised, rstory, srcs);
+            const int madeRows = putRows(&context.work, *out, story, job.rowAt.value(put.at(lo).ref), put.at(lo).below, revised, rstory, srcs);
             made += madeRows;
             for (int t = madeRows; t < int(srcs.size()); ++t) context.work.countUnmarked(CompareWork::Tables);
             lo = hi + 1;
@@ -1818,6 +1835,15 @@ bool sameSpot(int oa, int ob, const QVector<TextEdit> &edits)
     return ob == oa + delta;
 }
 
+// A list of names as words: "a", "a and b", "a, b, and c".
+QString joinedKinds(QStringList names)
+{
+    if (names.size() < 2) return names.value(0);
+    const QString last = names.takeLast();
+    if (names.size() == 1) return QCoreApplication::translate("jp::write::Compare", "%1 and %2").arg(names.first(), last);
+    return QCoreApplication::translate("jp::write::Compare", "%1, and %2").arg(names.join(QLatin1String(", ")), last);
+}
+
 // A fixed list of the kinds of difference that are not marked, as words: "a", "a and b", "a, b, and c".
 QString kindsOfUnmarked(const CompareWork &work)
 {
@@ -1833,10 +1859,7 @@ QString kindsOfUnmarked(const CompareWork &work)
         default: names << QCoreApplication::translate("jp::write::Compare", "parts kept as they were written"); break;
         }
     }
-    if (names.size() < 2) return names.value(0);
-    const QString last = names.takeLast();
-    if (names.size() == 1) return QCoreApplication::translate("jp::write::Compare", "%1 and %2").arg(names.first(), last);
-    return QCoreApplication::translate("jp::write::Compare", "%1, and %2").arg(names.join(QLatin1String(", ")), last);
+    return joinedKinds(names);
 }
 
 // The words of the endnotes' paragraphs and of the text boxes in the text, as lists to tell how many differ (these are not marked yet). Only real text boxes are read, within the limits.
@@ -2026,6 +2049,21 @@ std::unique_ptr<WriteDoc> compareDocumentsWith(CompareContext &context, WriteDoc
         if (!same) context.work.countUnmarked(CompareWork::Footnotes);
     }
     countUnmarkedElsewhere(original, revised, context, &notes);
+    qint64 dropped = 0;
+    QStringList droppedNames;
+    for (int k = 0; k < CompareWork::DroppedKinds; ++k) {
+        if (context.work.dropped[k] <= 0) continue;
+        dropped += context.work.dropped[k];
+        switch (k) {
+        case CompareWork::NoteMarks: droppedNames << QCoreApplication::translate("jp::write::Compare", "footnote and endnote marks"); break;
+        case CompareWork::Fields: droppedNames << QCoreApplication::translate("jp::write::Compare", "fields"); break;
+        case CompareWork::Pictures: droppedNames << QCoreApplication::translate("jp::write::Compare", "pictures"); break;
+        case CompareWork::Links: droppedNames << QCoreApplication::translate("jp::write::Compare", "links"); break;
+        default: droppedNames << QCoreApplication::translate("jp::write::Compare", "parts kept as they were written"); break;
+        }
+    }
+    if (dropped > 0)
+        notes.push_back(QCoreApplication::translate("jp::write::Compare", "%n part of the new text could not be shown (%1).", nullptr, int(dropped)).arg(joinedKinds(droppedNames)));
     if (context.work.notMarked > 0)
         notes.push_back(QCoreApplication::translate("jp::write::Compare", "%n difference is in a place that Compare can't mark yet (%1), so it is not shown.", nullptr, int(context.work.notMarked)).arg(kindsOfUnmarked(context.work)));
     if (progress) progress(done, done);
