@@ -7018,7 +7018,7 @@
        "items": [
         {
          "status": "partly",
-         "text": "3afbc7619fcc631ab38f773fe11741d0a73233fe8e698de1a25db0c193ef4fb0"
+         "text": "f9f10a85f996bac45068be7045a00b681b3f1cfc26b0885d3558bd08203e0c82"
         },
         {
          "hide_soon": true,
@@ -12717,18 +12717,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "3afbc7619fcc631ab38f773fe11741d0a73233fe8e698de1a25db0c193ef4fb0": {
-   "drop": false,
-   "en": "Turn Track Changes on and off with `Ctrl+Shift+E`. Inserted text, deleted text, and changes to the look of text or paragraphs are marked with the author and the time, and each edit is one step of Undo. A document that comes back from an editor opens with its markup shown, and you can move through changes, accept or reject them one at a time or all at once, and review them in the Reviewing pane.",
-   "es": "Active y desactive el control de cambios con `Ctrl+Shift+E`. El texto insertado, el texto eliminado y los cambios en el aspecto del texto o de los párrafos se marcan con el autor y la hora, y cada edición es un paso de Deshacer. Un documento que regresa de un editor se abre con sus marcas visibles, y usted puede recorrer los cambios, aceptarlos o rechazarlos uno por uno o todos a la vez, y revisarlos en el panel de revisión.",
-   "fr": "Activez et désactivez le suivi des modifications avec `Ctrl+Shift+E`. Le texte inséré, le texte supprimé et les changements d’aspect du texte ou des paragraphes sont marqués avec l’auteur et l’heure, et chaque modification correspond à une étape d’annulation. Un document renvoyé par un relecteur s’ouvre avec ses marques affichées, et vous pouvez parcourir les modifications, les accepter ou les refuser une par une ou toutes à la fois, et les examiner dans le volet de révision.",
-   "soon": {
-    "drop": false,
-    "en": "Tracked changes for columns, cells, merges, splits, and table properties; headers, footers, notes, and text boxes; numbering, indents, and sections; and moves",
-    "es": "Control de cambios para columnas, celdas, combinaciones, divisiones y propiedades de tablas; encabezados, pies de página, notas y cuadros de texto; numeración, sangrías y secciones; y movimientos",
-    "fr": "Suivi des modifications pour les colonnes, cellules, fusions, fractionnements et propriétés de tableau ; en-têtes, pieds de page, notes et zones de texte ; numérotation, retraits et sections ; et déplacements"
    }
   },
   "3b3a73bdc8b51d91fe4073c0df1531c2476e8dfa4de77b9ac210f92df267316c": {
@@ -26709,6 +26697,18 @@
     "en": "",
     "es": "",
     "fr": ""
+   }
+  },
+  "f9f10a85f996bac45068be7045a00b681b3f1cfc26b0885d3558bd08203e0c82": {
+   "drop": false,
+   "en": "Turn Track Changes on and off (`Ctrl+Shift+E`). Inserted and deleted text, and changes to the look of text and paragraphs, are recorded with the author and date. Move through changes with Next and Previous, review them in the Reviewing pane, and accept or reject them one at a time or all at once, including changes in tables, headers, footers, footnotes, and endnotes.",
+   "es": "Active y desactive el control de cambios (`Ctrl+Shift+E`). El texto insertado y eliminado, y los cambios en el aspecto del texto y de los párrafos, se registran con el autor y la fecha. Recorra los cambios con Siguiente y Anterior, revíselos en el panel de revisión y acéptelos o recházelos uno por uno o todos a la vez, incluidos los cambios en tablas, encabezados, pies de página, notas al pie y notas finales.",
+   "fr": "Activez et désactivez le suivi des modifications (`Ctrl+Shift+E`). Le texte inséré et supprimé, ainsi que les changements d’aspect du texte et des paragraphes, sont enregistrés avec l’auteur et la date. Parcourez les modifications avec Suivante et Précédente, examinez-les dans le volet de vérification, et acceptez-les ou refusez-les une par une ou toutes à la fois, y compris dans les tableaux, les en-têtes, les pieds de page, les notes de bas de page et les notes de fin.",
+   "soon": {
+    "drop": false,
+    "en": "Tracked changes for columns, cell merge and split, table properties, text boxes, numbering, indents, sections, and moves",
+    "es": "Cambios con seguimiento para columnas, combinación y división de celdas, propiedades de tabla, cuadros de texto, numeración, sangrías, secciones y movimientos",
+    "fr": "Suivi des modifications pour les colonnes, la fusion et la division de cellules, les propriétés de tableau, les zones de texte, la numérotation, les retraits, les sections et les déplacements"
    }
   },
   "f9fee748ef0982d92b57afe3098aa17dc1b1c7b0fe237caab6caa569e9b95b87": {
