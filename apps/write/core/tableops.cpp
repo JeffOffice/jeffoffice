@@ -922,6 +922,40 @@ void insertTableRows(WriteDoc &doc, QTextCursor &c, bool below, int rows)
     c.endEditBlock();
 }
 
+bool insertTableRowRuns(WriteDoc &doc, const QVector<RowRun> &runs)
+{
+    if (runs.isEmpty()) return true;
+    QTextCursor first = runs.first().at;
+    if (lockedByControl(first)) return false;
+    TableCommand command(doc, true);
+    auto v = viewAt(doc, first.selectionStart());
+    if (!v) return false;
+    struct Place {
+        int ref, count, point;   // (the row it is beside, how many, and where in the text the new rows go: the places are worked from the last, so that those before are where they were)
+        bool below;
+    };
+    QVector<Place> places;
+    qint64 cells = v->layout->cellCount();
+    int rows = v->layout->rowCount();
+    for (const RowRun &r : runs) {
+        const Area area = areaOf(*v, r.at);
+        const int ref = r.below ? area.r1 : area.r0;
+        if (area.r1 < area.r0 || ref < 0 || ref >= v->layout->rowCount() || r.count <= 0) return false;
+        const flow::TableLayout::Row &row = v->layout->row(ref);
+        places.push_back({ref, r.count, r.below ? row.to - 1 : row.from, r.below});
+        rows += r.count;
+        cells += qint64(r.count) * row.cells;
+    }
+    if (pastTheLimits(doc, rows, columnCountOf(*v->layout), cells)) return false;
+    std::stable_sort(places.begin(), places.end(), [](const Place &a, const Place &b) { return a.point > b.point; });
+    first.beginEditBlock();
+    for (const Place &p : std::as_const(places))
+        for (int n = 0; n < p.count; ++n) addRow(doc, *v, p.ref, p.below);
+    restyleTable(doc, first);
+    first.endEditBlock();
+    return true;
+}
+
 void insertTableColumn(WriteDoc &doc, QTextCursor &c, bool right)
 {
     if (lockedByControl(c)) return;   // (a content control keeps what is in it)

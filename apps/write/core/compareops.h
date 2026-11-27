@@ -39,6 +39,7 @@ struct CompareLimits {
 struct CompareWork {
     // The kinds of difference that are counted and not marked, in the order the note names them.
     enum Unmarked { Tables, Footnotes, Endnotes, TextBoxes, HeadersFooters, KeptAsWritten, UnmarkedKinds };
+    qint64 rowRunBatches = 0;   // (the tables that had rows put in: all the runs of rows of each are made as one command)
     qint64 rowsLined = 0, rowsPut = 0, rowsTaken = 0, tablesPut = 0, tablesTaken = 0, matchCells = 0, matchLeft = 0;   // (rows and tables marked as put in and taken out; paragraphs of stretches the bound left whole)
     qint64 stories = 0, notMarked = 0, moveComparisons = 0, moveWords = 0, moveCells = 0, diffCells = 0, moves = 0, formatChanges = 0, formatFragments = 0, alignBlocks = 0, drawings = 0, boxesRead = 0;
     // What the words put in as new text could not carry (each is counted, and the summary names them): the marks of notes, fields, pictures, links, and other parts kept as written.

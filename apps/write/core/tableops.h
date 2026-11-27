@@ -47,6 +47,14 @@ void giveCellKey(QTextBlock first, QTextBlock last, int key);
 void insertTableRow(WriteDoc &doc, QTextCursor &c, bool below);
 // `rows` rows (1 or more) beside the row the caret is in, in one command and with one layout of the table (0: as many as the rows the selection covers, as Insert Row does).
 void insertTableRows(WriteDoc &doc, QTextCursor &c, bool below, int rows);
+// Runs of rows beside rows of ONE table (the table of the first run's place), all in one command with one layout of the table and one rebuild of its index: `count` rows beside the row the cursor is in, above or
+// below it. False, with nothing done, when a content control keeps the table, or the table would be past the limits.
+struct RowRun {
+    QTextCursor at;
+    bool below = true;
+    int count = 1;
+};
+bool insertTableRowRuns(WriteDoc &doc, const QVector<RowRun> &runs);
 void insertTableColumn(WriteDoc &doc, QTextCursor &c, bool right);
 void deleteTableRows(WriteDoc &doc, QTextCursor &c);
 void deleteTableColumns(WriteDoc &doc, QTextCursor &c);

@@ -1169,13 +1169,27 @@ bool contentControlsAllowIn(QTextDocument *story, int from, int to, bool typing)
 }
 
 static int s_lockedScans = 0;
+static const char *const kNoLockedContent = "jpNoLockedContent";
+
+NoLockedContent::NoLockedContent(QTextDocument *s) : story(s)
+{
+    if (story && !story->property(kNoLockedContent).toBool() && lockedContentRanges(story, false).isEmpty()) {
+        story->setProperty(kNoLockedContent, true);
+        on = true;
+    }
+}
+NoLockedContent::~NoLockedContent()
+{
+    if (on) story->setProperty(kNoLockedContent, QVariant());
+}
+
 int lockedRangeScansForTest() { return s_lockedScans; }
 
 QVector<std::pair<int, int>> lockedContentRanges(QTextDocument *story, bool withEdges)
 {
-    ++s_lockedScans;
     QVector<std::pair<int, int>> out;
-    if (!story) return out;
+    if (!story || story->property(kNoLockedContent).toBool()) return out;
+    ++s_lockedScans;
     int budget = kMostControls;
     for (QTextBlock b = story->begin(); b.isValid(); b = b.next())
         for (const Span &s : spansOf(b, &budget)) {

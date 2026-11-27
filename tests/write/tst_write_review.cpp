@@ -5,6 +5,7 @@
 #include "../isolatesettings.h"
 #include "../withdialog.h"
 #include "../pub/threadscript.h"
+#include "core/contentcontrolops.h"
 #include "core/proofops.h"
 #include "core/textboxops.h"
 #include "core/threads.h"
@@ -5867,9 +5868,9 @@ private Q_SLOTS:
         for (int i = 0; i < 2 * n; ++i) one.push_back({QStringLiteral("a%1").arg(i), QStringLiteral("b%1").arg(i)});
         two = one;
         for (int i = 0; i < n; ++i) two.insert(n + i, {QStringLiteral("r%1").arg(i), QStringLiteral("s%1").arg(i)});
-        const qint64 rebuilds = tableIndexRebuildsForTest(), views = tableViewsBuiltForTest();
+        const qint64 rebuilds = tableIndexRebuildsForTest(), views = tableViewsBuiltForTest(), scans = lockedRangeScansForTest();
         const AppCompared r = compareInApp(makeDocx(gridOfRows(one)), makeDocx(gridOfRows(two)));
-        const QVector<qint64> work{r.changes, tableIndexRebuildsForTest() - rebuilds, tableViewsBuiltForTest() - views};
+        const QVector<qint64> work{r.changes, tableIndexRebuildsForTest() - rebuilds, tableViewsBuiltForTest() - views, lockedRangeScansForTest() - scans};
         if (check) {
             const Resolved accepted = resolved(r.saved, true), rejected = resolved(r.saved, false);
             if (accepted.tracked || rejected.tracked || accepted.tables.value(0).rows.size() != 3 * n || rejected.tables.value(0).rows.size() != 2 * n)
@@ -5885,6 +5886,39 @@ private Q_SLOTS:
         QCOMPARE(w400.at(0), qint64(400));
         // (Four times the rows is not four times the layouts, let alone sixteen: a run of rows is one command.)
         QVERIFY2(w400.at(1) <= w100.at(1) + 4 && w400.at(2) <= w100.at(2) + 4, qPrintable(QStringLiteral("%1/%2 against %3/%4").arg(w100.at(1)).arg(w100.at(2)).arg(w400.at(1)).arg(w400.at(2))));
+        // (Nor is it a look through the whole text for locked content controls for each edit of each row: that is made once for the table.)
+        QVERIFY2(w100.at(3) <= 4 && w400.at(3) <= 4, qPrintable(QStringLiteral("%1 and %2 looks for locked content").arg(w100.at(3)).arg(w400.at(3))));
+    }
+
+    // The work one Compare of a table with `n` new rows, each in a place of its own (one new row after every eighth), makes, through the window's own command; the saved result is checked too.
+    static QVector<qint64> workOfRowsScattered(int n, bool check)
+    {
+        QVector<QStringList> one, two;
+        for (int i = 0; i < 8 * n; ++i) {
+            one.push_back({QStringLiteral("a%1").arg(i), QStringLiteral("b%1").arg(i)});
+            two.push_back(one.last());
+            if (i % 8 == 7) two.push_back({QStringLiteral("r%1").arg(i), QStringLiteral("s%1").arg(i)});
+        }
+        two.push_front({QStringLiteral("first"), QStringLiteral("row")});   // (and one above the first row, one below the last)
+        two.push_back({QStringLiteral("last"), QStringLiteral("row")});
+        const qint64 rebuilds = tableIndexRebuildsForTest(), views = tableViewsBuiltForTest(), scans = lockedRangeScansForTest();
+        const AppCompared r = compareInApp(makeDocx(gridOfRows(one)), makeDocx(gridOfRows(two)));
+        const QVector<qint64> work{r.changes, tableIndexRebuildsForTest() - rebuilds, tableViewsBuiltForTest() - views, lockedRangeScansForTest() - scans};
+        if (check) {
+            const Resolved accepted = resolved(r.saved, true), rejected = resolved(r.saved, false);
+            if (accepted.tracked || rejected.tracked || accepted.tables.value(0).rows != two || rejected.tables.value(0).rows != one) return {};
+        }
+        return work;
+    }
+    void rowsPutInManyPlacesOfOneTableAreOneBatchWithOneLayoutAndTheirWordsAreRight()
+    {
+        const QVector<qint64> w20 = workOfRowsScattered(20, true), w80 = workOfRowsScattered(80, false);
+        QVERIFY2(!w20.isEmpty() && !w80.isEmpty(), "a table accepts and rejects to the two tables");
+        QCOMPARE(w20.at(0), qint64(22));
+        QCOMPARE(w80.at(0), qint64(82));
+        // (Four times the rows in as many places is not four times the layouts, let alone sixteen: every run of the table is one command, and one look for locked content.)
+        QVERIFY2(w80.at(1) <= w20.at(1) + 4 && w80.at(2) <= w20.at(2) + 4, qPrintable(QStringLiteral("%1/%2 against %3/%4").arg(w20.at(1)).arg(w20.at(2)).arg(w80.at(1)).arg(w80.at(2))));
+        QVERIFY2(w20.at(3) <= 4 && w80.at(3) <= 4, qPrintable(QStringLiteral("%1 and %2 looks for locked content").arg(w20.at(3)).arg(w80.at(3))));
     }
 
     // A compare of `one` with `two` through the window; "" when Accept All gives the revised text (or, with the difference counted as "(tables)", the original) and Reject All gives the original, no change left.

@@ -138,6 +138,16 @@ bool contentControlsAllowIn(QTextDocument *story, int from, int to, bool typing)
 // The places of a story that content controls keep from being changed (the contents of those that can't be edited, and what only a choice fills in), as sorted, separate ranges [first, end); with
 // `withEdges` the paragraph breaks at the edges of a control round paragraphs are in them. The places of a change (a format, an accepted or rejected change) are checked against them.
 QVector<std::pair<int, int>> lockedContentRanges(QTextDocument *story, bool withEdges);
+// While alive, a story that has no content control that keeps its contents is not looked through for them at each edit (the work of one edit would be the whole text): for a batch of edits that put in plain
+// text and no control. (When the story has a locked control to begin with, nothing is held, and each edit looks as before.)
+struct NoLockedContent {
+    explicit NoLockedContent(QTextDocument *s);
+    ~NoLockedContent();
+    NoLockedContent(const NoLockedContent &) = delete;
+    NoLockedContent &operator=(const NoLockedContent &) = delete;
+    QTextDocument *story;
+    bool on = false;
+};
 bool overlapsRanges(const QVector<std::pair<int, int>> &ranges, int from, int to);
 // For tests: how many times the places have been worked out, since the program began.
 int lockedRangeScansForTest();
