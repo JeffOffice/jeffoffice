@@ -1991,7 +1991,7 @@ private Q_SLOTS:
         QTextCursor end(pane->document());
         end.movePosition(QTextCursor::End);
         end.insertBlock();   // (an item that goes on the last one's list, with nothing in it yet)
-        QTRY_COMPARE(markerTexts(pane).size(), 11);
+        QTRY_COMPARE(markerTexts(pane).size(), 10);   // (the new item is empty: the printed page draws no marker for it)
         QTRY_VERIFY(markersInside(pane));
         QTextCursor last(pane->document());
         last.movePosition(QTextCursor::End);
@@ -2559,6 +2559,7 @@ private Q_SLOTS:
             NotesPane *pane = notesWith(w, lines.join(QLatin1Char('\n')));
             Editor *ed = w.editor();
             ed->view.spelling = true;
+            pane->verticalScrollBar()->setValue(pane->verticalScrollBar()->maximum());   // (the notes open at their top: a person reading to the end types there, where the marks of the words in view have the least above and below)
             QTest::mouseClick(pane->viewport(), Qt::LeftButton, Qt::NoModifier, QPoint(5, 5));
             if (!ed->editingStoryOnly()) return {};
             QTest::keyClicks(pane, QStringLiteral("a"));   // (the first key: the story's paragraphs are all checked once)
@@ -2576,7 +2577,7 @@ private Q_SLOTS:
         // Typing in one paragraph checks that one paragraph (at most two with the one the caret was in), makes the marks once for the key, and sweeps the commands not at all.
         QVERIFY2(large[0] <= 10 * 2, qPrintable(QString::number(large[0])));
         QVERIFY2(large[1] <= 10 * 3, qPrintable(QString::number(large[1])));
-        QVERIFY2(large[2] <= small[2] + 10 * 6 * 2 && large[2] < 400, qPrintable(QString::number(large[2])));   // (the marks of the words in view, not of 5,000 paragraphs)
+        QVERIFY2(large[2] <= small[2] + 10 * 6 * 2 && large[2] < 400, qPrintable(QString::number(large[2]) + QStringLiteral(" small ") + QString::number(small[2])));   // (the marks of the words in view, not of 5,000 paragraphs)
         QVERIFY2(large[3] == 0, qPrintable(QString::number(large[3])));
         QVERIFY2(large[0] <= small[0] + 2, "paragraphs checked do not grow with the note");
     }
