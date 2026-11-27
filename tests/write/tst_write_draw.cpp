@@ -7736,10 +7736,25 @@ private Q_SLOTS:
             QCOMPARE(blipFiltersAsked(), asked + 1);
             QTRY_COMPARE(HeldFilterWorker::entered().load(), 1);
             paintsBefore = paints;
+            // (Told after the window is, in the same turn: the listeners are called in the order they were added.)
+            const int finishedBefore = blipFiltersFinished();
+            int told = 0, paintsWhenTold = 0;
+            const int listener = addBlipFilterListener([&] {
+                if (blipFiltersFinished() == finishedBefore) return;   // (a call for work that ended before this)
+                ++told;
+                paintsWhenTold = paints;
+            });
             held.release();
-            // Done: the window is told to draw again, and does.
-            QTRY_VERIFY(paints > paintsBefore);
-            QVERIFY(colorsIn(view.viewport()->grab().toImage()) > 1);
+            // Done: the work ends, the window is told to draw again (a paint from any other cause before that shows nothing new), and does.
+            const auto state = [&] {
+                return QStringLiteral("filters asked %1, finished %2 (of %3 expected), window told %4 times, paints %5 (when told %6)")
+                    .arg(blipFiltersAsked() - asked).arg(blipFiltersFinished() - finishedBefore).arg(1).arg(told).arg(paints).arg(paintsWhenTold);
+            };
+            QTRY_VERIFY2(told > 0, qPrintable(QStringLiteral("the work never reported done: ") + state()));
+            QTRY_VERIFY2(paints > paintsWhenTold, qPrintable(QStringLiteral("the window was told but did not paint again: ") + state()));
+            removeBlipFilterListener(listener);
+            const int colors = colorsIn(view.viewport()->grab().toImage());
+            QVERIFY2(colors > 1, qPrintable(QStringLiteral("painted after the work was done but still %1 color(s): ").arg(colors) + state()));
         }
         // Print, PDF, and the picture of a page wait for the filters: another picture, never worked out, is the finished picture at once, with nothing asked of the worker beside the window.
         auto output = open(fileWith(0.47));
