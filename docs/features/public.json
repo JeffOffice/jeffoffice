@@ -1569,11 +1569,11 @@
        "items": [
         {
          "status": "partly",
-         "text": "e472cbfc435ed730e36f2bf5909ce80cb0e00b60b992915395637460744a4c6e"
+         "text": "786ee0615afceabe6b8c60c93ba61cc570318defd839ec2e9b667df3accebc37"
         },
         {
          "status": "partly",
-         "text": "ecd2ee277a52d1fc1210a71178544d34905f74c2857a9db5806645c85bafac50"
+         "text": "b578ac1ed2e4f86fbd0fd144d14ab297c766ffff6b034e1189e8f0196a60a7d4"
         }
        ]
       },
@@ -17423,6 +17423,18 @@
     "fr": ""
    }
   },
+  "786ee0615afceabe6b8c60c93ba61cc570318defd839ec2e9b667df3accebc37": {
+   "drop": false,
+   "en": "Slicers in a file are drawn over the cells with a caption, a button for each item, and a clear-filter button; click, `Ctrl`-click, or Shift-click buttons to filter the tables, and move, resize, select, or delete a slicer.",
+   "es": "Los segmentadores de un archivo se dibujan sobre las celdas con un título, un botón para cada elemento y un botón para borrar el filtro; haga clic, `Ctrl`-clic o Mayús-clic en los botones para filtrar las tablas, y mueva, cambie el tamaño, seleccione o elimine un segmentador.",
+   "fr": "Les segments d’un fichier sont dessinés sur les cellules avec un titre, un bouton par élément et un bouton d’effacement du filtre ; cliquez, `Ctrl`-clic ou Maj-clic sur les boutons pour filtrer les tableaux, puis déplacez, redimensionnez, sélectionnez ou supprimez un segment.",
+   "soon": {
+    "drop": false,
+    "en": "Slicer tab: Insert Slicer, styles, Properties, Bring to Front, Send to Back, and changing which tables it filters",
+    "es": "Pestaña Segmentador: insertar segmentador, estilos, propiedades, traer al frente, enviar al fondo y cambiar las tablas que filtra",
+    "fr": "Onglet Segment : insérer un segment, styles, propriétés, premier plan, arrière-plan et choix des tableaux filtrés"
+   }
+  },
   "78889d1b0ed00334318931a5c784a9d7fb457190fe1acb5c1041972f9be99f8b": {
    "drop": false,
    "en": "Fills: solid, gradient (linear, radial, rectangular, and path) with stops, picture, texture, and pattern, all with transparency. A shape can fill with the slide’s background, and an empty placeholder shows its layout’s picture fill.",
@@ -21491,6 +21503,18 @@
     "fr": ""
    }
   },
+  "b578ac1ed2e4f86fbd0fd144d14ab297c766ffff6b034e1189e8f0196a60a7d4": {
+   "drop": false,
+   "en": "The app reads a timeline’s field, the tables it filters, the chosen span, and its caption, and the Slicers pane lists it; Report Connections names the tables it filters.",
+   "es": "La aplicación lee el campo de una escala de tiempo, las tablas que filtra, el período elegido y su título, y el panel de segmentadores la enumera; las conexiones del informe nombran las tablas que filtra.",
+   "fr": "L’application lit le champ d’une chronologie, les tableaux qu’elle filtre, la période choisie et son titre, et le volet des segments la répertorie ; les connexions de rapport nomment les tableaux filtrés.",
+   "soon": {
+    "drop": false,
+    "en": "Timeline tab: drawing over the cells, time levels, Insert Timeline, and styles",
+    "es": "Pestaña Escala de tiempo: dibujo sobre las celdas, niveles de tiempo, insertar escala de tiempo y estilos",
+    "fr": "Onglet Chronologie : dessin sur les cellules, niveaux de temps, insertion d’une chronologie et styles"
+   }
+  },
   "b608a5e43ba423bc70e16ce5a8dbf74817f4b081b474bea911305d7324867973": {
    "drop": false,
    "en": "New",
@@ -24959,18 +24983,6 @@
     "fr": ""
    }
   },
-  "e472cbfc435ed730e36f2bf5909ce80cb0e00b60b992915395637460744a4c6e": {
-   "drop": false,
-   "en": "Slicers in a file are drawn over the cells with a caption, a button for each item, and a clear-filter button. Click, Ctrl-click, or the clear button to filter the linked tables as one step of Undo.",
-   "es": "Los segmentadores de un archivo se dibujan sobre las celdas con un título, un botón para cada elemento y un botón para borrar el filtro. Haga clic, Ctrl+clic o use el botón de borrar para filtrar las tablas vinculadas en un solo paso de Deshacer.",
-   "fr": "Les segments d’un fichier sont dessinés sur les cellules avec une légende, un bouton pour chaque élément et un bouton d’effacement du filtre. Cliquez, Ctrl+clic ou utilisez le bouton d’effacement pour filtrer les tableaux liés en une seule étape d’annulation.",
-   "soon": {
-    "drop": false,
-    "en": "Slicer tab: select, move, size, and delete slicers, insert slicers, change which tables a slicer filters, and slicer styles",
-    "es": "Pestaña Segmentador: seleccionar, mover, cambiar el tamaño y eliminar segmentadores, insertar segmentadores, cambiar qué tablas filtra un segmentador y estilos de segmentador",
-    "fr": "Onglet Segment : sélectionner, déplacer, redimensionner et supprimer des segments, insérer des segments, changer les tableaux filtrés par un segment et styles de segment"
-   }
-  },
   "e4909f9574f475c64362dd26a897c973eba8a48408347852dfbb93f2e5ed2580": {
    "drop": false,
    "en": "Layer, group, and lock objects, including locking position and size.",
@@ -25713,18 +25725,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "ecd2ee277a52d1fc1210a71178544d34905f74c2857a9db5806645c85bafac50": {
-   "drop": false,
-   "en": "A timeline’s settings are read from the file, and the Slicers pane lists it. Clicking a button filters the tables it names as one step of Undo.",
-   "es": "Los ajustes de una escala de tiempo se leen del archivo y el panel Segmentadores la muestra en una lista. Al hacer clic en un botón se filtran las tablas que nombra, en un solo paso de Deshacer.",
-   "fr": "Les paramètres d’une chronologie sont lus dans le fichier et le volet Segments la répertorie. Un clic sur un bouton filtre les tableaux qu’elle nomme, en une seule étape d’annulation.",
-   "soon": {
-    "drop": false,
-    "en": "Timeline tab: draw timelines over the cells, click and change time levels, insert timelines, and timeline styles",
-    "es": "Pestaña Escala de tiempo: dibujar escalas de tiempo sobre las celdas, hacer clic y cambiar los niveles de tiempo, insertar escalas de tiempo y estilos de escala de tiempo",
-    "fr": "Onglet Chronologie : dessiner les chronologies sur les cellules, cliquer et changer les niveaux de temps, insérer des chronologies et styles de chronologie"
    }
   },
   "ece40f16626684f64082dd5efec8558d95a1cbfd4010af5a591580b8b56b0de5": {
