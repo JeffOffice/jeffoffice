@@ -110,7 +110,8 @@ void SheetSlicers::looksChanged(int sheet)
 
 int SheetSlicers::slicerOf(int sheet, Item &item)
 {
-    if (item.slicer == -2) item.slicer = m_names ? m_names(item.name, sheet) : -1;
+    // (a slicer found is kept; "none" is asked again each time, as the workbook may not have been able to tell yet, and a click would then do nothing for good)
+    if (item.slicer < 0) item.slicer = m_names ? m_names(item.name, sheet) : -1;
     return item.slicer;
 }
 

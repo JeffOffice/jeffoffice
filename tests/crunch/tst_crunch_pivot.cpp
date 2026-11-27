@@ -3270,6 +3270,41 @@ private Q_SLOTS:
         }
     }
 
+    // Which slicer a drawing's name is can be asked before the workbook can tell: "none yet" is not kept, so the click that comes later acts on what is there then.
+    void aSlicerThatHadNoNameYetTakesAClickOnceItHasOne()
+    {
+        crunch::SheetSlicers slicers;
+        slicers.open(nullptr);
+        jp::office::sheet::DrawingSlicer found;
+        found.name = QStringLiteral("Region");
+        slicers.list(0, {found});
+        int named = -1;
+        slicers.setSources(
+            [](int, const QString &, int, qint64, int, crunch::SlicerFace *face) {
+                face->itemCount = 2;
+                face->chosenCount = 2;
+                face->buttons = {{QStringLiteral("East"), 0, true, false}, {QStringLiteral("West"), 1, true, false}};
+                return true;
+            },
+            [&named](const QString &, int) { return named; });
+        QSignalSpy clicked(&slicers, &crunch::SheetSlicers::itemClicked);
+        const std::vector<jp::grid::LayerObject> objects = slicers.layerObjects(0);
+        QCOMPARE(int(objects.size()), 1);
+        const QSizeF size(200, 200);
+        crunch::SlicerFace face;
+        face.itemCount = 2;
+        face.chosenCount = 2;
+        face.buttons = {{QStringLiteral("East"), 0, true, false}, {QStringLiteral("West"), 1, true, false}};
+        const QPointF at = crunch::slicerGeometry(size, face).button(1).center();
+        const QPointF fraction(at.x() / size.width(), at.y() / size.height());
+        QVERIFY(!objects[0].operateKeys(fraction, size, Qt::NoModifier));   // (no slicer of that name yet: nothing to click)
+        QCOMPARE(clicked.count(), 0);
+        named = 0;   // (the workbook can tell now)
+        QVERIFY(objects[0].operateKeys(fraction, size, Qt::NoModifier));
+        QCOMPARE(clicked.count(), 1);
+        QCOMPARE(clicked.first().at(1).toInt(), 1);
+    }
+
     // A shape that draws nothing (no fill, no line) is not clicked: the click goes to what is under it, and that is so whether or not the picture of it was made yet.
     void aShapeThatDrawsNothingLetsAClickOnASlicerThroughInEveryState()
     {

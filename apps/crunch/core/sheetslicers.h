@@ -82,7 +82,7 @@ private:
         jp::office::sheet::DrawingAnchor baseAnchor, anchor;
         int ordinal = 0;
         bool hidden = false, prints = true, dropped = false;
-        int slicer = -2;   // which slicer it is (-1 none, -2 not looked for yet)
+        int slicer = -2;   // which slicer it is (-1 none so far, -2 not looked for yet: both are looked for again)
     };
     struct Sheet {
         bool listed = false;
