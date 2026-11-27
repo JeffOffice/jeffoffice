@@ -12,6 +12,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <limits>
 
 namespace jp::grid {
 
@@ -803,19 +804,32 @@ QRect ObjectLayer::deviceRect(int id, Pane pane) const
     return r.intersects(m_layout->pane(pane).rect) ? r : QRect();
 }
 
-void ObjectLayer::makeForHit(size_t i, const GridLayout &layout, Pane pane) const
+bool ObjectLayer::makeForHit(size_t i, const GridLayout &layout, Pane pane) const
 {
-    // (a click is answered from the picture, so a picture not made yet is made now: the answer then does not turn on whether the timer got to it first. Only what draws at once is made here, a few at a click)
+    // (a click is answered from the picture, so a picture not made yet is made now: the answer then does not turn on whether the timer got to it first. Only what draws at once is made here, within the pixels of the click's budget; true when the picture is wanted and was left, so the object is answered by its box)
     ObjectLayer *self = const_cast<ObjectLayer *>(this);
     Entry &e = self->m_entries[i];
-    if (e.pending || !e.image.isNull() || e.failed || m_hitMade >= kPicturesPerStep) return;
+    if (e.pending || !e.image.isNull() || e.failed) return false;
     self->settle(e);
     const QRect box = rectIn(layout, pane, e);
-    if (box.isEmpty() || !e.object.render || e.object.prepare) return;
-    const QSize wanted = sizeWanted(drawRect(box, e, layout.zoom()), m_dpr);
-    self->store(e, e.object.render(requestFor(e, box, wanted, layout.zoom())), wanted, layout.zoom());
-    ++m_hitMade;
+    if (box.isEmpty() || !e.object.render || e.object.prepare) return false;
+    if (m_hitPictures >= m_hitMostPictures) return true;
+    if (!m_hitShrunk) {
+        self->updateShrink(layout);   // (the size the timer will see)
+        m_hitShrunk = true;
+    }
+    const double zoom = layout.zoom();
+    const QRect whole = drawRect(box, e, zoom);
+    const QSize wanted = sizeWanted(whole, m_dpr);
+    const qint64 pixels = qint64(wanted.width()) * wanted.height();
+    if (m_hitPixels + pixels > kHitPixels) return true;
+    self->store(e, e.object.render(requestFor(e, box, wanted, zoom)), wanted, zoom);
+    m_hitPixels += pixels;
+    ++m_hitPictures;
+    const QRect now = whole.intersected(layout.pane(pane).rect);
+    if (!now.isEmpty()) requestRepaint(now);   // (as the timer does: a shape drawn as nothing before is drawn now)
     self->evict();
+    return false;
 }
 
 bool ObjectLayer::inkAt(const Entry &e, const GridLayout &layout, Pane pane, const QPoint &point) const
@@ -835,6 +849,16 @@ bool ObjectLayer::inkAt(const Entry &e, const GridLayout &layout, Pane pane, con
 
 int ObjectLayer::objectAt(const QPoint &point) const
 {
+    return objectAtMaking(point, std::numeric_limits<int>::max());
+}
+
+int ObjectLayer::objectUnder(const QPoint &point) const
+{
+    return objectAtMaking(point, 1);
+}
+
+int ObjectLayer::objectAtMaking(const QPoint &point, int mostPictures) const
+{
     if (!m_layout) return -1;
     const GridLayout &layout = *m_layout;
     ensureBoxes(layout);
@@ -842,12 +866,15 @@ int ObjectLayer::objectAt(const QPoint &point) const
         if (!layout.pane(pane).rect.contains(point)) continue;
         std::vector<size_t> here;
         candidates(layout, pane, QRect(point, QSize(1, 1)), &here);
-        m_hitMade = 0;
+        m_hitPictures = 0;
+        m_hitPixels = 0;
+        m_hitShrunk = false;
+        m_hitMostPictures = mostPictures;
         for (size_t k = here.size(); k-- > 0;) {
             const Entry &e = m_entries[here[k]];
             if (e.object.hitInk && !e.settled) const_cast<ObjectLayer *>(this)->settle(const_cast<Entry &>(e));   // (what it is, a line or a box, is known when it is made: the box it is hit in is then the same as after)
             if (!rectIn(layout, pane, e).contains(point)) continue;
-            if (e.object.hitInk) makeForHit(here[k], layout, pane);
+            if (e.object.hitInk && makeForHit(here[k], layout, pane)) return e.object.id;   // (not made within the click's budget: picked by its box, never let through to the cells)
             if (!e.object.hitInk || inkAt(e, layout, pane, point)) return e.object.id;
         }
         return -1;
@@ -1259,7 +1286,7 @@ std::optional<Qt::CursorShape> ObjectLayer::cursorAt(const QPoint &point, const 
         default: break;
         }
     }
-    const int hit = objectAt(point);
+    const int hit = objectUnder(point);
     if (hit < 0) {
         m_tipId = -1;
         return std::nullopt;

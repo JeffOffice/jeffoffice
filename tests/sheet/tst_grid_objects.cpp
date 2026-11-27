@@ -132,6 +132,27 @@ LayerObject madeOnAWorker(int id, const DrawingAnchor &anchor, QRgb color, Gate 
     return o;
 }
 
+// A shape that is unfilled: its ink is a small square at its top left corner, so a click in its middle has none; `opaque` fills it whole.; `size` takes the size of the picture asked for.
+LayerObject unfilledShape(int id, const DrawingAnchor &anchor, bool opaque = false, QSize *size = nullptr)
+{
+    LayerObject o;
+    o.id = id;
+    o.anchor = anchor;
+    o.kind = jp::office::sheet::ObjectKind::Shape;
+    o.hitInk = true;
+    o.render = [opaque, size](const RenderRequest &q) {
+        if (size) *size = q.pixels;
+        QImage img(q.pixels, QImage::Format_ARGB32_Premultiplied);
+        img.fill(opaque ? QColor(Qt::blue) : QColor(Qt::transparent));
+        if (!opaque) {
+            QPainter p(&img);
+            p.fillRect(QRectF(q.inner.x(), q.inner.y(), 10, 10), QColor(Qt::red));
+        }
+        return img;
+    };
+    return o;
+}
+
 // A layout of 400 by 300 pixels (logical) with no headers: rows 20 high, columns 64 wide, drawn on a canvas of the device pixel ratio given (1 unless a test says).
 struct Scene {
     GridLayout layout;
@@ -698,6 +719,116 @@ private Q_SLOTS:
         QVERIFY(!s.objects.press(bare, s.layout, Qt::NoModifier));
         QVERIFY(s.objects.press(ink, s.layout, Qt::NoModifier));
         QCOMPARE(s.objects.selectedId(), 1);
+    }
+
+    // A picture made for a click is announced to the window as the timer's pictures are: a shape drawn as nothing before is drawn after the pointer merely passes over it.
+    void aPictureMadeForAClickAsksForARepaint()
+    {
+        Scene s;
+        s.objects.setObjects({unfilledShape(1, twoCell(1, 2, 3, 6), true)});
+        s.draw(false);
+        QVector<QRect> asked;
+        s.objects.setRepaintHook([&asked](const QRect &area) { asked.append(area); });
+        QCOMPARE(s.objects.objectUnder(QPoint(64 + 64, 40 + 40)), 1);
+        QCOMPARE(s.objects.stats().renders, qint64(1));
+        QCOMPARE(asked.size(), 1);
+        QVERIFY(asked[0].contains(QPoint(64 + 64, 40 + 40)));
+        // (the timer then finds the picture there and asks for nothing more)
+        s.objects.prepareAll();
+        QCOMPARE(asked.size(), 1);
+        QCOMPARE(s.objects.stats().renders, qint64(1));
+        s.objects.setRepaintHook(nullptr);
+    }
+
+    // The picture a click makes is the size the timer would make: hovering first and settling after makes each picture once, when the pictures of the screen are made smaller for the budget.
+    void aPictureMadeForAClickIsTheSizeTheTimerWants()
+    {
+        Scene s(8.0);   // (a picture of the whole window is 30 MB: five of them are over the share of the budget, so all are made half size)
+        std::vector<LayerObject> objects;
+        for (int i = 0; i < 5; ++i) objects.push_back(unfilledShape(i + 1, twoCell(0, 0, 6, 15), true));
+        s.objects.setObjects(objects);
+        s.draw(false);
+        QCOMPARE(s.objects.objectUnder(QPoint(200, 150)), 5);
+        QCOMPARE(s.objects.stats().renders, qint64(1));
+        s.objects.prepareAll();
+        QVERIFY(s.objects.stats().shrunk > 0);
+        QCOMPARE(s.objects.stats().renders, qint64(5));
+    }
+
+    // A click that finds more pictures to make than its pixel budget lets it make answers the rest by their boxes (never "nothing" over a shape), and the next click, the pictures made before being kept, goes on: a shape under many unfilled ones is reached.
+    void aClickOverItsPictureBudgetIsAnsweredByTheBox()
+    {
+        Scene s(8.0);   // (15 pictures of the whole window, made half size for the cache budget, are 27.6 million pixels: over the 24 million a click may make)
+        QSize size;
+        std::vector<LayerObject> objects{unfilledShape(1, twoCell(0, 0, 6, 15), true, &size)};
+        for (int i = 0; i < 14; ++i) objects.push_back(unfilledShape(i + 2, twoCell(0, 0, 6, 15), false, &size));
+        s.objects.setObjects(objects);
+        s.draw(false);
+        const QPoint middle(200, 150);
+        int clicks = 0, hit = -1;
+        qint64 before = 0;
+        while (hit != 1 && clicks < 6) {
+            hit = s.objects.objectAt(middle);
+            ++clicks;
+            QVERIFY(hit >= 1);   // (never let through to the cells)
+            const qint64 made = s.objects.stats().renders - before;
+            QVERIFY(made >= 1);
+            QVERIFY(made * size.width() * size.height() <= ObjectLayer::kHitPixels);
+            if (clicks == 1) QVERIFY(made < 15);   // (the budget was reached)
+            before += made;
+        }
+        QCOMPARE(hit, 1);
+        QCOMPARE(clicks, 2);
+        QCOMPARE(s.objects.stats().renders, qint64(15));
+    }
+
+    // The case that was cut off at a count of 8: a background shape under many small unfilled ones is picked at the first click, and a press on a bare place goes to the cells only when nothing is under it.
+    void aShapeUnderManyUnfilledOnesIsPicked()
+    {
+        Scene s;
+        std::vector<LayerObject> objects{unfilledShape(1, twoCell(0, 0, 6, 15), true)};
+        for (int i = 0; i < 200; ++i) objects.push_back(unfilledShape(i + 2, twoCell(1, 2, 3, 6)));
+        s.objects.setObjects(objects);
+        s.draw(false);
+        QCOMPARE(s.objects.objectAt(QPoint(64 + 64, 40 + 40)), 1);
+        QCOMPARE(s.objects.objectAt(QPoint(64 + 64, 40 + 40)), 1);
+        QCOMPARE(s.objects.stats().renders, qint64(201));
+    }
+
+    // An object made by a job is picked by its box until the job is done; then by its ink.
+    void anObjectMadeByAJobIsPickedByItsBoxUntilItIsDone()
+    {
+        Scene s;
+        LayerObject o = madeOnAWorker(1, twoCell(1, 2, 3, 6), Qt::transparent);
+        o.hitInk = true;
+        s.objects.setObjects({o});
+        s.draw(false);
+        const QPoint inside(64 + 64, 40 + 40);
+        QCOMPARE(s.objects.objectAt(inside), 1);
+        QCOMPARE(s.objects.stats().renders, qint64(0));   // (a click makes no picture of what a job makes)
+        QCOMPARE(s.objects.objectAt(QPoint(5, 5)), -1);
+        s.objects.prepareAll();
+        QCOMPARE(s.objects.stats().renders, qint64(1));
+        QCOMPARE(s.objects.objectAt(inside), -1);   // (made, and clear there)
+    }
+
+    // A mouse move only chooses a pointer: it makes one picture at most and answers the others by their boxes; a press makes the rest.
+    void aMoveMakesOnePictureAtMost()
+    {
+        Scene s;
+        std::vector<LayerObject> objects;
+        for (int i = 0; i < 6; ++i) objects.push_back(unfilledShape(i + 1, twoCell(1, 2, 3, 6)));
+        s.objects.setObjects(objects);
+        s.draw(false);
+        const QPoint middle(64 + 64, 40 + 40);
+        // (the pictures are made one by one, the last of them by a press, which has the budget of a click)
+        for (int move = 1; move <= 3; ++move) {
+            s.objects.cursorAt(middle, s.layout);
+            QCOMPARE(s.objects.stats().renders, qint64(move));
+        }
+        QVERIFY(!s.objects.press(middle, s.layout, Qt::NoModifier));   // (nothing has ink there)
+        QCOMPARE(s.objects.selectedId(), -1);
+        QCOMPARE(s.objects.stats().renders, qint64(6));
     }
 
     // The places in rows and columns that a position is in, the other way from an anchor's box: a box turned to anchor points and back is the same box.

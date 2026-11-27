@@ -126,7 +126,7 @@ bool ObjectPicker::mouseRelease(const QPoint &point, const grid::GridLayout &lay
 
 std::optional<Qt::CursorShape> ObjectPicker::cursorAt(const QPoint &point, const grid::GridLayout &layout)
 {
-    if (m_boxMode && m_layer->objectAt(point) < 0) return Qt::CrossCursor;
+    if (m_boxMode && m_layer->objectUnder(point) < 0) return Qt::CrossCursor;
     return m_layer->cursorAt(point, layout);
 }
 

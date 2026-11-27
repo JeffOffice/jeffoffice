@@ -96,6 +96,7 @@ public:
     static constexpr int kMaxJobs = 2;
     static constexpr qint64 kCacheBytes = qint64(192) << 20;
     static constexpr qint64 kMaxImagePixels = 8000000;
+    static constexpr qint64 kHitPixels = 3 * kMaxImagePixels;   // the pixels of the pictures one click may make (three of the biggest); a move makes one picture at most
 
     explicit ObjectLayer(QObject *parent = nullptr);
     ~ObjectLayer() override;
@@ -170,6 +171,8 @@ public:
     bool takesKeys(int id) const;
     // The object at a point of the viewport (the topmost whose ink, or whose box for a picture or chart, is under it), or -1.
     int objectAt(const QPoint &point) const;
+    // The same for a mouse move (which only chooses a pointer): at most one picture is made, and the rest are answered by their boxes.
+    int objectUnder(const QPoint &point) const;
 
     // Drawing a box with the mouse (a text box): while armed, a press, a drag, and a release on the cells draw a box (the rule every app shares: a click of under 4 points gives `usual`, any
     // other box is at least 18 points a side, and Shift keeps it square) in place of picking; `boxDrawn` says where (the grid's units). The pointer is a cross, Escape puts it down, and
@@ -306,7 +309,8 @@ private:
     void step();
     QRect visibleRect(const Entry &e) const;
     bool inkAt(const Entry &e, const GridLayout &layout, Pane pane, const QPoint &point) const;
-    void makeForHit(size_t i, const GridLayout &layout, Pane pane) const;
+    bool makeForHit(size_t i, const GridLayout &layout, Pane pane) const;
+    int objectAtMaking(const QPoint &point, int mostPictures) const;
     // Where a point is in an object as fractions of its box (false if it is in no pane's picture of it).
     bool fractionAt(const Entry &e, const GridLayout &layout, const QPoint &point, QPointF *fraction, QSizeF *units) const;
 
@@ -342,7 +346,9 @@ private:
     std::mutex m_resultsMutex;
     std::vector<Result> m_results;
     mutable Stats m_stats;
-    mutable int m_hitMade = 0;   // the pictures a click has made so far
+    mutable int m_hitPictures = 0, m_hitMostPictures = 0;   // the pictures a click or move has made so far, and the most it may
+    mutable qint64 m_hitPixels = 0;                         // their pixels, of the budget kHitPixels
+    mutable bool m_hitShrunk = false;                       // the shrink is worked out for this click
     std::function<void(int)> m_deleteHook;
     std::function<bool(int, const QString &)> m_textEditHook;
     Drag m_drag;
