@@ -7,6 +7,7 @@
 #include <cstdio>
 #include <QFile>
 #include <QProcess>
+#include <QThread>
 #include <QSemaphore>
 #include <QJsonArray>
 #include <QJsonDocument>
@@ -582,14 +583,21 @@ private Q_SLOTS:
             BlockLibrary mine(qEnvironmentVariable("JP_BLOCKS_PATH"));
             const QString who = qEnvironmentVariable("JP_BLOCKS_WHO");
             for (int i = 0; i < 200; ++i) {
-                // (A window that is told another is changing the blocks tries again, as a person is told to: on a slow machine three writers can keep one another waiting past the time one waits. Each
-                // try is counted, and a try that fails for any other reason ends the writer.)
+                // (A window that is told another is changing the blocks tries again, as a person is told to: on a slow machine three writers can keep one another waiting past the time one waits, and
+                // on Windows the lock file that another writer is just taking away can refuse to open for a moment, which the library says as "does not let the program write". Each try is counted, and
+                // a try that fails for any other reason ends the writer, with its reason left in a file for the test that started it: the output of a helper is lost on the build machines.)
                 QString err;
                 bool added = false;
-                for (int tries = 0; tries < 100 && !added; ++tries) {
+                for (int tries = 0; tries < 2000 && !added; ++tries) {
                     err.clear();
                     added = mine.add(entryOf(QStringLiteral("%1-%2").arg(who).arg(i), QByteArray(300, 'w')), nullptr, &err);
-                    if (!added && !err.contains(QStringLiteral("Another window"))) break;
+                    if (added) break;
+                    if (!err.contains(QStringLiteral("Another window")) && !err.contains(QStringLiteral("does not let the program write"))) break;
+                    QThread::yieldCurrentThread();
+                }
+                if (!added) {
+                    QFile why(qEnvironmentVariable("JP_BLOCKS_PATH") + QStringLiteral(".why-") + who);
+                    if (why.open(QIODevice::WriteOnly)) why.write(QStringLiteral("entry %1: %2").arg(i).arg(err).toUtf8());
                 }
                 QVERIFY2(added, qPrintable(err));
             }
@@ -611,7 +619,9 @@ private Q_SLOTS:
         }
         for (int w = 0; w < 3; ++w) {
             QVERIFY(writers[w].waitForFinished(1800000));   // (only so that a writer that hangs does not hang the test for ever: the writers' own tries are counted)
-            QVERIFY2(writers[w].exitCode() == 0, qPrintable(QString::fromUtf8(writers[w].readAll().right(600))));
+            QFile why(path + QStringLiteral(".why-w%1").arg(w));
+            const QString reason = why.open(QIODevice::ReadOnly) ? QString::fromUtf8(why.readAll()) : QString::fromUtf8(writers[w].readAll().right(600));
+            QVERIFY2(writers[w].exitCode() == 0, qPrintable(QStringLiteral("exit code %1, status %2: ").arg(writers[w].exitCode()).arg(int(writers[w].exitStatus())) + reason));
         }
         BlockLibrary all(path);
         QVERIFY(all.load());
