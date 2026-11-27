@@ -1567,7 +1567,9 @@ int resolveEndnotes(WriteDoc &doc, bool accept, int *kept, int *partners)
     }
     int done = 0;
     struct Scope { bool was; Scope() : was(t_withEndnotes) { t_withEndnotes = true; } ~Scope() { t_withEndnotes = was; } } scope;
-    for (auto it = notes.cbegin(); it != notes.cend(); ++it) {
+    // (From the last: what is done in one note does not move the places of the notes before it.)
+    for (auto it = notes.cend(); it != notes.cbegin();) {
+        --it;
         QTextCursor c(story);
         c.setPosition(it->first);
         const NoteScopeGuard guard(doc, c);

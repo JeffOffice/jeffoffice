@@ -286,6 +286,7 @@ void PageView::pasteSpike()
         if (i + 1 < clips.size() && !clips[i].fragment.toPlainText().endsWith(QLatin1Char('\n'))) pasteText(*m_doc, m_cursor, QStringLiteral("\n"));
     }
     m_cursor.endEditBlock();
+    if (m_doc->endnoteSettlePending()) m_doc->settleEndnotes();   // (the references pasted are seen when the edit block ends: the notes are set for them then)
     disconnect(watch);
     // (The Spike is emptied when what it held is in the text: a paste that was refused keeps it.)
     if (landed) spike().clear();
@@ -312,6 +313,7 @@ void PageView::endPasteGroup()
     if (!m_pasteGroup) return;
     m_pasteGroup->endEditBlock();
     m_pasteGroup.reset();
+    if (m_doc && m_doc->endnoteSettlePending()) m_doc->settleEndnotes();
 }
 
 void PageView::keepOwnCopiesInClipboardHistory()
@@ -527,6 +529,7 @@ void PageView::runPaste(bool smart, const std::function<void()> &put, int from)
     else put();
     if (m_choice.list) applyListPaste(*m_doc, m_cursor, from, m_cursor.position(), *m_choice.list);
     m_cursor.endEditBlock();
+    if (m_doc->endnoteSettlePending()) m_doc->settleEndnotes();   // (the references pasted are seen when the edit block ends: the notes are set for them then)
     // (A paste that made a change that is not recorded as a tracked change, as new columns are, says so once the step is made.)
     if (!m_doc->trackNotice.isEmpty() && m_doc->nextStepSerial() > stepsBefore) m_doc->noteUntrackedChange();
     m_doc->trackNotice.clear();

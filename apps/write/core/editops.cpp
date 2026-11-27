@@ -613,7 +613,7 @@ struct NumberGuard {
             // own undo step.)
             if (doc.hasSectionEndEndnotes() && (doc.sectionCount() != sections() || doc.endnoteTailsStripped())) doc.rebuildEndnoteTails();
             // (An edit of the text that changed which notes its references name sets the endnotes again, and numbers the notes and their references anew, as part of its own undo step.)
-            if (story == doc.story() && story->revision() != revision()) doc.settleEndnotes();
+            if (story == doc.story() && (story->revision() != revision() || doc.endnoteSettlePending())) doc.settleEndnotes();
             doc.renumberLists(story);
         }
     }

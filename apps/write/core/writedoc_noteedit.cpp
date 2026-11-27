@@ -1008,7 +1008,10 @@ void WriteDoc::endnoteSeqMove(qsizetype rank, int by)
 // changes); one that takes any out or puts any in, or changes the Id one names, makes the settling look through the story again, which is what it does for a change in the references.
 void WriteDoc::followEndnoteReferences(int position, int removed, int added)
 {
-    if (!m_endnoteSeqValid) return;
+    if (!m_endnoteSeqValid) {
+        m_endnoteSettlePending = true;   // (the next settling looks through the text again)
+        return;
+    }
     const qsizetype n = m_endnoteSeq.id.size();
     int before = 0;
     const qsizetype lo = endnoteSeqBefore(position, &before);   // (the first reference at or after the change)
@@ -1042,7 +1045,10 @@ void WriteDoc::followEndnoteReferences(int position, int removed, int added)
         ++s_sequenceWork;
         same = at + m_endnoteSeq.gap[k] >= end;
     }
-    if (!same) m_endnoteSeqValid = false;
+    if (!same) {
+        m_endnoteSeqValid = false;
+        m_endnoteSettlePending = true;
+    }
 }
 
 bool WriteDoc::endnoteSequenceMatchesStoryForTest()
@@ -1070,6 +1076,7 @@ void WriteDoc::settleEndnotes()
     if (m_endnotesPart != NotesPart::Readable || m_syncing || m_buildingEndnotes || m_endnoteCapped) return;
     for (const RawChild &ch : m_last.extra)
         if (ch.xml.contains("noEndnote")) return;
+    m_endnoteSettlePending = false;
     if (m_endnoteSeqValid) return;   // (the references name the notes they named when the notes were last set, and the pages set those)
     QTextDocument *d = story();
     QVector<int> refs, tails;

@@ -7708,7 +7708,7 @@ private Q_SLOTS:
                         auto again = open(done);
                         QVERIFY(again && packageProblem(again->toDocx()).isEmpty());   // (the settled file opens and is whole)
                     }
-                    if (!endnote) {   // (the Reviewing pane misses the words of a pasted endnote until the file is saved: see the report)
+                    {   // (the pane lists the words of a pasted endnote in the session too, before any save)
                         const QString problem = inSessionProblem(*doc, 2, 1);
                         QVERIFY2(problem.isEmpty(), qPrintable(label + " in session: " + problem));
                     }
@@ -7854,6 +7854,46 @@ private Q_SLOTS:
             QCOMPARE(sessionNoteWords(*m.doc, endnote, 3 * n), expected);
             QCOMPARE(savedByWindow(m.w), savedBefore);
         }
+    }
+
+    // Deleted endnotes: one Accept All or Reject All settles every mark, in the session and in the saved file opened again, for one, eight, and thirty references (marks were left behind from eight on).
+    void deletedEndnotesAreAllSettledByOneAcceptAllOrRejectAll_data()
+    {
+        QTest::addColumn<int>("n");
+        QTest::addColumn<bool>("accept");
+        for (const int n : {1, 8, 30}) {
+            QTest::newRow(qPrintable(QStringLiteral("%1 accepted").arg(n))) << n << true;
+            QTest::newRow(qPrintable(QStringLiteral("%1 rejected").arg(n))) << n << false;
+        }
+    }
+    void deletedEndnotesAreAllSettledByOneAcceptAllOrRejectAll()
+    {
+        QFETCH(int, n);
+        QFETCH(bool, accept);
+        ManyNotesWindow m(manyNotesDoc(n, true, 5), n, true);
+        m.selectReferences();
+        QTRY_VERIFY(m.w.act("edit.cut")->isEnabled());
+        QTest::keyClick(m.w.view(), Qt::Key_Delete);
+        QVERIFY(documentRevisionCount(*m.doc) > 0);
+        const QByteArray saved = savedByWindow(m.w);
+        QVERIFY(marksInEveryPart(saved) >= 2 * n);   // (the reference's deletion, and each note's paragraph mark and words)
+        // In the session, one pass settles all.
+        QVERIFY((accept ? acceptAll(*m.doc) : rejectAll(*m.doc)) > 0);
+        QCOMPARE(documentRevisionCount(*m.doc), 0);
+        const QByteArray settledLive = savedByWindow(m.w);
+        QCOMPARE(marksInEveryPart(settledLive), 0);
+        QCOMPARE(packageProblem(settledLive), QString());
+        QCOMPARE(referencesOf(settledLive, true), accept ? 0 : n);
+        // In the file opened again, the same.
+        auto reopened = open(saved);
+        QVERIFY(reopened);
+        QVERIFY((accept ? acceptAll(*reopened) : rejectAll(*reopened)) > 0);
+        QCOMPARE(documentRevisionCount(*reopened), 0);
+        const QByteArray settled = reopened->toDocx();
+        QCOMPARE(marksInEveryPart(settled), 0);
+        QCOMPARE(packageProblem(settled), QString());
+        QCOMPARE(referencesOf(settled, true), accept ? 0 : n);
+        if (!accept) QCOMPARE(savedNoteWords(settled, true), manyExpected(n, 5));
     }
 
     // A note deleted with its reference is two changes in the list (as the reference program lists them): the reference, and the note's words (and its paragraph mark with them).

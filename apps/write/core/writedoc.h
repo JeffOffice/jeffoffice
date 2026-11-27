@@ -209,6 +209,8 @@ public:
     // rebuildEndnoteTails, which the edit that took them out is to end with).
     void stripEndnoteTails();
     bool endnoteTailsStripped() const { return m_tailsStripped; }
+    // The references to endnotes changed in an edit that was not seen as a change of the text's revision (it was made inside an edit block begun before): the notes are to be set again.
+    bool endnoteSettlePending() const { return m_endnoteSettlePending; }
     void rebuildEndnoteTails();
     // The shown copies of an endnote that was edited are set again from its first copy (nothing is done when no note with other copies was touched).
     // (`keep`, a cursor in the words of the note, is put back at the same place of the note.)
@@ -1008,6 +1010,7 @@ private:
         QVector<int> gap, id, tree;   // by the order of the references; the tree has a place more than the references, counted from 1
     };
     EndnoteSeq m_endnoteSeq;
+    bool m_endnoteSettlePending = false;
     bool m_endnoteSeqValid = false;
     void setEndnoteSeq(const QVector<EndnoteSeqEntry> &references);
     // How many references are before a place (their places are less than it), and the place of the last of them (0 for none).
