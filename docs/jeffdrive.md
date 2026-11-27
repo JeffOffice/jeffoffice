@@ -17,6 +17,7 @@ This note is the design: what version 1 does, how it stores files, the order it 
 - **Share links make a separate copy.** Sending someone a link uploads a whole, readable copy of that one file to a "shared" area of the bucket and gives you a link that stops working after a time you choose (7 days at most on most services). The person needs nothing installed. That copy is not encrypted, and JeffDrive says so before you share.
 - **Six storage services are tested every release:** Amazon S3, Cloudflare R2, Backblaze B2, Wasabi, MinIO, and Garage (the last two are programs you run on your own server). Any other S3 service can be entered by hand.
 - **Light ties to the JeffOffice apps.** When JeffDrive is installed, JeffWrite, JeffCrunch, JeffDeck, and JeffPub show a JeffDrive shortcut in Open and Save, a sync mark in the title bar, and "Version History" and "Share Link" in the File menu.
+- **The icon** is the family's rounded square with a white "J" and, where the other apps have a second letter, a stack of three drives ("JD" is JeffDeck's). Its color is graphite, `#3A3D42`: the six app colors already cover the color wheel, so a neutral is the one choice that cannot be mistaken for another app. The drawing is [resources/brand/jeffdrive-icon.png](../resources/brand/jeffdrive-icon.png); `tools/make_app_icon.py` learns to draw it, at every size, when the app is started.
 - **Free and open source,** under the same license as the JeffOffice apps. You pay only your storage company.
 
 ### Smaller choices made while writing this note
