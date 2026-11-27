@@ -607,7 +607,7 @@ private Q_SLOTS:
         const Chart made = chartOf(e);
         QCOMPARE(int(made.axes[0].kind), int(ChartAxis::Date));
         QCOMPARE(made.axes[0].baseTimeUnit, QStringLiteral("days"));
-        const ChartSeries &first = chartAllSeries(made).first();
+        const ChartSeries first = chartAllSeries(made).first();
         QVERIFY(first.categoryRefNumeric);
         QCOMPARE(first.categoryNumbers.size(), qsizetype(4));
         QCOMPARE(first.categoryNumbers.last() - first.categoryNumbers.first(), 5.0);
