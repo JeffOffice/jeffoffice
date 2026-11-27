@@ -4250,7 +4250,7 @@ private Q_SLOTS:
         const int bands = w.view()->findHighlights().size();
         QVERIFY(bands >= 10000);
         w.view()->verticalScrollBar()->setValue(w.view()->verticalScrollBar()->maximum());   // (the last pages: the bands of the pages above are not visited)
-        QTest::qWait(0);
+        QCoreApplication::processEvents();
         w.view()->viewport()->grab();
         const qint64 before = write::bandsVisitedForTest();
         w.view()->viewport()->grab();
