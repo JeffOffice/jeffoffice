@@ -31,8 +31,9 @@ constexpr double kAround = 24;   // pixels between the page and the view's edge
 constexpr int kPageDrawsUpTo = 4000;   // letters: a longer note is drawn by the box while edited (the page's own layout of it would be made again for every key)
 constexpr double kCorner = 9;    // the corner handle, in pixels each way
 const QColor kInk(0x20, 0x20, 0x20);
-// The box until it is edited: nothing of its own over the page (the program's style sheet gives a text view a background and a frame).
-constexpr const char *kBoxClear = "QTextEdit { background: transparent; border: none; }";
+// The box: nothing of its own over the page (the program's style sheet gives a text view a background, a frame, and the window theme's text color: the page is white in both themes, so the
+// words in the box, which draws them for a note the page cannot show whole, are in the page's ink).
+constexpr const char *kBoxClear = "QTextEdit { background: transparent; border: none; color: #202020; }";
 
 constexpr deck::NotesPart kNotesParts[] = {deck::NotesPart::SlideImage, deck::NotesPart::Body, deck::NotesPart::Header, deck::NotesPart::Date, deck::NotesPart::Footer, deck::NotesPart::Number};
 constexpr deck::HandoutPart kHandoutParts[] = {deck::HandoutPart::Area, deck::HandoutPart::Header, deck::HandoutPart::Date, deck::HandoutPart::Footer, deck::HandoutPart::Number};

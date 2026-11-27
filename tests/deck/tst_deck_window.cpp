@@ -4366,6 +4366,12 @@ private Q_SLOTS:
             c.insertText(QStringLiteral("Paragraph %1 of a long note").arg(i), QTextCharFormat());
         }
     }
+    // Pictures for the review (only when RN9_SHOT_PREFIX names a path prefix): the widget as it is on screen.
+    static void rn9Shot(QWidget *w, const QString &name)
+    {
+        const QString prefix = qEnvironmentVariable("RN9_SHOT_PREFIX");
+        if (!prefix.isEmpty()) w->grab().save(prefix + name + QStringLiteral(".png"));
+    }
     // The number of the paragraph at the top left of a view's viewport (what a person reads first).
     static int firstShownParagraph(QTextEdit *e) { return e->cursorForPosition(QPoint(4, 2)).blockNumber(); }
 
@@ -4683,6 +4689,65 @@ private Q_SLOTS:
             QCOMPARE(box->textCursor().blockNumber(), 3);
         }
         QApplication::setCursorFlashTime(flash);
+    }
+
+    // The Notes Page is a white page in both window themes, and the words on it are in the page's ink while they are edited, at every size a note is shrunk to (a click to edit turned a
+    // shrunk note's words pale gray in the dark theme, almost gone on the white page): the page looks the same in the two themes, at rest and while a note is edited.
+    void theNotesPageWordsKeepThePagesInkWhileTheyAreEditedInBothThemes()
+    {
+        const int flash = QApplication::cursorFlashTime();
+        QApplication::setCursorFlashTime(0);
+        const auto restore = qScopeGuard([flash] {
+            QApplication::setCursorFlashTime(flash);
+            jp::applyUiTheme(1);
+        });
+        // (how much dark ink a place has: each pixel counts by how far below white it is; the sum, and the darkest pixel)
+        auto inkOf = [](const QImage &img, const QRect &r, int *darkest) {
+            qint64 sum = 0;
+            *darkest = 255;
+            for (int y = std::max(0, r.top()); y <= r.bottom() && y < img.height(); ++y)
+                for (int x = std::max(0, r.left()); x <= r.right() && x < img.width(); ++x) {
+                    const int luma = qGray(img.pixel(x, y));
+                    sum += 255 - luma;
+                    *darkest = std::min(*darkest, luma);
+                }
+            return sum;
+        };
+        for (int paragraphs : {3, 20, 45, 70}) {
+            qint64 ink[2][2] = {};   // [theme][rest, edited]
+            int darkest[2][2] = {};
+            QString tag;
+            for (int theme : {1, 2}) {
+                jp::applyUiTheme(theme);
+                DeckWindow w;
+                NotesPane *box = nullptr;
+                notesPageWith(w, &box, [&](QTextCursor &c) { paragraphsNote(c, paragraphs); });
+                NotesPageView *v = w.notesPageView();
+                v->setZoom(v->fitZoom());
+                QTRY_COMPARE(box->displayScale(), v->zoom() * v->notesFit());
+                w.notesPane()->reload();
+                for (int i = 0; i < 6; ++i) QCoreApplication::processEvents();
+                tag = QStringLiteral("%1 paragraphs (fit %2)").arg(paragraphs).arg(v->notesFit());
+                const QRect place = v->notesRect().toRect().adjusted(2, 2, -2, -2);
+                ink[theme - 1][0] = inkOf(v->viewport()->grab().toImage(), place, &darkest[theme - 1][0]);
+                QVERIFY2(ink[theme - 1][0] > 2000, qPrintable(tag + QStringLiteral(": the page shows the words at rest")));
+                rn9Shot(v->viewport(), QStringLiteral("item3-%1-%2-rest").arg(theme).arg(paragraphs));
+                // A real click on the first words puts the caret there and starts the editing.
+                QTextCursor c0(box->document());
+                c0.setPosition(0);
+                QTest::mouseClick(box->viewport(), Qt::LeftButton, Qt::NoModifier, QPoint(box->cursorRect(c0).x() + 2, box->cursorRect(c0).center().y()));
+                QTRY_VERIFY(v->boxIsEditing());
+                for (int i = 0; i < 6; ++i) QCoreApplication::processEvents();
+                rn9Shot(v->viewport(), QStringLiteral("item3-%1-%2-edit").arg(theme).arg(paragraphs));
+                ink[theme - 1][1] = inkOf(v->viewport()->grab().toImage(), place, &darkest[theme - 1][1]);
+                QVERIFY2(ink[theme - 1][1] > 2000, qPrintable(tag + QStringLiteral(": the words are drawn while edited")));
+            }
+            for (int phase : {0, 1}) {
+                const QString what = phase ? QStringLiteral("while edited") : QStringLiteral("at rest");
+                QVERIFY2(ink[1][phase] * 10 >= ink[0][phase] * 9, qPrintable(tag + QStringLiteral(": ink %1 in the dark theme, %2 in the light, %3").arg(ink[1][phase]).arg(ink[0][phase]).arg(what)));
+                QVERIFY2(darkest[1][phase] <= darkest[0][phase] + 30, qPrintable(tag + QStringLiteral(": darkest pixel %1 in the dark theme, %2 in the light, %3").arg(darkest[1][phase]).arg(darkest[0][phase]).arg(what)));
+            }
+        }
     }
 
     // Pictures of the notes views in both window themes (JP_SHOT_DIR names the folder): the pane, the Notes Page as the page shows it and as the box shows it while edited, with a short note,
