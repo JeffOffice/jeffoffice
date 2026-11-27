@@ -37,6 +37,9 @@ public:
     ListMarkers(QTextEdit *edit, std::function<void(int, int)> margins, std::function<const ColorScheme *()> colors = {});
     ~ListMarkers() override;
 
+    // The view is being destroyed: no event or signal reaches the view through this any more (call it first thing in the view's destructor).
+    void detach();
+
     // How big the words are shown, as a multiple of the size the document gives them (see StoryEdit::setDisplayScale); the markers follow.
     void setScale(double scale);
     // The words, the document the view shows, its size, or its scrolling changed: the gutter and the markers follow. Cheap when nothing changed.

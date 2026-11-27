@@ -18,6 +18,7 @@ class NotesPane : public StoryEdit {
     Q_OBJECT
 public:
     explicit NotesPane(Editor *ed, QWidget *parent = nullptr);
+    ~NotesPane() override;
     void reload();   // shows the current slide's notes (the story of the slide, as the document has it now)
     void commit();   // closes what was typed into one undo step
     // Grammar as you type, as in the slides' text (the suite's setting): the issues of the notes now shown, a blue dotted line under each, and the right-click help for

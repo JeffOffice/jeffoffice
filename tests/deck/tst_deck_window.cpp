@@ -1916,6 +1916,57 @@ private Q_SLOTS:
         QCOMPARE(pane->listMarkers()->gutterLeft(), 0);
     }
 
+    // The three views of the notes (the pane, the Notes Page box, and the notes in Presenter View) are made and destroyed with markers showing and a resize and a layout request
+    // still waiting for them. In an ordinary build this proves only that nothing crashes; the memory and undefined-behavior checkers are what see a call into a view that is
+    // being destroyed (the markers' event filter did, Nov 27).
+    static void leaveEventsPending(QTextEdit *e)
+    {
+        e->resize(e->width() + 7, e->height() + 5);
+        QCoreApplication::postEvent(e, new QEvent(QEvent::LayoutRequest));
+        QCoreApplication::postEvent(e->viewport(), new QResizeEvent(QSize(50, 50), QSize(60, 60)));
+        QCoreApplication::postEvent(e, new QEvent(QEvent::LayoutRequest));
+    }
+    void theNotesViewsCanBeDestroyedWithMarkersAndEventsPending()
+    {
+        QPointer<ListMarkers> marks;
+        {
+            DeckWindow w;
+            NotesPane *pane = notesWithMixedLists(w);
+            QTRY_VERIFY(markerTexts(pane).size() >= 3);
+            marks = pane->listMarkers();
+            leaveEventsPending(pane);
+        }
+        QVERIFY(!marks);
+        {
+            DeckWindow w;
+            NotesPane *box = nullptr;
+            notesPageWith(w, &box, [](QTextCursor &) {});
+            fillMixedListNote(notesStory(w.editor()));
+            w.notesPageView()->reload();
+            QTRY_VERIFY(markerTexts(box).size() >= 3);
+            leaveEventsPending(box);
+            w.notesPageView()->resize(w.notesPageView()->width() + 9, w.notesPageView()->height());
+        }
+        {
+            DeckWindow w;
+            w.resize(1440, 900);
+            w.show();
+            w.newSlide();
+            w.editor()->setCurrentPage(0);
+            fillMixedListNote(notesStory(w.editor()));
+            w.act("show.presenterView")->trigger();
+            SlideShow *show = w.slideShow();
+            QVERIFY(show && show->presenterView());
+            QTextEdit *edit = show->presenterView()->findChild<QTextEdit *>(QStringLiteral("notesText"));
+            QVERIFY(edit);
+            auto *pm = edit->findChild<ListMarkers *>();
+            if (pm) QTRY_VERIFY(!pm->visibleMarkers().isEmpty());
+            leaveEventsPending(edit);
+            show->close();
+        }
+        QVERIFY(true);   // (reached: nothing crashed)
+    }
+
     // The markers in the pane are the printed notes page's, in order: bullets, numbers that go on after a paragraph that is not numbered, a nested level (its own look), a list that
     // starts again at 1; a nested level is indented further than the first.
     void theMarkersInThePaneAreThePrintedPagesMarkers()

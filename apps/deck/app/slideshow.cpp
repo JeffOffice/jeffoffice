@@ -2989,6 +2989,10 @@ namespace {
 class SpeakerNotesBox : public QTextEdit {
 public:
     using QTextEdit::QTextEdit;
+    ~SpeakerNotesBox() override
+    {
+        if (auto *marks = findChild<ListMarkers *>()) marks->detach();
+    }
     void setGutter(int left, int right) { setViewportMargins(left, 0, right, 0); }
 };
 } // namespace

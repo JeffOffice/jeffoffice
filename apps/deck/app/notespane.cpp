@@ -30,6 +30,13 @@ NotesPane::NotesPane(Editor *ed, QWidget *parent) : StoryEdit(ed, parent), m_ed(
     reload();
 }
 
+// (the grammar check goes with this view's own members, before the base class's destructor lets the document go: nothing of this view's own may be called by then)
+NotesPane::~NotesPane()
+{
+    disconnect(this, nullptr, this, nullptr);
+    if (m_grammar) disconnect(m_grammar.get(), nullptr, this, nullptr);
+}
+
 void NotesPane::reload()
 {
     const Document *d = m_ed->doc();

@@ -48,6 +48,11 @@ StoryEdit::StoryEdit(Editor *ed, QWidget *parent) : QTextEdit(parent), m_ed(ed)
 
 StoryEdit::~StoryEdit()
 {
+    // (first: from here to the end of the base class's destructor, nothing watching this view may reach it; its members go before its children and its document do)
+    m_markers->detach();
+    disconnect(this, nullptr, this, nullptr);
+    disconnect(verticalScrollBar(), nullptr, this, nullptr);
+    if (m_story && m_story->doc) disconnect(m_story->doc.get(), nullptr, this, nullptr);
     // (the story, and the document the editor still has, are let go before this view's own document goes)
     if (m_story) {
         setDocument(m_none);

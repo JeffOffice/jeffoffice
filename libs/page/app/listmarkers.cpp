@@ -60,9 +60,25 @@ ListMarkers::ListMarkers(QTextEdit *edit, std::function<void(int, int)> margins,
 
 ListMarkers::~ListMarkers() = default;
 
+// The view is going: its own destructor says so first, while the view is whole. The view's members are gone before its base class lets its children go, and an event (or a signal of
+// its scroll bars) that reached this then would call into a half-destroyed view.
+void ListMarkers::detach()
+{
+    if (!m_edit) return;
+    m_edit->removeEventFilter(this);
+    m_edit->viewport()->removeEventFilter(this);
+    disconnect(m_edit, nullptr, this, nullptr);
+    disconnect(m_edit->verticalScrollBar(), nullptr, this, nullptr);
+    disconnect(m_edit->horizontalScrollBar(), nullptr, this, nullptr);
+    m_edit = nullptr;
+    delete m_layer;
+    m_layer = nullptr;
+}
+
 // (The view and its viewport are told of a new size before they have taken it, and the text is laid out for it after: the paragraphs in view are gone through when those have run.)
 bool ListMarkers::eventFilter(QObject *watched, QEvent *e)
 {
+    if (!m_edit) return false;
     if ((watched == m_edit && (e->type() == QEvent::Resize || e->type() == QEvent::Show || e->type() == QEvent::LayoutRequest)) || (watched == m_edit->viewport() && (e->type() == QEvent::Resize || e->type() == QEvent::Show))) {
         if (watched == m_edit) {
             m_layer->setGeometry(m_edit->rect());
@@ -83,6 +99,7 @@ void ListMarkers::setScale(double scale)
 {
     if (qFuzzyCompare(scale, m_scale)) return;
     m_scale = scale;
+    if (!m_edit) return;
     refresh();
 }
 
@@ -156,7 +173,7 @@ const ListMarkers::Look &ListMarkers::lookOf(const QTextBlock &b)
 // words, the scrolling, and the size.
 void ListMarkers::run(bool margins)
 {
-    if (m_busy) return;
+    if (m_busy || !m_edit) return;
     QTextDocument *doc = m_edit->document();
     QWidget *vp = m_edit->viewport();
     auto stateKey = [&] {
@@ -213,7 +230,10 @@ void ListMarkers::run(bool margins)
 
 void ListMarkers::refresh() { run(true); }
 
-void ListMarkers::setShown(bool shown) { m_layer->setVisible(shown); }
+void ListMarkers::setShown(bool shown)
+{
+    if (m_layer) m_layer->setVisible(shown);
+}
 
 double ListMarkers::hangOf(const QTextBlock &b)
 {
@@ -232,6 +252,7 @@ QVector<ListMarkers::Marker> ListMarkers::visibleMarkers() const
 QVector<ListMarkers::Marker> ListMarkers::allMarkers() const
 {
     QVector<Marker> out;
+    if (!m_edit) return out;
     auto *self = const_cast<ListMarkers *>(this);
     self->run(false);   // (a paint that came before the words' change reached the markers: the paragraphs in view are made again, the gutter waits for its own call)
     QTextDocument *doc = m_edit->document();

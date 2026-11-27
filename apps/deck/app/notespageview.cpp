@@ -121,6 +121,15 @@ NotesPageView::NotesPageView(Editor *ed, QWidget *parent) : QAbstractScrollArea(
     connect(verticalScrollBar(), &QScrollBar::valueChanged, this, [this] { layoutBox(); viewport()->update(); });
 }
 
+// (the page's own members go before its children: nothing may reach it from the box or the scroll bars from here on)
+NotesPageView::~NotesPageView()
+{
+    m_box->removeEventFilter(this);
+    m_box->viewport()->removeEventFilter(this);
+    disconnect(horizontalScrollBar(), nullptr, this, nullptr);
+    disconnect(verticalScrollBar(), nullptr, this, nullptr);
+}
+
 double NotesPageView::scale() const { return m_zoom * logicalDpiX() / 72.0; }
 
 QSizeF NotesPageView::paper() const

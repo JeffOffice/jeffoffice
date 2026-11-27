@@ -25,6 +25,7 @@ class NotesPageView : public QAbstractScrollArea {
 public:
     enum class Mode { NotesPage, NotesMaster, HandoutMaster };
     explicit NotesPageView(Editor *ed, QWidget *parent = nullptr);
+    ~NotesPageView() override;
 
     Mode mode() const { return m_mode; }
     void setMode(Mode mode);
