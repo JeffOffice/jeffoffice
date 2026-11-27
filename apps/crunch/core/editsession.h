@@ -165,6 +165,8 @@ struct SheetEdit {
     std::vector<RichChange> richChanges;
     QVector<jp::office::sheet::CustomView> viewsBefore;    // Delete: the custom views as they were (a deleted sheet is taken out of them)
     int copyOf = -1;                                       // Copy: the sheet it is a copy of
+    std::optional<jp::office::sheet::SheetView> viewAfter;       // Insert: how the sheet is shown (put in when it is made, again by Redo): the sheet is one copied from another workbook
+    std::optional<jp::office::sheet::SheetFormat> formatAfter;   // and its default sizes
     bool chartSheet = false;                               // Insert: the sheet is a chart sheet (it holds one chart and no cells)
     std::vector<std::pair<QString, QString>> tableRenames;   // Copy: the tables that were copied, by the name they had and have (the copy's formulas name its own tables)
     jp::office::sheet::Calculation::SheetRewrite rewrite;  // Rename and Delete: what the formulas were (made when the step is done)
@@ -1058,6 +1060,7 @@ public:
         jp::calc::Value shown;                                // what the cell showed (a formula's result)
         qint32 look = -1;                                     // the place in `SheetExport::looks` of its format (-1: the first format)
         bool freeze = false;                                  // the cell comes as the value it shows (it uses a name, a table, or is part of an array)
+        bool link = false;                                    // the formula reads another sheet of the first workbook (it becomes a link, and shows what the first workbook shows now)
     };
     struct SheetExport {
         QString bookName;               // the first workbook's file name (empty when it has never been saved)
@@ -1073,16 +1076,19 @@ public:
         std::vector<jp::office::sheet::ColumnSpan> columns;
         std::vector<jp::office::sheet::RowSpec> rows;
         std::vector<qint32> columnLook, rowLook;   // the place in `looks` of each column's and row's own format, by place in `columns` and `rows` (-1: none)
+        jp::office::sheet::SheetView view;          // how the sheet is shown: frozen panes, zoom, gridlines, headings, zeros, and the way it reads (where the cursor is and what is scrolled to is not kept)
+        jp::office::sheet::SheetFormat format;      // its default row height and column width
         QStringList notCopied;          // what the copy will not have, as words
+        QStringList frozenKinds;        // what the cells that come as values were (a fixed list of phrases, in a fixed order; empty when there are none)
         qint64 frozen = 0;              // the cells that come as values
-        quint32 usedRows = 0, usedCols = 0;
         bool ok = true;
         QString problem;                // when not ok: why
     };
     // The most cells a sheet may have to be copied to another workbook (a test lowers it; 0 puts it back to kMaxCellsPerEdit).
     static void setTransferCapForTest(qint64 cells);
     // Takes the snapshot (`filePath` is the file of the workbook, from the window). Not ok, with the reason, when the sheet can't be copied.
-    SheetExport exportSheet(int sheet, const QString &filePath) const;
+    // `drawn`: what the window's drawing layer has on the sheet, as words (pictures, charts, and shapes made in this session are not in the file yet): they are told with the rest of what is left out.
+    SheetExport exportSheet(int sheet, const QString &filePath, const QStringList &drawn = QStringList()) const;
     // What copying the sheet to the workbook the session has would say before it is done: the reason it can't be (ok false), else what it leaves out and what it makes links of.
     Outcome checkImport(const SheetExport &data) const;
     // Puts the snapshot in as a new sheet (named `name`, else the sheet's own name made fit) before the sheet `before` (-1: last). The outcome's `problem` says what was left out.
@@ -1715,7 +1721,7 @@ private:
     QString pasteThreads(int sheet, const jp::office::sheet::CellRange &target, const ClipData &clip, quint32 blockRows, quint32 blockCols);
     Outcome pushNoteChanges(int sheet, std::vector<SideEdit::Note> notes, const QString &stepText);
     bool applySheetEdits(Step *step, bool forward, jp::office::sheet::Calculation *calc, jp::office::sheet::Workbook &book);
-    Outcome insertSheetOfKind(int before, const QString &name, int *made, bool chartSheet);
+    Outcome insertSheetOfKind(int before, const QString &name, int *made, bool chartSheet, const jp::office::sheet::SheetView *view = nullptr, const jp::office::sheet::SheetFormat *format = nullptr);
     Outcome pushSheetEdit(SheetEdit edit, const QString &text, std::vector<TableEdit> tables = {}, std::vector<CellChange> cells = {});
     bool sheetStepsRefused(QString *why);
     bool applyNameEdits(Step *step, bool forward, jp::office::sheet::Calculation *calc);

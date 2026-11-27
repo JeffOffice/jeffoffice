@@ -3761,6 +3761,12 @@ qint64 Workbook::styleRoom() const
     return std::max<qint64>(0, kMaxStylesMade - m_styles.styleXfs.size());
 }
 
+bool Workbook::formatRoomFor(qint64 looks) const
+{
+    return qint64(m_styles.formats.size()) + looks <= kMaxCellFormatsWritten && qint64(m_styles.fonts.size()) + looks <= kMaxFontsMade && qint64(m_styles.fills.size()) + looks <= kMaxFillsMade
+           && qint64(m_styles.borders.size()) + looks <= kMaxBordersMade;
+}
+
 qint32 Workbook::addNamedStyle(const QString &name, quint32 format)
 {
     const QString trimmed = name.trimmed();

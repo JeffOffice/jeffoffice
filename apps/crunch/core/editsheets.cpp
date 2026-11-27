@@ -222,7 +222,7 @@ EditSession::Outcome EditSession::insertChartSheet(int before, const QString &na
     return insertSheetOfKind(before, name, made, true);
 }
 
-EditSession::Outcome EditSession::insertSheetOfKind(int before, const QString &name, int *made, bool chartSheet)
+EditSession::Outcome EditSession::insertSheetOfKind(int before, const QString &name, int *made, bool chartSheet, const jp::office::sheet::SheetView *view, const jp::office::sheet::SheetFormat *format)
 {
     Outcome out;
     QString why;
@@ -240,6 +240,8 @@ EditSession::Outcome EditSession::insertSheetOfKind(int before, const QString &n
     SheetEdit e;
     e.kind = SheetEdit::Kind::Insert;
     e.chartSheet = chartSheet;
+    if (view) e.viewAfter = *view;
+    if (format) e.formatAfter = *format;
     e.sheet = m_book->calc->sheetCount();
     e.nameAfter = nm;
     e.orderBefore = sheetOrder();
@@ -819,6 +821,13 @@ bool EditSession::applySheetEdits(Step *step, bool forward, Calculation *calc, W
                 // (a new sheet prints as the defaults say, a copy as the sheet it is a copy of does now, and the file is told of it)
                 m_pages.addSheet(e.kind == SheetEdit::Kind::Copy ? m_pages.sheet(e.copyOf) : jp::office::sheet::PageSetup(), e.kind == SheetEdit::Kind::Copy);
                 m_anchors.addSheet(e.kind == SheetEdit::Kind::Copy ? e.copyOf : -1);
+                if (e.viewAfter) {
+                    // (a sheet from another workbook is shown as it was there: the model and the window's own panes)
+                    calc->setSheetView(made, *e.viewAfter);
+                    m_pages.setPane(made, *e.viewAfter);
+                    m_pages.setView(made, 0, e.viewAfter->zoom);
+                }
+                if (e.formatAfter) calc->setSheetFormat(made, *e.formatAfter);
                 if (m_book->geometry.size() < size_t(made) + 1) m_book->geometry.resize(size_t(made) + 1);
                 book.setSheetOrder(e.orderAfter);
             } else {

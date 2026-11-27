@@ -372,6 +372,8 @@ public:
     void makeStyleTables();
     // How many more styles can be made (styleNamed for a built-in one, addNamedStyle); 0 when the workbook has no place for styles.
     qint64 styleRoom() const;
+    // Whether the workbook has room for `looks` more cell formats, each with a font, a fill, and a border of its own (the most a copy of looks from another workbook can add): asked before any is added.
+    bool formatRoomFor(qint64 looks) const;
     // A style of a person's own, named `name` (made from the cell format at `format`): its place among the style formats; -1 if the name is taken (a style with that name, whatever the capitals),
     // is empty or too long, or the workbook has no place for styles or no room.
     qint32 addNamedStyle(const QString &name, quint32 format);

@@ -8,6 +8,7 @@
 #include "app/ribbon.h"
 #include "app/ribbonbuilder.h"
 #include "app/sheettabs.h"
+#include "core/sheetobjects.h"
 
 #include <QAction>
 #include <QApplication>
@@ -220,10 +221,12 @@ void CrunchWindow::moveCopyCommand()
         if (!editingAllowed()) return;   // (a workbook open for reading only can still be copied from)
     }
     MoveCopyRequest request;
+    bool toOther = false;   // (the sheets are to go to another workbook: chosen, whether or not it is still open)
     request.sheets = selectedSheets();
     const WorkbookInfo &info = m_loaded->book->info();
     if (m_moveCopyAsker) {
         if (!m_moveCopyAsker(&request)) return;
+        toOther = request.toOther || (!request.toBook.isNull() && request.toBook != this);
     } else {
         QDialog dialog(this);
         dialog.setWindowTitle(tr("Move or Copy Sheets"));
@@ -249,7 +252,7 @@ void CrunchWindow::moveCopyCommand()
         copy->setObjectName(QStringLiteral("makeCopy"));
         layout->addWidget(copy);
         // (the other workbooks that are open: a copy can go to one of them)
-        QVector<CrunchWindow *> others;
+        QVector<QPointer<CrunchWindow>> others;
         for (QWidget *top : QApplication::topLevelWidgets())
             if (auto *w = qobject_cast<CrunchWindow *>(top))
                 if (w != this && w->m_session && w->isVisible()) others.push_back(w);
@@ -262,7 +265,7 @@ void CrunchWindow::moveCopyCommand()
             toBook->setObjectName(QStringLiteral("toBook"));
             toLabel->setBuddy(toBook);
             toBook->addItem(tr("(this workbook)"));
-            for (CrunchWindow *w : others) toBook->addItem(w->filePath().isEmpty() ? w->windowTitle() : QFileInfo(w->filePath()).fileName());
+            for (const QPointer<CrunchWindow> &w : others) toBook->addItem(w->filePath().isEmpty() ? w->windowTitle() : QFileInfo(w->filePath()).fileName());
             layout->addWidget(toBook);
             toNote = plainLabel(new QLabel);
             toNote->setObjectName(QStringLiteral("toBookNote"));
@@ -272,6 +275,10 @@ void CrunchWindow::moveCopyCommand()
             auto explain = [&, toBook, toNote] {
                 const int at = toBook->currentIndex() - 1;
                 toNote->clear();
+                if (at >= 0 && others[at].isNull()) {
+                    toNote->setText(tr("That workbook has been closed."));
+                    return;
+                }
                 if (at < 0) {
                     copy->setEnabled(true);
                     return;
@@ -279,8 +286,9 @@ void CrunchWindow::moveCopyCommand()
                 copy->setChecked(true);
                 copy->setEnabled(false);   // (moving a sheet to another workbook is not done yet)
                 QStringList said;
+                syncPanes();
                 for (const int s : request.sheets) {
-                    const crunch::EditSession::SheetExport data = m_session->exportSheet(s, filePath());
+                    const crunch::EditSession::SheetExport data = m_session->exportSheet(s, filePath(), drawnKindsOn(s));
                     const crunch::EditSession::Outcome o = others[at]->m_session->checkImport(data);
                     said << (request.sheets.size() > 1 ? info.sheets[s].name + QStringLiteral(": ") : QString()) + o.problem;
                 }
@@ -295,9 +303,12 @@ void CrunchWindow::moveCopyCommand()
         if (dialog.exec() != QDialog::Accepted) return;
         request.before = list->currentItem() ? list->currentItem()->data(Qt::UserRole).toInt() : -1;
         request.copy = copy->isChecked();
-        if (toBook && toBook->currentIndex() > 0) request.toBook = others[toBook->currentIndex() - 1];
+        if (toBook && toBook->currentIndex() > 0) {
+            toOther = true;
+            request.toBook = others[toBook->currentIndex() - 1];
+        }
     }
-    if (request.toBook && request.toBook != this) {
+    if (toOther) {
         copySheetsToWorkbook(request);
         return;
     }
@@ -322,36 +333,77 @@ void CrunchWindow::moveCopyCommand()
     if (last >= 0) setActiveSheet(last);
 }
 
-// Copies the sheets to another open workbook, as one step of Undo there (the first workbook is only read). Moving a sheet there is not done yet.
+// Copies the sheets to another open workbook, as one step of Undo there (the first workbook is only read). All of them or none: every sheet is looked at before the first is put in. Moving a
+// sheet there is not done yet.
 void CrunchWindow::copySheetsToWorkbook(const MoveCopyRequest &request)
 {
-    CrunchWindow *target = request.toBook;
     if (!request.copy) {
         notice(tr("Move Sheet"), tr("Moving a sheet to another workbook is not done yet. Choose Copy, and then delete the sheet here if you do not need it."));
+        return;
+    }
+    CrunchWindow *target = request.toBook.data();
+    if (!target) {
+        notice(tr("Copy Sheet"), tr("The other workbook was closed, so nothing was copied."));
         return;
     }
     if (!target->m_session || !target->editingAllowed()) {
         notice(tr("Copy Sheet"), tr("The other workbook can't be changed now. It may be open for reading only, or still opening."));
         return;
     }
+    syncPanes();   // (the panes of the sheet in view are what the window shows now)
+    std::vector<crunch::EditSession::SheetExport> taken;
+    for (const int s : request.sheets) {
+        taken.push_back(m_session->exportSheet(s, filePath(), drawnKindsOn(s)));
+        const crunch::EditSession::Outcome o = target->m_session->checkImport(taken.back());
+        if (!o.ok) {
+            notice(tr("Copy Sheet"), request.sheets.size() > 1 ? m_loaded->book->info().sheets[s].name + QStringLiteral(": ") + o.problem : o.problem);
+            return;
+        }
+    }
     QUndoStack *u = target->m_session->undoStack();
-    if (request.sheets.size() > 1) u->beginMacro(tr("Copy Sheets to Another Workbook"));
+    const int start = u->index();
+    u->beginMacro(request.sheets.size() > 1 ? tr("Copy Sheets to Another Workbook") : tr("Copy Sheet to Another Workbook"));
     int last = -1;
     QStringList said;
-    for (const int s : request.sheets) {
-        const crunch::EditSession::SheetExport data = m_session->exportSheet(s, filePath());
+    for (size_t i = 0; i < taken.size(); ++i) {
         int made = -1;
-        const crunch::EditSession::Outcome o = target->m_session->importSheet(data, -1, QString(), &made);
+        const crunch::EditSession::Outcome o = target->m_session->importSheet(taken[i], -1, QString(), &made);
         if (!o.ok) {
+            // (the sheets put in before this one are taken out again: all or none)
+            u->endMacro();
+            while (u->index() > start) u->undo();
             notice(tr("Copy Sheet"), o.problem);
-            break;
+            return;
         }
-        if (!o.problem.isEmpty()) said << o.problem;
+        if (!o.problem.isEmpty()) said << (taken.size() > 1 ? m_loaded->book->info().sheets[request.sheets[int(i)]].name + QStringLiteral(": ") : QString()) + o.problem;
         if (made >= 0) last = made;
     }
-    if (request.sheets.size() > 1) u->endMacro();
+    u->endMacro();
     if (last >= 0) target->setActiveSheet(last);
     if (!said.isEmpty()) notice(tr("Copy Sheet"), said.join(QLatin1Char('\n')), false);
+}
+
+// What the drawing layer has on the sheet (read from the file or made since), named as the notes of a copy name them.
+QStringList CrunchWindow::drawnKindsOn(int sheet)
+{
+    using Kind = jp::office::sheet::ObjectKind;
+    QStringList out;
+    auto add = [&out](const QString &what) {
+        if (!out.contains(what)) out << what;
+    };
+    if (!m_objects) return out;
+    for (const crunch::SheetObjects::ObjectInfo &o : m_objects->describe(sheet)) {
+        switch (o.kind) {
+        case Kind::Chart:
+        case Kind::Picture: add(tr("pictures and charts")); break;
+        case Kind::Shape:
+        case Kind::Group:
+        case Kind::Connector: add(tr("shapes, text boxes, and lines")); break;
+        case Kind::Diagram: add(tr("diagrams")); break;
+        case Kind::Other: add(tr("other objects over the cells")); break;
+        }
+    }
+    return out;
 }
 
 void CrunchWindow::hideSheetsCommand()

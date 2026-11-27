@@ -106,6 +106,20 @@ void copyToOther(EditWindow &from, EditWindow &to, int sheet)
     from.win.w.act(QStringLiteral("sheet.moveCopy"))->trigger();
 }
 
+// The sheets picked (their places), copied to the other workbook through the window's own command.
+void copyManyToOther(EditWindow &from, EditWindow *to, const QSet<int> &sheets)
+{
+    from.win.w.setMoveCopyAsker([&](CrunchWindow::MoveCopyRequest *r) {
+        r->copy = true;
+        r->before = -1;
+        r->toBook = &to->win.w;
+        return true;
+    });
+    from.win.w.sheetTabs()->setSelectedTabs(sheets);
+    from.win.w.setActiveSheet(*sheets.begin());
+    from.win.w.act(QStringLiteral("sheet.moveCopy"))->trigger();
+}
+
 // A workbook of two sheets and a look:
 //   Data:  A1 = 5 (bold, green fill), B1 = A1*2, C1 = Other!A1+1, D1 = Data!A1+1, A2 = "text", A3:B3 merged; column B is wide; 
 //   Other: A1 = 100; with `withName` a third sheet has A1 = Total, a name of the workbook for Other!A1
@@ -126,6 +140,46 @@ QByteArray dataBook(bool withName = false)
     return withName ? buildXlsx({data, other, third}, QByteArray(), QString(), QString(), styles, QStringList({QStringLiteral("Data"), QStringLiteral("Other"), QStringLiteral("Third")}),
                                 QStringLiteral("<definedName name=\"Total\">Other!$A$1</definedName>"))
                     : buildXlsx({data, other}, QByteArray(), QString(), QString(), styles, QStringList({QStringLiteral("Data"), QStringLiteral("Other")}));
+}
+
+
+// One sheet that is shown in its own way: no gridlines or headings or zeros, reading right to left, zoomed, with the first two rows and the first column held, and its own default sizes. The
+// second sheet has nothing.
+QByteArray viewBook()
+{
+    const QString head = QStringLiteral("<sheetViews><sheetView showGridLines=\"0\" showRowColHeaders=\"0\" showZeros=\"0\" rightToLeft=\"1\" zoomScale=\"150\" zoomScaleNormal=\"150\" workbookViewId=\"0\">"
+                                        "<pane xSplit=\"1\" ySplit=\"2\" topLeftCell=\"B3\" activePane=\"bottomRight\" state=\"frozen\"/><selection pane=\"bottomRight\" activeCell=\"C4\" sqref=\"C4\"/></sheetView></sheetViews>"
+                                        "<sheetFormatPr baseColWidth=\"8\" defaultColWidth=\"12\" defaultRowHeight=\"21\" customHeight=\"1\"/>");
+    const QByteArray one = worksheet(row(1, cell(QStringLiteral("A1"), QStringLiteral("5"))) + row(4, cell(QStringLiteral("B4"), QStringLiteral("0"))), QString(), head);
+    return buildXlsx({one, worksheet(QString())}, QByteArray(), QString(), QString(), QByteArray(), QStringList({QStringLiteral("Shown"), QStringLiteral("Empty")}));
+}
+
+// Three looks: a diagonal line going up (A1), one going down (A2), and a green fill (A3).
+QByteArray lookBook()
+{
+    const QString fonts = QStringLiteral("<fonts count=\"1\"><font><sz val=\"11\"/><name val=\"Calibri\"/></font></fonts>"
+                                         "<fills count=\"3\"><fill><patternFill patternType=\"none\"/></fill><fill><patternFill patternType=\"gray125\"/></fill>"
+                                         "<fill><patternFill patternType=\"solid\"><fgColor rgb=\"FF00FF00\"/></patternFill></fill></fills>"
+                                         "<borders count=\"3\"><border><left/><right/><top/><bottom/><diagonal/></border>"
+                                         "<border diagonalUp=\"1\"><left/><right/><top/><bottom/><diagonal style=\"thin\"><color rgb=\"FF000000\"/></diagonal></border>"
+                                         "<border diagonalDown=\"1\"><left/><right/><top/><bottom/><diagonal style=\"thin\"><color rgb=\"FF000000\"/></diagonal></border></borders>"
+                                         "<cellStyles count=\"1\"><cellStyle name=\"Normal\" xfId=\"0\" builtinId=\"0\"/></cellStyles>");
+    const QByteArray styles = stylesXml(QString(), QStringLiteral("<xf numFmtId=\"0\" fontId=\"0\" fillId=\"0\" borderId=\"0\" xfId=\"0\"/>"
+                                                                  "<xf numFmtId=\"0\" fontId=\"0\" fillId=\"0\" borderId=\"1\" xfId=\"0\" applyBorder=\"1\"/>"
+                                                                  "<xf numFmtId=\"0\" fontId=\"0\" fillId=\"0\" borderId=\"2\" xfId=\"0\" applyBorder=\"1\"/>"
+                                                                  "<xf numFmtId=\"0\" fontId=\"0\" fillId=\"2\" borderId=\"0\" xfId=\"0\" applyFill=\"1\"/>"), fonts);
+    auto styled = [](const QString &ref, int xf) { return QStringLiteral("<c r=\"%1\" s=\"%2\"><v>1</v></c>").arg(ref).arg(xf); };
+    return buildXlsx({worksheet(row(1, styled(QStringLiteral("A1"), 1)) + row(2, styled(QStringLiteral("A2"), 2)) + row(3, styled(QStringLiteral("A3"), 3)))}, QByteArray(), QString(), QString(), styles,
+                     QStringList({QStringLiteral("Looks")}));
+}
+
+// A sheet that reads a third workbook (a link its file has no part for: the stored result is what it shows), one with "[" inside a text, and one that reads another sheet.
+QByteArray thirdBook()
+{
+    const QByteArray one = worksheet(row(1, cell(QStringLiteral("A1"), QStringLiteral("5")) + QStringLiteral("<c r=\"B1\"><f>[1]Elsewhere!A1+1</f><v>7</v></c>")
+                                                + QStringLiteral("<c r=\"C1\" t=\"str\"><f>\"a[b]\"&amp;A1</f><v>a[b]5</v></c>") + formula(QStringLiteral("D1"), QStringLiteral("Other!A1+1"))));
+    const QByteArray other = worksheet(row(1, cell(QStringLiteral("A1"), QStringLiteral("100"))));
+    return buildXlsx({one, other}, QByteArray(), QString(), QString(), QByteArray(), QStringList({QStringLiteral("Mixed"), QStringLiteral("Other")}));
 }
 
 } // namespace
@@ -460,8 +514,8 @@ private Q_SLOTS:
         QVERIFY2(QString::fromUtf8(parts.value(QStringLiteral("xl/externalLinks/_rels/externalLink1.xml.rels"))).contains(QFileInfo(src.path).fileName()), "the link names the first file");
     }
 
-    // What can't be carried is refused in words and nothing changes (a sheet that reads other sheets of a workbook with changes that are not saved, dates counted from another year, a sheet
-    // past the cap, a workbook open for reading only as the target); a sheet that reads no other sheet is copied from such a workbook all the same; moving to another workbook is not done yet.
+    // What can't be carried is refused in words and nothing changes (a workbook that was never saved, dates counted from another year, a sheet past the cap); moving to another workbook is not done
+    // yet.
     void copyingToAnotherWorkbookRefusesWhatItCannotCarry()
     {
         EditWindow src, dst;
@@ -470,13 +524,16 @@ private Q_SLOTS:
         QVERIFY(src.settle());
         QVERIFY(dst.settle());
         const int steps = dst.win.w.undoStack()->count();
-        // changes not saved: the link would read the file, which does not have them
+        // changes not saved are no reason to refuse (the links name the file; see aSourceWithUnsavedChangesIsCopiedWithLinksToItsSavedFile)
         QVERIFY(src.win.w.session()->type(0, 5, 0, QStringLiteral("9")).ok);
         QVERIFY(src.settle());
         src.win.told.clear();
         copyToOther(src, dst, 0);
         QVERIFY2(!src.win.told.isEmpty() && src.win.told.last().contains(QStringLiteral("not saved")), qPrintable(src.win.told.join(QLatin1Char('|'))));
-        QCOMPARE(dst.win.w.undoStack()->count(), steps);
+        QCOMPARE(dst.win.w.calculation()->sheetCount(), 4);
+        dst.win.w.undoStack()->undo();
+        QVERIFY(dst.settle());
+        QCOMPARE(dst.win.w.undoStack()->index(), steps);
         QCOMPARE(dst.win.w.calculation()->sheetCount(), 3);
         // (a sheet that reads no other sheet is copied from it all the same)
         {
@@ -509,7 +566,7 @@ private Q_SLOTS:
             ~Cap() { crunch::EditSession::setTransferCapForTest(0); }
         } cap;
         const crunch::EditSession::SheetExport big = src.win.w.session()->exportSheet(0, src.path);
-        QVERIFY2(!big.ok && big.problem.contains(QStringLiteral("larger than")), qPrintable(big.problem));
+        QVERIFY2(!big.ok && big.problem.contains(QStringLiteral("more cells")), qPrintable(big.problem));
         // moving is not done yet, and the box is not asked about it
         crunch::EditSession::setTransferCapForTest(0);
         src.win.w.undoStack()->undo();
@@ -561,11 +618,332 @@ private Q_SLOTS:
         QVERIFY(data.ok);
         QCOMPARE(data.frozen, qint64(1));
         const crunch::EditSession::Outcome o = dst.win.w.session()->checkImport(data);
-        QVERIFY2(o.ok && o.problem.contains(QStringLiteral("names or tables")), qPrintable(o.problem));
+        QVERIFY2(o.ok && o.problem.contains(QStringLiteral("use names of the other workbook")) && o.problem.contains(QStringLiteral("(1 in all)")), qPrintable(o.problem));
         QVERIFY(dst.win.w.session()->importSheet(data, -1, QString()).ok);
         QVERIFY(dst.settle());
         QCOMPARE(valueOf(dst, 3, QStringLiteral("A1")), QStringLiteral("n:100"));
         QCOMPARE(textOf(dst, 3, QStringLiteral("A1")), QStringLiteral("100"));
+    }
+
+    // Every cell a spill fills comes as the value it shows (not only the cell with the formula), and the box counts them all, naming only what was there (an array or a spill).
+    void aSpillIsCopiedAsItsValues()
+    {
+        EditWindow src, dst;
+        QVERIFY(src.open(dataBook()));
+        QVERIFY(dst.open(dataBook()));
+        QVERIFY(src.settle());
+        QVERIFY(dst.settle());
+        QVERIFY(src.win.w.session()->type(0, 5, 5, QStringLiteral("=SEQUENCE(3)")).ok);
+        QVERIFY(src.settle());
+        QCOMPARE(valueOf(src, 0, QStringLiteral("F8")), QStringLiteral("n:3"));
+        const int made = dst.win.w.calculation()->sheetCount();
+        copyToOther(src, dst, 0);
+        QVERIFY(dst.settle());
+        QVERIFY2(src.win.told.size() == 1 && src.win.told.last().contains(QStringLiteral("(3 in all)")) && src.win.told.last().contains(QStringLiteral("are part of an array or a spill")), qPrintable(src.win.told.join(QLatin1Char('|'))));
+        QVERIFY2(!src.win.told.last().contains(QStringLiteral("names")) && !src.win.told.last().contains(QStringLiteral("tables")), qPrintable(src.win.told.last()));
+        for (const char *ref : {"F6", "F7", "F8"}) QCOMPARE(textOf(dst, made, QString::fromLatin1(ref)), QString::number(QString::fromLatin1(ref).mid(1).toInt() - 5));
+        QCOMPARE(valueOf(dst, made, QStringLiteral("F8")), QStringLiteral("n:3"));
+        QVERIFY2(saveNow(dst), qPrintable(dst.win.told.join(QLatin1Char('|'))));
+        Saved f;
+        QVERIFY(f.open(dst.path));
+        QCOMPARE(f.shown(made, QStringLiteral("F7")), QStringLiteral("n:2"));
+        QCOMPARE(f.shown(made, QStringLiteral("F8")), QStringLiteral("n:3"));
+    }
+
+    // How a sheet is shown comes with it: held rows and columns, zoom, gridlines, headings, zeros, the way it reads, and its default sizes (rows with no size of their own stay as tall).
+    void aCopiedSheetIsShownAsTheOriginalWas()
+    {
+        EditWindow src, dst;
+        QVERIFY(src.open(viewBook()));
+        QVERIFY(dst.open(dataBook()));
+        QVERIFY(src.settle());
+        QVERIFY(dst.settle());
+        const int made = dst.win.w.calculation()->sheetCount();
+        copyToOther(src, dst, 0);
+        QVERIFY(dst.settle());
+        auto checkView = [&](const SheetView &v, const SheetFormat &f, const QString &where) {
+            QVERIFY2(!v.showGridLines && !v.showHeadings && !v.showZeros && v.rightToLeft, qPrintable(where));
+            QVERIFY2(v.zoom == 150 && v.frozen && v.frozenRows == 2 && v.frozenCols == 1, qPrintable(where));
+            QVERIFY2(f.defaultRowHeight == 21 && f.defaultColWidth == 12 && f.customHeight, qPrintable(where));
+        };
+        checkView(dst.win.w.calculation()->sheet(made).view, dst.win.w.calculation()->sheet(made).format, QStringLiteral("in the second workbook"));
+        // the window shows it so
+        dst.win.w.setActiveSheet(made);
+        QCOMPARE(dst.view()->viewState().frozenRows, qint64(2));
+        QCOMPARE(dst.view()->viewState().frozenCols, qint64(1));
+        QVERIFY(!dst.view()->showGridlines());
+        QVERIFY(!dst.view()->showHeadings());
+        // Undo takes it away, Redo gives it back
+        dst.win.w.undoStack()->undo();
+        QVERIFY(dst.settle());
+        dst.win.w.undoStack()->redo();
+        QVERIFY(dst.settle());
+        checkView(dst.win.w.calculation()->sheet(made).view, dst.win.w.calculation()->sheet(made).format, QStringLiteral("after Redo"));
+        // saved by the second workbook's own save and read again
+        QVERIFY2(saveNow(dst), qPrintable(dst.win.told.join(QLatin1Char('|'))));
+        Saved f;
+        QVERIFY(f.open(dst.path));
+        Sheet back;
+        QVERIFY(f.book.readSheet(made, &back));
+        checkView(back.view, back.format, QStringLiteral("in the saved file"));
+    }
+
+    // A shape made in this session, not yet in any file, is named in the box like one the file had.
+    void aShapeMadeInThisSessionIsNamedBeforeTheCopy()
+    {
+        EditWindow src, dst;
+        QVERIFY(src.open(dataBook()));
+        QVERIFY(dst.open(dataBook()));
+        QVERIFY(src.settle());
+        QVERIFY(dst.settle());
+        copyToOther(src, dst, 0);
+        QVERIFY2(src.win.told.size() == 1 && !src.win.told.last().contains(QStringLiteral("shapes")), qPrintable(src.win.told.join(QLatin1Char('|'))));
+        dst.win.w.undoStack()->undo();
+        src.win.told.clear();
+        QVERIFY(src.win.w.insertShape(QStringLiteral("rect")));
+        QVERIFY(src.settle());
+        copyToOther(src, dst, 0);
+        QVERIFY2(src.win.told.size() == 1 && src.win.told.last().contains(QStringLiteral("shapes, text boxes, and lines")), qPrintable(src.win.told.join(QLatin1Char('|'))));
+    }
+
+    // The direction of a diagonal border goes with its look, into the second workbook and through its save.
+    void aDiagonalBorderKeepsItsDirection()
+    {
+        EditWindow src, dst;
+        QVERIFY(src.open(lookBook()));
+        QVERIFY(dst.open(dataBook()));
+        QVERIFY(src.settle());
+        QVERIFY(dst.settle());
+        const int made = dst.win.w.calculation()->sheetCount();
+        copyToOther(src, dst, 0);
+        QVERIFY(dst.settle());
+        auto direction = [](const Styles &styles, quint32 xf) { return QStringLiteral("%1%2").arg(styles.border(styles.format(xf).border).diagonalUp ? 'u' : '-').arg(styles.border(styles.format(xf).border).diagonalDown ? 'd' : '-'); };
+        const Styles &now = dst.win.w.loaded()->book->styles();
+        QCOMPARE(direction(now, dst.win.w.calculation()->content(made, 0, 0).style), QStringLiteral("u-"));
+        QCOMPARE(direction(now, dst.win.w.calculation()->content(made, 1, 0).style), QStringLiteral("-d"));
+        QVERIFY2(saveNow(dst), qPrintable(dst.win.told.join(QLatin1Char('|'))));
+        Saved f;
+        QVERIFY(f.open(dst.path));
+        Sheet back;
+        QVERIFY(f.book.readSheet(made, &back));
+        QCOMPARE(direction(f.book.styles(), at(back, QStringLiteral("A1"))->style), QStringLiteral("u-"));
+        QCOMPARE(direction(f.book.styles(), at(back, QStringLiteral("A2"))->style), QStringLiteral("-d"));
+    }
+
+    // The formats are asked for room before any is added: a workbook that has room for fewer than the sheet's looks refuses in words, with no format added, no sheet, and no step; one that has room
+    // takes them, and what Undo leaves is those formats only (Redo adds no more).
+    void aWorkbookCloseToItsFormatLimitIsAskedFirst()
+    {
+        auto fillTo = [](Workbook &book, qint64 formats) {
+            for (int n = 0; qint64(book.styles().formats.size()) < formats && n < 70000; ++n) {
+                FormatChange c;
+                c.indent = n % 256;
+                c.rotation = n / 256;
+                book.formatWith(0, c);
+            }
+            return qint64(book.styles().formats.size()) == formats;
+        };
+        EditWindow src, tight, roomy;
+        QVERIFY(src.open(lookBook()));
+        QVERIFY(tight.open(dataBook()));
+        QVERIFY(roomy.open(dataBook()));
+        QVERIFY(src.settle());
+        QVERIFY(tight.settle());
+        QVERIFY(roomy.settle());
+        // room for two, and the sheet has three looks
+        Workbook &closed = *tight.win.w.loaded()->book;
+        QVERIFY(fillTo(closed, kMaxCellFormatsWritten - 2));
+        const int sheets = tight.win.w.calculation()->sheetCount();
+        const int steps = tight.win.w.undoStack()->count();
+        copyToOther(src, tight, 0);
+        QVERIFY2(!src.win.told.isEmpty() && src.win.told.last().contains(QStringLiteral("Nothing was copied")), qPrintable(src.win.told.join(QLatin1Char('|'))));
+        QCOMPARE(tight.win.w.calculation()->sheetCount(), sheets);
+        QCOMPARE(tight.win.w.undoStack()->count(), steps);
+        QCOMPARE(qint64(closed.styles().formats.size()), kMaxCellFormatsWritten - 2);
+        // room for three
+        src.win.told.clear();
+        Workbook &room = *roomy.win.w.loaded()->book;
+        QVERIFY(fillTo(room, kMaxCellFormatsWritten - 3));
+        const int count = roomy.win.w.calculation()->sheetCount();
+        copyToOther(src, roomy, 0);
+        QVERIFY2(src.win.told.size() == 1 && !src.win.told.last().contains(QStringLiteral("Nothing was copied")), qPrintable(src.win.told.join(QLatin1Char('|'))));
+        QVERIFY(roomy.settle());
+        QCOMPARE(roomy.win.w.calculation()->sheetCount(), count + 1);
+        const qint64 after = room.styles().formats.size();
+        QVERIFY(after <= kMaxCellFormatsWritten && after > kMaxCellFormatsWritten - 3);
+        roomy.win.w.undoStack()->undo();
+        QVERIFY(roomy.settle());
+        QCOMPARE(roomy.win.w.calculation()->sheetCount(), count);
+        QCOMPARE(qint64(room.styles().formats.size()), after);   // (what Undo leaves: those formats, no more)
+        roomy.win.w.undoStack()->redo();
+        QVERIFY(roomy.settle());
+        QCOMPARE(qint64(room.styles().formats.size()), after);
+        QCOMPARE(roomy.win.w.calculation()->sheetCount(), count + 1);
+    }
+
+    // A sheet is counted by the cells that hold something, not by the rows and columns they reach: one cell far from the rest copies though the rows times the columns come to billions.
+    void aSparseSheetIsCountedByItsCells()
+    {
+        struct Cap {
+            Cap() { crunch::EditSession::setTransferCapForTest(5); }
+            ~Cap() { crunch::EditSession::setTransferCapForTest(0); }
+        } cap;
+        const QByteArray far = worksheet(row(1, cell(QStringLiteral("A1"), QStringLiteral("1"))) + row(1048576, cell(QStringLiteral("XFD1048576"), QStringLiteral("42"))));
+        EditWindow src, dst;
+        QVERIFY(src.open(buildXlsx({far, worksheet(QString())})));
+        QVERIFY(dst.open(dataBook()));
+        QVERIFY(src.settle());
+        QVERIFY(dst.settle());
+        const int made = dst.win.w.calculation()->sheetCount();
+        copyToOther(src, dst, 0);
+        QVERIFY2(src.win.told.size() <= 1 && (src.win.told.isEmpty() || !src.win.told.last().contains(QStringLiteral("larger"))), qPrintable(src.win.told.join(QLatin1Char('|'))));
+        QVERIFY(dst.settle());
+        QCOMPARE(dst.win.w.calculation()->sheetCount(), made + 1);
+        QCOMPARE(valueOf(dst, made, QStringLiteral("XFD1048576")), QStringLiteral("n:42"));
+        // and the count of cells still holds: six cells are over the cap of five
+        src.win.told.clear();
+        QVERIFY(src.win.w.session()->type(0, 1, 0, QStringLiteral("2")).ok);
+        QVERIFY(src.win.w.session()->type(0, 2, 0, QStringLiteral("3")).ok);
+        QVERIFY(src.win.w.session()->type(0, 3, 0, QStringLiteral("4")).ok);
+        QVERIFY(src.win.w.session()->type(0, 4, 0, QStringLiteral("5")).ok);
+        const crunch::EditSession::SheetExport six = src.win.w.session()->exportSheet(0, src.path);
+        QVERIFY2(!six.ok && six.problem.contains(QStringLiteral("more cells")), qPrintable(six.problem));
+    }
+
+    // A formula that reads a third workbook comes as the value it shows, and the box says exactly that (not "names or tables"); a "[" in a text in quotes is no link and the formula stays a formula.
+    void aFormulaThatReadsAThirdWorkbookComesAsItsValue()
+    {
+        EditWindow src, dst;
+        QVERIFY(src.open(thirdBook()));
+        QVERIFY(dst.open(dataBook()));
+        QVERIFY(src.settle());
+        QVERIFY(dst.settle());
+        const int made = dst.win.w.calculation()->sheetCount();
+        copyToOther(src, dst, 0);
+        QVERIFY(dst.settle());
+        QVERIFY2(src.win.told.size() == 1 && src.win.told.last().contains(QStringLiteral("(1 in all)")) && src.win.told.last().contains(QStringLiteral("read cells of a third workbook")), qPrintable(src.win.told.join(QLatin1Char('|'))));
+        QVERIFY2(!src.win.told.last().contains(QStringLiteral("names")) && !src.win.told.last().contains(QStringLiteral("tables")), qPrintable(src.win.told.last()));
+        QCOMPARE(textOf(dst, made, QStringLiteral("B1")), QStringLiteral("7"));
+        QCOMPARE(valueOf(dst, made, QStringLiteral("B1")), QStringLiteral("n:7"));
+        QCOMPARE(textOf(dst, made, QStringLiteral("C1")), QStringLiteral("=\"a[b]\"&A1"));   // (still a formula)
+        QCOMPARE(textOf(dst, made, QStringLiteral("D1")), QStringLiteral("=[1]Other!A1+1"));   // (and the one that reads another sheet is still the link)
+    }
+
+    // A workbook with a file and changes that are not saved is not refused: the links name its saved file, the box says so in a sentence, and the copy shows what the open workbook shows now. One
+    // that was never saved is refused (it has no file to name).
+    void aSourceWithUnsavedChangesIsCopiedWithLinksToItsSavedFile()
+    {
+        EditWindow src, dst;
+        QVERIFY(src.open(dataBook()));
+        QVERIFY(dst.open(dataBook()));
+        QVERIFY(src.settle());
+        QVERIFY(dst.settle());
+        QVERIFY(src.win.w.session()->type(1, 0, 0, QStringLiteral("9")).ok);   // (Other!A1: not saved)
+        QVERIFY(src.settle());
+        QVERIFY(src.win.w.session()->isModified());
+        const int made = dst.win.w.calculation()->sheetCount();
+        copyToOther(src, dst, 0);
+        QVERIFY(dst.settle());
+        QVERIFY2(src.win.told.size() == 1 && src.win.told.last().contains(QStringLiteral("links to its saved file")) && src.win.told.last().contains(QStringLiteral("not saved")), qPrintable(src.win.told.join(QLatin1Char('|'))));
+        QCOMPARE(dst.win.w.calculation()->sheetCount(), made + 1);
+        QCOMPARE(textOf(dst, made, QStringLiteral("C1")), QStringLiteral("=[1]Other!A1+1"));
+        QTRY_COMPARE(valueOf(dst, made, QStringLiteral("C1")), QStringLiteral("n:10"));   // (the open workbook's 9, plus 1: not the file's 100)
+    }
+
+    // A copied link behaves as a link typed in the second workbook does, when the first workbook's cell changes and is saved: the same value, whichever it is.
+    void aCopiedLinkBehavesAsATypedLinkDoes()
+    {
+        EditWindow src, dst;
+        QVERIFY(src.open(dataBook()));
+        QVERIFY(dst.open(dataBook()));
+        QVERIFY(src.settle());
+        QVERIFY(dst.settle());
+        const int made = dst.win.w.calculation()->sheetCount();
+        copyToOther(src, dst, 0);
+        QVERIFY(dst.settle());
+        QTRY_COMPARE(valueOf(dst, made, QStringLiteral("C1")), QStringLiteral("n:101"));
+        // a link typed in the same workbook, to the same cell of the open workbook
+        QVERIFY(dst.win.w.session()->type(made, 5, 0, QStringLiteral("=[book.xlsx]Other!A1+1")).ok);
+        QVERIFY(dst.settle());
+        QTRY_COMPARE(valueOf(dst, made, QStringLiteral("A6")), QStringLiteral("n:101"));
+        // the first workbook's cell changes, and is saved
+        QVERIFY(src.win.w.session()->type(1, 0, 0, QStringLiteral("200")).ok);
+        QVERIFY(src.settle());
+        QVERIFY2(saveNow(src), "the first workbook is saved");
+        QVERIFY(dst.settle());
+        for (int turns = 0; turns < 20; ++turns) QCoreApplication::processEvents();
+        QCOMPARE(valueOf(dst, made, QStringLiteral("C1")), valueOf(dst, made, QStringLiteral("A6")));
+        // (neither follows the first workbook's saved file by itself: both keep what they showed until the links are updated)
+        QCOMPARE(valueOf(dst, made, QStringLiteral("C1")), QStringLiteral("n:101"));
+    }
+
+    // Several sheets are copied all or none: when the second is refused, the first is not put in; a workbook closed while the sheets were being chosen is told in words and nothing is copied.
+    void severalSheetsAreCopiedAllOrNone()
+    {
+        EditWindow src, dst;
+        QVERIFY(src.open(dataBook(true)));
+        QVERIFY(dst.open(dataBook()));
+        QVERIFY(src.settle());
+        QVERIFY(dst.settle());
+        // a block of sheets in a formula of the second sheet that is picked is refused
+        QVERIFY(src.win.w.session()->type(1, 3, 0, QStringLiteral("=SUM(Data:Third!A1)")).ok);
+        QVERIFY(src.settle());
+        const int sheets = dst.win.w.calculation()->sheetCount();
+        const int steps = dst.win.w.undoStack()->count();
+        copyManyToOther(src, &dst, QSet<int>({0, 1}));
+        QVERIFY2(!src.win.told.isEmpty() && src.win.told.last().contains(QStringLiteral("block of sheets")), qPrintable(src.win.told.join(QLatin1Char('|'))));
+        QCOMPARE(dst.win.w.calculation()->sheetCount(), sheets);
+        QCOMPARE(dst.win.w.undoStack()->count(), steps);
+        // both pass when the refused one is taken away: one step of Undo for the two
+        src.win.w.undoStack()->undo();
+        QVERIFY(src.settle());
+        src.win.told.clear();
+        copyManyToOther(src, &dst, QSet<int>({0, 1}));
+        QVERIFY(dst.settle());
+        QCOMPARE(dst.win.w.calculation()->sheetCount(), sheets + 2);
+        QCOMPARE(dst.win.w.undoStack()->count(), steps + 1);
+        dst.win.w.undoStack()->undo();
+        QVERIFY(dst.settle());
+        QCOMPARE(dst.win.w.calculation()->sheetCount(), sheets);
+        // the second workbook is closed before the copy is made
+        auto gone = std::make_unique<EditWindow>();
+        QVERIFY(gone->open(dataBook()));
+        QVERIFY(gone->settle());
+        src.win.told.clear();
+        src.win.w.setMoveCopyAsker([&](CrunchWindow::MoveCopyRequest *r) {
+            r->copy = true;
+            r->toBook = &gone->win.w;
+            r->toOther = true;
+            gone.reset();   // (closed while the box was open)
+            return true;
+        });
+        src.win.w.sheetTabs()->selectOnly(0);
+        src.win.w.setActiveSheet(0);
+        src.win.w.act(QStringLiteral("sheet.moveCopy"))->trigger();
+        QVERIFY2(!src.win.told.isEmpty() && src.win.told.last().contains(QStringLiteral("was closed")), qPrintable(src.win.told.join(QLatin1Char('|'))));
+        QCOMPARE(src.win.w.calculation()->sheetCount(), 3);
+    }
+
+    // A plain Insert Sheet is undone and redone; once the workbook is saved the step is not undoable (the saved file has the sheet, as it does a deleted row), and the session says it forgot it. The sheet
+    // stays: this is the design, not a lost undo (checked through the window's own command and save).
+    void anInsertedSheetIsUndoneUntilTheWorkbookIsSaved()
+    {
+        EditWindow e;
+        QVERIFY(e.open(dataBook()));
+        QVERIFY(e.settle());
+        e.win.w.act(QStringLiteral("sheet.insertEnd"))->trigger();
+        QVERIFY(e.settle());
+        QCOMPARE(e.win.w.calculation()->sheetCount(), 3);
+        QVERIFY(e.win.w.session()->canUndo());
+        e.win.w.undoStack()->undo();
+        QVERIFY(e.settle());
+        QCOMPARE(e.win.w.calculation()->sheetCount(), 2);
+        e.win.w.undoStack()->redo();
+        QVERIFY(e.settle());
+        QVERIFY2(saveNow(e), qPrintable(e.win.told.join(QLatin1Char('|'))));
+        QVERIFY(!e.win.w.session()->canUndo());
+        QCOMPARE(e.win.w.session()->stepsForgottenBySave(), 1);
+        QCOMPARE(e.win.w.calculation()->sheetCount(), 3);
     }
 
     // A formula over a block of sheets is not given to adding, renaming, moving, or deleting (its meaning is by the order of the sheets).

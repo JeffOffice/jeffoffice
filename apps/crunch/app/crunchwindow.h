@@ -557,7 +557,8 @@ public:
         QVector<int> sheets;
         int before = -1;
         bool copy = false;
-        CrunchWindow *toBook = nullptr;   // another open workbook to put the sheets in (null: this one)
+        bool toOther = false;            // the sheets are for another workbook (set with `toBook`; stays set when that workbook is closed before the copy)
+        QPointer<CrunchWindow> toBook;   // another open workbook to put the sheets in (null: this one; a workbook closed meanwhile is null too)
     };
     bool readyToQuit() override;
     void setOutlineReplaceAsker(const std::function<bool()> &asker) { m_outlineReplaceAsker = asker; }
@@ -1482,6 +1483,8 @@ private:
     QString htmlOfClip(const crunch::ClipData &clip) const;
     void freezeAtSelection();
     void syncPanes();
+    // What the drawing layer holds on a sheet (made in this session or read), as words, for what a copy to another workbook leaves out.
+    QStringList drawnKindsOn(int sheet);
     void toggleSplit();
     // the sheets (crunchwindow_sheets.cpp): the tabs, and the commands that add, copy, rename, delete, move, hide, and color them
     void createSheetActions();

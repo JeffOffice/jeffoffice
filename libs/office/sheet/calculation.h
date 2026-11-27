@@ -595,6 +595,11 @@ public:
     {
         if (sheet >= 0 && sheet < int(m_sheets.size())) m_sheets[size_t(sheet)].format = format;
     }
+    // How the sheet is shown (frozen panes, zoom, gridlines, and the like): the worker does not read it; the window's thread puts it in a sheet it made.
+    void setSheetView(int sheet, const SheetView &view)
+    {
+        if (sheet >= 0 && sheet < int(m_sheets.size())) m_sheets[size_t(sheet)].view = view;
+    }
     // Puts these in their place (what the range had is let go of first): for making a change and for undoing it.
     void setColumnRuns(int sheet, quint32 first, quint32 last, const std::vector<ColumnSpan> &runs);
     void setRowSpecs(int sheet, quint32 first, quint32 last, const std::vector<RowSpec> &specs);
