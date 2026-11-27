@@ -44,7 +44,8 @@ Without ?app= the pages cover all the apps. An app has to be named in APPS befor
 
     The stats page also has a Downloads section, filled by download_daily() once a day from GitHub's release
     counts, Cloudflare's analytics for apt.jeffoffice.com (env CF_ANALYTICS_TOKEN, CF_ZONE_ID), and the Snap Store's
-    metrics (env SNAP_METRICS_CREDENTIALS, SNAP_ID). Those are public counters; they hold nothing about a person.
+    metrics (env SNAP_METRICS_CREDENTIALS, SNAP_ID; the refreshed store login and the last fetch's day are kept in DATA_DIR,
+    snap-login.json and snap-status.json). Those are public counters; they hold nothing about a person.
 
 Everything is kept for 24 months (KEEP_MONTHS), then deleted: purge() runs at start and once a day.
 `python main.py --forget <install id>` deletes one install's pings, counts, and crash reports, for a
@@ -54,8 +55,10 @@ goes; a Railway volume), STATS_PASSWORD. Standard library only.
 """
 import base64
 import bisect
+import contextlib
 import datetime as dt
 import gzip
+import hashlib
 import hmac
 import html
 import ipaddress
@@ -67,6 +70,7 @@ import sqlite3
 import sys
 import threading
 import time
+import urllib.error
 import urllib.parse
 import urllib.request
 from array import array
@@ -502,12 +506,36 @@ def _bind_discharge(root, discharge):
     return base64.urlsafe_b64encode(out).decode().rstrip("=")
 
 
-def snap_auth_header(credentials):
-    """The Authorization header for dashboard.snapcraft.io from `snapcraft export-login --acls package_metrics`
-    output (base64 of JSON holding the root and discharge macaroons: {"t": "u1-macaroon", "v": {"r": ..., "d": ...}} or
-    just {"r": ..., "d": ...}). Source: canonical/craft-store, craft_store/ubuntu_one_store_client.py,
-    UbuntuOneStoreClient._get_authorization_header: "Macaroon root=<root>, discharge=<bound discharge>", where the
-    discharge is bound with root_macaroon.prepare_for_request(discharge) (see _bind_discharge)."""
+# How the Snap Store login works (read from canonical/craft-store, craft_store/ubuntu_one_store_client.py, creds.py,
+# endpoints.py (U1_SNAP_STORE), auth.py, base_client.py, http_client.py; and canonical/snapcraft, snapcraft/store/client.py,
+# store/constants.py, commands/account.py):
+#   - `snapcraft export-login` prints base64 of JSON {"t": "u1-macaroon", "v": {"r": <root>, "d": <discharge>}} (auth.py
+#     encode_credentials; creds.py also accepts the bare {"r", "d"} form).
+#   - Every store request carries "Authorization: Macaroon root=<root>, discharge=<bound>", the discharge bound to the root
+#     with root.prepare_for_request(discharge) (_get_authorization_header; see _bind_discharge).
+#   - The discharge is issued by Ubuntu One (https://login.ubuntu.com, snapcraft's UBUNTU_ONE_SSO_URL) and expires. craft-store
+#     refreshes it when a store answer carries the error code "macaroon-needs-refresh": POST <sso>/api/v2/tokens/refresh with
+#     JSON {"discharge_macaroon": <stored discharge>}, answer {"discharge_macaroon": <new>}; it keeps the root, replaces the
+#     discharge, saves, and repeats the request once (UbuntuOneStoreClient._refresh_token and request). The server's 401 also
+#     sends "WWW-Authenticate: Macaroon needs_refresh=1" (seen in a probe; no client reads it), so either sign counts here.
+#   - Any other 401, or a refused refresh, means the login is no longer valid: snapcraft tells the person to export a new one.
+SNAP_SSO = "https://login.ubuntu.com"
+SNAP_REFRESH_PATH = "/api/v2/tokens/refresh"
+SNAP_STALE_DAYS = 3
+SNAP_LOGIN_FILE = "snap-login.json"      # the refreshed discharge (a store login of ours; mode 600), in DATA_DIR
+SNAP_STATUS_FILE = "snap-status.json"    # fetched_on, expired_on, login (a hash of the root): no secrets, read by the page
+
+
+class SnapFetchFailed(Exception):
+    """A failure whose note is safe to log (no login, macaroon, or header in it)."""
+
+    def __init__(self, note):
+        super().__init__(note)
+        self.note = note
+
+
+def snap_login_parts(credentials):
+    """(root, discharge) of a login exported with `snapcraft export-login` (see above)."""
     text = credentials.strip()
     try:
         data = json.loads(base64.b64decode(text + "=" * (-len(text) % 4)).decode())
@@ -518,7 +546,79 @@ def snap_auth_header(credentials):
     root, discharge = data.get("r") or data.get("root"), data.get("d") or data.get("discharge")
     if not (isinstance(root, str) and isinstance(discharge, str)):
         raise ValueError("credentials")
-    return f"Macaroon root={root}, discharge={_bind_discharge(root, discharge)}"
+    return root, discharge
+
+
+def snap_auth_header(credentials, discharge=None):
+    """The Authorization header for dashboard.snapcraft.io: "Macaroon root=<root>, discharge=<bound discharge>"
+    (_get_authorization_header in the file named above). `discharge` replaces the login's own (a refreshed one)."""
+    root, own = snap_login_parts(credentials)
+    return f"Macaroon root={root}, discharge={_bind_discharge(root, discharge or own)}"
+
+
+def _snap_login_id(root):
+    return hashlib.sha256(root.encode()).hexdigest()[:16]
+
+
+def _read_json(name):
+    try:
+        with open(os.path.join(DATA_DIR, name)) as f:
+            data = json.load(f)
+        return data if isinstance(data, dict) else {}
+    except (OSError, ValueError):
+        return {}
+
+
+def _write_json(name, data, mode=0o600):
+    """Written to a new file and renamed over the old one, so a reader never sees half of it."""
+    os.makedirs(DATA_DIR, exist_ok=True)
+    path = os.path.join(DATA_DIR, name)
+    tmp = f"{path}.{os.getpid()}.new"
+    fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, mode)
+    try:
+        with os.fdopen(fd, "w") as f:
+            json.dump(data, f)
+            f.flush()
+            os.fsync(f.fileno())
+        os.chmod(tmp, mode)
+        os.replace(tmp, path)
+    except BaseException:
+        with contextlib.suppress(OSError):
+            os.unlink(tmp)
+        raise
+
+
+def snap_status():
+    """{"fetched_on", "expired_on"} (day strings or None) of the newest daily fetch, for the login the environment holds now."""
+    try:
+        root = snap_login_parts(os.environ.get("SNAP_METRICS_CREDENTIALS", ""))[0]
+    except ValueError:
+        return {"fetched_on": None, "expired_on": None}
+    st = _read_json(SNAP_STATUS_FILE)
+    if st.get("login") != _snap_login_id(root):   # a login the owner issued since: nothing is known about it yet
+        return {"fetched_on": None, "expired_on": None}
+    return {"fetched_on": st.get("fetched_on"), "expired_on": st.get("expired_on")}
+
+
+def _set_snap_status(root, **fields):
+    st = snap_status()
+    st.update(fields)
+    st["login"] = _snap_login_id(root)
+    _write_json(SNAP_STATUS_FILE, st, 0o644)
+
+
+def _needs_refresh(e):
+    """True for a 401 that asks for a new discharge: WWW-Authenticate "needs_refresh=1" or the error code
+    "macaroon-needs-refresh" in the body."""
+    if e.code != 401:
+        return False
+    if "needs_refresh=1" in (e.headers.get("WWW-Authenticate", "") if e.headers else ""):
+        return True
+    try:
+        errors = json.loads(e.read(65536)).get("error_list", [])
+        return any(isinstance(x, dict) and x.get("code") == "macaroon-needs-refresh" for x in errors)
+    except (ValueError, AttributeError, OSError):
+        return False
 
 
 def fetch_snap(http=None, today=None):
@@ -529,15 +629,51 @@ def fetch_snap(http=None, today=None):
     if not creds.strip():
         return None
     http = http or http_json
-    headers = {"Authorization": snap_auth_header(creds), "Accept": "application/json", "Content-Type": "application/json"}
+    root, env_discharge = snap_login_parts(creds)
+    saved = _read_json(SNAP_LOGIN_FILE)   # a refreshed discharge wins while it belongs to the root the variable holds
+    login = {"discharge": saved["discharge"] if saved.get("root") == root and isinstance(saved.get("discharge"), str) else env_discharge,
+             "refreshed": False, "tried": False}
+    today = today or utc_today()
+
+    def call(url, body=None):
+        headers = {"Authorization": snap_auth_header(creds, login["discharge"]), "Accept": "application/json",
+                   "Content-Type": "application/json"}
+        try:
+            return http(url, headers, body)
+        except urllib.error.HTTPError as e:
+            if not _needs_refresh(e):
+                raise
+            if login["tried"]:
+                raise SnapFetchFailed("HTTP 401 needs refresh again after a refresh this run") from None
+        login["tried"] = True   # one refresh and one retry per run
+        try:
+            answer = http(SNAP_SSO + SNAP_REFRESH_PATH, {"Accept": "application/json", "Content-Type": "application/json"},
+                          {"discharge_macaroon": login["discharge"]})
+            new = answer["discharge_macaroon"]
+            if not (isinstance(new, str) and new):
+                raise ValueError("refresh answer")
+        except Exception as e:
+            if isinstance(e, urllib.error.HTTPError) and 400 <= e.code < 500:
+                _set_snap_status(root, expired_on=today.isoformat())
+            raise SnapFetchFailed(f"HTTP 401 needs refresh; refresh failed: {type(e).__name__}") from None
+        login["discharge"], login["refreshed"] = new, True
+        _write_json(SNAP_LOGIN_FILE, {"root": root, "discharge": new})
+        try:
+            return http(url, {**headers, "Authorization": snap_auth_header(creds, new)}, body)
+        except Exception as e:
+            raise SnapFetchFailed(f"HTTP 401 needs refresh; refreshed; retry failed: {type(e).__name__}") from None
+
     snap_id = os.environ.get("SNAP_ID", "")
     if not snap_id:
-        account = http(SNAP_API + "/account", headers)   # {"snaps": {"16": {"jeffoffice": {"snap-id": ...}}}}
+        account = call(SNAP_API + "/account")   # {"snaps": {"16": {"jeffoffice": {"snap-id": ...}}}}
         snap_id = account["snaps"]["16"][SNAP_NAME]["snap-id"]
-    end = (today or utc_today()) - dt.timedelta(days=1)
+    end = today - dt.timedelta(days=1)
     start = end - dt.timedelta(days=SNAP_WINDOW_DAYS)
-    answer = http(SNAP_API + "/snaps/metrics", headers, {"filters": [
+    answer = call(SNAP_API + "/snaps/metrics", {"filters": [
         {"snap_id": snap_id, "metric_name": m, "start": start.isoformat(), "end": end.isoformat()} for m in SNAP_METRICS]})
+    _set_snap_status(root, fetched_on=today.isoformat(), expired_on=None)
+    if login["refreshed"]:
+        print("downloads snap: login refreshed", flush=True)
     by_day = {}
     for metric in answer["metrics"]:
         if metric.get("status") != "OK":
@@ -572,7 +708,7 @@ def run_download_fetchers(today=None, http=None, fetchers=None):
             print(f"downloads {name}: {'skipped, not connected' if done[name] is None else str(done[name]) + ' rows'}", flush=True)
         except Exception as e:
             done[name] = None
-            print(f"downloads {name} failed: {type(e).__name__}", flush=True)
+            print(f"downloads {name} failed: {getattr(e, 'note', None) or type(e).__name__}", flush=True)
     return done
 
 
@@ -904,6 +1040,17 @@ def gather_downloads(days, today=None):
             "now": totals.get(newest, 0) if newest else 0,
             "series": [totals[d] for d in sorted(totals)[-26:]],   # weekly buckets, so the newest half year
             "countries": {k[8:]: v[1] for k, v in latest.items() if k.startswith("country:") and v[0] == newest}}
+    st = snap_status()
+    snap["expired"] = st["expired_on"]
+    last = st["fetched_on"]
+    # data buckets are weekly, so staleness is judged by the last fetch (or, before there is one on record, by the newest bucket + 7)
+    limit = dt.timedelta(days=SNAP_STALE_DAYS if last else SNAP_STALE_DAYS + 7)
+    seen = last or newest
+    snap["fetched"] = last or newest
+    try:
+        snap["stale"] = bool(seen) and today - dt.date.fromisoformat(seen) > limit
+    except ValueError:
+        snap["stale"] = False
     combined = dict(gh["versions"])
     for v, n in versions.items():
         combined[v] = combined.get(v, 0) + n
@@ -1164,6 +1311,12 @@ def render_downloads(d):
                     '<span class="delta">installed now</span>', "")
     else:
         body += f'<tr><td class="app">{named("Snap Store", "snapcraft.io")}</td><td class="muted" colspan="3">no data yet</td></tr>'
+    if snap["connected"] and (snap["expired"] or snap["stale"]):
+        if snap["expired"]:
+            what = f"the saved login has expired; last number is from {snap['day'] or 'never'}"
+        else:
+            what = f"last fetched {snap['fetched']}"
+        body += f'<tr><td class="muted small" colspan="4">Snap Store: {e(what)}</td></tr>'
     since = gh["since"]
     notes = (f"GitHub counts downloads of each installer; the period is the change in GitHub's running total, "
              f"counting since {e(since)}. All time is GitHub's own total. " if since else

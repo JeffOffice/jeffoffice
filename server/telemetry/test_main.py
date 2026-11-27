@@ -998,6 +998,178 @@ class Downloads(unittest.TestCase):
         main.fetch_snap(lambda u, h=None, b=None: calls.append(u) or self.snap_answer(), dt.date(2026, 11, 10))
         self.assertEqual(len(calls), 1)
 
+    # Snap Store login refresh
+    def snap_setup(self):
+        for name in (main.SNAP_LOGIN_FILE, main.SNAP_STATUS_FILE):
+            with contextlib.suppress(OSError):
+                os.unlink(os.path.join(main.DATA_DIR, name))
+        self.addCleanup(lambda: [os.path.exists(p) and os.unlink(p) for p in
+                                 (os.path.join(main.DATA_DIR, n) for n in (main.SNAP_LOGIN_FILE, main.SNAP_STATUS_FILE))])
+        creds = self.credentials()[0]
+        os.environ["SNAP_METRICS_CREDENTIALS"], os.environ["SNAP_ID"] = creds, "sid"
+        return creds
+
+    def needs_refresh(self, header=True):
+        import email.message
+        hdrs = email.message.Message()
+        if header:
+            hdrs["WWW-Authenticate"] = "Macaroon needs_refresh=1"
+        body = b'{"error_list": [{"message": "Expired macaroon", "code": "macaroon-needs-refresh"}]}' if header else b'{"error_list": []}'
+        return urllib.error.HTTPError("https://x/secret-url", 401, "Unauthorized", hdrs, io.BytesIO(body))
+
+    def refresh_http(self, refresh=None, store_failures=1):
+        """A fake network: the store refuses `store_failures` calls with needs-refresh, the sign-on service answers `refresh`."""
+        calls = {"store": [], "refresh": []}
+
+        def http(url, headers=None, body=None):
+            if "/api/v2/tokens/refresh" in url:
+                calls["refresh"].append((url, headers, body))
+                if isinstance(refresh, Exception):
+                    raise refresh
+                return refresh
+            calls["store"].append((url, headers, body))
+            if len(calls["store"]) <= store_failures:
+                raise self.needs_refresh()
+            return self.snap_answer()
+        return http, calls
+
+    def new_discharge(self):
+        return self.macaroon_v1(b"login", b"new-dis-id", bytes(range(64, 96)))
+
+    def test_a_needs_refresh_answer_refreshes_once_and_retries_with_the_new_discharge(self):
+        creds = self.snap_setup()
+        new = self.new_discharge()
+        http, calls = self.refresh_http({"discharge_macaroon": new})
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out):
+            main.fetch_snap(http, dt.date(2026, 11, 10))
+        self.assertEqual(len(calls["refresh"]), 1)
+        url, headers, body = calls["refresh"][0]
+        self.assertEqual(url, "https://login.ubuntu.com/api/v2/tokens/refresh")
+        self.assertEqual(body, {"discharge_macaroon": self.credentials()[0] and json.loads(base64.b64decode(creds))["v"]["d"]})
+        self.assertNotIn("Authorization", headers)
+        self.assertEqual(len(calls["store"]), 2)
+        self.assertEqual(calls["store"][1][1]["Authorization"], main.snap_auth_header(creds, new))
+        self.assertNotEqual(calls["store"][0][1]["Authorization"], calls["store"][1][1]["Authorization"])
+        self.assertEqual({i for _, _, i, _ in stored("snap")} >= {"kind:total"}, True)
+        path = os.path.join(main.DATA_DIR, main.SNAP_LOGIN_FILE)
+        self.assertEqual(os.stat(path).st_mode & 0o777, 0o600)
+        self.assertEqual(json.load(open(path))["discharge"], new)
+        self.assertEqual([n for n in os.listdir(main.DATA_DIR) if n.endswith(".new")], [])
+        self.assertEqual(main.snap_status(), {"fetched_on": "2026-11-10", "expired_on": None})
+        # the next run starts with the refreshed discharge: no refresh needed
+        http2, calls2 = self.refresh_http({"discharge_macaroon": "unused"}, store_failures=0)
+        main.fetch_snap(http2, dt.date(2026, 11, 11))
+        self.assertEqual(len(calls2["refresh"]), 0)
+        self.assertEqual(calls2["store"][0][1]["Authorization"], main.snap_auth_header(creds, new))
+
+    def test_a_refused_refresh_is_tried_once_and_the_page_says_the_login_expired(self):
+        os.environ["CF_ANALYTICS_TOKEN"] = "t"
+        self.snap_setup()
+        main.store_downloads("snap", {"2026-11-02": {"kind:total": 14}})
+        http, calls = self.refresh_http(urllib.error.HTTPError("https://x", 403, "no", None, io.BytesIO(b"{}")))
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out):
+            done = main.run_download_fetchers(dt.date(2026, 11, 10), http, (("snap", main.fetch_snap),))
+        self.assertIsNone(done["snap"])
+        self.assertEqual((len(calls["refresh"]), len(calls["store"])), (1, 1))
+        self.assertIn("downloads snap failed: HTTP 401 needs refresh; refresh failed: HTTPError", out.getvalue())
+        self.assertEqual(main.snap_status()["expired_on"], "2026-11-10")
+        page = main.render_stats(main.gather_stats(30, dt.date(2026, 11, 10)))
+        self.assertIn("Snap Store: the saved login has expired; last number is from 2026-11-02", page)
+
+    def test_a_network_failure_of_the_refresh_is_not_called_an_expired_login(self):
+        self.snap_setup()
+        http, calls = self.refresh_http(urllib.error.URLError("down"))
+        with contextlib.redirect_stdout(io.StringIO()) as out:
+            main.run_download_fetchers(dt.date(2026, 11, 10), http, (("snap", main.fetch_snap),))
+        self.assertIn("refresh failed: URLError", out.getvalue())
+        self.assertIsNone(main.snap_status()["expired_on"])
+
+    def test_a_401_without_needs_refresh_does_not_refresh(self):
+        self.snap_setup()
+        calls = []
+
+        def http(url, headers=None, body=None):
+            calls.append(url)
+            raise self.needs_refresh(header=False)
+        with self.assertRaises(urllib.error.HTTPError):
+            main.fetch_snap(http, dt.date(2026, 11, 10))
+        self.assertEqual(len(calls), 1)
+        self.assertIsNone(main.snap_status()["expired_on"])
+
+    def test_the_refresh_and_the_retry_happen_once_even_if_the_store_keeps_asking(self):
+        self.snap_setup()
+        http, calls = self.refresh_http({"discharge_macaroon": self.new_discharge()}, store_failures=99)
+        with contextlib.redirect_stdout(io.StringIO()) as out:
+            main.run_download_fetchers(dt.date(2026, 11, 10), http, (("snap", main.fetch_snap),))
+        self.assertEqual((len(calls["refresh"]), len(calls["store"])), (1, 2))
+        self.assertIn("downloads snap failed: HTTP 401 needs refresh; refreshed; retry failed: HTTPError", out.getvalue())
+
+    def test_one_refresh_serves_the_whole_run(self):
+        self.snap_setup()
+        os.environ.pop("SNAP_ID")
+        calls = {"refresh": 0, "store": 0}
+
+        def http(url, headers=None, body=None):
+            if "tokens/refresh" in url:
+                calls["refresh"] += 1
+                return {"discharge_macaroon": self.new_discharge()}
+            calls["store"] += 1
+            if calls["store"] in (1, 3):   # the account call, then the metrics call: both refused
+                raise self.needs_refresh()
+            return {"snaps": {"16": {"jeffoffice": {"snap-id": "sid"}}}}
+        with self.assertRaises(main.SnapFetchFailed):
+            main.fetch_snap(http, dt.date(2026, 11, 10))
+        self.assertEqual(calls, {"refresh": 1, "store": 3})
+
+    def test_a_saved_discharge_for_another_root_is_ignored(self):
+        creds = self.snap_setup()
+        other_root = self.macaroon_v1(b"snapcraft", b"other-root", bytes(range(100, 132)))
+        main._write_json(main.SNAP_LOGIN_FILE, {"root": other_root, "discharge": self.new_discharge()})
+        http, calls = self.refresh_http(None, store_failures=0)
+        main.fetch_snap(http, dt.date(2026, 11, 10))
+        self.assertEqual(calls["store"][0][1]["Authorization"], main.snap_auth_header(creds))
+
+    def test_a_login_the_owner_issues_later_clears_the_expired_state(self):
+        os.environ["CF_ANALYTICS_TOKEN"] = "t"
+        self.snap_setup()
+        http, _ = self.refresh_http(urllib.error.HTTPError("https://x", 400, "no", None, io.BytesIO(b"{}")))
+        with contextlib.redirect_stdout(io.StringIO()):
+            main.run_download_fetchers(dt.date(2026, 11, 10), http, (("snap", main.fetch_snap),))
+        self.assertEqual(main.snap_status()["expired_on"], "2026-11-10")
+        root = self.macaroon_v1(b"snapcraft", b"reissued", bytes(range(7, 39)))
+        blob = json.dumps({"t": "u1-macaroon", "v": {"r": root, "d": self.new_discharge()}})
+        os.environ["SNAP_METRICS_CREDENTIALS"] = base64.b64encode(blob.encode()).decode()
+        self.assertEqual(main.snap_status(), {"fetched_on": None, "expired_on": None})
+
+    def test_no_login_part_reaches_the_log(self):
+        creds = self.snap_setup()
+        parts = json.loads(base64.b64decode(creds))["v"]
+        new = self.new_discharge()
+        secrets = [creds, parts["r"], parts["d"], new, main.snap_auth_header(creds), main.snap_auth_header(creds, new)]
+        for refresh in ({"discharge_macaroon": new}, urllib.error.HTTPError("https://x/" + parts["d"], 401, "no", None, io.BytesIO(parts["r"].encode())),
+                        ValueError(parts["r"])):
+            http, _ = self.refresh_http(refresh)
+            out = io.StringIO()
+            with contextlib.redirect_stdout(out), contextlib.redirect_stderr(out):
+                main.run_download_fetchers(dt.date(2026, 11, 10), http, (("snap", main.fetch_snap),))
+            self.assertIn("downloads snap", out.getvalue())
+            for secret in secrets:
+                self.assertNotIn(secret, out.getvalue())
+            for part in (parts["r"][:20], parts["d"][:20], new[:20]):
+                self.assertNotIn(part, out.getvalue())
+
+    def test_the_page_notes_when_the_snap_fetch_is_more_than_three_days_old(self):
+        self.snap_setup()
+        main.store_downloads("snap", {"2026-11-09": {"kind:total": 30}})
+        http, _ = self.refresh_http(None, store_failures=0)
+        main.fetch_snap(http, dt.date(2026, 11, 10))
+        page = lambda day: main.render_stats(main.gather_stats(30, day))
+        self.assertNotIn("Snap Store: last fetched", page(dt.date(2026, 11, 13)))
+        self.assertIn("Snap Store: last fetched 2026-11-10", page(dt.date(2026, 11, 14)))
+        self.assertNotIn("has expired", page(dt.date(2026, 11, 14)))
+
     # the runner and the pieces around it
     def test_a_failure_is_logged_as_its_type_only_and_the_others_still_run(self):
         os.environ["CF_ANALYTICS_TOKEN"] = "SECRET-TOKEN"
