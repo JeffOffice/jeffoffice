@@ -1189,6 +1189,23 @@ void pairTables(CompareContext &context, const QTextDocument *story, const Table
                 settleLone(b, false);
                 if (plan->stateB.at(b) == TablePlan::Counted) ++countedB[g];
             }
+        // (A table taken out beside one that can't be put in, or put in beside one that can't be taken out, is not marked: Accept All would give neither the revised text nor the original's, so both are counted.)
+        auto anyCounted = [&](const QVector<int> &list, const QVector<char> &state, const QVector<int> &partner) {
+            for (const int k : list)
+                if (partner.at(k) < 0 && state.at(k) == TablePlan::Counted) return true;
+            return false;
+        };
+        const bool aStays = anyCounted(la, plan->stateA, plan->partnerA), bStays = anyCounted(lb, plan->stateB, plan->partnerB);
+        if (aStays != bStays) {
+            for (const int k : aStays ? lb : la) {
+                auto &state = aStays ? plan->stateB : plan->stateA;
+                const auto &partner = aStays ? plan->partnerB : plan->partnerA;
+                if (partner.at(k) >= 0 || state.at(k) != TablePlan::Whole) continue;
+                state[k] = TablePlan::Counted;
+                (aStays ? context.work.rowsPut : context.work.rowsTaken) -= (aStays ? tb : ta).infos.at(k).rows.size();
+                ++(aStays ? countedB[g] : counted[g]);
+            }
+        }
     }
     for (int g = 0; g < counted.size(); ++g) context.work.countUnmarked(CompareWork::Tables, std::max(counted.at(g), countedB.at(g)));
 }
@@ -1757,6 +1774,7 @@ Outcome compareStory(CompareContext &context, WriteDoc *out, QTextDocument *stor
             rowRuns.push_back({job.rowAt.value(put.at(lo).ref), put.at(lo).below, hi - lo + 1});
             lo = hi + 1;
         }
+        const WriteDoc::StepGroup oneStep(*out);   // (the rows and their words are one step of the history)
         const bool inserted = insertTableRowRuns(*out, rowRuns);
         ++context.work.rowRunBatches;
         // (The words of every row go in one edit, as a person's paste is one: the pages are told once.)

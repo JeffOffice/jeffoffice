@@ -824,6 +824,7 @@ struct AppCompared {
     QByteArray saved;
     QString status;
     int changes = -2;
+    bool canUndo = false;   // (the result window has history to undo)
 };
 // Compare run as the person runs it: in the window of the first document, against the file of the second; the result window is saved to a file (and left closed).
 static AppCompared compareInApp(const QByteArray &one, const QByteArray &two)
@@ -847,6 +848,7 @@ static AppCompared compareInApp(const QByteArray &one, const QByteArray &two)
         if (auto *ww = qobject_cast<WriteWindow *>(top); ww && ww != &w && ww->isVisible()) made = ww;   // (the windows this closed are hidden; an address is not told from an earlier window's)
     if (!made) return r;
     r.status = made->statusBar()->currentMessage();
+    r.canUndo = made->document()->canUndo();
     const QString path = dir.filePath(QStringLiteral("compared.docx"));
     if (made->saveTo(path)) {
         QFile s(path);
@@ -5859,6 +5861,131 @@ private Q_SLOTS:
         QVERIFY(!kept.tracked);
         QCOMPARE(kept.texts, storyTexts(*lone));
         QCOMPARE(kept.tables.value(0).rows, (QVector<QStringList>{{"a1", "a2"}, {"b1", "b2"}}));
+    }
+
+    // The controls (each `<w:sdt>` up to its end) of a saved file's body.
+    static QStringList controlsOf(const QByteArray &xml)
+    {
+        QStringList out;
+        for (int at = xml.indexOf("<w:sdt>"); at >= 0; at = xml.indexOf("<w:sdt>", at + 1)) out << QString::fromUtf8(xml.mid(at, xml.indexOf("</w:sdt>", at) + 8 - at));
+        return out;
+    }
+    static QByteArray lockedControl(const char *lock, const char *word)
+    {
+        return QByteArray("<w:sdt><w:sdtPr><w:alias w:val=\"held\"/><w:lock w:val=\"") + lock + "\"/></w:sdtPr><w:sdtContent>" + para(run(word)) + "</w:sdtContent></w:sdt>";
+    }
+    void aNewRowWithALockedContentControlIsCountedAndLeftOutAndTheTableIsAsItWas()
+    {
+        for (const char *lock : {"sdtContentLocked", "sdtLocked", "contentLocked"}) {
+            auto table = [&](bool extra) {
+                QVector<TableRow> rows;
+                rows.push_back({{}, {cellOf({}, para(run("a1"))), cellOf({}, para(run("a2")))}});
+                if (extra) rows.push_back({{}, {cellOf({}, lockedControl(lock, "inControl")), cellOf({}, para(run("x")))}});
+                rows.push_back({{}, {cellOf({}, para(run("b1"))), cellOf({}, para(run("b2")))}});
+                return tableOf(rows, 2);
+            };
+            const AppCompared r = compareInApp(makeDocx(table(false)), makeDocx(table(true)));
+            QVERIFY2(r.status.contains(QStringLiteral("(tables)")), lock);
+            const QByteArray yes = documentXml(open(r.saved)->toDocx());
+            QVERIFY2(!yes.contains("inControl") && !documentXml(r.saved).contains("<w:trPr><w:ins "), lock);
+            QCOMPARE(resolved(r.saved, true).tables.value(0).rows.size(), 2);
+            QCOMPARE(resolved(r.saved, false).tables.value(0).rows.size(), 2);
+        }
+    }
+    // A table of `rows` rows with `extra` more in the middle, `cell` the first cell of the first row.
+    static QByteArray tableWithCell(const QByteArray &cell, int extra, int base = 8)
+    {
+        QVector<TableRow> rows;
+        rows.push_back({{}, {cellOf({}, cell), cellOf({}, para(run("a2")))}});
+        for (int i = 0; i < base; ++i) rows.push_back({{}, {cellOf({}, para(run(qPrintable(QStringLiteral("k%1").arg(i))))), cellOf({}, para(run(qPrintable(QStringLiteral("l%1").arg(i)))))}});   // (the rows that stay, many more than are put in: the tables are told apart by row)
+        for (int i = 0; i < extra; ++i) rows.push_back({{}, {cellOf({}, para(run(qPrintable(QStringLiteral("n%1").arg(i))))), cellOf({}, para(run("y")))}});
+        rows.push_back({{}, {cellOf({}, para(run("b1"))), cellOf({}, para(run("b2")))}});
+        return tableOf(rows, 2);
+    }
+    void aLockedControlInTheBodyOfTheOriginalIsKeptByteForByteWhileRowsAreAddedAndEachEditStillLooksForIt()
+    {
+        const QByteArray bodyControl = lockedControl("sdtContentLocked", "bodyWords");
+        const QByteArray one = bodyControl + para(run("p")) + tableWithCell(para(run("a1")), 0), two = bodyControl + para(run("p")) + tableWithCell(para(run("a1")), 3);
+        const QStringList kept = controlsOf(documentXml(open(makeDocx(one))->toDocx()));
+        QCOMPARE(kept.size(), 1);
+        const qint64 scans = lockedRangeScansForTest();
+        const AppCompared r = compareInApp(makeDocx(one), makeDocx(two));
+        for (const bool accept : {true, false}) {
+            auto d = open(r.saved);
+            if (accept) acceptAll(*d);
+            else rejectAll(*d);
+            const Resolved res = resolved(r.saved, accept);
+            QVERIFY2(res.tables.value(0).rows.size() == (accept ? 13 : 10) && !res.tracked, qPrintable(QStringLiteral("accept=%1 rows=%2 %3").arg(accept).arg(res.tables.value(0).rows.size()).arg(r.status)));
+            QCOMPARE(controlsOf(documentXml(d->toDocx())), kept);
+        }
+        QVERIFY2(lockedRangeScansForTest() - scans > 10, qPrintable(QStringLiteral("the guard was held with a locked control in the text: %1 scans, %2").arg(lockedRangeScansForTest() - scans).arg(r.status)));   // (the guard is not taken: the edits look as they did)
+    }
+    void aLockedControlInACellOfTheOriginalIsKeptByteForByteWhileRowsAreAddedToItsTable()
+    {
+        const QByteArray cellControl = lockedControl("sdtLocked", "cellWords");
+        const QByteArray one = para(run("p")) + tableWithCell(cellControl, 0), two = para(run("p")) + tableWithCell(cellControl, 3);
+        const QStringList kept = controlsOf(documentXml(open(makeDocx(one))->toDocx()));
+        QCOMPARE(kept.size(), 1);
+        const AppCompared r = compareInApp(makeDocx(one), makeDocx(two));
+        for (const bool accept : {true, false}) {
+            auto d = open(r.saved);
+            if (accept) acceptAll(*d);
+            else rejectAll(*d);
+            QCOMPARE(controlsOf(documentXml(d->toDocx())), kept);
+            const Resolved res = resolved(r.saved, accept);
+            QVERIFY2(res.tables.value(0).rows.size() == (accept ? 13 : 10) && !res.tracked, qPrintable(QStringLiteral("accept=%1 rows=%2 %3").arg(accept).arg(res.tables.value(0).rows.size()).arg(r.status)));
+        }
+    }
+    void aTableTakenOutBesideOneThatCannotBePutInIsCountedAndNotMarkedSoAcceptAllNeverLosesIt()
+    {
+        // (The revised table holds a control, which a table put in can't; the original's table must not be taken out alone.)
+        const QByteArray cellControl = lockedControl("sdtLocked", "cellWords");
+        const QByteArray one = para(run("p")) + tableWithCell(cellControl, 0, 0), two = para(run("p")) + tableWithCell(cellControl, 3, 0);
+        const QStringList kept = controlsOf(documentXml(open(makeDocx(one))->toDocx()));
+        const AppCompared r = compareInApp(makeDocx(one), makeDocx(two));
+        QVERIFY2(r.status.contains(QStringLiteral("(tables)")), qPrintable(r.status));
+        QVERIFY2(!documentXml(r.saved).contains("<w:del "), "a table was marked as taken out");
+        for (const bool accept : {true, false}) {
+            auto d = open(r.saved);
+            if (accept) acceptAll(*d);
+            else rejectAll(*d);
+            QCOMPARE(controlsOf(documentXml(d->toDocx())), kept);
+            QCOMPARE(resolved(r.saved, accept).tables.value(0).rows.size(), 2);
+        }
+    }
+    void aRowBatchHoldsNoLockForAControlOnlyWhenNoneIsLockedAndNeverPutsOneIn()
+    {
+        // A control that is inside a cell of a row that is put in (a run of it, in a paragraph): the words go in, the control does not, and the batch makes no control of its own.
+        const QByteArray inline_ = "<w:sdt><w:sdtPr><w:lock w:val=\"sdtContentLocked\"/></w:sdtPr><w:sdtContent><w:r><w:t>inner</w:t></w:r></w:sdtContent></w:sdt>";
+        auto table = [&](bool extra) {
+            QVector<TableRow> rows;
+            rows.push_back({{}, {cellOf({}, para(run("a1"))), cellOf({}, para(run("a2")))}});
+            if (extra) rows.push_back({{}, {cellOf({}, para(run("x") + inline_)), cellOf({}, para(run("y")))}});
+            rows.push_back({{}, {cellOf({}, para(run("b1"))), cellOf({}, para(run("b2")))}});
+            return tableOf(rows, 2);
+        };
+        const AppCompared r = compareInApp(makeDocx(table(false)), makeDocx(table(true)));
+        QVERIFY2(controlsOf(documentXml(open(r.saved)->toDocx())).isEmpty(), "a control was made");
+        QVERIFY(!resolved(r.saved, true).tracked && !resolved(r.saved, false).tracked);
+        QCOMPARE(resolved(r.saved, false).tables.value(0).rows.size(), 2);
+    }
+    void theRowsOfACompareAndTheirWordsAreOneStepOfHistory()
+    {
+        QVector<QStringList> one, two;
+        for (int i = 0; i < 6; ++i) {
+            one.push_back({QStringLiteral("a%1").arg(i), QStringLiteral("b%1").arg(i)});
+            two.push_back(one.last());
+            if (i % 2) two.push_back({QStringLiteral("r%1").arg(i), QStringLiteral("s%1").arg(i)});
+        }
+        auto original = open(makeDocx(gridOfRows(one))), revised = open(makeDocx(gridOfRows(two)));
+        CompareOptions o;
+        o.author = QStringLiteral("Me");
+        CompareContext context;
+        auto result = compareDocumentsWith(context, *original, *revised, o);
+        QVERIFY(result);
+        QCOMPARE(context.work.rowRunBatches, qint64(1));
+        result->undo();
+        QCOMPARE(result->story()->toPlainText(), open(makeDocx(gridOfRows(one)))->story()->toPlainText());   // (one Undo takes back every row, and their words)
     }
 
     // The work (layouts of the table's index and views of it) one Compare of a table with `n` new rows in the middle makes, through the window's own command; the saved result is checked too.
