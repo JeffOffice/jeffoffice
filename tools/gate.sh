@@ -8,7 +8,9 @@
 set -u
 W=${1:?worktree}; L=${2:?log}; : > "$L"
 cd "$W" || exit 1
-SHARDS=${JO_GATE_SHARDS:-4}; PAR=${JO_GATE_JOBS:-16}
+PAR=${JO_GATE_JOBS:-16}
+# (parts of each app-check suite: JO_GATE_SHARDS for all of them, or by the suite: so that no one function of a part runs long; measured Nov 27, one part of four took up to 155 s in crunchchecks)
+shards_of() { if [ -n "${JO_GATE_SHARDS:-}" ]; then echo "$JO_GATE_SHARDS"; else case $1 in crunchchecks) echo 8;; writechecks) echo 6;; *) echo 5;; esac; fi; }
 LONG="everyCommandOnABlankDocument everyCommandOnADocumentFromAFile commandsNeverRun"
 # Longest first, so the last ones to start are the short ones.
 SUITES="crunchchecks writechecks crunchtests writetests officetests pubchecks deckchecks sheettests flowtests jdtests jptests odttests wmltests writefieldtests writefiletests writehometests writerepeattests writeinfotests writeinserttests writemailtests writeodttests writerefstests writereviewtests writetabs2tests writedrawtests writetailtests writesecmovetests exittests"
@@ -69,6 +71,7 @@ plan_parts() {  # plan_parts <suite> <kind> <items...>: sets PARTS_ARGS_1..n (th
 for s in $SUITES; do
   case $s in
     *checks)
+      SHARDS=$(shards_of "$s")
       for k in $(seq 1 "$SHARDS"); do wait_slot; run "$s.part$k" "$s" "$k/$SHARDS" $LONG; done
       REST=$(QT_QPA_PLATFORM=offscreen ./$s -functions 2>/dev/null | sed 's/()$//' | grep -vxF "$(echo $LONG | tr ' ' '\n')" | tr '\n' ' ')
       wait_slot; run "$s.rest" "$s" "" $REST ;;
@@ -98,7 +101,7 @@ wait
 for s in $SUITES; do
   fs=$(ls "$L.$s" "$L.$s".part* "$L.$s.rest" 2>/dev/null); n=1; extra=0
   case $s in
-    *checks) n=$(echo $fs | wc -w); extra=$((2 * (n - 1) + $(echo $LONG | wc -w) * (SHARDS - 1))) ;;
+    *checks) SHARDS=$(shards_of "$s"); n=$(echo $fs | wc -w); extra=$((2 * (n - 1) + $(echo $LONG | wc -w) * (SHARDS - 1))) ;;
     *) if echo " $FUNC_SPLIT " | grep -q " $s "; then n=$(echo $fs | wc -w); extra=$((2 * (n - 1))); fi ;;
   esac
   echo "== $s: $(grep -hE '^FAIL' $fs | head -3 | tr '\n' ' ')$(cat $fs | awk -v x=$extra -v n=$n '/^Totals/{p+=$2;f+=$4;c++} END{printf "%d classes, %d passed, %d failed", c/n,p-x,f}')" >> "$L"
