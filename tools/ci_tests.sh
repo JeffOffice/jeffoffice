@@ -142,7 +142,7 @@ while read -r ID N SHARD ARGS; do
     grep -a '^CLASSTIME ' "$ID.log" 2>/dev/null | tr -d '\r' | sort -k3 -n -r | head -12 | sed "s/^/$ID /"
     if [ "$ncode" -ne 0 ]; then echo "--- $ID.log (the end)"; tail -60 "$ID.log"; fi
     # (macOS test job only, JO_RETRY_ONCE=1: a program that failed runs ONE more time; passing the second time lists its first failures as RETRIED-PASSED
-    # lines for the landing tools and the job summary, tools/ci_retry_once.sh; Jeff, Nov 27 2026)
+    # lines for the landing tools and the job summary, tools/ci_retry_once.sh)
     if [ "$ncode" -ne 0 ] && [ "${JO_RETRY_ONCE:-}" = 1 ]; then
         # shellcheck disable=SC2086
         bash tools/ci_retry_once.sh "$ID" "$P" "$SHARD" $ARGS

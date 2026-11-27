@@ -28,14 +28,23 @@ fi
 echo "=== $id failed (exit code $first_code); running $name once more ==="
 echo "--- first run's failures (at most 200 lines)"
 tr -d '\r' < "$src" | grep -a -A3 '^FAIL!' | head -200
+# (the same time-limit command tools/ci_tests.sh uses; without one the retry would be unbounded, so there is NO retry and the step fails as it did)
 T=$(command -v timeout || command -v gtimeout || true)
+if [ -z "$T" ]; then echo "=== $id failed (exit code $first_code); no timeout or gtimeout command here, so it is NOT run again ==="; exit "$first_code"; fi
 if [ "$shard" != "-" ]; then export JO_APPCHECK_SHARD=$shard; else unset JO_APPCHECK_SHARD; fi
 export JP_CLASS_TIMES=1
 rm -f "$id.done"; export JP_DONE_FILE="$PWD/$id.done"
 rm -f "$id-results.txt"
-# shellcheck disable=SC2086
-$T ${T:+-k 10 ${JO_RETRY_TIMEOUT:-1500}} "$prog" "$@" -v1 -o "$id-results.txt,txt" -o -,txt > "$id.log" 2>&1
+$T -k 10 "${JO_RETRY_TIMEOUT:-1500}" "$prog" "$@" -v1 -o "$id-results.txt,txt" -o -,txt > "$id.log" 2>&1
 code=$?
+# (a pass needs the exit code 0 AND totals lines in this run's own results with no failure counted: no totals line, or any failure, fails the step)
+res="$id-results.txt"; [ -s "$res" ] || res="$id.log"
+totals=$(tr -d '\r' < "$res" | grep -aE 'Totals: [0-9]+ passed, [0-9]+ failed' | wc -l | tr -d ' ')
+nfail=$(tr -d '\r' < "$res" | grep -aoE 'Totals: [0-9]+ passed, [0-9]+ failed' | awk '{s += $4} END {print s + 0}')
+if [ "$code" -eq 0 ] && { [ "$totals" -eq 0 ] || [ "$nfail" -ne 0 ]; }; then
+    echo "=== $id exited 0 the second time but its results do not show a clean run (totals lines: $totals, failures counted: $nfail): the step fails ==="
+    code=1
+fi
 echo $code > "$id.code"
 if [ "$code" -eq 0 ]; then
     echo "$failed" | while IFS= read -r l; do
