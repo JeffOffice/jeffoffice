@@ -364,7 +364,7 @@ private Q_SLOTS:
         QVERIFY(DataConnection::parse(c.text(), &back));
         QVERIFY(back.columns.isEmpty());
         // more names than fit are left out, and the link still reads
-        for (int i = 0; i < 256; ++i) c.columns << QString(255, QLatin1Char('&')) + QString::number(i);
+        for (int i = 0; i < 256; ++i) c.columns << QString(400, QLatin1Char('&')) + QString::number(i);
         QVERIFY(DataConnection::parse(c.text(), &back));
         QVERIFY(back.columns.isEmpty());
     }
