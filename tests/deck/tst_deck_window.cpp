@@ -4901,6 +4901,96 @@ private Q_SLOTS:
         QCOMPARE(notesStory(back.editor())->toPlainText(), notesStory(w.editor())->toPlainText());
     }
 
+    // A body of a slide that is a list with an empty paragraph under it (a person pressed Enter after the last item) is written as it always was: the empty paragraph takes the layout's
+    // bullet and says nothing of its own. Only the notes say where a list ends. Saved and opened through the window. The empty paragraph is where the numbering ends, as in the
+    // reference program: the items after one are a list of their own.
+    void anEmptyParagraphUnderASlidesListIsWrittenWithNoBulletMark()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        DeckWindow w;
+        w.setNotifier([](const QString &, const QString &) {});
+        w.newSlide();
+        w.editor()->setCurrentPage(0);
+        TextItem *body = nullptr;
+        for (const auto &it : w.editor()->doc()->pages[0]->items)
+            if (it->type() == ItemType::Text && !body && deck::placeholderType(*it) != QLatin1String("title") && deck::placeholderType(*it) != QLatin1String("ctrTitle")) body = static_cast<TextItem *>(it.get());
+        QVERIFY(body);
+        QTextDocument *story = w.editor()->doc()->storyDoc(body->storyId);
+        QVERIFY(story);
+        story->clear();
+        QTextCursor c(story);
+        QTextListFormat numbered;
+        numbered.setStyle(QTextListFormat::ListDecimal);
+        c.insertText(QStringLiteral("one"));
+        c.createList(numbered);
+        c.insertBlock();
+        c.insertText(QStringLiteral("two"));
+        c.insertBlock();   // the empty paragraph
+        QTextBlockFormat plain;
+        c.setBlockFormat(plain);
+        c.insertBlock();
+        c.insertText(QStringLiteral("three"));
+        c.createList(numbered);
+        c.insertBlock();
+        c.insertText(QStringLiteral("four"));
+        c.insertBlock();   // the empty last paragraph, under a list
+        c.setBlockFormat(plain);
+        QCOMPARE(story->blockCount(), 6);
+        QVERIFY(story->findBlockByNumber(1).textList() && !story->findBlockByNumber(2).textList() && !story->findBlockByNumber(5).textList());
+        const QString path = dir.filePath(QStringLiteral("talk.pptx"));
+        QVERIFY(w.saveTo(path));
+        deckhelp::Exported e;
+        QString why;
+        QVERIFY2(deckhelp::unpack(fileBytes(path), &e, &why), qPrintable(why));
+        const QString slide = deckhelp::part(e, QStringLiteral("/ppt/slides/slide1.xml"));
+        QVERIFY(slide.contains(QStringLiteral("four")));
+        QVERIFY(!slide.contains(QStringLiteral("a:buNone")));
+        DeckWindow back;
+        back.setNotifier([](const QString &, const QString &) {});
+        QVERIFY(back.openFile(path));
+        const Page &page = *back.editor()->doc()->pages[0];
+        const QTextDocument *read = nullptr;
+        for (const auto &it : page.items)
+            if (it->type() == ItemType::Text) {
+                const QTextDocument *d = back.editor()->doc()->storyDoc(static_cast<TextItem *>(it.get())->storyId);
+                if (d && d->toPlainText().contains(QStringLiteral("four"))) read = d;
+            }
+        QVERIFY(read);
+        QCOMPARE(read->blockCount(), 6);
+        QVERIFY(read->findBlockByNumber(0).textList() && read->findBlockByNumber(1).textList() == read->findBlockByNumber(0).textList());
+        QVERIFY(read->findBlockByNumber(3).textList() && read->findBlockByNumber(3).textList() != read->findBlockByNumber(0).textList());
+    }
+
+    // A long list pasted right after an item is joined to the item's list only up to a counted number of items: the join moves them one at a time, which is slow in a very long list
+    // (10,000 items took 12 seconds), so a longer list stays as it was pasted, apart from the one before it.
+    void aVeryLongPastedListIsNotJoinedToTheListBeforeIt()
+    {
+        DeckWindow w;
+        w.setNotifier([](const QString &, const QString &) {});
+        NotesPane *pane = notesWith(w, QStringLiteral("x"));
+        pane->setMinimumHeight(520);
+        w.resize(900, 1100);
+        const QKeyCombination copy = QKeySequence(QKeySequence::Copy)[0], paste = QKeySequence(QKeySequence::Paste)[0];
+        const QKeyCombination end = QKeySequence(QKeySequence::MoveToEndOfDocument)[0];
+        const int pasted = Editor::kMaxJoinedItems + 50;
+        QStringList words;
+        for (int i = 0; i < pasted; ++i) words << QStringLiteral("b%1").arg(i);
+        numberedNoteIs(w, pane, words.join('\n'));
+        QTest::keyClick(pane, copy.key(), copy.keyboardModifiers());
+        numberedNoteIs(w, pane, QStringLiteral("a1\na2"));
+        QTest::keyClick(pane, end.key(), end.keyboardModifiers());
+        QTest::keyClick(pane, paste.key(), paste.keyboardModifiers());
+        QTextDocument *story = notesStory(w.editor());
+        QTRY_COMPARE(story->blockCount(), pasted + 1);
+        QSet<QTextList *> lists;
+        for (QTextBlock b = story->begin(); b.isValid(); b = b.next())
+            if (b.textList()) lists.insert(b.textList());
+        QCOMPARE(lists.size(), 2);
+        QCOMPARE(story->begin().textList()->count(), 2);
+        QCOMPARE(story->lastBlock().textList()->count(), pasted - 1);
+    }
+
     // Pictures of the notes views in both window themes (JP_SHOT_DIR names the folder): the pane, the Notes Page as the page shows it and as the box shows it while edited, with a short note,
     // a long note, and a note with a link and a list.
     void picturesOfTheNotesViewsInBothThemes()

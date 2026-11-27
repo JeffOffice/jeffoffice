@@ -397,7 +397,18 @@ void StoryEdit::markWords()
 static bool wouldChangeWords(const QKeyEvent *e)
 {
     const int k = e->key();
-    const bool types = !e->text().isEmpty() && e->text().at(0).isPrint() && !(e->modifiers() & Qt::ControlModifier);
+    // (Alt with a letter is a menu's access key, and Meta a shortcut, wherever the program runs but a Mac, where Alt types other letters; Ctrl with Enter or Tab is a shortcut too)
+    const Qt::KeyboardModifiers mods = e->modifiers();
+#ifdef Q_OS_MACOS
+    const bool shortcut = mods & Qt::MetaModifier;
+#else
+    const bool shortcut = mods & (Qt::AltModifier | Qt::MetaModifier);
+#endif
+    if (shortcut) return false;
+    const bool types = !e->text().isEmpty() && e->text().at(0).isPrint() && !(mods & Qt::ControlModifier);
+    if (mods & Qt::ControlModifier) {
+        if (k == Qt::Key_Return || k == Qt::Key_Enter || k == Qt::Key_Tab || k == Qt::Key_Backtab) return false;
+    }
     return types || k == Qt::Key_Backspace || k == Qt::Key_Delete || k == Qt::Key_Return || k == Qt::Key_Enter || k == Qt::Key_Tab || k == Qt::Key_Backtab || e->matches(QKeySequence::Cut) ||
            e->matches(QKeySequence::Paste) || e->matches(QKeySequence::Undo) || e->matches(QKeySequence::Redo) || e->matches(QKeySequence::Bold) || e->matches(QKeySequence::Italic) ||
            e->matches(QKeySequence::Underline);

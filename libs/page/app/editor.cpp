@@ -2277,9 +2277,11 @@ void Editor::dropPicturesIn(QTextDocument *story, int from, int to)
 
 // Items that follow one another with nothing between them are one list in a file (it has no place to say where one ends and the next begins), so what a person sees must be that
 // too: after a paste, an item that comes right after another list's item and is numbered or marked the same way joins that list, and so do the items after it. Only the paragraphs
-// the paste touched, and the one after them, are looked at.
+// the paste touched, and the one after them, are looked at. Moving an item is slow in a long list, so at most this many are moved in one paste: a list longer than that is left as it
+// was pasted, apart from the one before it.
 void Editor::joinNeighborLists(QTextDocument *story, int from, int to)
 {
+    int budget = kMaxJoinedItems;
     auto sameLook = [](const QTextBlock &a, const QTextBlock &b) {
         QTextListFormat fa = a.textList()->format(), fb = b.textList()->format();
         fa.setObjectIndex(-1);
@@ -2292,6 +2294,8 @@ void Editor::joinNeighborLists(QTextDocument *story, int from, int to)
     for (QTextBlock b = story->findBlock(std::clamp(from, 0, last)); b.isValid() && b.position() <= end; b = b.next()) {
         const QTextBlock before = b.previous();
         if (!b.textList() || !before.isValid() || !before.textList() || before.textList() == b.textList() || !sameLook(before, b)) continue;
+        if (b.textList()->count() > budget) continue;
+        budget -= b.textList()->count();
         QTextList *keep = before.textList();
         QVector<QTextBlock> items;
         for (int i = 0; i < b.textList()->count(); ++i) items << b.textList()->item(i);

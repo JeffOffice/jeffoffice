@@ -1767,6 +1767,7 @@ void Exporter::writeNotesSlide(int slide, int number)
     m_pkg.addRelationship(part, kRelBase + QStringLiteral("slide"), QStringLiteral("/ppt/slides/slide%1.xml").arg(slide + 1));
     // The notes are a text body; one with no paragraph at all is not valid, so an empty one is written.
     office::DrawingWriteContext ctx = context(part);
+    ctx.notesText = true;
     QByteArray paragraphs = fragment([&](QXmlStreamWriter &w) { office::writeParagraphs(w, m_doc.storyDoc(page.notesStoryId), ctx); });
     if (paragraphs.isEmpty()) paragraphs = "<a:p><a:endParaRPr lang=\"en-US\"/></a:p>";
     QString xml = QStringLiteral("<p:notes%1><p:cSld><p:spTree><p:nvGrpSpPr><p:cNvPr id=\"1\" name=\"\"/><p:cNvGrpSpPr/><p:nvPr/></p:nvGrpSpPr>"

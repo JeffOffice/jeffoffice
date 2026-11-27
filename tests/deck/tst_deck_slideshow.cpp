@@ -1,4 +1,5 @@
 // JeffDeck's tests of the slide show: settings, custom shows, ink, and rehearsal.
+#include "app/storyedit.h"
 #include "app/listmarkers.h"
 #include "app/notespageview.h"
 #include <QScrollBar>
@@ -2208,6 +2209,52 @@ private Q_SLOTS:
         QTest::keyClick(edit, Qt::Key_PageDown);
         QTRY_COMPARE(show->currentSlide(), 2);
         if (readOnly) w.setReadOnly(false);
+        show->close();
+        QTRY_VERIFY(!w.slideShow());
+    }
+
+    // In a presentation open for reading only, a key that is a menu's access key (Alt and a letter) or another shortcut (Ctrl+Enter, Ctrl+Tab) is not an attempt to edit: the notes do
+    // not say "open for reading only" for it, and do not take it, while the letter alone is refused with that message. Real key events sent to the notes' view.
+    void shortcutKeysInPresenterViewNotesAreNotRefusedAsEdits()
+    {
+        DeckWindow w;
+        Editor *ed = w.editor();
+        w.resize(1280, 800);
+        w.show();
+        for (int i = 0; i < 2; ++i) w.newSlide();
+        ed->setCurrentPage(0);
+        QTextDocument *story = ed->doc()->storyDoc(ed->doc()->pages[0]->notesStoryId);
+        QTextCursor(story).insertText(QStringLiteral("alpha beta"), QTextCharFormat());
+        w.notesPane()->reload();
+        ed->undoStack()->clear();
+        w.act("show.presenterView")->trigger();
+        SlideShow *show = w.slideShow();
+        QVERIFY(show && show->presenterView());
+        auto *edit = show->presenterView()->findChild<StoryEdit *>(QStringLiteral("notesText"));
+        QVERIFY(edit);
+        QTRY_VERIFY(edit->document() == story);
+        QTest::mouseClick(edit->viewport(), Qt::LeftButton, Qt::NoModifier, QPoint(3, 3));
+        w.setReadOnly(true);
+        QSignalSpy refused(edit, &StoryEdit::readOnlyRefused);
+        auto press = [&](int key, Qt::KeyboardModifiers mods, const QString &text) {
+            QKeyEvent ev(QEvent::KeyPress, key, mods, text);
+            QApplication::sendEvent(edit, &ev);
+        };
+#ifdef Q_OS_MACOS
+        const Qt::KeyboardModifiers menuKey = Qt::MetaModifier;   // (Option types other letters there)
+#else
+        const Qt::KeyboardModifiers menuKey = Qt::AltModifier;
+#endif
+        const QString before = story->toPlainText();
+        press(Qt::Key_F, menuKey, QStringLiteral("f"));
+        press(Qt::Key_Return, Qt::ControlModifier, QStringLiteral("\r"));
+        press(Qt::Key_Tab, Qt::ControlModifier, QStringLiteral("\t"));
+        QCOMPARE(refused.count(), 0);
+        // The letter alone is refused, as before.
+        press(Qt::Key_F, Qt::NoModifier, QStringLiteral("f"));
+        QCOMPARE(refused.count(), 1);
+        QCOMPARE(story->toPlainText(), before);
+        w.setReadOnly(false);
         show->close();
         QTRY_VERIFY(!w.slideShow());
     }

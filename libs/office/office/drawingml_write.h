@@ -67,6 +67,8 @@ struct DrawingWriteContext {
     // Set while a slide's text is written (not a layout's or a master's): a paragraph with nothing in it says no bullet of its own, nor that it
     // has none, so that it takes the layout's, as a new slide's does in the presentation program.
     bool emptyParagraphsInherit = false;
+    // Set only while a notes page's text is written: an empty paragraph between two lists says where the first ends (see writeBullet).
+    bool notesText = false;
     // The shape ids written in the part, so none is given twice. A shape that
     // came from a file keeps its number (Item::sourceId) when it is free;
     // `reservedIds` are those the part's items will ask for, which a new

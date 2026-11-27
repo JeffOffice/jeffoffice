@@ -376,9 +376,10 @@ double firstSizeOf(const QTextBlock &b)
 
 void writeBullet(QXmlStreamWriter &w, const QTextBlock &b, QTextList *list, DrawingWriteContext &ctx)
 {
-    // An empty paragraph the file said has no bullet says so again, wherever it is. So does one right after a listed paragraph: it is where the list ends, and a list after it
-    // begins again (a file has no other place to say so).
-    const bool marked = !list && b.text().isEmpty() && (b.blockFormat().boolProperty(kNoBulletParagraph) || (b.previous().isValid() && b.previous().textList()));
+    // An empty paragraph the file said has no bullet says so again, wherever it is. In notes, so does one between two lists (right after a listed paragraph, right before a listed one):
+    // it is where the first list ends and the next begins again (a file has no other place to say so).
+    const bool between = ctx.notesText && b.previous().isValid() && b.previous().textList() && b.next().isValid() && b.next().textList();
+    const bool marked = !list && b.text().isEmpty() && (b.blockFormat().boolProperty(kNoBulletParagraph) || between);
     if (ctx.emptyParagraphsInherit && ctx.placeholderText && b.text().isEmpty()) {
         // The paragraph takes the layout's bullet, unless the file said it has none.
         if (marked) leaf(w, "a:buNone");
