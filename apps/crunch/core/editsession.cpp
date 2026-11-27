@@ -2418,6 +2418,7 @@ void EditSession::saved(const Snapshot &snapshot, const Package &package)
     if (snapshot.changes.dropExternalLinks) forgetStepsDone();
     m_dropExternalLinks = false;
     m_externalUpdated.clear();
+    m_linkOpenValues.clear();
     m_savedLinks.insert(m_newLinks.begin(), m_newLinks.end());
     m_newLinks.clear();
     m_dropCustomXml = false;

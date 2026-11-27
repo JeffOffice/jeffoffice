@@ -17,6 +17,7 @@
 #include <QUndoStack>
 
 #include "../testrunner.h"
+#include "../localepin.h"
 
 using namespace jp;
 using namespace crunchtest;
@@ -847,10 +848,72 @@ private Q_SLOTS:
         const int made = dst.win.w.calculation()->sheetCount();
         copyToOther(src, dst, 0);
         QVERIFY(dst.settle());
-        QVERIFY2(src.win.told.size() == 1 && src.win.told.last().contains(QStringLiteral("links to its saved file")) && src.win.told.last().contains(QStringLiteral("not saved")), qPrintable(src.win.told.join(QLatin1Char('|'))));
+        QVERIFY2(src.win.told.size() == 1 && src.win.told.last().contains(QStringLiteral("Update Values in Edit Links")) && src.win.told.last().contains(QStringLiteral("so save book.xlsx to keep these values")), qPrintable(src.win.told.join(QLatin1Char('|'))));
         QCOMPARE(dst.win.w.calculation()->sheetCount(), made + 1);
         QCOMPARE(textOf(dst, made, QStringLiteral("C1")), QStringLiteral("=[1]Other!A1+1"));
         QTRY_COMPARE(valueOf(dst, made, QStringLiteral("C1")), QStringLiteral("n:10"));   // (the open workbook's 9, plus 1: not the file's 100)
+    }
+
+    // One rule for a copy's values: the cell and the link part's cache both hold what the open workbook shows now, whether or not it has changes that are not saved (the values a program reads from
+    // the saved copy without updating its links are the cell's own).
+    void theLinkPartHoldsTheValuesTheCellShows()
+    {
+        for (const bool unsaved : {false, true}) {
+            EditWindow src, dst;
+            QVERIFY(src.open(dataBook()));
+            QVERIFY(dst.open(dataBook()));
+            QVERIFY(src.settle());
+            QVERIFY(dst.settle());
+            if (unsaved) {
+                QVERIFY(src.win.w.session()->type(1, 0, 0, QStringLiteral("200")).ok);   // (Other!A1: not saved)
+                QVERIFY(src.settle());
+                QVERIFY(src.win.w.session()->isModified());
+            }
+            const int made = dst.win.w.calculation()->sheetCount();
+            copyToOther(src, dst, 0);
+            QVERIFY(dst.settle());
+            const QString shown = unsaved ? QStringLiteral("n:201") : QStringLiteral("n:101");
+            QTRY_COMPARE(valueOf(dst, made, QStringLiteral("C1")), shown);
+            QVERIFY2(saveNow(dst), qPrintable(dst.win.told.join(QLatin1Char('|'))));
+            QFile file(dst.path);
+            QVERIFY(file.open(QIODevice::ReadOnly));
+            QMap<QString, QByteArray> parts;
+            QVERIFY(jp::readZip(file.readAll(), parts));
+            file.close();
+            const QString link = QString::fromUtf8(parts.value(QStringLiteral("xl/externalLinks/externalLink1.xml")));
+            QVERIFY2(link.contains(QStringLiteral("<v>%1</v>").arg(unsaved ? 200 : 100)), qPrintable(link));
+            QVERIFY2(!link.contains(QStringLiteral("<v>%1</v>").arg(unsaved ? 100 : 200)), qPrintable(link));
+            Saved f;
+            QVERIFY(f.open(dst.path));
+            QCOMPARE(f.shown(made, QStringLiteral("C1")), shown);
+        }
+    }
+
+    // The box's sentence about the cells that come as values reads right at one and at many, and its list has the last comma whatever the system's language does with lists.
+    void theBoxCountsTheValueCellsAndJoinsItsListWithOxfordCommas()
+    {
+        PinnedLocale pin(QLocale(QLocale::English, QLocale::UnitedKingdom));
+        EditWindow src, dst;
+        QVERIFY(src.open(dataBook()));
+        QVERIFY(dst.open(dataBook()));
+        QVERIFY(src.settle());
+        QVERIFY(dst.settle());
+        crunch::EditSession::SheetExport data = src.win.w.session()->exportSheet(0, src.path);
+        QVERIFY(data.ok);
+        data.frozen = 1;
+        data.frozenKinds = QStringList{QStringLiteral("aa")};
+        QString said = dst.win.w.session()->checkImport(data).problem;
+        QVERIFY2(said.contains(QStringLiteral("1 cell comes as the value it shows, not as a formula: one of those that aa.")), qPrintable(said));
+        data.frozenKinds = QStringList{QStringLiteral("aa"), QStringLiteral("bb")};
+        said = dst.win.w.session()->checkImport(data).problem;
+        QVERIFY2(said.contains(QStringLiteral("one of those that aa and bb.")), qPrintable(said));
+        data.frozen = 4;
+        data.frozenKinds = QStringList{QStringLiteral("aa"), QStringLiteral("bb"), QStringLiteral("cc"), QStringLiteral("dd")};
+        said = dst.win.w.session()->checkImport(data).problem;
+        QVERIFY2(said.contains(QStringLiteral("4 ")) && said.contains(QStringLiteral("that aa, bb, cc, and dd.")), qPrintable(said));   // (the plural wording comes with the forms file)
+        data.frozenKinds.clear();
+        said = dst.win.w.session()->checkImport(data).problem;
+        QVERIFY2(said.contains(QStringLiteral("4 ")) && !said.contains(QStringLiteral("one of those")), qPrintable(said));
     }
 
     // A copied link behaves as a link typed in the second workbook does, when the first workbook's cell changes and is saved: the same value, whichever it is.

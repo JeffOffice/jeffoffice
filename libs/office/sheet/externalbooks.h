@@ -104,6 +104,8 @@ public:
 
     // The cells to put in the link's part: those the formulas read from the live source since it was read, with what the source has now (an empty list for a link that was not read).
     std::vector<SaveChanges::ExternalCachedCell> readCells(int index) const;
+    // The places the formulas read from the live source since it was read, as sheet name and range (an empty list for a link that was not read).
+    std::vector<std::pair<QString, CellRange>> readRanges(int index) const;
     // The names of the sheets of the live source that formulas read (for the part of a link that is new).
     QStringList sheetsRead(int index) const;
     // The number of times a source file was read (a test counts them: a source is read once, and again when the file changes).

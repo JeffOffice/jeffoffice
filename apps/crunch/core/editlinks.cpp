@@ -253,6 +253,7 @@ std::map<QString, std::vector<jp::office::sheet::SaveChanges::ExternalCachedCell
     for (const int index : m_externalUpdated) {
         if (index < 1 || index > parts.size() || parts[index - 1].isEmpty()) continue;
         std::vector<jp::office::sheet::SaveChanges::ExternalCachedCell> cells = m_book->externals->readCells(index);
+        if (const auto open = m_linkOpenValues.find(index); open != m_linkOpenValues.end()) cells = open->second;
         if (!cells.empty()) out[parts[index - 1]] = std::move(cells);
     }
     return out;
@@ -283,7 +284,7 @@ EditSession::Outcome EditSession::changeExternalSource(int index, const QString 
     return out;
 }
 
-EditSession::Outcome EditSession::updateExternalValues(int index, const QString &path, ExternalUpdate *result)
+EditSession::Outcome EditSession::updateExternalValues(int index, const QString &path, ExternalUpdate *result, int onlySheet)
 {
     Outcome out;
     if (result) *result = ExternalUpdate();
@@ -325,6 +326,7 @@ EditSession::Outcome EditSession::updateExternalValues(int index, const QString 
             return refuse(tr("The workbook is still being opened. It can be changed when it is open."));
         }
         hold->calculation()->forEachExternalFormula([&](int sheet, quint32 row, quint32 col) {
+            if (onlySheet >= 0 && sheet != onlySheet) return;
             if (places.size() >= kMostCells) {
                 cut = true;
                 return;
@@ -484,6 +486,7 @@ std::vector<jp::office::sheet::SaveChanges::NewExternalLink> EditSession::newExt
         for (const QString &name : m_book->externals->sheetNames(n))
             if (!l.sheetNames.contains(name, Qt::CaseInsensitive)) l.sheetNames << name;
         l.cells = m_book->externals->readCells(n);
+        if (const auto open = m_linkOpenValues.find(n); open != m_linkOpenValues.end()) l.cells = open->second;
         out.push_back(std::move(l));
     }
     return out;

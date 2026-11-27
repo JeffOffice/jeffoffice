@@ -21,6 +21,7 @@
 
 #include <algorithm>
 #include <atomic>
+#include <limits>
 #include <unordered_map>
 
 namespace jp::crunch {
@@ -35,6 +36,17 @@ std::atomic<qint64> g_transferCap{0};
 qint64 transferCap() { return g_transferCap.load() > 0 ? g_transferCap.load() : kMaxCellsPerEdit; }
 
 quint64 placeOf(quint32 row, quint32 col) { return (quint64(row) << 32) | col; }
+
+// A list joined with the forms of this program ("A and B", "A, B, and C"), not the system's, which may leave out the last comma.
+QString joinedList(const QStringList &items)
+{
+    if (items.isEmpty()) return QString();
+    if (items.size() == 1) return items.first();
+    if (items.size() == 2) return QCoreApplication::translate("jp::crunch::EditSession", "%1 and %2").arg(items[0], items[1]);
+    QString head = items.first();
+    for (int i = 1; i < items.size() - 1; ++i) head = QCoreApplication::translate("jp::crunch::EditSession", "%1, %2", "the first items of a list of three or more").arg(head, items[i]);
+    return QCoreApplication::translate("jp::crunch::EditSession", "%1, and %2", "the last item of a list of three or more").arg(head, items.last());
+}
 
 bool linkable(const QString &path)
 {
@@ -198,6 +210,33 @@ EditSession::SheetExport EditSession::exportSheet(int sheet, const QString &file
     }
     if (!out.ok) return out;
     if (tooMany) return refuse(tr("This sheet has more cells than JeffCrunch copies to another workbook at once (%1). Copy part of it with Copy and Paste.").arg(jp::systemLocale().toString(cap)));
+    // with changes not saved, the link's cache holds what the other sheets show now: those values are taken here, where the workbook is held
+    if (out.bookChanged && out.readsOtherSheets) {
+        constexpr size_t kMostLinkedCells = 500000;
+        for (const QString &name : out.linkedSheets)
+            for (int other = 0; other < int(book.info().sheets.size()); ++other) {
+                if (other == sheet || book.info().sheets[other].deleted || book.info().sheets[other].name.compare(name, Qt::CaseInsensitive) != 0) continue;
+                const Sheet &os = calc->sheet(other);
+                if (os.extentRows == 0 || os.extentCols == 0) continue;
+                os.cells.forEachInRange(0, 0, os.extentRows - 1, os.extentCols - 1, [&](quint32 row, quint32 col, const Cell &) {
+                    if (out.linkedValues.size() >= kMostLinkedCells) return false;
+                    const jp::calc::Value v = valueAt(other, row, col);
+                    jp::office::sheet::SaveChanges::ExternalCachedCell e;
+                    e.sheet = book.info().sheets[other].name;
+                    e.row = row;
+                    e.col = col;
+                    switch (v.kind()) {
+                    case jp::calc::Value::Kind::Number: e.number = v.number(); break;
+                    case jp::calc::Value::Kind::Bool: e.kind = 'b'; e.number = v.boolean() ? 1 : 0; break;
+                    case jp::calc::Value::Kind::Text: e.kind = 's'; e.text = v.text(); break;
+                    case jp::calc::Value::Kind::Error: e.kind = 'e'; e.text = jp::calc::errorKindText(v.errorKind()); break;
+                    default: return true;
+                    }
+                    out.linkedValues.push_back(std::move(e));
+                    return true;
+                });
+            }
+    }
     out.merges = s.merges;
     out.columns = calc->columnRuns(sheet, 0, kMaxColumns - 1);
     out.rows = calc->rowSpecsIn(sheet, 0, kMaxRows - 1);
@@ -279,14 +318,15 @@ EditSession::Outcome EditSession::checkImport(const SheetExport &data) const
     QStringList said;
     if (!data.notCopied.isEmpty()) said << tr("These will not be copied: %1.").arg(jp::systemLocale().locale.createSeparatedList(data.notCopied));
     if (data.readsOtherSheets) {
-        said << tr("Formulas that read other sheets of %1 become links to its saved file.").arg(data.bookName);
-        if (data.bookChanged) said << tr("%1 has changes that are not saved: the copy shows the values it has now, and the links do not see those changes until it is saved.").arg(data.bookName);
+        said << tr("The formulas that read other sheets of %1 become links to its file. The copy shows the values %1 has now. They change when the links are updated, with Update Values in Edit Links.").arg(data.bookName);
+        if (data.bookChanged) said << tr("The links read the saved file once they are updated, so save %1 to keep these values.").arg(data.bookName);
     }
     if (!data.looks.empty() && m_book->book->styles().formats.isEmpty()) said << tr("This workbook has no formats to build on, so the copy does not have the fonts, colors, and borders of the sheet.");
     if (data.frozen > 0) {
-        const QString kinds = jp::systemLocale().locale.createSeparatedList(data.frozenKinds);
-        said << (kinds.isEmpty() ? tr("Some cells come as the values they show, not as formulas (%1 in all).").arg(jp::systemLocale().toString(data.frozen))
-                                 : tr("Some cells come as the values they show, not as formulas (%1 in all): those that %2.").arg(jp::systemLocale().toString(data.frozen), kinds));
+        const QString kinds = joinedList(data.frozenKinds);
+        const int n = int(std::min<qint64>(data.frozen, std::numeric_limits<int>::max()));
+        said << (kinds.isEmpty() ? tr("%n cell comes as the value it shows, not as a formula.", nullptr, n)
+                                 : tr("%n cell comes as the value it shows, not as a formula: one of those that %1.", nullptr, n).arg(kinds));
     }
     out.problem = said.join(QLatin1Char(' '));
     return out;
@@ -428,9 +468,42 @@ EditSession::Outcome EditSession::importSheet(const SheetExport &data, int befor
         sizes.sizes.push_back(std::move(e));
     }
     if (!sizes.sizes.empty()) pushStep(std::move(sizes), tr("Copy Sheet to Another Workbook"));
-    // the values the link holds: read from the saved file now (when the open workbook has changes that are not saved, what it shows now stays, and the link has none until its values are updated),
-    // so that a program that opens the saved copy without reading the first file shows the same numbers
+    // the values the link holds are those the cells show, so that a program that opens the saved copy without reading the first file shows the same numbers: the saved file's when the open workbook
+    // has no changes that are not saved
     if (link > 0 && !data.bookChanged) updateExternalValues(link, data.bookPath);
+    if (link > 0 && data.bookChanged) {
+        // (one rule: the copy shows what the open workbook shows now, in its cells and in the link's cache; the places the formulas read are found by working the copy's formulas out once from the saved file,
+        // and the cells go back to the values they were given)
+        updateExternalValues(link, data.bookPath, nullptr, sheet);
+        Step back;
+        {
+            const std::shared_ptr<void> held = holdForReads();
+            const Calculation *calc = m_book->calc.get();
+            for (const TransferCell &src : data.cells) {
+                if (!src.link) continue;
+                CellChange ch;
+                ch.sheet = sheet;
+                ch.row = src.row;
+                ch.col = quint16(src.col);
+                ch.before = calc->content(sheet, src.row, src.col);
+                ch.after = ch.before;
+                ch.after.hasStored = true;
+                ch.after.stored = src.shown;
+                if (ch.before.hasStored && ch.before.stored == src.shown) continue;
+                back.cells.push_back(std::move(ch));
+            }
+        }
+        if (!back.cells.empty()) pushStep(std::move(back), tr("Copy Sheet to Another Workbook"));
+        std::vector<jp::office::sheet::SaveChanges::ExternalCachedCell> cache;
+        const std::vector<std::pair<QString, CellRange>> ranges = m_book->externals->readRanges(link);
+        for (const auto &e : data.linkedValues)
+            for (const auto &[name, range] : ranges)
+                if (name.compare(e.sheet, Qt::CaseInsensitive) == 0 && range.contains(e.row, e.col)) {
+                    cache.push_back(e);
+                    break;
+                }
+        m_linkOpenValues[link] = std::move(cache);
+    }
     m_undo.endMacro();
     if (made) *made = sheet;
     out = Outcome();

@@ -1071,6 +1071,7 @@ public:
         bool bookChanged = false;       // it has changes that are not saved
         bool readsOtherSheets = false;  // some formula reads another sheet of the first workbook (it becomes a link, which needs the file)
         QStringList linkedSheets;       // the other sheets of the first workbook that the formulas read (the names the link's part lists)
+        std::vector<jp::office::sheet::SaveChanges::ExternalCachedCell> linkedValues;   // with changes not saved: what those sheets hold now (the link's cache is made from it)
         std::vector<TransferCell> cells;
         std::vector<jp::office::sheet::FormatChange> looks, resolvedLooks;   // each distinct format of the cells, as it is and with its colors given as the colors they show
         QVector<jp::office::sheet::CellRange> merges;
@@ -1332,7 +1333,7 @@ public:
         int kept = 0;      // cells that read the source and keep the value their file stored
         bool cut = false;  // more formulas than are looked at: the rest were not read
     };
-    Outcome updateExternalValues(int index, const QString &path, ExternalUpdate *result = nullptr);
+    Outcome updateExternalValues(int index, const QString &path, ExternalUpdate *result = nullptr, int onlySheet = -1);   // onlySheet: only the formulas of that sheet
     // What happens to the links when the workbook is opened: ask (the file says userSet), update, or leave the values as stored. Stored in the file (workbookPr updateLinks); one step of Undo.
     enum class UpdateLinks { Ask = 0, Always = 1, Never = 2 };
     UpdateLinks updateLinksMode() const;   // what the file says (and what the person set)
@@ -1822,6 +1823,7 @@ private:
         EditSession *m_s;
     };
     std::set<int> m_savedLinks;        // the links that were made this way and are in the file now
+    std::map<int, std::vector<jp::office::sheet::SaveChanges::ExternalCachedCell>> m_linkOpenValues;   // links of a copied sheet whose source had changes not saved: the values it showed, for the cache
     std::set<int> m_newLinks;          // the links made by typing the name of an open workbook, by number (after the file's own)
     int m_updateLinks = -1;            // Startup prompt as a person set it (an UpdateLinks), or -1 for the file's
     std::set<int> m_externalUpdated;   // the links whose values were read again (Update Values): the saver puts those values in the links' own parts

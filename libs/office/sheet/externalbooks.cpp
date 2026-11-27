@@ -1010,6 +1010,16 @@ bool ExternalBooks::resolve(const QString &text, Value *out, bool *fromFile) con
     return ok;
 }
 
+std::vector<std::pair<QString, CellRange>> ExternalBooks::readRanges(int index) const
+{
+    std::vector<std::pair<QString, CellRange>> out;
+    const std::lock_guard<std::mutex> guard(d->lock);
+    if (index < 1 || index > int(d->links.size())) return out;
+    for (const auto &[key, entry] : d->links[size_t(index - 1)].reads)
+        for (const CellRange &r : entry.second) out.emplace_back(entry.first, r);
+    return out;
+}
+
 std::vector<SaveChanges::ExternalCachedCell> ExternalBooks::readCells(int index) const
 {
     std::vector<SaveChanges::ExternalCachedCell> out;
