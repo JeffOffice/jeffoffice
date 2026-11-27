@@ -1,4 +1,5 @@
 #include "io/pubimport.h"
+#include "io/cfb.h"
 #include "office/connectionsites.h"
 
 #include "core/svg.h"
@@ -1683,6 +1684,7 @@ std::unique_ptr<Document> importPublisher(const QByteArray &data, QString *error
     c.finish();
     // Saving back to .pub keeps these names as they are.
     doc->pubFonts = rep.fontsUsed;
+    doc->pubMacros = !cfb::readStream(data, QStringLiteral("VBA/dir")).isEmpty();
     if (!ok) {
         if (error) *error = QCoreApplication::translate("Import", "JeffPub could not read this .pub file. It may be damaged or use features that aren't supported yet.");
         return nullptr;

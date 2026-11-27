@@ -132,6 +132,7 @@ private Q_SLOTS:
     void pubWriterTextFormats();
     void pubWriterTabsLists();
     void pubWriterMaster();
+    void aPubFileSaysWhatItDropsOfMacrosAndStoredFonts();
     void pubWriterHyphenation();
     void pubWriterStyles();
     void pubWriterTwoMasters();

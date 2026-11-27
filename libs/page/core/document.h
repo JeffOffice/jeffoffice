@@ -377,6 +377,8 @@ public:
     // saved back to .pub under these names, not swapped for the standard
     // fonts JeffPub's look-alikes match (interchangeFontName).
     QStringList pubFonts;
+    // The .pub file this came from held a macro project (never run, and never kept when saved): Check Compatibility says so. Not saved.
+    bool pubMacros = false;
     // Where the publication is saved, when it is: a linked picture's path
     // relative to it is kept, and wins when the publication and its pictures
     // were moved together.

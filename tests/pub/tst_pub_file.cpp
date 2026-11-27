@@ -3037,6 +3037,67 @@ void PubFileTests::pubWriterMaster()
     }
 
 
+// A .pub file that holds a macro project is opened (the macros never run), and saving it as .pub drops the project: the compatibility notice says so, as it
+// says so for the fonts a file stored. A file with neither says nothing of them.
+void PubFileTests::aPubFileSaysWhatItDropsOfMacrosAndStoredFonts()
+{
+    auto doc = jp::Document::blank(QSizeF(612, 792));
+    auto t = std::make_shared<jp::TextItem>();
+    t->rect = QRectF(72, 72, 300, 40);
+    t->storyId = doc->createStory(QStringLiteral("macro test"));
+    doc->pages[0]->items.push_back(t);
+    QTemporaryDir dir;
+    const QString plain = dir.filePath(QStringLiteral("plain.pub"));
+    QString err;
+    QVERIFY2(jp::exportPublisher(*doc, plain, &err), qPrintable(err));
+    QFile f(plain);
+    QVERIFY(f.open(QIODevice::ReadOnly));
+    const QByteArray bytes = f.readAll();
+    f.close();
+    // The same file with a stream in its VBA storage, as a macro project has.
+    jp::cfb::File cf;
+    QVERIFY(jp::cfb::read(bytes, &cf));
+    int vba = -1;
+    for (int i = 0; i < cf.entries.size(); ++i)
+        if (cf.entries[i].type == jp::cfb::Entry::Storage && cf.entries[i].name == QLatin1String("VBA")) vba = i;
+    QVERIFY(vba >= 0);
+    jp::cfb::Entry dirStream;
+    dirStream.name = QStringLiteral("dir");
+    dirStream.data = QByteArray(16, 'x');
+    cf.entries.push_back(dirStream);
+    cf.entries[vba].children.push_back(int(cf.entries.size()) - 1);
+    const QString withMacros = dir.filePath(QStringLiteral("macros.pub"));
+    QFile out(withMacros);
+    QVERIFY(out.open(QIODevice::WriteOnly));
+    out.write(jp::cfb::write(cf));
+    out.close();
+    auto has = [](const QStringList &lost, const char *word) {
+        for (const QString &l : lost)
+            if (l.contains(QLatin1String(word))) return true;
+        return false;
+    };
+    auto fresh = jp::importPublisherFile(plain, &err);
+    QVERIFY2(fresh, qPrintable(err));
+    QVERIFY(!fresh->pubMacros);
+    QVERIFY(!has(jp::publisherLosses(*fresh), "macro project") && !has(jp::publisherLosses(*fresh), "fonts stored"));
+    auto marked = jp::importPublisherFile(withMacros, &err);
+    QVERIFY2(marked, qPrintable(err));
+    QVERIFY(marked->pubMacros);
+    QVERIFY(has(jp::publisherLosses(*marked), "macro project"));
+    // (the fonts a file stored are in the publication's aliases while it is open)
+    marked->fontAliases.insert(QStringLiteral("somefont"), QStringLiteral("private-somefont"));
+    QVERIFY(has(jp::publisherLosses(*marked), "fonts stored"));
+    // Alternative text and the links of objects are not written to a .pub file either, and are said.
+    auto *first = fresh->pages[0]->items[0].get();
+    first->altText = QStringLiteral("A box");
+    QVERIFY(has(jp::publisherLosses(*fresh), "alternative text"));
+    first->altText.clear();
+    QVERIFY(!has(jp::publisherLosses(*fresh), "alternative text"));
+    first->hyperlink = QStringLiteral("https://example.com/");
+    QVERIFY(has(jp::publisherLosses(*fresh), "on objects and on mouse-over"));
+}
+
+
 // A story's automatic hyphenation setting survives .pub.
 void PubFileTests::pubWriterHyphenation()
 {

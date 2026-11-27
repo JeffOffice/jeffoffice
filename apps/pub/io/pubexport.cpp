@@ -3249,10 +3249,18 @@ QStringList publisherListLosses(const Document &doc)
 QStringList publisherLosses(const Document &doc)
 {
     QStringList phrases;
-    bool anyHidden = false;
-    doc.forEachItem([&](Item *it, int, const QString &) { anyHidden = anyHidden || it->hidden; });
+    bool anyHidden = false, anyAlt = false, anyObjectLink = false;
+    doc.forEachItem([&](Item *it, int, const QString &) {
+        anyHidden = anyHidden || it->hidden;
+        anyAlt = anyAlt || !it->altText.isEmpty() || !it->altTitle.isEmpty() || it->decorative;
+        anyObjectLink = anyObjectLink || !it->hyperlink.isEmpty() || !it->hoverLink.isEmpty();
+    });
+    if (anyAlt) phrases << QCoreApplication::translate("jp::PubExport", "the alternative text of objects, and which objects are marked as decoration");
+    if (anyObjectLink) phrases << QCoreApplication::translate("jp::PubExport", "links on objects and on mouse-over (links in text are kept)");
     if (anyHidden) phrases << QCoreApplication::translate("jp::PubExport", "hidden objects (the .pub format can't keep them hidden, so they are visible the next time it opens)");
     phrases << publisherListLosses(doc);
+    if (doc.pubMacros) phrases << QCoreApplication::translate("jp::PubExport", "the macro project the file held (it is never run, and a new .pub file does not keep it)");
+    if (!doc.fontAliases.isEmpty()) phrases << QCoreApplication::translate("jp::PubExport", "the fonts stored in the file (they are used while it is open, and a new .pub file does not keep them)");
     if (!doc.merge.isEmpty()) phrases << QCoreApplication::translate("jp::PubExport", "the mail merge list, and which of its recipients are left out");
     // (what the writer itself leaves out: written to memory, as a save would, and nothing put on disk)
     QStringList skipped;
