@@ -181,7 +181,10 @@ private Q_SLOTS:
     void aWindowReadOfANodeWithoutTheHoldIsNamedByStrictMode();
     void theCopyAndEditEntryPointsReadNodesOnlyUnderTheHold();
     void aLegacyArrayCellIsReadBesideTheWorkerThatAppendsRanges();
+    void theEditPathsAskAboutALegacyArrayBesideTheWorkerThatAppendsRanges();
+    void aSpillBlockIsAskedForBesideTheWorkerWithTheIndexOff();
     void aSecondHoldOnOneThreadIsNamedAndRefused();
+    void theRulesOfAConditionalFormatStepAreKeptWhenItRunsUnderAHold();
     void everyShowOnlyReaderIsSafeBesideTheWorkerThatGrowsAndShrinksABlock();
     void aWindowEditThatLetsGoOfASpillLeavesNothingForLater();
     void aWindowReadingABlockWhileTheWorkerGrowsAndShrinksItReadsNoFreedCell();

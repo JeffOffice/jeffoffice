@@ -726,6 +726,14 @@ std::shared_ptr<void> EditSession::holdForReads() const
     return std::shared_ptr<void>(m_loader->hold());
 }
 
+bool EditSession::holdOrHere(std::shared_ptr<void> *held)
+{
+    if (!m_loader || !m_loader->canHold()) return false;
+    if (m_loader->holdingHere()) return true;
+    *held = std::shared_ptr<void>(m_loader->hold());
+    return bool(*held);
+}
+
 jp::office::sheet::Calculation::CellContent EditSession::contentHeld(int sheet, quint32 row, quint32 col) const
 {
     const std::shared_ptr<void> held = holdForReads();

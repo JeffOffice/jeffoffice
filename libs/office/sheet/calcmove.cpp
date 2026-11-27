@@ -123,9 +123,7 @@ CellRange Calculation::arrayRangeAt(int sheet, quint32 row, quint32 col) const
     const Sheet &s = m_sheets[size_t(sheet)];
     const std::optional<Cell> c = s.cells.find(row, col);
     if (!c || !(c->flags & (ArrayFormula | ArrayMember)) || (c->flags & (SpillFormula | SpillMember)) || c->formula < 0 || c->formula >= s.formulas.size()) return CellRange();
-    const qint32 slot = s.formulas[c->formula].range;
-    if (slot < 0 || slot >= s.ranges.size() || !s.ranges[slot].valid) return CellRange();
-    return s.ranges[slot];
+    return rangeOfFormula(s, c->formula);   // (the window asks: the worker appends to the list as a formula first spills)
 }
 
 CellRange Calculation::arrayMeeting(int sheet, quint32 row1, quint32 col1, quint32 row2, quint32 col2) const

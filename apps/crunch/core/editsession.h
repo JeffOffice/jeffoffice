@@ -923,6 +923,9 @@ public:
     // The worker held back for a read of the formulas' nodes (Calculation::content with its nodes, the graph): null when this thread has it held already, or no worker serves. Let it go (reset, or the end of
     // the scope) before anything that takes a hold of its own, such as pushStep: a second hold on one thread waits for the first for ever.
     std::shared_ptr<void> holdForReads() const;
+    // For a change the rules of a step make (what Undo and Redo do run under a hold of the caller's, or not): true when the worker is held back for it now, in `held`, or by this thread already (a second hold on
+    // one thread would wait for the first for ever, and is refused: the change must not be dropped for that); false when the worker can't be held, as before the workbook is open.
+    bool holdOrHere(std::shared_ptr<void> *held);
     // The whole content of one cell (its nodes too), read with the worker held back for that one read unless this thread has it.
     jp::office::sheet::Calculation::CellContent contentHeld(int sheet, quint32 row, quint32 col) const;
     // The results the worker tells name cells by the ids of their rows and columns, which edits of rows and columns do not change, so a batch in flight when one is made lands on the right cells.

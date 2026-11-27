@@ -102,7 +102,7 @@ void EditSession::setCondRules(int sheet, const QVector<CondRule> &rules)
         m_condBaseUid[sheet] = baseUid;
     }
     if (m_condSnap.count(sheet)) m_condChangedDuringSave.insert(sheet);
-    if (std::unique_ptr<WorkbookLoader::Hold> hold = m_loader->hold()) hold->calculation()->replaceConditionalFormats(sheet, rules);
+    if (std::shared_ptr<void> held; holdOrHere(&held)) m_book->calc->replaceConditionalFormats(sheet, rules);
     m_condTouched.insert(sheet);
     Q_EMIT conditionalFormatsChanged(sheet);
 }
@@ -118,7 +118,7 @@ void EditSession::ensureCondUids(int sheet)
             any = true;
         }
     if (any)
-        if (std::unique_ptr<WorkbookLoader::Hold> hold = m_loader->hold()) hold->calculation()->replaceConditionalFormats(sheet, rules);
+        if (std::shared_ptr<void> held; holdOrHere(&held)) m_book->calc->replaceConditionalFormats(sheet, rules);
 }
 
 // Rules a step of structure (rows put in, cells deleted) brought back carry the priorities they had before the file was last saved. A rule the last save wrote is given its priority in the file;
@@ -142,7 +142,7 @@ void EditSession::condFixStale(int sheet)
         }
     }
     if (any)
-        if (std::unique_ptr<WorkbookLoader::Hold> hold = m_loader->hold()) hold->calculation()->replaceConditionalFormats(sheet, rules);
+        if (std::shared_ptr<void> held; holdOrHere(&held)) m_book->calc->replaceConditionalFormats(sheet, rules);
 }
 
 namespace {
@@ -242,7 +242,7 @@ void EditSession::condSaved()
             const auto in = snap.fileOf.find(r.uid);
             if (in != snap.fileOf.end()) r.origPriority = r.priority = in->second;
         }
-        if (std::unique_ptr<WorkbookLoader::Hold> hold = m_loader->hold()) hold->calculation()->replaceConditionalFormats(sheet, rules);
+        if (std::shared_ptr<void> held; holdOrHere(&held)) m_book->calc->replaceConditionalFormats(sheet, rules);
         // the bytes of what was taken away (by the uid the rule had), the others kept in step with the priorities
         auto &stored = m_condRaw[sheet];
         for (auto it = stored.begin(); it != stored.end();) {
@@ -293,12 +293,12 @@ void EditSession::condSaved()
 
 void EditSession::rememberDxf(const DifferentialFormat &format)
 {
-    if (std::unique_ptr<WorkbookLoader::Hold> hold = m_loader->hold()) m_book->book->dxfFor(format);
+    if (std::shared_ptr<void> held; holdOrHere(&held)) m_book->book->dxfFor(format);
 }
 
 void EditSession::forgetDxf(qint32 place)
 {
-    if (std::unique_ptr<WorkbookLoader::Hold> hold = m_loader->hold()) m_book->book->removeAddedDxf(place);
+    if (std::shared_ptr<void> held; holdOrHere(&held)) m_book->book->removeAddedDxf(place);
 }
 
 // Whether the rules of the sheet may be changed: not in a workbook opened from another kind of file (saved as .xlsx, the rules come over as they were), not when the file has rules this program does

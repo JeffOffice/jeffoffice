@@ -381,7 +381,7 @@ public:
     // while it works and are read by no other thread; `stored`, `hasStored`, `hasHeld`, and the fields of the held formula are not given then.
     CellContent content(int sheet, quint32 row, quint32 col, bool withNodes = true) const;
     // The sheet's list of ranges is appended to by the worker (a formula's first spill) and read from the window's thread only for the range of a legacy array or data table cell, content's one read of it:
-    // both go through this lock, and nothing else does (a cell that is not one of those takes none: no cost to a paint). A test counts the takes of the window's reads (rangesLockTakes).
+    // both go through this lock (rangeOfFormula), and so does the worker's every write of that list and of a formula's slot (a cell that is not one of those takes none: no cost to a paint). A test counts the takes of the window's reads (rangesLockTakes).
     qint64 rangesLockTakes() const { return m_rangesLockTakes.load(std::memory_order_relaxed); }
     qint64 contentNodeReads() const { return m_contentNodeReads.load(std::memory_order_relaxed); }   // (the times content looked at a node: what a test counts)
     // Changes whenever an edit could change what a text of a formula names (rows, columns, cells, sheets inserted, deleted, moved, renamed): what a copy made before is checked against.
@@ -1159,6 +1159,7 @@ private:
     mutable std::atomic<qint64> m_goneWalked{0};
     mutable std::atomic<qint64> m_contentNodeReads{0};
     mutable std::mutex m_rangesLock;               // (see rangesLockTakes)
+    CellRange rangeOfFormula(const Sheet &s, qint32 formula) const;   // (the range a formula has in the sheet's list, read under m_rangesLock when a worker serves: not valid when it has none)
     mutable std::atomic<qint64> m_rangesLockTakes{0};
     mutable std::atomic<qint64> m_valuesTaken{0};
     std::atomic<qint64> m_evaluations{0};

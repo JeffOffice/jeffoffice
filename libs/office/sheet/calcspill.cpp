@@ -235,6 +235,21 @@ QString Calculation::withImplicitMarks(const QString &formula)
     return out;
 }
 
+CellRange Calculation::rangeOfFormula(const Sheet &s, qint32 formula) const
+{
+    // (the worker appends to the list and writes a formula's slot as a formula spills, under this lock; a reader on another thread takes it, and so does one that has the worker held back, which needs none but is
+    // not told apart cheaply. The worker's own reads need none: it is the only writer.)
+    std::unique_lock<std::mutex> lock(m_rangesLock, std::defer_lock);
+    if (m_guard.workerServes() && !m_guard.isWorkerOrNone()) {
+        lock.lock();
+        m_rangesLockTakes.fetch_add(1, std::memory_order_relaxed);
+    }
+    if (formula < 0 || size_t(formula) >= size_t(s.formulas.size())) return CellRange();
+    const qint32 slot = s.formulas[formula].range;
+    if (slot >= 0 && slot < s.ranges.size() && s.ranges[slot].valid) return s.ranges[slot];
+    return CellRange();
+}
+
 CellRange Calculation::spillBlock(int sheet, quint32 row, quint32 col) const
 {
     CellRange out;
@@ -256,8 +271,7 @@ CellRange Calculation::spillBlock(int sheet, quint32 row, quint32 col) const
             }
         return out;
     }
-    const qint32 slot = s.formulas[c->formula].range;
-    if (slot >= 0 && slot < s.ranges.size() && s.ranges[slot].valid) out = s.ranges[slot];
+    if (const CellRange r = rangeOfFormula(s, c->formula); r.valid) out = r;
     return out;
 }
 
@@ -283,8 +297,7 @@ bool Calculation::isSpillMember(int sheet, quint32 row, quint32 col, CellRange *
             return true;
         }
         // (the block's first cell is the formula's own: its range names it, so no node is looked at, which is the worker's)
-        const qint32 slot = size_t(c->formula) < size_t(s.formulas.size()) ? s.formulas[c->formula].range : -1;
-        if (slot >= 0 && slot < s.ranges.size() && s.ranges[slot].valid) *anchor = spillBlock(sheet, s.ranges[slot].row1, s.ranges[slot].col1);
+        if (const CellRange r = rangeOfFormula(s, c->formula); r.valid) *anchor = spillBlock(sheet, r.row1, r.col1);
     }
     return true;
 }
@@ -535,8 +548,11 @@ void Calculation::letGoOfSpill(int sheet, qint32 formula)
         if (c->style == 0) s.cells.erase(row, col);
         tellGone(sheet, rowId, colId);
     }
-    s.ranges[slot].valid = false;
-    s.formulas[formula].range = -1;
+    {
+        const std::lock_guard<std::mutex> lock(m_rangesLock);   // (the window reads the list and the slot: see rangeOfFormula)
+        s.ranges[slot].valid = false;
+        s.formulas[formula].range = -1;
+    }
     if (range.valid && range.cellCount() > 1) {
         CellArea a;
         a.sheet1 = a.sheet2 = sheet;
@@ -711,15 +727,15 @@ Value Calculation::applySpill(Node &n, quint32 id, const Value &v)
             s.extentRows = std::max(s.extentRows, now.row2 + 1);
             s.extentCols = std::max<quint32>(s.extentCols, now.col2 + 1);
         }
-        if (slot >= 0 && slot < s.ranges.size()) {
-            s.ranges[slot] = now;
-        } else {
-            slot = qint32(s.ranges.size());
-            {
-                const std::lock_guard<std::mutex> lock(m_rangesLock);   // (the window reads the list for a legacy array cell: see rangesLockTakes)
+        {
+            const std::lock_guard<std::mutex> lock(m_rangesLock);   // (the window reads the list and the slot: see rangeOfFormula; a write to a list that an undo record shares makes a copy of it, which swaps its storage)
+            if (slot >= 0 && slot < s.ranges.size()) {
+                s.ranges[slot] = now;
+            } else {
+                slot = qint32(s.ranges.size());
                 s.ranges.append(now);
+                s.formulas[formula].range = slot;
             }
-            s.formulas[formula].range = slot;
         }
         // what read a cell the block gained or lost is worked out again (the formula's own cell is not among them: it is being worked out)
         for (const CellRange &r : {was, now}) {
