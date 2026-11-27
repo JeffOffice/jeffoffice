@@ -781,7 +781,7 @@
 <context>
     <name>jp::WriteFindPane</name>
     <message numerus="yes">
-        <location filename="../apps/write/app/writefindpane.cpp" line="+1508"/>
+        <location filename="../apps/write/app/writefindpane.cpp" line="+1505"/>
         <source>%n match is in content that can&apos;t be changed.</source>
         <translation>
             <numerusform>%n match is in content that can&apos;t be changed.</numerusform>

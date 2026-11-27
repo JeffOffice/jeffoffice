@@ -63607,7 +63607,7 @@ Il browser web aprirà LibreTranslate, un servizio di traduzione gratuito e open
         <translation type="unfinished">%1 corrispondenze</translation>
     </message>
     <message>
-        <location line="+167"/>
+        <location line="+164"/>
         <source>Found in the footer of page %1.</source>
         <translation type="unfinished">Trovato nel piè di pagina della pagina %1.</translation>
     </message>
@@ -66123,7 +66123,7 @@ Il browser web aprirà LibreTranslate, un servizio di traduzione gratuito e open
     </message>
     <message>
         <location line="+5"/>
-        <location line="+129"/>
+        <location line="+137"/>
         <location line="+52"/>
         <location line="+447"/>
         <location filename="../apps/write/core/designops.cpp" line="+27"/>
@@ -66131,7 +66131,7 @@ Il browser web aprirà LibreTranslate, un servizio di traduzione gratuito e open
         <translation type="unfinished">Apri</translation>
     </message>
     <message>
-        <location line="-598"/>
+        <location line="-606"/>
         <location filename="../apps/write/app/writewindow_graphics.cpp" line="+88"/>
         <location filename="../apps/write/app/writewindow_insert.cpp" line="+285"/>
         <location filename="../apps/write/app/writewindow_pictures.cpp" line="+163"/>
@@ -66143,13 +66143,13 @@ Il browser web aprirà LibreTranslate, un servizio di traduzione gratuito e open
     </message>
     <message>
         <location line="+0"/>
-        <location line="+191"/>
+        <location line="+199"/>
         <location line="+23"/>
         <source>Rich Text Format (*.rtf)</source>
         <translation type="unfinished">Rich Text Format (*.rtf)</translation>
     </message>
     <message>
-        <location line="-214"/>
+        <location line="-222"/>
         <source>OpenDocument Text (*.odt *.fodt *.ott)</source>
         <translation type="unfinished">Testo OpenDocument (*.odt *.fodt *.ott)</translation>
     </message>
@@ -66165,7 +66165,7 @@ Il browser web aprirà LibreTranslate, un servizio di traduzione gratuito e open
     </message>
     <message>
         <location filename="../apps/write/app/writewindow_file.cpp" line="+1"/>
-        <location line="+188"/>
+        <location line="+196"/>
         <location line="+5"/>
         <location line="+3"/>
         <location line="+1"/>
@@ -66188,13 +66188,13 @@ Il browser web aprirà LibreTranslate, un servizio di traduzione gratuito e open
         <translation type="unfinished">Salva</translation>
     </message>
     <message>
-        <location line="-439"/>
-        <location line="+228"/>
+        <location line="-447"/>
+        <location line="+236"/>
         <source>Save As</source>
         <translation type="unfinished">Salva con nome</translation>
     </message>
     <message>
-        <location line="-227"/>
+        <location line="-235"/>
         <source>Print…</source>
         <translation type="unfinished">Stampa…</translation>
     </message>
@@ -66220,7 +66220,7 @@ Il browser web aprirà LibreTranslate, un servizio di traduzione gratuito e open
         <translation type="unfinished">Opzioni</translation>
     </message>
     <message>
-        <location line="+77"/>
+        <location line="+85"/>
         <source>Open Plain Text</source>
         <translation type="unfinished">Apri testo normale</translation>
     </message>
@@ -66385,12 +66385,12 @@ Impossibile applicare la password al file.</translation>
 %3%4</translation>
     </message>
     <message>
-        <location line="-367"/>
+        <location line="-375"/>
         <source>Documents (*.docx *.docm *.dotx *.dotm *.doc *.dot *.rtf *.odt *.fodt *.ott *.txt *.html *.htm)</source>
         <translation type="unfinished">Documenti (*.docx *.docm *.dotx *.dotm *.doc *.dot *.rtf *.odt *.fodt *.ott *.txt *.html *.htm)</translation>
     </message>
     <message>
-        <location line="+169"/>
+        <location line="+177"/>
         <source>This document came from a web page, which %1 doesn&apos;t write over, so it is saved as a new .docx file.</source>
         <translation type="unfinished">Questo documento proviene da una pagina web, che %1 non sovrascrive, quindi viene salvato come nuovo file .docx.</translation>
     </message>
@@ -69747,7 +69747,7 @@ Impossibile applicare la password al file.</translation>
         <translation type="unfinished">Navigazione</translation>
     </message>
     <message>
-        <location line="+159"/>
+        <location line="+158"/>
         <source>Open a second window to view two documents side by side.</source>
         <translation type="unfinished">Apri una seconda finestra per visualizzare due documenti affiancati.</translation>
     </message>
@@ -82100,7 +82100,7 @@ Impossibile applicare la password al file.</translation>
 <context>
     <name>jp::write::BlockMove</name>
     <message>
-        <location filename="../apps/write/app/writewindow_view.cpp" line="-215"/>
+        <location filename="../apps/write/app/writewindow_view.cpp" line="-214"/>
         <location filename="../apps/write/core/blockmove.cpp" line="+173"/>
         <source>This document is protected, so a section can&apos;t be moved.</source>
         <translation type="unfinished">Questo documento è protetto, quindi una sezione non può essere spostata.</translation>
@@ -86616,24 +86616,29 @@ Impossibile applicare la password al file.</translation>
         <translation type="unfinished">+%1 altri</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/pageview_input.cpp" line="+146"/>
-        <location line="+608"/>
+        <location filename="../apps/write/app/pageview_input.cpp" line="+154"/>
+        <location line="+611"/>
         <source>Keep Source Formatting</source>
         <translation type="unfinished">Mantieni formattazione originale</translation>
     </message>
     <message>
-        <location line="-500"/>
+        <location line="-503"/>
         <source>The Spike is full. Paste it to empty it.</source>
         <translation type="unfinished">Lo Spike è pieno. Incollalo per svuotarlo.</translation>
     </message>
     <message>
         <location line="-107"/>
-        <location line="+608"/>
+        <location line="+611"/>
         <source>Merge Formatting</source>
         <translation type="unfinished">Unisci formattazione</translation>
     </message>
     <message>
-        <location line="-649"/>
+        <location line="-661"/>
+        <source>The notes in this selection are too long to copy or cut. Select less of the text, and try again.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+5"/>
         <source>A table with changes tracked in it is copied as its words, not as a table. Accept or reject the changes to copy it as a table.</source>
         <translation type="unfinished">Una tabella con modifiche registrate viene copiata come testo, non come tabella. Accetta o rifiuta le modifiche per copiarla come tabella.</translation>
     </message>
@@ -86648,13 +86653,13 @@ Impossibile applicare la password al file.</translation>
         <translation type="unfinished">Questa selezione contiene più tabelle, o più celle, di quante una copia ne mantenga come tabelle, quindi vengono copiate come testo.</translation>
     </message>
     <message>
-        <location line="+40"/>
-        <location line="+609"/>
+        <location line="+44"/>
+        <location line="+612"/>
         <source>Keep Text Only</source>
         <translation type="unfinished">Mantieni solo testo</translation>
     </message>
     <message>
-        <location line="-608"/>
+        <location line="-611"/>
         <source>Pasting within the same document</source>
         <translation type="unfinished">Incollamento all&apos;interno dello stesso documento</translation>
     </message>
@@ -86669,7 +86674,7 @@ Impossibile applicare la password al file.</translation>
         <translation type="unfinished">Incollamento da altri programmi</translation>
     </message>
     <message>
-        <location line="+608"/>
+        <location line="+611"/>
         <location filename="../apps/write/app/writewindow_options.cpp" line="+11"/>
         <source>Continue List</source>
         <translation type="unfinished">Continua elenco</translation>
@@ -87036,7 +87041,7 @@ Impossibile applicare la password al file.</translation>
         <translation type="unfinished">Impossibile aprire %1 come immagine.</translation>
     </message>
     <message>
-        <location filename="../apps/write/core/editops.cpp" line="+2279"/>
+        <location filename="../apps/write/core/editops.cpp" line="+2476"/>
         <location filename="../apps/write/core/pictureops.cpp" line="-1574"/>
         <location line="+362"/>
         <location line="+2066"/>
@@ -87912,7 +87917,7 @@ Impossibile applicare la password al file.</translation>
         <translation type="unfinished">Non ci sono stili da aggiornare qui.</translation>
     </message>
     <message>
-        <location filename="../apps/write/core/editops.cpp" line="+1098"/>
+        <location filename="../apps/write/core/editops.cpp" line="+1099"/>
         <source>The document has too many list styles.</source>
         <translation type="unfinished">Il documento contiene troppi stili elenco.</translation>
     </message>
@@ -88169,7 +88174,7 @@ Impossibile applicare la password al file.</translation>
 <context>
     <name>jp::write::Tracking</name>
     <message>
-        <location filename="../apps/write/core/trackpolicy.cpp" line="+98"/>
+        <location filename="../apps/write/core/trackpolicy.cpp" line="+100"/>
         <source>This change was not recorded as a tracked change.</source>
         <translation type="unfinished"></translation>
     </message>
@@ -88289,7 +88294,7 @@ Impossibile applicare la password al file.</translation>
     </message>
     <message>
         <location line="+344"/>
-        <location filename="../libs/office/odt/odtwritebody.cpp" line="+2193"/>
+        <location filename="../libs/office/odt/odtwritebody.cpp" line="+2197"/>
         <source>tables nested too deeply</source>
         <translation type="unfinished">tabelle con troppi livelli di annidamento</translation>
     </message>
@@ -88466,13 +88471,13 @@ Impossibile applicare la password al file.</translation>
         <translation type="unfinished">contrassegni &quot;non controllare ortografia&quot;</translation>
     </message>
     <message>
-        <location filename="../libs/office/odt/odtwritebody.cpp" line="-2170"/>
-        <location line="+2110"/>
+        <location filename="../libs/office/odt/odtwritebody.cpp" line="-2174"/>
+        <location line="+2114"/>
         <source>content controls (the text in them is kept)</source>
         <translation type="unfinished">controlli del contenuto (il testo al loro interno viene mantenuto)</translation>
     </message>
     <message>
-        <location line="-1477"/>
+        <location line="-1481"/>
         <source>form fields (kept as the text they show)</source>
         <translation type="unfinished">campi modulo (mantenuti come il testo visualizzato)</translation>
     </message>
@@ -88518,17 +88523,18 @@ Impossibile applicare la password al file.</translation>
     </message>
     <message>
         <location line="+18"/>
-        <location line="+140"/>
+        <location line="+96"/>
+        <location line="+48"/>
         <source>tracked changes in headers, footers, and notes (saved as they stand now)</source>
         <translation type="unfinished">revisioni in intestazioni, piè di pagina e note (salvate nello stato attuale)</translation>
     </message>
     <message>
-        <location line="-101"/>
+        <location line="-105"/>
         <source>equations that can&apos;t be kept as formulas (kept as plain text)</source>
         <translation type="unfinished">equazioni che non possono essere mantenute come formule (mantenute come testo semplice)</translation>
     </message>
     <message>
-        <location line="+420"/>
+        <location line="+424"/>
         <source>a table with more cells than are kept</source>
         <translation type="unfinished">una tabella con più celle del numero mantenuto</translation>
     </message>
