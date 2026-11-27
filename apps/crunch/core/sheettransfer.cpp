@@ -3,6 +3,7 @@
 // other sheets of the first workbook become links to its file (read by the links' own thread, as any link is); those that read the copied sheet itself stay on it.
 #include "core/editsession.h"
 
+#include "core/syslocale.h"
 #include "core/formatfind.h"
 #include "sheet/externalbooks.h"
 #include "sheet/namerefs.h"
@@ -71,7 +72,7 @@ EditSession::SheetExport EditSession::exportSheet(int sheet, const QString &file
     out.usedRows = s.extentRows;
     out.usedCols = s.extentCols;
     if (qint64(s.extentRows) * qint64(s.extentCols) > cap)
-        return refuse(tr("This sheet is larger than JeffCrunch copies to another workbook at once (%1 cells). Copy part of it with Copy and Paste.").arg(QLocale().toString(cap)));
+        return refuse(tr("This sheet is larger than JeffCrunch copies to another workbook at once (%1 cells). Copy part of it with Copy and Paste.").arg(jp::systemLocale().toString(cap)));
     if (s.merges.size() > cap) return refuse(tr("This sheet has more merged cells than JeffCrunch copies to another workbook at once."));
     std::unordered_map<quint32, qint32> lookOf;
     auto lookFor = [&](quint32 xf) -> qint32 {
@@ -154,7 +155,7 @@ EditSession::SheetExport EditSession::exportSheet(int sheet, const QString &file
             return true;
         });
     if (!out.ok) return out;
-    if (tooMany) return refuse(tr("This sheet has more cells than JeffCrunch copies to another workbook at once (%1). Copy part of it with Copy and Paste.").arg(QLocale().toString(cap)));
+    if (tooMany) return refuse(tr("This sheet has more cells than JeffCrunch copies to another workbook at once (%1). Copy part of it with Copy and Paste.").arg(jp::systemLocale().toString(cap)));
     out.merges = s.merges;
     out.columns = calc->columnRuns(sheet, 0, kMaxColumns - 1);
     out.rows = calc->rowSpecsIn(sheet, 0, kMaxRows - 1);
@@ -202,7 +203,7 @@ EditSession::Outcome EditSession::checkImport(const SheetExport &data) const
             return refuse(tr("Formulas on this sheet read other sheets of %1, so the copy has to keep a link to its file, and %1 has changes that are not saved. Save it first, and then copy the sheet.").arg(what));
     }
     QStringList said;
-    if (!data.notCopied.isEmpty()) said << tr("These will not be copied: %1.").arg(QLocale().createSeparatedList(data.notCopied));
+    if (!data.notCopied.isEmpty()) said << tr("These will not be copied: %1.").arg(jp::systemLocale().locale.createSeparatedList(data.notCopied));
     if (data.readsOtherSheets) said << tr("Formulas that read other sheets of %1 become links to that file.").arg(data.bookName);
     if (!data.looks.empty() && m_book->book->styles().formats.isEmpty()) said << tr("This workbook has no formats to build on, so the copy does not have the fonts, colors, and borders of the sheet.");
     if (data.frozen > 0) said << tr("%n cell(s) use names or tables of the other workbook, or are part of an array, so they come as the values they show.", nullptr, int(data.frozen));
