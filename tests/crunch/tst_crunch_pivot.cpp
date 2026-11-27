@@ -14,6 +14,7 @@
 #include "sheet/chartedit.h"
 #include "core/appinfo.h"
 #include "core/sheetobjects.h"
+#include "core/sheetslicers.h"
 #include "core/slicerpaint.h"
 #include "grid/objectlayer.h"
 #include "core/fonts.h"
@@ -2681,6 +2682,17 @@ private Q_SLOTS:
         const QPointF at = clear ? g.clear.center() : g.button(index).center();
         return QPoint(r.left() + int(e.view()->sheet().rightToLeft() ? r.width() - at.x() : at.x()), r.top() + int(at.y()));
     }
+    // What the click path looked like, for a test that says why a click did nothing: the point, the slicer's place on the viewport, what is under the point, and what the window and the session said.
+    static QString clickReport(EditWindow &e, const QPoint &spot)
+    {
+        jp::grid::ObjectLayer *layer = e.win.w.objects()->layer();
+        QString out = QStringLiteral("spot %1,%2 rect %3,%4 %5x%6 viewport %7x%8 under %9 slicer %10 objects %11 looks %12 named %13 selected %14").arg(spot.x()).arg(spot.y())
+            .arg(slicerRect(e).x()).arg(slicerRect(e).y()).arg(slicerRect(e).width()).arg(slicerRect(e).height()).arg(e.view()->viewport()->width()).arg(e.view()->viewport()->height())
+            .arg(layer->objectAt(onScreen(e, spot))).arg(slicerId(e)).arg(layer->count()).arg(e.win.w.objects()->slicers()->looks()).arg(e.win.w.session()->slicerNamed(QStringLiteral("Region"), 0)).arg(layer->selectedId());
+        QString why;
+        out += QStringLiteral(" canEdit %1 (%2) status [%3] told [%4]").arg(e.win.w.session()->canEdit(&why)).arg(why, e.win.w.statusText(), e.win.told.join(QLatin1Char('|')));
+        return out;
+    }
     static QColor viewColor(EditWindow &e, const QPoint &at)
     {
         e.win.w.objects()->layer()->prepareAll();
@@ -3247,9 +3259,11 @@ private Q_SLOTS:
             jp::grid::ObjectLayer *layer = e.win.w.objects()->layer();
             QVERIFY(!crunch::isSlicerId(layer->object(0).id) && crunch::isSlicerId(layer->object(1).id));
             const int steps = e.win.w.session()->undoStack()->count();
-            clickView(e, slicerSpot(e, 1));
+            const QPoint spot = slicerSpot(e, 1);
+            const QString before = clickReport(e, spot);
+            clickView(e, spot);
             finish(e);
-            QCOMPARE(e.win.w.session()->undoStack()->count(), steps + 1);   // (the slicer is above the shape: it took it)
+            QVERIFY2(e.win.w.session()->undoStack()->count() == steps + 1, qPrintable(before + QStringLiteral(" | after: ") + clickReport(e, spot)));   // (the slicer is above the shape: it took it)
             QCOMPARE(layer->selectedId(), -1);
             QCOMPARE(int(e.win.w.objects()->printObjects(0).size()), 2);
             QVERIFY(crunch::isSlicerId(e.win.w.objects()->printObjects(0)[1].id));
