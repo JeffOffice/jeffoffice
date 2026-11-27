@@ -11,6 +11,9 @@
 #include "editwindow.h"
 #include "grid/gridview.h"
 #include "io/zip.h"
+#include "office/themelib.h"
+#include "sheet/protection.h"
+#include "../sheet/sheethelpers.h"
 #include "core/sheetobjects.h"
 
 #include <QAction>
@@ -266,6 +269,109 @@ private Q_SLOTS:
         QVERIFY(s->replaceCellFont(QStringLiteral("Zephyr Two"), QStringLiteral("Zephyr Three"), &cells).ok);
         QCOMPARE(cells, qint64(5));
         QCOMPARE(lookAt(e, QStringLiteral("D4")).family, QStringLiteral("Zephyr Three"));
+    }
+
+    // The theme's heading and body fonts are listed, and changed only when picked: in the theme part, with the cells that follow them showing the new font, and one step of Undo; a font the cells
+    // name outright is not the theme's.
+    void theThemeFontsAreOfferedAndChangedOnlyWhenPicked()
+    {
+        jp::office::Theme theme = jp::office::defaultTheme();
+        theme.majorLatin = QStringLiteral("Head Face");
+        theme.minorLatin = QStringLiteral("Body Face");
+        const QByteArray styles = stylesXml(QString(), QStringLiteral("<xf numFmtId=\"0\" fontId=\"0\" fillId=\"0\" borderId=\"0\"/><xf numFmtId=\"0\" fontId=\"1\" fillId=\"0\" borderId=\"0\" applyFont=\"1\"/>"
+                                                                      "<xf numFmtId=\"0\" fontId=\"2\" fillId=\"0\" borderId=\"0\" applyFont=\"1\"/>"),
+                                            QStringLiteral("<fonts count=\"3\"><font><sz val=\"11\"/><name val=\"Calibri\"/></font><font><sz val=\"11\"/><name val=\"Calibri\"/><scheme val=\"minor\"/></font>"
+                                                           "<font><sz val=\"11\"/><name val=\"Calibri Light\"/><scheme val=\"major\"/></font></fonts>"
+                                                           "<fills count=\"2\"><fill><patternFill patternType=\"none\"/></fill><fill><patternFill patternType=\"gray125\"/></fill></fills>"
+                                                           "<borders count=\"1\"><border><left/><right/><top/><bottom/><diagonal/></border></borders>"));
+        const QString rows = QStringLiteral("<row r=\"1\"><c r=\"A1\" s=\"1\"><v>1</v></c><c r=\"B1\" s=\"1\"><v>2</v></c><c r=\"C1\" s=\"2\"><v>3</v></c><c r=\"D1\"><v>4</v></c></row>");
+        EditWindow e;
+        QVERIFY(e.open(buildXlsx({worksheet(rows)}, QByteArray(), QString(), QString(), styles, QStringList(), QString(), jp::office::writeTheme(theme))));
+        QVERIFY(e.settle());
+        crunch::EditSession *s = e.win.w.session();
+        QMap<QString, QString> offered;
+        QMap<QString, qint64> themeCells;
+        s->cellFontsUsed(nullptr, &offered, &themeCells);
+        QCOMPARE(offered.value(QStringLiteral("+Heading")), QStringLiteral("Head Face"));
+        QCOMPARE(offered.value(QStringLiteral("+Body")), QStringLiteral("Body Face"));
+        QCOMPARE(themeCells.value(QStringLiteral("+Body")), qint64(2));
+        QCOMPARE(themeCells.value(QStringLiteral("+Heading")), qint64(1));
+        // a font the cells name is not the theme's: replacing it leaves the theme alone
+        qint64 cells = 0;
+        QVERIFY(s->replaceCellFont(QStringLiteral("Calibri"), QStringLiteral("Zephyr Plain"), &cells).ok);
+        QCOMPARE(s->workbook()->styles().majorFont, QStringLiteral("Head Face"));
+        QCOMPARE(s->workbook()->styles().minorFont, QStringLiteral("Body Face"));
+        e.win.w.undoStack()->undo();
+        // the heading font is picked
+        const int steps = e.win.w.undoStack()->index();
+        QVERIFY(s->replaceCellFont(QStringLiteral("+Heading"), QStringLiteral("Zephyr Head"), &cells).ok);
+        QCOMPARE(cells, qint64(1));
+        QCOMPARE(e.win.w.undoStack()->index(), steps + 1);
+        QCOMPARE(s->workbook()->styles().majorFont, QStringLiteral("Zephyr Head"));
+        QCOMPARE(s->workbook()->styles().minorFont, QStringLiteral("Body Face"));   // (the body font is not changed)
+        QVERIFY(e.settle());
+        QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
+        QVERIFY(e.win.w.save());
+        QVERIFY2(savedOk(saved, 20000), qPrintable(e.win.told.join('|') + e.win.w.statusText()));
+        QMap<QString, QByteArray> parts;
+        {
+            QFile f(e.copyOfFile());
+            QVERIFY(f.open(QIODevice::ReadOnly));
+            readZip(f.readAll(), parts);
+        }
+        const QByteArray themePart = parts.value(QStringLiteral("xl/theme/theme1.xml"));
+        QVERIFY2(themePart.contains("Zephyr Head") && !themePart.contains("Head Face") && themePart.contains("Body Face"), themePart.left(300).constData());
+        e.win.w.act(QStringLiteral("edit.undo"))->trigger();
+        QCOMPARE(s->workbook()->styles().majorFont, QStringLiteral("Head Face"));
+        e.win.w.act(QStringLiteral("edit.redo"))->trigger();
+        QCOMPARE(s->workbook()->styles().majorFont, QStringLiteral("Zephyr Head"));
+    }
+
+    // The words of a note (its rich text runs) are in the font too, and are renamed in the saved file's comments part; a sheet that is protected against formatting refuses the change before anything
+    // changes, with the reason.
+    void notesAreRenamedAndAProtectedSheetRefusesTheChange()
+    {
+        const QByteArray comments = "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\n<comments xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\"><authors><author>Ann</author></authors>"
+                                    "<commentList><comment ref=\"A1\" authorId=\"0\"><text><r><rPr><sz val=\"9\"/><rFont val=\"Zephyr Test\"/></rPr><t>a note</t></r></text></comment></commentList></comments>";
+        QVector<ExtraPart> extra;
+        extra.push_back({QStringLiteral("xl/comments1.xml"), comments, QStringLiteral("application/vnd.openxmlformats-officedocument.spreadsheetml.comments+xml"), 0, QStringLiteral("rId11"),
+                         QStringLiteral("comments"), QStringLiteral("../comments1.xml")});
+        EditWindow e;
+        QVERIFY(e.open(withParts(formatBook(), extra)));
+        QVERIFY(e.settle());
+        crunch::EditSession *s = e.win.w.session();
+        QCOMPARE(s->workbook()->partFontsUsed().value(QStringLiteral("Zephyr Test")), qint64(1));
+        qint64 cells = 0;
+        QVERIFY(s->replaceCellFont(QStringLiteral("Zephyr Test"), QStringLiteral("Zephyr Note"), &cells).ok);
+        QCOMPARE(cells, qint64(1));   // (the note's run is counted with the cells)
+        QVERIFY(e.settle());
+        QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
+        QVERIFY(e.win.w.save());
+        QVERIFY2(savedOk(saved, 20000), qPrintable(e.win.told.join('|') + e.win.w.statusText()));
+        {
+            QMap<QString, QByteArray> parts;
+            QFile f(e.copyOfFile());
+            QVERIFY(f.open(QIODevice::ReadOnly));
+            readZip(f.readAll(), parts);
+            const QByteArray part = parts.value(QStringLiteral("xl/comments1.xml"));
+            QVERIFY2(part.contains("Zephyr Note") && !part.contains("Zephyr Test"), part.constData());
+        }
+        // the refusal: cells in a font, on a sheet that does not allow formatting
+        FormatChange face;
+        face.fontName = QStringLiteral("Zephyr Cell");
+        QVERIFY(s->formatCells(0, rangeOf(QStringLiteral("B2:C3")), face, QStringLiteral("Formatting")).ok);
+        jp::office::sheet::SheetProtection locked;
+        locked.enabled = true;
+        QVERIFY(s->setSheetProtection(0, locked, QStringLiteral("Protect")).ok);
+        const int steps = e.win.w.undoStack()->count();
+        const QMap<QString, qint64> before = s->cellFontsUsed();
+        const auto refused = s->replaceCellFont(QStringLiteral("Zephyr Cell"), QStringLiteral("Zephyr Other"), &cells);
+        QVERIFY(!refused.ok);
+        QVERIFY(!refused.problem.isEmpty());
+        QCOMPARE(cells, qint64(0));
+        QCOMPARE(e.win.w.undoStack()->count(), steps);
+        QCOMPARE(s->cellFontsUsed(), before);
+        QCOMPARE(lookAt(e, QStringLiteral("B2")).family, QStringLiteral("Zephyr Cell"));
     }
 
     // The renamed font is written where it stands: the saved file has no font of the old name anywhere, no font and no cell format more than before, and opens with the new name; Undo

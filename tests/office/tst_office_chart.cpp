@@ -832,6 +832,91 @@ private Q_SLOTS:
         QCOMPARE(int(svg.count(QStringLiteral(">25%<"))), 2);
     }
 
+    // A doughnut is drawn as SVG: its slices are in the shares of their values, round, with the hole the file says (nothing drawn at the center, and the ring's area is the pie's less the hole's).
+    void chartSvgDrawsADoughnutWithItsHole()
+    {
+        const QString colored = QStringLiteral("<c:dPt><c:idx val=\"0\"/><c:spPr><a:solidFill><a:srgbClr val=\"FF0000\"/></a:solidFill></c:spPr></c:dPt>"
+                                               "<c:dPt><c:idx val=\"1\"/><c:spPr><a:solidFill><a:srgbClr val=\"0000FF\"/></a:solidFill></c:spPr></c:dPt>"
+                                               "<c:dPt><c:idx val=\"2\"/><c:spPr><a:solidFill><a:srgbClr val=\"00FF00\"/></a:solidFill></c:spPr></c:dPt>");
+        auto render = [&](const QString &kind, int hole, Chart *out, QString *svg = nullptr) {
+            const QString plot = QStringLiteral("<c:%1><c:varyColors val=\"1\"/>").arg(kind) + chartSeries(0, QStringLiteral("S"), {"a", "b", "c"}, {1, 1, 2}, QString(), colored)
+                                 + QStringLiteral("<c:firstSliceAng val=\"0\"/>") + (hole > 0 ? QStringLiteral("<c:holeSize val=\"%1\"/>").arg(hole) : QString()) + QStringLiteral("</c:%1>").arg(kind);
+            QString err;
+            if (!readChart(chartPart(plot), defaultTheme(), ColorMap(), out, &err)) return QImage();
+            if (svg) *svg = QString::fromUtf8(chartSvg(*out, QSizeF(300, 300)));
+            return renderChart(*out, QSizeF(300, 300), 2);
+        };
+        Chart pieChart, ring50, ring75;
+        QString svg;
+        const QImage pie = render(QStringLiteral("pieChart"), 0, &pieChart);
+        const QImage ring = render(QStringLiteral("doughnutChart"), 50, &ring50, &svg);
+        const QImage thin = render(QStringLiteral("doughnutChart"), 75, &ring75);
+        QVERIFY(!pie.isNull() && !ring.isNull() && !thin.isNull());
+        QCOMPARE(int(pieChart.plots[0].type), int(ChartType::Pie));
+        QCOMPARE(int(ring50.plots[0].type), int(ChartType::Doughnut));
+        QVERIFY2(svg.startsWith(QStringLiteral("<svg")) || svg.contains(QStringLiteral("<svg")), qPrintable(svg.left(80)));
+        const QColor green(0, 0xFF, 0);
+        const double r = colorArea(ring, Qt::red), b = colorArea(ring, Qt::blue), g = colorArea(ring, green);
+        QVERIFY(r > 3000);
+        QVERIFY2(qAbs(b / r - 1) < 0.1, qPrintable(QString::number(b / r)));
+        QVERIFY2(qAbs(g / r - 2) < 0.15, qPrintable(QString::number(g / r)));
+        const double whole = colorArea(pie, Qt::red) + colorArea(pie, Qt::blue) + colorArea(pie, green);
+        const double ring1 = r + b + g, ring2 = colorArea(thin, Qt::red) + colorArea(thin, Qt::blue) + colorArea(thin, green);
+        // the ring's area is the pie's less the hole (half the width: a quarter of the area; three quarters of the width: more than half)
+        QVERIFY2(ring1 / whole > 0.6 && ring1 / whole < 0.85, qPrintable(QString::number(ring1 / whole)));
+        QVERIFY2(ring2 < ring1 * 0.7 && ring2 / whole > 0.2 && ring2 / whole < 0.55, qPrintable(QString::number(ring2 / whole)));
+        // the hole is empty at the center, where the pie has a slice
+        auto colored2 = [](const QImage &img, int x, int y) { return qRed(img.pixel(x, y)) < 200 || qGreen(img.pixel(x, y)) < 200 || qBlue(img.pixel(x, y)) < 200; };
+        QVERIFY(colored2(pie, 300 + 20, 300 - 20));
+        QVERIFY(!colored2(ring, 300 + 20, 300 - 20) && !colored2(ring, 300 - 20, 300 + 20));
+    }
+
+    // An area chart is drawn as SVG: the series' color fills from the line down to the axis, the line goes through the values (higher where the value is higher), and a stacked one piles the second
+    // series over the first.
+    void chartSvgDrawsAnAreaFilledDownToTheAxis()
+    {
+        const QString red = QStringLiteral("<c:spPr><a:solidFill><a:srgbClr val=\"FF0000\"/></a:solidFill></c:spPr>");
+        const QString blue = QStringLiteral("<c:spPr><a:solidFill><a:srgbClr val=\"0000FF\"/></a:solidFill></c:spPr>");
+        auto render = [&](const QString &grouping, bool second, Chart *out) {
+            QString plot = QStringLiteral("<c:areaChart><c:grouping val=\"%1\"/>").arg(grouping) + chartSeries(0, QStringLiteral("S"), {"a", "b", "c"}, {2, 8, 4}, red);
+            if (second) plot += chartSeries(1, QStringLiteral("T"), {"a", "b", "c"}, {3, 3, 3}, blue);
+            plot += QStringLiteral("<c:axId val=\"111\"/><c:axId val=\"222\"/></c:areaChart>") + chartAxes();
+            QString err;
+            if (!readChart(chartPart(plot), defaultTheme(), ColorMap(), out, &err)) return QImage();
+            return renderChart(*out, QSizeF(400, 300), 2);
+        };
+        auto top = [](const QImage &img, const QColor &color, int x) {
+            for (int y = 0; y < img.height(); ++y)
+                if (isColor(img.pixel(x, y), color, 40)) return y;
+            return -1;
+        };
+        auto bottom = [](const QImage &img, const QColor &color, int x) {
+            for (int y = img.height() - 1; y >= 0; --y)
+                if (isColor(img.pixel(x, y), color, 40)) return y;
+            return -1;
+        };
+        Chart one;
+        const QImage img = render(QStringLiteral("standard"), false, &one);
+        QVERIFY(!img.isNull());
+        QCOMPARE(int(one.plots[0].type), int(ChartType::Area));
+        const QRect box = colorBounds(img, Qt::red, false);
+        QVERIFY2(box.width() > 200 && box.height() > 100, qPrintable(QStringLiteral("%1 x %2").arg(box.width()).arg(box.height())));
+        const int first = box.left() + 4, middle = box.center().x(), last = box.right() - 4;
+        // higher in the middle (8) than at the ends (2 and 4), and the end with 4 higher than the one with 2
+        QVERIFY2(top(img, Qt::red, middle) >= 0 && top(img, Qt::red, middle) < top(img, Qt::red, last) && top(img, Qt::red, last) < top(img, Qt::red, first), qPrintable(QStringLiteral("%1 %2 %3").arg(top(img, Qt::red, first)).arg(top(img, Qt::red, middle)).arg(top(img, Qt::red, last))));
+        // filled down to the same axis in every column
+        QVERIFY(qAbs(bottom(img, Qt::red, first) - bottom(img, Qt::red, middle)) <= 2 && qAbs(bottom(img, Qt::red, last) - bottom(img, Qt::red, middle)) <= 2);
+        QVERIFY(colorArea(img, Qt::red) > box.width() * box.height() * 0.3);
+        // stacked: the second series starts where the first ends (3 over 2 at the first category: the blue's bottom is the red's top)
+        Chart two;
+        const QImage stacked = render(QStringLiteral("stacked"), true, &two);
+        QVERIFY(!stacked.isNull() && two.plots[0].series.size() == 2);
+        const QRect redBox = colorBounds(stacked, Qt::red, false);
+        QVERIFY(redBox.isValid() && colorArea(stacked, Qt::blue) > 1000);
+        const int x = redBox.left() + redBox.width() / 2;   // (the middle: 8 under 3 more)
+        QVERIFY2(top(stacked, Qt::blue, x) >= 0 && top(stacked, Qt::blue, x) < top(stacked, Qt::red, x), qPrintable(QStringLiteral("%1 %2").arg(top(stacked, Qt::blue, x)).arg(top(stacked, Qt::red, x))));
+    }
+
     void chartSvgDrawsLinesAndMarkers()
     {
         const QString line = QStringLiteral("<c:spPr><a:ln w=\"28575\"><a:solidFill><a:srgbClr val=\"FF0000\"/></a:solidFill></a:ln></c:spPr>");

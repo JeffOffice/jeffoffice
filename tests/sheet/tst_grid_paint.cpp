@@ -1782,6 +1782,168 @@ private Q_SLOTS:
         QVERIFY(inkBox(img, QRect(w - 64, 42, 64 - 20, 16)).isValid());
         QCOMPARE(inkIn(img, QRect(w - 1 - 17, 42, 16, 16)), 0);
     }
+    // The Accounting Number Format puts the currency symbol at the cell's left edge and the digits at its right edge, the space between them empty.
+    void anAccountingSymbolIsDrawnAtTheLeftEdgeAndTheDigitsAtTheRight()
+    {
+        Fixture f;
+        CellFormat money;
+        money.numFmtId = 164;
+        f.styles.numFmts.insert(164, QStringLiteral("_(\"$\"* #,##0.00_);_(\"$\"* \\(#,##0.00\\);_(\"$\"* \"-\"??_);_(@_)"));
+        const quint32 style = f.format(money);
+        f.number(0, 0, 1234.5, style);
+        f.number(1, 0, 1234.5);   // (the same number in General, to compare)
+        f.options.gridlines = false;
+        f.build();
+        f.grid.layout().cols.setSize(0, 240);
+        const QImage img = f.render();
+        const QRect cell(0, 0, 240, 20);
+        const QRect box = inkBox(img, cell);
+        QVERIFY(box.isValid());
+        QVERIFY2(box.left() < 12, qPrintable(QString::number(box.left())));                // (the symbol starts at the left edge)
+        QVERIFY2(box.right() > 240 - 16, qPrintable(QString::number(box.right())));        // (the digits end at the right edge)
+        QVERIFY(inkIn(img, QRect(0, 0, 14, 20)) > 3);                                      // (ink of the symbol)
+        QCOMPARE(inkIn(img, QRect(40, 0, 90, 20)), 0);                                     // (nothing between: the gap is empty)
+        QVERIFY(inkIn(img, QRect(240 - 60, 0, 58, 20)) > 20);                              // (the digits)
+        // General has the number at the right edge too, but no symbol at the left
+        QCOMPARE(inkIn(img, QRect(0, 20, 120, 20)), 0);
+    }
+
+    // A diagonal border is drawn from corner to corner (up, down, or both), in its color, and none when the cell has none; wrapped text breaks into lines inside the cell and does not spill into the
+    // empty cell beside it, and text that does not wrap stays on one line.
+    void diagonalBordersAndWrappedTextAreDrawn()
+    {
+        Fixture f;
+        BorderSpec up, down, both;
+        up.diagonal = Fixture::side(BorderStyle::Thin, 0xFF0000);
+        up.diagonalUp = true;
+        down.diagonal = Fixture::side(BorderStyle::Thin, 0x0000FF);
+        down.diagonalDown = true;
+        both.diagonal = Fixture::side(BorderStyle::Thin, 0x008000);
+        both.diagonalUp = both.diagonalDown = true;
+        BorderSpec colorOnly;   // (a diagonal that is not turned on in either direction is not drawn)
+        colorOnly.diagonal = Fixture::side(BorderStyle::Thin, 0x800080);
+        f.blank(0, 0, f.border(up));
+        f.blank(0, 1, f.border(down));
+        f.blank(0, 2, f.border(both));
+        f.blank(0, 3, f.border(colorOnly));
+        f.options.gridlines = false;
+        f.build();
+        const QImage img = f.render();
+        const QRgb red = QColor(0xFF0000).rgb(), blue = QColor(0x0000FF).rgb(), green = QColor(0x008000).rgb();
+        const int upRed = pixelsOf(img, QRect(0, 0, 64, 20), red), downBlue = pixelsOf(img, QRect(64, 0, 64, 20), blue);
+        QVERIFY2(upRed >= 40 && upRed <= 90, qPrintable(QString::number(upRed)));       // (a line across 64 pixels: one pixel for each of the 64 columns, at most)
+        QVERIFY2(downBlue >= 40 && downBlue <= 90, qPrintable(QString::number(downBlue)));
+        // up goes from the lower left to the upper right, down from the upper left to the lower right
+        QVERIFY(pixelsOf(img, QRect(0, 16, 4, 4), red) > 0 && pixelsOf(img, QRect(60, 0, 4, 4), red) > 0);
+        QCOMPARE(pixelsOf(img, QRect(0, 0, 4, 4), red), 0);
+        QVERIFY(pixelsOf(img, QRect(64, 0, 4, 4), blue) > 0 && pixelsOf(img, QRect(124, 16, 4, 4), blue) > 0);
+        QCOMPARE(pixelsOf(img, QRect(64, 16, 4, 4), blue), 0);
+        QVERIFY(pixelsOf(img, QRect(128, 0, 64, 20), green) >= 80);   // (both directions)
+        QCOMPARE(pixelsOf(img, QRect(192, 0, 64, 20), QColor(0x800080).rgb()), 0);
+        // wrapped text
+        Fixture w;
+        CellFormat wrapped;
+        wrapped.wrap = true;
+        const QString words = QStringLiteral("alpha beta gamma delta epsilon zeta");
+        w.text(0, 0, words, w.format(wrapped));
+        w.text(1, 0, words);   // (not wrapped: one line that spills over the empty cells)
+        w.options.gridlines = false;
+        w.build();
+        w.grid.layout().rows.setSize(0, 80);
+        w.grid.layout().rows.setSize(1, 80);
+        const QImage t = w.render();
+        int bands = 0;
+        for (int y = 0; y < 80; y += 16)
+            if (inkIn(t, QRect(0, y, 63, 16)) > 3) ++bands;
+        QVERIFY2(bands >= 3, qPrintable(QString::number(bands)));
+        QCOMPARE(inkIn(t, QRect(64, 0, 300, 80)), 0);               // (nothing spilled)
+        int plainBands = 0;
+        for (int y = 80; y < 160; y += 16)
+            if (inkIn(t, QRect(0, y, 300, 16)) > 3) ++plainBands;
+        QVERIFY2(plainBands <= 2, qPrintable(QString::number(plainBands)));   // (one line, as tall as the font)
+        QVERIFY(inkIn(t, QRect(64, 80, 300, 80)) > 20);
+    }
+
+    // The grid is drawn at every zoom from 10% to 400%: a gridline is one pixel wide at each, and there are as many of them as the rows and columns that fit; text and a border are drawn at all.
+    void theGridIsDrawnAtEveryZoomFromTenToFourHundredPercent()
+    {
+        for (const double z : {0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0, 3.0, 4.0}) {
+            Fixture f;
+            BorderSpec thin;
+            thin.bottom = Fixture::side(BorderStyle::Thin, 0xFF0000);
+            f.text(0, 0, QStringLiteral("Hello world"));
+            f.blank(1, 1, f.border(thin));
+            f.options.gridColor = QColor(0x00, 0xC0, 0xFF);
+            f.build();
+            f.grid.layout().setZoom(z);
+            f.grid.layout().setViewport(f.size);
+            const QImage img = f.render();
+            const QRgb grid = f.options.gridColor.rgb();
+            const QString at = QStringLiteral("zoom %1: ").arg(z);
+            // down a column of the screen far from the text: each gridline is one pixel, and the rows that fit are all drawn
+            const int rowH = int(std::lround(20 * z)), colW = int(std::lround(64 * z));
+            QVERIFY2(rowH > 0 && colW > 0, qPrintable(at));
+            int runs = 0, wide = 0, run = 0;
+            const int x = std::min(f.size.width() - 2, colW * 4 + colW / 2);
+            for (int y = 0; y < f.size.height(); ++y) {
+                const bool on = img.pixel(x, y) == grid;
+                if (on) ++run;
+                if ((!on || y == f.size.height() - 1) && run > 0) {
+                    ++runs;
+                    if (run != 1) ++wide;
+                    run = 0;
+                }
+            }
+            const int expected = f.size.height() / rowH;
+            QVERIFY2(wide == 0, qPrintable(at + QString::number(wide) + QStringLiteral(" gridlines wider than a pixel")));
+            QVERIFY2(runs >= expected - 2 && runs <= expected + 1, qPrintable(at + QString::number(runs) + QStringLiteral(" gridlines for ") + QString::number(expected) + QStringLiteral(" rows")));
+            // the border is drawn, in its own color, across its cell
+            QVERIFY2(pixelsOf(img, QRect(colW, 0, colW, rowH * 2), QColor(0xFF0000).rgb()) >= std::max(1, colW - 2), qPrintable(at + QStringLiteral("no border")));
+            // the text is drawn (ink in its cell and spilling over the empty cells beside it at the larger zooms)
+            // (at 10% a letter is less than a pixel: whatever is drawn there is left to the pixels, and from a quarter on the text is seen)
+            if (z >= 0.25) QVERIFY2(inkIn(img, QRect(0, 0, colW * 3, rowH)) >= 1, qPrintable(at + QStringLiteral("no text")));
+        }
+    }
+    // Wrapped text breaks into the same lines in a font the computer lacks as in the font that stands in for it (same widths): a cell in Calibri has as many lines as one in Carlito, a cell in Cambria
+    // as many as one in Caladea, and the text is wrapped at all (more than one line) in a narrow cell.
+    void wrappedTextBreaksIntoTheSameLinesInAStandInFont()
+    {
+        auto lines = [](const QString &family, const QString &standIn, int *drawn) {
+            QImage img[2];
+            for (int k = 0; k < 2; ++k) {
+                Fixture f;
+                FontSpec spec;
+                spec.name = k == 0 ? family : standIn;
+                spec.size = 11;
+                f.styles.fonts = {spec};
+                CellFormat wrapped;
+                wrapped.wrap = true;
+                f.text(0, 0, QStringLiteral("The quick brown fox jumps over the lazy dog and keeps running far away"), f.format(wrapped));
+                f.options.gridlines = false;
+                f.build();
+                f.grid.layout().rows.setSize(0, 200);
+                img[k] = f.render();
+            }
+            auto count = [](const QImage &im) {
+                int n = 0;
+                bool inLine = false;
+                for (int y = 0; y < 200; ++y) {
+                    const bool ink = inkIn(im, QRect(0, y, 63, 1)) > 0;
+                    if (ink && !inLine) ++n;
+                    inLine = ink;
+                }
+                return n;
+            };
+            *drawn = count(img[0]);
+            return count(img[1]);
+        };
+        for (const auto &pair : {std::pair<QString, QString>{QStringLiteral("Calibri"), QStringLiteral("Carlito")}, {QStringLiteral("Cambria"), QStringLiteral("Caladea")}}) {
+            int missing = 0;
+            const int standIn = lines(pair.first, pair.second, &missing);
+            QVERIFY2(standIn >= 3, qPrintable(pair.second + QStringLiteral(": ") + QString::number(standIn)));
+            QVERIFY2(missing == standIn, qPrintable(pair.first + QStringLiteral(": ") + QString::number(missing) + QStringLiteral(" lines, ") + pair.second + QStringLiteral(": ") + QString::number(standIn)));
+        }
+    }
 };
 
 JP_TEST_CLASS(GridPaintTests)

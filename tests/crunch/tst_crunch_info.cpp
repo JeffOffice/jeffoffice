@@ -1279,6 +1279,49 @@ private Q_SLOTS:
         QVERIFY2(fixed.win.told.join(QLatin1Char('|')).contains(QLatin1String("repaired")), qPrintable(fixed.win.told.join(QLatin1Char('|'))));
     }
 
+    // Open and Repair of an .xls cut short keeps the formulas it can read (their text, and the results worked out again) and the styles of the cells (bold, a fill, a number format), not only the values.
+    void aDamagedXlsFileKeepsItsFormulasAndStyles()
+    {
+        const QByteArray styles = stylesXml(QString(), QStringLiteral("<xf numFmtId=\"0\" fontId=\"0\" fillId=\"0\" borderId=\"0\"/><xf numFmtId=\"2\" fontId=\"1\" fillId=\"2\" borderId=\"0\" applyFont=\"1\" applyFill=\"1\" applyNumberFormat=\"1\"/>"),
+                                            QStringLiteral("<fonts count=\"2\"><font><sz val=\"11\"/><name val=\"Calibri\"/></font><font><b/><sz val=\"11\"/><name val=\"Calibri\"/></font></fonts>"
+                                                           "<fills count=\"3\"><fill><patternFill patternType=\"none\"/></fill><fill><patternFill patternType=\"gray125\"/></fill>"
+                                                           "<fill><patternFill patternType=\"solid\"><fgColor rgb=\"FFFFFF00\"/><bgColor indexed=\"64\"/></patternFill></fill></fills>"
+                                                           "<borders count=\"1\"><border><left/><right/><top/><bottom/><diagonal/></border></borders>"));
+        QByteArray rows;
+        for (int r = 1; r <= 700; ++r) {
+            const QByteArray n = QByteArray::number(r);
+            rows += "<row r=\"" + n + "\"><c r=\"A" + n + "\"" + (r == 1 ? " s=\"1\"" : "") + "><v>" + QByteArray::number(r * 3) + "</v></c><c r=\"B" + n + "\"><f>A" + n + "*2</f><v>" + QByteArray::number(r * 6) + "</v></c></row>";
+        }
+        QByteArray damaged;
+        {
+            EditWindow e;
+            QVERIFY(e.open(buildXlsx({worksheet(QString::fromLatin1(rows))}, QByteArray(), QString(), QString(), styles)));
+            const QString target = e.folder.dir.filePath(QStringLiteral("whole.xls"));
+            QSignalSpy copied(&e.win.w, &CrunchWindow::copyExported);
+            QVERIFY(e.win.w.saveAs(target));
+            QVERIFY(copied.count() > 0 || copied.wait(20000));
+            QFile f(target);
+            QVERIFY(f.open(QIODevice::ReadOnly));
+            const QByteArray whole = f.readAll();
+            QVERIFY(whole.size() > 6000);
+            damaged = whole.left(whole.size() * 4 / 5);
+        }
+        EditWindow fixed;
+        QVERIFY2(fixed.win.open(fixed.folder.write(QStringLiteral("cut.xls"), damaged), OpenHow::Repair), qPrintable(fixed.win.told.join(QLatin1Char('|'))));
+        QVERIFY(fixed.settle());
+        crunch::EditSession *s = fixed.win.w.session();
+        QCOMPARE(s->editText(0, 0, 1), QStringLiteral("=A1*2"));
+        QCOMPARE(s->editText(0, 99, 1), QStringLiteral("=A100*2"));
+        QCOMPARE(fixed.valueAt(QStringLiteral("B100")), QStringLiteral("n:600"));
+        const grid::GridSheet &gs = fixed.view()->sheet();
+        const grid::CellLook styled = gs.lookOf(0, 0, gs.styleOf(0, 0, gs.cellAt(0, 0)));
+        QVERIFY(styled.bold);
+        QCOMPARE(styled.fg, QRgb(0xFFFFFF00));
+        QCOMPARE(fixed.shownAt(QStringLiteral("A1")), QStringLiteral("3.00"));   // (the number format kept: two decimals)
+        const grid::CellLook plain = gs.lookOf(0, 1, gs.styleOf(0, 1, gs.cellAt(0, 1)));
+        QVERIFY(!plain.bold && !plain.hasFill());
+    }
+
     // The window's own Open and Repair on three kinds of damage to an .xls container (a broken link of the tables, a chain ended early by the tables' own end marker, and a cut): the person is
     // told in plain words what was done, and a join made by guess is named with the sheet where what was not checked begins.
     void theWindowTellsWhatOpenAndRepairDidToAnXls()

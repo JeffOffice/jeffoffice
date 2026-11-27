@@ -316,6 +316,35 @@ private Q_SLOTS:
         QVERIFY(savedFormula(e.path, QStringLiteral("B1")) == QStringLiteral("-"));
     }
 
+    // A sheet that says it has a million rows (a dimension to the last cell, rows and a cell near it) is opened for the cells it really has: counted, not by the claim. Nothing is made for the rows that
+    // are not there, the cells at the end are where they say, and a save keeps the sheet's own cells.
+    void aSheetThatClaimsMillionsOfRowsIsOpenedForTheCellsItHas()
+    {
+        const QString rows = QStringLiteral("<row r=\"1\"><c r=\"A1\"><v>1</v></c></row><row r=\"1048576\"><c r=\"XFD1048576\"><v>2</v></c></row>");
+        const QByteArray book = buildXlsx({worksheet(rows, QString(), QStringLiteral("<dimension ref=\"A1:XFD1048576\"/><sheetFormatPr defaultRowHeight=\"15\" outlineLevelRow=\"7\"/>"))});
+        EditWindow e;
+        QVERIFY(e.open(book));
+        QVERIFY(e.settle());
+        crunch::EditSession *s = e.win.w.session();
+        const Calculation *calc = s->calculation();
+        QCOMPARE(calc->sheet(0).cells.cellCount(), qint64(2));            // (the cells it has, not the claim)
+        QVERIFY2(e.view()->sheet().layout().rows.placeCount() < 16, qPrintable(QString::number(e.view()->sheet().layout().rows.placeCount())));
+        QVERIFY2(e.view()->sheet().layout().cols.placeCount() < 16, qPrintable(QString::number(e.view()->sheet().layout().cols.placeCount())));
+        QCOMPARE(e.valueAt(QStringLiteral("A1")), QStringLiteral("n:1"));
+        QCOMPARE(e.valueAt(QStringLiteral("XFD1048576")), QStringLiteral("n:2"));
+        QVERIFY(s->type(0, 5, 0, QStringLiteral("7")).ok);
+        QVERIFY(e.settle());
+        QCOMPARE(calc->sheet(0).cells.cellCount(), qint64(3));
+        QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
+        QVERIFY(e.win.w.save());
+        QVERIFY2(savedOk(saved, 60000), "the save failed");
+        EditWindow again;
+        QVERIFY(again.win.open(e.copyOfFile()));
+        QVERIFY(again.settle());
+        QCOMPARE(again.win.w.session()->calculation()->sheet(0).cells.cellCount(), qint64(3));
+        QCOMPARE(again.valueAt(QStringLiteral("XFD1048576")), QStringLiteral("n:2"));
+    }
+
     // Rows put in and filled cost in proportion to their number: the formulas the graph names as readers of what changed, to work out 16,000 filled rows, are about four times those for 4,000 (a graph asked, for each of the
     // cells, for every formula in the rows put in names sixteen times as many). Counted, not timed. The formulas are filled first and the numbers they read after, so that the formulas are there whenever the worker asks
     // who reads the numbers (filled the other way round, a worker that asks before the formulas are filled finds 3 readers and one that asks after finds one for each row: either is right, and the test saw only one of them).
