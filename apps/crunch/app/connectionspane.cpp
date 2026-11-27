@@ -2,6 +2,7 @@
 
 #include "app/plaintext.h"
 #include "app/uistyle.h"
+#include "core/syslocale.h"
 #include "sheet/datasource.h"
 
 #include <QDateTime>
@@ -86,8 +87,8 @@ void ConnectionsPane::reload()
         QString state = tr("Ready");
         if (!readable) state = tr("Made by a newer version, can't be run");
         else if (!conn.stepsProblem.isEmpty()) state = tr("Steps can't be run: made by a newer version");
-        const QString last = conn.ranAt > 0 ? QLocale().toString(QDateTime::fromSecsSinceEpoch(conn.ranAt), QLocale::ShortFormat) : tr("Not recorded");
-        const QString rows = conn.rowCount >= 0 ? QLocale().toString(conn.rowCount) : QString();
+        const QString last = conn.ranAt > 0 ? jp::systemLocale().locale.toString(QDateTime::fromSecsSinceEpoch(conn.ranAt), QLocale::ShortFormat) : tr("Not recorded");
+        const QString rows = conn.rowCount >= 0 ? jp::systemLocale().locale.toString(conn.rowCount) : QString();
         const QStringList cells{conn.name.isEmpty() ? tables[t].name : conn.name, readable ? conn.path : QString(), readable ? last : QString(), readable ? rows : QString(), state};
         for (int c = 0; c < cells.size(); ++c) {
             auto *item = new QTableWidgetItem(cells[c]);
