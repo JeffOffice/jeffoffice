@@ -1512,10 +1512,15 @@ private Q_SLOTS:
         const jp::calc::ets::Counts made = jp::calc::ets::counts();
         const int fs = w.activeSheet();
         {
-            // (what the cells that were made read is what reads a cell that very many formulas read is found once for a block of cells, not again for each: the readers found stay a small multiple of the cells, not cells times readers)
+            // (a cell that very many formulas read is found once for a block of cells, not again for each: the readers found stay a small multiple of the cells, not cells times readers. How many of the
+            // cells made are asked about while the formulas that read them are there depends on where the worker's steps fall between the window's (the Linux count is 64 readers for a cell, a Mac's was 148),
+            // but never on a search made again: the readers of a search that was stopped are not counted until it is whole. So the bound is the most that any order of steps can give, blocks of at most
+            // 256 cells of the 2 n cells the plan puts on its sheet, 30,000 readers each, which is under 240 n, with a margin; asked for one cell at a time it is 30,000 n)
             const jp::office::sheet::Calculation *c = w.session()->calculation();
-            QVERIFY2(c->readersFound() <= 100 * n * std::max(1, qEnvironmentVariableIntValue("JP_TEST_TIME_SCALE")), qPrintable(QString::number(c->readersFound())));   // (a search that is stopped is made again: a slower build counts more)
-            QVERIFY2(c->graph().queryWork() <= 400 * n * std::max(1, qEnvironmentVariableIntValue("JP_TEST_TIME_SCALE")), qPrintable(QString::number(c->graph().queryWork())));
+            const qint64 room = qint64(std::max(1, qEnvironmentVariableIntValue("JP_TEST_TIME_SCALE")));
+            QVERIFY2(c->readersFound() <= 400 * n * room, qPrintable(QString::number(c->readersFound())));
+            // (the graph's own count: each reader is looked at about three times, and a search that was stopped adds what it had looked at when it was)
+            QVERIFY2(c->graph().queryWork() <= 1200 * n * room, qPrintable(QString::number(c->graph().queryWork())));
         }
         qInfo("sheets: %d", liveSheetCount(w));
         QVERIFY(std::isfinite(w.session()->valueAt(fs, n + 10000, 4).number()));
