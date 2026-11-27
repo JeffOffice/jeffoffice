@@ -1715,6 +1715,107 @@ private Q_SLOTS:
         QTRY_VERIFY(!w.slideShow());
     }
 
+    // A note of one very long word (a file can hold one) opens in Presenter View with work counted by the letters of a line, not by the square of the word: the view wraps it anywhere (laying
+    // out a word longer than a line looked over all of it for each line: 20,000 letters took 15 seconds and 50,000 over 100). The letters looked at to decide are bounded by the limit, the
+    // same at 20,000 and 100,000 letters, every letter is laid out, a word that is only long by typing changes the wrapping once it reaches the limit, and a note of ordinary words is wrapped
+    // at its words as before.
+    void aNoteOfOneVeryLongWordOpensInPresenterViewWithBoundedWork()
+    {
+        int looked[2] = {};
+        for (int k = 0; k < 2; ++k) {
+            const int n = k ? 100000 : 20000;
+            DeckWindow w;
+            Editor *ed = w.editor();
+            w.resize(1280, 800);
+            w.show();
+            w.newSlide();
+            ed->setCurrentPage(0);
+            {
+                QTextCursor c(ed->doc()->storyDoc(ed->doc()->pages[0]->notesStoryId));
+                c.insertText(QString(n, QLatin1Char('W')), QTextCharFormat());
+            }
+            w.notesPane()->reload();
+            for (int i = 0; i < 4; ++i) QCoreApplication::processEvents();
+            const int before = StoryEdit::runLettersLooked();
+            w.act("show.presenterView")->trigger();
+            SlideShow *show = w.slideShow();
+            QVERIFY(show && show->presenterView());
+            auto *edit = qobject_cast<StoryEdit *>(show->presenterView()->findChild<QTextEdit *>(QStringLiteral("notesText")));
+            QVERIFY(edit);
+            QTextDocument *story = ed->doc()->storyDoc(ed->doc()->pages[0]->notesStoryId);
+            QTRY_VERIFY(edit->document() == story);
+            looked[k] = StoryEdit::runLettersLooked() - before;
+            rn9Shot(show->presenterView(), QStringLiteral("item4-%1").arg(n));
+            QVERIFY2(edit->wordWrapMode() == QTextOption::WrapAnywhere, qPrintable(QStringLiteral("%1 letters: wrapped anywhere").arg(n)));
+            QVERIFY2(looked[k] > 0 && looked[k] <= 8 * StoryEdit::kLongRun, qPrintable(QStringLiteral("%1 letters: %2 letters looked at").arg(n).arg(looked[k])));
+            // every letter is laid out, in lines of the view's width
+            const QTextBlock b = story->begin();
+            QTRY_VERIFY(b.layout() && b.layout()->lineCount() > 20);
+            int laid = 0, widest = 0;
+            for (int i = 0; i < b.layout()->lineCount(); ++i) {
+                laid += b.layout()->lineAt(i).textLength();
+                widest = std::max(widest, int(b.layout()->lineAt(i).naturalTextWidth()));
+            }
+            QCOMPARE(laid, n);
+            QVERIFY2(widest <= edit->viewport()->width() + 2, qPrintable(QStringLiteral("a line is %1 wide in a view %2 wide").arg(widest).arg(edit->viewport()->width())));
+            // a key typed at the start looks at no more letters than the limit
+            edit->setFocus();
+            QTest::mouseClick(edit->viewport(), Qt::LeftButton, Qt::NoModifier, QPoint(2, 6));
+            const int beforeKey = StoryEdit::runLettersLooked();
+            QTest::keyClicks(edit, QStringLiteral("x"));
+            QVERIFY2(StoryEdit::runLettersLooked() - beforeKey <= StoryEdit::kLongRun + 2, qPrintable(QStringLiteral("a key looked at %1 letters").arg(StoryEdit::runLettersLooked() - beforeKey)));
+            QCOMPARE(story->characterCount() - 1, n + 1);
+            show->close();
+            QTRY_VERIFY(!w.slideShow());
+        }
+        QCOMPARE(looked[1], looked[0]);   // (the letters looked at do not grow with the word)
+        // A word that grows long by typing: wrapped at the word's edge until it reaches the limit, then anywhere; ordinary words in a long paragraph are wrapped at the words.
+        {
+            DeckWindow w;
+            Editor *ed = w.editor();
+            w.resize(1280, 800);
+            w.show();
+            w.newSlide();
+            ed->setCurrentPage(0);
+            {
+                QTextCursor c(ed->doc()->storyDoc(ed->doc()->pages[0]->notesStoryId));
+                c.insertText(QStringLiteral("start ") + QString(StoryEdit::kLongRun - 20, QLatin1Char('W')), QTextCharFormat());
+            }
+            auto *pane = w.notesPane();
+            pane->reload();
+            QTRY_VERIFY(pane->document() == ed->doc()->storyDoc(ed->doc()->pages[0]->notesStoryId));
+            QVERIFY(pane->wordWrapMode() != QTextOption::WrapAnywhere);
+            pane->setFocus();
+            pane->moveCursor(QTextCursor::End);
+            int worst = 0;
+            for (int i = 0; i < 40; ++i) {
+                const int one = StoryEdit::runLettersLooked();
+                QTest::keyClicks(pane, QStringLiteral("W"));
+                worst = std::max(worst, StoryEdit::runLettersLooked() - one);
+            }
+            QTRY_VERIFY(pane->wordWrapMode() == QTextOption::WrapAnywhere);
+            QVERIFY2(worst <= StoryEdit::kLongRun + 2, qPrintable(QStringLiteral("a key looked at %1 letters").arg(worst)));
+        }
+        {
+            DeckWindow w;
+            Editor *ed = w.editor();
+            w.resize(1280, 800);
+            w.show();
+            w.newSlide();
+            ed->setCurrentPage(0);
+            {
+                QTextCursor c(ed->doc()->storyDoc(ed->doc()->pages[0]->notesStoryId));
+                QString words;
+                while (words.size() < 40000) words += QStringLiteral("ordinary ");
+                c.insertText(words, QTextCharFormat());
+            }
+            auto *pane = w.notesPane();
+            pane->reload();
+            QTRY_VERIFY(pane->document() == ed->doc()->storyDoc(ed->doc()->pages[0]->notesStoryId));
+            QCOMPARE(pane->wordWrapMode(), QTextOption::WrapAtWordBoundaryOrAnywhere);
+        }
+    }
+
     // A long note opens at its top in Presenter View, on every slide shown (it opened scrolled to its end), and the notes pane under the slide shows the top again after the show: the first
     // line a person sees is the note's first, the caret is at its start, the box is not scrolled, and the note is longer than the box (or the test shows nothing).
     void presenterViewOpensEveryLongNoteAtItsTop()
@@ -2057,6 +2158,82 @@ private Q_SLOTS:
         QTRY_VERIFY(!w.slideShow());
     }
 
+    // Tab at the start of a list item moves it a level in and Shift+Tab out in Presenter View's notes too, and a Tab inside the item's words types a tab (real key presses).
+    void tabAtTheStartOfAListItemInPresenterViewNotesChangesItsLevel()
+    {
+        DeckWindow w;
+        SlideShow *show = nullptr;
+        PresenterView *pv = presenterOnFormattedNote(w, &show);
+        QVERIFY(show && pv);
+        pv->resize(1400, 900);
+        Editor *ed = w.editor();
+        fillMixedListNote(ed->doc()->storyDoc(ed->doc()->pages[0]->notesStoryId));
+        auto *edit = qobject_cast<StoryEdit *>(pv->findChild<QTextEdit *>(QStringLiteral("notesText")));
+        QVERIFY(edit);
+        w.notesPane()->reload();
+        pv->setNotesPointSize(pv->notesPointSize());
+        QTRY_VERIFY(edit->document() == ed->doc()->storyDoc(ed->doc()->pages[0]->notesStoryId));
+        auto levelOf = [&](int number) {
+            const QTextBlock b = ed->doc()->storyDoc(ed->doc()->pages[0]->notesStoryId)->findBlockByNumber(number);
+            return b.textList() ? b.textList()->format().intProperty(tp::ListLevel) : -1;
+        };
+        auto textOf = [&](int number) { return ed->doc()->storyDoc(ed->doc()->pages[0]->notesStoryId)->findBlockByNumber(number).text(); };
+        auto clickIn = [&](int number, int chars) {
+            const QTextBlock b = edit->document()->findBlockByNumber(number);
+            QTextCursor c(edit->document());
+            c.setPosition(b.position() + chars);
+            const QRect r = edit->cursorRect(c);
+            QTextCursor c2(edit->document());
+            c2.setPosition(b.position() + chars + 1);
+            const QRect r2 = edit->cursorRect(c2);
+            QTest::mouseClick(edit->viewport(), Qt::LeftButton, Qt::NoModifier, QPoint(r.x() + std::max(1, (r2.x() - r.x()) / 3), r.center().y()));
+        };
+        QCOMPARE(levelOf(1), 0);
+        clickIn(1, 0);
+        QTest::keyClick(edit, Qt::Key_Tab);
+        QTRY_COMPARE(levelOf(1), 1);
+        QCOMPARE(textOf(1), QStringLiteral("first point"));
+        rn9Shot(pv, QStringLiteral("item7-presenter-tab"));
+        clickIn(1, 0);
+        QTest::keyClick(edit, Qt::Key_Backtab, Qt::ShiftModifier);
+        QTRY_COMPARE(levelOf(1), 0);
+        clickIn(1, 3);
+        QTest::keyClick(edit, Qt::Key_Tab);
+        QTRY_COMPARE(textOf(1), QStringLiteral("fir\tst point"));
+        QCOMPARE(levelOf(1), 0);
+        show->close();
+        QTRY_VERIFY(!w.slideShow());
+    }
+
+    // A refused edit of a presentation open for reading only says so in Presenter View, which has no status bar: a line under the notes, in the words the other windows use, for a few seconds;
+    // moving the caret says nothing.
+    void aReadOnlyPresentationSaysSoInPresenterViewNotes()
+    {
+        DeckWindow w;
+        SlideShow *show = nullptr;
+        PresenterView *pv = presenterOnFormattedNote(w, &show);
+        QVERIFY(show && pv);
+        pv->resize(1400, 900);
+        Editor *ed = w.editor();
+        auto *edit = qobject_cast<StoryEdit *>(pv->findChild<QTextEdit *>(QStringLiteral("notesText")));
+        QVERIFY(edit);
+        QTRY_VERIFY(edit->document() == ed->doc()->storyDoc(ed->doc()->pages[0]->notesStoryId));
+        QLabel *line = pv->findChild<QLabel *>(QStringLiteral("readOnlyNote"));
+        QVERIFY(line);
+        QVERIFY(!line->isVisible());
+        w.setReadOnly(true);
+        QTest::mouseClick(edit->viewport(), Qt::LeftButton, Qt::NoModifier, QPoint(3, 3));
+        QTest::keyClick(edit, Qt::Key_Right);
+        QVERIFY(!line->isVisible());
+        QTest::keyClicks(edit, QStringLiteral("z"));
+        QVERIFY(line->isVisible());
+        QCOMPARE(line->text(), QCoreApplication::translate("AppWindow", "This file is open for reading only. Use Save a Copy, or Save As, to make a copy you can change."));
+        rn9Shot(pv, QStringLiteral("item8-presenter"));
+        w.setReadOnly(false);
+        show->close();
+        QTRY_VERIFY(!w.slideShow());
+    }
+
     // No command of a notes view reaches a slide object selected on the slide: Ctrl+B in Presenter View's notes formats the words selected there only.
     void aSlideObjectNeverReceivesABoldKeyFromPresenterViewNotes()
     {
@@ -2178,6 +2355,49 @@ private Q_SLOTS:
             QTextCursor c(box->document());
             c.setPosition(m.blockPos);
             QVERIFY2(m.rect.right() < box->viewport()->x() + box->cursorRect(c).left(), qPrintable(m.text));
+        }
+    }
+
+    // The markers of the Speaker Notes box are the size print gives them: the size of the item's own words (numbers and letters were drawn larger than the words, bullets were not), for notes
+    // whose words have no size of their own and for notes whose words and paragraph marks name one.
+    void speakerNotesBoxMarkersAreTheSizeOfTheirWords()
+    {
+        for (int named = 0; named < 2; ++named) {
+            auto d = showDeck(1);
+            QTextDocument *story = d->storyDoc(d->pages[0]->notesStoryId);
+            fillMixedListNote(story);
+            if (named) {
+                QTextCursor c(story);
+                c.beginEditBlock();
+                for (QTextBlock b = story->begin(); b.isValid(); b = b.next()) {
+                    QTextCharFormat sized;
+                    sized.setFontPointSize(11);
+                    c.setPosition(b.position());
+                    c.setPosition(b.position() + std::max(0, b.length() - 1), QTextCursor::KeepAnchor);
+                    c.mergeCharFormat(sized);
+                    c.setPosition(b.position());
+                    c.mergeBlockCharFormat(sized);
+                }
+                c.endEditBlock();
+            }
+            LayoutCache cache;
+            SlideShow show(d.get(), &cache, 0);
+            show.resize(960, 540);
+            show.show();
+            show.showSpeakerNotes();
+            QTextEdit *box = show.speakerNotesBox();
+            QVERIFY(box && box->isVisible());
+            auto *marks = box->findChild<ListMarkers *>();
+            QVERIFY(marks);
+            box->resize(box->width(), 700);
+            QTRY_COMPARE(marks->visibleMarkers().size(), 10);
+            rn9Shot(box, QStringLiteral("item5-named%1").arg(named));
+            for (const ListMarkers::Marker &m : marks->visibleMarkers()) {
+                const QTextBlock b = box->document()->findBlock(m.blockPos);
+                QVERIFY(b.layout() && b.layout()->lineCount() > 0);
+                const double line = b.layout()->lineAt(0).height();
+                QVERIFY2(std::abs(m.rect.height() - line) <= 2.0, qPrintable(QStringLiteral("%1 (words named %2): the marker is %3 high, the line %4").arg(m.text).arg(named).arg(m.rect.height()).arg(line)));
+            }
         }
     }
 

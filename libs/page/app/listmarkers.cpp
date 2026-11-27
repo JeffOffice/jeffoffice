@@ -103,7 +103,14 @@ const ListMarkers::Look &ListMarkers::lookOf(const QTextBlock &b)
     QTextList *list = b.textList();
     const QTextListFormat lf = list ? list->format() : QTextListFormat();
     look.text = listMarkerText(b);
-    const QTextCharFormat mark = b.charFormat();
+    // (As the printed page sets it: the size and look of the item's first words, and the paragraph mark's for an item with none.)
+    QTextCharFormat mark = b.charFormat();
+    if (b.begin() != b.end()) {
+        const QTextCharFormat first = b.begin().fragment().charFormat();
+        for (int property : {QTextFormat::FontPointSize, QTextFormat::FontFamilies, QTextFormat::FontFamily, QTextFormat::FontWeight, QTextFormat::FontItalic})
+            if (first.hasProperty(property)) mark.setProperty(property, first.property(property));
+            else mark.clearProperty(property);
+    }
     QFont font = mark.font().resolve(doc->defaultFont());
     double points = font.pointSizeF() > 0 ? font.pointSizeF() : 11.0;
     QString custom = b.blockFormat().stringProperty(tp::BulletChar);

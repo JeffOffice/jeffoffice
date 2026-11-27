@@ -85,6 +85,7 @@ DeckWindow::DeckWindow(QWidget *parent) : AppWindow(parent)
     m_ribbon = new Ribbon(this);
     m_slides = new SlidesPane(m_ed, this);
     m_notes = new NotesPane(m_ed, this);
+    connect(m_notes, &StoryEdit::readOnlyRefused, this, [this] { refuseReadOnlyChange(); });
     setMenuWidget(m_ribbon);
 
     m_rightSplit = new QSplitter(Qt::Vertical, this);

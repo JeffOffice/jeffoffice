@@ -52,6 +52,7 @@ void DeckWindow::createViewModeActions()
     m_split->setCollapsible(2, false);
     m_masterPane->hide();
     m_notesPage = new NotesPageView(m_ed, this);
+    connect(m_notesPage->notesBox(), &StoryEdit::readOnlyRefused, this, [this] { refuseReadOnlyChange(); });
     m_split->insertWidget(4, m_notesPage);
     m_split->setCollapsible(4, false);
     m_notesPage->hide();

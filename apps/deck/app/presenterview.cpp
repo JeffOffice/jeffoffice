@@ -21,6 +21,7 @@
 #include <QMouseEvent>
 #include <QPainter>
 #include <QTextEdit>
+#include <QTimer>
 #include <QPushButton>
 #include <QStackedWidget>
 #include <QVBoxLayout>
@@ -244,6 +245,22 @@ PresenterView::PresenterView(SlideShow *show) : QWidget(nullptr, Qt::Window), m_
     side->addWidget(m_nextView, 2);
     side->addLayout(notesRow);
     side->addWidget(m_notes, 3);
+    if (m_rich) {
+        // (this window has no status bar: a refused edit of a presentation open for reading only is told under the notes, for a few seconds, in the words the other windows use)
+        auto *refused = new QLabel(QCoreApplication::translate("AppWindow", "This file is open for reading only. Use Save a Copy, or Save As, to make a copy you can change."), main);
+        refused->setObjectName(QStringLiteral("readOnlyNote"));
+        refused->setWordWrap(true);
+        refused->hide();
+        side->addWidget(refused);
+        auto *hide = new QTimer(refused);
+        hide->setSingleShot(true);
+        hide->setInterval(6000);
+        connect(hide, &QTimer::timeout, refused, &QWidget::hide);
+        connect(m_rich, &StoryEdit::readOnlyRefused, refused, [refused, hide] {
+            refused->show();
+            hide->start();
+        });
+    }
     mainLayout->addLayout(side, 2);
     m_pages->addWidget(main);
     m_grid = new QListWidget(m_pages);

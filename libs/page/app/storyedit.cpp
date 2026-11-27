@@ -93,11 +93,19 @@ void StoryEdit::bind(const std::shared_ptr<Story> &story)
     if (old && old->doc) {
         disconnect(old->doc.get(), &QTextDocument::contentsChange, this, &StoryEdit::keepFirstBlockLaidOut);
         disconnect(old->doc.get(), &QTextDocument::contentsChanged, this, &StoryEdit::repairFirstBlock);
+        disconnect(old->doc.get(), &QTextDocument::contentsChange, this, &StoryEdit::watchLongWords);
+    }
+    // (the wrapping is the view's, and is set before the words are laid out: they are laid out once, in the way they are going to be shown)
+    const QTextOption::WrapMode wrap = story && hasLongWord(d) ? QTextOption::WrapAnywhere : QTextOption::WrapAtWordBoundaryOrAnywhere;
+    if (wordWrapMode() != wrap) {
+        setDocument(m_none);
+        setWordWrapMode(wrap);
     }
     setDocument(d);
     if (story) {
         connect(d, &QTextDocument::contentsChange, this, &StoryEdit::keepFirstBlockLaidOut, Qt::UniqueConnection);
         connect(d, &QTextDocument::contentsChanged, this, &StoryEdit::repairFirstBlock, Qt::UniqueConnection);
+        connect(d, &QTextDocument::contentsChange, this, &StoryEdit::watchLongWords, Qt::UniqueConnection);
         d->setDefaultFont(m_font);   // (the view's own font is never the story's)
         applyScale();
     }
@@ -146,6 +154,47 @@ void StoryEdit::repairFirstBlock()
     QTextDocument *d = document();
     const QTextBlock first = d->begin();
     if (first.isValid() && first.layout() && first.layout()->lineCount() == 0 && first.length() > 1) d->markContentsDirty(0, first.length());
+}
+
+// A word longer than a line is laid out by looking over all of it for each line it takes, so the work grows with the square of its length (a file's note of one word of 20,000 letters
+// took 15 seconds to show, and 50,000 letters over 100). A word of kLongRun letters or more (a link has a few hundred at most) makes the view wrap anywhere, which looks at the letters
+// of a line only. Only a block longer than that is looked into, and only until such a word is found.
+bool StoryEdit::hasLongWord(const QTextDocument *d)
+{
+    for (QTextBlock b = d->begin(); b.isValid(); b = b.next()) {
+        if (b.length() <= kLongRun) continue;
+        const QString text = b.text();
+        int run = 0;
+        for (const QChar ch : text) {
+            ++s_runLooked;
+            run = ch.isSpace() ? 0 : run + 1;
+            if (run >= kLongRun) return true;
+        }
+    }
+    return false;
+}
+
+// A word grown to that length by typing (the letters just before and after the change are counted, no more than the limit on each side).
+void StoryEdit::watchLongWords(int pos, int removed, int added)
+{
+    Q_UNUSED(removed);
+    if (added <= 0 || wordWrapMode() == QTextOption::WrapAnywhere || sender() != document() || document()->findBlock(pos).length() <= kLongRun) return;
+    QTextDocument *d = document();
+    int run = added;
+    for (int i = pos - 1; i >= 0 && run < kLongRun; --i, ++run) {
+        ++s_runLooked;
+        if (d->characterAt(i).isSpace()) break;
+    }
+    for (int i = pos + added; i < d->characterCount() && run < kLongRun; ++i, ++run) {
+        ++s_runLooked;
+        if (d->characterAt(i).isSpace()) break;
+    }
+    if (run < kLongRun || m_wrapQueued) return;
+    m_wrapQueued = true;
+    QMetaObject::invokeMethod(this, [this] {   // (not inside the change that is being made)
+        m_wrapQueued = false;
+        if (m_story && hasLongWord(document())) setWordWrapMode(QTextOption::WrapAnywhere);
+    }, Qt::QueuedConnection);
 }
 
 void StoryEdit::setDisplayScale(double scale)
@@ -350,10 +399,17 @@ void StoryEdit::keyPressEvent(QKeyEvent *e)
     if (isReadOnly() || m_ed->readOnly()) {
         const int k = e->key();
         if (k == Qt::Key_Left || k == Qt::Key_Right || k == Qt::Key_Up || k == Qt::Key_Down || k == Qt::Key_Home || k == Qt::Key_End || k == Qt::Key_PageUp || k == Qt::Key_PageDown ||
-            e->matches(QKeySequence::SelectAll) || e->matches(QKeySequence::Copy))
+            e->matches(QKeySequence::SelectAll) || e->matches(QKeySequence::Copy)) {
             QTextEdit::keyPressEvent(e);
-        else
+        } else {
+            // (a key that would have changed the words says so; the rest, Esc and a lone Ctrl, are not an attempt to edit)
+            const bool types = !e->text().isEmpty() && e->text().at(0).isPrint() && !(e->modifiers() & Qt::ControlModifier);
+            if (types || k == Qt::Key_Backspace || k == Qt::Key_Delete || k == Qt::Key_Return || k == Qt::Key_Enter || k == Qt::Key_Tab || k == Qt::Key_Backtab || e->matches(QKeySequence::Cut) ||
+                e->matches(QKeySequence::Paste) || e->matches(QKeySequence::Undo) || e->matches(QKeySequence::Redo) || e->matches(QKeySequence::Bold) || e->matches(QKeySequence::Italic) ||
+                e->matches(QKeySequence::Underline))
+                Q_EMIT readOnlyRefused();
             e->ignore();
+        }
         return;
     }
     // Undo, Redo, Cut, Copy, and Paste reach the view only where the window has no shortcut of its own for them (a window with a menu takes them first, see event()): Presenter View.
@@ -459,6 +515,7 @@ MiniToolbar *StoryEdit::setMiniTarget(std::unique_ptr<MiniTarget> target)
 void StoryEdit::inputMethodEvent(QInputMethodEvent *e)
 {
     if (isReadOnly() || m_ed->readOnly()) {
+        if (!e->commitString().isEmpty()) Q_EMIT readOnlyRefused();
         e->ignore();
         return;
     }

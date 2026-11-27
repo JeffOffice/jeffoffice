@@ -63,6 +63,10 @@ public:
     // Words of the story marked as misspelled by the Editor (the word being typed is left out), as marks, for the ones that start from `from` to `to`.
     QVector<Mark> spellingMarks(int from = 0, int to = std::numeric_limits<int>::max()) const;
     // Counted work (for the tests): how many times the marks were made anew, and how many were made.
+    // A word of this many letters or more is wrapped anywhere by the view (one that long makes the layout's work grow with the square of its length), and the number of letters looked at to find
+    // out (all of the paragraphs longer than that, until a word that long is found, and the letters around a typed change).
+    static constexpr int kLongRun = 1500;
+    static int runLettersLooked() { return s_runLooked; }
     static int markRuns() { return s_markRuns; }
     static int marksBuilt() { return s_marksBuilt; }
 
@@ -82,6 +86,7 @@ Q_SIGNALS:
     // Typing is about to start here (a key, or the box got the keyboard).
     void typingStarted();
     void storyShown();   // another story (or another document of the same one) is shown now
+    void readOnlyRefused();   // a key or text that would change the words was refused: the presentation is open for reading only (the host says so)
 
 protected:
     void keyPressEvent(QKeyEvent *e) override;
@@ -113,6 +118,9 @@ private:
     void applyScale();
     void keepFirstBlockLaidOut(int pos, int removed, int added);
     void repairFirstBlock();
+    void watchLongWords(int pos, int removed, int added);
+    static bool hasLongWord(const QTextDocument *d);
+    bool m_wrapQueued = false;
     bool m_firstMarkChanged = false;
     Editor *m_ed;
     QString m_id;
@@ -132,6 +140,7 @@ private:
     int m_markVersion = 0;
     std::array<qint64, 9> m_markKey = {};
     static inline int s_markRuns = 0;
+    static inline int s_runLooked = 0;
     static inline int s_marksBuilt = 0;
     ListMarkers *m_markers = nullptr;
     MiniToolbar *m_mini = nullptr;

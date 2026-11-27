@@ -4464,6 +4464,20 @@ private Q_SLOTS:
         pane->reload();
         QCOMPARE(printedMarkerTexts(w.editor()), (QStringList{"1.", "3."}));
         QTRY_COMPARE(markerTexts(pane), printedMarkerTexts(w.editor()));
+        // By pixels: left of its line the empty item has nothing drawn (the plain mark the document draws itself is covered, and no marker is put over it), and the items with words have their
+        // markers.
+        auto leftOfLine = [&](int number) {
+            const QTextBlock b = pane->document()->findBlockByNumber(number);
+            QTextCursor c(pane->document());
+            c.setPosition(b.position());
+            const QRect r = pane->cursorRect(c);
+            const QImage shot = pane->grab().toImage();
+            return inkIn(shot, QRectF(2, pane->viewport()->y() + r.top(), textStart(pane, b.position()) - 3, r.height()), shot.pixelColor(2, shot.height() - 4));   // (the gutter's own color, below the words; not the frame at the edge)
+        };
+        QTRY_VERIFY2(leftOfLine(0) > 5, "the first item has its marker");
+        QVERIFY2(leftOfLine(2) > 5, "the third item has its marker");
+        rn9Shot(pane, QStringLiteral("item6-empty-item"));
+        QCOMPARE(leftOfLine(1), 0);
     }
 
     // A paragraph indented by levels (the indent a list's levels use) is indented once by the zoom: its text starts as far right of the plain text as the story's indent width, times the
@@ -4750,6 +4764,55 @@ private Q_SLOTS:
         }
     }
 
+    // Tab at the start of a list item moves it a level in, Shift+Tab moves it back out (one step each, the one undo history), and Tab anywhere else in the item types a tab, in the notes under the
+    // slide: the keys are real key presses, and the level is read from the item's list and shown in a picture.
+    void tabAtTheStartOfAListItemInTheNotesChangesItsLevel()
+    {
+        DeckWindow w;
+        NotesPane *pane = notesWithMixedLists(w);
+        Editor *ed = w.editor();
+        auto levelOf = [&](int number) {
+            const QTextBlock b = notesStory(ed)->findBlockByNumber(number);
+            return b.textList() ? b.textList()->format().intProperty(tp::ListLevel) : -1;
+        };
+        auto textOf = [&](int number) { return notesStory(ed)->findBlockByNumber(number).text(); };
+        auto clickIn = [&](int number, int chars) {   // (a real click inside the item's words, `chars` letters in)
+            const QTextBlock b = pane->document()->findBlockByNumber(number);
+            QTextCursor c(pane->document());
+            c.setPosition(b.position() + chars);
+            const QRect r = pane->cursorRect(c);
+            QTextCursor c2(pane->document());
+            c2.setPosition(b.position() + chars + 1);
+            const QRect r2 = pane->cursorRect(c2);
+            QTest::mouseClick(pane->viewport(), Qt::LeftButton, Qt::NoModifier, QPoint(r.x() + std::max(1, (r2.x() - r.x()) / 3), r.center().y()));
+        };
+        QCOMPARE(levelOf(1), 0);
+        const int steps = ed->undoStack()->count();
+        rn9Shot(pane, QStringLiteral("item7-0before"));
+        clickIn(1, 0);
+        QCOMPARE(pane->textCursor().position() - pane->document()->findBlockByNumber(1).position(), 0);
+        QTest::keyClick(pane, Qt::Key_Tab);
+        QTRY_COMPARE(levelOf(1), 1);
+        QCOMPARE(textOf(1), QStringLiteral("first point"));   // (no tab character typed)
+        QCOMPARE(ed->undoStack()->count(), steps + 1);
+        rn9Shot(pane, QStringLiteral("item7-1tab"));
+        clickIn(1, 0);
+        QTest::keyClick(pane, Qt::Key_Backtab, Qt::ShiftModifier);
+        QTRY_COMPARE(levelOf(1), 0);
+        QCOMPARE(textOf(1), QStringLiteral("first point"));
+        QCOMPARE(ed->undoStack()->count(), steps + 2);
+        // A Tab inside the item's words types a tab there.
+        clickIn(1, 3);
+        QTest::keyClick(pane, Qt::Key_Tab);
+        QTRY_COMPARE(textOf(1), QStringLiteral("fir\tst point"));
+        QCOMPARE(levelOf(1), 0);
+        // And the same keys in a plain paragraph type a tab (the level of a paragraph that is no item is not changed).
+        clickIn(0, 0);
+        QTest::keyClick(pane, Qt::Key_Tab);
+        QTRY_COMPARE(textOf(0), QStringLiteral("\tPlan for the talk"));
+        QCOMPARE(levelOf(0), -1);
+    }
+
     // Pictures of the notes views in both window themes (JP_SHOT_DIR names the folder): the pane, the Notes Page as the page shows it and as the box shows it while edited, with a short note,
     // a long note, and a note with a link and a list.
     void picturesOfTheNotesViewsInBothThemes()
@@ -4925,6 +4988,37 @@ private Q_SLOTS:
         QTest::keyClick(box, Qt::Key_B, Qt::ControlModifier);
         QCOMPARE(notesStory(ed)->toPlainText(), QStringLiteral("alpha beta gamma"));
         QVERIFY(!ed->isEditingText());
+        w.setReadOnly(false);
+    }
+
+    // A refused edit of a presentation open for reading only says so, in the status bar line the other views use, in the notes under the slide and in the box on the Notes Page; keys that move
+    // the caret, and Esc, say nothing.
+    void aReadOnlyPresentationSaysSoWhenTheNotesRefuseAnEdit()
+    {
+        DeckWindow w;
+        NotesPane *box = nullptr;
+        notesPageWith(w, &box, [](QTextCursor &c) { c.insertText(QStringLiteral("alpha beta gamma")); });
+        const QString said = QCoreApplication::translate("AppWindow", "This file is open for reading only. Use Save a Copy, or Save As, to make a copy you can change.");
+        w.setReadOnly(true);
+        w.statusBar()->clearMessage();
+        QTest::keyClick(box, Qt::Key_Right);
+        QTest::keyClick(box, Qt::Key_Escape);
+        QCOMPARE(w.statusBar()->currentMessage(), QString());
+        QTest::keyClicks(box, QStringLiteral("z"));
+        QCOMPARE(w.statusBar()->currentMessage(), said);   // (the box on the Notes Page)
+        w.act(QStringLiteral("view.normal"))->trigger();
+        NotesPane *pane = w.notesPane();
+        QTRY_VERIFY(pane->isVisible());
+        pane->reload();
+        w.statusBar()->clearMessage();
+        QTest::keyClick(pane, Qt::Key_Right);
+        QCOMPARE(w.statusBar()->currentMessage(), QString());
+        QTest::keyClick(pane, Qt::Key_Backspace);
+        QCOMPARE(w.statusBar()->currentMessage(), said);   // (the pane under the slide)
+        w.statusBar()->clearMessage();
+        QTest::keyClick(pane, Qt::Key_B, Qt::ControlModifier);
+        QCOMPARE(w.statusBar()->currentMessage(), said);
+        QCOMPARE(notesStory(w.editor())->toPlainText(), QStringLiteral("alpha beta gamma"));
         w.setReadOnly(false);
     }
 
