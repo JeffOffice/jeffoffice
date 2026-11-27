@@ -717,6 +717,172 @@ struct Ran {
         int undos = 0;
     };
 
+// ---- Compare: notes lined up by their words, tables paired by their place, and a paragraph after a table (helpers of the tests that follow ReviewTests::compare...)
+struct NoteDoc {
+    QByteArray body;
+    QVector<const char *> notes;   // the words of the notes, for the Ids 2, 3, ...
+    QByteArray endnote, header, footer;
+};
+static QByteArray fnRef(int id) { return "<w:r><w:footnoteReference w:id=\"" + QByteArray::number(id) + "\"/></w:r>"; }
+static QByteArray enRef(int id) { return "<w:r><w:endnoteReference w:id=\"" + QByteArray::number(id) + "\"/></w:r>"; }
+static QByteArray noteDocx(const NoteDoc &d)
+{
+    const QString rel = QStringLiteral("http://schemas.openxmlformats.org/officeDocument/2006/relationships/");
+    const QString type = QStringLiteral("application/vnd.openxmlformats-officedocument.wordprocessingml.");
+    const QByteArray ns = QByteArray(kNs) + " xmlns:v=\"urn:schemas-microsoft-com:vml\"";
+    office::PackageWriter w;
+    QByteArray sect;
+    if (!d.header.isEmpty()) sect += "<w:headerReference w:type=\"default\" r:id=\"rIdH\"/>";
+    if (!d.footer.isEmpty()) sect += "<w:footerReference w:type=\"default\" r:id=\"rIdF\"/>";
+    w.addPart(QStringLiteral("/word/document.xml"), xml("<w:document " + ns + "><w:body>" + d.body + "<w:sectPr>" + sect + "</w:sectPr></w:body></w:document>"), type + QStringLiteral("document.main+xml"));
+    w.addRelationship(QStringLiteral("/"), rel + QStringLiteral("officeDocument"), QStringLiteral("/word/document.xml"));
+    if (!d.header.isEmpty()) {
+        w.addPart(QStringLiteral("/word/header1.xml"), xml("<w:hdr " + ns + ">" + d.header + "</w:hdr>"), type + QStringLiteral("header+xml"));
+        w.addRelationshipWithId(QStringLiteral("/word/document.xml"), QStringLiteral("rIdH"), rel + QStringLiteral("header"), QStringLiteral("/word/header1.xml"));
+    }
+    if (!d.footer.isEmpty()) {
+        w.addPart(QStringLiteral("/word/footer1.xml"), xml("<w:ftr " + ns + ">" + d.footer + "</w:ftr>"), type + QStringLiteral("footer+xml"));
+        w.addRelationshipWithId(QStringLiteral("/word/document.xml"), QStringLiteral("rIdF"), rel + QStringLiteral("footer"), QStringLiteral("/word/footer1.xml"));
+    }
+    if (!d.notes.isEmpty()) {
+        QByteArray x = "<w:footnotes " + ns + ">";
+        for (int k = 0; k < d.notes.size(); ++k) x += "<w:footnote w:id=\"" + QByteArray::number(k + 2) + "\">" + para(run(d.notes.at(k))) + "</w:footnote>";
+        w.addPart(QStringLiteral("/word/footnotes.xml"), xml(x + "</w:footnotes>"), type + QStringLiteral("footnotes+xml"));
+        w.addRelationship(QStringLiteral("/word/document.xml"), rel + QStringLiteral("footnotes"), QStringLiteral("/word/footnotes.xml"));
+    }
+    if (!d.endnote.isEmpty()) {
+        w.addPart(QStringLiteral("/word/endnotes.xml"), xml("<w:endnotes " + ns + "><w:endnote w:id=\"2\">" + d.endnote + "</w:endnote></w:endnotes>"), type + QStringLiteral("endnotes+xml"));
+        w.addRelationship(QStringLiteral("/word/document.xml"), rel + QStringLiteral("endnotes"), QStringLiteral("/word/endnotes.xml"));
+    }
+    return w.finish();
+}
+// A paragraph of the words "one", "two", ..., each followed by the mark of the note with the Id the list names (0: no mark; a negative Id: one more mark after the same word).
+static QByteArray markedWords(std::initializer_list<int> ids)
+{
+    static const char *const names[] = {"one ", "two ", "three ", "four ", "five ", "six ", "seven "};
+    QByteArray out;
+    int n = 0;
+    for (const int id : ids) {
+        if (id < 0) {   // (a second mark after the same word)
+            out += fnRef(-id);
+            continue;
+        }
+        out += run(names[n++]);
+        if (id) out += fnRef(id);
+    }
+    return para(out);
+}
+static QByteArray twoByTwo(const char *a, const char *b, const char *c = nullptr, const char *d = nullptr)
+{
+    QVector<TableRow> rows;
+    rows.push_back({{}, {cellOf({}, para(run(a))), cellOf({}, para(run(b)))}});
+    if (c) rows.push_back({{}, {cellOf({}, para(run(c))), cellOf({}, para(run(d)))}});
+    return tableOf(rows, 2);
+}
+// The text of every story that Compare tells apart, one line each: the text, then the footnotes in the order of their marks.
+static QStringList storyTexts(WriteDoc &doc)
+{
+    QStringList out;
+    out << bodyTexts(doc).join(QLatin1Char('|'));
+    QVector<std::pair<int, int>> order;
+    for (const int id : doc.citedFootnotes()) {
+        const QVector<int> refs = doc.footnoteReferences(id);
+        order.push_back({refs.isEmpty() ? INT_MAX : refs.first(), id});
+    }
+    std::sort(order.begin(), order.end());
+    for (const auto &o : std::as_const(order)) {
+        const QTextDocument *s = doc.editableFootnote(o.second);
+        QString t = s ? s->toPlainText() : QString();
+        t.remove(QChar::ObjectReplacementCharacter);
+        out << QStringLiteral("fn: ") + t.simplified();
+    }
+    return out;
+}
+struct Resolved {
+    QStringList texts;
+    bool tracked = false;   // a tracked change is left in the text, the notes, the header, or the footer
+    QVector<SavedTable> tables;
+};
+static Resolved resolved(const QByteArray &saved, bool accept)
+{
+    Resolved r;
+    auto d = open(saved);
+    if (!d) return r;
+    if (accept) acceptAll(*d); else rejectAll(*d);
+    const QByteArray z = d->toDocx();
+    for (const char *part : {"/word/document.xml", "/word/footnotes.xml", "/word/header1.xml", "/word/footer1.xml"})
+        if (xmlHasChanges(partOf(z, part))) r.tracked = true;
+    r.tables = savedTables(documentXml(z));
+    auto again = open(z);
+    if (again) r.texts = storyTexts(*again);
+    return r;
+}
+struct AppCompared {
+    QByteArray saved;
+    QString status;
+    int changes = -2;
+};
+// Compare run as the person runs it: in the window of the first document, against the file of the second; the result window is saved to a file (and left closed).
+static AppCompared compareInApp(const QByteArray &one, const QByteArray &two)
+{
+    AppCompared r;
+    QTemporaryDir dir;
+    if (!dir.isValid()) return r;
+    QFile f(dir.filePath(QStringLiteral("revised.docx")));
+    if (!f.open(QIODevice::WriteOnly)) return r;
+    f.write(two);
+    f.close();
+    WriteWindow w;
+    w.setNotifier([](const QString &, const QString &) {});
+    w.show();
+    w.setDocument(open(one), QString());
+    CompareOptions o;
+    o.author = QStringLiteral("Me");
+    r.changes = w.compareWith(dir.filePath(QStringLiteral("revised.docx")), o);
+    WriteWindow *made = nullptr;
+    for (QWidget *top : QApplication::topLevelWidgets())
+        if (auto *ww = qobject_cast<WriteWindow *>(top); ww && ww != &w && ww->isVisible()) made = ww;   // (the windows this closed are hidden; an address is not told from an earlier window's)
+    if (!made) return r;
+    r.status = made->statusBar()->currentMessage();
+    const QString path = dir.filePath(QStringLiteral("compared.docx"));
+    if (made->saveTo(path)) {
+        QFile s(path);
+        if (s.open(QIODevice::ReadOnly)) r.saved = s.readAll();
+    }
+    made->document()->setModified(false);
+    made->close();
+    return r;
+}
+
+static QByteArray nestedTables(int depth, const char *leaf)
+{
+    QByteArray in = para(run(leaf));
+    for (int d = 0; d < depth; ++d)
+        in = "<w:tbl><w:tblPr/><w:tblGrid><w:gridCol w:w=\"4000\"/></w:tblGrid><w:tr><w:tc><w:tcPr><w:tcW w:w=\"4000\" w:type=\"dxa\"/></w:tcPr>" + para(run("lvl")) + in + "</w:tc></w:tr></w:tbl><w:p/>";
+    return in;
+}
+static QByteArray textBoxRun(const char *words)
+{
+    return QByteArray("<w:r><w:drawing><wp:anchor xmlns:wp=\"http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing\" xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\" "
+                      "xmlns:wps=\"http://schemas.microsoft.com/office/word/2010/wordprocessingShape\" distT=\"0\" distB=\"0\" distL=\"0\" distR=\"0\" simplePos=\"0\" relativeHeight=\"1\" behindDoc=\"0\" locked=\"0\" layoutInCell=\"1\" allowOverlap=\"1\">"
+                      "<wp:simplePos x=\"0\" y=\"0\"/><wp:positionH relativeFrom=\"page\"><wp:posOffset>100000</wp:posOffset></wp:positionH><wp:positionV relativeFrom=\"page\"><wp:posOffset>100000</wp:posOffset></wp:positionV>"
+                      "<wp:extent cx=\"1270000\" cy=\"635000\"/><wp:wrapNone/><wp:docPr id=\"1\" name=\"Object\"/><wp:cNvGraphicFramePr/>"
+                      "<a:graphic><a:graphicData uri=\"http://schemas.microsoft.com/office/word/2010/wordprocessingShape\"><wps:wsp><wps:cNvSpPr txBox=\"1\"/><wps:spPr><a:xfrm><a:off x=\"0\" y=\"0\"/>"
+                      "<a:ext cx=\"1270000\" cy=\"635000\"/></a:xfrm><a:prstGeom prst=\"rect\"><a:avLst/></a:prstGeom></wps:spPr><wps:txbx><w:txbxContent><w:p><w:r><w:t>") + words +
+           "</w:t></w:r></w:p></w:txbxContent></wps:txbx><wps:bodyPr/></wps:wsp></a:graphicData></a:graphic></wp:anchor></w:drawing></w:r>";
+}
+static NoteDoc everyKindOfStory()
+{
+    NoteDoc d;
+    d.notes = {"first note", "second note", "third note", "fourth note"};
+    d.body = markedWords({2, 3, 4, 5}) + para(run("end ") + enRef(2)) + para(textBoxRun("box words")) + twoByTwo("a1", "a2", "b1", "b2") + nestedTables(2, "inner") + nestedTables(30, "deep");
+    d.endnote = para(run("end note words"));
+    d.header = para(run("header words"));
+    d.footer = para(run("footer words"));
+    return d;
+}
+
+
 class ReviewTests : public QObject {
     Q_OBJECT
 private Q_SLOTS:
@@ -5534,6 +5700,249 @@ private Q_SLOTS:
         QVERIFY(!xmlHasChanges(partOf(w.document()->toDocx(), "/word/header1.xml")));
         made->document()->setModified(false);
         made->close();
+    }
+
+    void aNoteTakenOutOrPutInShiftsNoOtherNoteAndIsCounted()
+    {
+        NoteDoc one, two;
+        one.notes = {"first note", "second note", "third note", "fourth note", "fifth note"};
+        one.body = markedWords({2, 3, 4, 5, 6});
+        // A note taken out of the middle: the notes after it are still paired with their own words.
+        two.notes = {"first note", "second note", "fourth note", "fifth note"};
+        two.body = markedWords({2, 3, 0, 4, 5});
+        const QByteArray fileOne = noteDocx(one);
+        AppCompared r = compareInApp(fileOne, noteDocx(two));
+        QVERIFY(!r.saved.isEmpty());
+        QVERIFY2(r.status.contains(QStringLiteral("(footnotes)")), qPrintable(r.status));
+        QVERIFY(!xmlHasChanges(partOf(r.saved, "/word/footnotes.xml")));   // (no note was told apart from another one's words)
+        auto original = open(fileOne);
+        const QStringList wasOne = storyTexts(*original);
+        for (const bool accept : {true, false}) {
+            const Resolved done = resolved(r.saved, accept);
+            QVERIFY(!done.tracked);
+            QCOMPARE(done.texts, wasOne);   // (the note that was taken out is the one difference left, and is counted)
+        }
+        // A note put in: the same.
+        NoteDoc three;
+        three.notes = {"first note", "brand new note", "second note", "third note", "fourth note", "fifth note"};
+        three.body = markedWords({2, -3, 4, 5, 6, 7});
+        r = compareInApp(fileOne, noteDocx(three));
+        QVERIFY2(r.status.contains(QStringLiteral("(footnotes)")), qPrintable(r.status));
+        QVERIFY(!xmlHasChanges(partOf(r.saved, "/word/footnotes.xml")));
+        QCOMPARE(resolved(r.saved, true).texts, wasOne);
+        QCOMPARE(resolved(r.saved, false).texts, wasOne);
+        // A note changed and another taken out: the changed one is marked, the others are as they were.
+        NoteDoc four;
+        four.notes = {"first note", "second note, edited", "fourth note", "fifth note"};
+        four.body = markedWords({2, 3, 0, 4, 5});
+        r = compareInApp(fileOne, noteDocx(four));
+        QVERIFY2(r.status.contains(QStringLiteral("(footnotes)")), qPrintable(r.status));
+        QVERIFY(xmlHasChanges(partOf(r.saved, "/word/footnotes.xml")));
+        const Resolved accepted = resolved(r.saved, true), rejected = resolved(r.saved, false);
+        QVERIFY(!accepted.tracked && !rejected.tracked);
+        QCOMPARE(accepted.texts.value(2), QStringLiteral("fn: second note, edited"));
+        QCOMPARE(accepted.texts.value(4), QStringLiteral("fn: fourth note"));
+        QCOMPARE(accepted.texts.value(5), QStringLiteral("fn: fifth note"));
+        QCOMPARE(rejected.texts, wasOne);
+    }
+
+    void aNoteMarkThatIsInAnotherPlaceIsCountedAndNeverZeroDifferences()
+    {
+        NoteDoc one, two;
+        one.notes = two.notes = {"first note", "second note", "third note", "fourth note"};
+        // The mark of the second note moves to the next paragraph: the words are the same.
+        one.body = para(run("one ") + fnRef(2) + run("two ") + fnRef(3)) + para(run("three ") + fnRef(4) + run("four ") + fnRef(5));
+        two.body = para(run("one ") + fnRef(2) + run("two ")) + para(fnRef(3) + run("three ") + fnRef(4) + run("four ") + fnRef(5));
+        const QByteArray fileOne = noteDocx(one);
+        AppCompared r = compareInApp(fileOne, noteDocx(two));
+        QCOMPARE(r.changes, 0);
+        QVERIFY2(r.status.contains(QStringLiteral("(footnotes)")), qPrintable(r.status));
+        QVERIFY2(r.status.contains(QStringLiteral("can't mark yet")), qPrintable(r.status));
+        auto original = open(fileOne);
+        QCOMPARE(resolved(r.saved, false).texts, storyTexts(*original));
+        // The same, in a paragraph that is the same: the mark moves along the words.
+        NoteDoc three;
+        three.notes = one.notes;
+        three.body = para(run("one ") + fnRef(2) + run("two ") + fnRef(3) + run("three ") + fnRef(4) + run("four ") + fnRef(5));
+        NoteDoc four = three;
+        four.body = para(run("one ") + fnRef(2) + run("two three ") + fnRef(3) + fnRef(4) + run("four ") + fnRef(5));
+        r = compareInApp(noteDocx(three), noteDocx(four));
+        QVERIFY2(r.status.contains(QStringLiteral("(footnotes)")), qPrintable(r.status));
+        // The same marks in the same places are no difference at all.
+        r = compareInApp(noteDocx(three), noteDocx(three));
+        QCOMPARE(r.changes, 0);
+        QVERIFY2(!r.status.contains(QStringLiteral("can't mark yet")), qPrintable(r.status));
+        // Words changed round a mark that stays in its place are no difference of the mark.
+        NoteDoc five = three;
+        five.body = para(run("one ") + fnRef(2) + run("two ") + fnRef(3) + run("three and more ") + fnRef(4) + run("four ") + fnRef(5));
+        r = compareInApp(noteDocx(three), noteDocx(five));
+        QCOMPARE(r.changes, 1);
+        QVERIFY2(!r.status.contains(QStringLiteral("can't mark yet")), qPrintable(r.status));
+    }
+
+    void aParagraphPutInRightAfterATableIsAfterTheTableAndNotInItsLastCell()
+    {
+        const QByteArray table = twoByTwo("a1", "a2", "b1", "b2");
+        const int cut = int(table.indexOf("</w:tbl>")) + 8;
+        const QByteArray one = para(run("intro")) + table;
+        const QByteArray two = para(run("intro")) + table.left(cut) + para(run("put in")) + table.mid(cut);
+        AppCompared r = compareInApp(makeDocx(one), makeDocx(two));
+        QCOMPARE(r.changes, 1);
+        auto original = open(makeDocx(one)), revised = open(makeDocx(two));
+        const Resolved accepted = resolved(r.saved, true), rejected = resolved(r.saved, false);
+        QVERIFY(!accepted.tracked && !rejected.tracked);
+        QCOMPARE(accepted.texts, storyTexts(*revised));
+        QCOMPARE(rejected.texts, storyTexts(*original));
+        QCOMPARE(accepted.tables.size(), 1);
+        QCOMPARE(accepted.tables[0].rows, (QVector<QStringList>{{"a1", "a2"}, {"b1", "b2"}}));   // (the table is as it was: the paragraph is not in a cell)
+        // Put in before a table that starts the text: no place that is not in the table, so it is counted and the text is left as it was.
+        r = compareInApp(makeDocx(table), makeDocx(para(run("put in first")) + table));
+        QVERIFY2(r.status.contains(QStringLiteral("(tables)")), qPrintable(r.status));
+        auto lone = open(makeDocx(table));
+        const Resolved kept = resolved(r.saved, true);
+        QVERIFY(!kept.tracked);
+        QCOMPARE(kept.texts, storyTexts(*lone));
+        QCOMPARE(kept.tables.value(0).rows, (QVector<QStringList>{{"a1", "a2"}, {"b1", "b2"}}));
+    }
+
+    void tablesArePairedByTheirPlaceAmongTheParagraphsAndATableWithNoPartnerIsCounted()
+    {
+        const QByteArray first = twoByTwo("x", "y");
+        const QByteArray one = first + twoByTwo("old", "q");
+        // The revised copy has a table in between that the original has not: the table after it is still the one it was.
+        const QByteArray two = first + twoByTwo("r1", "s1", "r2", "s2") + twoByTwo("new", "q");
+        AppCompared r = compareInApp(makeDocx(one), makeDocx(two));
+        QVERIFY2(r.status.contains(QStringLiteral("(tables)")), qPrintable(r.status));
+        const Resolved accepted = resolved(r.saved, true), rejected = resolved(r.saved, false);
+        QVERIFY(!accepted.tracked && !rejected.tracked);   // (nothing is left that accepting or rejecting can't settle)
+        QCOMPARE(accepted.tables.size(), 2);
+        QCOMPARE(accepted.tables[0].rows, (QVector<QStringList>{{"x", "y"}}));
+        QCOMPARE(accepted.tables[1].rows, (QVector<QStringList>{{"new", "q"}}));
+        auto original = open(makeDocx(one));
+        QCOMPARE(rejected.texts, storyTexts(*original));
+        // A table of the original that has no partner is counted too, and the tables around it are not changed.
+        r = compareInApp(makeDocx(two), makeDocx(one));
+        QVERIFY2(r.status.contains(QStringLiteral("(tables)")), qPrintable(r.status));
+        const Resolved back = resolved(r.saved, true);
+        QVERIFY(!back.tracked);
+        QCOMPARE(back.tables.size(), 3);
+        QCOMPARE(back.tables[1].rows, (QVector<QStringList>{{"r1", "s1"}, {"r2", "s2"}}));
+        QCOMPARE(back.tables[2].rows, (QVector<QStringList>{{"old", "q"}}));
+    }
+
+    void aDocumentComparedWithItselfReportsNothingInEveryKindOfStory()
+    {
+        const QByteArray file = noteDocx(everyKindOfStory());
+        {
+            auto original = open(file), revised = open(file);
+            QVERIFY(original && revised);
+            CompareContext context;
+            CompareOptions o;
+            o.author = QStringLiteral("Rev");
+            int changes = -1;
+            QString note;
+            auto result = compareDocumentsWith(context, *original, *revised, o, &changes, nullptr, {}, &note);
+            QVERIFY(result);
+            QCOMPARE(changes, 0);
+            QCOMPARE(context.work.notMarked, qint64(0));
+            QVERIFY2(note.isEmpty(), qPrintable(note));
+            QCOMPARE(context.work.boxesRead, qint64(2));   // (the text box of each, and no other thing read as one)
+        }
+        const AppCompared r = compareInApp(file, file);
+        QCOMPARE(r.changes, 0);
+        QVERIFY2(!r.status.contains(QStringLiteral("can't mark yet")), qPrintable(r.status));
+        QVERIFY(!resolved(r.saved, true).tracked);
+    }
+
+    void onlyRealTextBoxesAreCountedAgainstTheLimitOfTextBoxes()
+    {
+        // Notes' marks are not text boxes: a limit of one text box is not reached by a document with four notes and none.
+        NoteDoc one = everyKindOfStory(), two = everyKindOfStory();
+        one.body = markedWords({2, 3, 4, 5});
+        two.body = one.body;
+        two.notes[1] = "second note, edited";
+        {
+            CompareContext context;
+            context.limits.boxes = 1;
+            context.limits.drawings = 1;
+            auto original = open(noteDocx(one)), revised = open(noteDocx(two));
+            QString note;
+            QVERIFY(compareDocumentsWith(context, *original, *revised, CompareOptions(), nullptr, nullptr, {}, &note));
+            QVERIFY2(!note.contains(QStringLiteral("text boxes")) && !note.contains(QStringLiteral("pictures and shapes")), qPrintable(note));
+            QCOMPARE(context.work.drawings, qint64(0));
+            QCOMPARE(context.work.boxesRead, qint64(0));
+        }
+        // Drawn objects are looked at within their own limit, and the note says so: two of each document are looked at, and the third of each is not.
+        NoteDoc boxes;
+        boxes.body = para(textBoxRun("one") + textBoxRun("two") + textBoxRun("three"));
+        {
+            CompareContext context;
+            context.limits.drawings = 2;
+            auto original = open(noteDocx(boxes)), revised = open(noteDocx(boxes));
+            QString note;
+            QVERIFY(compareDocumentsWith(context, *original, *revised, CompareOptions(), nullptr, nullptr, {}, &note));
+            QVERIFY2(note.contains(QStringLiteral("Too many pictures and shapes")), qPrintable(note));
+            QCOMPARE(context.work.drawings, qint64(4));
+            QCOMPARE(context.work.boxesRead, qint64(4));
+        }
+    }
+
+    void theStoriesOfNotesAreMadeOnlyWithinTheLimitOfStories()
+    {
+        NoteDoc many;
+        many.notes = {"n1", "n2", "n3", "n4", "n5", "n6", "n7"};
+        many.body = markedWords({2, 3, 4, 5, 6, 7, 8});
+        auto original = open(noteDocx(many)), revised = open(noteDocx(many));
+        CompareContext context;
+        context.limits.stories = 2;
+        resetNoteStoriesMadeForTest();
+        QString note;
+        QVERIFY(compareDocumentsWith(context, *original, *revised, CompareOptions(), nullptr, nullptr, {}, &note));
+        QVERIFY2(note.contains(QStringLiteral("Too many notes")), qPrintable(note));
+        QCOMPARE(context.work.stories, qint64(3));   // (the text, and two notes)
+        QVERIFY2(noteStoriesMadeForTest() <= 4, qPrintable(QString::number(noteStoriesMadeForTest())));   // (two of each document, not all seven of each)
+    }
+
+    void theNoteOfTheCountNamesOnlyTheKindsItCounted()
+    {
+        auto noteOf = [](const NoteDoc &a, const NoteDoc &b, qint64 *count = nullptr) {
+            CompareContext context;
+            auto original = open(noteDocx(a)), revised = open(noteDocx(b));
+            QString note;
+            [&] { QVERIFY(compareDocumentsWith(context, *original, *revised, CompareOptions(), nullptr, nullptr, {}, &note)); }();
+            if (count) *count = context.work.notMarked;
+            return note;
+        };
+        NoteDoc one, two;
+        one.body = two.body = twoByTwo("a1", "a2", "b1", "b2");
+        two.body = twoByTwo("a1", "a2");
+        qint64 count = 0;
+        QString note = noteOf(one, two, &count);
+        QCOMPARE(count, qint64(1));
+        QVERIFY2(note.contains(QStringLiteral("can't mark yet (tables)")), qPrintable(note));   // (a table, and nothing else is named)
+        // A text box, an endnote, and a note put in: three kinds, in the fixed order.
+        NoteDoc a, b;
+        a.body = para(textBoxRun("box one") + run("x ") + enRef(2));
+        b.body = para(textBoxRun("box two") + run("x ") + enRef(2)) + markedWords({2});
+        a.endnote = para(run("end one"));
+        b.endnote = para(run("end two"));
+        b.notes = {"a note"};
+        note = noteOf(a, b, &count);
+        QCOMPARE(count, qint64(3));
+        QVERIFY2(note.contains(QStringLiteral("(footnotes, endnotes, and text boxes)")), qPrintable(note));
+        // Two kinds.
+        b.notes.clear();
+        b.body = para(textBoxRun("box two") + run("x ") + enRef(2));
+        note = noteOf(a, b, &count);
+        QCOMPARE(count, qint64(2));
+        QVERIFY2(note.contains(QStringLiteral("(endnotes and text boxes)")), qPrintable(note));
+        QVERIFY2(!note.contains(QStringLiteral("footnotes")) && !note.contains(QStringLiteral("tables")), qPrintable(note));
+        // A header that one has: its own kind.
+        NoteDoc c, d;
+        c.body = d.body = para(run("same"));
+        d.header = para(run("new header"));
+        note = noteOf(c, d, &count);
+        QVERIFY2(note.contains(QStringLiteral("(headers and footers)")), qPrintable(note));
     }
 
     // ---- the limits
