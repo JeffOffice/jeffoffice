@@ -111,6 +111,9 @@ private:
     void followView();     // the view's caret moved: the Editor's does too
     void markWords();
     void applyScale();
+    void keepFirstBlockLaidOut(int pos, int removed, int added);
+    void repairFirstBlock();
+    bool m_firstMarkChanged = false;
     Editor *m_ed;
     QString m_id;
     std::shared_ptr<Story> m_story;   // (kept: the document may drop its own while this view still shows the words)

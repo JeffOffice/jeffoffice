@@ -1537,6 +1537,184 @@ private Q_SLOTS:
         QTRY_VERIFY(!w.slideShow());
     }
 
+    // Pictures for the review (only when RN9_SHOT_PREFIX names a path prefix): the widget as it is on screen.
+    static void rn9Shot(QWidget *w, const QString &name)
+    {
+        const QString prefix = qEnvironmentVariable("RN9_SHOT_PREFIX");
+        if (!prefix.isEmpty()) w->grab().save(prefix + name + QStringLiteral(".png"));
+    }
+    // The pixels of a notes view's viewport that differ from its background, in a rectangle of the viewport.
+    static int viewportInk(QTextEdit *e, const QRect &r)
+    {
+        const QImage img = e->viewport()->grab().toImage();
+        const QColor bg = img.pixelColor(img.width() - 2, 2);
+        int n = 0;
+        for (int y = std::max(0, r.top()); y <= r.bottom() && y < img.height(); ++y)
+            for (int x = std::max(0, r.left()); x <= r.right() && x < img.width(); ++x) n += img.pixelColor(x, y) != bg;
+        return n;
+    }
+
+    // Formatting the first word of a note in Presenter View (select it with the keys, press Ctrl+B) leaves the first paragraph where it was: every paragraph keeps its height, and the first
+    // line is still drawn, at each text size A+ and A- give (the whole first paragraph vanished from the screen, though the note kept its words).
+    void formattingTheFirstWordInPresenterViewKeepsTheFirstParagraphOnScreen()
+    {
+        for (int steps : {0, 3, -4, -9}) {
+            DeckWindow w;
+            Editor *ed = w.editor();
+            w.resize(1280, 800);
+            w.show();
+            w.newSlide();
+            ed->setCurrentPage(0);
+            {
+                QTextCursor c(ed->doc()->storyDoc(ed->doc()->pages[0]->notesStoryId));
+                c.insertText(QStringLiteral("alpha beta"), QTextCharFormat());
+                c.insertBlock();
+                c.insertText(QStringLiteral("gamma delta"), QTextCharFormat());
+            }
+            w.notesPane()->reload();
+            ed->undoStack()->clear();
+            w.act("show.presenterView")->trigger();
+            SlideShow *show = w.slideShow();
+            QVERIFY(show && show->presenterView());
+            PresenterView *pv = show->presenterView();
+            pv->resize(1400, 900);
+            for (int i = 0; i < std::abs(steps); ++i) pv->findChild<QAbstractButton *>(steps > 0 ? QStringLiteral("notesBigger") : QStringLiteral("notesSmaller"))->click();
+            auto *edit = qobject_cast<StoryEdit *>(pv->findChild<QTextEdit *>(QStringLiteral("notesText")));
+            QVERIFY(edit);
+            QTextDocument *story = ed->doc()->storyDoc(ed->doc()->pages[0]->notesStoryId);
+            QTRY_VERIFY(edit->document() == story);
+            auto firstLine = [&] {
+                QTextCursor c(edit->document());
+                c.setPosition(0);
+                return edit->cursorRect(c);
+            };
+            QTRY_VERIFY(firstLine().height() > 2);
+            const QRect line = firstLine().adjusted(0, 0, 200, 0);
+            const QString at = QStringLiteral("text size step %1").arg(steps);
+            QTRY_VERIFY2(viewportInk(edit, line) > 20, qPrintable(at + QStringLiteral(": the first line is drawn at the start")));
+            rn9Shot(pv, QStringLiteral("item1-%1-0start").arg(steps));
+            QTextCursor c0(edit->document());
+            c0.setPosition(0);
+            const QRect r0 = edit->cursorRect(c0);
+            QTest::mouseClick(edit->viewport(), Qt::LeftButton, {}, QPoint(r0.x() + 1, r0.center().y()));
+            for (int i = 0; i < 5; ++i) QTest::keyClick(edit, Qt::Key_Right, Qt::ShiftModifier);
+            QCOMPARE(edit->textCursor().selectedText(), QStringLiteral("alpha"));
+            QTest::keyClick(edit, Qt::Key_B, Qt::ControlModifier);
+            QTRY_VERIFY2(markedNotes(story).startsWith(QStringLiteral("[B]alpha[/B]")), qPrintable(markedNotes(story)));
+            for (int i = 0; i < 6; ++i) QCoreApplication::processEvents();
+            rn9Shot(pv, QStringLiteral("item1-%1-1bold").arg(steps));
+            QAbstractTextDocumentLayout *lay = edit->document()->documentLayout();
+            QVERIFY(lay);
+            int blocks = 0;
+            for (QTextBlock b = edit->document()->begin(); b.isValid(); b = b.next(), ++blocks)
+                QVERIFY2(lay->blockBoundingRect(b).height() > 2, qPrintable(at + QStringLiteral(": paragraph %1 has no height").arg(blocks)));
+            QCOMPARE(blocks, 2);
+            QVERIFY2(viewportInk(edit, firstLine().adjusted(0, 0, 200, 0)) > 20, qPrintable(at + QStringLiteral(": the first line is still drawn")));
+            QVERIFY2(viewportInk(edit, firstLine().adjusted(0, 0, 200, 0)) >= viewportInk(edit, line) * 3 / 4, qPrintable(at + QStringLiteral(": the bold word is as inked as the plain one")));
+            show->close();
+            QTRY_VERIFY(!w.slideShow());
+        }
+    }
+
+    // The editing keys work in Presenter View's notes, a window with no shortcuts of its own (they did nothing there, and the menu's Undo, Redo, Cut, Copy, and Paste were gray): Undo and
+    // Redo move through the presentation's one history, Copy and Cut put the selected words on the clipboard, Paste puts them in, and each of the five is in the right-click menu, enabled
+    // when it can act. Every key is a real key press, and the menu is opened by a real context event.
+    void editingKeysAndMenuWorkInPresenterViewNotes()
+    {
+        DeckWindow w;
+        SlideShow *show = nullptr;
+        PresenterView *pv = presenterOnFormattedNote(w, &show);
+        QVERIFY(show && pv);
+        Editor *ed = w.editor();
+        auto *edit = qobject_cast<StoryEdit *>(pv->findChild<QTextEdit *>(QStringLiteral("notesText")));
+        QVERIFY(edit);
+        pv->resize(1400, 900);
+        QTextDocument *story = ed->doc()->storyDoc(ed->doc()->pages[0]->notesStoryId);
+        QTRY_VERIFY(edit->document() == story);
+        QApplication::clipboard()->clear();
+        const auto cleanUp = qScopeGuard([] { QApplication::clipboard()->clear(); });
+        auto press = [&](QKeySequence::StandardKey k) {
+            const QKeyCombination c = QKeySequence(k)[0];
+            QTest::keyClick(edit, c.key(), c.keyboardModifiers());
+        };
+        auto marked = [&] { return markedNotes(ed->doc()->storyDoc(ed->doc()->pages[0]->notesStoryId)); };   // (an undo puts a new document in: the note is looked up each time)
+        auto selectFirst = [&](int n) {   // (click at the start of the note, then Shift+Right)
+            QTextCursor c0(edit->document());
+            c0.setPosition(0);
+            const QRect r0 = edit->cursorRect(c0);
+            QTest::mouseClick(edit->viewport(), Qt::LeftButton, {}, QPoint(r0.x() + 1, r0.center().y()));
+            for (int i = 0; i < n; ++i) QTest::keyClick(edit, Qt::Key_Right, Qt::ShiftModifier);
+        };
+        const QString plain = QStringLiteral("alpha [B]beta[/B] gamma");
+        QCOMPARE(marked(), plain);
+        // (the menu as it is first opened, on a selected word: a picture of it for the review)
+        selectFirst(2);
+        {
+            const QRect r = edit->cursorRect(edit->textCursor());
+            rightClick(edit->viewport(), QPoint(r.x() - 4, r.center().y()), [&](QMenu *menu) { rn9Shot(menu, QStringLiteral("item2-menu-first")); });
+        }
+        // Typing, then Undo and Redo by their keys.
+        selectFirst(0);
+        QTest::keyClicks(edit, QStringLiteral("XY"));
+        QCOMPARE(marked(), QStringLiteral("XYalpha [B]beta[/B] gamma"));
+        press(QKeySequence::Undo);
+        QTRY_COMPARE(marked(), plain);
+        QVERIFY(ed->undoStack()->canRedo());   // (the step undone is in the presentation's one history, to redo)
+        QCOMPARE(ed->undoStack()->index(), 0);
+        press(QKeySequence::Redo);
+        QTRY_COMPARE(marked(), QStringLiteral("XYalpha [B]beta[/B] gamma"));
+        // Copy puts the selection on the clipboard and changes nothing; Paste puts it back in at the caret.
+        selectFirst(2);
+        QCOMPARE(edit->textCursor().selectedText(), QStringLiteral("XY"));
+        press(QKeySequence::Copy);
+        QTRY_COMPARE(QApplication::clipboard()->text(), QStringLiteral("XY"));
+        QCOMPARE(marked(), QStringLiteral("XYalpha [B]beta[/B] gamma"));
+        QTest::keyClick(edit, Qt::Key_End);
+        press(QKeySequence::Paste);
+        QTRY_COMPARE(marked(), QStringLiteral("XYalpha [B]beta[/B] gammaXY"));
+        // Cut takes the selection out and keeps it on the clipboard; Undo brings it back.
+        QApplication::clipboard()->clear();
+        selectFirst(2);
+        press(QKeySequence::Cut);
+        QTRY_COMPARE(marked(), QStringLiteral("alpha [B]beta[/B] gammaXY"));
+        QCOMPARE(QApplication::clipboard()->text(), QStringLiteral("XY"));
+        press(QKeySequence::Undo);
+        QTRY_COMPARE(marked(), QStringLiteral("XYalpha [B]beta[/B] gammaXY"));
+        // The right-click menu: each of the five is there, enabled when it can act, and does what its key does.
+        auto itemOf = [](QMenu *menu, const QString &text) -> QAction * {
+            for (QAction *a : menu->actions())
+                if (a->text().remove(QLatin1Char('&')) == text) return a;
+            return nullptr;
+        };
+        auto menuDo = [&](const QString &item, bool expectEnabled, int select = 2) {
+            selectFirst(select);
+            const QRect r = edit->cursorRect(edit->textCursor());
+            bool found = false, enabled = false;
+            rightClick(edit->viewport(), QPoint(r.x() - 4, r.center().y()), [&](QMenu *menu) {
+                rn9Shot(menu, QStringLiteral("item2-menu-") + item);
+                QAction *a = itemOf(menu, item);
+                found = a != nullptr;
+                enabled = a && a->isEnabled();
+                if (a && a->isEnabled()) a->trigger();
+            });
+            QTRY_VERIFY2(found, qPrintable(item + QStringLiteral(" is in the menu")));
+            QCOMPARE(enabled, expectEnabled);
+        };
+        QApplication::clipboard()->clear();
+        menuDo(QStringLiteral("Copy"), true);
+        QTRY_COMPARE(QApplication::clipboard()->text(), QStringLiteral("XY"));
+        menuDo(QStringLiteral("Cut"), true);
+        QTRY_COMPARE(marked(), QStringLiteral("alpha [B]beta[/B] gammaXY"));
+        menuDo(QStringLiteral("Undo"), true);
+        QTRY_COMPARE(marked(), QStringLiteral("XYalpha [B]beta[/B] gammaXY"));
+        menuDo(QStringLiteral("Redo"), true);
+        QTRY_COMPARE(marked(), QStringLiteral("alpha [B]beta[/B] gammaXY"));
+        menuDo(QStringLiteral("Paste"), true, 0);
+        QTRY_COMPARE(marked(), QStringLiteral("XYalpha [B]beta[/B] gammaXY"));
+        show->close();
+        QTRY_VERIFY(!w.slideShow());
+    }
+
     // A long note opens at its top in Presenter View, on every slide shown (it opened scrolled to its end), and the notes pane under the slide shows the top again after the show: the first
     // line a person sees is the note's first, the caret is at its start, the box is not scrolled, and the note is longer than the box (or the test shows nothing).
     void presenterViewOpensEveryLongNoteAtItsTop()

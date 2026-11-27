@@ -11,7 +11,9 @@
 #include <QFocusEvent>
 #include <QInputMethodEvent>
 #include <QKeyEvent>
+#include <QClipboard>
 #include <QMenu>
+#include <QMimeData>
 #include <QMouseEvent>
 #include <QPaintEvent>
 #include <QWheelEvent>
@@ -23,6 +25,7 @@
 #include <cmath>
 #include <algorithm>
 #include <array>
+#include <functional>
 
 namespace jp {
 
@@ -87,8 +90,14 @@ void StoryEdit::bind(const std::shared_ptr<Story> &story)
         m_font = d->defaultFont();
         m_indent = d->indentWidth();
     }
+    if (old && old->doc) {
+        disconnect(old->doc.get(), &QTextDocument::contentsChange, this, &StoryEdit::keepFirstBlockLaidOut);
+        disconnect(old->doc.get(), &QTextDocument::contentsChanged, this, &StoryEdit::repairFirstBlock);
+    }
     setDocument(d);
     if (story) {
+        connect(d, &QTextDocument::contentsChange, this, &StoryEdit::keepFirstBlockLaidOut, Qt::UniqueConnection);
+        connect(d, &QTextDocument::contentsChanged, this, &StoryEdit::repairFirstBlock, Qt::UniqueConnection);
         d->setDefaultFont(m_font);   // (the view's own font is never the story's)
         applyScale();
     }
@@ -120,6 +129,23 @@ void StoryEdit::bind(const std::shared_ptr<Story> &story)
     m_markers->refresh();
     if (isTarget() && isTyper()) followEditor();
     Q_EMIT storyShown();
+}
+
+// The document layout throws away the first paragraph's lines when only its paragraph mark's look changes (Bold on the first word: the change is 0 characters at 0) and lays out none of
+// them again, unless some other layout work is still due: the paragraph kept its words and lost its height (Presenter View). The paragraph is laid out again here, as for any change of it.
+void StoryEdit::keepFirstBlockLaidOut(int pos, int removed, int added)
+{
+    if (pos != 0 || removed != 0 || added != 0 || sender() != document()) return;
+    m_firstMarkChanged = true;   // (the layout has not run yet: it does after this signal, and the document says so when it is done)
+}
+
+void StoryEdit::repairFirstBlock()
+{
+    if (!m_firstMarkChanged || sender() != document()) return;
+    m_firstMarkChanged = false;
+    QTextDocument *d = document();
+    const QTextBlock first = d->begin();
+    if (first.isValid() && first.layout() && first.layout()->lineCount() == 0 && first.length() > 1) d->markContentsDirty(0, first.length());
 }
 
 void StoryEdit::setDisplayScale(double scale)
@@ -330,6 +356,23 @@ void StoryEdit::keyPressEvent(QKeyEvent *e)
             e->ignore();
         return;
     }
+    // Undo, Redo, Cut, Copy, and Paste reach the view only where the window has no shortcut of its own for them (a window with a menu takes them first, see event()): Presenter View.
+    // They are the same commands: one history for the whole presentation, the Editor's own clipboard commands.
+    if (e->matches(QKeySequence::Undo) || e->matches(QKeySequence::Redo)) {
+        if (e->matches(QKeySequence::Undo)) m_ed->undo();
+        else m_ed->redo();
+        e->accept();
+        return;
+    }
+    if (e->matches(QKeySequence::Cut) || e->matches(QKeySequence::Copy) || e->matches(QKeySequence::Paste)) {
+        if (takeTarget()) {
+            if (e->matches(QKeySequence::Cut)) m_ed->cut();
+            else if (e->matches(QKeySequence::Copy)) m_ed->copy();
+            else m_ed->paste(false);
+        }
+        e->accept();
+        return;
+    }
     if (!e->text().isEmpty()) Q_EMIT typingStarted();
     const int k = e->key();
     const bool moves = k == Qt::Key_Left || k == Qt::Key_Right || k == Qt::Key_Up || k == Qt::Key_Down || k == Qt::Key_Home || k == Qt::Key_End || k == Qt::Key_PageUp ||
@@ -478,9 +521,23 @@ void StoryEdit::contextMenuEvent(QContextMenuEvent *e)
     }
     fillMenu(menu, at.position());
     if (menu.isEmpty()) {
-        QMenu *standard = createStandardContextMenu(e->pos());
-        standard->setParent(&menu);
-        menu.addActions(standard->actions());
+        // The host has no commands of its own for the words: the editing commands are the Editor's (the one history, the Editor's clipboard), enabled when they can act.
+        const bool editable = !isReadOnly() && !m_ed->readOnly() && m_story;
+        const bool selected = textCursor().hasSelection();
+        const QMimeData *clip = QApplication::clipboard()->mimeData();
+        const bool hasWords = clip && (clip->hasText() || clip->hasHtml() || clip->hasFormat(QStringLiteral("application/x-jeffpub-text")));
+        auto add = [&](const QString &text, bool on, const std::function<void()> &run) { menu.addAction(text, this, run)->setEnabled(on); };
+        add(tr("Undo"), editable && m_ed->undoStack()->canUndo(), [this] { m_ed->undo(); });
+        add(tr("Redo"), editable && m_ed->undoStack()->canRedo(), [this] { m_ed->redo(); });
+        menu.addSeparator();
+        add(tr("Cut"), editable && selected, [this] { if (takeTarget()) m_ed->cut(); });
+        add(tr("Copy"), selected, [this] {
+            if (isReadOnly() || m_ed->readOnly() || !m_story) copy();
+            else if (takeTarget()) m_ed->copy();
+        });
+        add(tr("Paste"), editable && hasWords, [this] { if (takeTarget()) m_ed->paste(false); });
+        menu.addSeparator();
+        add(tr("Select All"), m_story && document()->characterCount() > 1, [this] { selectAll(); });
     }
     menu.exec(e->globalPos());
 }
