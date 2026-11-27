@@ -174,7 +174,7 @@ public:
     // Backspace, Delete, Enter, Tab in a list, and the letters: what a key does to the words being edited (false when the key is none of these, or no text is being edited).
     bool handleEditKey(const QKeyEvent *e);
     static void dropPicturesIn(QTextDocument *story, int from, int to);
-    static constexpr int kMaxJoinedItems = 1000;
+    static constexpr int kMaxJoinedItems = 200;
     static void joinNeighborLists(QTextDocument *story, int from, int to);   // (list items that follow each other with nothing between them are one list)
     // In the notes under the slide, words replaced across paragraphs (Select All and type, a cut, a paste over them) leave one paragraph that has the look of the first, as in a
     // replacement of the whole text: the caret's selection, if it spans paragraphs, is made to end in a paragraph of the first one's look, just before the words go.
