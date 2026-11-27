@@ -427,9 +427,9 @@ void articles(Ctx &c)
         if (const int p = c.prevWord(i); p >= 0 && labels.contains(c.tokens[p].lower)) continue;   // (the letter a, grade a, type a: a name, not the article)
         const int j = c.nextWord(i);
         if (j < 0 || notNouns.contains(c.tokens[j].lower)) continue;
-        // Not decided: initials and letters set apart ("A L Voss", "A L P H A B E T"), "an" before a figure (a slip for "and"), and a short word said by its letters ("Lno").
-        if ((c.tokens[j].end - c.tokens[j].start == 1 && (j + 1 >= c.size() || c.tokens[j + 1].kind == Tok::Space)) || (l == QLatin1String("an") && c.tokens[j].kind == Tok::Number)) continue;
-        if (c.tokens[j].kind == Tok::Word && !c.tokens[j].lower.contains(QLatin1Char('-')) && shortAcronymLike(c.tokens[j].lower)) continue;
+        // Not decided: initials and letters set apart ("A L Voss", "A L P H A B E T"), "an" before a figure in a list (a slip for "and"), and a short word said by its letters ("Lno").
+        if ((c.tokens[j].kind == Tok::Word && c.tokens[j].end - c.tokens[j].start == 1 && (j + 1 >= c.size() || c.tokens[j + 1].kind == Tok::Space)) || (l == QLatin1String("an") && c.tokens[j].kind == Tok::Number && i >= 2 && c.isPunct(i - 2, QLatin1Char(',')))) continue;
+        if (c.tokens[j].kind == Tok::Word && !c.tokens[j].lower.contains(QLatin1Char('-')) && shortAcronymLike(c.tokens[j].lower) && c.original(j) != c.original(j).toUpper()) continue;
         const Sound s = soundOfWord(c, j, shoutingAt(c, j));
         if (s == Sound::Unknown) continue;
         if (l == QLatin1String("a") && s == Sound::Vowel)
@@ -1394,10 +1394,8 @@ void commaSpace(Ctx &c)
 {
     // (a paragraph that has three of these or more is a list or a table of values, not a slip of the keyboard; and so is a short one with no sentence in it: "Rice,long grain")
     static const QRegularExpression sentenceEnd(QStringLiteral("[.?!](\\s|$)"));
-    int slips = 0, words = 0;
-    for (int i = 0; i < c.size(); ++i)
-        if (c.tokens[i].kind == Tok::Word) ++words;
-    if (words < 8 || !c.text.contains(sentenceEnd)) return;
+    int slips = 0;
+    if (!c.text.contains(sentenceEnd)) return;
     for (int i = 1; i + 1 < c.size(); ++i) {
         c.step();
         if (c.isPunct(i, QLatin1Char(',')) && c.isWord(i - 1) && c.isWord(i + 1)) ++slips;

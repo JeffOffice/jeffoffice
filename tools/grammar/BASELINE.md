@@ -243,11 +243,11 @@ sample of 30 flags (all of them when it has fewer), each read. 40 English rules 
 
 Before the narrowing (first run, 699 flags), the rules under 90 percent: a-an 78 percent (21 of 27: "Cat. A", "A L Voss", letter-spaced headings, "an 3", "an Lno"), advice-advise 0 of 1 ("other-wise advise" split by a soft hyphen),
 comma-space 2 of 21 (plant lists in table cells: "Rice,long grain"), sentence-start 5 of 19 (legal "recon. denied" in footnotes, code names, markup), space-before-mark 23 of 30 (equations), your-youre 0 of 1 (a capitalized heading),
-double-space 27 of 30 (bullet dashes). After the narrowing (602 flags) every rule is at or above 90 percent:
+double-space 27 of 30 (bullet dashes). After the narrowing (603 flags) every rule is at or above 90 percent:
 
 | rule | flags | per 10,000 words | read | right |
 |---|---|---|---|---|
-| a-an | 20 | 0.145 | 20 | 20 |
+| a-an | 21 | 0.153 | 21 | 21 |
 | chose-choose | 2 | 0.015 | 2 | 2 |
 | comma-after-year | 6 | 0.044 | 6 | 6 |
 | comma-space | 2 | 0.015 | 2 | 2 |
