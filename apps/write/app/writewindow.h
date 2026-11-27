@@ -162,6 +162,8 @@ public:
     write::WriteDoc *document() const { return m_doc.get(); }
     // The one question for a change made by a pane or a view of its own: may the text be edited now (not held for reading only, and no search under way that holds it as it is)?
     bool mayEdit() const { return !isReadOnly() && !searchBlocked(); }
+    // The window is read only only because Read Mode holds it so (a document that is open for reading, or protected, is read only in its own right): Save still saves it.
+    bool readOnlyOnlyForReadMode() const { return m_readMode && !m_readWas.readOnly && !m_readOnlyByProtection; }
     // Review > Compare: this document and the file at `revisedPath` made into a new document of tracked changes (this one is the original), shown in a window of its own. How many changes it
     // holds; -1 when a file can't be read or compared (the reason is told).
     void setUrlOpener(const std::function<bool(const QUrl &)> &opener) { m_urlOpener = opener; }

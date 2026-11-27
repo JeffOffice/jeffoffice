@@ -386,7 +386,7 @@ void WriteWindow::updateTitle()
     // A document that came from an old binary file shows its whole name, so its kind is plain until it is saved as a .docx.
     const QString ending = QFileInfo(m_path).suffix().toLower();
     const QString shown = ending == QLatin1String("doc") || ending == QLatin1String("dot") || ending == QLatin1String("rtf") ? QFileInfo(m_path).fileName() : displayName();
-    setWindowTitle(QStringLiteral("%1%5%2%4 - %3").arg(shown, isModified() ? QStringLiteral("*") : QString(), appInfo().name, isReadOnly() ? (m_readOnlyByProtection ? tr(" (Protected)") : tr(" (Read-Only)")) : QString(), inCompatibilityMode() ? tr(" [Compatibility Mode]") : QString()));
+    setWindowTitle(QStringLiteral("%1%5%2%4 - %3").arg(shown, isModified() ? QStringLiteral("*") : QString(), appInfo().name, isReadOnly() && !readOnlyOnlyForReadMode() ? (m_readOnlyByProtection ? tr(" (Protected)") : tr(" (Read-Only)")) : QString(), inCompatibilityMode() ? tr(" [Compatibility Mode]") : QString()));
 }
 
 // Whether the file is in an older program's layout rules, as the file itself says: a file with no setting, an .odt, an old binary file, and a text file say none.

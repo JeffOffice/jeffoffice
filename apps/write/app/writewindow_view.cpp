@@ -198,21 +198,21 @@ void WriteWindow::setReadMode(bool on)
     if (m_find) m_find->cancelSearch();   // (a search ends before the way the document may be changed does)
     if (on) {
         setOutlineMode(false);
-        m_readWas.readOnly = m_view->readOnly();
+        m_readWas.readOnly = isReadOnly();
         m_readWas.sideToSide = m_view->sideToSide();
         m_readWas.zoomMode = int(m_view->zoomMode());
         m_readWas.zoom = m_view->zoom();
         m_readMode = true;
         m_view->setStyleAreaSuppressed(true);
         setFocusMode(true);
-        m_view->setReadOnly(true);
+        setReadOnly(true);   // (the window's own read-only state: every command, the Find pane, and the boxes refuse a change as they do in a document open for reading)
         m_view->setSideToSide(true);
         m_view->setZoomMode(write::PageView::ZoomMode::OnePage);
     } else {
         m_readMode = false;
         m_view->setStyleAreaSuppressed(false);
         setFocusMode(false);
-        m_view->setReadOnly(m_readWas.readOnly);
+        setReadOnly(m_readWas.readOnly || m_readOnlyByProtection);
         m_view->setSideToSide(m_readWas.sideToSide);
         m_view->setZoomMode(write::PageView::ZoomMode(m_readWas.zoomMode));
         if (m_view->zoomMode() == write::PageView::ZoomMode::Percent) m_view->setZoom(m_readWas.zoom);

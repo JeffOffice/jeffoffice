@@ -7896,6 +7896,72 @@ private Q_SLOTS:
         if (!accept) QCOMPARE(savedNoteWords(settled, true), manyExpected(n, 5));
     }
 
+    // Read Mode changes nothing: Bold, Italic, Cut, Paste, typing, Delete, and the Find pane's Replace All leave the text, a header, and a note as they were (Bold, Italic, and Replace used to go through).
+    void readModeRefusesEveryChangeInTheTextAHeaderAndANote()
+    {
+        StoryParts p;
+        p.body = para(run("a cat sat"));
+        p.header = para(run("cat head"));
+        p.footnote = para(run("cat note"));
+        WriteWindow w;
+        w.setNotifier([](const QString &, const QString &) {});
+        w.resize(900, 700);
+        w.show();
+        w.setDocument(open(makeDocxWithStories(p)), QString());
+        WriteDoc *doc = w.document();
+        QApplication::clipboard()->setText(QStringLiteral("pasted"));
+        const QByteArray before = savedByWindow(w);
+        w.act("view.readMode")->trigger();
+        QVERIFY(w.readMode());
+        const quint64 steps = doc->nextStepSerial();
+        auto attempt = [&](const QString &where) {
+            for (const char *id : {"fmt.bold", "fmt.italic", "edit.cut", "edit.paste"}) {
+                QAction *a = w.act(QString::fromLatin1(id));
+                if (a->isEnabled()) a->trigger();
+            }
+            QTest::keyClicks(w.view(), QStringLiteral("Z"));
+            QTest::keyClick(w.view(), Qt::Key_Delete);
+            QTest::keyClick(w.view(), Qt::Key_Backspace);
+            QCOMPARE(doc->nextStepSerial(), steps);
+            Q_UNUSED(where)
+        };
+        {
+            QTextCursor c(doc->story());
+            c.setPosition(2);
+            c.setPosition(5, QTextCursor::KeepAnchor);
+            w.view()->setCursor(c);
+            attempt(QStringLiteral("body"));
+        }
+        QVERIFY(w.view()->enterHeaderFooter(0, false));
+        {
+            QTextCursor c = w.view()->cursor();
+            c.setPosition(0);
+            c.setPosition(3, QTextCursor::KeepAnchor);
+            w.view()->setCursor(c);
+            attempt(QStringLiteral("header"));
+        }
+        w.view()->leaveHeaderFooter();
+        QVERIFY(w.view()->openNoteAt(doc->footnoteReferences(2).first()));
+        {
+            QTextCursor c = w.view()->cursor();
+            c.setPosition(c.position() + 1);
+            c.setPosition(c.position() + 3, QTextCursor::KeepAnchor);
+            w.view()->setCursor(c);
+            attempt(QStringLiteral("note"));
+        }
+        w.showFindPane();
+        WriteFindPane *pane = w.findPane();
+        QVERIFY(pane);
+        pane->findBox()->setText(QStringLiteral("cat"));
+        pane->replaceBox()->setText(QStringLiteral("dog"));
+        pane->replaceAll();
+        QCOMPARE(doc->nextStepSerial(), steps);
+        QCOMPARE(savedByWindow(w), before);
+        // Leaving Read Mode gives the window back as it was, and the text can be changed again.
+        w.act("view.readMode")->trigger();
+        QVERIFY(!w.readMode() && !w.isReadOnly());
+    }
+
     // A note deleted with its reference is two changes in the list (as the reference program lists them): the reference, and the note's words (and its paragraph mark with them).
     void aDeletedFootnotesWordsAreListedBesideItsReference()
     {

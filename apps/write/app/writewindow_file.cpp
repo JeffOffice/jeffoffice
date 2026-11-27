@@ -287,7 +287,7 @@ bool WriteWindow::save()
 {
     if (!commitShapeText()) return false;
     // A document open for reading only is saved as a copy under a new name.
-    if (isReadOnly()) {
+    if (isReadOnly() && !readOnlyOnlyForReadMode()) {
         notice(tr("Save"), tr("This document is open for reading only, so it is saved under a new name."));
         return saveAs();
     }
@@ -555,7 +555,7 @@ bool WriteWindow::saveTo(const QString &path, bool asCopy)
     // (the versions kept follow the password the file has now)
     if (m_versions.follow(path, QStringLiteral(".docx"), m_fileProtected ? m_filePassword : QString()) > 0)
         notice(tr("Version History"), tr("Some versions kept before couldn't be given the new password, and stay as they were."), true);
-    if (isReadOnly() && !m_readOnlyByProtection) setReadOnly(false);   // (a protected document is saved as it is: the protection stays)
+    if (isReadOnly() && !m_readOnlyByProtection && !readOnlyOnlyForReadMode()) setReadOnly(false);   // (a protected document is saved as it is: the protection stays)
     m_recoveredFrom.clear();
     dropRecoveryCopy();
     noteSaved(path);   // (a file whose editing was enabled loses its download mark)
