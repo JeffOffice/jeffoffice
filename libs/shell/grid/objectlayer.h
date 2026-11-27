@@ -306,6 +306,7 @@ private:
     void step();
     QRect visibleRect(const Entry &e) const;
     bool inkAt(const Entry &e, const GridLayout &layout, Pane pane, const QPoint &point) const;
+    void makeForHit(size_t i, const GridLayout &layout, Pane pane) const;
     // Where a point is in an object as fractions of its box (false if it is in no pane's picture of it).
     bool fractionAt(const Entry &e, const GridLayout &layout, const QPoint &point, QPointF *fraction, QSizeF *units) const;
 
@@ -341,6 +342,7 @@ private:
     std::mutex m_resultsMutex;
     std::vector<Result> m_results;
     mutable Stats m_stats;
+    mutable int m_hitMade = 0;   // the pictures a click has made so far
     std::function<void(int)> m_deleteHook;
     std::function<bool(int, const QString &)> m_textEditHook;
     Drag m_drag;

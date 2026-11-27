@@ -803,10 +803,25 @@ QRect ObjectLayer::deviceRect(int id, Pane pane) const
     return r.intersects(m_layout->pane(pane).rect) ? r : QRect();
 }
 
+void ObjectLayer::makeForHit(size_t i, const GridLayout &layout, Pane pane) const
+{
+    // (a click is answered from the picture, so a picture not made yet is made now: the answer then does not turn on whether the timer got to it first. Only what draws at once is made here, a few at a click)
+    ObjectLayer *self = const_cast<ObjectLayer *>(this);
+    Entry &e = self->m_entries[i];
+    if (e.pending || !e.image.isNull() || e.failed || m_hitMade >= kPicturesPerStep) return;
+    self->settle(e);
+    const QRect box = rectIn(layout, pane, e);
+    if (box.isEmpty() || !e.object.render || e.object.prepare) return;
+    const QSize wanted = sizeWanted(drawRect(box, e, layout.zoom()), m_dpr);
+    self->store(e, e.object.render(requestFor(e, box, wanted, layout.zoom())), wanted, layout.zoom());
+    ++m_hitMade;
+    self->evict();
+}
+
 bool ObjectLayer::inkAt(const Entry &e, const GridLayout &layout, Pane pane, const QPoint &point) const
 {
-    // a place where the picture is not clear (a pixel or two either side of the point) has ink under the point; with no picture yet, the box counts
-    if (e.image.isNull()) return !e.failed;
+    // a place where the picture is not clear (a pixel or two either side of the point) has ink under the point; a picture that could not be made has none, and an object that is made by a job (none that is picked by its ink is) is picked by its box until the job is done
+    if (e.image.isNull()) return !e.failed && (e.pending || e.object.prepare);
     const QRect box = rectIn(layout, pane, e);
     const QRect r = drawRect(box, e, layout.zoom());
     const double sx = double(e.image.width()) / double(r.width()), sy = double(e.image.height()) / double(r.height());
@@ -827,9 +842,12 @@ int ObjectLayer::objectAt(const QPoint &point) const
         if (!layout.pane(pane).rect.contains(point)) continue;
         std::vector<size_t> here;
         candidates(layout, pane, QRect(point, QSize(1, 1)), &here);
+        m_hitMade = 0;
         for (size_t k = here.size(); k-- > 0;) {
             const Entry &e = m_entries[here[k]];
+            if (e.object.hitInk && !e.settled) const_cast<ObjectLayer *>(this)->settle(const_cast<Entry &>(e));   // (what it is, a line or a box, is known when it is made: the box it is hit in is then the same as after)
             if (!rectIn(layout, pane, e).contains(point)) continue;
+            if (e.object.hitInk) makeForHit(here[k], layout, pane);
             if (!e.object.hitInk || inkAt(e, layout, pane, point)) return e.object.id;
         }
         return -1;

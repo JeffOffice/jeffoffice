@@ -657,10 +657,47 @@ private Q_SLOTS:
         QCOMPARE(s.objects.selectedId(), -1);
         QVERIFY(s.objects.press(QPoint(64 + 64, 40 + 40), s.layout, Qt::NoModifier));
         QCOMPARE(s.objects.selectedId(), 1);
-        // an object with no picture yet is hit in its box
+    }
+
+    // Whether a click picks a shape does not turn on whether its picture was made yet: the same places are picked before the picture, as after it (it is made when the click needs it).
+    void aShapeIsPickedAlikeBeforeAndAfterItsPicture()
+    {
+        int made = 0;
+        Scene s;
+        LayerObject o;
+        o.id = 1;
+        o.anchor = twoCell(1, 2, 3, 6);
+        o.kind = jp::office::sheet::ObjectKind::Shape;
+        o.hitInk = true;
+        o.render = [&made](const RenderRequest &q) {
+            ++made;
+            QImage img(q.pixels, QImage::Format_ARGB32_Premultiplied);
+            img.fill(Qt::transparent);
+            QPainter p(&img);
+            p.fillRect(QRectF(q.inner.center().x() - 20, q.inner.center().y() - 20, 40, 40), QColor(Qt::red));
+            return img;
+        };
+        s.objects.setObjects({o});
+        s.draw(false);   // (placed, and drawn as nothing: no picture)
+        QCOMPARE(made, 0);
+        const QPoint ink(64 + 64, 40 + 40), bare(64 + 5, 40 + 5), edge(64 + 64 + 30, 40 + 40);
+        const int before[3] = {s.objects.objectAt(ink), s.objects.objectAt(bare), s.objects.objectAt(edge)};
+        QVERIFY(made > 0);   // (the click made the picture it needed)
+        s.draw();
+        const int after[3] = {s.objects.objectAt(ink), s.objects.objectAt(bare), s.objects.objectAt(edge)};
+        QCOMPARE(before[0], 1);
+        QCOMPARE(before[1], -1);
+        QCOMPARE(before[2], -1);
+        for (int i = 0; i < 3; ++i) QCOMPARE(before[i], after[i]);
+        // and a press on the bare place goes to the cells, as the second press does after the first one made the picture
         s.objects.invalidateAll();
-        s.objects.setObjects({sparse(1, twoCell(1, 2, 3, 6), jp::office::sheet::ObjectKind::Shape, true)});
-        QCOMPARE(s.objects.objectAt(QPoint(64 + 5, 40 + 5)), 1);
+        s.objects.setObjects({o});
+        s.draw(false);
+        QVERIFY(!s.objects.press(bare, s.layout, Qt::NoModifier));
+        QCOMPARE(s.objects.selectedId(), -1);
+        QVERIFY(!s.objects.press(bare, s.layout, Qt::NoModifier));
+        QVERIFY(s.objects.press(ink, s.layout, Qt::NoModifier));
+        QCOMPARE(s.objects.selectedId(), 1);
     }
 
     // The places in rows and columns that a position is in, the other way from an anchor's box: a box turned to anchor points and back is the same box.

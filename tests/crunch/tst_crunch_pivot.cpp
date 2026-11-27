@@ -2612,12 +2612,12 @@ private Q_SLOTS:
     // ---- slicers drawn on the sheet
     // The slicer book with the slicer on the sheet: the newer form (a frame) and the older stand-in text box the file keeps beside it. `count` slicers of the same name, one every 20 rows from row 9;
     // `where` is added to each anchor's clientData (a slicer that does not print).
-    static QByteArray boxAnchor(int fromCol, int fromRow, int toCol, int toRow, const QByteArray &name)
+    static QByteArray boxAnchor(int fromCol, int fromRow, int toCol, int toRow, const QByteArray &name, bool filled = true)
     {
         return "<xdr:twoCellAnchor><xdr:from><xdr:col>" + QByteArray::number(fromCol) + "</xdr:col><xdr:colOff>0</xdr:colOff><xdr:row>" + QByteArray::number(fromRow) + "</xdr:row><xdr:rowOff>0</xdr:rowOff></xdr:from><xdr:to><xdr:col>"
                // (a shape with no frame of its own draws as nothing: a picture of it has no ink, and whether a click picks it then turns on whether the picture was made yet, which on Windows it often is)
                + QByteArray::number(toCol) + "</xdr:col><xdr:colOff>0</xdr:colOff><xdr:row>" + QByteArray::number(toRow) + "</xdr:row><xdr:rowOff>0</xdr:rowOff></xdr:to><xdr:sp macro=\"\" textlink=\"\"><xdr:nvSpPr><xdr:cNvPr id=\"90\" name=\""
-               + name + "\"/><xdr:cNvSpPr/></xdr:nvSpPr><xdr:spPr><a:xfrm><a:off x=\"0\" y=\"0\"/><a:ext cx=\"1000000\" cy=\"500000\"/></a:xfrm><a:prstGeom prst=\"rect\"><a:avLst/></a:prstGeom><a:solidFill><a:srgbClr val=\"FF0000\"/></a:solidFill></xdr:spPr></xdr:sp><xdr:clientData/></xdr:twoCellAnchor>";
+               + name + "\"/><xdr:cNvSpPr/></xdr:nvSpPr><xdr:spPr><a:xfrm><a:off x=\"0\" y=\"0\"/><a:ext cx=\"1000000\" cy=\"500000\"/></a:xfrm><a:prstGeom prst=\"rect\"><a:avLst/></a:prstGeom>" + QByteArray(filled ? "<a:solidFill><a:srgbClr val=\"FF0000\"/></a:solidFill>" : "") + "</xdr:spPr></xdr:sp><xdr:clientData/></xdr:twoCellAnchor>";
     }
     static PivotBookOptions slicerSheetBook(int count = 1, const QByteArray &clientData = "<xdr:clientData/>", int rowStep = 20, const QByteArray &frameAttrs = QByteArray())
     {
@@ -3267,6 +3267,28 @@ private Q_SLOTS:
             QCOMPARE(layer->selectedId(), -1);
             QCOMPARE(int(e.win.w.objects()->printObjects(0).size()), 2);
             QVERIFY(crunch::isSlicerId(e.win.w.objects()->printObjects(0)[1].id));
+        }
+    }
+
+    // A shape that draws nothing (no fill, no line) is not clicked: the click goes to what is under it, and that is so whether or not the picture of it was made yet.
+    void aShapeThatDrawsNothingLetsAClickOnASlicerThroughInEveryState()
+    {
+        for (const bool pictureMade : {false, true}) {
+            SlicerSheet w;
+            w.after = boxAnchor(9, 8, 12, 18, "Bare", false);
+            EditWindow e;
+            QVERIFY(e.open(pivotWorkbook(slicerSheetBook(w))));
+            QTRY_COMPARE(e.win.w.objects()->layer()->count(), 2);
+            jp::grid::ObjectLayer *layer = e.win.w.objects()->layer();
+            QVERIFY(crunch::isSlicerId(layer->object(0).id) && !crunch::isSlicerId(layer->object(1).id));
+            if (pictureMade) layer->prepareAll();
+            const int steps = e.win.w.session()->undoStack()->count();
+            const QPoint spot = slicerSpot(e, 1);
+            QVERIFY2(!spot.isNull() && !slicerRect(e).isEmpty(), "the slicer has a place on the view");
+            clickView(e, spot);
+            finish(e);
+            QVERIFY2(e.win.w.session()->undoStack()->count() == steps + 1, qPrintable(QStringLiteral("picture made %1: ").arg(pictureMade) + clickReport(e, spot)));   // (the bare shape above it is no way to it)
+            QCOMPARE(layer->selectedId(), -1);
         }
     }
 
