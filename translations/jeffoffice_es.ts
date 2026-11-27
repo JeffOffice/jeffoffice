@@ -26863,7 +26863,7 @@ Origen: %3</translation>
     </message>
     <message>
         <location line="+9"/>
-        <location filename="../apps/crunch/app/crunchwindow_charts.cpp" line="+1009"/>
+        <location filename="../apps/crunch/app/crunchwindow_charts.cpp" line="+1021"/>
         <location filename="../apps/crunch/app/crunchwindow_file.cpp" line="-494"/>
         <location line="+112"/>
         <location line="+77"/>
@@ -27012,12 +27012,12 @@ Origen: %3</translation>
         <translation type="unfinished">Ese texto es demasiado largo para insertarlo. Copie menos y vuelva a intentarlo.</translation>
     </message>
     <message>
-        <location line="+44"/>
+        <location line="+48"/>
         <source>Close the window when Goal Seek or the Scenario Summary is done.</source>
         <translation type="unfinished">Cerrar la ventana cuando termine Buscar objetivo o el Resumen de escenarios.</translation>
     </message>
     <message>
-        <location line="-843"/>
+        <location line="-847"/>
         <location filename="../apps/crunch/app/crunchwindow_file.cpp" line="-287"/>
         <location filename="../apps/crunch/app/crunchwindow_objectformat.cpp" line="+1302"/>
         <location filename="../apps/crunch/app/crunchwindow_themes.cpp" line="+39"/>
@@ -27090,7 +27090,7 @@ Origen: %3</translation>
     </message>
     <message>
         <location line="+4"/>
-        <location filename="../apps/crunch/app/crunchwindow_charts.cpp" line="-864"/>
+        <location filename="../apps/crunch/app/crunchwindow_charts.cpp" line="-876"/>
         <source>Save as Template…</source>
         <translation type="unfinished">Guardar como plantilla…</translation>
     </message>
@@ -27288,12 +27288,12 @@ Origen: %3</translation>
     </message>
     <message>
         <location line="+11"/>
-        <location filename="../apps/crunch/app/crunchwindow_charts.cpp" line="+346"/>
+        <location filename="../apps/crunch/app/crunchwindow_charts.cpp" line="+355"/>
         <source>Rename Object</source>
         <translation type="unfinished">Cambiar nombre del objeto</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow_charts.cpp" line="-383"/>
+        <location filename="../apps/crunch/app/crunchwindow_charts.cpp" line="-392"/>
         <source>More Charts…</source>
         <translation type="unfinished">Más gráficos…</translation>
     </message>
@@ -27341,30 +27341,30 @@ Origen: %3</translation>
     </message>
     <message>
         <location line="+1"/>
-        <location line="+1050"/>
+        <location line="+1066"/>
         <source>Bring to Front</source>
         <translation type="unfinished">Traer al frente</translation>
     </message>
     <message>
-        <location line="-1049"/>
-        <location line="+1049"/>
+        <location line="-1065"/>
+        <location line="+1065"/>
         <source>Bring Forward</source>
         <translation type="unfinished">Traer adelante</translation>
     </message>
     <message>
-        <location line="-1048"/>
-        <location line="+1048"/>
+        <location line="-1064"/>
+        <location line="+1064"/>
         <source>Send Backward</source>
         <translation type="unfinished">Enviar atrás</translation>
     </message>
     <message>
-        <location line="-1047"/>
-        <location line="+1047"/>
+        <location line="-1063"/>
+        <location line="+1063"/>
         <source>Send to Back</source>
         <translation type="unfinished">Enviar al fondo</translation>
     </message>
     <message>
-        <location line="-957"/>
+        <location line="-973"/>
         <location line="+4"/>
         <location line="+4"/>
         <location line="+7"/>
@@ -27399,12 +27399,12 @@ Origen: %3</translation>
         <translation type="unfinished">Gráfico insertado</translation>
     </message>
     <message>
-        <location line="+81"/>
+        <location line="+86"/>
         <source>Move or Size Object</source>
         <translation type="unfinished">Mover o cambiar el tamaño del objeto</translation>
     </message>
     <message>
-        <location line="+147"/>
+        <location line="+151"/>
         <source>Print Object</source>
         <translation type="unfinished">Imprimir objeto</translation>
     </message>
@@ -27421,7 +27421,7 @@ Origen: %3</translation>
         <translation type="unfinished">Propiedades</translation>
     </message>
     <message>
-        <location line="-424"/>
+        <location line="-433"/>
         <location line="+21"/>
         <source>Radar</source>
         <translation type="unfinished">Radar</translation>
@@ -27498,7 +27498,7 @@ Origen: %3</translation>
         <translation type="unfinished">Gráficos recomendados</translation>
     </message>
     <message>
-        <location line="+83"/>
+        <location line="+92"/>
         <location line="+4"/>
         <location line="+6"/>
         <source>Save as Picture</source>
@@ -27676,7 +27676,7 @@ Origen: %3</translation>
         <translation>Inferior</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow_charts.cpp" line="+388"/>
+        <location filename="../apps/crunch/app/crunchwindow_charts.cpp" line="+391"/>
         <source>Format Control…</source>
         <translation type="unfinished">Formato de control…</translation>
     </message>
@@ -27695,17 +27695,22 @@ Origen: %3</translation>
     </message>
     <message>
         <location line="+6"/>
-        <location line="+142"/>
+        <location line="+146"/>
         <source>Order</source>
         <translation>Orden</translation>
     </message>
     <message>
-        <location line="-127"/>
+        <location line="-131"/>
         <source>Chart Parts</source>
         <translation type="unfinished">Partes del gráfico</translation>
     </message>
     <message>
-        <location line="+50"/>
+        <location line="+17"/>
+        <source>A slicer can&apos;t be cut or copied yet.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+37"/>
         <source>Shape</source>
         <translation type="unfinished">Forma</translation>
     </message>
@@ -29506,9 +29511,10 @@ Origen: %3</translation>
         <location line="+121"/>
         <location line="+29"/>
         <location line="+11"/>
-        <location filename="../apps/crunch/app/crunchwindow_charts.cpp" line="-1018"/>
-        <location line="+871"/>
+        <location filename="../apps/crunch/app/crunchwindow_charts.cpp" line="-1034"/>
+        <location line="+883"/>
         <location filename="../apps/crunch/app/crunchwindow_drawings.cpp" line="+191"/>
+        <location line="+11"/>
         <location line="+11"/>
         <location line="+6"/>
         <location line="+13"/>
@@ -29783,7 +29789,7 @@ Origen: %3</translation>
     </message>
     <message>
         <location line="+1"/>
-        <location filename="../apps/crunch/app/crunchwindow_charts.cpp" line="-961"/>
+        <location filename="../apps/crunch/app/crunchwindow_charts.cpp" line="-973"/>
         <location filename="../apps/crunch/app/crunchwindow_ops.cpp" line="-120"/>
         <source>Columns</source>
         <translation>Columnas</translation>
@@ -30312,7 +30318,7 @@ Origen: %3</translation>
         <translation type="unfinished">Nombre de la tabla</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow_charts.cpp" line="+1048"/>
+        <location filename="../apps/crunch/app/crunchwindow_charts.cpp" line="+1064"/>
         <location filename="../apps/crunch/app/crunchwindow_embeds.cpp" line="+89"/>
         <location filename="../apps/crunch/app/crunchwindow_pagelayout.cpp" line="+531"/>
         <location line="+9"/>
@@ -31272,8 +31278,13 @@ El archivo no existe.</translation>
         <translation type="unfinished">Puede guardar su trabajo como copia y conservar ambos, o sobrescribir el archivo.</translation>
     </message>
     <message>
+        <location line="+125"/>
+        <source>Saved %1. Rows, columns, cells, and objects deleted before this save can&apos;t be undone now, nor can what you did before that.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <location filename="../apps/crunch/app/crunchwindow.cpp" line="-803"/>
-        <location filename="../apps/crunch/app/crunchwindow_save.cpp" line="+1"/>
+        <location filename="../apps/crunch/app/crunchwindow_save.cpp" line="-124"/>
         <source>Save a Copy…</source>
         <translation type="unfinished">Guardar una copia…</translation>
     </message>
@@ -31291,11 +31302,6 @@ El archivo no existe.</translation>
         <translation type="unfinished">No se pudo proteger el libro con la contraseña.</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow_save.cpp" line="+59"/>
-        <source>Saved %1. Rows, columns, and cells deleted before this save can&apos;t be undone now, nor can what you did before that.</source>
-        <translation type="unfinished">Se guardó %1. Ya no se pueden deshacer las filas, columnas y celdas eliminadas antes de guardar, ni lo que hizo antes de eso.</translation>
-    </message>
-    <message>
         <location filename="../apps/crunch/app/crunchwindow_print.cpp" line="-13"/>
         <source>The workbook is still being opened. It can be printed when it is open.</source>
         <translation type="unfinished">El libro todavía se está abriendo. Podrá imprimirse cuando esté abierto.</translation>
@@ -31306,7 +31312,7 @@ El archivo no existe.</translation>
         <location filename="../apps/crunch/app/crunchwindow_file.cpp" line="-427"/>
         <location filename="../apps/crunch/app/crunchwindow_print.cpp" line="+28"/>
         <location filename="../apps/crunch/app/crunchwindow_protect.cpp" line="+68"/>
-        <location filename="../apps/crunch/app/crunchwindow_save.cpp" line="-122"/>
+        <location filename="../apps/crunch/app/crunchwindow_save.cpp" line="-63"/>
         <source>Cancel</source>
         <translation type="unfinished">Cancelar</translation>
     </message>
@@ -31456,7 +31462,7 @@ The file that was there is as it was.</source>
 El archivo existente no se ha modificado.</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow_drawings.cpp" line="-241"/>
+        <location filename="../apps/crunch/app/crunchwindow_drawings.cpp" line="-252"/>
         <source>Delete Objects</source>
         <translation type="unfinished">Eliminar objetos</translation>
     </message>
@@ -31487,6 +31493,11 @@ El archivo existente no se ha modificado.</translation>
     </message>
     <message>
         <location line="+20"/>
+        <source>Delete Slicer</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+11"/>
         <source>Delete Form Control</source>
         <translation type="unfinished">Eliminar control de formulario</translation>
     </message>
@@ -33202,12 +33213,12 @@ No se puede leer el archivo.</translation>
     </message>
     <message>
         <location line="+1"/>
-        <location line="+834"/>
+        <location line="+864"/>
         <source>Slicers</source>
         <translation type="unfinished">Segmentaciones</translation>
     </message>
     <message>
-        <location line="-833"/>
+        <location line="-863"/>
         <source>Value Field Settings…</source>
         <translation type="unfinished">Configuración de campo de valor…</translation>
     </message>
@@ -33643,12 +33654,13 @@ No se puede leer el archivo.</translation>
     </message>
     <message>
         <location line="+12"/>
-        <location line="+14"/>
+        <location line="+10"/>
+        <location line="+32"/>
         <source>Slicer</source>
         <translation type="unfinished">Segmentación de datos</translation>
     </message>
     <message>
-        <location line="+48"/>
+        <location line="+50"/>
         <source>Report Connections</source>
         <translation type="unfinished">Conexiones de informe</translation>
     </message>
@@ -34593,7 +34605,7 @@ No se puede leer el archivo.</translation>
         <translation type="unfinished">Borrar minigráficos</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow_charts.cpp" line="-1042"/>
+        <location filename="../apps/crunch/app/crunchwindow_charts.cpp" line="-1058"/>
         <location line="+28"/>
         <location filename="../apps/crunch/app/crunchwindow_insertobjects.cpp" line="-753"/>
         <location filename="../apps/crunch/app/crunchwindow_quick.cpp" line="+3"/>
@@ -57430,7 +57442,7 @@ Su explorador web abrirá LibreTranslate, un servicio de traducción gratuito y 
 <context>
     <name>jp::PivotCreateDialog</name>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow_pivot.cpp" line="-1217"/>
+        <location filename="../apps/crunch/app/crunchwindow_pivot.cpp" line="-1247"/>
         <source>Create Pivot Table</source>
         <translation type="unfinished">Crear tabla dinámica</translation>
     </message>
@@ -70757,7 +70769,7 @@ No se pudo aplicar la contraseña al archivo.</translation>
         <translation type="unfinished">JeffCrunch aún no puede calcular esto (usa otro libro, las columnas de una tabla o una función que JeffCrunch no tiene), por lo que no se muestra ningún valor.</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/core/editslicer.cpp" line="+20"/>
+        <location filename="../apps/crunch/core/editslicer.cpp" line="+21"/>
         <source>(blank)</source>
         <translation type="unfinished">(vacío)</translation>
     </message>
@@ -73517,7 +73529,7 @@ No se pudo aplicar la contraseña al archivo.</translation>
         <translation type="unfinished">Los fragmentos se saldrían de la última columna de la hoja.</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/core/editslicer.cpp" line="+236"/>
+        <location filename="../apps/crunch/core/editslicer.cpp" line="+263"/>
         <location line="+24"/>
         <source>This slicer can&apos;t be used.</source>
         <translation type="unfinished">Esta segmentación no se puede usar.</translation>
@@ -78270,7 +78282,7 @@ No se pudo aplicar la contraseña al archivo.</translation>
 <context>
     <name>jp::crunch::SheetObjects</name>
     <message>
-        <location filename="../apps/crunch/core/sheetobjects.cpp" line="+469"/>
+        <location filename="../apps/crunch/core/sheetobjects.cpp" line="+484"/>
         <source>a drawing that could not be read (%1)</source>
         <translation type="unfinished">un dibujo que no se pudo leer (%1)</translation>
     </message>
@@ -78313,12 +78325,12 @@ No se pudo aplicar la contraseña al archivo.</translation>
         </translation>
     </message>
     <message>
-        <location line="+792"/>
+        <location line="+806"/>
         <source>The charts made or changed here since the last save already hold as many numbers as JeffCrunch keeps (%1). Save the workbook first.</source>
         <translation type="unfinished">Los gráficos creados o cambiados aquí desde la última vez que se guardó ya contienen tantos números como admite JeffCrunch (%1). Guarde primero el libro.</translation>
     </message>
     <message>
-        <location line="+64"/>
+        <location line="+69"/>
         <source>Chart</source>
         <translation type="unfinished">Gráfico</translation>
     </message>
@@ -78333,7 +78345,7 @@ No se pudo aplicar la contraseña al archivo.</translation>
         <translation type="unfinished">Forma</translation>
     </message>
     <message>
-        <location line="+556"/>
+        <location line="+562"/>
         <source>JeffCrunch keeps no more of the objects taken away for Undo after a save.</source>
         <translation type="unfinished">JeffCrunch no conserva más de los objetos retirados para Deshacer después de guardar.</translation>
     </message>
@@ -78372,17 +78384,17 @@ No se pudo aplicar la contraseña al archivo.</translation>
         <translation type="unfinished">%1 objetos nuevos es el máximo que JeffCrunch guarda de una vez. Guarde el libro y, después, agregue más.</translation>
     </message>
     <message>
-        <location line="-2315"/>
+        <location line="-2340"/>
         <source>a diagram that could not be shown</source>
         <translation type="unfinished">un diagrama que no se pudo mostrar</translation>
     </message>
     <message>
-        <location line="+1035"/>
+        <location line="+1049"/>
         <source>The pictures that stand for equations come to more than %1, so the equations past that are saved as math alone.</source>
         <translation type="unfinished">Las imágenes que representan ecuaciones superan %1, así que las ecuaciones posteriores se guardan solo como matemáticas.</translation>
     </message>
     <message>
-        <location line="+578"/>
+        <location line="+589"/>
         <source>a shape whose link to a cell can&apos;t be used (it must be one cell)</source>
         <translation type="unfinished">una forma cuyo vínculo con una celda no se puede usar (debe ser una sola celda)</translation>
     </message>
@@ -78539,7 +78551,7 @@ No se pudo aplicar la contraseña al archivo.</translation>
 <context>
     <name>jp::crunch::Slicer</name>
     <message>
-        <location filename="../apps/crunch/core/slicerpaint.cpp" line="+139"/>
+        <location filename="../apps/crunch/core/slicerpaint.cpp" line="+173"/>
         <source>More items: %1 (%2 chosen)</source>
         <translation type="unfinished">Más elementos: %1 (%2 seleccionados)</translation>
     </message>
@@ -80729,8 +80741,8 @@ No se pudo aplicar la contraseña al archivo.</translation>
         <location line="+96"/>
         <location line="+25"/>
         <location filename="../libs/office/sheet/xlsxsave.cpp" line="+2753"/>
-        <location line="+1675"/>
-        <location line="+61"/>
+        <location line="+1742"/>
+        <location line="+63"/>
         <source>The save was stopped.</source>
         <translation type="unfinished">Se detuvo el guardado.</translation>
     </message>
@@ -80763,7 +80775,7 @@ No se pudo aplicar la contraseña al archivo.</translation>
         <translation type="unfinished">No se pudo guardar la hoja.</translation>
     </message>
     <message>
-        <location filename="../libs/office/sheet/xlsxsave.cpp" line="-4266"/>
+        <location filename="../libs/office/sheet/xlsxsave.cpp" line="-4335"/>
         <location line="+21"/>
         <source>The shared strings part is not in the form this program changes.</source>
         <translation type="unfinished">La parte de cadenas compartidas no tiene el formato que este programa modifica.</translation>
@@ -80776,7 +80788,7 @@ No se pudo aplicar la contraseña al archivo.</translation>
     <message>
         <location line="+401"/>
         <location line="+120"/>
-        <location line="+3112"/>
+        <location line="+3144"/>
         <location line="+5"/>
         <location line="+5"/>
         <location line="+5"/>
@@ -80785,18 +80797,18 @@ No se pudo aplicar la contraseña al archivo.</translation>
         <translation type="unfinished">La parte del libro no tiene el formato que este programa modifica.</translation>
     </message>
     <message>
-        <location line="-2463"/>
+        <location line="-2495"/>
         <source>The workbook was not opened from a file this program can save over.</source>
         <translation type="unfinished">El libro no se abrió desde un archivo que este programa pueda sobrescribir.</translation>
     </message>
     <message>
         <location line="+799"/>
-        <location line="+1781"/>
+        <location line="+1850"/>
         <source>The file this workbook was opened from is damaged.</source>
         <translation type="unfinished">El archivo desde el que se abrió este libro está dañado.</translation>
     </message>
     <message>
-        <location line="-2570"/>
+        <location line="-2639"/>
         <location line="+461"/>
         <location line="+277"/>
         <location line="+71"/>
@@ -80809,7 +80821,7 @@ No se pudo aplicar la contraseña al archivo.</translation>
         <translation type="unfinished">Una hoja modificada no tiene ninguna parte en el archivo.</translation>
     </message>
     <message>
-        <location line="+1263"/>
+        <location line="+1294"/>
         <source>The shared strings part is not in the file.</source>
         <translation type="unfinished">La parte de cadenas compartidas no está en el archivo.</translation>
     </message>
@@ -80824,15 +80836,15 @@ No se pudo aplicar la contraseña al archivo.</translation>
         <translation type="unfinished">Una tabla modificada no tiene ninguna parte en el archivo.</translation>
     </message>
     <message>
-        <location line="-1244"/>
+        <location line="-1275"/>
         <location line="+6"/>
         <location line="+7"/>
-        <location line="+1699"/>
+        <location line="+1768"/>
         <source>A sheet of the file could not be read to be saved.</source>
         <translation type="unfinished">No se pudo leer una hoja del archivo para guardarla.</translation>
     </message>
     <message>
-        <location line="-2558"/>
+        <location line="-2627"/>
         <source>Objects were put on a sheet this program can&apos;t put them on.</source>
         <translation type="unfinished">Se colocaron objetos en una hoja en la que este programa no puede colocarlos.</translation>
     </message>
@@ -80887,7 +80899,7 @@ No se pudo aplicar la contraseña al archivo.</translation>
         <translation type="unfinished">Las filas y columnas de una hoja se han modificado demasiadas veces para poder guardarse.</translation>
     </message>
     <message>
-        <location line="+294"/>
+        <location line="+325"/>
         <location line="+146"/>
         <location line="+79"/>
         <location line="+56"/>
@@ -81007,7 +81019,7 @@ No se pudo aplicar la contraseña al archivo.</translation>
         <translation type="unfinished">Las relaciones del libro no tienen el formato que este programa modifica.</translation>
     </message>
     <message>
-        <location line="+70"/>
+        <location line="+71"/>
         <source>The workbook&apos;s protection could not be saved.</source>
         <translation type="unfinished">No se pudo guardar la protección del libro.</translation>
     </message>
@@ -81017,7 +81029,7 @@ No se pudo aplicar la contraseña al archivo.</translation>
         <translation type="unfinished">No se pudieron guardar las vistas personalizadas del libro.</translation>
     </message>
     <message>
-        <location line="+166"/>
+        <location line="+203"/>
         <source>The sheet that was copied could not be read again.</source>
         <translation type="unfinished">No se pudo volver a leer la hoja copiada.</translation>
     </message>

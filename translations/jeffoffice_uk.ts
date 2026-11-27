@@ -26928,7 +26928,7 @@ Source: %3</source>
     </message>
     <message>
         <location line="+9"/>
-        <location filename="../apps/crunch/app/crunchwindow_charts.cpp" line="+1009"/>
+        <location filename="../apps/crunch/app/crunchwindow_charts.cpp" line="+1021"/>
         <location filename="../apps/crunch/app/crunchwindow_file.cpp" line="-494"/>
         <location line="+112"/>
         <location line="+77"/>
@@ -27019,7 +27019,7 @@ Source: %3</source>
     </message>
     <message>
         <location line="+1"/>
-        <location filename="../apps/crunch/app/crunchwindow_charts.cpp" line="-864"/>
+        <location filename="../apps/crunch/app/crunchwindow_charts.cpp" line="-876"/>
         <source>Save as Template…</source>
         <translation type="unfinished">Зберегти як шаблон…</translation>
     </message>
@@ -27443,7 +27443,7 @@ Source: %3</source>
     </message>
     <message>
         <location line="+11"/>
-        <location filename="../apps/crunch/app/crunchwindow_charts.cpp" line="+346"/>
+        <location filename="../apps/crunch/app/crunchwindow_charts.cpp" line="+355"/>
         <source>Rename Object</source>
         <translation type="unfinished">Перейменувати об&apos;єкт</translation>
     </message>
@@ -27490,7 +27490,7 @@ Source: %3</source>
         <translation type="unfinished">Обчислення зупинено</translation>
     </message>
     <message>
-        <location line="+16"/>
+        <location line="+20"/>
         <source>Close the window when Goal Seek or the Scenario Summary is done.</source>
         <translation type="unfinished">Закрийте вікно після завершення Підбору параметра або Диспетчера сценаріїв.</translation>
     </message>
@@ -27737,7 +27737,7 @@ Source: %3</source>
         <translation type="unfinished"> або більше</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow.cpp" line="-763"/>
+        <location filename="../apps/crunch/app/crunchwindow.cpp" line="-767"/>
         <location filename="../apps/crunch/app/crunchwindow_calc.cpp" line="-160"/>
         <location filename="../apps/crunch/app/crunchwindow_format.cpp" line="+1028"/>
         <location filename="../apps/crunch/app/crunchwindow_page.cpp" line="+196"/>
@@ -27979,9 +27979,10 @@ Source: %3</source>
         <location line="+121"/>
         <location line="+29"/>
         <location line="+11"/>
-        <location filename="../apps/crunch/app/crunchwindow_charts.cpp" line="-339"/>
-        <location line="+871"/>
+        <location filename="../apps/crunch/app/crunchwindow_charts.cpp" line="-348"/>
+        <location line="+883"/>
         <location filename="../apps/crunch/app/crunchwindow_drawings.cpp" line="+191"/>
+        <location line="+11"/>
         <location line="+11"/>
         <location line="+6"/>
         <location line="+13"/>
@@ -28267,7 +28268,7 @@ Source: %3</source>
     </message>
     <message>
         <location line="+1"/>
-        <location filename="../apps/crunch/app/crunchwindow_charts.cpp" line="-961"/>
+        <location filename="../apps/crunch/app/crunchwindow_charts.cpp" line="-973"/>
         <location filename="../apps/crunch/app/crunchwindow_ops.cpp" line="+405"/>
         <source>Columns</source>
         <translation>Стовпці</translation>
@@ -28516,30 +28517,30 @@ Source: %3</source>
     </message>
     <message>
         <location line="+1"/>
-        <location line="+1050"/>
+        <location line="+1066"/>
         <source>Bring to Front</source>
         <translation type="unfinished">Перемістити на передній план</translation>
     </message>
     <message>
-        <location line="-1049"/>
-        <location line="+1049"/>
+        <location line="-1065"/>
+        <location line="+1065"/>
         <source>Bring Forward</source>
         <translation type="unfinished">Перемістити вперед</translation>
     </message>
     <message>
-        <location line="-1048"/>
-        <location line="+1048"/>
+        <location line="-1064"/>
+        <location line="+1064"/>
         <source>Send Backward</source>
         <translation type="unfinished">Перемістити назад</translation>
     </message>
     <message>
-        <location line="-1047"/>
-        <location line="+1047"/>
+        <location line="-1063"/>
+        <location line="+1063"/>
         <source>Send to Back</source>
         <translation type="unfinished">Перемістити на задній план</translation>
     </message>
     <message>
-        <location line="-957"/>
+        <location line="-973"/>
         <location line="+4"/>
         <location line="+4"/>
         <location line="+7"/>
@@ -28580,12 +28581,12 @@ Source: %3</source>
         <translation type="unfinished">Рекомендовані діаграми</translation>
     </message>
     <message>
-        <location line="+35"/>
+        <location line="+40"/>
         <source>Move or Size Object</source>
         <translation type="unfinished">Переміщення або зміна розміру об&apos;єкта</translation>
     </message>
     <message>
-        <location line="+48"/>
+        <location line="+52"/>
         <location line="+4"/>
         <location line="+6"/>
         <source>Save as Picture</source>
@@ -28832,7 +28833,7 @@ Source: %3</source>
         <translation type="unfinished">Ряди</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow_charts.cpp" line="+133"/>
+        <location filename="../apps/crunch/app/crunchwindow_charts.cpp" line="+136"/>
         <source>Format Control…</source>
         <translation type="unfinished">Керування форматом…</translation>
     </message>
@@ -28851,17 +28852,22 @@ Source: %3</source>
     </message>
     <message>
         <location line="+6"/>
-        <location line="+142"/>
+        <location line="+146"/>
         <source>Order</source>
         <translation>Порядок</translation>
     </message>
     <message>
-        <location line="-127"/>
+        <location line="-131"/>
         <source>Chart Parts</source>
         <translation type="unfinished">Частини діаграми</translation>
     </message>
     <message>
-        <location line="+50"/>
+        <location line="+17"/>
+        <source>A slicer can&apos;t be cut or copied yet.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+37"/>
         <source>Chart</source>
         <translation type="unfinished">Діаграма</translation>
     </message>
@@ -30257,7 +30263,7 @@ The file that was there is as it was.</source>
         <translation type="unfinished">Рамки</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow_drawings.cpp" line="-241"/>
+        <location filename="../apps/crunch/app/crunchwindow_drawings.cpp" line="-252"/>
         <source>Delete Objects</source>
         <translation type="unfinished">Видалити об&apos;єкти</translation>
     </message>
@@ -30288,6 +30294,11 @@ The file that was there is as it was.</source>
     </message>
     <message>
         <location line="+20"/>
+        <source>Delete Slicer</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+11"/>
         <source>Delete Form Control</source>
         <translation type="unfinished">Видалити елемент керування формою</translation>
     </message>
@@ -34053,12 +34064,12 @@ This file is protected with a password. Password:</source>
     </message>
     <message>
         <location line="+1"/>
-        <location line="+834"/>
+        <location line="+864"/>
         <source>Slicers</source>
         <translation type="unfinished">Зрізи</translation>
     </message>
     <message>
-        <location line="-833"/>
+        <location line="-863"/>
         <source>Value Field Settings…</source>
         <translation type="unfinished">Параметри полів значень…</translation>
     </message>
@@ -34484,12 +34495,13 @@ This file is protected with a password. Password:</source>
     </message>
     <message>
         <location line="+12"/>
-        <location line="+14"/>
+        <location line="+10"/>
+        <location line="+32"/>
         <source>Slicer</source>
         <translation type="unfinished">Зріз</translation>
     </message>
     <message>
-        <location line="+48"/>
+        <location line="+50"/>
         <source>Report Connections</source>
         <translation type="unfinished">Зв&apos;язки звітів</translation>
     </message>
@@ -34906,8 +34918,13 @@ This file is protected with a password. Password:</source>
         <translation type="unfinished">Не збережено: %1 змінено іншою програмою.</translation>
     </message>
     <message>
+        <location line="+111"/>
+        <source>Saved %1. Rows, columns, cells, and objects deleted before this save can&apos;t be undone now, nor can what you did before that.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <location filename="../apps/crunch/app/crunchwindow_copy.cpp" line="-177"/>
-        <location filename="../apps/crunch/app/crunchwindow_save.cpp" line="+52"/>
+        <location filename="../apps/crunch/app/crunchwindow_save.cpp" line="-59"/>
         <location filename="../apps/crunch/app/crunchwindow_savecopy.cpp" line="+78"/>
         <location filename="../apps/crunch/app/crunchwindow_versions.cpp" line="-6"/>
         <source>The workbook could not be protected with the password.</source>
@@ -34935,11 +34952,6 @@ This file is protected with a password. Password:</source>
         <location line="+0"/>
         <source>Some versions kept before couldn&apos;t be given the new password, and stay as they were.</source>
         <translation type="unfinished">Деяким раніше збереженим версіям не вдалося присвоїти новий пароль, тому вони залишилися без змін.</translation>
-    </message>
-    <message>
-        <location line="+10"/>
-        <source>Saved %1. Rows, columns, and cells deleted before this save can&apos;t be undone now, nor can what you did before that.</source>
-        <translation type="unfinished">Збережено %1. Рядки, стовпці й комірки, видалені до цього збереження, тепер не можна відмінити, як і дії, виконані раніше.</translation>
     </message>
     <message>
         <location filename="../apps/crunch/app/crunchwindow_savecopy.cpp" line="-93"/>
@@ -57513,7 +57525,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
 <context>
     <name>jp::PivotCreateDialog</name>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow_pivot.cpp" line="-1217"/>
+        <location filename="../apps/crunch/app/crunchwindow_pivot.cpp" line="-1247"/>
         <source>Create Pivot Table</source>
         <translation type="unfinished">Створити зведену таблицю</translation>
     </message>
@@ -73113,12 +73125,12 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished">Підгонка висоти рядків за вмістом</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/core/editslicer.cpp" line="+20"/>
+        <location filename="../apps/crunch/core/editslicer.cpp" line="+21"/>
         <source>(blank)</source>
         <translation type="unfinished">(порожньо)</translation>
     </message>
     <message>
-        <location line="+236"/>
+        <location line="+263"/>
         <location line="+24"/>
         <source>This slicer can&apos;t be used.</source>
         <translation type="unfinished">Цей зріз не можна використовувати.</translation>
@@ -78378,7 +78390,7 @@ The password couldn&apos;t be put on the file.</source>
 <context>
     <name>jp::crunch::SheetObjects</name>
     <message>
-        <location filename="../apps/crunch/core/sheetobjects.cpp" line="+469"/>
+        <location filename="../apps/crunch/core/sheetobjects.cpp" line="+484"/>
         <source>a drawing that could not be read (%1)</source>
         <translation type="unfinished">креслення, яке не вдалося прочитати (%1)</translation>
     </message>
@@ -78427,7 +78439,7 @@ The password couldn&apos;t be put on the file.</source>
         </translation>
     </message>
     <message>
-        <location line="+487"/>
+        <location line="+501"/>
         <source>The pictures that stand for equations come to more than %1, so the equations past that are saved as math alone.</source>
         <translation type="unfinished">Малюнки, що позначають рівняння, перевищують %1, тому рівняння понад цю кількість зберігаються лише як математичні формули.</translation>
     </message>
@@ -78437,7 +78449,7 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished">Діаграми, створені або змінені тут після останнього збереження, уже містять стільки чисел, скільки зберігає JeffCrunch (%1). Спершу збережіть книгу.</translation>
     </message>
     <message>
-        <location line="+64"/>
+        <location line="+69"/>
         <source>Chart</source>
         <translation type="unfinished">Діаграма</translation>
     </message>
@@ -78452,7 +78464,7 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished">Фігура</translation>
     </message>
     <message>
-        <location line="+209"/>
+        <location line="+215"/>
         <source>a shape whose link to a cell can&apos;t be used (it must be one cell)</source>
         <translation type="unfinished">фігура, посилання якої на комірку неможливе (має бути одна комірка)</translation>
     </message>
@@ -78650,7 +78662,7 @@ The password couldn&apos;t be put on the file.</source>
 <context>
     <name>jp::crunch::Slicer</name>
     <message>
-        <location filename="../apps/crunch/core/slicerpaint.cpp" line="+139"/>
+        <location filename="../apps/crunch/core/slicerpaint.cpp" line="+173"/>
         <source>More items: %1 (%2 chosen)</source>
         <translation type="unfinished">Ще елементів: %1 (вибрано: %2)</translation>
     </message>
@@ -80886,8 +80898,8 @@ The password couldn&apos;t be put on the file.</source>
         <location line="+96"/>
         <location line="+25"/>
         <location filename="../libs/office/sheet/xlsxsave.cpp" line="+2753"/>
-        <location line="+1675"/>
-        <location line="+61"/>
+        <location line="+1742"/>
+        <location line="+63"/>
         <source>The save was stopped.</source>
         <translation type="unfinished">Збереження зупинено.</translation>
     </message>
@@ -80947,7 +80959,7 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished">Діаграми аркуша змінилися під час збереження книги.</translation>
     </message>
     <message>
-        <location filename="../libs/office/sheet/xlsxsave.cpp" line="-4266"/>
+        <location filename="../libs/office/sheet/xlsxsave.cpp" line="-4335"/>
         <location line="+21"/>
         <source>The shared strings part is not in the form this program changes.</source>
         <translation type="unfinished">Частина спільних рядків має форму, яку ця програма не змінює.</translation>
@@ -80960,7 +80972,7 @@ The password couldn&apos;t be put on the file.</source>
     <message>
         <location line="+401"/>
         <location line="+120"/>
-        <location line="+3112"/>
+        <location line="+3144"/>
         <location line="+5"/>
         <location line="+5"/>
         <location line="+5"/>
@@ -80969,7 +80981,7 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished">Частина книги має форму, яку ця програма не змінює.</translation>
     </message>
     <message>
-        <location line="-2463"/>
+        <location line="-2495"/>
         <source>The workbook was not opened from a file this program can save over.</source>
         <translation type="unfinished">Книгу не було відкрито з файла, поверх якого ця програма може зберегти.</translation>
     </message>
@@ -81033,12 +81045,12 @@ The password couldn&apos;t be put on the file.</source>
     </message>
     <message>
         <location line="+46"/>
-        <location line="+1781"/>
+        <location line="+1850"/>
         <source>The file this workbook was opened from is damaged.</source>
         <translation type="unfinished">Файл, з якого було відкрито цю книгу, пошкоджено.</translation>
     </message>
     <message>
-        <location line="-1753"/>
+        <location line="-1822"/>
         <source>A sheet that changed has no part in the file.</source>
         <translation type="unfinished">Змінений аркуш не має частини у файлі.</translation>
     </message>
@@ -81051,12 +81063,12 @@ The password couldn&apos;t be put on the file.</source>
         <location line="+16"/>
         <location line="+6"/>
         <location line="+7"/>
-        <location line="+1699"/>
+        <location line="+1768"/>
         <source>A sheet of the file could not be read to be saved.</source>
         <translation type="unfinished">Аркуш файлу не вдалося прочитати для збереження.</translation>
     </message>
     <message>
-        <location line="-1470"/>
+        <location line="-1508"/>
         <location line="+1275"/>
         <location line="+5"/>
         <source>The workbook&apos;s relationships are not in the form this program changes.</source>
@@ -81191,7 +81203,7 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished">Зв&apos;язків книги немає у файлі.</translation>
     </message>
     <message>
-        <location line="+98"/>
+        <location line="+99"/>
         <source>The workbook&apos;s protection could not be saved.</source>
         <translation type="unfinished">Захист книги не вдалося зберегти.</translation>
     </message>
@@ -81201,7 +81213,7 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished">Користувацькі вигляди книги не вдалося зберегти.</translation>
     </message>
     <message>
-        <location line="+166"/>
+        <location line="+203"/>
         <source>The sheet that was copied could not be read again.</source>
         <translation type="unfinished">Скопійований аркуш не вдалося прочитати повторно.</translation>
     </message>

@@ -26863,7 +26863,7 @@ Quelle: %3</translation>
     </message>
     <message>
         <location line="+9"/>
-        <location filename="../apps/crunch/app/crunchwindow_charts.cpp" line="+1009"/>
+        <location filename="../apps/crunch/app/crunchwindow_charts.cpp" line="+1021"/>
         <location filename="../apps/crunch/app/crunchwindow_file.cpp" line="-494"/>
         <location line="+112"/>
         <location line="+77"/>
@@ -27012,12 +27012,12 @@ Quelle: %3</translation>
         <translation type="unfinished">Dieser Text ist zu lang zum Einfügen. Kopieren Sie weniger davon und versuchen Sie es erneut.</translation>
     </message>
     <message>
-        <location line="+44"/>
+        <location line="+48"/>
         <source>Close the window when Goal Seek or the Scenario Summary is done.</source>
         <translation type="unfinished">Fenster schließen, wenn Zielwertsuche oder Szenario-Übersicht fertig ist.</translation>
     </message>
     <message>
-        <location line="-843"/>
+        <location line="-847"/>
         <location filename="../apps/crunch/app/crunchwindow_file.cpp" line="-287"/>
         <location filename="../apps/crunch/app/crunchwindow_objectformat.cpp" line="+1302"/>
         <location filename="../apps/crunch/app/crunchwindow_themes.cpp" line="+39"/>
@@ -27090,7 +27090,7 @@ Quelle: %3</translation>
     </message>
     <message>
         <location line="+4"/>
-        <location filename="../apps/crunch/app/crunchwindow_charts.cpp" line="-864"/>
+        <location filename="../apps/crunch/app/crunchwindow_charts.cpp" line="-876"/>
         <source>Save as Template…</source>
         <translation type="unfinished">Als Vorlage speichern…</translation>
     </message>
@@ -27288,12 +27288,12 @@ Quelle: %3</translation>
     </message>
     <message>
         <location line="+11"/>
-        <location filename="../apps/crunch/app/crunchwindow_charts.cpp" line="+346"/>
+        <location filename="../apps/crunch/app/crunchwindow_charts.cpp" line="+355"/>
         <source>Rename Object</source>
         <translation type="unfinished">Objekt umbenennen</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow_charts.cpp" line="-383"/>
+        <location filename="../apps/crunch/app/crunchwindow_charts.cpp" line="-392"/>
         <source>More Charts…</source>
         <translation type="unfinished">Weitere Diagramme…</translation>
     </message>
@@ -27341,30 +27341,30 @@ Quelle: %3</translation>
     </message>
     <message>
         <location line="+1"/>
-        <location line="+1050"/>
+        <location line="+1066"/>
         <source>Bring to Front</source>
         <translation type="unfinished">In den Vordergrund</translation>
     </message>
     <message>
-        <location line="-1049"/>
-        <location line="+1049"/>
+        <location line="-1065"/>
+        <location line="+1065"/>
         <source>Bring Forward</source>
         <translation type="unfinished">Eine Ebene nach vorne</translation>
     </message>
     <message>
-        <location line="-1048"/>
-        <location line="+1048"/>
+        <location line="-1064"/>
+        <location line="+1064"/>
         <source>Send Backward</source>
         <translation type="unfinished">Eine Ebene nach hinten</translation>
     </message>
     <message>
-        <location line="-1047"/>
-        <location line="+1047"/>
+        <location line="-1063"/>
+        <location line="+1063"/>
         <source>Send to Back</source>
         <translation type="unfinished">In den Hintergrund</translation>
     </message>
     <message>
-        <location line="-957"/>
+        <location line="-973"/>
         <location line="+4"/>
         <location line="+4"/>
         <location line="+7"/>
@@ -27399,12 +27399,12 @@ Quelle: %3</translation>
         <translation type="unfinished">Diagramm eingefügt</translation>
     </message>
     <message>
-        <location line="+81"/>
+        <location line="+86"/>
         <source>Move or Size Object</source>
         <translation type="unfinished">Objekt verschieben oder Größe ändern</translation>
     </message>
     <message>
-        <location line="+147"/>
+        <location line="+151"/>
         <source>Print Object</source>
         <translation type="unfinished">Objekt drucken</translation>
     </message>
@@ -27421,7 +27421,7 @@ Quelle: %3</translation>
         <translation type="unfinished">Eigenschaften</translation>
     </message>
     <message>
-        <location line="-424"/>
+        <location line="-433"/>
         <location line="+21"/>
         <source>Radar</source>
         <translation type="unfinished">Netz</translation>
@@ -27498,7 +27498,7 @@ Quelle: %3</translation>
         <translation type="unfinished">Empfohlene Diagramme</translation>
     </message>
     <message>
-        <location line="+83"/>
+        <location line="+92"/>
         <location line="+4"/>
         <location line="+6"/>
         <source>Save as Picture</source>
@@ -27676,7 +27676,7 @@ Quelle: %3</translation>
         <translation>Unten</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow_charts.cpp" line="+388"/>
+        <location filename="../apps/crunch/app/crunchwindow_charts.cpp" line="+391"/>
         <source>Format Control…</source>
         <translation type="unfinished">Steuerelement formatieren…</translation>
     </message>
@@ -27695,17 +27695,22 @@ Quelle: %3</translation>
     </message>
     <message>
         <location line="+6"/>
-        <location line="+142"/>
+        <location line="+146"/>
         <source>Order</source>
         <translation>Reihenfolge</translation>
     </message>
     <message>
-        <location line="-127"/>
+        <location line="-131"/>
         <source>Chart Parts</source>
         <translation type="unfinished">Diagrammteile</translation>
     </message>
     <message>
-        <location line="+50"/>
+        <location line="+17"/>
+        <source>A slicer can&apos;t be cut or copied yet.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+37"/>
         <source>Shape</source>
         <translation type="unfinished">Form</translation>
     </message>
@@ -29506,9 +29511,10 @@ Quelle: %3</translation>
         <location line="+121"/>
         <location line="+29"/>
         <location line="+11"/>
-        <location filename="../apps/crunch/app/crunchwindow_charts.cpp" line="-1018"/>
-        <location line="+871"/>
+        <location filename="../apps/crunch/app/crunchwindow_charts.cpp" line="-1034"/>
+        <location line="+883"/>
         <location filename="../apps/crunch/app/crunchwindow_drawings.cpp" line="+191"/>
+        <location line="+11"/>
         <location line="+11"/>
         <location line="+6"/>
         <location line="+13"/>
@@ -29783,7 +29789,7 @@ Quelle: %3</translation>
     </message>
     <message>
         <location line="+1"/>
-        <location filename="../apps/crunch/app/crunchwindow_charts.cpp" line="-961"/>
+        <location filename="../apps/crunch/app/crunchwindow_charts.cpp" line="-973"/>
         <location filename="../apps/crunch/app/crunchwindow_ops.cpp" line="-120"/>
         <source>Columns</source>
         <translation>Spalten</translation>
@@ -30312,7 +30318,7 @@ Quelle: %3</translation>
         <translation type="unfinished">Tabellenname</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow_charts.cpp" line="+1048"/>
+        <location filename="../apps/crunch/app/crunchwindow_charts.cpp" line="+1064"/>
         <location filename="../apps/crunch/app/crunchwindow_embeds.cpp" line="+89"/>
         <location filename="../apps/crunch/app/crunchwindow_pagelayout.cpp" line="+531"/>
         <location line="+9"/>
@@ -31272,8 +31278,13 @@ Die Datei ist nicht vorhanden.</translation>
         <translation type="unfinished">Sie können Ihre Arbeit als Kopie speichern und beide behalten oder die Datei überschreiben.</translation>
     </message>
     <message>
+        <location line="+125"/>
+        <source>Saved %1. Rows, columns, cells, and objects deleted before this save can&apos;t be undone now, nor can what you did before that.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <location filename="../apps/crunch/app/crunchwindow.cpp" line="-803"/>
-        <location filename="../apps/crunch/app/crunchwindow_save.cpp" line="+1"/>
+        <location filename="../apps/crunch/app/crunchwindow_save.cpp" line="-124"/>
         <source>Save a Copy…</source>
         <translation type="unfinished">Kopie speichern…</translation>
     </message>
@@ -31291,11 +31302,6 @@ Die Datei ist nicht vorhanden.</translation>
         <translation type="unfinished">Die Arbeitsmappe konnte nicht mit dem Kennwort geschützt werden.</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow_save.cpp" line="+59"/>
-        <source>Saved %1. Rows, columns, and cells deleted before this save can&apos;t be undone now, nor can what you did before that.</source>
-        <translation type="unfinished">%1 gespeichert. Vor diesem Speichern gelöschte Zeilen, Spalten und Zellen sowie alle vorherigen Aktionen können jetzt nicht mehr rückgängig gemacht werden.</translation>
-    </message>
-    <message>
         <location filename="../apps/crunch/app/crunchwindow_print.cpp" line="-13"/>
         <source>The workbook is still being opened. It can be printed when it is open.</source>
         <translation type="unfinished">Die Arbeitsmappe wird noch geöffnet. Sie kann gedruckt werden, sobald sie geöffnet ist.</translation>
@@ -31306,7 +31312,7 @@ Die Datei ist nicht vorhanden.</translation>
         <location filename="../apps/crunch/app/crunchwindow_file.cpp" line="-427"/>
         <location filename="../apps/crunch/app/crunchwindow_print.cpp" line="+28"/>
         <location filename="../apps/crunch/app/crunchwindow_protect.cpp" line="+68"/>
-        <location filename="../apps/crunch/app/crunchwindow_save.cpp" line="-122"/>
+        <location filename="../apps/crunch/app/crunchwindow_save.cpp" line="-63"/>
         <source>Cancel</source>
         <translation type="unfinished">Abbrechen</translation>
     </message>
@@ -31456,7 +31462,7 @@ The file that was there is as it was.</source>
 Die vorhandene Datei bleibt unverändert.</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow_drawings.cpp" line="-241"/>
+        <location filename="../apps/crunch/app/crunchwindow_drawings.cpp" line="-252"/>
         <source>Delete Objects</source>
         <translation type="unfinished">Objekte löschen</translation>
     </message>
@@ -31487,6 +31493,11 @@ Die vorhandene Datei bleibt unverändert.</translation>
     </message>
     <message>
         <location line="+20"/>
+        <source>Delete Slicer</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+11"/>
         <source>Delete Form Control</source>
         <translation type="unfinished">Steuerelement löschen</translation>
     </message>
@@ -33202,12 +33213,12 @@ Die Datei kann nicht gelesen werden.</translation>
     </message>
     <message>
         <location line="+1"/>
-        <location line="+834"/>
+        <location line="+864"/>
         <source>Slicers</source>
         <translation type="unfinished">Datenschnitte</translation>
     </message>
     <message>
-        <location line="-833"/>
+        <location line="-863"/>
         <source>Value Field Settings…</source>
         <translation type="unfinished">Wertfeldeinstellungen…</translation>
     </message>
@@ -33643,12 +33654,13 @@ Die Datei kann nicht gelesen werden.</translation>
     </message>
     <message>
         <location line="+12"/>
-        <location line="+14"/>
+        <location line="+10"/>
+        <location line="+32"/>
         <source>Slicer</source>
         <translation type="unfinished">Datenschnitt</translation>
     </message>
     <message>
-        <location line="+48"/>
+        <location line="+50"/>
         <source>Report Connections</source>
         <translation type="unfinished">Berichtsverbindungen</translation>
     </message>
@@ -34593,7 +34605,7 @@ Die Datei kann nicht gelesen werden.</translation>
         <translation type="unfinished">Sparklines löschen</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow_charts.cpp" line="-1042"/>
+        <location filename="../apps/crunch/app/crunchwindow_charts.cpp" line="-1058"/>
         <location line="+28"/>
         <location filename="../apps/crunch/app/crunchwindow_insertobjects.cpp" line="-753"/>
         <location filename="../apps/crunch/app/crunchwindow_quick.cpp" line="+3"/>
@@ -57430,7 +57442,7 @@ Ihr Webbrowser öffnet LibreTranslate, einen kostenlosen Open-Source-Übersetzun
 <context>
     <name>jp::PivotCreateDialog</name>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow_pivot.cpp" line="-1217"/>
+        <location filename="../apps/crunch/app/crunchwindow_pivot.cpp" line="-1247"/>
         <source>Create Pivot Table</source>
         <translation type="unfinished">Pivot-Tabelle erstellen</translation>
     </message>
@@ -70757,7 +70769,7 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
         <translation type="unfinished">JeffCrunch kann dies noch nicht berechnen (es wird eine andere Arbeitsmappe, die Spalten einer Tabelle oder eine Funktion verwendet, die JeffCrunch nicht kennt). Daher wird kein Wert angezeigt.</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/core/editslicer.cpp" line="+20"/>
+        <location filename="../apps/crunch/core/editslicer.cpp" line="+21"/>
         <source>(blank)</source>
         <translation type="unfinished">(leer)</translation>
     </message>
@@ -73517,7 +73529,7 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
         <translation type="unfinished">Die Teile würden über die letzte Spalte der Tabelle hinausreichen.</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/core/editslicer.cpp" line="+236"/>
+        <location filename="../apps/crunch/core/editslicer.cpp" line="+263"/>
         <location line="+24"/>
         <source>This slicer can&apos;t be used.</source>
         <translation type="unfinished">Dieser Datenschnitt kann nicht verwendet werden.</translation>
@@ -78270,7 +78282,7 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
 <context>
     <name>jp::crunch::SheetObjects</name>
     <message>
-        <location filename="../apps/crunch/core/sheetobjects.cpp" line="+469"/>
+        <location filename="../apps/crunch/core/sheetobjects.cpp" line="+484"/>
         <source>a drawing that could not be read (%1)</source>
         <translation type="unfinished">eine Zeichnung, die nicht gelesen werden konnte (%1)</translation>
     </message>
@@ -78313,12 +78325,12 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
         </translation>
     </message>
     <message>
-        <location line="+792"/>
+        <location line="+806"/>
         <source>The charts made or changed here since the last save already hold as many numbers as JeffCrunch keeps (%1). Save the workbook first.</source>
         <translation type="unfinished">Die seit dem letzten Speichern erstellten oder geänderten Diagramme enthalten bereits so viele Zahlen, wie JeffCrunch verwaltet (%1). Speichern Sie zuerst die Arbeitsmappe.</translation>
     </message>
     <message>
-        <location line="+64"/>
+        <location line="+69"/>
         <source>Chart</source>
         <translation type="unfinished">Diagramm</translation>
     </message>
@@ -78333,7 +78345,7 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
         <translation type="unfinished">Form</translation>
     </message>
     <message>
-        <location line="+556"/>
+        <location line="+562"/>
         <source>JeffCrunch keeps no more of the objects taken away for Undo after a save.</source>
         <translation type="unfinished">JeffCrunch behält nach dem Speichern keine weiteren Objekte mehr, die für Rückgängig entfernt wurden.</translation>
     </message>
@@ -78372,17 +78384,17 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
         <translation type="unfinished">%1 neue Objekte sind die Höchstzahl, die JeffCrunch auf einmal speichert. Speichern Sie die Arbeitsmappe, und fügen Sie dann weitere hinzu.</translation>
     </message>
     <message>
-        <location line="-2315"/>
+        <location line="-2340"/>
         <source>a diagram that could not be shown</source>
         <translation type="unfinished">ein Diagramm, das nicht angezeigt werden konnte</translation>
     </message>
     <message>
-        <location line="+1035"/>
+        <location line="+1049"/>
         <source>The pictures that stand for equations come to more than %1, so the equations past that are saved as math alone.</source>
         <translation type="unfinished">Die Bilder, die Gleichungen darstellen, übersteigen %1, daher werden die darüber hinausgehenden Gleichungen nur als reine Mathematik gespeichert.</translation>
     </message>
     <message>
-        <location line="+578"/>
+        <location line="+589"/>
         <source>a shape whose link to a cell can&apos;t be used (it must be one cell)</source>
         <translation type="unfinished">Eine Form, deren Verknüpfung mit einer Zelle nicht verwendet werden kann (sie muss genau eine Zelle umfassen)</translation>
     </message>
@@ -78539,7 +78551,7 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
 <context>
     <name>jp::crunch::Slicer</name>
     <message>
-        <location filename="../apps/crunch/core/slicerpaint.cpp" line="+139"/>
+        <location filename="../apps/crunch/core/slicerpaint.cpp" line="+173"/>
         <source>More items: %1 (%2 chosen)</source>
         <translation type="unfinished">Weitere Elemente: %1 (%2 ausgewählt)</translation>
     </message>
@@ -80729,8 +80741,8 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
         <location line="+96"/>
         <location line="+25"/>
         <location filename="../libs/office/sheet/xlsxsave.cpp" line="+2753"/>
-        <location line="+1675"/>
-        <location line="+61"/>
+        <location line="+1742"/>
+        <location line="+63"/>
         <source>The save was stopped.</source>
         <translation type="unfinished">Das Speichern wurde abgebrochen.</translation>
     </message>
@@ -80763,7 +80775,7 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
         <translation type="unfinished">Das Tabellenblatt konnte nicht gespeichert werden.</translation>
     </message>
     <message>
-        <location filename="../libs/office/sheet/xlsxsave.cpp" line="-4266"/>
+        <location filename="../libs/office/sheet/xlsxsave.cpp" line="-4335"/>
         <location line="+21"/>
         <source>The shared strings part is not in the form this program changes.</source>
         <translation type="unfinished">Der Teil mit den gemeinsamen Zeichenfolgen liegt nicht in der Form vor, die dieses Programm ändert.</translation>
@@ -80776,7 +80788,7 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
     <message>
         <location line="+401"/>
         <location line="+120"/>
-        <location line="+3112"/>
+        <location line="+3144"/>
         <location line="+5"/>
         <location line="+5"/>
         <location line="+5"/>
@@ -80785,18 +80797,18 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
         <translation type="unfinished">Der Arbeitsmappenteil liegt nicht in der Form vor, die dieses Programm ändert.</translation>
     </message>
     <message>
-        <location line="-2463"/>
+        <location line="-2495"/>
         <source>The workbook was not opened from a file this program can save over.</source>
         <translation type="unfinished">Die Arbeitsmappe wurde nicht aus einer Datei geöffnet, die dieses Programm überschreiben kann.</translation>
     </message>
     <message>
         <location line="+799"/>
-        <location line="+1781"/>
+        <location line="+1850"/>
         <source>The file this workbook was opened from is damaged.</source>
         <translation type="unfinished">Die Datei, aus der diese Arbeitsmappe geöffnet wurde, ist beschädigt.</translation>
     </message>
     <message>
-        <location line="-2570"/>
+        <location line="-2639"/>
         <location line="+461"/>
         <location line="+277"/>
         <location line="+71"/>
@@ -80809,7 +80821,7 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
         <translation type="unfinished">Ein geändertes Tabellenblatt hat keinen Teil in der Datei.</translation>
     </message>
     <message>
-        <location line="+1263"/>
+        <location line="+1294"/>
         <source>The shared strings part is not in the file.</source>
         <translation type="unfinished">Der Teil mit den gemeinsamen Zeichenfolgen fehlt in der Datei.</translation>
     </message>
@@ -80824,15 +80836,15 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
         <translation type="unfinished">Eine geänderte Tabelle hat keinen Teil in der Datei.</translation>
     </message>
     <message>
-        <location line="-1244"/>
+        <location line="-1275"/>
         <location line="+6"/>
         <location line="+7"/>
-        <location line="+1699"/>
+        <location line="+1768"/>
         <source>A sheet of the file could not be read to be saved.</source>
         <translation type="unfinished">Ein Tabellenblatt der Datei konnte zum Speichern nicht gelesen werden.</translation>
     </message>
     <message>
-        <location line="-2558"/>
+        <location line="-2627"/>
         <source>Objects were put on a sheet this program can&apos;t put them on.</source>
         <translation type="unfinished">Objekte wurden auf einem Tabellenblatt platziert, auf dem dieses Programm sie nicht platzieren kann.</translation>
     </message>
@@ -80887,7 +80899,7 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
         <translation type="unfinished">Die Zeilen und Spalten eines Blatts wurden zu oft geändert, um gespeichert werden zu können.</translation>
     </message>
     <message>
-        <location line="+294"/>
+        <location line="+325"/>
         <location line="+146"/>
         <location line="+79"/>
         <location line="+56"/>
@@ -81007,7 +81019,7 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
         <translation type="unfinished">Die Beziehungen der Arbeitsmappe liegen nicht in der Form vor, die dieses Programm ändern kann.</translation>
     </message>
     <message>
-        <location line="+70"/>
+        <location line="+71"/>
         <source>The workbook&apos;s protection could not be saved.</source>
         <translation type="unfinished">Der Schutz der Arbeitsmappe konnte nicht gespeichert werden.</translation>
     </message>
@@ -81017,7 +81029,7 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
         <translation type="unfinished">Die benutzerdefinierten Ansichten der Arbeitsmappe konnten nicht gespeichert werden.</translation>
     </message>
     <message>
-        <location line="+166"/>
+        <location line="+203"/>
         <source>The sheet that was copied could not be read again.</source>
         <translation type="unfinished">Das kopierte Tabellenblatt konnte nicht erneut gelesen werden.</translation>
     </message>
