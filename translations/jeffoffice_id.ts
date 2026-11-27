@@ -17190,7 +17190,7 @@ Buka di program email Anda, tambahkan penerima, lalu kirim.</translation>
         <translation type="unfinished">File ini adalah file majemuk, tetapi tidak memiliki buku kerja di dalamnya.</translation>
     </message>
     <message>
-        <location line="+1323"/>
+        <location line="+1329"/>
         <location filename="../libs/office/sheet/xls.cpp" line="+763"/>
         <source>There is no such sheet.</source>
         <translation type="unfinished">Lembar tersebut tidak ada.</translation>
@@ -34416,7 +34416,7 @@ Berkas ini dilindungi kata sandi. Kata sandi:</translation>
         <translation type="unfinished">Menyimpan salinan sebagai %1…</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow_sheets.cpp" line="+46"/>
+        <location filename="../apps/crunch/app/crunchwindow_sheets.cpp" line="+50"/>
         <location line="+128"/>
         <source>Insert Sheet</source>
         <translation type="unfinished">Sisipkan Lembar</translation>
@@ -34447,40 +34447,41 @@ Berkas ini dilindungi kata sandi. Kata sandi:</translation>
     </message>
     <message>
         <location line="+1"/>
-        <location line="+230"/>
+        <location line="+361"/>
         <location line="+8"/>
         <source>Hide Sheet</source>
         <translation type="unfinished">Sembunyikan Lembar</translation>
     </message>
     <message>
-        <location line="-237"/>
-        <location line="+250"/>
+        <location line="-368"/>
+        <location line="+381"/>
         <location line="+4"/>
         <location line="+63"/>
         <source>Tab Color</source>
         <translation type="unfinished">Warna Tab</translation>
     </message>
     <message>
-        <location line="-316"/>
-        <location line="+295"/>
+        <location line="-447"/>
+        <location line="+426"/>
         <location line="+27"/>
         <source>Unhide Sheet</source>
         <translation type="unfinished">Tampilkan Lembar</translation>
     </message>
     <message>
-        <location line="-315"/>
+        <location line="-446"/>
         <location line="+1"/>
         <source>New sheet</source>
         <translation>Lembar baru</translation>
     </message>
     <message>
         <location line="+83"/>
-        <location line="+116"/>
+        <location line="+174"/>
+        <location line="+15"/>
         <source>Move Sheet</source>
         <translation type="unfinished">Pindahkan Lembar</translation>
     </message>
     <message>
-        <location line="-71"/>
+        <location line="-144"/>
         <source>A workbook must have at least one sheet that is shown. Show another sheet, or add one, and then delete these.</source>
         <translation type="unfinished">Buku kerja harus memiliki setidaknya satu lembar yang ditampilkan. Tampilkan lembar lain, atau tambahkan satu, lalu hapus lembar ini.</translation>
     </message>
@@ -34500,7 +34501,7 @@ Berkas ini dilindungi kata sandi. Kata sandi:</translation>
         <translation type="unfinished">Hapus Lembar</translation>
     </message>
     <message>
-        <location line="+22"/>
+        <location line="+26"/>
         <source>Move or Copy Sheets</source>
         <translation type="unfinished">Pindahkan atau Salin Lembar</translation>
     </message>
@@ -34530,7 +34531,22 @@ Berkas ini dilindungi kata sandi. Kata sandi:</translation>
         <translation type="unfinished">&amp;Salin, dan biarkan aslinya tetap di tempatnya</translation>
     </message>
     <message>
-        <location line="+14"/>
+        <location line="+11"/>
+        <source>&amp;To workbook</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>(this workbook)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+12"/>
+        <source>That workbook has been closed.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+40"/>
         <source>Copy Sheets</source>
         <translation type="unfinished">Salin Lembar</translation>
     </message>
@@ -34542,11 +34558,61 @@ Berkas ini dilindungi kata sandi. Kata sandi:</translation>
     <message>
         <location line="+7"/>
         <location line="+3"/>
+        <location line="+17"/>
+        <location line="+4"/>
+        <location line="+9"/>
+        <location line="+16"/>
+        <location line="+8"/>
         <source>Copy Sheet</source>
         <translation type="unfinished">Salin Lembar</translation>
     </message>
     <message>
-        <location line="+18"/>
+        <location line="-42"/>
+        <source>Moving a sheet to another workbook is not done yet. Choose Copy, and then delete the sheet here if you do not need it.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>The other workbook was closed, so nothing was copied.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>The other workbook can&apos;t be changed now. It may be open for reading only, or still opening.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+15"/>
+        <source>Copy Sheets to Another Workbook</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Copy Sheet to Another Workbook</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+33"/>
+        <source>pictures and charts</source>
+        <translation type="unfinished">gambar dan bagan</translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>shapes, text boxes, and lines</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>diagrams</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>other objects over the cells</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+17"/>
         <source>A workbook must have at least one sheet that is shown.</source>
         <translation type="unfinished">Buku kerja harus memiliki setidaknya satu lembar yang ditampilkan.</translation>
     </message>
@@ -70940,12 +71006,13 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
         <location line="+1"/>
         <location filename="../apps/crunch/core/editsession.cpp" line="-753"/>
         <location filename="../apps/crunch/core/editsheets.cpp" line="+94"/>
-        <location line="+279"/>
+        <location line="+287"/>
         <location filename="../apps/crunch/core/editsize.cpp" line="+294"/>
         <location filename="../apps/crunch/core/editstruct.cpp" line="+230"/>
         <location filename="../apps/crunch/core/edittables.cpp" line="+410"/>
         <location line="+89"/>
         <location line="+127"/>
+        <location filename="../apps/crunch/core/sheettransfer.cpp" line="+371"/>
         <source>The workbook is busy. Try again in a moment.</source>
         <translation type="unfinished">Buku kerja sedang sibuk. Coba lagi sebentar lagi.</translation>
     </message>
@@ -71802,11 +71869,13 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
         <translation type="unfinished">%1 Utas yang tersisa tidak ditempel.</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/core/editlinks.cpp" line="+325"/>
+        <location filename="../apps/crunch/core/editlinks.cpp" line="+326"/>
         <location filename="../apps/crunch/core/editpaste.cpp" line="-444"/>
         <location line="+185"/>
         <location filename="../apps/crunch/core/editrecommend.cpp" line="+18"/>
         <location filename="../apps/crunch/core/editsession.cpp" line="-14"/>
+        <location filename="../apps/crunch/core/sheettransfer.cpp" line="-66"/>
+        <location line="+80"/>
         <source>The workbook is still being opened. It can be changed when it is open.</source>
         <translation type="unfinished">Buku kerja masih dibuka. Buku kerja dapat diubah setelah terbuka.</translation>
     </message>
@@ -72596,7 +72665,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
         <translation type="unfinished">Lembar ini tidak memiliki sel untuk dilindungi.</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/core/editsheets.cpp" line="-469"/>
+        <location filename="../apps/crunch/core/editsheets.cpp" line="-477"/>
         <source>A sheet&apos;s name can&apos;t be empty.</source>
         <translation type="unfinished">Nama lembar tidak boleh kosong.</translation>
     </message>
@@ -72636,7 +72705,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
         <translation type="unfinished">Buku kerja dapat memiliki hingga %1 lembar, dan buku kerja ini sudah memiliki jumlah tersebut. Hapus satu lembar, lalu coba lagi.</translation>
     </message>
     <message>
-        <location line="+34"/>
+        <location line="+41"/>
         <location line="+0"/>
         <source>pictures and charts</source>
         <translation type="unfinished">gambar dan bagan</translation>
@@ -72646,6 +72715,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
         <location line="+0"/>
         <location line="+1"/>
         <location line="+0"/>
+        <location filename="../apps/crunch/core/sheettransfer.cpp" line="-106"/>
         <source>notes</source>
         <translation type="unfinished">catatan</translation>
     </message>
@@ -72698,12 +72768,12 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
         <translation type="unfinished">nama yang hanya milik lembar ini (misalnya area cetak)</translation>
     </message>
     <message>
-        <location line="+4"/>
+        <location line="-42"/>
         <source>The copy does not have the %1: those are not copied yet.</source>
         <translation type="unfinished">Salinan tidak memiliki %1: itu belum disalin.</translation>
     </message>
     <message>
-        <location line="+41"/>
+        <location line="+88"/>
         <source>Insert Sheet</source>
         <translation type="unfinished">Sisipkan Lembar</translation>
     </message>
@@ -73481,13 +73551,13 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
         <translation type="unfinished">Buku kerja &quot;%1&quot; tidak dapat dibuka. %2</translation>
     </message>
     <message>
-        <location line="+30"/>
+        <location line="+31"/>
         <location line="+37"/>
         <source>Update Values</source>
         <translation type="unfinished">Perbarui Nilai</translation>
     </message>
     <message>
-        <location line="+137"/>
+        <location line="+141"/>
         <source>Startup prompt</source>
         <translation type="unfinished">Permintaan saat Mulai</translation>
     </message>
@@ -73574,6 +73644,191 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
         <location line="+15"/>
         <source>Some of the cells where the totals go are part of merged cells. Unmerge them, or select other cells.</source>
         <translation type="unfinished">Sebagian sel tempat total akan ditempatkan adalah bagian dari sel gabungan. Batalkan penggabungannya, atau pilih sel lain.</translation>
+    </message>
+    <message>
+        <location filename="../apps/crunch/core/sheettransfer.cpp" line="-234"/>
+        <source>%1 and %2</source>
+        <translation type="unfinished">%1 dan %2</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>%1, %2</source>
+        <comment>the first items of a list of three or more</comment>
+        <translation type="unfinished">%1, %2</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>%1, and %2</source>
+        <comment>the last item of a list of three or more</comment>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+21"/>
+        <source>The workbook is still being opened. It can be copied from when it is open.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+13"/>
+        <source>This sheet has a table. JeffCrunch does not yet copy tables to another workbook.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <location line="+269"/>
+        <source>This sheet has more merged cells than JeffCrunch copies to another workbook at once.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-197"/>
+        <source>A formula of this sheet adds up a block of sheets (such as Sheet1:Sheet3). JeffCrunch does not yet copy such a sheet to another workbook.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+54"/>
+        <source>This sheet has more cells than JeffCrunch copies to another workbook at once (%1). Copy part of it with Copy and Paste.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+31"/>
+        <source>This sheet has more rows with a size of their own than JeffCrunch copies to another workbook at once.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+32"/>
+        <source>conditional formats</source>
+        <translation type="unfinished">format bersyarat</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>rules for what can be typed</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>protection</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>filter</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>links to web pages and places</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>color of the tab</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>names of the cell styles (the cells look the same)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>page setup and print settings</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>use names of the other workbook</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>use tables or spilled ranges</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>read cells of a third workbook</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>are part of an array or a spill</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>have formulas that protection hides</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>have formulas JeffCrunch could not read</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+17"/>
+        <source>The two workbooks count dates from different years (1900 and 1904), so a sheet can&apos;t be copied between them yet.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>the workbook it comes from</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Formulas on this sheet read other sheets of %1, so the copy has to keep a link to its file. Save %1 as a file of the .xlsx kind first, and then copy the sheet.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>The formats of this sheet (fonts, colors, borders, and so on, %1 in all) do not fit in this workbook, which is close to the most it can hold. Nothing was copied.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>These will not be copied: %1.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>The formulas that read other sheets of %1 become links to its file. The copy shows the values %1 has now. They change when the links are updated, with Update Values in Edit Links.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>The links read the saved file once they are updated, so save %1 to keep these values.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>This workbook has no formats to build on, so the copy does not have the fonts, colors, and borders of the sheet.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message numerus="yes">
+        <location line="+4"/>
+        <source>%n cell comes as the value it shows, not as a formula.</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <location line="+1"/>
+        <source>%n cell comes as the value it shows, not as a formula: one of those that %1.</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+        </translation>
+    </message>
+    <message>
+        <location line="+29"/>
+        <location line="+81"/>
+        <location line="+31"/>
+        <location line="+26"/>
+        <source>Copy Sheet to Another Workbook</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-118"/>
+        <source>This workbook can&apos;t take more formats. Nothing was copied.</source>
+        <translation type="unfinished"></translation>
     </message>
 </context>
 <context>
@@ -79456,7 +79711,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
         <location filename="../libs/office/office/package.cpp" line="+4"/>
         <location line="+7"/>
         <location filename="../libs/office/sheet/sheetcrypt.cpp" line="-1"/>
-        <location filename="../libs/office/sheet/sheetreader.cpp" line="-1581"/>
+        <location filename="../libs/office/sheet/sheetreader.cpp" line="-1587"/>
         <location filename="../apps/deck/io/presentationfile.cpp" line="-23"/>
         <location line="+28"/>
         <source>The file is larger than this program can open.</source>

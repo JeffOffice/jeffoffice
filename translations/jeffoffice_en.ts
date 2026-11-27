@@ -962,6 +962,22 @@
             <numerusform>%n pivot tables were not read again when the file opened: there is too much data. Use Refresh All.</numerusform>
         </translation>
     </message>
+    <message numerus="yes">
+        <location filename="../apps/crunch/core/sheettransfer.cpp" line="+328"/>
+        <source>%n cell comes as the value it shows, not as a formula.</source>
+        <translation>
+            <numerusform>%n cell comes as the value it shows, not as a formula.</numerusform>
+            <numerusform>%n cells come as the values they show, not as formulas.</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <location line="+1"/>
+        <source>%n cell comes as the value it shows, not as a formula: one of those that %1.</source>
+        <translation>
+            <numerusform>%n cell comes as the value it shows, not as a formula: one of those that %1.</numerusform>
+            <numerusform>%n cells come as the values they show, not as formulas: those that %1.</numerusform>
+        </translation>
+    </message>
 </context>
 <context>
     <name>jp::crunch::PrintJob</name>

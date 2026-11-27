@@ -1609,6 +1609,18 @@ Download it from %2 now? (%3, once.)</translation>
         <source>Tab Color</source>
         <translation>Tab Colour</translation>
     </message>
+    <message>
+        <source>color of the tab</source>
+        <translation>colour of the tab</translation>
+    </message>
+    <message>
+        <source>The formats of this sheet (fonts, colors, borders, and so on, %1 in all) do not fit in this workbook, which is close to the most it can hold. Nothing was copied.</source>
+        <translation>The formats of this sheet (fonts, colours, borders, and so on, %1 in all) do not fit in this workbook, which is close to the most it can hold. Nothing was copied.</translation>
+    </message>
+    <message>
+        <source>This workbook has no formats to build on, so the copy does not have the fonts, colors, and borders of the sheet.</source>
+        <translation>This workbook has no formats to build on, so the copy does not have the fonts, colours, and borders of the sheet.</translation>
+    </message>
 </context>
 <context>
     <name>jp::crunch::Functions</name>
