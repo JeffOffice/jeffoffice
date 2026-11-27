@@ -1056,8 +1056,9 @@ std::unique_ptr<WriteDoc> compareDocumentsWith(CompareContext &context, WriteDoc
     }
     countUnmarkedElsewhere(original, revised, context, &notes);
     if (context.work.notMarked > 0)
-        notes.push_back(QCoreApplication::translate("jp::write::Compare", "%n difference is in a place that Compare can't mark yet (a changed table, an endnote, or a text box), so it is not shown.",
-                                                    "", int(context.work.notMarked)));
+        notes.push_back(context.work.notMarked == 1
+                            ? QCoreApplication::translate("jp::write::Compare", "1 difference is in a place that Compare can't mark yet (a changed table, an endnote, or a text box), so it is not shown.")
+                            : QCoreApplication::translate("jp::write::Compare", "%1 differences are in places that Compare can't mark yet (changed tables, endnotes, or text boxes), so they are not shown.").arg(context.work.notMarked));
     if (progress) progress(done, done);
     if (changes) *changes = made;
     if (note) *note = notes.join(QLatin1Char(' ')).trimmed();
