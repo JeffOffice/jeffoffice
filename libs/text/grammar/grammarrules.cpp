@@ -457,12 +457,13 @@ void lowercaseSentenceStartWith(Ctx &c, const QSet<QString> *shortened)
         }
         return true;
     };
+    const bool markup = c.text.contains(QLatin1String("<<"));
     for (int i = 1; i + 2 < c.size(); ++i) {
         c.step();
         if (!c.isPunct(i, QLatin1Char('.')) || c.tokens[i + 1].kind != Tok::Space) continue;
         const int w = i + 2;
         if (!lowercaseWord(w)) continue;
-        if (c.text.contains(QLatin1String("<<")) || (w + 1 < c.size() && c.tokens[w + 1].kind == Tok::Punct && c.text.at(c.tokens[w + 1].start) == QLatin1Char('_'))) continue;   // (markup, and a name in code: "orig_label")
+        if (markup || (w + 1 < c.size() && c.tokens[w + 1].kind == Tok::Punct && c.text.at(c.tokens[w + 1].start) == QLatin1Char('_'))) continue;   // (markup, and a name in code: "orig_label")
         const int before = i - 1;
         if (!c.isWord(before)) continue;
         const QString &b = c.tokens[before].lower;
