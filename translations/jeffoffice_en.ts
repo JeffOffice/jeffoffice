@@ -781,7 +781,7 @@
 <context>
     <name>jp::WriteFindPane</name>
     <message numerus="yes">
-        <location filename="../apps/write/app/writefindpane.cpp" line="+1459"/>
+        <location filename="../apps/write/app/writefindpane.cpp" line="+1508"/>
         <source>%n match is in content that can&apos;t be changed.</source>
         <translation>
             <numerusform>%n match is in content that can&apos;t be changed.</numerusform>
@@ -800,7 +800,7 @@
 <context>
     <name>jp::WriteWindow</name>
     <message numerus="yes">
-        <location filename="../apps/write/app/writewindow.cpp" line="+895"/>
+        <location filename="../apps/write/app/writewindow.cpp" line="+896"/>
         <source>%1 of %n word(s)</source>
         <translation>
             <numerusform>%1 of %n word</numerusform>
@@ -1153,6 +1153,17 @@
         <translation>
             <numerusform>Only the first %n embedded font in the file was looked at.</numerusform>
             <numerusform>Only the first %n embedded fonts in the file were looked at.</numerusform>
+        </translation>
+    </message>
+</context>
+<context>
+    <name>jp::write::Compare</name>
+    <message numerus="yes">
+        <location filename="../apps/write/core/compareops.cpp" line="+1373"/>
+        <source>%n difference is in a place that Compare can&apos;t mark yet (%1), so it is not shown.</source>
+        <translation>
+            <numerusform>%n difference is in a place that Compare can&apos;t mark yet (%1), so it is not shown.</numerusform>
+            <numerusform>%n differences are in places that Compare can&apos;t mark yet (%1), so they are not shown.</numerusform>
         </translation>
     </message>
 </context>

@@ -6202,7 +6202,7 @@ Back page story	4</source>
     <message>
         <location filename="../libs/page/app/saveoptions.cpp" line="+29"/>
         <location filename="../apps/pub/app/mainwindow.cpp" line="+462"/>
-        <location filename="../apps/write/app/writewindow.cpp" line="+919"/>
+        <location filename="../apps/write/app/writewindow.cpp" line="+920"/>
         <source>Save</source>
         <translation type="unfinished">Зберегти</translation>
     </message>
@@ -21902,7 +21902,7 @@ Desktop publishing</source>
 <context>
     <name>WriteFindPane</name>
     <message>
-        <location filename="../apps/write/app/writefindpane.cpp" line="+627"/>
+        <location filename="../apps/write/app/writefindpane.cpp" line="+672"/>
         <source>A match longer than %1 characters was found, which is more than JeffWrite can work with at once. Nothing was changed.</source>
         <translation type="unfinished">Знайдено збіг довший за %1 символів, що більше, ніж JeffWrite може обробити одразу. Нічого не змінено.</translation>
     </message>
@@ -63268,7 +63268,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
 <context>
     <name>jp::WriteFindPane</name>
     <message>
-        <location filename="../apps/write/app/writefindpane.cpp" line="-411"/>
+        <location filename="../apps/write/app/writefindpane.cpp" line="-456"/>
         <source>Find what</source>
         <translation>Знайти</translation>
     </message>
@@ -63528,7 +63528,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
         <translation type="unfinished">Формат: %1</translation>
     </message>
     <message>
-        <location line="+324"/>
+        <location line="+369"/>
         <location line="+16"/>
         <source>Searching…</source>
         <translation type="unfinished">Пошук…</translation>
@@ -63554,7 +63554,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
         <translation type="unfinished">Для цього шаблону в цьому тексті потрібно забагато обчислень, тому пошук зупинено. Нічого не змінено.</translation>
     </message>
     <message>
-        <location line="+69"/>
+        <location line="+73"/>
         <source>No matches</source>
         <translation type="unfinished">Збігів немає</translation>
     </message>
@@ -64200,7 +64200,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
         <translation type="unfinished">Немає тексту для перекладу.</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/writewindow.cpp" line="-826"/>
+        <location filename="../apps/write/app/writewindow.cpp" line="-827"/>
         <source>Document%1</source>
         <translation type="unfinished">Документ%1</translation>
     </message>
@@ -64231,7 +64231,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
         <translation type="unfinished">%1 (%2)</translation>
     </message>
     <message>
-        <location line="+165"/>
+        <location line="+166"/>
         <source> (Protected)</source>
         <translation type="unfinished"> (захищено)</translation>
     </message>
@@ -65244,6 +65244,11 @@ The password couldn&apos;t be put on the file.</source>
     </message>
     <message>
         <location line="+1"/>
+        <source>Clear Find Highlights</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
         <source>Replace Fonts…</source>
         <translation type="unfinished">Замінити шрифти…</translation>
     </message>
@@ -65253,7 +65258,7 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished">Знайти й замінити</translation>
     </message>
     <message>
-        <location line="+22"/>
+        <location line="+23"/>
         <source>No fonts were replaced.</source>
         <translation type="unfinished">Жодного шрифту не замінено.</translation>
     </message>
@@ -82082,24 +82087,93 @@ The password couldn&apos;t be put on the file.</source>
 <context>
     <name>jp::write::Compare</name>
     <message>
-        <location filename="../apps/write/core/compareops.cpp" line="+631"/>
+        <location filename="../apps/write/core/compareops.cpp" line="+1355"/>
         <source>A document with that many paragraphs can&apos;t be compared.</source>
         <translation type="unfinished">Документ із такою кількістю абзаців не можна порівняти.</translation>
     </message>
     <message>
-        <location line="+70"/>
+        <location line="-478"/>
         <source>Too many changes to look for all the moved text.</source>
         <translation type="unfinished">Забагато змін, щоб знайти весь переміщений текст.</translation>
     </message>
     <message>
-        <location line="+36"/>
+        <location line="-83"/>
+        <source>Too much text to line up the tables, so they are not compared.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+134"/>
         <source>Too many changes to compare every paragraph word by word, so some are shown as replaced whole.</source>
         <translation type="unfinished">Забагато змін, щоб порівняти кожен абзац слово за словом, тому деякі показано як повністю замінені.</translation>
     </message>
     <message>
-        <location line="+27"/>
+        <location line="+25"/>
         <source>Too many changes of formatting to show them all.</source>
         <translation type="unfinished">Забагато змін форматування, щоб показати їх усі.</translation>
+    </message>
+    <message>
+        <location line="+218"/>
+        <source>tables</source>
+        <translation type="unfinished">таблиці</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>footnotes</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>endnotes</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>text boxes</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>headers or footers</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>parts kept as they were written</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>%1 and %2</source>
+        <translation type="unfinished">%1 і %2</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>%1, and %2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+22"/>
+        <source>Too many pictures and shapes to look for all the text boxes among them.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+7"/>
+        <source>Too many text boxes to compare them all.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+129"/>
+        <source>Too many notes, headers, and footers to compare them all.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message numerus="yes">
+        <location line="+33"/>
+        <source>%n difference is in a place that Compare can&apos;t mark yet (%1), so it is not shown.</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
     </message>
 </context>
 <context>
@@ -86317,7 +86391,7 @@ The password couldn&apos;t be put on the file.</source>
 <context>
     <name>jp::write::PageView</name>
     <message>
-        <location filename="../apps/write/app/pagepaint.cpp" line="+278"/>
+        <location filename="../apps/write/app/pagepaint.cpp" line="+290"/>
         <source>Footer</source>
         <translation>Нижній колонтитул</translation>
     </message>
@@ -86337,7 +86411,7 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished">Ctrl+клацання, щоб перейти за посиланням</translation>
     </message>
     <message>
-        <location line="+545"/>
+        <location line="+547"/>
         <source>Section Break</source>
         <translation type="unfinished">Розрив розділу</translation>
     </message>

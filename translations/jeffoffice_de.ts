@@ -6052,7 +6052,7 @@ Artikel auf der Rückseite	4</translation>
     <message>
         <location filename="../libs/page/app/saveoptions.cpp" line="-15"/>
         <location filename="../apps/pub/app/mainwindow.cpp" line="+462"/>
-        <location filename="../apps/write/app/writewindow.cpp" line="+919"/>
+        <location filename="../apps/write/app/writewindow.cpp" line="+920"/>
         <source>Save</source>
         <translation type="unfinished">Speichern</translation>
     </message>
@@ -21862,7 +21862,7 @@ Desktop-Publishing</translation>
 <context>
     <name>WriteFindPane</name>
     <message>
-        <location filename="../apps/write/app/writefindpane.cpp" line="+627"/>
+        <location filename="../apps/write/app/writefindpane.cpp" line="+672"/>
         <source>A match longer than %1 characters was found, which is more than JeffWrite can work with at once. Nothing was changed.</source>
         <translation type="unfinished">Eine Übereinstimmung mit mehr als %1 Zeichen wurde gefunden, was mehr ist, als JeffWrite auf einmal verarbeiten kann. Es wurde nichts geändert.</translation>
     </message>
@@ -63183,7 +63183,7 @@ Ihr Webbrowser öffnet LibreTranslate, einen kostenlosen Open-Source-Übersetzun
 <context>
     <name>jp::WriteFindPane</name>
     <message>
-        <location filename="../apps/write/app/writefindpane.cpp" line="-411"/>
+        <location filename="../apps/write/app/writefindpane.cpp" line="-456"/>
         <source>Find what</source>
         <translation>Suchen nach</translation>
     </message>
@@ -63443,7 +63443,7 @@ Ihr Webbrowser öffnet LibreTranslate, einen kostenlosen Open-Source-Übersetzun
         <translation type="unfinished">Format: %1</translation>
     </message>
     <message>
-        <location line="+324"/>
+        <location line="+369"/>
         <location line="+16"/>
         <source>Searching…</source>
         <translation type="unfinished">Suche läuft…</translation>
@@ -63469,7 +63469,7 @@ Ihr Webbrowser öffnet LibreTranslate, einen kostenlosen Open-Source-Übersetzun
         <translation type="unfinished">Dieses Muster erforderte zu viel Aufwand für diesen Text, daher wurde die Suche beendet. Es wurde nichts geändert.</translation>
     </message>
     <message>
-        <location line="+69"/>
+        <location line="+73"/>
         <source>No matches</source>
         <translation type="unfinished">Keine Treffer</translation>
     </message>
@@ -64089,7 +64089,7 @@ Ihr Webbrowser öffnet LibreTranslate, einen kostenlosen Open-Source-Übersetzun
 <context>
     <name>jp::WriteWindow</name>
     <message>
-        <location filename="../apps/write/app/writewindow.cpp" line="-826"/>
+        <location filename="../apps/write/app/writewindow.cpp" line="-827"/>
         <source>Document%1</source>
         <translation type="unfinished">Dokument%1</translation>
     </message>
@@ -64120,7 +64120,7 @@ Ihr Webbrowser öffnet LibreTranslate, einen kostenlosen Open-Source-Übersetzun
         <translation type="unfinished">%1 (%2)</translation>
     </message>
     <message>
-        <location line="+165"/>
+        <location line="+166"/>
         <source> (Protected)</source>
         <translation type="unfinished"> (Geschützt)</translation>
     </message>
@@ -67189,6 +67189,11 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
     </message>
     <message>
         <location line="+1"/>
+        <source>Clear Find Highlights</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
         <source>Replace Fonts…</source>
         <translation type="unfinished">Schriftarten ersetzen…</translation>
     </message>
@@ -67198,7 +67203,7 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
         <translation type="unfinished">Suchen und Ersetzen</translation>
     </message>
     <message>
-        <location line="+22"/>
+        <location line="+23"/>
         <source>No fonts were replaced.</source>
         <translation type="unfinished">Es wurden keine Schriftarten ersetzt.</translation>
     </message>
@@ -81954,24 +81959,92 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
 <context>
     <name>jp::write::Compare</name>
     <message>
-        <location filename="../apps/write/core/compareops.cpp" line="+631"/>
+        <location filename="../apps/write/core/compareops.cpp" line="+1355"/>
         <source>A document with that many paragraphs can&apos;t be compared.</source>
         <translation type="unfinished">Ein Dokument mit so vielen Absätzen kann nicht verglichen werden.</translation>
     </message>
     <message>
-        <location line="+70"/>
+        <location line="-478"/>
         <source>Too many changes to look for all the moved text.</source>
         <translation type="unfinished">Zu viele Änderungen, um den gesamten verschobenen Text zu finden.</translation>
     </message>
     <message>
-        <location line="+36"/>
+        <location line="-83"/>
+        <source>Too much text to line up the tables, so they are not compared.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+134"/>
         <source>Too many changes to compare every paragraph word by word, so some are shown as replaced whole.</source>
         <translation type="unfinished">Zu viele Änderungen, um jeden Absatz Wort für Wort zu vergleichen, daher werden einige als vollständig ersetzt angezeigt.</translation>
     </message>
     <message>
-        <location line="+27"/>
+        <location line="+25"/>
         <source>Too many changes of formatting to show them all.</source>
         <translation type="unfinished">Zu viele Formatänderungen, um sie alle anzuzeigen.</translation>
+    </message>
+    <message>
+        <location line="+218"/>
+        <source>tables</source>
+        <translation type="unfinished">Tabellen</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>footnotes</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>endnotes</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>text boxes</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>headers or footers</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>parts kept as they were written</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>%1 and %2</source>
+        <translation type="unfinished">%1 und %2</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>%1, and %2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+22"/>
+        <source>Too many pictures and shapes to look for all the text boxes among them.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+7"/>
+        <source>Too many text boxes to compare them all.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+129"/>
+        <source>Too many notes, headers, and footers to compare them all.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message numerus="yes">
+        <location line="+33"/>
+        <source>%n difference is in a place that Compare can&apos;t mark yet (%1), so it is not shown.</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
     </message>
 </context>
 <context>
@@ -86188,7 +86261,7 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
 <context>
     <name>jp::write::PageView</name>
     <message>
-        <location filename="../apps/write/app/pagepaint.cpp" line="+278"/>
+        <location filename="../apps/write/app/pagepaint.cpp" line="+290"/>
         <source>Footer</source>
         <translation>Fußzeile</translation>
     </message>
@@ -86208,7 +86281,7 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
         <translation type="unfinished">Strg+Klicken, um dem Link zu folgen</translation>
     </message>
     <message>
-        <location line="+545"/>
+        <location line="+547"/>
         <source>Section Break</source>
         <translation type="unfinished">Abschnittswechsel</translation>
     </message>
