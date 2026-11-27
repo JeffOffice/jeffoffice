@@ -22,10 +22,10 @@ on:
         description: 'Build the Mac programs for both processors (Apple and Intel), as a release needs'
         type: boolean
         default: true
-      # A landing sets this: its local gate is running the same Linux test and check programs for this very commit on the same machine, at the same time,
-      # and the commit is pushed only if the gate passes. The Linux jobs then build and package and leave the programs to the gate.
+      # (S96, Nov 27 2026: no longer honored. The local gate runs on another operating system and compiler than the Linux jobs' image, and its pass let
+      # these jobs skip tests that failed in the image every time. The input stays so that a run started with it still starts; tools/ci_gated.sh ignores it.)
       linux_gated:
-        description: 'The local gate is running the Linux tests and checks for this commit (set by a landing)'
+        description: 'No longer used: the Linux jobs always run their tests unless a record from their own environment excuses them (tools/ci_gated.sh)'
         type: boolean
         default: false
       # A landing starts this on main right after its push (lead/pushchain.sh): see the "Cache refresh" notes at the build job.
@@ -82,7 +82,10 @@ jobs:
           fi
           echo "run=$run" >> "$GITHUB_OUTPUT"
           if [ -n "$run" ]; then
-            echo "::notice::Run $run built and tested this commit whole: it is not built again."
+            # (S96: the skip is said where people and tools read it: the fixed line, the summary's first line, and the notice; lead/ciskips.sh)
+            echo "TESTS-SKIPPED already-passed run-$run whole $kind run $run of this commit (same runners and systems), not built or tested again here"
+            { echo "TESTS-SKIPPED already-passed run-$run whole $kind run $run of this commit (same runners and systems), not built or tested again here"; echo; } >> "$GITHUB_STEP_SUMMARY"
+            echo "::notice::TESTS-SKIPPED: run $run built and tested this commit whole: it is not built again."
           else
             echo "No whole run of this commit yet: building and testing."
           fi
@@ -769,9 +772,10 @@ jobs:
           fi
           exit 0
 
-      # Our own Linux machine runs the same programs in its local gate before a push (tools/gate.sh, through gatecheck.sh), which records each tree that passed in a
-      # file that the runner containers see read-only at /gated/trees. A tree in it already passed these Linux tests, so the two steps below skip their programs and
-      # the log says so; the build and the packaging above and below still run. No file (the containers without the mount, or GitHub's own machines): nothing is skipped.
+      # A record in /gated/trees (a file the runner containers see read-only) of this exact tree, made in THIS environment (the runner image; tools/ci_gated.sh
+      # compares the record's env= with its own), excuses these Linux tests: the two steps below skip their programs, the build and the packaging above and below still
+      # run. The local gate's records (env=host, another operating system and compiler) excuse nothing (S96, Nov 27 2026). A skip is never silent: the first line of
+      # the job summary and one log line, TESTS-SKIPPED already-passed <tree> <where the record came from>, which lead/ciskips.sh reads. No file: nothing is skipped.
       - name: Already tested on this machine (Linux)
         id: gated
         if: (runner.os == 'Linux' && runner.environment == 'self-hosted' && github.event_name != 'pull_request') && env.CACHE_REFRESH != 'true'
