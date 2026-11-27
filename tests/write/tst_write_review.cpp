@@ -910,6 +910,19 @@ struct ManyNotesWindow {
         c.setPosition(last.position() + last.length() - 1, QTextCursor::KeepAnchor);
         w.view()->setCursor(c);
     }
+    // Each of the references from `first` to `last` deleted on its own (the words between them stay), as a tracked change.
+    void deleteReference(int first, int last)
+    {
+        for (int id = first; id <= last; ++id) {
+            const QVector<int> at = doc->endnoteReferences(id);
+            QVERIFY(!at.isEmpty());
+            QTextCursor c(doc->story());
+            c.setPosition(at.first());
+            c.setPosition(at.first() + 1, QTextCursor::KeepAnchor);
+            w.view()->setCursor(c);
+            QTest::keyClick(w.view(), Qt::Key_Delete);
+        }
+    }
     void cutAndPasteAfter()
     {
         selectReferences();
@@ -7960,6 +7973,202 @@ private Q_SLOTS:
         // Leaving Read Mode gives the window back as it was, and the text can be changed again.
         w.act("view.readMode")->trigger();
         QVERIFY(!w.readMode() && !w.isReadOnly());
+    }
+
+    // Read Mode holds the text, not the file: Save writes what was typed and clears the modified mark, Save As works, and a document open for reading only is still refused its own file.
+    void readModeStillSavesAndAnOrdinaryReadOnlyDocumentIsStillRefused()
+    {
+        QTemporaryDir dir;
+        const QString path = dir.filePath(QStringLiteral("a.docx"));
+        {
+            QFile f(path);
+            QVERIFY(f.open(QIODevice::WriteOnly));
+            f.write(makeDocx(para(run("hello"))));
+        }
+        const auto textOf = [](const QString &p) { QFile f(p); return f.open(QIODevice::ReadOnly) ? open(f.readAll())->story()->toPlainText() : QString(); };
+        WriteWindow w;
+        w.setNotifier([](const QString &, const QString &) {});
+        w.show();
+        QVERIFY(w.openFile(path));
+        QTextCursor c(w.document()->story());
+        c.setPosition(0);
+        w.view()->setCursor(c);
+        QTest::keyClicks(w.view(), QStringLiteral("Z"));
+        QVERIFY(w.isModified());
+        w.act("view.readMode")->trigger();
+        QVERIFY(w.readMode());
+        w.act("file.save")->trigger();
+        QVERIFY(!w.isModified());
+        QVERIFY2(textOf(path).startsWith(QLatin1String("Zhello")), qPrintable(textOf(path)));
+        QTest::keyClicks(w.view(), QStringLiteral("Q"));
+        QVERIFY(w.readMode() && w.document()->story()->toPlainText().startsWith(QLatin1String("Zhello")));
+        const QString other = dir.filePath(QStringLiteral("b.docx"));
+        QVERIFY(w.saveTo(other, false));
+        QVERIFY(textOf(other).startsWith(QLatin1String("Zhello")));
+        // A document opened for reading only, in Read Mode or not, is never written over its own file.
+        for (const bool inReadMode : {false, true}) {
+            WriteWindow r;
+            r.setNotifier([](const QString &, const QString &) {});
+            r.show();
+            QVERIFY(r.openFile(path, OpenHow::ReadOnly));
+            if (inReadMode) r.act("view.readMode")->trigger();
+            QVERIFY(!r.saveTo(path, false));
+            QVERIFY(r.saveTo(dir.filePath(QStringLiteral("c.docx")), false));
+        }
+    }
+
+    // Nothing else can end Read Mode: releasing protection, turning off Always Open Read-Only, and Mark as Final are done inside it and still no change can be made; leaving gives the state they asked for.
+    void readModeIsNotClearedByProtectionAlwaysReadOnlyOrMarkAsFinal_data()
+    {
+        QTest::addColumn<int>("how");
+        QTest::newRow("protection released") << 0;
+        QTest::newRow("always read-only off") << 1;
+        QTest::newRow("marked final") << 2;
+    }
+    void readModeIsNotClearedByProtectionAlwaysReadOnlyOrMarkAsFinal()
+    {
+        QFETCH(int, how);
+        QTemporaryDir dir;
+        const QString path = dir.filePath(QStringLiteral("a.docx"));
+        {
+            WriteWindow a;
+            a.setNotifier([](const QString &, const QString &) {});
+            a.setDocument(open(makeDocx(para(run("hello")))), QString());
+            if (how == 0) a.document()->setProtection(office::wml::makeDocumentProtection(QStringLiteral("readOnly"), QString()));
+            QVERIFY(a.saveTo(path, false));
+            if (how == 1) {
+                a.setAlwaysOpenReadOnly(true);
+                QVERIFY(a.saveTo(path, false));
+            }
+        }
+        WriteWindow w;
+        w.setNotifier([](const QString &, const QString &) {});
+        w.show();
+        QVERIFY(w.openFile(path));
+        QCOMPARE(w.isReadOnly(), how != 2);
+        w.act("view.readMode")->trigger();
+        QVERIFY(w.readMode());
+        const auto refused = [&] {
+            const QString was = w.document()->story()->toPlainText();
+            QTextCursor c(w.document()->story());
+            c.setPosition(0);
+            w.view()->setCursor(c);
+            QTest::keyClicks(w.view(), QStringLiteral("Q"));
+            return w.document()->story()->toPlainText() == was;
+        };
+        QVERIFY(refused());
+        if (how == 0) w.document()->setProtection(std::nullopt);
+        else if (how == 1) w.setAlwaysOpenReadOnly(false);
+        else w.setMarkedFinal(true);
+        QVERIFY(w.readMode() && w.isReadOnly());
+        QVERIFY(refused());
+        w.act("view.readMode")->trigger();
+        QVERIFY(!w.readMode());
+        QCOMPARE(w.isReadOnly(), how == 2);
+        QCOMPARE(refused(), how == 2);
+    }
+
+    // The ids of the endnote references in the text and of the notes in the notes part of a saved package, each sorted.
+    static void endnoteIdsOf(const QByteArray &zip, QStringList *refs, QStringList *notes)
+    {
+        refs->clear();
+        notes->clear();
+        for (auto m = QRegularExpression(QStringLiteral("<w:endnoteReference [^>]*w:id=\"(-?\\d+)\"")).globalMatch(QString::fromUtf8(documentXml(zip))); m.hasNext();) *refs << m.next().captured(1);
+        for (auto m = QRegularExpression(QStringLiteral("<w:endnote w:id=\"(-?\\d+)\"")).globalMatch(QString::fromUtf8(partXml(zip, "/word/endnotes.xml"))); m.hasNext();) *notes << m.next().captured(1);
+        refs->sort();
+        notes->sort();
+    }
+
+    // Deleted endnotes settled one at a time (Next Change, then Accept or Reject): each step takes exactly the marks of one endnote, none is left at the end, and every reference has one note and every note one reference.
+    void deletedEndnotesAreSettledOneAtATimeByAcceptOrReject_data()
+    {
+        QTest::addColumn<bool>("accept");
+        QTest::addColumn<bool>("reopened");
+        QTest::newRow("accepted in the session") << true << false;
+        QTest::newRow("rejected in the session") << false << false;
+        QTest::newRow("accepted after reopening") << true << true;
+        QTest::newRow("rejected after reopening") << false << true;
+    }
+    void deletedEndnotesAreSettledOneAtATimeByAcceptOrReject()
+    {
+        QFETCH(bool, accept);
+        QFETCH(bool, reopened);
+        const int n = 8;
+        ManyNotesWindow m(manyNotesDoc(n, true, 5), n, true);
+        m.deleteReference(1, n);
+        const QByteArray saved = savedByWindow(m.w);
+        std::unique_ptr<ManyNotesWindow> again;
+        if (reopened) again.reset(new ManyNotesWindow(saved, n, false));
+        ManyNotesWindow &use = reopened ? *again : m;
+        const int marks = marksInEveryPart(saved);
+        QVERIFY(marks >= 2 * n && marks % n == 0);
+        QTextCursor c(use.doc->story());
+        c.setPosition(0);
+        use.w.view()->setCursor(c);
+        int left = marks;
+        for (int step = 0; step < n; ++step) {
+            if (step == 0) {
+                QTRY_VERIFY(use.w.act("review.nextChange")->isEnabled());   // (the window learns of the changes a moment after they are made)
+                use.w.act("review.nextChange")->trigger();   // (the first change is picked; after that, resolving one goes on to the next)
+            }
+            use.w.act(accept ? "review.accept" : "review.reject")->trigger();
+            const QByteArray now = savedByWindow(use.w);
+            const int marksNow = marksInEveryPart(now);
+            QVERIFY2(left - marksNow == marks / n, qPrintable(QStringLiteral("step %1: %2 to %3 of %4").arg(step).arg(left).arg(marksNow).arg(marks)));
+            left = marksNow;
+            QStringList refs, notes;
+            endnoteIdsOf(now, &refs, &notes);
+            QCOMPARE(refs, notes);
+            QCOMPARE(refs.size(), accept ? n - step - 1 : n);
+            QCOMPARE(packageProblem(now), QString());
+        }
+        QCOMPARE(left, 0);
+        QCOMPARE(documentRevisionCount(*use.doc), 0);
+    }
+
+    // Accept All Changes Shown and Reject All Changes Shown, with one reviewer chosen, settle that reviewer's deleted endnotes in one step and leave the other reviewer's marked.
+    void shownDeletedEndnotesOfOneReviewerAreSettledAndTheOthersStayMarked_data()
+    {
+        QTest::addColumn<bool>("accept");
+        QTest::newRow("accepted") << true;
+        QTest::newRow("rejected") << false;
+    }
+    void shownDeletedEndnotesOfOneReviewerAreSettledAndTheOthersStayMarked()
+    {
+        QFETCH(bool, accept);
+        const int n = 8;
+        ManyNotesWindow m(manyNotesDoc(n, true, 5), n, true);
+        m.doc->setReviewer(QStringLiteral("Zed"), QString());
+        m.deleteReference(1, 4);
+        m.doc->setReviewer(QStringLiteral("Amy"), QString());
+        m.deleteReference(5, 8);
+        const QByteArray both = savedByWindow(m.w);
+        QVERIFY(count(documentXml(both), "w:author=\"Zed\"") > 0 && count(documentXml(both), "w:author=\"Amy\"") > 0);
+        m.w.act("review.reviewingPane")->trigger();
+        ReviewPane *pane = m.w.reviewPane();
+        QVERIFY(pane);
+        pane->showPage(ReviewPane::Changes);
+        pane->refresh();
+        const int zed = pane->personBox()->findText(QStringLiteral("Zed"));
+        QVERIFY(zed >= 0);
+        pane->personBox()->setCurrentIndex(zed);
+        pane->refresh();
+        m.w.act(accept ? "review.acceptShown" : "review.rejectShown")->trigger();
+        const QByteArray now = savedByWindow(m.w);
+        QCOMPARE(packageProblem(now), QString());
+        int zedMarks = 0, amyMarks = 0;
+        office::Package p;
+        p.read(now);
+        for (const QString &name : p.partNames()) {
+            zedMarks += count(p.part(name), "w:author=\"Zed\"");
+            amyMarks += count(p.part(name), "w:author=\"Amy\"");
+        }
+        QCOMPARE(zedMarks, 0);
+        QVERIFY(amyMarks > 0);
+        QStringList refs, notes;
+        endnoteIdsOf(now, &refs, &notes);
+        QCOMPARE(refs, notes);
+        QCOMPARE(refs.size(), accept ? n / 2 : n);
     }
 
     // A tracked cut and paste of many note references does work in step with their number (it was in step with the square of it: 300 footnote references took half a minute).

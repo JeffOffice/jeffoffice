@@ -202,7 +202,7 @@ void WriteWindow::applyProtection()
     const QString kind = p && p->enforced ? p->edit : QString();
     const bool holds = kind == QLatin1String("readOnly") || kind == QLatin1String("comments") || kind == QLatin1String("forms");
     m_protectKind = holds || kind == QLatin1String("trackedChanges") ? kind : QString();
-    if (holds && !isReadOnly()) {
+    if (holds && !m_readOnlyOwn) {
         m_readOnlyByProtection = true;
         setReadOnly(true);
     } else if (!holds && m_readOnlyByProtection) {

@@ -163,7 +163,7 @@ public:
     // The one question for a change made by a pane or a view of its own: may the text be edited now (not held for reading only, and no search under way that holds it as it is)?
     bool mayEdit() const { return !isReadOnly() && !searchBlocked(); }
     // The window is read only only because Read Mode holds it so (a document that is open for reading, or protected, is read only in its own right): Save still saves it.
-    bool readOnlyOnlyForReadMode() const { return m_readMode && !m_readWas.readOnly && !m_readOnlyByProtection; }
+    bool readOnlyOnlyForReadMode() const { return m_readMode && !m_readOnlyOwn; }
     // Review > Compare: this document and the file at `revisedPath` made into a new document of tracked changes (this one is the original), shown in a window of its own. How many changes it
     // holds; -1 when a file can't be read or compared (the reason is told).
     void setUrlOpener(const std::function<bool(const QUrl &)> &opener) { m_urlOpener = opener; }
@@ -195,6 +195,7 @@ public:
     // Shows the file dialog and opens what is chosen the way `how` says.
     void browseAndOpen(OpenHow how = OpenHow::Normal);
     void setReadOnly(bool on) override;
+    void applyReadOnly();
     // Saves to the file the document came from, else asks where (Save As). False if nothing was written.
     bool save();
     bool saveAs();
@@ -805,8 +806,9 @@ private:
     bool m_readMode = false;
     QPointer<WriteWindow> m_sidePartner;   // View > View Side by Side: the window this one's scrolling follows, and follows this one's
     QMetaObject::Connection m_sideScroll[2];
+    bool m_readOnlyOwn = false;   // (the document's own read-only state: opened so, protected, or marked final; Read Mode holds the window on top of it and is never mixed in)
     struct {
-        bool readOnly = false, sideToSide = false;
+        bool sideToSide = false;
         int zoomMode = 0;
         double zoom = 1;
     } m_readWas;

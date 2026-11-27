@@ -1892,6 +1892,54 @@ std::optional<StoryRevision> boxRevisionLike(WriteDoc &doc, int boxPosition, con
     return std::nullopt;
 }
 
+// The Ids of the endnotes whose references are inside the deletions of a list of changes of the text.
+static QSet<int> endnotesOfDeletedReferences(QTextDocument *story, const QVector<Revision> &inText)
+{
+    QSet<int> ids;
+    for (const Revision &r : inText) {
+        if (r.kind != Revision::Deletion) continue;
+        for (QTextBlock b = story->findBlock(r.from); b.isValid() && b.position() < r.to; b = b.next())
+            for (QTextBlock::iterator it = b.begin(); !it.atEnd(); ++it) {
+                const QTextFragment f = it.fragment();
+                if (f.position() >= r.to || f.position() + int(f.length()) <= r.from) continue;
+                const QTextCharFormat cf = f.charFormat();
+                if (!cf.hasProperty(prop::Atom)) continue;
+                const QByteArray bytes = storedBytes(cf, prop::Atom);
+                if (!bytes.contains("endnoteReference")) continue;
+                const Inline a = unpackAtom(bytes);
+                bool ok = false;
+                const int id = a.tag == QLatin1String("endnoteReference") ? a.key.toInt(&ok) : 0;
+                if (ok) ids.insert(id);
+            }
+    }
+    return ids;
+}
+
+// Rejecting the deletion of an endnote's reference brings its note back too (the pages set it again): the marks that deleting the reference put on the note's words and paragraphs are rejected
+// with it. The notes are after the text, and done from the last, so that what is done does not move the places of the notes before.
+static void rejectMarksOfNotes(WriteDoc &doc, QTextDocument *story, const QSet<int> &ids)
+{
+    if (ids.isEmpty()) return;
+    QMap<int, int> spans;   // where each note's words end, by where its first paragraph begins
+    int serial = 0;
+    for (QTextBlock b = story->begin(); b.isValid(); b = b.next()) {
+        const QTextBlockFormat bf = b.blockFormat();
+        int id = 0;
+        if (!bf.hasProperty(prop::EndnoteBlock) || bf.intProperty(prop::EndnoteNote) <= 0 || !doc.endnoteIdOf(b, &id) || !ids.contains(id)) continue;
+        const int end = b.position() + b.length() - 1;
+        if (bf.intProperty(prop::EndnoteNote) != serial) spans.insert(b.position(), end);
+        else spans[spans.lastKey()] = end;
+        serial = bf.intProperty(prop::EndnoteNote);
+    }
+    for (auto it = spans.cend(); it != spans.cbegin();) {
+        --it;
+        QTextCursor c(story);
+        c.setPosition(it.key());
+        const NoteScopeGuard guard(doc, c);
+        resolveRevisionsIn(doc, story, it.key(), it.value(), false, nullptr, nullptr);   // (the note's marks go with the reference: they are not counted as changes of their own)
+    }
+}
+
 int resolveDocumentRevisions(WriteDoc &doc, const QVector<StoryRevision> &which, bool accept, int *kept, int *partners)
 {
     if (which.isEmpty()) return 0;
@@ -1973,8 +2021,10 @@ int resolveDocumentRevisions(WriteDoc &doc, const QVector<StoryRevision> &which,
             const NoteScopeGuard guard(doc, c);
             done += resolveRevisions(doc, story, it.value(), accept, kept, partners);
         }
+        const QSet<int> notesBack = !accept && story == doc.story() ? endnotesOfDeletedReferences(story, inText) : QSet<int>();
         const int before = done;
         done += resolveRevisions(doc, story, inText, accept, kept, partners);
+        rejectMarksOfNotes(doc, story, notesBack);
         if (story == doc.story()) aliveKnown = false;
         if (boxPlace.contains(story)) {
             // The box is written back with its changes settled, in the same step; a box that can't be written (it would be too big) keeps what it had, and the changes are told as kept.

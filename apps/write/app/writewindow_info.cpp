@@ -133,7 +133,7 @@ void WriteWindow::setAlwaysOpenReadOnly(bool on)
     office::PackageProps p = m_doc->packageProps();
     p.custom = office::withAlwaysOpenReadOnly(p.custom, on);
     // (a window that is read-only for another reason, opened so or marked final, stays so)
-    const bool keepReadOnly = isReadOnly() && !(!on && m_readOnlyByChoice);
+    const bool keepReadOnly = m_readOnlyOwn && !(!on && m_readOnlyByChoice);
     applyProperties(p);
     if (!on && m_readOnlyByChoice) setReadOnly(keepReadOnly);
     if (!on) m_readOnlyByChoice = false;
@@ -163,7 +163,7 @@ void WriteWindow::setMarkedFinal(bool on)
     p.custom = office::withMarkAsFinal(p.custom, on);
     if (on) {
         // The document is marked and saved (it is the saved file that is final), then held for reading only.
-        const bool wasReadOnly = isReadOnly();
+        const bool wasReadOnly = m_readOnlyOwn;
         if (wasReadOnly) setReadOnly(false);
         applyProperties(p);
         if (!save()) {

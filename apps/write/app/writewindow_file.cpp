@@ -149,8 +149,16 @@ bool WriteWindow::newFromBuiltInTemplate(const QString &id)
     return true;
 }
 
+// What the document is held as (opened for reading, protected, or marked final). Read Mode holds the window as well, and ending it gives back what this says now.
 void WriteWindow::setReadOnly(bool on)
 {
+    m_readOnlyOwn = on;
+    applyReadOnly();
+}
+
+void WriteWindow::applyReadOnly()
+{
+    const bool on = m_readOnlyOwn || m_readMode;
     if (m_find) m_find->cancelSearch();   // (a search ends before the way the document may be changed does)
     AppWindow::setReadOnly(on);
     m_view->setReadOnly(on);
@@ -287,7 +295,7 @@ bool WriteWindow::save()
 {
     if (!commitShapeText()) return false;
     // A document open for reading only is saved as a copy under a new name.
-    if (isReadOnly() && !readOnlyOnlyForReadMode()) {
+    if (m_readOnlyOwn) {
         notice(tr("Save"), tr("This document is open for reading only, so it is saved under a new name."));
         return saveAs();
     }
@@ -316,7 +324,7 @@ bool WriteWindow::saveAs()
     const QString from = m_path.isEmpty() ? m_recoveredFrom : m_path;
     const QString dir = from.isEmpty() ? jp::defaultFolder() : QFileInfo(from).absolutePath();
     // (a document open for reading only is offered a name of its own, not the file's)
-    const QString name = isReadOnly() ? tr("%1 copy").arg(from.isEmpty() ? displayName() : QFileInfo(from).completeBaseName()) : from.isEmpty() ? displayName() : QFileInfo(from).completeBaseName();
+    const QString name = m_readOnlyOwn ? tr("%1 copy").arg(from.isEmpty() ? displayName() : QFileInfo(from).completeBaseName()) : from.isEmpty() ? displayName() : QFileInfo(from).completeBaseName();
     // The dialog hands back the filter text it showed, so the choice is recognized by comparing with these same (translated) texts.
     const QString docxFilter = tr("Document (*.docx)"), dotxFilter = tr("Template (*.dotx)"), odtFilter = tr("OpenDocument Text (*.odt)"), ottFilter = tr("OpenDocument Text Template (*.ott)");
     const QString docmFilter = tr("Macro-Enabled Document (*.docm)"), dotmFilter = tr("Macro-Enabled Template (*.dotm)"), txtFilter = tr("Plain Text (*.txt)"), rtfFilter = tr("Rich Text Format (*.rtf)");
@@ -386,7 +394,7 @@ bool WriteWindow::saveTo(const QString &path, bool asCopy)
 {
     if (!m_doc || !commitShapeText()) return false;
     // A document open for reading only is never written over its own file, and a copy is never saved over the file this window has open (it would be the same as saving).
-    if (asCopy ? sameFile(path, m_path) : isReadOnly() && sameFile(path, m_path)) {
+    if (asCopy ? sameFile(path, m_path) : m_readOnlyOwn && sameFile(path, m_path)) {
         notice(tr("Save"), asCopy ? tr("A copy can't be saved over \"%1\". Choose another name.").arg(QFileInfo(path).fileName()) : tr("This document is open for reading only. Choose another name for it."));
         return false;
     }
@@ -555,7 +563,7 @@ bool WriteWindow::saveTo(const QString &path, bool asCopy)
     // (the versions kept follow the password the file has now)
     if (m_versions.follow(path, QStringLiteral(".docx"), m_fileProtected ? m_filePassword : QString()) > 0)
         notice(tr("Version History"), tr("Some versions kept before couldn't be given the new password, and stay as they were."), true);
-    if (isReadOnly() && !m_readOnlyByProtection && !readOnlyOnlyForReadMode()) setReadOnly(false);   // (a protected document is saved as it is: the protection stays)
+    if (m_readOnlyOwn && !m_readOnlyByProtection) setReadOnly(false);   // (a protected document is saved as it is: the protection stays)
     m_recoveredFrom.clear();
     dropRecoveryCopy();
     noteSaved(path);   // (a file whose editing was enabled loses its download mark)
