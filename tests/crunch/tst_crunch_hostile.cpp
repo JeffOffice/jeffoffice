@@ -317,7 +317,9 @@ private Q_SLOTS:
     }
 
     // Rows put in and filled cost in proportion to their number: the formulas the graph names as readers of what changed, to work out 16,000 filled rows, are about four times those for 4,000 (a graph asked, for each of the
-    // cells, for every formula in the rows put in names sixteen times as many). Counted, not timed.
+    // cells, for every formula in the rows put in names sixteen times as many). Counted, not timed. The formulas are filled first and the numbers they read after, so that the formulas are there whenever the worker asks
+    // who reads the numbers (filled the other way round, a worker that asks before the formulas are filled finds 3 readers and one that asks after finds one for each row: either is right, and the test saw only one of them).
+    // Each count is bounded by the most the rows can give, a reader or two for each, which is what asking each block once costs; asked for each cell, every formula of the rows would be named for each of them.
     void filledRowsPutInCostInProportionToTheirNumber()
     {
         qint64 looked[2] = {0, 0};
@@ -331,10 +333,12 @@ private Q_SLOTS:
             crunch::EditSession *s = e.win.w.session();
             const Calculation *calc = s->calculation();
             QVERIFY(s->insertRows(0, 5, sizes[k]).ok);
+            QVERIFY(e.settle());
             QVERIFY(s->type(0, 5, 0, QStringLiteral("7")).ok);
             QVERIFY(s->type(0, 5, 1, QStringLiteral("=A6*2")).ok);
+            QVERIFY(e.settle());
             const qint64 before = calc->readersFound();
-            for (const quint32 col : {0u, 1u}) {
+            for (const quint32 col : {1u, 0u}) {
                 office::sheet::CellRange source;
                 source.valid = true;
                 source.row1 = source.row2 = 5;
@@ -348,7 +352,8 @@ private Q_SLOTS:
             looked[k] = calc->readersFound() - before;
             qInfo("N %u: readers found %lld, graph work %lld", sizes[k], looked[k], calc->graph().queryWork());
         }
-        QVERIFY2(looked[0] > 0 && looked[1] <= 6 * looked[0], qPrintable(QStringLiteral("%1 readers named for 4,000 rows and %2 for 16,000").arg(looked[0]).arg(looked[1])));
+        for (int k = 0; k < 2; ++k)
+            QVERIFY2(looked[k] > 0 && looked[k] <= 4 * qint64(sizes[k]) + 100, qPrintable(QStringLiteral("%1 readers named for %2 rows").arg(looked[k]).arg(sizes[k])));
     }
 
     // A hundred thousand rows put in and filled: the formulas in them are held by the ids of the rows they are in (none in places; one shared text for the family), and an edit after writes none of them
