@@ -272,6 +272,7 @@ void WriteDoc::activateNotes()
 // One more than every Id the file's notes and the text's references use (1 where there are none; a gap when the highest is out of the range of an Id).
 int WriteDoc::nextFootnoteId()
 {
+    if (m_noteBatch > 0 && m_batchFootnoteHighest > 0) return ++m_batchFootnoteHighest;
     indexFootnoteReferences();
     QSet<int> used;
     for (auto it = m_noteBlocks.cbegin(); it != m_noteBlocks.cend(); ++it, ++s_noteWalk) used.insert(it.key().mid(2).toInt());
@@ -284,7 +285,10 @@ int WriteDoc::nextFootnoteId()
     }
     int highest = std::max(m_footnotePartHighest, m_footnoteIdFloor);   // (above the Id of every element of the part: the separators have Ids as the notes have)
     for (const int id : std::as_const(used)) highest = std::max(highest, id);
-    if (highest < 1'000'000'000) return highest + 1;
+    if (highest < 1'000'000'000) {
+        if (m_noteBatch > 0) m_batchFootnoteHighest = highest + 1;
+        return highest + 1;
+    }
     for (int id = m_footnotePartHighest + 1;; ++id)
         if (!used.contains(id) && id > m_footnoteIdFloor) return id;
 }
@@ -315,6 +319,10 @@ void WriteDoc::reclaimDeadNotes(bool endnotes, int keep)
     const QSet<int> &made = endnotes ? m_createdEndnotes : m_createdFootnotes;
     const QHash<int, quint64> &steps = endnotes ? m_createdEndnoteStep : m_createdFootnoteStep;
     if (made.isEmpty()) return;
+    if (m_noteBatch > 0) {
+        if (m_batchReclaimed[endnotes]) return;   // (the notes made since are the paste's own, whose references are being set)
+        m_batchReclaimed[endnotes] = true;
+    }
     if (endnotes) indexEndnoteReferences();
     else indexFootnoteReferences();
     QHash<int, quint64> candidates;   // (the notes nothing cites, by their steps)
@@ -393,14 +401,21 @@ int WriteDoc::makeFootnote(const QString &customMark)
     return id;
 }
 
-QVector<Block> WriteDoc::noteContentForCopy(int id, bool endnote)
+void WriteDoc::captureNotesForCopy(const QSet<int> &endnoteIds)
+{
+    if (!endnoteIds.isEmpty()) captureEndnotes(&endnoteIds);
+}
+
+QVector<Block> WriteDoc::noteContentForCopy(int id, bool endnote, bool captured)
 {
     QVector<Block> blocks;
     if (endnote) {
         const QString key = QString::number(id);
         if (!m_endnoteBlocks.contains(key)) return blocks;
-        const QSet<int> one{id};
-        captureEndnotes(&one);   // (what was said in it so far)
+        if (!captured && m_noteBatch == 0) {   // (a batch took them all back at its start)
+            const QSet<int> one{id};
+            captureEndnotes(&one);   // (what was said in it so far)
+        }
         blocks = m_endnoteBlocks.value(key);
     } else {
         const QString key = QStringLiteral("fn%1").arg(id);
@@ -844,6 +859,7 @@ void WriteDoc::activateEndnotes()
 // One more than every Id the file's endnotes and the text's references use.
 int WriteDoc::nextEndnoteId()
 {
+    if (m_noteBatch > 0 && m_batchEndnoteHighest > 0) return ++m_batchEndnoteHighest;
     indexEndnoteReferences();
     int highest = std::max(m_endnotePartHighest, m_endnoteIdFloor);   // (above the Id of every element of the part)
     QSet<int> used;
@@ -855,7 +871,10 @@ int WriteDoc::nextEndnoteId()
         used += beyond;
     }
     for (const int id : std::as_const(used)) highest = std::max(highest, id);
-    if (highest < 1'000'000'000) return highest + 1;
+    if (highest < 1'000'000'000) {
+        if (m_noteBatch > 0) m_batchEndnoteHighest = highest + 1;
+        return highest + 1;
+    }
     for (int id = m_endnotePartHighest + 1;; ++id)
         if (!used.contains(id) && id > m_endnoteIdFloor) return id;
 }

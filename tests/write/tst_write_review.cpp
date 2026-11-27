@@ -7962,6 +7962,32 @@ private Q_SLOTS:
         QVERIFY(!w.readMode() && !w.isReadOnly());
     }
 
+    // A tracked cut and paste of many note references does work in step with their number (it was in step with the square of it: 300 footnote references took half a minute).
+    void aTrackedCutAndPasteOfManyNotesDoesWorkInStepWithTheirNumber_data()
+    {
+        QTest::addColumn<bool>("endnote");
+        QTest::newRow("footnotes") << false;
+        QTest::newRow("endnotes") << true;
+    }
+    void aTrackedCutAndPasteOfManyNotesDoesWorkInStepWithTheirNumber()
+    {
+        QFETCH(bool, endnote);
+        qint64 work[2] = {0, 0};
+        int index = 0;
+        for (const int n : {50, 200}) {
+            ManyNotesWindow m(manyNotesDoc(n, endnote, 5), n, true);
+            m.selectReferences();
+            QTRY_VERIFY(m.w.act("edit.cut")->isEnabled());
+            const int before = int(m.doc->story()->toPlainText().count(QChar::ObjectReplacementCharacter));
+            resetNoteWorkForTest();
+            m.cutAndPasteAfter();
+            work[index++] = noteWorkForTest();
+            // (The references cut stay in the text as deleted ones, and the pasted ones are as many.)
+            QVERIFY(int(m.doc->story()->toPlainText().count(QChar::ObjectReplacementCharacter)) >= before + n);
+        }
+        QVERIFY2(work[0] > 0 && work[1] < work[0] * 6, qPrintable(QStringLiteral("%1 then %2 for four times the references").arg(work[0]).arg(work[1])));
+    }
+
     // A note deleted with its reference is two changes in the list (as the reference program lists them): the reference, and the note's words (and its paragraph mark with them).
     void aDeletedFootnotesWordsAreListedBesideItsReference()
     {

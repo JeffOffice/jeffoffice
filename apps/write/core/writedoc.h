@@ -209,6 +209,20 @@ public:
     // rebuildEndnoteTails, which the edit that took them out is to end with).
     void stripEndnoteTails();
     bool endnoteTailsStripped() const { return m_tailsStripped; }
+    // While alive, the notes made are made without looking through the whole document again for each (a paste of hundreds of references).
+    struct NoteBatch {
+        explicit NoteBatch(WriteDoc &d) : doc(d) { ++doc.m_noteBatch; }
+        ~NoteBatch()
+        {
+            if (--doc.m_noteBatch == 0) {
+                doc.m_batchFootnoteHighest = doc.m_batchEndnoteHighest = 0;
+                doc.m_batchReclaimed[0] = doc.m_batchReclaimed[1] = false;
+            }
+        }
+        NoteBatch(const NoteBatch &) = delete;
+        NoteBatch &operator=(const NoteBatch &) = delete;
+        WriteDoc &doc;
+    };
     // The references to endnotes changed in an edit that was not seen as a change of the text's revision (it was made inside an edit block begun before): the notes are to be set again.
     bool endnoteSettlePending() const { return m_endnoteSettlePending; }
     void rebuildEndnoteTails();
@@ -330,7 +344,9 @@ public:
     // A copy of a footnote as a note of its own (what a pasted copy of a reference cites): its Id, 0 for none.
     int duplicateFootnote(int id);
     // The paragraphs of a note as a clean copy of it (no marks of changes; none where there is no such note), and a new note made of such paragraphs (its Id, or 0 where none can be made).
-    QVector<office::wml::Block> noteContentForCopy(int id, bool endnote);
+    // A note's words as a clean copy. `captured`: the words of the endnotes were taken back from the story already (captureNotesForCopy), which looks through it once for them all.
+    QVector<office::wml::Block> noteContentForCopy(int id, bool endnote, bool captured = false);
+    void captureNotesForCopy(const QSet<int> &endnoteIds);
     int footnoteFromBlocks(const QVector<office::wml::Block> &blocks);
     int endnoteFromBlocks(const QVector<office::wml::Block> &blocks);
     // The look and the pieces of a reference to footnote `id`: its character format (the reference character style over the look of a paragraph of this style), to put
@@ -998,6 +1014,10 @@ private:
     QVector<std::pair<bool, int>> m_noteStepPending;   // (endnote?, Id) of the notes made since the last step: the next step is theirs
     int m_footnoteIdFloor = 0, m_endnoteIdFloor = 0;   // the highest Id made in this session
     void reclaimDeadNotes(bool endnotes, int keep);
+    // Notes made one after another by a paste (a batch): the Id of the next is the one after the last made, and notes put in and taken back are looked for once, at the first.
+    int m_noteBatch = 0;
+    int m_batchFootnoteHighest = 0, m_batchEndnoteHighest = 0;
+    bool m_batchReclaimed[2] = {false, false};
     // The references to endnotes that the settling counts (those that name a note the document has, and are not what a tracked change deleted), kept as the story changes, so that an edit that
     // touches none of them does not look through the story again. Each is kept by its distance from the one before it (the first from the start of the story) and the Id it names, with the
     // sums of the distances in a tree (a Fenwick tree): a change of the story moves the places of all the references after it by changing one distance, and a place is found in a few steps,

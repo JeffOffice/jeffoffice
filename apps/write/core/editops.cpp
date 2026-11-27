@@ -1782,22 +1782,31 @@ static void settlePastedNoteReferences(WriteDoc &doc, QTextDocument *d, int from
         }
         QHash<int, int> copies;
         static const QRegularExpression idAttribute(QStringLiteral("\\b((?:[\\w.-]+:)?id=\")\\d+(\")"));
-        for (const Found &f : std::as_const(found)) {
-            // With Track Changes on a pasted reference always has a note of its own, a clean copy recorded as one inserted change (the note it cited may be marked deleted now, or gone with the cut).
-            QVector<Block> own = recording && pasted && pasted->clip ? pasted->clip->notes.value(noteKey(NoteRef{f.id, endnote})) : QVector<Block>();
-            if (recording && own.isEmpty() && outside.value(f.id) != 0) own = doc.noteContentForCopy(f.id, endnote);
-            if (outside.value(f.id) == 0 && own.isEmpty()) continue;
-            int fresh = copies.value(f.id);
-            if (!fresh) {
+        {
+            // The notes are all made first (before the text is touched, and in one batch): making each one looks through the document again otherwise, and a paste of hundreds of references takes the square of their number.
+            const WriteDoc::NoteBatch batch(doc);
+            if (endnote) doc.captureNotesForCopy(ids);
+            QSet<int> made;
+            for (const Found &f : std::as_const(found)) {
+                if (made.contains(f.id)) continue;
+                // With Track Changes on a pasted reference always has a note of its own, a clean copy recorded as one inserted change (the note it cited may be marked deleted now, or gone with the cut).
+                QVector<Block> own = recording && pasted && pasted->clip ? pasted->clip->notes.value(noteKey(NoteRef{f.id, endnote})) : QVector<Block>();
+                if (recording && own.isEmpty() && outside.value(f.id) != 0) own = doc.noteContentForCopy(f.id, endnote, endnote);
+                if (outside.value(f.id) == 0 && own.isEmpty()) continue;
+                made.insert(f.id);   // (a note that could not be made is not tried again: the pasted reference cites the one the copied did)
+                int fresh = 0;
                 if (recording && !own.isEmpty()) {
                     markBlocksInserted(doc, &own);
                     fresh = endnote ? doc.endnoteFromBlocks(own) : doc.footnoteFromBlocks(own);
                 } else {
                     fresh = endnote ? doc.duplicateEndnote(f.id) : doc.duplicateFootnote(f.id);
                 }
-                if (!fresh) continue;   // (no more notes can be made: the pasted reference cites the one the copied did)
-                copies.insert(f.id, fresh);
+                if (fresh) copies.insert(f.id, fresh);
             }
+        }
+        for (const Found &f : std::as_const(found)) {
+            const int fresh = copies.value(f.id);
+            if (!fresh) continue;
             office::wml::Inline atom = f.atom;
             atom.key = QString::number(fresh);
             {
@@ -2259,8 +2268,12 @@ Clip copySelection(const WriteDoc &doc, const QTextCursor &whole, bool keepChang
         for (QTextBlock b = c.document()->findBlock(c.selectionStart()); b.isValid() && b.position() < c.selectionEnd(); b = b.next())
             if (!isLocked(b)) collectNoteReferences(b, c.selectionStart(), c.selectionEnd(), &refs);
         qsizetype characters = 0;
+        QSet<int> endnoteIds;
+        for (const NoteRef &r : std::as_const(refs))
+            if (r.endnote) endnoteIds.insert(r.id);
+        const_cast<WriteDoc &>(doc).captureNotesForCopy(endnoteIds);   // (once for all of them: the story is looked through for each otherwise)
         for (const NoteRef &r : std::as_const(refs)) {
-            const QVector<Block> blocks = const_cast<WriteDoc &>(doc).noteContentForCopy(r.id, r.endnote);
+            const QVector<Block> blocks = const_cast<WriteDoc &>(doc).noteContentForCopy(r.id, r.endnote, true);
             if (blocks.isEmpty()) continue;
             characters += noteCharacters(blocks);
             if (characters > kMostCopiedNoteChars) {
