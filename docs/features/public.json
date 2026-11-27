@@ -6481,7 +6481,7 @@
         {
          "hide_soon": true,
          "status": "done",
-         "text": "f7302ac1bdfeaa8b225721600cf4773b5f28778a46cf78ab2fb6325b4a08fdb4"
+         "text": "8c8b9ec62b666885eb5cd2e3c4d44b56b34b451d4a240d0caa08d1e396f46b3e"
         },
         {
          "status": "partly",
@@ -7041,7 +7041,7 @@
        "items": [
         {
          "status": "partly",
-         "text": "a2d68353d3e51d1937779783286eb2f4ab0c215e3e2b09bfb8c7f85f9a2c7401"
+         "text": "44b17b274fe5fc80dfc6cae56f2514af0d59c2e44fa508f774b1061e4716a62a"
         }
        ]
       },
@@ -13523,6 +13523,18 @@
     "fr": ""
    }
   },
+  "44b17b274fe5fc80dfc6cae56f2514af0d59c2e44fa508f774b1061e4716a62a": {
+   "drop": false,
+   "en": "Compare the open document with a file you choose, word by word or character by character, optionally ignoring case or white space. The differences appear in a new window as tracked changes signed with a name you give. Moved paragraphs and changes to the look of text and paragraphs are found, and footnotes, headers, and footers are compared. Accepting all gives the revised text, and rejecting all gives the first version.",
+   "es": "Compare el documento abierto con un archivo que usted elija, palabra por palabra o carácter por carácter, con la opción de ignorar mayúsculas o espacios en blanco. Las diferencias aparecen en una ventana nueva como cambios con seguimiento firmados con un nombre que usted indique. Se detectan los párrafos movidos y los cambios en el aspecto del texto y de los párrafos, y se comparan las notas al pie, los encabezados y los pies de página. Al aceptar todo se obtiene el texto revisado, y al rechazar todo se obtiene la primera versión.",
+   "fr": "Comparez le document ouvert avec un fichier de votre choix, mot par mot ou caractère par caractère, en ignorant au besoin la casse ou les espaces. Les différences apparaissent dans une nouvelle fenêtre sous forme de modifications suivies signées d’un nom que vous indiquez. Les paragraphes déplacés et les changements d’aspect du texte et des paragraphes sont détectés, et les notes de bas de page, les en-têtes et les pieds de page sont comparés. Tout accepter donne le texte révisé, et tout refuser redonne la première version.",
+   "soon": {
+    "drop": false,
+    "en": "Compare for tables by row and cell, endnotes, and text boxes; Combine revisions from several authors; Show Source Documents",
+    "es": "Comparación de tablas por fila y celda, notas al final y cuadros de texto; combinación de revisiones de varios autores; mostrar documentos de origen",
+    "fr": "Comparaison des tableaux par ligne et cellule, des notes de fin et des zones de texte ; combinaison des révisions de plusieurs auteurs ; affichage des documents sources"
+   }
+  },
   "44d1081dbb68637ec86727e0b8d9fd52bf581b7acc0d5863db7b8b88e7649a4f": {
    "drop": false,
    "en": "Insert building blocks: page parts (headings, pull quotes, sidebars, stories, tables of contents), calendars (by month and year, with options), borders and accents, and advertisements. Save your own with Save as Building Block; Page Parts lists them under My Building Blocks.",
@@ -18695,6 +18707,18 @@
     "fr": "Choix de la devise dans une liste"
    }
   },
+  "8c8b9ec62b666885eb5cd2e3c4d44b56b34b451d4a240d0caa08d1e396f46b3e": {
+   "drop": false,
+   "en": "Find text with the Find and Replace pane (`Ctrl+F`): see the match count, step through matches with Find Next, and have every match highlighted on the pages, in tables, headers, footers, and notes. Results can be listed as text, by heading, or by page in the Navigation pane, with match case and whole words options.",
+   "es": "Busque texto con el panel Buscar y reemplazar (`Ctrl+F`): vea el número de coincidencias, recorra las coincidencias con Buscar siguiente y resalte todas las coincidencias en las páginas, las tablas, los encabezados, los pies de página y las notas. Los resultados pueden mostrarse en el panel de navegación como texto, por título o por página, con las opciones de coincidir mayúsculas y minúsculas y palabras completas.",
+   "fr": "Recherchez du texte avec le volet Rechercher et remplacer (`Ctrl+F`) : consultez le nombre de résultats, parcourez-les avec Suivant et faites surligner chaque résultat dans les pages, les tableaux, les en-têtes, les pieds de page et les notes. Les résultats peuvent être listés dans le volet Navigation sous forme de texte, par titre ou par page, avec les options de respect de la casse et de mots entiers.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "8cb0df6cd6f0225b96ad4989ef5f43f524ae1bcff45d1fdc83eb8e780f41b32c": {
    "drop": false,
    "en": "Parts of a document that the app can't edit yet, such as diagrams, content-control bindings, custom XML, unknown elements, macros, and embedded objects, are kept with the document and written back as they were.",
@@ -20181,18 +20205,6 @@
     "en": "Look Up",
     "es": "Buscar",
     "fr": "Recherche"
-   }
-  },
-  "a2d68353d3e51d1937779783286eb2f4ab0c215e3e2b09bfb8c7f85f9a2c7401": {
-   "drop": false,
-   "en": "Compare the open document with a file you choose, word by word or character by character, ignoring case or white space, and get a new window with the differences as tracked changes signed with a name you give. Accepting all gives the revised text and rejecting all gives the open document’s text. Moved paragraphs and changes to the look of text and paragraphs are found.",
-   "es": "Compare el documento abierto con un archivo que usted elija, palabra por palabra o carácter por carácter, ignorando mayúsculas o espacios en blanco, y obtenga una ventana nueva con las diferencias como cambios con seguimiento firmados con un nombre que usted indique. Al aceptar todo se obtiene el texto revisado y al rechazar todo, el texto del documento abierto. Se detectan los párrafos movidos y los cambios en el aspecto del texto y de los párrafos.",
-   "fr": "Comparez le document ouvert avec un fichier de votre choix, mot par mot ou caractère par caractère, en ignorant la casse ou les espaces, et obtenez une nouvelle fenêtre avec les différences sous forme de modifications suivies signées du nom que vous indiquez. Tout accepter donne le texte révisé et tout rejeter redonne le texte du document ouvert. Les paragraphes déplacés et les changements d’aspect du texte et des paragraphes sont détectés.",
-   "soon": {
-    "drop": false,
-    "en": "Compare: tables, headers and footers, notes, text boxes, and fields; Combine revisions from several authors; Show Source Documents",
-    "es": "Comparar: tablas, encabezados y pies de página, notas, cuadros de texto y campos; combinar revisiones de varios autores; mostrar documentos de origen",
-    "fr": "Comparaison : tableaux, en-têtes et pieds de page, notes, zones de texte et champs ; combinaison des révisions de plusieurs auteurs ; affichage des documents sources"
    }
   },
   "a35277c3c54655d73a4d376e0324bb748ee090c6a7548059a6b288f6e2a806c6": {
@@ -26428,18 +26440,6 @@
    "en": "Check for Updates now or each time the app starts, then choose Update Now, Later, or Skip This Version. A Get beta versions choice offers early builds on a Beta channel alongside Stable. Update choices are shared with the other JeffOffice apps.",
    "es": "Busque actualizaciones ahora o cada vez que se inicie la aplicación, y elija Actualizar ahora, Más tarde u Omitir esta versión. La opción Obtener versiones beta ofrece compilaciones anticipadas en un canal Beta junto al Estable. Las opciones de actualización se comparten con las demás aplicaciones de JeffOffice.",
    "fr": "Recherchez des mises à jour maintenant ou à chaque démarrage de l’application, puis choisissez Mettre à jour, Plus tard ou Ignorer cette version. Le choix Obtenir les versions bêta propose des versions préliminaires sur un canal Bêta en plus du canal Stable. Les choix de mise à jour sont partagés avec les autres applications JeffOffice.",
-   "soon": {
-    "drop": true,
-    "en": "",
-    "es": "",
-    "fr": ""
-   }
-  },
-  "f7302ac1bdfeaa8b225721600cf4773b5f28778a46cf78ab2fb6325b4a08fdb4": {
-   "drop": false,
-   "en": "Press `Ctrl+F` to find text in the document and its tables, with match case and whole words options. The pane shows the match count, every match is highlighted on the pages, and the Navigation pane can list results as text, by heading, or by page.",
-   "es": "Pulse `Ctrl+F` para buscar texto en el documento y sus tablas, con opciones de coincidir mayúsculas y minúsculas y palabras completas. El panel muestra el número de coincidencias, cada coincidencia se resalta en las páginas y el panel de navegación puede enumerar los resultados como texto, por encabezado o por página.",
-   "fr": "Appuyez sur `Ctrl+F` pour rechercher du texte dans le document et ses tableaux, avec les options respecter la casse et mots entiers. Le volet affiche le nombre de correspondances, chaque correspondance est surlignée dans les pages, et le volet Navigation peut lister les résultats sous forme de texte, par titre ou par page.",
    "soon": {
     "drop": true,
     "en": "",
