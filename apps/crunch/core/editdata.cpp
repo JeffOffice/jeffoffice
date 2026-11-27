@@ -80,6 +80,7 @@ EditSession::Outcome EditSession::placeDataTable(int sheet, quint32 row, quint32
     if (!canEdit(&why) || !canEditSheet(sheet, &why)) return refuse(why);
     Workbook &book = *m_book->book;
     if (data.header.isEmpty() || data.rows.isEmpty()) return refuse(tr("There are no rows to load."));
+    if (source.size() > jp::office::sheet::kMaxDataSourceChars) return refuse(tr("The steps of this query are too long to be saved with the table."));
     if (m_book->calc->sheet(sheet).isProtected) return refuse(tr("This sheet is protected, so a table can't be put on it."));
     if (book.tables().size() >= kMaxDataTablesInWorkbook) return refuse(tr("The workbook has as many tables as JeffCrunch works with."));
     const qint64 columns = data.header.size(), rows = qint64(data.rows.size()) + 1;
@@ -138,7 +139,7 @@ EditSession::Outcome EditSession::placeDataTable(int sheet, quint32 row, quint32
     return out;
 }
 
-EditSession::Outcome EditSession::refreshDataTable(int table, const DataRows &data, const QVector<char> &kinds, const QStringList &fileColumns, bool onlyCheck)
+EditSession::Outcome EditSession::refreshDataTable(int table, const DataRows &data, const QVector<char> &kinds, const QStringList &fileColumns, bool onlyCheck, const QString &newSource)
 {
     Outcome out;
     auto refuse = [&](const QString &why) {
@@ -154,6 +155,7 @@ EditSession::Outcome EditSession::refreshDataTable(int table, const DataRows &da
     if (!canEditSheet(was.sheet, &why)) return refuse(why);
     if (m_book->calc->sheet(was.sheet).isProtected) return refuse(tr("This sheet is protected, so the table can't be changed."));
     if (was.dataSource.isEmpty()) return refuse(tr("This table was not made by Get Data, so it has no file to read again."));
+    if (newSource.size() > jp::office::sheet::kMaxDataSourceChars) return refuse(tr("The steps of this query are too long to be saved with the table."));
     if (was.headerRows != 1 || was.totalsRows != 0) return refuse(tr("The table has a row of totals or no row of names. Take the row of totals off first, and refresh again."));
     const QStringList names = uniqueNames(data.header);
     // Which column of the table each column of the file goes to. The columns the person added beside the file's are left as they are: only a change in the file's own columns refuses.
@@ -196,6 +198,7 @@ EditSession::Outcome EditSession::refreshDataTable(int table, const DataRows &da
     const qint64 newLast = qint64(was.row1) + data.rows.size();
     if (newLast >= 1048576) return refuse(tr("The rows would go past the end of the sheet, so nothing was changed."));
     Table now = was;
+    if (!newSource.isEmpty()) now.dataSource = newSource;
     now.row2 = quint32(newLast);
     now.fileRow2 = now.row2;
     CellRange grown;

@@ -4,6 +4,7 @@
 #include "sheet/datasource.h"
 #include "app/crunchwindow.h"
 #include "app/crunchinfo.h"
+#include "app/connectionspane.h"
 #include "app/getdata.h"
 #include "app/theme.h"
 #include "sheet/oldsave.h"
@@ -24,6 +25,7 @@
 #include <QApplication>
 #include <QCheckBox>
 #include <QColorDialog>
+#include <QDateTime>
 #include <QDialog>
 #include <QDialogButtonBox>
 #include <QElapsedTimer>
@@ -40,6 +42,7 @@
 #include <QListWidget>
 #include <QPainter>
 #include <QPushButton>
+#include <QTableWidget>
 #include <QTreeWidget>
 
 #include <QMenu>
@@ -2662,6 +2665,223 @@ private Q_SLOTS:
         QCOMPARE(f.win.w.session()->workbook()->tables().first().row2, 3u);
         QCOMPARE(f.win.told.size(), 0);
     }
+    // ---- Get Data steps (slice 1: the steps, their saved form, Refresh through them, and the list of queries)
+    static QString stepsFile(QByteArray tail = QByteArray())
+    {
+        return QString::fromUtf8("[{\"name\":\"Ann\",\"n\":3,\"d\":\"01/02/2024\",\"amt\":\"10\"},{\"name\":\"bob\",\"n\":10,\"d\":\"15/03/2024\",\"amt\":\"1.234,5\"},{\"name\":\"Cy\",\"n\":1,\"d\":\"09/09/2023\",\"amt\":\"1\"},{\"name\":\"Dee\",\"n\":7,\"d\":\"31/12/2022\",\"amt\":\"2,5\"}") + QString::fromUtf8(tail) + QStringLiteral("]");
+    }
+    static QVector<jp::office::sheet::DataStep> sampleSteps()
+    {
+        using S = jp::office::sheet::DataStep;
+        QVector<S> steps;
+        S amt;
+        amt.op = S::Op::Kind;
+        amt.col = QStringLiteral("amt");
+        amt.kind = QStringLiteral("number");
+        amt.decimal = QStringLiteral(",");
+        amt.group = QStringLiteral(".");
+        S date;
+        date.op = S::Op::Kind;
+        date.col = QStringLiteral("d");
+        date.kind = QStringLiteral("date");
+        date.order = QStringLiteral("DMY");
+        S filter;
+        filter.op = S::Op::Filter;
+        filter.col = QStringLiteral("n");
+        filter.cmp = QStringLiteral("gt");
+        filter.value = QStringLiteral("1");
+        S sort;
+        sort.op = S::Op::Sort;
+        sort.col = QStringLiteral("n");
+        sort.descending = true;
+        S rename;
+        rename.op = S::Op::Rename;
+        rename.col = QStringLiteral("name");
+        rename.to = QStringLiteral("Who \"&\" <more>");
+        S keep;
+        keep.op = S::Op::Keep;
+        keep.cols = {QStringLiteral("Who \"&\" <more>"), QStringLiteral("n"), QStringLiteral("d"), QStringLiteral("amt")};
+        steps << amt << date << filter << sort << rename << keep;
+        return steps;
+    }
+    // Load with the steps, save, close, reopen: the steps come back as they were; Refresh in the reopened workbook runs them on the file as it is now (one step of Undo that puts the cells and the source text back); the time and the row count are kept.
+    void aQueryWithStepsLoadsRefreshesAndSurvivesASaveAndOpen()
+    {
+        EditWindow e;
+        QVERIFY(e.open(buildXlsx({worksheet(row(9, text(QStringLiteral("A9"), QStringLiteral("keep"))))})));
+        crunch::EditSession *s = e.win.w.session();
+        s->setLocale(kUs);
+        QVERIFY(e.settle());
+        const QString file = e.folder.write(QStringLiteral("people.json"), stepsFile().toUtf8());
+        const QVector<DataStep> steps = sampleSteps();
+        e.win.w.setGetDataAsker([&](jp::GetDataRequest *r) {
+            r->conn.kind = QStringLiteral("json");
+            r->conn.path = file;
+            r->conn.steps = steps;
+            r->conn.name = QStringLiteral("People");
+            r->place = QStringLiteral("A1");
+            return true;
+        });
+        const qint64 before = QDateTime::currentSecsSinceEpoch();
+        e.win.w.act(QStringLiteral("data.fromFile"))->trigger();
+        QVERIFY(e.settle());
+        const qint64 after = QDateTime::currentSecsSinceEpoch();
+        QCOMPARE(s->workbook()->tables().size(), 1);
+        QCOMPARE(e.win.w.undoStack()->count(), 1);
+        const Table t = s->workbook()->tables().first();
+        QCOMPARE(t.columns, (QStringList{QStringLiteral("Who \"&\" <more>"), QStringLiteral("n"), QStringLiteral("d"), QStringLiteral("amt")}));
+        QCOMPARE(t.row2, 3u);   // (Cy is filtered out: three rows and the names)
+        QCOMPARE(valueOf(e, QStringLiteral("A2")), QStringLiteral("s:bob"));   // (largest n first)
+        QCOMPARE(valueOf(e, QStringLiteral("A3")), QStringLiteral("s:Dee"));
+        QCOMPARE(valueOf(e, QStringLiteral("A4")), QStringLiteral("s:Ann"));
+        QCOMPARE(valueOf(e, QStringLiteral("D2")), QStringLiteral("n:1234.5"));
+        QCOMPARE(valueOf(e, QStringLiteral("D3")), QStringLiteral("n:2.5"));
+        QVERIFY(valueOf(e, QStringLiteral("C2")).startsWith(QLatin1String("n:")));   // the date is a date
+        QVERIFY(t.dataSource.startsWith(QLatin1String("jo-data:2?kind=json")));
+        DataConnection conn;
+        QVERIFY(DataConnection::parse(t.dataSource, &conn));
+        QCOMPARE(conn.steps, steps);
+        QCOMPARE(conn.name, QStringLiteral("People"));
+        QCOMPARE(conn.rowCount, qint64(3));
+        QVERIFY(conn.ranAt >= before && conn.ranAt <= after);
+        // save, close, reopen: the query is as it was
+        QVERIFY(saveNow(e));
+        EditWindow f;
+        const QString copy = e.copyOfFile();
+        QVERIFY(!copy.isEmpty());
+        QVERIFY(f.win.open(copy));
+        QVERIFY(f.settle());
+        f.win.w.session()->setLocale(kUs);
+        QCOMPARE(f.win.w.session()->workbook()->tables().size(), 1);
+        const QString saved = f.win.w.session()->workbook()->tables().first().dataSource;
+        QCOMPARE(saved, t.dataSource);
+        // the file gains a row (n = 20, the largest) and a row that the filter drops; Refresh runs the steps on it
+        e.folder.write(QStringLiteral("people.json"), stepsFile(",{\"name\":\"Eve\",\"n\":20,\"d\":\"05/05/2025\",\"amt\":\"7\"},{\"name\":\"Fay\",\"n\":0,\"d\":\"05/05/2025\",\"amt\":\"7\"}").toUtf8());
+        f.select(QStringLiteral("A2"));
+        f.win.w.act(QStringLiteral("data.refresh"))->trigger();
+        QVERIFY(f.settle());
+        QCOMPARE(f.win.told.size(), 0);
+        QCOMPARE(f.win.w.undoStack()->count(), 1);
+        QCOMPARE(f.win.w.session()->workbook()->tables().first().row2, 4u);
+        QCOMPARE(valueOf(f, QStringLiteral("A2")), QStringLiteral("s:Eve"));
+        QCOMPARE(valueOf(f, QStringLiteral("D2")), QStringLiteral("n:7"));
+        DataConnection again;
+        QVERIFY(DataConnection::parse(f.win.w.session()->workbook()->tables().first().dataSource, &again));
+        QCOMPARE(again.rowCount, qint64(4));
+        QCOMPARE(again.steps, steps);
+        pressUndo(&f.win.w);
+        QVERIFY(f.settle());
+        QCOMPARE(f.win.w.session()->workbook()->tables().first().dataSource, saved);
+        QCOMPARE(f.win.w.session()->workbook()->tables().first().row2, 3u);
+        QCOMPARE(valueOf(f, QStringLiteral("A2")), QStringLiteral("s:bob"));
+    }
+
+    // A step that can't run is named, the table keeps its data, and nothing is put on the stack of Undo.
+    void aStepThatFailsIsNamedAndTheTableKeepsItsData()
+    {
+        EditWindow e;
+        QVERIFY(e.open(buildXlsx({worksheet(row(9, text(QStringLiteral("A9"), QStringLiteral("keep"))))})));
+        crunch::EditSession *s = e.win.w.session();
+        s->setLocale(kUs);
+        QVERIFY(e.settle());
+        const QString file = e.folder.write(QStringLiteral("people.json"), stepsFile().toUtf8());
+        e.win.w.setGetDataAsker([&](jp::GetDataRequest *r) {
+            r->conn.kind = QStringLiteral("json");
+            r->conn.path = file;
+            r->conn.steps = sampleSteps();
+            r->place = QStringLiteral("A1");
+            return true;
+        });
+        e.win.w.act(QStringLiteral("data.fromFile"))->trigger();
+        QVERIFY(e.settle());
+        const QString source = s->workbook()->tables().first().dataSource;
+        const int steps = e.win.w.undoStack()->count();
+        // a value that is not a number in the column the first step makes a number
+        e.folder.write(QStringLiteral("people.json"), stepsFile(",{\"name\":\"Gus\",\"n\":4,\"d\":\"05/05/2025\",\"amt\":\"abc\"}").toUtf8());
+        e.select(QStringLiteral("A2"));
+        e.win.w.act(QStringLiteral("data.refresh"))->trigger();
+        QVERIFY(e.settle());
+        QCOMPARE(e.win.told.size(), 1);
+        QVERIFY(e.win.told.last().contains(QLatin1String("Step 1")));
+        QVERIFY(e.win.told.last().contains(QLatin1String("\"abc\" in row 5 of \"amt\" is not a number")));
+        // a column a step names is gone from the file
+        e.folder.write(QStringLiteral("people.json"), "[{\"name\":\"Ann\",\"n\":3,\"d\":\"01/02/2024\"}]");
+        e.win.w.act(QStringLiteral("data.refresh"))->trigger();
+        QVERIFY(e.settle());
+        QCOMPARE(e.win.told.size(), 2);
+        QVERIFY(e.win.told.last().contains(QLatin1String("Step 1")));
+        QVERIFY(e.win.told.last().contains(QLatin1String("The column \"amt\" is not there")));
+        QCOMPARE(e.win.w.undoStack()->count(), steps);
+        QCOMPARE(s->workbook()->tables().first().dataSource, source);
+        QCOMPARE(valueOf(e, QStringLiteral("A2")), QStringLiteral("s:bob"));
+        QCOMPARE(valueOf(e, QStringLiteral("A9")), QStringLiteral("s:keep"));
+    }
+
+    // The list of queries: name, file, last run, rows, state; Refresh runs the chosen one and the list shows the new count; a query from a newer version is listed, can't be run, and is saved as it was.
+    void theConnectionsPaneListsQueriesAndRefreshesThem()
+    {
+        const QString newer = QStringLiteral("jo-data:3?kind=json&path=%2Ftmp%2Fnowhere.json&future=%E2%9C%93");
+        const QString part = QStringLiteral("<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\n<table xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\" id=\"1\" name=\"Future\" displayName=\"Future\" ref=\"F1:G3\">"
+                                           "<tableColumns count=\"2\"><tableColumn id=\"1\" name=\"a\"/><tableColumn id=\"2\" name=\"b\"/></tableColumns><tableStyleInfo name=\"TableStyleMedium2\" showRowStripes=\"1\"/>"
+                                           "<extLst><ext uri=\"{6A1F0C3E-5B7D-4E29-9C41-0D3B7A52E8F1}\"><jo:dataSource xmlns:jo=\"urn:jeffoffice:data-source\" text=\"%1\"/></ext></extLst></table>").arg(newer.toHtmlEscaped());
+        QString rows = QStringLiteral("<row r=\"1\">%1%2</row>").arg(text(QStringLiteral("F1"), QStringLiteral("a")), text(QStringLiteral("G1"), QStringLiteral("b")));
+        rows += QStringLiteral("<row r=\"2\">%1%2</row><row r=\"3\">%3%4</row>").arg(num(QStringLiteral("F2"), 1), num(QStringLiteral("G2"), 2), num(QStringLiteral("F3"), 3), num(QStringLiteral("G3"), 4));
+        EditWindow e;
+        QVERIFY(e.open(withTables(buildXlsx({worksheet(rows)}), {part})));
+        crunch::EditSession *s = e.win.w.session();
+        s->setLocale(kUs);
+        QVERIFY(e.settle());
+        QCOMPARE(s->workbook()->tables().size(), 1);
+        const QString file = e.folder.write(QStringLiteral("people.json"), stepsFile().toUtf8());
+        e.win.w.setGetDataAsker([&](jp::GetDataRequest *r) {
+            r->conn.kind = QStringLiteral("json");
+            r->conn.path = file;
+            r->conn.steps = sampleSteps();
+            r->conn.name = QStringLiteral("People");
+            r->place = QStringLiteral("A1");
+            return true;
+        });
+        e.win.w.act(QStringLiteral("data.fromFile"))->trigger();
+        QVERIFY(e.settle());
+        QCOMPARE(s->workbook()->tables().size(), 2);
+        e.folder.write(QStringLiteral("people.json"), stepsFile(",{\"name\":\"Eve\",\"n\":20,\"d\":\"05/05/2025\",\"amt\":\"7\"}").toUtf8());
+        int opened = 0;
+        e.win.w.setConnectionsAsker([&](jp::ConnectionsPane *pane) {
+            ++opened;
+            QCOMPARE(pane->queryCount(), 2);
+            QTableWidget *list = pane->table();
+            QCOMPARE(list->rowCount(), 2);
+            // (in the order of the workbook's tables)
+            QCOMPARE(list->item(0, 0)->text(), QStringLiteral("Future"));
+            QCOMPARE(list->item(0, 4)->text(), QStringLiteral("Made by a newer version, can't be run"));
+            QCOMPARE(list->item(1, 0)->text(), QStringLiteral("People"));
+            QCOMPARE(list->item(1, 1)->text(), file);
+            QCOMPARE(list->item(1, 3)->text(), QStringLiteral("3"));
+            QCOMPARE(list->item(1, 4)->text(), QStringLiteral("Ready"));
+            list->selectRow(0);
+            QVERIFY(!pane->refreshButton()->isEnabled());
+            list->selectRow(1);
+            QVERIFY(pane->refreshButton()->isEnabled());
+            pane->refreshButton()->click();
+            QCOMPARE(list->item(1, 3)->text(), QStringLiteral("4"));
+            QCOMPARE(pane->tableOfRow(1), 1);
+        });
+        e.win.w.act(QStringLiteral("data.connections"))->trigger();
+        QVERIFY(e.settle());
+        QCOMPARE(opened, 1);
+        QCOMPARE(e.win.told.size(), 0);
+        QCOMPARE(valueOf(e, QStringLiteral("A2")), QStringLiteral("s:Eve"));
+        // saved and opened again, the query from a newer version is as it was
+        QVERIFY(saveNow(e));
+        EditWindow f;
+        const QString copy = e.copyOfFile();
+        QVERIFY(f.win.open(copy));
+        QVERIFY(f.settle());
+        const auto &tables = f.win.w.session()->workbook()->tables();
+        QCOMPARE(tables.size(), 2);
+        QCOMPARE(tables[0].dataSource, newer);   // as it was, byte for byte
+    }
+
     // The window shows the first rows and the kind found for each column before anything is loaded; nothing on the sheet is touched; a web address is refused in words.
     void theGetDataWindowPreviewsTheFirstRows()
     {

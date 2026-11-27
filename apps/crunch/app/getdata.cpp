@@ -56,6 +56,31 @@ QString guessGetDataKind(const QString &path)
     return QString();
 }
 
+// The steps of the query (if it has any) run on the rows read, then the kind of each column is judged from what is left, a kind a step fixed going before the judging.
+static GetDataFetch finishGetData(const DataConnection &conn, GetDataFetch *fetch, const std::function<bool()> &cancelled)
+{
+    GetDataFetch &out = *fetch;
+    if (!conn.stepsProblem.isEmpty()) {
+        out.why = conn.stepsProblem;
+        return out;
+    }
+    jp::office::sheet::DataStepsRun run;
+    if (!conn.steps.isEmpty()) {
+        run = jp::office::sheet::applyDataSteps(conn.steps, &out.rows, cancelled);
+        if (!run.ok) {
+            out.why = run.why;
+            out.failedStep = run.failedStep;
+            out.rows = jp::office::sheet::DataRows();
+            return out;
+        }
+    }
+    out.kinds = dataColumnKinds(out.rows, conn.asText);
+    for (int c = 0; c < out.kinds.size() && c < run.forcedKinds.size(); ++c)
+        if (run.forcedKinds[c]) out.kinds[c] = run.forcedKinds[c];
+    out.ok = true;
+    return out;
+}
+
 GetDataFetch fetchGetData(const DataConnection &conn, int previewRows, const std::function<bool()> &cancelled)
 {
     GetDataFetch out;
@@ -66,9 +91,7 @@ GetDataFetch fetchGetData(const DataConnection &conn, int previewRows, const std
         const QString list = conn.list.isEmpty() ? out.lists.first() : conn.list;
         out.why.clear();
         if (!dataReadBook(conn.path, list, previewRows, limits, cancelled, &out.rows, &out.why)) return out;
-        out.kinds = dataColumnKinds(out.rows, conn.asText);
-        out.ok = true;
-        return out;
+        return finishGetData(conn, &out, cancelled);
     }
     QByteArray bytes;
     if (!dataReadFile(conn.path, limits, cancelled, &bytes, &out.why)) return out;
@@ -92,9 +115,7 @@ GetDataFetch fetchGetData(const DataConnection &conn, int previewRows, const std
         out.why = QCoreApplication::translate("jp::GetDataDialog", "That kind of file can't be loaded.");
         return out;
     }
-    out.kinds = dataColumnKinds(out.rows, conn.asText);
-    out.ok = true;
-    return out;
+    return finishGetData(conn, &out, cancelled);
 }
 
 QString getDataVisibleText(const QString &text)

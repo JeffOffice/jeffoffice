@@ -2,6 +2,7 @@
 // and the rows are put on the sheet as a table in one step of Undo. A refused or cancelled load changes nothing.
 #include "app/crunchwindow.h"
 
+#include "app/connectionspane.h"
 #include "app/getdata.h"
 #include "sheet/cellref.h"
 #include "sheet/datasource.h"
@@ -11,11 +12,13 @@
 #include "core/appinfo.h"
 
 #include <QAction>
+#include <QDateTime>
 #include <QDir>
 #include <QFileInfo>
 #include <QMessageBox>
 #include <QPointer>
 #include <QPushButton>
+#include <QUndoStack>
 
 #include <atomic>
 #include <memory>
@@ -110,7 +113,8 @@ void CrunchWindow::createGetDataActions()
     mk("data.fromFile", tr("From File…"), "database", QKeySequence(), [this] { getDataCommand(); });
     mk("data.refresh", tr("Refresh"), "refresh-cw", QKeySequence(), [this] { refreshDataCommand(false); });
     mk("data.refreshAll", tr("Refresh All"), "refresh-ccw", QKeySequence(), [this] { refreshDataCommand(true); });
-    for (const char *id : {"data.fromFile", "data.refresh", "data.refreshAll"}) m_opsActions << QString::fromLatin1(id);
+    mk("data.connections", tr("Queries & Connections…"), "list", QKeySequence(), [this] { connectionsCommand(); }, false, false);
+    for (const char *id : {"data.fromFile", "data.refresh", "data.refreshAll", "data.connections"}) m_opsActions << QString::fromLatin1(id);
 }
 
 void CrunchWindow::getDataCommand()
@@ -179,6 +183,8 @@ bool CrunchWindow::loadGetData(const GetDataRequest &req)
     }
     DataConnection conn = req.conn;
     conn.columns = m_session->dataTableNames(result.rows.header);
+    conn.ranAt = QDateTime::currentSecsSinceEpoch();
+    conn.rowCount = result.rows.rows.size();
     const auto outcome = m_session->placeDataTable(m_sheet, row, col, result.rows, result.kinds, conn.text(), replace, nullptr);
     if (!outcome.ok) {
         notice(title, outcome.problem + QLatin1Char(' ') + tr("Nothing was changed."));
@@ -208,6 +214,32 @@ void CrunchWindow::refreshDataCommand(bool all)
         }
         tables << t;
     }
+    refreshQueries(tables, all, nullptr);
+}
+
+// Data > Queries & Connections: the list of queries, with Refresh for each and for all.
+void CrunchWindow::connectionsCommand()
+{
+    if (m_edit.active && !commitEdit(CellEditor::Way::Stay)) return;
+    if (!m_session || !m_loaded) return;
+    ConnectionsPane pane(m_session.get(), editingAllowed(), this);
+    connect(&pane, &ConnectionsPane::refreshRequested, this, [this, &pane](const QVector<int> &tables, bool all) {
+        refreshQueries(tables, all, &pane);
+        pane.reload();
+    });
+    connect(m_session->undoStack(), &QUndoStack::indexChanged, &pane, [&pane] { pane.reload(); });
+    if (m_connectionsAsker) m_connectionsAsker(&pane);
+    else pane.exec();
+}
+
+// Reads the tables again (each through the steps of its query, on a thread of its own), and puts the rows in, with the time and the row count in the table's source text, in the same step of Undo. A table
+// whose file can't be read, or whose step fails, is said and left as it was.
+void CrunchWindow::refreshQueries(const QVector<int> &wanted, bool all, QWidget *progressParent)
+{
+    if (!editingAllowed() || !m_session || !m_loaded) return;
+    QVector<int> tables = wanted;
+    const QString title = all ? tr("Refresh All") : tr("Refresh");
+    const auto &book = m_session->workbook()->tables();
     {
         QStringList names, paths;
         QVector<int> unasked;
@@ -222,7 +254,7 @@ void CrunchWindow::refreshDataCommand(bool all)
             names << table.name;
             paths << key;
         }
-        if (!approveFiles(this, title, {}, all, names, paths)) {
+        if (!approveFiles(progressParent ? progressParent : this, title, {}, all, names, paths)) {
             for (int t : unasked) tables.removeAll(t);
             if (tables.isEmpty() && !all) {
                 setStatus(tr("Nothing was read."));
@@ -254,7 +286,7 @@ void CrunchWindow::refreshDataCommand(bool all)
         GetDataFetch result;
         std::atomic<bool> cancel{false};
         const auto hold = m_getDataHold;   // (the thread uses a copy: it must not reach into a window that may be closed meanwhile)
-        const bool finished = runGetDataWork(this, tr("Reading %1…").arg(QFileInfo(conn.path).fileName()), &cancel, [&] {
+        const bool finished = runGetDataWork(progressParent ? progressParent : this, tr("Reading %1…").arg(QFileInfo(conn.path).fileName()), &cancel, [&] {
             if (hold) hold(cancel);
             result = fetchGetData(toRead, 0, [&cancel] { return cancel.load(); });
         });
@@ -277,7 +309,10 @@ void CrunchWindow::refreshDataCommand(bool all)
             m_session->undoStack()->beginMacro(tr("Refresh All"));
             grouped = true;
         }
-        const auto outcome = m_session->refreshDataTable(t, result.rows, result.kinds, conn.columns);
+        DataConnection ran = conn;
+        ran.ranAt = QDateTime::currentSecsSinceEpoch();
+        ran.rowCount = result.rows.rows.size();
+        const auto outcome = m_session->refreshDataTable(t, result.rows, result.kinds, conn.columns, false, ran.text());
         if (!outcome.ok) {
             problems << tr("%1: %2").arg(table.name, outcome.problem);
             continue;

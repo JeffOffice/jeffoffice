@@ -382,6 +382,7 @@
           "items": [
             {"large": "data.fromText", "keytip": "FT"},
             {"large": "data.fromFile", "keytip": "FF"},
+            {"large": "data.connections", "keytip": "QC"},
             {"large": "data.editLinks", "keytip": "EL"}
           ]
         },

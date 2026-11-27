@@ -37,6 +37,11 @@ The link to the file is kept in the table in a saved `.xlsx` workbook, in a part
 
 Files are read with limits: a file up to 64 MB, 200,000 rows, 256 columns, and 32,767 characters in a cell. XML with a document type or entities is refused. Anything cut by a limit is said.
 
+
+## Queries & Connections
+
+**Queries & Connections** in the **Get Data** group lists every table that was made by Get Data. Each row shows the query's name, the file it reads, when it last ran, the rows it gave, and whether it can run. Pick a row and click **Refresh** to read its file again, or click **Refresh All** for every query that can run. A query can carry steps, such as choosing columns, filtering rows, sorting, or changing a column to a number or a date. Refresh runs them again on the file as it is now. If a step can't run, you are told which step and why, and the table keeps its old data. A query saved by a newer version of the program is listed, can't be run, and is saved just as it was.
+
 ## Edit Links
 
 If a workbook has formulas that read another workbook (such as ='[Prices.xlsx]Sheet1'!A1), **Edit Links** in the **Get Data** group lists those other workbooks, which are called sources. Each row shows where the source is, and its status. Until the workbook is opened again with its sources, it shows the numbers its file stored from them.

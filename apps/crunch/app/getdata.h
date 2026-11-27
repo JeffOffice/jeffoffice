@@ -3,6 +3,7 @@
 // load (the file, the list in it, the choice of types) and shows the first rows before anything is changed; the file is read on a thread of its own behind a box with Cancel.
 
 #include "sheet/datasource.h"
+#include "sheet/datasteps.h"
 
 #include <QDialog>
 #include <QString>
@@ -31,6 +32,7 @@ struct GetDataFetch {
     QStringList lists;
     jp::office::sheet::DataRows rows;
     QVector<char> kinds;
+    int failedStep = -1;   // the step (from 0) that could not run, when one did not
 };
 
 // Reads the source of `conn`; the list is the first one the file offers when conn.list is empty. Safe on any thread: it asks `cancelled` as it goes.

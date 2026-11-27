@@ -125,6 +125,7 @@ enum class ControlKind : quint8;
 class FormulaHelper;
 class FunctionArgumentsDialog;
 class DataFormDialog;
+class ConnectionsPane;
 class HelpView;
 class PivotFieldsPane;
 struct ValueFieldSettings;
@@ -431,6 +432,7 @@ public:
     // test hook: the cells or table the new pivot table is made from, whether it goes on a sheet of its own, and where on a sheet (a cell, with the sheet's name before it if it is another)
     // The data entry form is opened (tests drive the dialog in place of exec()); true when it was shown.
     void setDataFormAsker(std::function<void(DataFormDialog *)> asker) { m_dataFormAsker = std::move(asker); }
+    void setConnectionsAsker(std::function<void(ConnectionsPane *)> asker) { m_connectionsAsker = std::move(asker); }
     void setGetDataAsker(std::function<bool(GetDataRequest *)> asker) { m_getDataAsker = std::move(asker); }
     // test hook: runs on the worker thread before a file is read, with the flag Cancel sets (a test holds the worker there until it has pressed Cancel)
     void setGetDataHold(std::function<void(const std::atomic<bool> &)> hold) { m_getDataHold = std::move(hold); }
@@ -703,6 +705,8 @@ public:
     void createGetDataActions();
     void getDataCommand();
     void refreshDataCommand(bool all);
+    void refreshQueries(const QVector<int> &tables, bool all, QWidget *progressParent);
+    void connectionsCommand();
     // Loads the source of `req` as a table (the work after the dialog); false when nothing was changed.
     bool loadGetData(const GetDataRequest &req);
     void showBackground();   // the picture behind the cells of the sheet in view, from its page setup
@@ -1228,6 +1232,7 @@ private:
     std::function<bool(const QStringList &, QList<int> *)> m_removeDuplicatesAsker;
     std::function<void(DataFormDialog *)> m_dataFormAsker;
     std::function<bool(GetDataRequest *)> m_getDataAsker;
+    std::function<void(ConnectionsPane *)> m_connectionsAsker;
     std::function<bool(int)> m_getDataReplaceAsker;
     std::function<bool(const QStringList &, const QString &)> m_getDataTrustAsker;
     QSet<QString> m_getDataTrusted;   // full paths of files this person made a query from, or said yes to, in this window (kept in memory only)
