@@ -55314,7 +55314,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
         <translation type="unfinished">Сторінка приміток</translation>
     </message>
     <message>
-        <location line="+364"/>
+        <location line="+373"/>
         <source>The rest of the notes does not print</source>
         <translation type="unfinished"></translation>
     </message>
@@ -55387,7 +55387,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
         <translation type="unfinished">Клацніть, щоб додати примітки</translation>
     </message>
     <message>
-        <location line="+58"/>
+        <location line="+65"/>
         <source>(Delete)</source>
         <translation type="unfinished">(Видалити)</translation>
     </message>
@@ -60290,13 +60290,13 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     </message>
     <message>
         <location line="+4"/>
-        <location line="+459"/>
+        <location line="+463"/>
         <location line="+1"/>
         <source>Speaker Notes</source>
         <translation type="unfinished">Виступ доповідача</translation>
     </message>
     <message>
-        <location line="-456"/>
+        <location line="-460"/>
         <source>Zoom into the Slide</source>
         <translation type="unfinished">Збільшити слайд</translation>
     </message>
@@ -60337,7 +60337,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     </message>
     <message>
         <location line="+6"/>
-        <location line="+43"/>
+        <location line="+47"/>
         <source>These notes were cut short because they are very long.</source>
         <translation type="unfinished">Ці примітки скорочено, оскільки вони дуже довгі.</translation>
     </message>
@@ -60865,7 +60865,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
 <context>
     <name>jp::StoryEdit</name>
     <message>
-        <location filename="../libs/page/app/storyedit.cpp" line="+610"/>
+        <location filename="../libs/page/app/storyedit.cpp" line="+615"/>
         <source>Undo</source>
         <translation type="unfinished">Скасувати</translation>
     </message>

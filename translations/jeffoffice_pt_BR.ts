@@ -55235,7 +55235,7 @@ Seu navegador da Web abrirá o LibreTranslate, um serviço de tradução gratuit
         <translation type="unfinished">Página de Anotações</translation>
     </message>
     <message>
-        <location line="+364"/>
+        <location line="+373"/>
         <source>The rest of the notes does not print</source>
         <translation type="unfinished"></translation>
     </message>
@@ -55308,7 +55308,7 @@ Seu navegador da Web abrirá o LibreTranslate, um serviço de tradução gratuit
         <translation type="unfinished">Clique para adicionar anotações</translation>
     </message>
     <message>
-        <location line="+58"/>
+        <location line="+65"/>
         <source>(Delete)</source>
         <translation type="unfinished">(Excluir)</translation>
     </message>
@@ -60205,13 +60205,13 @@ Seu navegador da Web abrirá o LibreTranslate, um serviço de tradução gratuit
     </message>
     <message>
         <location line="+4"/>
-        <location line="+459"/>
+        <location line="+463"/>
         <location line="+1"/>
         <source>Speaker Notes</source>
         <translation type="unfinished">Anotações do Orador</translation>
     </message>
     <message>
-        <location line="-456"/>
+        <location line="-460"/>
         <source>Zoom into the Slide</source>
         <translation type="unfinished">Ampliar o Slide</translation>
     </message>
@@ -60252,7 +60252,7 @@ Seu navegador da Web abrirá o LibreTranslate, um serviço de tradução gratuit
     </message>
     <message>
         <location line="+6"/>
-        <location line="+43"/>
+        <location line="+47"/>
         <source>These notes were cut short because they are very long.</source>
         <translation type="unfinished">Estas anotações foram cortadas porque são muito longas.</translation>
     </message>
@@ -60780,7 +60780,7 @@ Seu navegador da Web abrirá o LibreTranslate, um serviço de tradução gratuit
 <context>
     <name>jp::StoryEdit</name>
     <message>
-        <location filename="../libs/page/app/storyedit.cpp" line="+610"/>
+        <location filename="../libs/page/app/storyedit.cpp" line="+615"/>
         <source>Undo</source>
         <translation type="unfinished">Desfazer</translation>
     </message>

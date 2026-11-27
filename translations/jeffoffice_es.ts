@@ -55235,7 +55235,7 @@ Su explorador web abrirá LibreTranslate, un servicio de traducción gratuito y 
         <translation type="unfinished">Página de notas</translation>
     </message>
     <message>
-        <location line="+364"/>
+        <location line="+373"/>
         <source>The rest of the notes does not print</source>
         <translation type="unfinished"></translation>
     </message>
@@ -55308,7 +55308,7 @@ Su explorador web abrirá LibreTranslate, un servicio de traducción gratuito y 
         <translation type="unfinished">Haga clic para agregar notas</translation>
     </message>
     <message>
-        <location line="+58"/>
+        <location line="+65"/>
         <source>(Delete)</source>
         <translation type="unfinished">(Eliminar)</translation>
     </message>
@@ -60205,13 +60205,13 @@ Su explorador web abrirá LibreTranslate, un servicio de traducción gratuito y 
     </message>
     <message>
         <location line="+4"/>
-        <location line="+459"/>
+        <location line="+463"/>
         <location line="+1"/>
         <source>Speaker Notes</source>
         <translation type="unfinished">Notas del orador</translation>
     </message>
     <message>
-        <location line="-456"/>
+        <location line="-460"/>
         <source>Zoom into the Slide</source>
         <translation type="unfinished">Acercar la diapositiva</translation>
     </message>
@@ -60252,7 +60252,7 @@ Su explorador web abrirá LibreTranslate, un servicio de traducción gratuito y 
     </message>
     <message>
         <location line="+6"/>
-        <location line="+43"/>
+        <location line="+47"/>
         <source>These notes were cut short because they are very long.</source>
         <translation type="unfinished">Estas notas se han acortado porque son muy largas.</translation>
     </message>
@@ -60780,7 +60780,7 @@ Su explorador web abrirá LibreTranslate, un servicio de traducción gratuito y 
 <context>
     <name>jp::StoryEdit</name>
     <message>
-        <location filename="../libs/page/app/storyedit.cpp" line="+610"/>
+        <location filename="../libs/page/app/storyedit.cpp" line="+615"/>
         <source>Undo</source>
         <translation type="unfinished">Deshacer</translation>
     </message>
