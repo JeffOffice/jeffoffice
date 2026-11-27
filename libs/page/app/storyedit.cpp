@@ -392,6 +392,17 @@ void StoryEdit::markWords()
     setExtraSelections(marks);
 }
 
+// Whether a key is one that would change the words (a letter, Backspace, Delete, Enter, Tab, and the clipboard, history, and look commands). Keys typed in the notes never drive
+// anything else, such as Presenter View's show: they are the notes' own, whether the change is made or refused.
+static bool wouldChangeWords(const QKeyEvent *e)
+{
+    const int k = e->key();
+    const bool types = !e->text().isEmpty() && e->text().at(0).isPrint() && !(e->modifiers() & Qt::ControlModifier);
+    return types || k == Qt::Key_Backspace || k == Qt::Key_Delete || k == Qt::Key_Return || k == Qt::Key_Enter || k == Qt::Key_Tab || k == Qt::Key_Backtab || e->matches(QKeySequence::Cut) ||
+           e->matches(QKeySequence::Paste) || e->matches(QKeySequence::Undo) || e->matches(QKeySequence::Redo) || e->matches(QKeySequence::Bold) || e->matches(QKeySequence::Italic) ||
+           e->matches(QKeySequence::Underline);
+}
+
 // What the keys do: the ones that move the caret or the selection are the view's own; the ones that change the words go through the Editor (so they are steps of the
 // presentation's undo history, with AutoCorrect, and read the same settings as a text box); the rest are left for the window's shortcuts.
 void StoryEdit::keyPressEvent(QKeyEvent *e)
@@ -402,12 +413,12 @@ void StoryEdit::keyPressEvent(QKeyEvent *e)
             e->matches(QKeySequence::SelectAll) || e->matches(QKeySequence::Copy)) {
             QTextEdit::keyPressEvent(e);
         } else {
-            // (a key that would have changed the words says so; the rest, Esc and a lone Ctrl, are not an attempt to edit)
-            const bool types = !e->text().isEmpty() && e->text().at(0).isPrint() && !(e->modifiers() & Qt::ControlModifier);
-            if (types || k == Qt::Key_Backspace || k == Qt::Key_Delete || k == Qt::Key_Return || k == Qt::Key_Enter || k == Qt::Key_Tab || k == Qt::Key_Backtab || e->matches(QKeySequence::Cut) ||
-                e->matches(QKeySequence::Paste) || e->matches(QKeySequence::Undo) || e->matches(QKeySequence::Redo) || e->matches(QKeySequence::Bold) || e->matches(QKeySequence::Italic) ||
-                e->matches(QKeySequence::Underline))
+            // (a key that would have changed the words says so, and goes no further; the rest, Esc and a lone Ctrl, are not an attempt to edit)
+            if (wouldChangeWords(e)) {
                 Q_EMIT readOnlyRefused();
+                e->accept();
+                return;
+            }
             e->ignore();
         }
         return;
@@ -434,7 +445,8 @@ void StoryEdit::keyPressEvent(QKeyEvent *e)
     const bool moves = k == Qt::Key_Left || k == Qt::Key_Right || k == Qt::Key_Up || k == Qt::Key_Down || k == Qt::Key_Home || k == Qt::Key_End || k == Qt::Key_PageUp ||
                        k == Qt::Key_PageDown || e->matches(QKeySequence::SelectAll);
     if (!takeTarget()) {
-        e->ignore();
+        if (wouldChangeWords(e)) e->accept();
+        else e->ignore();
         return;
     }
     if (moves) {

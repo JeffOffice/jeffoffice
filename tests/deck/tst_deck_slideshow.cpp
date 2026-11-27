@@ -2163,6 +2163,55 @@ private Q_SLOTS:
         QTRY_VERIFY(!w.slideShow());
     }
 
+    // Keys typed in Presenter View's notes are the notes' own, and never move the show: Return and Space would go to the next slide, Backspace and P to the one before, and N to the next,
+    // whether the edit is made (an editable presentation) or refused (one open for reading only). Real key presses.
+    void keysTypedInPresenterViewNotesNeverMoveTheShow_data()
+    {
+        QTest::addColumn<bool>("readOnly");
+        QTest::newRow("editable") << false;
+        QTest::newRow("open for reading only") << true;
+    }
+    void keysTypedInPresenterViewNotesNeverMoveTheShow()
+    {
+        QFETCH(bool, readOnly);
+        DeckWindow w;
+        Editor *ed = w.editor();
+        w.resize(1280, 800);
+        w.show();
+        for (int i = 0; i < 3; ++i) w.newSlide();
+        ed->setCurrentPage(1);
+        QTextDocument *story = ed->doc()->storyDoc(ed->doc()->pages[1]->notesStoryId);
+        QTextCursor(story).insertText(QStringLiteral("alpha beta"), QTextCharFormat());
+        w.notesPane()->reload();
+        ed->undoStack()->clear();
+        w.act("show.presenterView")->trigger();
+        SlideShow *show = w.slideShow();
+        QVERIFY(show && show->presenterView());
+        QCOMPARE(show->currentSlide(), 1);
+        auto *edit = show->presenterView()->findChild<QTextEdit *>(QStringLiteral("notesText"));
+        QVERIFY(edit);
+        QTRY_VERIFY(edit->document() == story);
+        QTest::mouseClick(edit->viewport(), Qt::LeftButton, Qt::NoModifier, QPoint(3, 3));
+        QVERIFY(ed->editingStoryOnly());
+        if (readOnly) w.setReadOnly(true);
+        const QString before = story->toPlainText();
+        for (const int key : {Qt::Key_Return, Qt::Key_Backspace, Qt::Key_Delete, Qt::Key_Space, Qt::Key_Tab, Qt::Key_N, Qt::Key_P, Qt::Key_Return, Qt::Key_Backspace}) {
+            QTest::keyClick(edit, Qt::Key(key));
+            QVERIFY2(show->currentSlide() == 1, qPrintable(QStringLiteral("key %1 moved the show to slide %2").arg(key).arg(show->currentSlide())));
+        }
+        QTest::keyClicks(edit, QStringLiteral("n p "));
+        QCOMPARE(show->currentSlide(), 1);
+        // (an editable note took the keys as words; a read-only one is as it was)
+        if (readOnly) QCOMPARE(story->toPlainText(), before);
+        else QVERIFY(story->toPlainText() != before);
+        // The keys that are the show's own still are: Page Down in the notes goes to the next slide.
+        QTest::keyClick(edit, Qt::Key_PageDown);
+        QTRY_COMPARE(show->currentSlide(), 2);
+        if (readOnly) w.setReadOnly(false);
+        show->close();
+        QTRY_VERIFY(!w.slideShow());
+    }
+
     // Tab at the start of a list item moves it a level in and Shift+Tab out in Presenter View's notes too, and a Tab inside the item's words types a tab (real key presses).
     void tabAtTheStartOfAListItemInPresenterViewNotesChangesItsLevel()
     {

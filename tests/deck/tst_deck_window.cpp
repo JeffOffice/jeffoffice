@@ -4813,6 +4813,94 @@ private Q_SLOTS:
         QCOMPARE(levelOf(0), -1);
     }
 
+    // The numbers a person reads beside the notes' items (the markers the pane draws, as numbers).
+    static QList<int> numbersShown(NotesPane *pane)
+    {
+        QList<int> out;
+        for (const ListMarkers::Marker &m : pane->listMarkers()->visibleMarkers()) out << QRegularExpression(QStringLiteral("\\d+")).match(m.text).captured().toInt();
+        return out;
+    }
+    // A note of numbered items as a person makes it: the words are put in, all selected with the keys, and the Numbering command is run on them.
+    static void numberedNoteIs(DeckWindow &w, NotesPane *pane, const QString &words)
+    {
+        notesStory(w.editor())->setPlainText(words);
+        pane->reload();
+        QTest::mouseClick(pane->viewport(), Qt::LeftButton, Qt::NoModifier, inNotes(pane, 0));
+        const QKeyCombination selectAll = QKeySequence(QKeySequence::SelectAll)[0];
+        QTest::keyClick(pane, selectAll.key(), selectAll.keyboardModifiers());
+        run(w, QStringLiteral("para.numbers"));
+    }
+
+    // A numbered list pasted into the notes keeps its boundaries and its numbers through Save and Open, in both formats the program writes: what the pane shows is what the file gives
+    // back. A list that begins after an empty paragraph restarts at 1; items pasted straight after an item go on from it (a file has no place to say where one list ends and another
+    // begins when nothing is between them).
+    void aPastedNumberedListKeepsItsNumbersThroughSaveAndOpen_data()
+    {
+        QTest::addColumn<int>("scenario");
+        QTest::addColumn<QString>("ending");
+        for (const QString &ending : {QStringLiteral("pptx"), QStringLiteral("odp")}) {
+            QTest::addRow("after the list ended, %s", qPrintable(ending)) << 0 << ending;
+            QTest::addRow("at the end of the last item, %s", qPrintable(ending)) << 1 << ending;
+            QTest::addRow("into a paragraph above an item, %s", qPrintable(ending)) << 2 << ending;
+        }
+    }
+    void aPastedNumberedListKeepsItsNumbersThroughSaveAndOpen()
+    {
+        QFETCH(int, scenario);
+        QFETCH(QString, ending);
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        DeckWindow w;
+        w.setNotifier([](const QString &, const QString &) {});
+        NotesPane *pane = notesWith(w, QStringLiteral("x"));
+        pane->setMinimumHeight(520);   // (every item in view)
+        w.resize(900, 1100);
+        const QKeyCombination copy = QKeySequence(QKeySequence::Copy)[0], paste = QKeySequence(QKeySequence::Paste)[0];
+        const QKeyCombination end = QKeySequence(QKeySequence::MoveToEndOfDocument)[0], start = QKeySequence(QKeySequence::MoveToStartOfDocument)[0];
+        // The list that is copied: b1, b2, b3.
+        numberedNoteIs(w, pane, QStringLiteral("b1\nb2\nb3"));
+        QCOMPARE(numbersShown(pane), (QList<int>{1, 2, 3}));
+        QTest::keyClick(pane, copy.key(), copy.keyboardModifiers());
+        QList<int> expected;
+        if (scenario == 0) {
+            numberedNoteIs(w, pane, QStringLiteral("a1\na2"));
+            QTest::keyClick(pane, end.key(), end.keyboardModifiers());
+            QTest::keyClick(pane, Qt::Key_Return);
+            QTest::keyClick(pane, Qt::Key_Return);
+            expected = {1, 2, 1, 2, 3};
+        } else if (scenario == 1) {
+            numberedNoteIs(w, pane, QStringLiteral("a1\na2"));
+            QTest::keyClick(pane, end.key(), end.keyboardModifiers());
+            expected = {1, 2, 3, 4};
+        } else {
+            // (a plain paragraph above two numbered items: the pasted items run into the numbered ones below them)
+            notesStory(w.editor())->setPlainText(QStringLiteral("plain\nz1\nz2"));
+            pane->reload();
+            QTest::mouseClick(pane->viewport(), Qt::LeftButton, Qt::NoModifier, inNotes(pane, 0));
+            QTest::keyClick(pane, Qt::Key_Down);
+            QTest::keyClick(pane, end.key(), end.keyboardModifiers() | Qt::ShiftModifier);
+            run(w, QStringLiteral("para.numbers"));
+            QCOMPARE(numbersShown(pane), (QList<int>{1, 2}));
+            QTest::keyClick(pane, start.key(), start.keyboardModifiers());
+            expected = {1, 2, 3, 4, 5};
+        }
+        QTest::keyClick(pane, paste.key(), paste.keyboardModifiers());
+        QTRY_COMPARE(numbersShown(pane), expected);
+        const QString path = dir.filePath(QStringLiteral("talk.") + ending);
+        QVERIFY(w.saveTo(path));
+        DeckWindow back;
+        back.setNotifier([](const QString &, const QString &) {});
+        QVERIFY(back.openFile(path));
+        back.notesPane()->setMinimumHeight(520);
+        back.resize(900, 1100);
+        back.show();
+        back.editor()->setCurrentPage(0);
+        back.notesPane()->reload();
+        QTRY_COMPARE(numbersShown(back.notesPane()), expected);
+        // The words are the same too.
+        QCOMPARE(notesStory(back.editor())->toPlainText(), notesStory(w.editor())->toPlainText());
+    }
+
     // Pictures of the notes views in both window themes (JP_SHOT_DIR names the folder): the pane, the Notes Page as the page shows it and as the box shows it while edited, with a short note,
     // a long note, and a note with a link and a list.
     void picturesOfTheNotesViewsInBothThemes()

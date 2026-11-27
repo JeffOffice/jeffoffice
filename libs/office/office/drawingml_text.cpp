@@ -971,8 +971,12 @@ void Reader::paragraph(const QDomElement &p)
     // A bullet. Numbers go on while the paragraphs before are numbered the
     // same way at the level, are interrupted by a paragraph of the level
     // without one, and start over below a paragraph of a shallower level.
-    // An empty paragraph shows no bullet and takes no part.
-    if (pieces.isEmpty()) return;
+    // An empty paragraph shows no bullet and takes no part. One the file says has none ends the numbering above it (the lists on each side of it are two).
+    if (pieces.isEmpty()) {
+        if (bf.boolProperty(kNoBulletParagraph))
+            for (int l = level; l < kLevels; ++l) m_lists[l] = ListRun();
+        return;
+    }
     for (int l = level + 1; l < kLevels; ++l) m_lists[l] = ListRun();
     const Bullet &b = para.bullet;
     if (b.kind != Bullet::Char && b.kind != Bullet::AutoNum && b.kind != Bullet::Blip) {

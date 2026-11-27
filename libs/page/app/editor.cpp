@@ -33,6 +33,7 @@
 #include <QJsonDocument>
 #include <QMimeData>
 #include <QTextBlock>
+#include <QTextList>
 #include <QTextDocument>
 #include <QTextDocumentFragment>
 #include <QUndoCommand>
@@ -2274,6 +2275,30 @@ void Editor::dropPicturesIn(QTextDocument *story, int from, int to)
     }
 }
 
+// Items that follow one another with nothing between them are one list in a file (it has no place to say where one ends and the next begins), so what a person sees must be that
+// too: after a paste, an item that comes right after another list's item and is numbered or marked the same way joins that list, and so do the items after it. Only the paragraphs
+// the paste touched, and the one after them, are looked at.
+void Editor::joinNeighborLists(QTextDocument *story, int from, int to)
+{
+    auto sameLook = [](const QTextBlock &a, const QTextBlock &b) {
+        QTextListFormat fa = a.textList()->format(), fb = b.textList()->format();
+        fa.setObjectIndex(-1);
+        fb.setObjectIndex(-1);
+        auto levelOf = [](const QTextBlock &x) { return x.blockFormat().hasProperty(tp::ListLevel) ? x.blockFormat().intProperty(tp::ListLevel) : x.textList()->format().intProperty(tp::ListLevel); };
+        return fa.properties() == fb.properties() && fa.style() == fb.style() && levelOf(a) == levelOf(b);
+    };
+    const int last = std::max(0, story->characterCount() - 1);
+    const int end = story->findBlock(std::clamp(to, 0, last)).next().isValid() ? story->findBlock(std::clamp(to, 0, last)).next().position() : last;
+    for (QTextBlock b = story->findBlock(std::clamp(from, 0, last)); b.isValid() && b.position() <= end; b = b.next()) {
+        const QTextBlock before = b.previous();
+        if (!b.textList() || !before.isValid() || !before.textList() || before.textList() == b.textList() || !sameLook(before, b)) continue;
+        QTextList *keep = before.textList();
+        QVector<QTextBlock> items;
+        for (int i = 0; i < b.textList()->count(); ++i) items << b.textList()->item(i);
+        for (const QTextBlock &item : std::as_const(items)) keep->add(item);
+    }
+}
+
 void Editor::paste(bool textOnly)
 {
     const QMimeData *md = QApplication::clipboard()->mimeData();
@@ -2309,7 +2334,10 @@ void Editor::paste(bool textOnly)
         } else if (md->hasText() || refused) {
             m_cursor.insertText(plain());
         }
-        if (editingStoryOnly()) dropPicturesIn(m_cursor.document(), from0, m_cursor.position());
+        if (editingStoryOnly()) {
+            dropPicturesIn(m_cursor.document(), from0, m_cursor.position());
+            joinNeighborLists(m_cursor.document(), from0, m_cursor.position());
+        }
         endChange();
         textEdited();
         return;
