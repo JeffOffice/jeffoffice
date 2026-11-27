@@ -905,14 +905,16 @@ bool removeSelectionAcrossCells(WriteDoc &doc, QTextCursor &c)
     return true;
 }
 
-void insertTableRow(WriteDoc &doc, QTextCursor &c, bool below)
+void insertTableRow(WriteDoc &doc, QTextCursor &c, bool below) { insertTableRows(doc, c, below, 0); }
+
+void insertTableRows(WriteDoc &doc, QTextCursor &c, bool below, int rows)
 {
     if (lockedByControl(c)) return;   // (a content control keeps what is in it)
     TableCommand command(doc, true);
     auto v = viewAt(doc, c.selectionStart());
     if (!v) return;
     const Area area = areaOf(*v, c);
-    const int count = area.r1 - area.r0 + 1;
+    const int count = rows > 0 ? rows : area.r1 - area.r0 + 1;   // (as many as the rows the selection covers, unless a number is asked for: all are made beside the row the caret is in, with one layout)
     if (pastTheLimits(doc, v->layout->rowCount() + count, columnCountOf(*v->layout), v->layout->cellCount() + qint64(count) * v->layout->row(below ? area.r1 : area.r0).cells)) return;
     c.beginEditBlock();
     for (int n = 0; n < count; ++n) addRow(doc, *v, below ? area.r1 : area.r0, below);

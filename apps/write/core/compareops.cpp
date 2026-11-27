@@ -1191,50 +1191,65 @@ bool putWholeTable(WriteDoc &out, QTextCursor &c, WriteDoc &revised, QTextDocume
     return true;
 }
 
-// A row put in beside the row of the original's table whose first paragraph `refAt` holds (under it, or above it), as Insert Row Below and Above make one (tracked), with the words of the revised row `src`
-// put in its cells. False (nothing done) when the row was not made.
-bool putRow(WriteDoc &out, QTextDocument *story, const QTextCursor &refAt, bool below, WriteDoc &revised, QTextDocument *rstory, const RowInfo &src)
+// The rows `srcs` of the revised table (top to bottom) put in beside the row of the original's table whose first paragraph `refAt` holds (under it, or above it), as Insert Row Below and Above make
+// them (tracked, all in one command with one layout of the table), with the words of each revised row put in its cells. Returns how many rows were made with their words (0: none was made).
+int putRows(WriteDoc &out, QTextDocument *story, const QTextCursor &refAt, bool below, WriteDoc &revised, QTextDocument *rstory, const QVector<const RowInfo *> &srcs)
 {
+    const int count = int(srcs.size());
     QTextCursor c(story);
     c.setPosition(refAt.position());
     const int rowsBefore = cellPlace(out, c).rows;
-    insertTableRow(out, c, below);
+    insertTableRows(out, c, below, count);
     c.setPosition(refAt.position());
-    if (cellPlace(out, c).rows != rowsBefore + 1) return false;
+    if (cellPlace(out, c).rows != rowsBefore + count) return 0;
     const QTextBlock ref = story->findBlock(refAt.position());
     const void *refRow = rowOfParagraph(out, ref);
-    QVector<QTextBlock> cells;
+    // The made rows (their paragraphs), top to bottom: the ones under the row follow its last paragraph, the ones above it come before its first.
+    QVector<QVector<QTextBlock>> rows;
+    QTextBlock x = ref;
     if (below) {
-        QTextBlock last = ref;
-        for (QTextBlock x = ref.next(); x.isValid() && rowOfParagraph(out, x) == refRow; x = x.next()) last = x;
-        const QTextBlock begin = last.next();
-        const void *made = rowOfParagraph(out, begin);
-        for (QTextBlock x = begin; made && x.isValid() && rowOfParagraph(out, x) == made; x = x.next()) cells << x;
-        if (made == refRow) cells.clear();
+        for (x = ref.next(); x.isValid() && rowOfParagraph(out, x) == refRow; x = x.next()) {}
     } else {
-        const void *made = rowOfParagraph(out, ref.previous());
-        for (QTextBlock x = ref.previous(); made && x.isValid() && rowOfParagraph(out, x) == made; x = x.previous()) cells.prepend(x);
-        if (made == refRow) cells.clear();
+        x = ref.previous();
     }
-    if (cells.size() != src.cellParas.size()) return false;
+    for (int n = 0; n < count && x.isValid(); ++n) {
+        const void *made = rowOfParagraph(out, x);
+        if (!made || made == refRow) return 0;
+        QVector<QTextBlock> cells;
+        if (below) {
+            for (; x.isValid() && rowOfParagraph(out, x) == made; x = x.next()) cells << x;
+        } else {
+            for (; x.isValid() && rowOfParagraph(out, x) == made; x = x.previous()) cells.prepend(x);
+        }
+        rows << cells;
+    }
+    if (rows.size() != count) return 0;
+    if (!below) std::reverse(rows.begin(), rows.end());
     const UntrackedEdit untracked;   // (the row says it is put in; what is in its cells is that row's)
-    int n = 0;
-    for (int ci = 0; ci < cells.size(); ++ci) {
-        QTextCursor cur(story);
-        cur.setPosition(cells.at(ci).position());
-        for (int k = 0; k < src.cellParas.at(ci); ++k, ++n) {
-            const QTextBlock sb = rstory->findBlockByNumber(src.firstBlock + n);
-            if (k == 0) {
-                putRevisedWords(out, story, cur, sb, true);
-                dressLikeRevised(out, story, story->findBlock(cur.position()).position(), revised, sb);
-            } else {
-                Para fake;
-                fake.blockFrom = sb.position();
-                insertRevisedParagraph(out, story, cur, revised, rstory, fake, false, true);
+    int made = 0;
+    for (int ri = 0; ri < count; ++ri) {
+        const RowInfo &src = *srcs.at(ri);
+        const QVector<QTextBlock> &cells = rows.at(ri);
+        if (cells.size() != src.cellParas.size()) continue;   // (the row stays an empty inserted row: it is counted by the caller)
+        int n = 0;
+        for (int ci = 0; ci < cells.size(); ++ci) {
+            QTextCursor cur(story);
+            cur.setPosition(cells.at(ci).position());
+            for (int k = 0; k < src.cellParas.at(ci); ++k, ++n) {
+                const QTextBlock sb = rstory->findBlockByNumber(src.firstBlock + n);
+                if (k == 0) {
+                    putRevisedWords(out, story, cur, sb, true);
+                    dressLikeRevised(out, story, story->findBlock(cur.position()).position(), revised, sb);
+                } else {
+                    Para fake;
+                    fake.blockFrom = sb.position();
+                    insertRevisedParagraph(out, story, cur, revised, rstory, fake, false, true);
+                }
             }
         }
+        ++made;
     }
-    return true;
+    return made;
 }
 
 // What the compare of the text says about where each paragraph of the original went, for telling whether a note's mark moved: for each paragraph of the original, the paragraph of the revised one that
@@ -1699,11 +1714,11 @@ Outcome compareStory(CompareContext &context, WriteDoc *out, QTextDocument *stor
         for (int lo = 0; lo < put.size();) {   // (a run of rows that go beside the same row: the ones that go under it from the last, so that each is made next to it; the ones that go above it from the first)
             int hi = lo;
             while (hi + 1 < put.size() && put.at(hi + 1).ref == put.at(lo).ref && put.at(hi + 1).below == put.at(lo).below) ++hi;
-            for (int t = 0; t <= hi - lo; ++t) {
-                const RowEdit::Put &one = put.at(put.at(lo).below ? hi - t : lo + t);
-                if (putRow(*out, story, job.rowAt.value(one.ref), one.below, revised, rstory, partner.rows.at(one.row))) ++made;
-                else context.work.countUnmarked(CompareWork::Tables);
-            }
+            QVector<const RowInfo *> srcs;   // (top to bottom: those that go under a row go in order, as do those that go above it)
+            for (int t = lo; t <= hi; ++t) srcs.push_back(&partner.rows.at(put.at(t).row));
+            const int madeRows = putRows(*out, story, job.rowAt.value(put.at(lo).ref), put.at(lo).below, revised, rstory, srcs);
+            made += madeRows;
+            for (int t = madeRows; t < int(srcs.size()); ++t) context.work.countUnmarked(CompareWork::Tables);
             lo = hi + 1;
         }
     }

@@ -5860,6 +5860,33 @@ private Q_SLOTS:
         QCOMPARE(kept.tables.value(0).rows, (QVector<QStringList>{{"a1", "a2"}, {"b1", "b2"}}));
     }
 
+    // The work (layouts of the table's index and views of it) one Compare of a table with `n` new rows in the middle makes, through the window's own command; the saved result is checked too.
+    static QVector<qint64> workOfRowsPut(int n, bool check)
+    {
+        QVector<QStringList> one, two;   // (twice as many rows stay as are put in, so that the tables are told apart by row)
+        for (int i = 0; i < 2 * n; ++i) one.push_back({QStringLiteral("a%1").arg(i), QStringLiteral("b%1").arg(i)});
+        two = one;
+        for (int i = 0; i < n; ++i) two.insert(n + i, {QStringLiteral("r%1").arg(i), QStringLiteral("s%1").arg(i)});
+        const qint64 rebuilds = tableIndexRebuildsForTest(), views = tableViewsBuiltForTest();
+        const AppCompared r = compareInApp(makeDocx(gridOfRows(one)), makeDocx(gridOfRows(two)));
+        const QVector<qint64> work{r.changes, tableIndexRebuildsForTest() - rebuilds, tableViewsBuiltForTest() - views};
+        if (check) {
+            const Resolved accepted = resolved(r.saved, true), rejected = resolved(r.saved, false);
+            if (accepted.tracked || rejected.tracked || accepted.tables.value(0).rows.size() != 3 * n || rejected.tables.value(0).rows.size() != 2 * n)
+                return {};
+        }
+        return work;
+    }
+    void rowsPutInByCompareAreMadeWithOneLayoutPerRunAndNotOnePerRow()
+    {
+        const QVector<qint64> w100 = workOfRowsPut(100, true), w400 = workOfRowsPut(400, false);
+        QVERIFY(!w100.isEmpty() && !w400.isEmpty());
+        QCOMPARE(w100.at(0), qint64(100));
+        QCOMPARE(w400.at(0), qint64(400));
+        // (Four times the rows is not four times the layouts, let alone sixteen: a run of rows is one command.)
+        QVERIFY2(w400.at(1) <= w100.at(1) + 4 && w400.at(2) <= w100.at(2) + 4, qPrintable(QStringLiteral("%1/%2 against %3/%4").arg(w100.at(1)).arg(w100.at(2)).arg(w400.at(1)).arg(w400.at(2))));
+    }
+
     // ---- Compare, slice 2: tables by row and cell
     static QByteArray gridOfRows(const QVector<QStringList> &rows)
     {

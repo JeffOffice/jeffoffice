@@ -45,6 +45,8 @@ void giveCellKey(QTextBlock first, QTextBlock last, int key);
 // The rows and columns of the cells the selection is in (the cell the cursor is in, with no selection) get another beside them, or are taken away. A table
 // that is left with no row or no column is taken away. All of these work on the innermost table of the cursor.
 void insertTableRow(WriteDoc &doc, QTextCursor &c, bool below);
+// `rows` rows (1 or more) beside the row the caret is in, in one command and with one layout of the table (0: as many as the rows the selection covers, as Insert Row does).
+void insertTableRows(WriteDoc &doc, QTextCursor &c, bool below, int rows);
 void insertTableColumn(WriteDoc &doc, QTextCursor &c, bool right);
 void deleteTableRows(WriteDoc &doc, QTextCursor &c);
 void deleteTableColumns(WriteDoc &doc, QTextCursor &c);
