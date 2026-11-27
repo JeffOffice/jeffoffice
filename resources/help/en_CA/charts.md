@@ -6,7 +6,9 @@ A **chart** turns numbers into a picture, such as columns, a line, or slices of 
 ## Put a chart on a page
 
 1. Go to the page where the chart should go.
-2. Click **Insert > Chart**, and pick a kind: column, stacked column, 100% stacked column, bar, stacked bar, line, line with markers, pie, doughnut, area, stacked area, or scatter.
+2. Click **Insert > Chart**, and pick a kind: column, stacked column, 100% stacked column, bar, stacked bar, line, line with markers, pie, doughnut, area, stacked area, scatter, radar, radar with markers, filled radar, high-low-close, open-high-low-close, volume-high-low-close, or volume-open-high-low-close.
+
+A **stock** chart shows prices: a line for each category from its highest price to its lowest, with a small dot for the close, or, where there is an open, a bar between the open and the close (light for a rise, dark for a fall). The chart is made from your columns exactly as they come, from left to right, and nothing checks that the numbers suit their place, so put them in this order: high, low, and close; open, high, low, and close; volume, high, low, and close; or volume, open, high, low, and close. If the columns are in another order the chart is still drawn, but the marks mean something else (the dot for the close goes on the third price column, and the box runs from the first price column to the last). With a volume, the volume is columns read on the left axis and the prices are read on a second axis on the right. If the number of columns does not fit the kind, JeffOffice says how many it needs and makes no chart.
 
 A **stacked** chart piles the series on top of each other. A **100% stacked** chart makes each stack the same height, so you see shares. A **scatter** chart puts each point where its two numbers say.
 
@@ -28,7 +30,7 @@ For a scatter chart, the first column holds the numbers that place the points fr
 
 These commands are on the **Chart Format** tab. Each one is a single step to undo, and the chart keeps its colours and the rest of its look.
 
-- **Change Chart Type** turns the chart into another kind with the same numbers.
+- **Change Chart Type** turns the chart into another kind with the same numbers. Changing to a stock kind needs the chart's series to be in the order that kind asks for; if they are not, it tells you the order and leaves the chart as it is.
 - **Chart Title** shows or hides the title. **Edit Chart Title** changes its words.
 - **Legend** is the key that says which colour is which series. Put it at the right, top, left, or bottom, or take it off.
 - **Axes** shows or hides the line of words under the chart (the **categories**) and the line of numbers beside it (the **values**), and sets a title for each. A pie chart has no axes.
