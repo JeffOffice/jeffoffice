@@ -28,6 +28,10 @@
 #include <QAction>
 #include <QFile>
 #include <QMenu>
+#include <QLineEdit>
+#include <QPointer>
+#include <QPushButton>
+#include <QToolButton>
 #include <QSignalSpy>
 #include <QUndoStack>
 
@@ -689,6 +693,77 @@ private Q_SLOTS:
         QVERIFY(saveNow(e));
         const QByteArray styles = partsOf(e.path).value(QStringLiteral("xl/styles.xml"));
         QVERIFY2(styles.contains("theme=\"6\"") && styles.contains("tint=\"0.6\"") && styles.contains("theme=\"7\"") && styles.contains("FF123456"), styles.constData());
+    }
+
+    // The Standard Colors row of the color pickers gives a plain color (the swatch's own), and More Colors opens the colors dialog and gives the one chosen there; both are saved as plain colors.
+    void theStandardColorsAndMoreColorsOfThePickerSetPlainColors()
+    {
+        EditWindow e;
+        QVERIFY(e.open(themedBook(ourTheme())));
+        QVERIFY(e.settle());
+        auto *fill = e.win.w.findChild<ColorButton *>(QStringLiteral("fmt.fillColor"));
+        auto *font = e.win.w.findChild<ColorButton *>(QStringLiteral("fmt.fontColor"));
+        QVERIFY(fill && font);
+        auto popupOf = [](ColorButton *b) {
+            QTest::keyClick(b, Qt::Key_F4);   // (the keyboard way to the popup)
+            return b->findChild<ColorPopup *>();
+        };
+        // a Standard Colors swatch: the twelve of the row are there, and one click on a swatch fills the cell with exactly that color and closes the popup
+        e.select(QStringLiteral("E2"));
+        QPointer<ColorPopup> pop = popupOf(fill);
+        QVERIFY(pop);
+        int standard = 0;
+        for (const char *hex : {"#C00000", "#FF0000", "#FFC000", "#FFFF00", "#92D050", "#00B050", "#00B0F0", "#0070C0", "#002060", "#7030A0", "#000000", "#FFFFFF"})
+            for (auto *b : pop->findChildren<QToolButton *>(QStringLiteral("swatch")))
+                if (b->toolTip() == QLatin1String(hex)) ++standard;
+        QCOMPARE(standard, 12);
+        QToolButton *green = nullptr;
+        for (auto *b : pop->findChildren<QToolButton *>(QStringLiteral("swatch")))
+            if (b->toolTip() == QLatin1String("#00B050")) green = b;
+        QVERIFY(green);
+        green->click();
+        QCOMPARE(fillAt(e, QStringLiteral("E2")), QColor(0x00, 0xB0, 0x50));
+        QTRY_VERIFY(!pop);   // (a popup closes when a color is picked)
+        // the same row gives the font color
+        e.select(QStringLiteral("F2"));
+        pop = popupOf(font);
+        QVERIFY(pop);
+        QToolButton *blue = nullptr;
+        for (auto *b : pop->findChildren<QToolButton *>(QStringLiteral("swatch")))
+            if (b->toolTip() == QLatin1String("#0070C0")) blue = b;
+        QVERIFY(blue);
+        blue->click();
+        QCOMPARE(QColor::fromRgb(lookAt(e, QStringLiteral("F2")).textColor), QColor(0x00, 0x70, 0xC0));
+        // More Colors: the colors dialog opens, and the color typed there (hex) is the one the cell gets
+        e.select(QStringLiteral("G2"));
+        pop = popupOf(fill);
+        QVERIFY(pop);
+        QPushButton *more = nullptr;
+        for (auto *b : pop->findChildren<QPushButton *>())
+            if (b->text().contains(QLatin1String("More Colors"))) more = b;
+        QVERIFY(more);
+        withDialog([more] { more->click(); }, QString(), [](QDialog *dlg) {
+            QLineEdit *hex = nullptr;
+            for (auto *l : dlg->findChildren<QLineEdit *>())
+                if (l->maxLength() == 7) hex = l;
+            QVERIFY(hex);
+            hex->clear();
+            QTest::keyClicks(hex, QStringLiteral("#123456"));
+        });
+        QCOMPARE(fillAt(e, QStringLiteral("G2")), QColor(0x12, 0x34, 0x56));
+        QTRY_VERIFY(!pop);
+        // cancelled, More Colors changes nothing
+        e.select(QStringLiteral("H2"));
+        const QColor before = fillAt(e, QStringLiteral("H2"));
+        pop = popupOf(fill);
+        QVERIFY(pop);
+        for (auto *b : pop->findChildren<QPushButton *>())
+            if (b->text().contains(QLatin1String("More Colors"))) more = b;
+        withDialog([more] { more->click(); }, QString(), [](QDialog *) {}, false);
+        QCOMPARE(fillAt(e, QStringLiteral("H2")), before);
+        QVERIFY(saveNow(e));
+        const QByteArray styles = partsOf(e.path).value(QStringLiteral("xl/styles.xml"));
+        QVERIFY2(styles.contains("FF00B050") && styles.contains("FF0070C0") && styles.contains("FF123456"), styles.constData());
     }
 
     // A theme part that was not changed here is written back byte for byte, even one with a byte order mark.

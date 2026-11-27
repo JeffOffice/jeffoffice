@@ -9,6 +9,8 @@
 #include "editwindow.h"
 #include "grid/gridview.h"
 #include "io/zip.h"
+#include "sheet/builtinstyles.h"
+#include "office/package.h"
 
 #include <QAction>
 #include <QComboBox>
@@ -678,6 +680,59 @@ private Q_SLOTS:
         QVERIFY(second.open(e.copyOfFile()));
         const grid::GridSheet &g = second.w.view()->sheet();
         QCOMPARE(g.looks().look(g.cellAt(1, 1)->style).fg, QRgb(0xFFC6EFCE));
+    }
+
+    // Every style of the gallery is there and gives a cell what its definition says (bold, italic, the fill, the font color, a border, a number format), in one step of Undo, and the file keeps each
+    // under its name and number.
+    void everyStyleOfTheGalleryGivesWhatItsDefinitionSays()
+    {
+        EditWindow e;
+        QVERIFY(e.open(uiBook()));
+        QMenu *styles = menuNamed(e, "stylesMenu");
+        QVERIFY(styles);
+        styles->aboutToShow();
+        const QStringList names = builtinStyleNames();
+        QVERIFY2(names.size() >= 28, qPrintable(QString::number(names.size())));
+        int row = 20;
+        QStringList wrong;
+        for (const QString &name : names) {
+            BuiltinStyle d;
+            QVERIFY2(builtinStyle(name, &d), qPrintable(name));
+            QAction *a = actionTextOf(styles, name);
+            if (!a) {
+                wrong << name + QStringLiteral(": not in the gallery");
+                continue;
+            }
+            const QString ref = QStringLiteral("H%1").arg(++row);
+            selectRange(e, ref);
+            const int steps = e.win.w.undoStack()->count();
+            a->trigger();
+            if (e.win.w.undoStack()->count() != steps + 1) wrong << name + QStringLiteral(": not one step");
+            const grid::CellLook l = lookAt(e, ref);
+            if (name != QLatin1String("Normal")) {
+                if (l.bold != d.bold || l.italic != d.italic) wrong << name + QStringLiteral(": font style");
+                if (l.hasFill() != (d.fill.pattern != PatternKind::None)) wrong << name + QStringLiteral(": fill");
+                else if (d.fill.pattern == PatternKind::Solid && d.fill.fg.kind == ColorSpec::Kind::Rgb && l.fg != (0xFF000000u | d.fill.fg.rgb)) wrong << name + QStringLiteral(": fill color");
+                if (d.fontColor.kind == ColorSpec::Kind::Rgb && l.textColor != (0xFF000000u | d.fontColor.rgb)) wrong << name + QStringLiteral(": font color");
+                const bool border = d.border.left.style != BorderStyle::None || d.border.right.style != BorderStyle::None || d.border.top.style != BorderStyle::None || d.border.bottom.style != BorderStyle::None;
+                if (l.hasBorder() != border) wrong << name + QStringLiteral(": border");
+                if (l.hasFormat != (d.numFmtId != 0)) wrong << name + QStringLiteral(": number format");
+            }
+        }
+        QVERIFY2(wrong.isEmpty(), qPrintable(wrong.join(QStringLiteral("; "))));
+        QVERIFY(e.settle());
+        QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
+        QVERIFY(e.win.w.save());
+        QVERIFY2(savedOk(saved), qPrintable(e.win.told.join('|')));
+        Package p;
+        QString why;
+        QVERIFY2(p.readLazyFile(e.path, &why), qPrintable(why));
+        const QString part = QString::fromUtf8(p.part(QStringLiteral("/xl/styles.xml")));
+        for (const QString &name : names) {
+            BuiltinStyle d;
+            builtinStyle(name, &d);
+            if (d.builtinId >= 0) QVERIFY2(part.contains(QStringLiteral("name=\"%1\"").arg(name.toHtmlEscaped())) && part.contains(QStringLiteral("builtinId=\"%1\"").arg(d.builtinId)), qPrintable(name));
+        }
     }
 
     // New Cell Style keeps the look of the cell with the cursor under a name: it is in the gallery, the selected cells are given it, it is saved with the workbook under that name, and a name that

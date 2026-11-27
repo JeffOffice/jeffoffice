@@ -239,6 +239,43 @@ private Q_SLOTS:
         QCOMPARE(types->item(0)->data(Qt::UserRole).toString(), QStringLiteral("dd\\.mm\\.yyyy"));
     }
 
+    // The euro can come before the number or after it (before in the United States' way of writing, after in Germany's), each country's own symbol is the first of the list with its own place, and the
+    // Accounting category puts the symbol at the left edge (the code pads between it and the digits).
+    void theCurrencySymbolIsTheCountrysOwnAndTheEuroTakesEitherOrder()
+    {
+        struct Country {
+            QLocale locale;
+            QString symbol;
+            bool first;
+        };
+        const Country countries[] = {{QLocale(QLocale::English, QLocale::UnitedStates), QStringLiteral("$"), true}, {QLocale(QLocale::English, QLocale::UnitedKingdom), QString(QChar(0x00A3)), true},
+                                     {QLocale(QLocale::German, QLocale::Germany), QString(QChar(0x20AC)), false}, {QLocale(QLocale::Japanese, QLocale::Japan), QString(QChar(0x00A5)), true}};
+        for (const Country &c : countries) {
+            FormatCellsDialog::Input in = inputFor(c.locale);
+            in.view.numberFormat = QStringLiteral("#,##0.00");
+            FormatCellsDialog d(in);
+            control<QListWidget>(d, "numberCategory")->setCurrentRow(int(jp::crunch::NumberCategory::Currency));
+            const QString local = control<QComboBox>(d, "symbol")->currentData().toString();
+            QVERIFY2(local == c.symbol || local == c.locale.currencySymbol(QLocale::CurrencySymbol), qPrintable(c.locale.name() + QStringLiteral(": ") + local));
+            const QString sample = control<QLabel>(d, "numberSample")->text();
+            QVERIFY2(c.first ? sample.startsWith(local) : sample.endsWith(local), qPrintable(c.locale.name() + QStringLiteral(": ") + sample));
+        }
+        // the euro in the American way (before) and in the German way (after), chosen from the same list
+        FormatCellsDialog::Input in = inputFor(QLocale(QLocale::English, QLocale::UnitedStates));
+        in.view.numberFormat = QStringLiteral("#,##0.00");
+        FormatCellsDialog us(in);
+        control<QListWidget>(us, "numberCategory")->setCurrentRow(int(jp::crunch::NumberCategory::Currency));
+        auto *symbols = control<QComboBox>(us, "symbol");
+        for (int i = 0; i < symbols->count(); ++i)
+            if (symbols->itemData(i).toString() == QString(QChar(0x20AC))) symbols->setCurrentIndex(i);
+        QCOMPARE(symbols->currentData().toString(), QString(QChar(0x20AC)));
+        QVERIFY2(us.code().startsWith(QStringLiteral("\"€\"")), qPrintable(us.code()));
+        QVERIFY2(control<QLabel>(us, "numberSample")->text().startsWith(QChar(0x20AC)), qPrintable(control<QLabel>(us, "numberSample")->text()));
+        // the accounting form: the symbol first, then the padding that pushes the digits to the right edge
+        control<QListWidget>(us, "numberCategory")->setCurrentRow(int(jp::crunch::NumberCategory::Accounting));
+        QVERIFY2(us.code().startsWith(QStringLiteral("_(\"€\"* ")), qPrintable(us.code()));
+    }
+
     void theAlignmentTabGivesTheChanges()
     {
         FormatCellsDialog d(inputFor());

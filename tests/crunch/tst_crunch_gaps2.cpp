@@ -935,6 +935,56 @@ private Q_SLOTS:
         QCOMPARE(columnFill(e.win, 5), 0x00FF00u);
     }
 
+    // Modify changes a style's number format, alignment, border, and protection (and not only its fill and font): the cells that use it follow, Undo takes it back in one step, and the file has it.
+    void modifyingAStyleChangesItsNumberFormatAlignmentBorderAndProtection()
+    {
+        EditWindow e;
+        QVERIFY(e.open(styledBook()));
+        QVERIFY(e.settle());
+        CrunchWindow &w = e.win.w;
+        QVERIFY(w.session()->applyStyleNamed(0, rangeOf(QStringLiteral("A1")), QStringLiteral("Good"), QStringLiteral("Style")).ok);
+        QVERIFY(e.settle());
+        auto formatOfA1 = [&e](jp::office::sheet::BorderStyle *bottom) {
+            auto hold = e.win.w.workbookLoader().hold();
+            const grid::GridSheet &gs = e.win.w.view()->sheet();
+            const jp::office::sheet::Styles &st = e.win.w.loaded()->book->styles();
+            const CellFormat f = st.format(gs.styleOf(0, 0, gs.cellAt(0, 0)));
+            *bottom = st.border(f.border).bottom.style;
+            return f;
+        };
+        jp::office::sheet::BorderStyle line = jp::office::sheet::BorderStyle::None;
+        CellFormat f = formatOfA1(&line);
+        QVERIFY(f.locked && !f.formulaHidden && f.horizontal == jp::office::sheet::HAlign::General && !f.wrap && line == jp::office::sheet::BorderStyle::None);
+        const int steps = w.undoStack()->count();
+        FormatChange c;
+        c.numberFormat = QStringLiteral("0.000");
+        c.horizontal = jp::office::sheet::HAlign::Center;
+        c.wrap = true;
+        jp::office::sheet::BorderSide thick;
+        thick.style = jp::office::sheet::BorderStyle::Thick;
+        thick.color = ColorSpec::fromRgb(0x112233);
+        c.bottom = thick;
+        c.locked = false;
+        c.formulaHidden = true;
+        QVERIFY(w.session()->modifyCellStyle(QStringLiteral("Good"), c).ok);
+        QVERIFY(e.settle());
+        QCOMPARE(w.undoStack()->count(), steps + 1);
+        QCOMPARE(numberFormatAt(e.win, QStringLiteral("A1")), QStringLiteral("0.000"));
+        f = formatOfA1(&line);
+        QVERIFY(f.horizontal == jp::office::sheet::HAlign::Center && f.wrap && !f.locked && f.formulaHidden);
+        QVERIFY(line == jp::office::sheet::BorderStyle::Thick);
+        QSignalSpy saved(&w, &CrunchWindow::saved);
+        QVERIFY(w.save());
+        QVERIFY2(savedOk(saved), "the save failed");
+        const QString styles = QString::fromUtf8(partsOf(e.path).value(QStringLiteral("xl/styles.xml")));
+        QVERIFY2(styles.contains(QLatin1String("0.000")) && styles.contains(QLatin1String("locked=\"0\"")) && styles.contains(QLatin1String("hidden=\"1\"")) && styles.contains(QLatin1String("thick")), qPrintable(styles.left(600)));
+        w.undoStack()->undo();
+        QVERIFY(e.settle());
+        f = formatOfA1(&line);
+        QVERIFY(f.locked && !f.formulaHidden && f.horizontal == jp::office::sheet::HAlign::General && !f.wrap && line == jp::office::sheet::BorderStyle::None);
+        QVERIFY(numberFormatAt(e.win, QStringLiteral("A1")) != QStringLiteral("0.000"));
+    }
+
     void modifyingABuiltInStyleTheWorkbookHasNotUsedIsOneStepThatUndoTakesBack()
     {
         EditWindow e;

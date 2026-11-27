@@ -2049,6 +2049,57 @@ private Q_SLOTS:
         QCOMPARE(back.formula(0, QStringLiteral("A1")), QStringLiteral("SUM(#REF!)"));   // (the first sheet of the file now)
     }
 
+    // A table belongs to its sheet: a renamed sheet keeps it, a moved sheet takes it along (the sheet keeps its number in the session, the file has it second), formulas that name it by structured reference keep their value, and the saved file
+    // has the table on the sheet's new place.
+    void aTableFollowsItsSheetWhenTheSheetIsRenamedOrMoved()
+    {
+        const QByteArray two = buildXlsx({salesRows(), worksheet(row(1, formula(QStringLiteral("A1"), QStringLiteral("SUM(Sales[Q1])")) + formula(QStringLiteral("B1"), QStringLiteral("SUM(Data!B2:B4)"))))},
+                                         QByteArray(), QString(), QString(), QByteArray(), QStringList{QStringLiteral("Data"), QStringLiteral("Other")});
+        EditWindow e;
+        QVERIFY(e.open(two));
+        crunch::EditSession *s = e.win.w.session();
+        s->setLocale(kUs);
+        QVERIFY(e.settle());
+        QVERIFY(s->makeTable(0, rangeText(QStringLiteral("A1:C4")), true, QString()).ok);
+        QVERIFY(s->renameTable(0, QStringLiteral("Sales")).ok);
+        QVERIFY(e.settle());
+        QCOMPARE(valueOf(e, QStringLiteral("A1"), 1), QStringLiteral("n:6"));
+        const auto renamed = s->renameSheet(0, QStringLiteral("Region Data"));
+        QVERIFY2(renamed.ok, qPrintable(renamed.problem));
+        QVERIFY(e.settle());
+        QCOMPARE(s->workbook()->tables().size(), 1);
+        QCOMPARE(s->workbook()->tables().first().sheet, 0);
+        QCOMPARE(s->workbook()->tables().first().name, QStringLiteral("Sales"));
+        QCOMPARE(editOf(e, QStringLiteral("A1"), 1), QStringLiteral("=SUM(Sales[Q1])"));
+        QCOMPARE(valueOf(e, QStringLiteral("A1"), 1), QStringLiteral("n:6"));
+        QCOMPARE(editOf(e, QStringLiteral("B1"), 1), QStringLiteral("=SUM('Region Data'!B2:B4)"));
+        // the sheet moved after the other: the table is still on that sheet (now second in the order), and still gives 6
+        const auto moved = s->moveSheet(0, -1);
+        QVERIFY2(moved.ok, qPrintable(moved.problem));
+        QVERIFY(e.settle());
+        QCOMPARE(s->workbook()->tables().size(), 1);
+        QCOMPARE(s->workbook()->tables().first().sheet, 0);
+        QCOMPARE(s->workbook()->info().order, (QVector<int>{1, 0}));
+        QCOMPARE(valueOf(e, QStringLiteral("A1"), 1), QStringLiteral("n:6"));
+        QCOMPARE(valueOf(e, QStringLiteral("B1"), 1), QStringLiteral("n:6"));
+        // Undo of the move puts the table's sheet first again, and Redo moves it back
+        e.win.w.undoStack()->undo();
+        QVERIFY(e.settle());
+        QCOMPARE(s->workbook()->info().order, (QVector<int>{0, 1}));
+        QCOMPARE(s->workbook()->tables().first().sheet, 0);
+        QCOMPARE(valueOf(e, QStringLiteral("A1"), 1), QStringLiteral("n:6"));
+        e.win.w.undoStack()->redo();
+        QVERIFY(e.settle());
+        QCOMPARE(s->workbook()->info().order, (QVector<int>{1, 0}));
+        QVERIFY(saveNow(e));
+        Saved back;
+        QVERIFY(back.open(e.path));
+        QCOMPARE(back.book.tables().size(), 1);
+        QCOMPARE(back.book.tables().first().sheet, 1);
+        QCOMPARE(back.book.tables().first().name, QStringLiteral("Sales"));
+        QCOMPARE(back.formula(0, QStringLiteral("A1")), QStringLiteral("SUM(Sales[Q1])"));
+    }
+
     // The menu of the cells has the table's commands when the cursor is in a table: rows and columns beside the selection (the table takes the one past its end), taking rows and columns out,
     // the row of totals, and back to cells.
     void theMenuOfCellsHasTheTablesCommands()

@@ -134,6 +134,7 @@ private Q_SLOTS:
     void aCellOfAnArrayIsNotChanged();
     void undoPutsBackValuesFormulasFormatsAndDependents();
     void undoPutsBackTheStoredResultOfAFormulaWithAFunctionTheProgramLacks();
+    void aFormulaWithAMissingFunctionShowsNameErrorOnlyOnceItsInputChangesAndTheSaveAsksForAFullCalculation();
     void undoHoldsAtMostItsBytesAndForgetsTheOldestSteps();
     void undoHoldsWhatChangedAndNoMore();
     void anUndoAndARedoStillSaveTheResultsOfTheRedo();

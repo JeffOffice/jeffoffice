@@ -2786,6 +2786,50 @@ void CrunchEditTests::undoPutsBackTheStoredResultOfAFormulaWithAFunctionTheProgr
 }
 
 
+// A formula with a function this program lacks keeps the stored result while nothing it reads changes (and the save asks for no full calculation then); when an input it reads changes it shows
+// #NAME? and so does what reads it, and the saved file has the formula as it was and asks the other program to work every formula out when it opens.
+void CrunchEditTests::aFormulaWithAMissingFunctionShowsNameErrorOnlyOnceItsInputChangesAndTheSaveAsksForAFullCalculation()
+{
+    const QByteArray book = buildXlsx({worksheet(QStringLiteral("<row r=\"1\"><c r=\"A1\"><f>_xlfn.IMAGE(C1)</f><v>88</v></c><c r=\"B1\"><f>A1+1</f><v>89</v></c><c r=\"C1\"><v>5</v></c></row>"))});
+    auto workbookXml = [](const QString &path) {
+        Package p;
+        QString why;
+        [&] { QVERIFY2(p.readLazyFile(path, &why), qPrintable(why)); }();
+        return p.part(QStringLiteral("/xl/workbook.xml"));
+    };
+    // an unrelated change: the stored results stay (the formula that is kept apart is not worked out), and the file asks the other program to work everything out anyway
+    {
+        EditWindow e;
+        QVERIFY(e.open(book));
+        QVERIFY(e.settle());
+        e.select(QStringLiteral("D5"));
+        e.enter(QStringLiteral("1"));
+        QVERIFY(e.settle());
+        QCOMPARE(e.valueAt(QStringLiteral("A1")), QStringLiteral("n:88"));
+        QCOMPARE(e.valueAt(QStringLiteral("B1")), QStringLiteral("n:89"));
+        QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
+        QVERIFY(e.win.w.save());
+        QVERIFY2(savedOk(saved), "the save failed");
+        QVERIFY(workbookXml(e.path).contains("fullCalcOnLoad=\"1\""));
+    }
+    // a change to what the formula reads
+    EditWindow e;
+    QVERIFY(e.open(book));
+    QVERIFY(e.settle());
+    QCOMPARE(e.valueAt(QStringLiteral("A1")), QStringLiteral("n:88"));
+    e.select(QStringLiteral("C1"));
+    e.enter(QStringLiteral("7"));
+    QVERIFY(e.settle());
+    QCOMPARE(e.valueAt(QStringLiteral("A1")), QStringLiteral("e:#NAME?"));
+    QCOMPARE(e.valueAt(QStringLiteral("B1")), QStringLiteral("e:#NAME?"));
+    QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
+    QVERIFY(e.win.w.save());
+    QVERIFY2(savedOk(saved), "the save failed");
+    QCOMPARE(savedFormula(e.path, QStringLiteral("A1")), QStringLiteral("_xlfn.IMAGE(C1)"));
+    QVERIFY2(workbookXml(e.path).contains("fullCalcOnLoad=\"1\""), workbookXml(e.path).constData());
+}
+
+
 // The steps of Undo hold at most a number of bytes (what the cells held, as they were and as they are): past it the oldest steps are forgotten (they stay in the list, empty, and Undo
 // goes back to the oldest that is kept); the newest step is kept whatever its size. A step that was forgotten is counted off, so a long session does not grow.
 void CrunchEditTests::undoHoldsAtMostItsBytesAndForgetsTheOldestSteps()

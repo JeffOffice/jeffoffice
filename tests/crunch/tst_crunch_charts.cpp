@@ -4542,6 +4542,42 @@ private Q_SLOTS:
         QCOMPARE(seriesOf(charts[0].chart)[0].format, QStringLiteral("\"$\"#,##0.00"));
     }
 
+    // The axes and the data labels of a chart are drawn through number format codes: a code the file gives, one the Format Axis pane gives, and Undo (the numbers are the cells' own again).
+    void chartAxesAndDataLabelsAreDrawnThroughNumberFormatCodes()
+    {
+        const QVector<SeriesSpec> series = {SeriesSpec{QStringLiteral("Sheet1!$B$1"), QStringLiteral("Sheet1!$A$2:$A$4"), QStringLiteral("Sheet1!$B$2:$B$4"), QStringLiteral("East"), {"Q1", "Q2", "Q3"}, {10, 20, 30}, QString()}};
+        QString part = QString::fromUtf8(chartPart(QStringLiteral("barChart"), series));
+        part.replace(QStringLiteral("<c:majorGridlines/>"), QStringLiteral("<c:majorGridlines/><c:numFmt formatCode=\"0&quot;k&quot;\" sourceLinked=\"0\"/>"));
+        part.replace(QStringLiteral("<c:cat>"), QStringLiteral("<c:dLbls><c:numFmt formatCode=\"0.0&quot;u&quot;\" sourceLinked=\"0\"/><c:showLegendKey val=\"0\"/><c:showVal val=\"1\"/><c:showCatName val=\"0\"/>"
+                                                                  "<c:showSerName val=\"0\"/><c:showPercent val=\"0\"/><c:showBubbleSize val=\"0\"/></c:dLbls><c:cat>"));
+        EditWindow e;
+        QVERIFY(e.open(bookWithAChart(QStringLiteral("barChart"), part.toUtf8())));
+        QTRY_VERIFY(objectsShown(e, 1));
+        const QRegularExpression axisK(QStringLiteral(">\\d+k<")), axisM(QStringLiteral(">\\d+m<")), plainNumber(QStringLiteral(">\\d+<"));
+        QString svg = QString::fromUtf8(chartSvg(chartOf(e), QSizeF(480, 288)));
+        QVERIFY2(svg.count(axisK) >= 3, qPrintable(svg.left(300)));                       // (the value axis: 0k, 10k, 20k, ...)
+        QVERIFY(svg.contains(QStringLiteral(">10.0u<")) && svg.contains(QStringLiteral(">20.0u<")) && svg.contains(QStringLiteral(">30.0u<")));   // (the data labels)
+        QVERIFY(!svg.contains(plainNumber));                                                // (no number is drawn in the cells' own way)
+        // the Format Axis pane gives another code: the axis follows it, the data labels do not
+        e.win.w.objects()->layer()->select(0);
+        QTRY_VERIFY(e.win.w.act(QStringLiteral("chartdesign.axisV"))->isEnabled());
+        e.win.w.setFormatAxisAsker([](bool, ChartAxis *axis) {
+            axis->format = QStringLiteral("0\"m\"");
+            axis->formatLinked = false;
+            return true;
+        });
+        e.win.w.act(QStringLiteral("chartdesign.axisV"))->trigger();
+        svg = QString::fromUtf8(chartSvg(chartOf(e), QSizeF(480, 288)));
+        QVERIFY2(svg.count(axisM) >= 3 && !svg.contains(axisK), qPrintable(svg.left(300)));
+        QVERIFY(svg.contains(QStringLiteral(">10.0u<")));
+        QVERIFY(save(e));
+        const QString saved = QString::fromUtf8(partsOf(e.path).value(QStringLiteral("xl/charts/chart1.xml")));
+        QVERIFY2(saved.contains(QStringLiteral("0&quot;m&quot;")) && saved.contains(QStringLiteral("0.0&quot;u&quot;")), qPrintable(saved.left(400)));
+        pressUndo(&e.win.w);
+        svg = QString::fromUtf8(chartSvg(chartOf(e), QSizeF(480, 288)));
+        QVERIFY(svg.count(axisK) >= 3 && !svg.contains(axisM));
+    }
+
     // A chart made here follows the sheet it reads when that is renamed (a name that needs quotes gets them), and back with Undo; the file has the name it has then.
     void aNewChartFollowsTheRenameOfItsSheet()
     {
