@@ -70589,7 +70589,7 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+247"/>
+        <location line="+271"/>
         <source>JeffCrunch could not check what you typed against the rule for this cell just now, so it was not entered. Try again in a moment.</source>
         <translation type="unfinished"></translation>
     </message>
@@ -70641,7 +70641,7 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+84"/>
+        <location line="+85"/>
         <source>An array formula starts with an equal sign. Type a formula, and press Ctrl+Shift+Enter again.</source>
         <translation type="unfinished"></translation>
     </message>
@@ -70666,12 +70666,12 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+45"/>
+        <location line="+46"/>
         <source>Array formula in %1</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+90"/>
+        <location line="+92"/>
         <source>The first row of a table holds the names of its columns, so it can&apos;t be cleared. Select the cells below it, or type another name.</source>
         <translation type="unfinished"></translation>
     </message>
@@ -70772,19 +70772,19 @@ The password couldn&apos;t be put on the file.</source>
         <location line="+59"/>
         <location line="+38"/>
         <location line="+46"/>
-        <location line="+309"/>
+        <location line="+311"/>
         <location line="+206"/>
         <location line="+98"/>
         <location line="+81"/>
         <location line="+65"/>
-        <location filename="../apps/crunch/core/editpaste.cpp" line="+621"/>
+        <location filename="../apps/crunch/core/editpaste.cpp" line="+624"/>
         <location filename="../apps/crunch/core/editquick.cpp" line="+6"/>
         <location line="+1"/>
-        <location filename="../apps/crunch/core/editsession.cpp" line="-749"/>
+        <location filename="../apps/crunch/core/editsession.cpp" line="-753"/>
         <location filename="../apps/crunch/core/editsheets.cpp" line="+94"/>
         <location line="+279"/>
         <location filename="../apps/crunch/core/editsize.cpp" line="+294"/>
-        <location filename="../apps/crunch/core/editstruct.cpp" line="+227"/>
+        <location filename="../apps/crunch/core/editstruct.cpp" line="+230"/>
         <location filename="../apps/crunch/core/edittables.cpp" line="+410"/>
         <location line="+89"/>
         <location line="+127"/>
@@ -70973,25 +70973,25 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../apps/crunch/core/editformat.cpp" line="-1553"/>
-        <location line="+1242"/>
+        <location filename="../apps/crunch/core/editformat.cpp" line="-1555"/>
+        <location line="+1244"/>
         <source>This sheet is protected, so whether its cells are locked, and whether their formulas are hidden, can&apos;t be changed. Unprotect the sheet first (Review, Unprotect Sheet).</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="-1186"/>
+        <location line="-1188"/>
         <source>This workbook has as many different formats as a workbook can hold (%1 cell formats). Give the cells a format the workbook already has, or clear the formats of some cells, and try again.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
         <location line="+22"/>
         <location line="+781"/>
-        <location line="+150"/>
+        <location line="+152"/>
         <source>Those are not cells of the sheet.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="-919"/>
+        <location line="-921"/>
         <source>That is more cells than JeffCrunch formats at once (%1). Select whole columns or rows, or fewer cells.</source>
         <translation type="unfinished"></translation>
     </message>
@@ -71105,12 +71105,12 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+83"/>
-        <location filename="../apps/crunch/core/editpaste.cpp" line="-396"/>
-        <location filename="../apps/crunch/core/editsession.cpp" line="-500"/>
-        <location line="+597"/>
+        <location line="+85"/>
+        <location filename="../apps/crunch/core/editpaste.cpp" line="-397"/>
+        <location filename="../apps/crunch/core/editsession.cpp" line="-524"/>
+        <location line="+622"/>
         <location line="+27"/>
-        <location line="+122"/>
+        <location line="+125"/>
         <source>You can&apos;t change part of an array or a data table.</source>
         <translation type="unfinished"></translation>
     </message>
@@ -71261,7 +71261,7 @@ The password couldn&apos;t be put on the file.</source>
         <location line="+46"/>
         <location filename="../apps/crunch/core/editnotes.cpp" line="+8"/>
         <location line="+171"/>
-        <location filename="../apps/crunch/core/editsession.cpp" line="-763"/>
+        <location filename="../apps/crunch/core/editsession.cpp" line="-791"/>
         <location filename="../apps/crunch/core/editsheets.cpp" line="+378"/>
         <source>That cell is outside the sheet.</source>
         <translation type="unfinished"></translation>
@@ -71456,11 +71456,11 @@ The password couldn&apos;t be put on the file.</source>
         <location line="+9"/>
         <location filename="../apps/crunch/core/editops.cpp" line="+137"/>
         <location line="+174"/>
-        <location line="+352"/>
+        <location line="+354"/>
         <location line="+114"/>
         <location filename="../apps/crunch/core/editquick.cpp" line="-146"/>
-        <location filename="../apps/crunch/core/editsession.cpp" line="+388"/>
-        <location line="+206"/>
+        <location filename="../apps/crunch/core/editsession.cpp" line="+412"/>
+        <location line="+207"/>
         <source>That is more cells than JeffCrunch changes at once (%1). Select fewer cells.</source>
         <translation type="unfinished"></translation>
     </message>
@@ -71490,7 +71490,7 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../apps/crunch/core/editops.cpp" line="-636"/>
+        <location filename="../apps/crunch/core/editops.cpp" line="-638"/>
         <source>Sum</source>
         <translation type="unfinished"></translation>
     </message>
@@ -71500,12 +71500,12 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+201"/>
+        <location line="+202"/>
         <source>The first row of a table holds the names of its columns, so it can&apos;t be filled over. Fill the cells below it, or type each name.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+87"/>
+        <location line="+88"/>
         <source>Fill</source>
         <translation type="unfinished"></translation>
     </message>
@@ -71546,7 +71546,7 @@ The password couldn&apos;t be put on the file.</source>
     </message>
     <message>
         <location line="+7"/>
-        <location filename="../apps/crunch/core/editsession.cpp" line="-606"/>
+        <location filename="../apps/crunch/core/editsession.cpp" line="-631"/>
         <location filename="../apps/crunch/core/editsheets.cpp" line="-494"/>
         <location line="+84"/>
         <location line="+108"/>
@@ -71591,25 +71591,25 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../apps/crunch/core/editpaste.cpp" line="-27"/>
+        <location filename="../apps/crunch/core/editpaste.cpp" line="-28"/>
         <location line="+3"/>
-        <location line="+211"/>
+        <location line="+213"/>
         <location line="+176"/>
         <source>That would go past the edge of the sheet. Select a cell nearer its start.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="-385"/>
+        <location line="-387"/>
         <source>That is more cells than JeffCrunch pastes at once (%1). Paste into fewer.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+25"/>
+        <location line="+26"/>
         <source>The first row of a table holds the names of its columns, so cells can&apos;t be pasted over it. Paste below it, or change the names one by one.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+4"/>
+        <location line="+5"/>
         <source>That would make more merged cells than JeffCrunch makes at once. Paste into fewer cells.</source>
         <translation type="unfinished"></translation>
     </message>
@@ -72823,7 +72823,7 @@ The password couldn&apos;t be put on the file.</source>
     </message>
     <message>
         <location line="+16"/>
-        <location line="+125"/>
+        <location line="+126"/>
         <location line="+5"/>
         <source>Sorting</source>
         <translation type="unfinished"></translation>
@@ -73333,7 +73333,7 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+50"/>
+        <location line="+53"/>
         <location line="+26"/>
         <source>Break Link</source>
         <translation type="unfinished"></translation>
@@ -77375,7 +77375,7 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+22"/>
+        <location line="+23"/>
         <source>The cell with the cursor is not part of an array formula.</source>
         <translation type="unfinished"></translation>
     </message>
@@ -77403,7 +77403,7 @@ The password couldn&apos;t be put on the file.</source>
 <context>
     <name>jp::crunch::Loader</name>
     <message>
-        <location filename="../apps/crunch/core/loader.cpp" line="+347"/>
+        <location filename="../apps/crunch/core/loader.cpp" line="+351"/>
         <source>The workbook has no sheets.</source>
         <translation type="unfinished"></translation>
     </message>

@@ -70645,7 +70645,7 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
 <context>
     <name>jp::crunch::EditSession</name>
     <message numerus="yes">
-        <location filename="../apps/crunch/core/editsession.cpp" line="+1302"/>
+        <location filename="../apps/crunch/core/editsession.cpp" line="+1330"/>
         <source>Clearing %n cell(s)</source>
         <translation type="unfinished">
             <numerusform>%n Zelle wird gelöscht</numerusform>
@@ -70769,7 +70769,7 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
     </message>
     <message>
         <location filename="../apps/crunch/core/editformat.cpp" line="+70"/>
-        <location line="+1242"/>
+        <location line="+1244"/>
         <source>This sheet is protected, so whether its cells are locked, and whether their formulas are hidden, can&apos;t be changed. Unprotect the sheet first (Review, Unprotect Sheet).</source>
         <translation type="unfinished">Dieses Blatt ist geschützt, daher kann nicht geändert werden, ob seine Zellen gesperrt und ihre Formeln ausgeblendet sind. Heben Sie zuerst den Blattschutz auf (Überprüfen, Blattschutz aufheben).</translation>
     </message>
@@ -70799,26 +70799,26 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
     <message>
         <location line="-64"/>
         <location line="+48"/>
-        <location filename="../apps/crunch/core/editformat.cpp" line="-1231"/>
+        <location filename="../apps/crunch/core/editformat.cpp" line="-1233"/>
         <location line="+454"/>
         <location line="+141"/>
         <location line="+45"/>
         <location line="+59"/>
         <location line="+38"/>
         <location line="+46"/>
-        <location line="+309"/>
+        <location line="+311"/>
         <location line="+206"/>
         <location line="+98"/>
         <location line="+81"/>
         <location line="+65"/>
-        <location filename="../apps/crunch/core/editpaste.cpp" line="+621"/>
+        <location filename="../apps/crunch/core/editpaste.cpp" line="+624"/>
         <location filename="../apps/crunch/core/editquick.cpp" line="+6"/>
         <location line="+1"/>
-        <location filename="../apps/crunch/core/editsession.cpp" line="-266"/>
+        <location filename="../apps/crunch/core/editsession.cpp" line="-270"/>
         <location filename="../apps/crunch/core/editsheets.cpp" line="+94"/>
         <location line="+279"/>
         <location filename="../apps/crunch/core/editsize.cpp" line="+294"/>
-        <location filename="../apps/crunch/core/editstruct.cpp" line="+227"/>
+        <location filename="../apps/crunch/core/editstruct.cpp" line="+230"/>
         <location filename="../apps/crunch/core/edittables.cpp" line="+410"/>
         <location line="+89"/>
         <location line="+127"/>
@@ -70854,19 +70854,19 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
         <translation type="unfinished">Regeln aus Tabelle entfernen</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/core/editformat.cpp" line="-1497"/>
+        <location filename="../apps/crunch/core/editformat.cpp" line="-1499"/>
         <source>This workbook has as many different formats as a workbook can hold (%1 cell formats). Give the cells a format the workbook already has, or clear the formats of some cells, and try again.</source>
         <translation type="unfinished">Diese Arbeitsmappe enthält so viele verschiedene Formate, wie eine Arbeitsmappe aufnehmen kann (%1 Zellformate). Weisen Sie den Zellen ein Format zu, das in der Arbeitsmappe bereits vorhanden ist, oder löschen Sie die Formate einiger Zellen, und versuchen Sie es erneut.</translation>
     </message>
     <message>
         <location line="+22"/>
         <location line="+781"/>
-        <location line="+150"/>
+        <location line="+152"/>
         <source>Those are not cells of the sheet.</source>
         <translation type="unfinished">Dies sind keine Zellen des Blatts.</translation>
     </message>
     <message>
-        <location line="-919"/>
+        <location line="-921"/>
         <source>That is more cells than JeffCrunch formats at once (%1). Select whole columns or rows, or fewer cells.</source>
         <translation type="unfinished">Das sind mehr Zellen, als JeffCrunch auf einmal formatiert (%1). Markieren Sie ganze Spalten oder Zeilen oder weniger Zellen.</translation>
     </message>
@@ -70980,12 +70980,12 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
         <translation type="unfinished">Das sind mehr Zellen, als JeffCrunch auf einmal mit Rahmen versehen kann (%1). Wählen Sie weniger Zellen aus.</translation>
     </message>
     <message>
-        <location line="+83"/>
-        <location filename="../apps/crunch/core/editpaste.cpp" line="-396"/>
-        <location filename="../apps/crunch/core/editsession.cpp" line="-500"/>
-        <location line="+597"/>
+        <location line="+85"/>
+        <location filename="../apps/crunch/core/editpaste.cpp" line="-397"/>
+        <location filename="../apps/crunch/core/editsession.cpp" line="-524"/>
+        <location line="+622"/>
         <location line="+27"/>
-        <location line="+122"/>
+        <location line="+125"/>
         <source>You can&apos;t change part of an array or a data table.</source>
         <translation type="unfinished">Sie können einen Teil einer Matrix oder einer Datentabelle nicht ändern.</translation>
     </message>
@@ -71131,11 +71131,11 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
         <location line="+9"/>
         <location filename="../apps/crunch/core/editops.cpp" line="+137"/>
         <location line="+174"/>
-        <location line="+352"/>
+        <location line="+354"/>
         <location line="+114"/>
         <location filename="../apps/crunch/core/editquick.cpp" line="-146"/>
-        <location filename="../apps/crunch/core/editsession.cpp" line="-375"/>
-        <location line="+206"/>
+        <location filename="../apps/crunch/core/editsession.cpp" line="-379"/>
+        <location line="+207"/>
         <source>That is more cells than JeffCrunch changes at once (%1). Select fewer cells.</source>
         <translation type="unfinished">Das sind mehr Zellen, als JeffCrunch auf einmal ändern kann (%1). Wählen Sie weniger Zellen aus.</translation>
     </message>
@@ -71165,7 +71165,7 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
         <translation type="unfinished">Blitzvorschau</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/core/editops.cpp" line="-636"/>
+        <location filename="../apps/crunch/core/editops.cpp" line="-638"/>
         <source>Sum</source>
         <translation type="unfinished">Summe</translation>
     </message>
@@ -71175,12 +71175,12 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
         <translation type="unfinished">Ein Ausfüllen in oder aus verbundenen Zellen, die nicht übereinstimmen, ist nicht möglich: Ein verbundener Bereich muss vollständig in den Ausgangszellen liegen oder in den ausgefüllten Zellen, und zwar in derselben Größe an derselben Stelle wie in den Ausgangszellen. Heben Sie zuerst die Verbindung auf, oder füllen Sie andere Zellen aus.</translation>
     </message>
     <message>
-        <location line="+201"/>
+        <location line="+202"/>
         <source>The first row of a table holds the names of its columns, so it can&apos;t be filled over. Fill the cells below it, or type each name.</source>
         <translation type="unfinished">Die erste Zeile einer Tabelle enthält die Spaltennamen und kann daher nicht überschrieben werden. Füllen Sie die Zellen darunter aus, oder geben Sie jeden Namen einzeln ein.</translation>
     </message>
     <message>
-        <location line="+87"/>
+        <location line="+88"/>
         <source>Fill</source>
         <translation type="unfinished">Ausfüllen</translation>
     </message>
@@ -71255,25 +71255,25 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
         <translation type="unfinished">Ein Seitenumbruch kann nicht vor der ersten Zeile oder Spalte eingefügt werden.</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/core/editpaste.cpp" line="-27"/>
+        <location filename="../apps/crunch/core/editpaste.cpp" line="-28"/>
         <location line="+3"/>
-        <location line="+211"/>
+        <location line="+213"/>
         <location line="+176"/>
         <source>That would go past the edge of the sheet. Select a cell nearer its start.</source>
         <translation type="unfinished">Dies würde über den Rand des Blatts hinausgehen. Wählen Sie eine Zelle näher am Blattanfang aus.</translation>
     </message>
     <message>
-        <location line="-385"/>
+        <location line="-387"/>
         <source>That is more cells than JeffCrunch pastes at once (%1). Paste into fewer.</source>
         <translation type="unfinished">Das sind mehr Zellen, als JeffCrunch auf einmal einfügen kann (%1). Fügen Sie in weniger Zellen ein.</translation>
     </message>
     <message>
-        <location line="+25"/>
+        <location line="+26"/>
         <source>The first row of a table holds the names of its columns, so cells can&apos;t be pasted over it. Paste below it, or change the names one by one.</source>
         <translation type="unfinished">Die erste Zeile einer Tabelle enthält die Spaltennamen, daher können dort keine Zellen eingefügt werden. Fügen Sie darunter ein, oder ändern Sie die Namen einzeln.</translation>
     </message>
     <message>
-        <location line="+4"/>
+        <location line="+5"/>
         <source>That would make more merged cells than JeffCrunch makes at once. Paste into fewer cells.</source>
         <translation type="unfinished">Dadurch würden mehr verbundene Zellen entstehen, als JeffCrunch auf einmal erstellen kann. Fügen Sie in weniger Zellen ein.</translation>
     </message>
@@ -71312,7 +71312,7 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
         <location filename="../apps/crunch/core/editpaste.cpp" line="-444"/>
         <location line="+185"/>
         <location filename="../apps/crunch/core/editrecommend.cpp" line="+18"/>
-        <location filename="../apps/crunch/core/editsession.cpp" line="-620"/>
+        <location filename="../apps/crunch/core/editsession.cpp" line="-645"/>
         <source>The workbook is still being opened. It can be changed when it is open.</source>
         <translation type="unfinished">Die Arbeitsmappe wird noch geöffnet. Sie kann geändert werden, sobald sie geöffnet ist.</translation>
     </message>
@@ -71587,7 +71587,7 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
         <translation type="unfinished">Dieses Blatt ist geschützt und die Zelle gesperrt, daher kann sie nicht geändert werden. Wählen Sie dazu auf der Registerkarte „Überprüfen“ die Option „Blattschutz aufheben“.</translation>
     </message>
     <message>
-        <location line="+247"/>
+        <location line="+271"/>
         <source>JeffCrunch could not check what you typed against the rule for this cell just now, so it was not entered. Try again in a moment.</source>
         <translation type="unfinished">JeffCrunch konnte Ihre Eingabe gerade nicht anhand der Regel für diese Zelle prüfen, daher wurde sie nicht übernommen. Versuchen Sie es gleich noch einmal.</translation>
     </message>
@@ -71639,7 +71639,7 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
         <translation type="unfinished">Mehr Formeln, als JeffCrunch auf einmal ändern kann (%1), verwenden den Namen dieser Spalte.</translation>
     </message>
     <message>
-        <location line="+84"/>
+        <location line="+85"/>
         <source>An array formula starts with an equal sign. Type a formula, and press Ctrl+Shift+Enter again.</source>
         <translation type="unfinished">Eine Matrixformel beginnt mit einem Gleichheitszeichen. Geben Sie eine Formel ein und drücken Sie erneut Strg+Umschalt+Eingabe.</translation>
     </message>
@@ -71664,12 +71664,12 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
         <translation type="unfinished">Eine Matrixformel kann nicht in einer Tabelle eingegeben werden. Wählen Sie Zellen außerhalb der Tabelle aus.</translation>
     </message>
     <message>
-        <location line="+45"/>
+        <location line="+46"/>
         <source>Array formula in %1</source>
         <translation type="unfinished">Matrixformel in %1</translation>
     </message>
     <message>
-        <location line="+90"/>
+        <location line="+92"/>
         <source>The first row of a table holds the names of its columns, so it can&apos;t be cleared. Select the cells below it, or type another name.</source>
         <translation type="unfinished">Die erste Zeile einer Tabelle enthält die Spaltennamen und kann daher nicht gelöscht werden. Wählen Sie die Zellen darunter aus, oder geben Sie einen anderen Namen ein.</translation>
     </message>
@@ -72416,7 +72416,7 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
     </message>
     <message>
         <location line="+16"/>
-        <location line="+125"/>
+        <location line="+126"/>
         <location line="+5"/>
         <source>Sorting</source>
         <translation type="unfinished">Sortieren</translation>
@@ -73593,7 +73593,7 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
         <translation type="unfinished">Startaufforderung</translation>
     </message>
     <message>
-        <location line="+50"/>
+        <location line="+53"/>
         <location line="+26"/>
         <source>Break Link</source>
         <translation type="unfinished">Verknüpfung aufheben</translation>
@@ -77635,7 +77635,7 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
         <translation type="unfinished">Keine passenden Zellen gefunden.</translation>
     </message>
     <message>
-        <location line="+22"/>
+        <location line="+23"/>
         <source>The cell with the cursor is not part of an array formula.</source>
         <translation type="unfinished">Die Zelle mit dem Cursor ist nicht Teil einer Matrixformel.</translation>
     </message>
@@ -77663,7 +77663,7 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
 <context>
     <name>jp::crunch::Loader</name>
     <message>
-        <location filename="../apps/crunch/core/loader.cpp" line="+347"/>
+        <location filename="../apps/crunch/core/loader.cpp" line="+351"/>
         <source>The workbook has no sheets.</source>
         <translation type="unfinished">Die Arbeitsmappe enthält keine Blätter.</translation>
     </message>

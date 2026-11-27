@@ -70645,7 +70645,7 @@ No se pudo aplicar la contraseña al archivo.</translation>
 <context>
     <name>jp::crunch::EditSession</name>
     <message numerus="yes">
-        <location filename="../apps/crunch/core/editsession.cpp" line="+1302"/>
+        <location filename="../apps/crunch/core/editsession.cpp" line="+1330"/>
         <source>Clearing %n cell(s)</source>
         <translation type="unfinished">
             <numerusform>Borrando %n celda</numerusform>
@@ -70769,7 +70769,7 @@ No se pudo aplicar la contraseña al archivo.</translation>
     </message>
     <message>
         <location filename="../apps/crunch/core/editformat.cpp" line="+70"/>
-        <location line="+1242"/>
+        <location line="+1244"/>
         <source>This sheet is protected, so whether its cells are locked, and whether their formulas are hidden, can&apos;t be changed. Unprotect the sheet first (Review, Unprotect Sheet).</source>
         <translation type="unfinished">Esta hoja está protegida, por lo que no se puede cambiar si sus celdas están bloqueadas ni si sus fórmulas están ocultas. Desproteja primero la hoja (Revisar, Desproteger hoja).</translation>
     </message>
@@ -70799,26 +70799,26 @@ No se pudo aplicar la contraseña al archivo.</translation>
     <message>
         <location line="-64"/>
         <location line="+48"/>
-        <location filename="../apps/crunch/core/editformat.cpp" line="-1231"/>
+        <location filename="../apps/crunch/core/editformat.cpp" line="-1233"/>
         <location line="+454"/>
         <location line="+141"/>
         <location line="+45"/>
         <location line="+59"/>
         <location line="+38"/>
         <location line="+46"/>
-        <location line="+309"/>
+        <location line="+311"/>
         <location line="+206"/>
         <location line="+98"/>
         <location line="+81"/>
         <location line="+65"/>
-        <location filename="../apps/crunch/core/editpaste.cpp" line="+621"/>
+        <location filename="../apps/crunch/core/editpaste.cpp" line="+624"/>
         <location filename="../apps/crunch/core/editquick.cpp" line="+6"/>
         <location line="+1"/>
-        <location filename="../apps/crunch/core/editsession.cpp" line="-266"/>
+        <location filename="../apps/crunch/core/editsession.cpp" line="-270"/>
         <location filename="../apps/crunch/core/editsheets.cpp" line="+94"/>
         <location line="+279"/>
         <location filename="../apps/crunch/core/editsize.cpp" line="+294"/>
-        <location filename="../apps/crunch/core/editstruct.cpp" line="+227"/>
+        <location filename="../apps/crunch/core/editstruct.cpp" line="+230"/>
         <location filename="../apps/crunch/core/edittables.cpp" line="+410"/>
         <location line="+89"/>
         <location line="+127"/>
@@ -70854,19 +70854,19 @@ No se pudo aplicar la contraseña al archivo.</translation>
         <translation type="unfinished">Quitar reglas de la hoja</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/core/editformat.cpp" line="-1497"/>
+        <location filename="../apps/crunch/core/editformat.cpp" line="-1499"/>
         <source>This workbook has as many different formats as a workbook can hold (%1 cell formats). Give the cells a format the workbook already has, or clear the formats of some cells, and try again.</source>
         <translation type="unfinished">Este libro tiene tantos formatos distintos como puede contener un libro (%1 formatos de celda). Aplique a las celdas un formato que ya tenga el libro, o borre los formatos de algunas celdas, y vuelva a intentarlo.</translation>
     </message>
     <message>
         <location line="+22"/>
         <location line="+781"/>
-        <location line="+150"/>
+        <location line="+152"/>
         <source>Those are not cells of the sheet.</source>
         <translation type="unfinished">Esas no son celdas de la hoja.</translation>
     </message>
     <message>
-        <location line="-919"/>
+        <location line="-921"/>
         <source>That is more cells than JeffCrunch formats at once (%1). Select whole columns or rows, or fewer cells.</source>
         <translation type="unfinished">Son más celdas de las que JeffCrunch puede formatear a la vez (%1). Seleccione columnas o filas completas, o menos celdas.</translation>
     </message>
@@ -70980,12 +70980,12 @@ No se pudo aplicar la contraseña al archivo.</translation>
         <translation type="unfinished">Son más celdas de las que JeffCrunch puede bordear a la vez (%1). Seleccione menos celdas.</translation>
     </message>
     <message>
-        <location line="+83"/>
-        <location filename="../apps/crunch/core/editpaste.cpp" line="-396"/>
-        <location filename="../apps/crunch/core/editsession.cpp" line="-500"/>
-        <location line="+597"/>
+        <location line="+85"/>
+        <location filename="../apps/crunch/core/editpaste.cpp" line="-397"/>
+        <location filename="../apps/crunch/core/editsession.cpp" line="-524"/>
+        <location line="+622"/>
         <location line="+27"/>
-        <location line="+122"/>
+        <location line="+125"/>
         <source>You can&apos;t change part of an array or a data table.</source>
         <translation type="unfinished">No se puede cambiar parte de una matriz o de una tabla de datos.</translation>
     </message>
@@ -71131,11 +71131,11 @@ No se pudo aplicar la contraseña al archivo.</translation>
         <location line="+9"/>
         <location filename="../apps/crunch/core/editops.cpp" line="+137"/>
         <location line="+174"/>
-        <location line="+352"/>
+        <location line="+354"/>
         <location line="+114"/>
         <location filename="../apps/crunch/core/editquick.cpp" line="-146"/>
-        <location filename="../apps/crunch/core/editsession.cpp" line="-375"/>
-        <location line="+206"/>
+        <location filename="../apps/crunch/core/editsession.cpp" line="-379"/>
+        <location line="+207"/>
         <source>That is more cells than JeffCrunch changes at once (%1). Select fewer cells.</source>
         <translation type="unfinished">Son más celdas de las que JeffCrunch puede cambiar a la vez (%1). Seleccione menos celdas.</translation>
     </message>
@@ -71165,7 +71165,7 @@ No se pudo aplicar la contraseña al archivo.</translation>
         <translation type="unfinished">Relleno rápido</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/core/editops.cpp" line="-636"/>
+        <location filename="../apps/crunch/core/editops.cpp" line="-638"/>
         <source>Sum</source>
         <translation type="unfinished">Suma</translation>
     </message>
@@ -71175,12 +71175,12 @@ No se pudo aplicar la contraseña al archivo.</translation>
         <translation type="unfinished">No se puede rellenar hacia celdas combinadas ni desde ellas si no coinciden: un área combinada debe estar completamente en las celdas de origen, o en las celdas rellenadas y con el mismo tamaño en la misma posición que en las celdas de origen. Separe primero las celdas o rellene otras celdas.</translation>
     </message>
     <message>
-        <location line="+201"/>
+        <location line="+202"/>
         <source>The first row of a table holds the names of its columns, so it can&apos;t be filled over. Fill the cells below it, or type each name.</source>
         <translation type="unfinished">La primera fila de una tabla contiene los nombres de sus columnas, por lo que no se puede rellenar. Rellene las celdas inferiores o escriba cada nombre.</translation>
     </message>
     <message>
-        <location line="+87"/>
+        <location line="+88"/>
         <source>Fill</source>
         <translation type="unfinished">Rellenar</translation>
     </message>
@@ -71255,25 +71255,25 @@ No se pudo aplicar la contraseña al archivo.</translation>
         <translation type="unfinished">No se puede insertar un salto de página antes de la primera fila o columna.</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/core/editpaste.cpp" line="-27"/>
+        <location filename="../apps/crunch/core/editpaste.cpp" line="-28"/>
         <location line="+3"/>
-        <location line="+211"/>
+        <location line="+213"/>
         <location line="+176"/>
         <source>That would go past the edge of the sheet. Select a cell nearer its start.</source>
         <translation type="unfinished">Se sobrepasaría el borde de la hoja. Seleccione una celda más cercana a su inicio.</translation>
     </message>
     <message>
-        <location line="-385"/>
+        <location line="-387"/>
         <source>That is more cells than JeffCrunch pastes at once (%1). Paste into fewer.</source>
         <translation type="unfinished">Son más celdas de las que JeffCrunch puede pegar a la vez (%1). Pegue en menos celdas.</translation>
     </message>
     <message>
-        <location line="+25"/>
+        <location line="+26"/>
         <source>The first row of a table holds the names of its columns, so cells can&apos;t be pasted over it. Paste below it, or change the names one by one.</source>
         <translation type="unfinished">La primera fila de una tabla contiene los nombres de sus columnas, por lo que no se pueden pegar celdas sobre ella. Pegue debajo o cambie los nombres uno a uno.</translation>
     </message>
     <message>
-        <location line="+4"/>
+        <location line="+5"/>
         <source>That would make more merged cells than JeffCrunch makes at once. Paste into fewer cells.</source>
         <translation type="unfinished">Se crearían más celdas combinadas de las que JeffCrunch admite a la vez. Pegue en menos celdas.</translation>
     </message>
@@ -71312,7 +71312,7 @@ No se pudo aplicar la contraseña al archivo.</translation>
         <location filename="../apps/crunch/core/editpaste.cpp" line="-444"/>
         <location line="+185"/>
         <location filename="../apps/crunch/core/editrecommend.cpp" line="+18"/>
-        <location filename="../apps/crunch/core/editsession.cpp" line="-620"/>
+        <location filename="../apps/crunch/core/editsession.cpp" line="-645"/>
         <source>The workbook is still being opened. It can be changed when it is open.</source>
         <translation type="unfinished">El libro todavía se está abriendo. Podrá modificarlo cuando esté abierto.</translation>
     </message>
@@ -71587,7 +71587,7 @@ No se pudo aplicar la contraseña al archivo.</translation>
         <translation type="unfinished">Esta hoja está protegida y la celda está bloqueada, por lo que no se puede cambiar. Para cambiarla, elija Desproteger hoja en la pestaña Revisar.</translation>
     </message>
     <message>
-        <location line="+247"/>
+        <location line="+271"/>
         <source>JeffCrunch could not check what you typed against the rule for this cell just now, so it was not entered. Try again in a moment.</source>
         <translation type="unfinished">JeffCrunch no pudo comprobar lo que escribió con la regla de esta celda, por lo que no se introdujo. Inténtelo de nuevo en un momento.</translation>
     </message>
@@ -71639,7 +71639,7 @@ No se pudo aplicar la contraseña al archivo.</translation>
         <translation type="unfinished">Más fórmulas de las que JeffCrunch puede cambiar a la vez (%1) usan el nombre de esta columna.</translation>
     </message>
     <message>
-        <location line="+84"/>
+        <location line="+85"/>
         <source>An array formula starts with an equal sign. Type a formula, and press Ctrl+Shift+Enter again.</source>
         <translation type="unfinished">Una fórmula matricial empieza con un signo igual. Escriba una fórmula y pulse otra vez Ctrl+Mayús+Intro.</translation>
     </message>
@@ -71664,12 +71664,12 @@ No se pudo aplicar la contraseña al archivo.</translation>
         <translation type="unfinished">No se puede introducir una fórmula matricial en una tabla. Seleccione celdas fuera de la tabla.</translation>
     </message>
     <message>
-        <location line="+45"/>
+        <location line="+46"/>
         <source>Array formula in %1</source>
         <translation type="unfinished">Fórmula matricial en %1</translation>
     </message>
     <message>
-        <location line="+90"/>
+        <location line="+92"/>
         <source>The first row of a table holds the names of its columns, so it can&apos;t be cleared. Select the cells below it, or type another name.</source>
         <translation type="unfinished">La primera fila de una tabla contiene los nombres de sus columnas, por lo que no se puede borrar. Seleccione las celdas inferiores o escriba otro nombre.</translation>
     </message>
@@ -72416,7 +72416,7 @@ No se pudo aplicar la contraseña al archivo.</translation>
     </message>
     <message>
         <location line="+16"/>
-        <location line="+125"/>
+        <location line="+126"/>
         <location line="+5"/>
         <source>Sorting</source>
         <translation type="unfinished">Ordenando</translation>
@@ -73593,7 +73593,7 @@ No se pudo aplicar la contraseña al archivo.</translation>
         <translation type="unfinished">Mensaje de inicio</translation>
     </message>
     <message>
-        <location line="+50"/>
+        <location line="+53"/>
         <location line="+26"/>
         <source>Break Link</source>
         <translation type="unfinished">Romper vínculo</translation>
@@ -77635,7 +77635,7 @@ No se pudo aplicar la contraseña al archivo.</translation>
         <translation type="unfinished">Ninguna celda coincide.</translation>
     </message>
     <message>
-        <location line="+22"/>
+        <location line="+23"/>
         <source>The cell with the cursor is not part of an array formula.</source>
         <translation type="unfinished">La celda con el cursor no forma parte de una fórmula matricial.</translation>
     </message>
@@ -77663,7 +77663,7 @@ No se pudo aplicar la contraseña al archivo.</translation>
 <context>
     <name>jp::crunch::Loader</name>
     <message>
-        <location filename="../apps/crunch/core/loader.cpp" line="+347"/>
+        <location filename="../apps/crunch/core/loader.cpp" line="+351"/>
         <source>The workbook has no sheets.</source>
         <translation type="unfinished">El libro no tiene hojas.</translation>
     </message>

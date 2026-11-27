@@ -70645,7 +70645,7 @@ Impossibile applicare la password al file.</translation>
 <context>
     <name>jp::crunch::EditSession</name>
     <message numerus="yes">
-        <location filename="../apps/crunch/core/editsession.cpp" line="+1302"/>
+        <location filename="../apps/crunch/core/editsession.cpp" line="+1330"/>
         <source>Clearing %n cell(s)</source>
         <translation type="unfinished">
             <numerusform>Cancellazione di %n cella</numerusform>
@@ -70769,7 +70769,7 @@ Impossibile applicare la password al file.</translation>
     </message>
     <message>
         <location filename="../apps/crunch/core/editformat.cpp" line="+70"/>
-        <location line="+1242"/>
+        <location line="+1244"/>
         <source>This sheet is protected, so whether its cells are locked, and whether their formulas are hidden, can&apos;t be changed. Unprotect the sheet first (Review, Unprotect Sheet).</source>
         <translation type="unfinished">Il foglio è protetto, quindi non è possibile modificare il blocco delle celle né se le formule sono nascoste. Rimuovi prima la protezione del foglio (Revisione, Rimuovi protezione foglio).</translation>
     </message>
@@ -70799,26 +70799,26 @@ Impossibile applicare la password al file.</translation>
     <message>
         <location line="-64"/>
         <location line="+48"/>
-        <location filename="../apps/crunch/core/editformat.cpp" line="-1231"/>
+        <location filename="../apps/crunch/core/editformat.cpp" line="-1233"/>
         <location line="+454"/>
         <location line="+141"/>
         <location line="+45"/>
         <location line="+59"/>
         <location line="+38"/>
         <location line="+46"/>
-        <location line="+309"/>
+        <location line="+311"/>
         <location line="+206"/>
         <location line="+98"/>
         <location line="+81"/>
         <location line="+65"/>
-        <location filename="../apps/crunch/core/editpaste.cpp" line="+621"/>
+        <location filename="../apps/crunch/core/editpaste.cpp" line="+624"/>
         <location filename="../apps/crunch/core/editquick.cpp" line="+6"/>
         <location line="+1"/>
-        <location filename="../apps/crunch/core/editsession.cpp" line="-266"/>
+        <location filename="../apps/crunch/core/editsession.cpp" line="-270"/>
         <location filename="../apps/crunch/core/editsheets.cpp" line="+94"/>
         <location line="+279"/>
         <location filename="../apps/crunch/core/editsize.cpp" line="+294"/>
-        <location filename="../apps/crunch/core/editstruct.cpp" line="+227"/>
+        <location filename="../apps/crunch/core/editstruct.cpp" line="+230"/>
         <location filename="../apps/crunch/core/edittables.cpp" line="+410"/>
         <location line="+89"/>
         <location line="+127"/>
@@ -70854,19 +70854,19 @@ Impossibile applicare la password al file.</translation>
         <translation type="unfinished">Cancella regole dal foglio</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/core/editformat.cpp" line="-1497"/>
+        <location filename="../apps/crunch/core/editformat.cpp" line="-1499"/>
         <source>This workbook has as many different formats as a workbook can hold (%1 cell formats). Give the cells a format the workbook already has, or clear the formats of some cells, and try again.</source>
         <translation type="unfinished">Questa cartella di lavoro contiene il numero massimo di formati diversi consentito (%1 formati di cella). Assegna alle celle un formato già presente nella cartella di lavoro oppure cancella i formati di alcune celle e riprova.</translation>
     </message>
     <message>
         <location line="+22"/>
         <location line="+781"/>
-        <location line="+150"/>
+        <location line="+152"/>
         <source>Those are not cells of the sheet.</source>
         <translation type="unfinished">Queste non sono celle del foglio.</translation>
     </message>
     <message>
-        <location line="-919"/>
+        <location line="-921"/>
         <source>That is more cells than JeffCrunch formats at once (%1). Select whole columns or rows, or fewer cells.</source>
         <translation type="unfinished">Le celle sono più di quante JeffCrunch possa formattare in una sola volta (%1). Seleziona intere colonne o righe oppure meno celle.</translation>
     </message>
@@ -70980,12 +70980,12 @@ Impossibile applicare la password al file.</translation>
         <translation type="unfinished">Sono più celle di quelle a cui JeffCrunch può applicare bordi contemporaneamente (%1). Selezionare meno celle.</translation>
     </message>
     <message>
-        <location line="+83"/>
-        <location filename="../apps/crunch/core/editpaste.cpp" line="-396"/>
-        <location filename="../apps/crunch/core/editsession.cpp" line="-500"/>
-        <location line="+597"/>
+        <location line="+85"/>
+        <location filename="../apps/crunch/core/editpaste.cpp" line="-397"/>
+        <location filename="../apps/crunch/core/editsession.cpp" line="-524"/>
+        <location line="+622"/>
         <location line="+27"/>
-        <location line="+122"/>
+        <location line="+125"/>
         <source>You can&apos;t change part of an array or a data table.</source>
         <translation type="unfinished">Impossibile modificare parte di una matrice o di una tabella dati.</translation>
     </message>
@@ -71131,11 +71131,11 @@ Impossibile applicare la password al file.</translation>
         <location line="+9"/>
         <location filename="../apps/crunch/core/editops.cpp" line="+137"/>
         <location line="+174"/>
-        <location line="+352"/>
+        <location line="+354"/>
         <location line="+114"/>
         <location filename="../apps/crunch/core/editquick.cpp" line="-146"/>
-        <location filename="../apps/crunch/core/editsession.cpp" line="-375"/>
-        <location line="+206"/>
+        <location filename="../apps/crunch/core/editsession.cpp" line="-379"/>
+        <location line="+207"/>
         <source>That is more cells than JeffCrunch changes at once (%1). Select fewer cells.</source>
         <translation type="unfinished">Sono più celle di quelle che JeffCrunch può modificare contemporaneamente (%1). Selezionare meno celle.</translation>
     </message>
@@ -71165,7 +71165,7 @@ Impossibile applicare la password al file.</translation>
         <translation type="unfinished">Riempimento lampo</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/core/editops.cpp" line="-636"/>
+        <location filename="../apps/crunch/core/editops.cpp" line="-638"/>
         <source>Sum</source>
         <translation type="unfinished">Somma</translation>
     </message>
@@ -71175,12 +71175,12 @@ Impossibile applicare la password al file.</translation>
         <translation type="unfinished">Impossibile eseguire il riempimento verso o da celle unite non corrispondenti: un&apos;area unita deve trovarsi interamente nelle celle di origine, oppure nelle celle da riempire con le stesse dimensioni e nella stessa posizione delle celle di origine. Separare prima le celle o riempire altre celle.</translation>
     </message>
     <message>
-        <location line="+201"/>
+        <location line="+202"/>
         <source>The first row of a table holds the names of its columns, so it can&apos;t be filled over. Fill the cells below it, or type each name.</source>
         <translation type="unfinished">La prima riga di una tabella contiene i nomi delle colonne, quindi non può essere riempita. Riempire le celle sottostanti o digitare ogni nome.</translation>
     </message>
     <message>
-        <location line="+87"/>
+        <location line="+88"/>
         <source>Fill</source>
         <translation type="unfinished">Riempimento</translation>
     </message>
@@ -71255,25 +71255,25 @@ Impossibile applicare la password al file.</translation>
         <translation type="unfinished">Non è possibile inserire un&apos;interruzione di pagina prima della prima riga o colonna.</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/core/editpaste.cpp" line="-27"/>
+        <location filename="../apps/crunch/core/editpaste.cpp" line="-28"/>
         <location line="+3"/>
-        <location line="+211"/>
+        <location line="+213"/>
         <location line="+176"/>
         <source>That would go past the edge of the sheet. Select a cell nearer its start.</source>
         <translation type="unfinished">Si supererebbe il bordo del foglio. Selezionare una cella più vicina all&apos;inizio.</translation>
     </message>
     <message>
-        <location line="-385"/>
+        <location line="-387"/>
         <source>That is more cells than JeffCrunch pastes at once (%1). Paste into fewer.</source>
         <translation type="unfinished">Sono più celle di quelle che JeffCrunch può incollare contemporaneamente (%1). Incollare in meno celle.</translation>
     </message>
     <message>
-        <location line="+25"/>
+        <location line="+26"/>
         <source>The first row of a table holds the names of its columns, so cells can&apos;t be pasted over it. Paste below it, or change the names one by one.</source>
         <translation type="unfinished">La prima riga di una tabella contiene i nomi delle colonne, quindi non è possibile incollarvi celle. Incollare sotto oppure modificare i nomi uno alla volta.</translation>
     </message>
     <message>
-        <location line="+4"/>
+        <location line="+5"/>
         <source>That would make more merged cells than JeffCrunch makes at once. Paste into fewer cells.</source>
         <translation type="unfinished">Verrebbero create più celle unite di quante JeffCrunch ne possa creare contemporaneamente. Incollare in meno celle.</translation>
     </message>
@@ -71312,7 +71312,7 @@ Impossibile applicare la password al file.</translation>
         <location filename="../apps/crunch/core/editpaste.cpp" line="-444"/>
         <location line="+185"/>
         <location filename="../apps/crunch/core/editrecommend.cpp" line="+18"/>
-        <location filename="../apps/crunch/core/editsession.cpp" line="-620"/>
+        <location filename="../apps/crunch/core/editsession.cpp" line="-645"/>
         <source>The workbook is still being opened. It can be changed when it is open.</source>
         <translation type="unfinished">La cartella di lavoro è ancora in apertura. Sarà possibile modificarla una volta aperta.</translation>
     </message>
@@ -71587,7 +71587,7 @@ Impossibile applicare la password al file.</translation>
         <translation type="unfinished">Il foglio è protetto e la cella è bloccata, quindi non è possibile modificarla. Per modificarla, scegliere Rimuovi protezione foglio nella scheda Revisione.</translation>
     </message>
     <message>
-        <location line="+247"/>
+        <location line="+271"/>
         <source>JeffCrunch could not check what you typed against the rule for this cell just now, so it was not entered. Try again in a moment.</source>
         <translation type="unfinished">JeffCrunch non è riuscito a verificare il valore digitato rispetto alla regola della cella, quindi non è stato immesso. Riprovare tra qualche istante.</translation>
     </message>
@@ -71639,7 +71639,7 @@ Impossibile applicare la password al file.</translation>
         <translation type="unfinished">Il nome di questa colonna è usato da più formule di quante JeffCrunch ne possa modificare contemporaneamente (%1).</translation>
     </message>
     <message>
-        <location line="+84"/>
+        <location line="+85"/>
         <source>An array formula starts with an equal sign. Type a formula, and press Ctrl+Shift+Enter again.</source>
         <translation type="unfinished">Una formula matrice inizia con un segno di uguale. Digita una formula e premi di nuovo Ctrl+Maiusc+Invio.</translation>
     </message>
@@ -71664,12 +71664,12 @@ Impossibile applicare la password al file.</translation>
         <translation type="unfinished">Una formula matrice non può essere inserita in una tabella. Seleziona celle al di fuori della tabella.</translation>
     </message>
     <message>
-        <location line="+45"/>
+        <location line="+46"/>
         <source>Array formula in %1</source>
         <translation type="unfinished">Formula matrice in %1</translation>
     </message>
     <message>
-        <location line="+90"/>
+        <location line="+92"/>
         <source>The first row of a table holds the names of its columns, so it can&apos;t be cleared. Select the cells below it, or type another name.</source>
         <translation type="unfinished">La prima riga di una tabella contiene i nomi delle colonne, quindi non può essere cancellata. Selezionare le celle sottostanti o digitare un altro nome.</translation>
     </message>
@@ -72416,7 +72416,7 @@ Impossibile applicare la password al file.</translation>
     </message>
     <message>
         <location line="+16"/>
-        <location line="+125"/>
+        <location line="+126"/>
         <location line="+5"/>
         <source>Sorting</source>
         <translation type="unfinished">Ordinamento in corso</translation>
@@ -73593,7 +73593,7 @@ Impossibile applicare la password al file.</translation>
         <translation type="unfinished">Richiesta all&apos;avvio</translation>
     </message>
     <message>
-        <location line="+50"/>
+        <location line="+53"/>
         <location line="+26"/>
         <source>Break Link</source>
         <translation type="unfinished">Interrompi collegamento</translation>
@@ -77635,7 +77635,7 @@ Impossibile applicare la password al file.</translation>
         <translation type="unfinished">Nessuna cella corrispondente.</translation>
     </message>
     <message>
-        <location line="+22"/>
+        <location line="+23"/>
         <source>The cell with the cursor is not part of an array formula.</source>
         <translation type="unfinished">La cella con il cursore non fa parte di una formula matriciale.</translation>
     </message>
@@ -77663,7 +77663,7 @@ Impossibile applicare la password al file.</translation>
 <context>
     <name>jp::crunch::Loader</name>
     <message>
-        <location filename="../apps/crunch/core/loader.cpp" line="+347"/>
+        <location filename="../apps/crunch/core/loader.cpp" line="+351"/>
         <source>The workbook has no sheets.</source>
         <translation type="unfinished">La cartella di lavoro non contiene fogli.</translation>
     </message>

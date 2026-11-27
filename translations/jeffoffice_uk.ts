@@ -70862,19 +70862,19 @@ The password couldn&apos;t be put on the file.</source>
         <location line="+59"/>
         <location line="+38"/>
         <location line="+46"/>
-        <location line="+309"/>
+        <location line="+311"/>
         <location line="+206"/>
         <location line="+98"/>
         <location line="+81"/>
         <location line="+65"/>
-        <location filename="../apps/crunch/core/editpaste.cpp" line="+621"/>
+        <location filename="../apps/crunch/core/editpaste.cpp" line="+624"/>
         <location filename="../apps/crunch/core/editquick.cpp" line="+6"/>
         <location line="+1"/>
-        <location filename="../apps/crunch/core/editsession.cpp" line="+502"/>
+        <location filename="../apps/crunch/core/editsession.cpp" line="+526"/>
         <location filename="../apps/crunch/core/editsheets.cpp" line="-657"/>
         <location line="+279"/>
         <location filename="../apps/crunch/core/editsize.cpp" line="+294"/>
-        <location filename="../apps/crunch/core/editstruct.cpp" line="+227"/>
+        <location filename="../apps/crunch/core/editstruct.cpp" line="+230"/>
         <location filename="../apps/crunch/core/edittables.cpp" line="+410"/>
         <location line="+89"/>
         <location line="+127"/>
@@ -71071,11 +71071,11 @@ The password couldn&apos;t be put on the file.</source>
         <location line="+9"/>
         <location filename="../apps/crunch/core/editops.cpp" line="+137"/>
         <location line="+174"/>
-        <location line="+352"/>
+        <location line="+354"/>
         <location line="+114"/>
         <location filename="../apps/crunch/core/editquick.cpp" line="-146"/>
         <location filename="../apps/crunch/core/editsession.cpp" line="-114"/>
-        <location line="+206"/>
+        <location line="+207"/>
         <source>That is more cells than JeffCrunch changes at once (%1). Select fewer cells.</source>
         <translation type="unfinished">Комірок для зміни забагато, ніж JeffCrunch може змінити одночасно (%1). Виберіть менше комірок.</translation>
     </message>
@@ -71105,25 +71105,25 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished">Миттєве заповнення</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/core/editformat.cpp" line="-1553"/>
-        <location line="+1242"/>
+        <location filename="../apps/crunch/core/editformat.cpp" line="-1555"/>
+        <location line="+1244"/>
         <source>This sheet is protected, so whether its cells are locked, and whether their formulas are hidden, can&apos;t be changed. Unprotect the sheet first (Review, Unprotect Sheet).</source>
         <translation type="unfinished">Цей аркуш захищено, тож не можна змінювати, чи заблоковані його комірки і чи приховані їхні формули. Спочатку зніміть захист з аркуша («Рецензування», «Зняти захист аркуша»).</translation>
     </message>
     <message>
-        <location line="-1186"/>
+        <location line="-1188"/>
         <source>This workbook has as many different formats as a workbook can hold (%1 cell formats). Give the cells a format the workbook already has, or clear the formats of some cells, and try again.</source>
         <translation type="unfinished">У цій книзі вже стільки різних форматів, скільки книга може містити (%1 форматів комірок). Надайте коміркам формат, який уже є в книзі, або очистіть формати деяких комірок і спробуйте ще раз.</translation>
     </message>
     <message>
         <location line="+22"/>
         <location line="+781"/>
-        <location line="+150"/>
+        <location line="+152"/>
         <source>Those are not cells of the sheet.</source>
         <translation type="unfinished">Це не комірки аркуша.</translation>
     </message>
     <message>
-        <location line="-919"/>
+        <location line="-921"/>
         <source>That is more cells than JeffCrunch formats at once (%1). Select whole columns or rows, or fewer cells.</source>
         <translation type="unfinished">Комірок для форматування забагато, ніж JeffCrunch може форматувати одночасно (%1). Виберіть цілі стовпці або рядки чи менше комірок.</translation>
     </message>
@@ -71237,12 +71237,12 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished">Це більше комірок, ніж JeffCrunch обводить рамками за раз (%1). Виділіть менше комірок.</translation>
     </message>
     <message>
-        <location line="+83"/>
-        <location filename="../apps/crunch/core/editpaste.cpp" line="-396"/>
-        <location filename="../apps/crunch/core/editsession.cpp" line="-592"/>
-        <location line="+597"/>
+        <location line="+85"/>
+        <location filename="../apps/crunch/core/editpaste.cpp" line="-397"/>
+        <location filename="../apps/crunch/core/editsession.cpp" line="-617"/>
+        <location line="+622"/>
         <location line="+27"/>
-        <location line="+122"/>
+        <location line="+125"/>
         <source>You can&apos;t change part of an array or a data table.</source>
         <translation type="unfinished">Ви не можете змінити частину масиву або таблиці даних.</translation>
     </message>
@@ -71413,7 +71413,7 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished">Запит під час запуску</translation>
     </message>
     <message>
-        <location line="+50"/>
+        <location line="+53"/>
         <location line="+26"/>
         <source>Break Link</source>
         <translation type="unfinished">Розірвати зв&apos;язок</translation>
@@ -71635,7 +71635,7 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished">Коментарі тут мають більше відповідей, ніж JeffCrunch може прочитати (%1), тож програма їх не очищає: дію «Скасувати» неможливо буде відновити для того, чого програма не читала.</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/core/editops.cpp" line="-636"/>
+        <location filename="../apps/crunch/core/editops.cpp" line="-638"/>
         <source>Sum</source>
         <translation type="unfinished">Сума</translation>
     </message>
@@ -71645,12 +71645,12 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished">Заповнення не можна переносити в об&apos;єднані комірки, що не збігаються: об&apos;єднана область має повністю міститися у комірках, з яких виконується заповнення, або в заповнених комірках мати той самий розмір і те саме розташування. Спершу роз&apos;єднайте їх або заповніть інші комірки.</translation>
     </message>
     <message>
-        <location line="+201"/>
+        <location line="+202"/>
         <source>The first row of a table holds the names of its columns, so it can&apos;t be filled over. Fill the cells below it, or type each name.</source>
         <translation type="unfinished">Перший рядок таблиці містить назви її стовпців, тож його не можна заповнити. Заповніть комірки під ним або введіть кожну назву вручну.</translation>
     </message>
     <message>
-        <location line="+87"/>
+        <location line="+88"/>
         <source>Fill</source>
         <translation type="unfinished">Заповнити</translation>
     </message>
@@ -71691,7 +71691,7 @@ The password couldn&apos;t be put on the file.</source>
     </message>
     <message>
         <location line="+7"/>
-        <location filename="../apps/crunch/core/editsession.cpp" line="-775"/>
+        <location filename="../apps/crunch/core/editsession.cpp" line="-803"/>
         <location filename="../apps/crunch/core/editsheets.cpp" line="-116"/>
         <location line="+84"/>
         <location line="+108"/>
@@ -71736,25 +71736,25 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished">Розрив сторінки не може бути перед першим рядком або стовпцем.</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/core/editpaste.cpp" line="-27"/>
+        <location filename="../apps/crunch/core/editpaste.cpp" line="-28"/>
         <location line="+3"/>
-        <location line="+211"/>
+        <location line="+213"/>
         <location line="+176"/>
         <source>That would go past the edge of the sheet. Select a cell nearer its start.</source>
         <translation type="unfinished">Це вийде за межі аркуша. Виберіть комірку ближче до його початку.</translation>
     </message>
     <message>
-        <location line="-385"/>
+        <location line="-387"/>
         <source>That is more cells than JeffCrunch pastes at once (%1). Paste into fewer.</source>
         <translation type="unfinished">Це більше комірок, ніж JeffCrunch вставляє одночасно (%1). Вставте в меншу кількість.</translation>
     </message>
     <message>
-        <location line="+25"/>
+        <location line="+26"/>
         <source>The first row of a table holds the names of its columns, so cells can&apos;t be pasted over it. Paste below it, or change the names one by one.</source>
         <translation type="unfinished">Перший рядок таблиці містить назви її стовпців, тому вставляти поверх нього не можна. Вставте нижче від нього або змініть назви по одній.</translation>
     </message>
     <message>
-        <location line="+4"/>
+        <location line="+5"/>
         <source>That would make more merged cells than JeffCrunch makes at once. Paste into fewer cells.</source>
         <translation type="unfinished">Це створить більше об&apos;єднаних комірок, ніж JeffCrunch створює одночасно. Вставте в меншу кількість комірок.</translation>
     </message>
@@ -71789,7 +71789,7 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished">%1 Гілки, що залишилися, не було вставлено.</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/core/editlinks.cpp" line="-268"/>
+        <location filename="../apps/crunch/core/editlinks.cpp" line="-271"/>
         <location filename="../apps/crunch/core/editpaste.cpp" line="-444"/>
         <location line="+185"/>
         <location filename="../apps/crunch/core/editrecommend.cpp" line="+18"/>
@@ -72710,7 +72710,7 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished">Цей аркуш захищено, а комірка заблокована, тому її не можна змінити. Щоб змінити її, виберіть «Зняти захист з аркуша» на вкладці «Рецензування».</translation>
     </message>
     <message>
-        <location line="+247"/>
+        <location line="+271"/>
         <source>JeffCrunch could not check what you typed against the rule for this cell just now, so it was not entered. Try again in a moment.</source>
         <translation type="unfinished">JeffCrunch не зміг щойно перевірити введене відповідно до правила для цієї комірки, тому його не введено. Спробуйте ще раз трохи пізніше.</translation>
     </message>
@@ -72762,7 +72762,7 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished">Більше формул, ніж JeffCrunch змінює за раз (%1), використовують назву цього стовпця.</translation>
     </message>
     <message>
-        <location line="+84"/>
+        <location line="+85"/>
         <source>An array formula starts with an equal sign. Type a formula, and press Ctrl+Shift+Enter again.</source>
         <translation type="unfinished">Формула масиву починається зі знака рівності. Введіть формулу та натисніть Ctrl+Shift+Enter ще раз.</translation>
     </message>
@@ -72787,12 +72787,12 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished">Формулу масиву не можна ввести в таблицю. Виділіть комірки поза таблицею.</translation>
     </message>
     <message>
-        <location line="+45"/>
+        <location line="+46"/>
         <source>Array formula in %1</source>
         <translation type="unfinished">Формула масиву в %1</translation>
     </message>
     <message>
-        <location line="+90"/>
+        <location line="+92"/>
         <source>The first row of a table holds the names of its columns, so it can&apos;t be cleared. Select the cells below it, or type another name.</source>
         <translation type="unfinished">Перший рядок таблиці містить назви її стовпців, тому його не можна очистити. Виберіть комірки під ним або введіть іншу назву.</translation>
     </message>
@@ -73249,7 +73249,7 @@ The password couldn&apos;t be put on the file.</source>
     </message>
     <message>
         <location line="+16"/>
-        <location line="+125"/>
+        <location line="+126"/>
         <location line="+5"/>
         <source>Sorting</source>
         <translation type="unfinished">Сортування</translation>
@@ -77742,7 +77742,7 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished">Жодну комірку не знайдено.</translation>
     </message>
     <message>
-        <location line="+22"/>
+        <location line="+23"/>
         <source>The cell with the cursor is not part of an array formula.</source>
         <translation type="unfinished">Комірка з курсором не входить до формули масиву.</translation>
     </message>
@@ -77770,7 +77770,7 @@ The password couldn&apos;t be put on the file.</source>
 <context>
     <name>jp::crunch::Loader</name>
     <message>
-        <location filename="../apps/crunch/core/loader.cpp" line="+347"/>
+        <location filename="../apps/crunch/core/loader.cpp" line="+351"/>
         <source>The workbook has no sheets.</source>
         <translation type="unfinished">У книзі немає аркушів.</translation>
     </message>
