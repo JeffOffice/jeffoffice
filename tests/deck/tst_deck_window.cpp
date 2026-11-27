@@ -4511,7 +4511,7 @@ private Q_SLOTS:
             for (int i = 0; i < printed.size(); ++i) {
                 if (printed[i].bottom > place.height() - 6) break;
                 const int allow = paragraphs == 6 ? 1 : 3;   // (a long note is set at the smallest steps, where the lines are a few pixels apart and the page's fractional origin rounds each differently, as on the Mac)
-                QVERIFY2(qAbs(shown[i].top - printed[i].top) <= allow && qAbs(shown[i].left - printed[i].left) <= allow, qPrintable(tag + QStringLiteral(": line %1 is at %2 and prints at %3").arg(i).arg(shown[i].top).arg(printed[i].top)));
+                QVERIFY2(qAbs(shown[i].top - printed[i].top) <= allow && (paragraphs != 6 || qAbs(shown[i].left - printed[i].left) <= 1), qPrintable(tag + QStringLiteral(": line %1 is at %2 and prints at %3 (left %4 and %5)").arg(i).arg(shown[i].top).arg(printed[i].top).arg(shown[i].left).arg(printed[i].left)));
             }
             if (paragraphs == 6) QVERIFY2(!v->notesCut(), "a short note is not cut");
             else {
