@@ -2614,8 +2614,9 @@ private Q_SLOTS:
     static QByteArray boxAnchor(int fromCol, int fromRow, int toCol, int toRow, const QByteArray &name)
     {
         return "<xdr:twoCellAnchor><xdr:from><xdr:col>" + QByteArray::number(fromCol) + "</xdr:col><xdr:colOff>0</xdr:colOff><xdr:row>" + QByteArray::number(fromRow) + "</xdr:row><xdr:rowOff>0</xdr:rowOff></xdr:from><xdr:to><xdr:col>"
+               // (a shape with no frame of its own draws as nothing: a picture of it has no ink, and whether a click picks it then turns on whether the picture was made yet, which on Windows it often is)
                + QByteArray::number(toCol) + "</xdr:col><xdr:colOff>0</xdr:colOff><xdr:row>" + QByteArray::number(toRow) + "</xdr:row><xdr:rowOff>0</xdr:rowOff></xdr:to><xdr:sp macro=\"\" textlink=\"\"><xdr:nvSpPr><xdr:cNvPr id=\"90\" name=\""
-               + name + "\"/><xdr:cNvSpPr/></xdr:nvSpPr><xdr:spPr><a:prstGeom prst=\"rect\"><a:avLst/></a:prstGeom><a:solidFill><a:srgbClr val=\"FF0000\"/></a:solidFill></xdr:spPr></xdr:sp><xdr:clientData/></xdr:twoCellAnchor>";
+               + name + "\"/><xdr:cNvSpPr/></xdr:nvSpPr><xdr:spPr><a:xfrm><a:off x=\"0\" y=\"0\"/><a:ext cx=\"1000000\" cy=\"500000\"/></a:xfrm><a:prstGeom prst=\"rect\"><a:avLst/></a:prstGeom><a:solidFill><a:srgbClr val=\"FF0000\"/></a:solidFill></xdr:spPr></xdr:sp><xdr:clientData/></xdr:twoCellAnchor>";
     }
     static PivotBookOptions slicerSheetBook(int count = 1, const QByteArray &clientData = "<xdr:clientData/>", int rowStep = 20, const QByteArray &frameAttrs = QByteArray())
     {
