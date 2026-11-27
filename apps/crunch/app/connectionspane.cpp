@@ -85,8 +85,8 @@ void ConnectionsPane::reload()
         m_table->insertRow(r);
         m_tables << t;
         QString state = tr("Ready");
-        if (!readable) state = tr("Made by a newer version, can't be run");
-        else if (!conn.stepsProblem.isEmpty()) state = tr("Steps can't be run: made by a newer version");
+        if (!readable) state = jp::office::sheet::dataConnectionIsNewer(tables[t].dataSource) ? tr("Made by a newer version, can't be run") : tr("Can't be read, so it can't be run");
+        else if (!conn.stepsProblem.isEmpty()) state = conn.stepsNewer ? tr("Steps can't be run: made by a newer version") : tr("The steps can't be read, so it can't be run");
         const QString last = conn.ranAt > 0 ? jp::systemLocale().locale.toString(QDateTime::fromSecsSinceEpoch(conn.ranAt), QLocale::ShortFormat) : tr("Not recorded");
         const QString rows = conn.rowCount >= 0 ? jp::systemLocale().locale.toString(conn.rowCount) : QString();
         const QStringList cells{conn.name.isEmpty() ? tables[t].name : conn.name, readable ? conn.path : QString(), readable ? last : QString(), readable ? rows : QString(), state};

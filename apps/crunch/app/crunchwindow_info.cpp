@@ -379,7 +379,7 @@ QVector<InspectItem> CrunchWindow::inspectItems()
                          return parts;
                      },
                      true, QString()});
-    items.push_back({tr("Links to data files"), tr("Tables made by Get Data remember the file they were loaded from, with its path on this computer. Removing the links keeps the tables and their cells, and Refresh no longer reads the files."),
+    items.push_back({tr("Links to data files"), tr("Tables made by Get Data remember the file they were loaded from, with its path on this computer, and the name and steps of their query. Removing the links removes that path, name, and steps. It keeps the tables and their cells, and Refresh no longer reads the files."),
                      [session] { return session->dataLinkCount(); },
                      [this, session] {
                          int removed = 0;
