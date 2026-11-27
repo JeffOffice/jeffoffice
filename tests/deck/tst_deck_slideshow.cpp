@@ -2019,7 +2019,7 @@ private Q_SLOTS:
 
     // The words of a link are drawn in the link color (blue, as the printed page has them) and underlined, and the bullets and numbers of a list are drawn, in Presenter View's notes and
     // in the show's Speaker Notes box: counted as pixels of the link's color along the link's words, none beside them. With JP_SHOT_DIR set, pictures of both in both window themes.
-    static int linkInk(QTextEdit *e, int from, int to, const QColor &want)
+    static int linkInk(QTextEdit *e, int from, int to, const QColor &want, int tol = 90)   // (the words beside a link are counted with a small tol: sub-pixel fringes on dark letters pass for the blue within 90, as in the CI runners' image)
     {
         QTextCursor a(e->document()), b(e->document());
         a.setPosition(from);
@@ -2030,7 +2030,7 @@ private Q_SLOTS:
         for (int y = ra.top(); y <= ra.bottom() + 3; ++y)
             for (int x = ra.left() + 2; x < rb.left() - 2 && x < img.width(); ++x) {   // (an underline's end rounds one pixel into the next letter's gap: Windows put two pixels at the link's start)
                 const QColor c = img.pixelColor(x, y);
-                n += qAbs(c.red() - want.red()) + qAbs(c.green() - want.green()) + qAbs(c.blue() - want.blue()) < 90;
+                n += qAbs(c.red() - want.red()) + qAbs(c.green() - want.green()) + qAbs(c.blue() - want.blue()) < tol;
             }
         return n;
     }
@@ -2072,7 +2072,8 @@ private Q_SLOTS:
             QTRY_VERIFY(pv->document()->size().height() > 100);
             pv->verticalScrollBar()->setValue(pv->verticalScrollBar()->maximum());   // (the link is in the last paragraph)
             QTRY_VERIFY2(linkInk(pv, linkFrom, linkTo, want) > 60, qPrintable(tag + QStringLiteral(": Presenter View draws the link in the link color")));
-            QCOMPARE(linkInk(pv, linkFrom - 4, linkFrom, want), 0);   // (the words beside it are not)
+            QVERIFY(linkInk(pv, linkFrom, linkTo, want, 12) > 20);
+            QCOMPARE(linkInk(pv, linkFrom - 4, linkFrom, want, 12), 0);   // (the words beside it are not)
             auto *marks = pv->findChild<ListMarkers *>();
             QVERIFY(marks);
             pv->verticalScrollBar()->setValue(0);
@@ -2112,7 +2113,8 @@ private Q_SLOTS:
             QVERIFY(marks);
             QTRY_VERIFY2(marks->visibleMarkers().size() >= 8, qPrintable(tag + QStringLiteral(": the box draws the markers")));
             QTRY_VERIFY2(linkInk(box, linkFrom, linkTo, d->colors.slot(Hyperlink)) > 60, qPrintable(tag + QStringLiteral(": the show's box draws the link in the link color")));
-            QCOMPARE(linkInk(box, linkFrom - 4, linkFrom, d->colors.slot(Hyperlink)), 0);
+            QVERIFY(linkInk(box, linkFrom, linkTo, d->colors.slot(Hyperlink), 12) > 20);
+            QCOMPARE(linkInk(box, linkFrom - 4, linkFrom, d->colors.slot(Hyperlink), 12), 0);
             if (!dir.isEmpty()) box->grab().save(dir + QStringLiteral("/showbox-") + tag + QStringLiteral(".png"));
         }
         if (!dir.isEmpty()) jp::applyUiTheme(1);

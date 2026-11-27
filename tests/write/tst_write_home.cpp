@@ -4055,7 +4055,9 @@ private Q_SLOTS:
         w.act(QStringLiteral("edit.find"))->trigger();
         WriteFindPane *pane = w.findPane();
         QTRY_VERIFY(w.view()->pageCount() >= 1);
-        const int none = yellow(w.view()->viewport());
+        // (the count without bands is taken when the picture stops changing: text drawn with colored fringes counts a few of its edge pixels, and the page was still being filled in when this was read once on the CI runners)
+        int none = -1;
+        QTRY_VERIFY([&] { const int n = yellow(w.view()->viewport()); const bool same = n == none; none = n; return same; }());
         pane->findBox()->setText(QStringLiteral("needle"));
         QTRY_COMPARE(pane->matchCount(), 10);
         QTRY_VERIFY(yellow(w.view()->viewport()) > none + 100);

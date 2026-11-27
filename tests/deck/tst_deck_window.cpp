@@ -4583,8 +4583,9 @@ private Q_SLOTS:
             pane->reload();
             QTRY_VERIFY(pane->document()->size().height() > 1);
             const QColor want = w.editor()->doc()->colors.slot(Hyperlink);
-            auto near = [&](const QColor &a) { return qAbs(a.red() - want.red()) + qAbs(a.green() - want.green()) + qAbs(a.blue() - want.blue()) < 90; };
-            auto count = [&](int from, int to) {
+            auto near = [&](const QColor &a, int tol) { return qAbs(a.red() - want.red()) + qAbs(a.green() - want.green()) + qAbs(a.blue() - want.blue()) < tol; };
+            // (the words beside the link are counted with a tight tolerance: where text is drawn with colored sub-pixel fringes, as in the CI runners' image, the edges of dark letters pass for the link's blue within 90, while the link's own solid pixels stay within 12)
+            auto count = [&](int from, int to, int tol = 90) {
                 QTextCursor a(pane->document()), b(pane->document());
                 a.setPosition(from);
                 b.setPosition(to);
@@ -4592,12 +4593,12 @@ private Q_SLOTS:
                 const QImage img = pane->viewport()->grab().toImage();
                 int n = 0;
                 for (int y = ra.top(); y <= ra.bottom() + 2; ++y)
-                    for (int x = ra.left() + 2; x < rb.left() - 2 && x < img.width(); ++x) n += near(img.pixelColor(x, y));   // (an underline's end rounds one pixel into the next letter's gap)
+                    for (int x = ra.left() + 2; x < rb.left() - 2 && x < img.width(); ++x) n += near(img.pixelColor(x, y), tol);   // (an underline's end rounds one pixel into the next letter's gap)
                 return n;
             };
             const QString tag = QStringLiteral("pane");
             QVERIFY2(count(4, 20) > 40, qPrintable(tag + QStringLiteral(": the link is not in the link color")));
-            QVERIFY2(count(0, 4) == 0 && count(20, 29) == 0, qPrintable(tag + QStringLiteral(": words beside the link are")));
+            QVERIFY2(count(4, 20, 12) > 20 && count(0, 4, 12) == 0 && count(20, 29, 12) == 0, qPrintable(tag + QStringLiteral(": words beside the link are")));
             // an underline: a row of that color under the letters, across most of the link's width
             QTextCursor a(pane->document()), b(pane->document());
             a.setPosition(4);
@@ -4607,7 +4608,7 @@ private Q_SLOTS:
             int best = 0;
             for (int y = ra.top(); y <= ra.bottom() + 3; ++y) {
                 int n = 0;
-                for (int x = ra.left(); x < rb.left(); ++x) n += near(img.pixelColor(x, y));
+                for (int x = ra.left(); x < rb.left(); ++x) n += near(img.pixelColor(x, y), 90);
                 best = std::max(best, n);
             }
             QVERIFY2(best >= (rb.left() - ra.left()) * 8 / 10, qPrintable(tag + QStringLiteral(": no underline (") + QString::number(best) + QLatin1Char(')')));

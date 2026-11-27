@@ -950,7 +950,7 @@ private Q_SLOTS:
         QCOMPARE(pane->headerRow(0), 0);
         QCOMPARE(pane->headerRow(1), 3);
         QCOMPARE(pane->item(0)->text(), QStringLiteral("Default Section"));
-        QCOMPARE(pane->item(3)->text(), QStringLiteral("Budget"));
+        QTRY_COMPARE(pane->item(3)->text(), QStringLiteral("Budget"));   // (the pane rebuilds its rows after the rename returns: wait for them, not for a moment)
         QCOMPARE(pane->item(0)->data(SlidesPane::CountRole).toInt(), 2);
         QCOMPARE(pane->item(3)->data(SlidesPane::CountRole).toInt(), 3);
         QCOMPARE(pane->rowOfSlide(0), 1);
