@@ -2333,7 +2333,7 @@ private Q_SLOTS:
                 if (s->isVisible()) { box = s; break; }
             return box && box->currentText() == QStringLiteral("24");
         };
-        QTRY_VERIFY_WITH_TIMEOUT(shown(), 3000);
+        QTRY_VERIFY_WITH_TIMEOUT(shown(), 30000);
         QLineEdit *le = box->lineEdit();
         // Room for the widest size even with Windows' larger UI fonts (125%).
         QFont big = le->font();

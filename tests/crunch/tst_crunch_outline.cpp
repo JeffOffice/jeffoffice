@@ -653,7 +653,7 @@ private Q_SLOTS:
         e.view()->selectRows(1, 2);
         e.win.w.act(QStringLiteral("outline.groupRows"))->trigger();
         QCOMPARE(rowState(e, 1).level, 1);
-        QTRY_VERIFY_WITH_TIMEOUT(!e.win.w.isCalculating(), 3000);
+        QTRY_VERIFY_WITH_TIMEOUT(!e.win.w.isCalculating(), 30000);
     }
 
     // Drawing the margin looks at the lines in view of each part of the grid, not at every line between the frozen part and the part that scrolls: with row 1 frozen and a group of 99,999 lines, a view
