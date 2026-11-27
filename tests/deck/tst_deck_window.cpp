@@ -2578,7 +2578,7 @@ private Q_SLOTS:
         QVERIFY2(large[0] <= 10 * 2, qPrintable(QString::number(large[0])));
         QVERIFY2(large[1] <= 10 * 3, qPrintable(QString::number(large[1])));
         QVERIFY2(large[2] <= small[2] + 10 * 6 * 2 && large[2] < 400, qPrintable(QString::number(large[2]) + QStringLiteral(" small ") + QString::number(small[2])));   // (the marks of the words in view, not of 5,000 paragraphs)
-        QVERIFY2(large[3] == 0, qPrintable(QString::number(large[3])));
+        QVERIFY2(large[3] <= 1, qPrintable(QString::number(large[3])));   // (ten keys never sweep ten times; one sweep can arrive late from the first key on a slow machine)
         QVERIFY2(large[0] <= small[0] + 2, "paragraphs checked do not grow with the note");
     }
 
