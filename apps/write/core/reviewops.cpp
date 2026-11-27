@@ -2127,24 +2127,68 @@ void makeChangeIdsUnique(WriteDoc &doc, QVector<Block> *blocks)
     }
 }
 
+namespace {
+
+// A simple field written as the runs of a complex one (a begin mark, the code, a separator, the result's runs, and an end mark): runs can be inside an insertion, and a simple field's element cannot.
+QByteArray simpleFieldAsRuns(const QByteArray &raw)
+{
+    const qsizetype open = raw.indexOf('>');
+    const qsizetype close = raw.lastIndexOf("</w:fldSimple>");
+    if (open < 1 || close < open || raw[open - 1] == '/') return raw;
+    const QByteArray tag = raw.left(open);
+    const qsizetype at = tag.indexOf("w:instr=\"");
+    if (at < 0) return raw;
+    const qsizetype from = at + 9, to = tag.indexOf('"', from);
+    if (to < 0) return raw;
+    return "<w:r><w:fldChar w:fldCharType=\"begin\"/></w:r><w:r><w:instrText xml:space=\"preserve\">" + tag.mid(from, to - from) + "</w:instrText></w:r><w:r><w:fldChar w:fldCharType=\"separate\"/></w:r>" +
+           raw.mid(open + 1, close - open - 1) + "<w:r><w:fldChar w:fldCharType=\"end\"/></w:r>";
+}
+
+} // namespace
+
 void markBlocksInserted(WriteDoc &doc, QVector<Block> *blocks)
 {
     for (qsizetype i = 0; i < blocks->size(); ++i) {
         Block &b = (*blocks)[i];
         if (b.isRaw) continue;
         if (!b.para.content.isEmpty()) {
-            const QByteArray start = revisionStartTag(doc, QStringLiteral("ins"));
-            Inline open;
-            open.kind = Inline::ParaAtom;
-            open.role = Inline::Open;
-            open.tag = QStringLiteral("ins");
-            open.key = attributeOf(start, "id");
-            open.raw = start;
-            Inline close = open;
-            close.role = Inline::Close;
-            close.raw = "</w:ins>";
-            b.para.content.prepend(open);
-            b.para.content.push_back(close);
+            // An insertion holds runs; a link, a simple field, and the like hold the insertions (not the other way round), so the insertion is closed at each of them and opened again inside.
+            QVector<Inline> marked;
+            bool inside = false;
+            QString insertionKey;
+            auto closeInsertion = [&] {
+                if (!inside) return;
+                Inline close;
+                close.kind = Inline::ParaAtom;
+                close.role = Inline::Close;
+                close.tag = QStringLiteral("ins");
+                close.key = insertionKey;
+                close.raw = "</w:ins>";
+                marked.push_back(close);
+                inside = false;
+            };
+            for (Inline in : b.para.content) {
+                if (in.kind == Inline::ParaAtom && in.tag == office::wml::kFieldGroupTag && in.raw.startsWith("<w:fldSimple")) in.raw = simpleFieldAsRuns(in.raw);
+                if (in.kind == Inline::ParaAtom && in.role != Inline::Single) {
+                    closeInsertion();
+                    marked.push_back(in);
+                    continue;
+                }
+                if (!inside) {
+                    const QByteArray start = revisionStartTag(doc, QStringLiteral("ins"));
+                    Inline open;
+                    open.kind = Inline::ParaAtom;
+                    open.role = Inline::Open;
+                    open.tag = QStringLiteral("ins");
+                    open.key = insertionKey = attributeOf(start, "id");
+                    open.raw = start;
+                    marked.push_back(open);
+                    inside = true;
+                }
+                marked.push_back(in);
+            }
+            closeInsertion();
+            b.para.content = marked;
         }
         if (i + 1 < blocks->size()) {
             // (The mark of a paragraph that another follows is inserted too; the last paragraph's is the note's own.)

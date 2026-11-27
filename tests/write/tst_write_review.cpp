@@ -7718,7 +7718,7 @@ private Q_SLOTS:
     // ---------------------------------------------------------------- the second fix list: many notes at once
     // A document of `n` notes of one kind, `perPara` references to a paragraph, then a tail paragraph. Note i says "W" and its number in three digits, a colon, `filler` letters, and `lastExtra` more in the last note.
     static QString manyNoteText(int i, int filler) { return QStringLiteral("W%1:").arg(i, 3, 10, QLatin1Char('0')) + QString(filler, QLatin1Char('x')); }
-    static QByteArray manyNotesDoc(int n, bool endnote, int filler, int lastExtra = 0, int perPara = 10)
+    static QByteArray manyNotesDoc(int n, bool endnote, int filler, int lastExtra = 0, int perPara = 10, const QByteArray &noteXml = QByteArray())
     {
         const QString rel = QStringLiteral("http://schemas.openxmlformats.org/officeDocument/2006/relationships/");
         const QString type = QStringLiteral("application/vnd.openxmlformats-officedocument.wordprocessingml.");
@@ -7732,7 +7732,7 @@ private Q_SLOTS:
             body += para(c);
         }
         body += para(run("tail paragraph")) + "<w:sectPr/>";
-        for (int i = 1; i <= n; ++i) notes += "<w:" + tag + " w:id=\"" + QByteArray::number(i) + "\">" + para(run((manyNoteText(i, filler) + QString(i == n ? lastExtra : 0, QLatin1Char('y'))).toLatin1().constData())) + "</w:" + tag + ">";
+        for (int i = 1; i <= n; ++i) notes += "<w:" + tag + " w:id=\"" + QByteArray::number(i) + "\">" + (!noteXml.isEmpty() ? noteXml : para(run((manyNoteText(i, filler) + QString(i == n ? lastExtra : 0, QLatin1Char('y'))).toLatin1().constData()))) + "</w:" + tag + ">";
         office::PackageWriter w;
         w.addPart(QStringLiteral("/word/document.xml"), xml("<w:document " + ns + "><w:body>" + body + "</w:body></w:document>"), type + QStringLiteral("document.main+xml"));
         w.addRelationship(QStringLiteral("/"), rel + QStringLiteral("officeDocument"), QStringLiteral("/word/document.xml"));
@@ -7986,6 +7986,52 @@ private Q_SLOTS:
             QVERIFY(int(m.doc->story()->toPlainText().count(QChar::ObjectReplacementCharacter)) >= before + n);
         }
         QVERIFY2(work[0] > 0 && work[1] < work[0] * 6, qPrintable(QStringLiteral("%1 then %2 for four times the references").arg(work[0]).arg(work[1])));
+    }
+
+    // A pasted note that holds a link and a simple field: with Track Changes on the insertions are inside the link and the field, never the link or the field inside an insertion (an insertion holds runs).
+    static bool wrapperInsideInsertion(const QByteArray &part)
+    {
+        QXmlStreamReader r(part);
+        QStringList open;
+        while (!r.atEnd()) {
+            r.readNext();
+            if (r.isStartElement()) {
+                const QString name = r.name().toString();
+                if ((name == QLatin1String("hyperlink") || name == QLatin1String("fldSimple")) && open.contains(QLatin1String("ins"))) return true;
+                open.push_back(name);
+            } else if (r.isEndElement() && !open.isEmpty()) {
+                open.removeLast();
+            }
+        }
+        return false;
+    }
+    void aPastedNoteWithALinkAndAFieldHasItsInsertionsInsideThemAndSettlesWhole_data() { aCutOfManyNotesPastesEveryNotesWords_data(); }
+    void aPastedNoteWithALinkAndAFieldHasItsInsertionsInsideThemAndSettlesWhole()
+    {
+        QFETCH(bool, endnote);
+        QFETCH(bool, tracking);
+        const QByteArray note = para("<w:r><w:rPr><w:b/></w:rPr><w:t xml:space=\"preserve\">BOLD </w:t></w:r><w:hyperlink w:anchor=\"bm1\"><w:r><w:t>LINK</w:t></w:r></w:hyperlink><w:fldSimple w:instr=\" PAGE \"><w:r><w:t>7</w:t></w:r></w:fldSimple>" + run(" tail"));
+        ManyNotesWindow m(manyNotesDoc(2, endnote, 0, 0, 2, note), 2, tracking);
+        m.cutAndPasteAfter();
+        const QByteArray saved = savedByWindow(m.w);
+        const QByteArray part = partXml(saved, endnote ? "/word/endnotes.xml" : "/word/footnotes.xml");
+        QVERIFY2(!wrapperInsideInsertion(part), qPrintable(QString::fromUtf8(part).simplified().remove(QRegularExpression(QStringLiteral(" w:(author|date|id)=\"[^\"]*\"")))));
+        QCOMPARE(count(part, "<w:hyperlink"), tracking ? 4 : 2);   // (with Track Changes on, the cut notes stay as deleted ones)
+        QCOMPARE(count(part, "<w:fldSimple") + count(part, "w:fldCharType=\"begin\""), tracking ? 4 : 2);   // (a pasted simple field is the runs of a complex one while it is inside an insertion)
+        QCOMPARE(packageProblem(saved), QString());
+        if (tracking) QVERIFY(count(part, "<w:ins ") >= 4);
+        for (const bool accept : {true, false}) {
+            auto reopened = open(saved);
+            QVERIFY(reopened);
+            if (tracking) QVERIFY((accept ? acceptAll(*reopened) : rejectAll(*reopened)) > 0);
+            const QByteArray done = reopened->toDocx();
+            QCOMPARE(marksInEveryPart(done), 0);
+            QCOMPARE(packageProblem(done), QString());
+            const QByteArray settled = partXml(done, endnote ? "/word/endnotes.xml" : "/word/footnotes.xml");
+            QCOMPARE(count(settled, "<w:hyperlink"), 2);   // (the notes that stand keep their link and field, and the words)
+            QCOMPARE(count(settled, "<w:fldSimple") + count(settled, "w:fldCharType=\"begin\""), 2);
+            QVERIFY(wordsOfPart(settled).contains(QLatin1String("LINK")));
+        }
     }
 
     // A note deleted with its reference is two changes in the list (as the reference program lists them): the reference, and the note's words (and its paragraph mark with them).
