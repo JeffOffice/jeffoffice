@@ -2320,6 +2320,22 @@ void markParagraphMark(WriteDoc &doc, QTextBlock block, const char *tag, bool ke
     setMarkFormat(block, m);
 }
 
+QTextCharFormat withoutMarkRecords(QTextCharFormat format)
+{
+    if (!format.hasProperty(prop::RawRPr)) return format;
+    QVector<RawChild> extra = extraOf(format, prop::RawRPr);
+    bool changed = false;
+    for (int i = int(extra.size()) - 1; i >= 0; --i) {
+        const QByteArray name = elementName(extra[i].xml);
+        if (name == "ins" || name == "del" || name == "moveFrom" || name == "moveTo") {
+            extra.removeAt(i);
+            changed = true;
+        }
+    }
+    if (changed) setStored(format, prop::RawRPr, packRaw(extra));
+    return format;
+}
+
 bool paragraphMarkInsertedBy(const QTextBlock &block, const QString &author)
 {
     const QVector<RawChild> extra = extraOf(markFormat(block), prop::RawRPr);

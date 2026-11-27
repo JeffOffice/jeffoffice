@@ -37,7 +37,7 @@ TrackPolicy trackPolicyOf(const QString &id, bool *known)
                                                 QStringLiteral("edit.pasteTable"), QStringLiteral("layout.sectionBreak")};
     static const QSet<QString> tracked = setOf({"review.thesaurus", "edit.cut", "edit.paste", "edit.pasteMerge", "edit.pasteText", "edit.pasteSpecial", "edit.pasteFormat", "edit.pasteListContinue", "edit.pasteListMerge",
         "edit.pasteListNew", "insert.pageBreak", "insert.blankPage", "insert.symbol", "layout.columnBreak", "para.horizontalLine", "para.bordersShading", "para.dialog", "style.normal",
-        "refs.addText.1", "refs.addText.2", "refs.addText.3", "refs.addText.none", "insert.cover.band", "insert.cover.classic", "insert.cover.plain", "review.noProof", "review.language",
+        "refs.footnote", "refs.endnote", "insert.header", "insert.footer", "refs.addText.1", "refs.addText.2", "refs.addText.3", "refs.addText.none", "insert.cover.band", "insert.cover.classic", "insert.cover.plain", "review.noProof", "review.language",
         "insert.table", "insert.convertTextToTable", "outline.moveUp", "outline.moveDown", "outline.promote", "outline.demote", "outline.toHeading1", "outline.toBody"});
     // Tracked in the text, but not yet in a table's cell.
     static const QSet<QString> inText = setOf({"insert.dropCap.dropped", "insert.dropCap.none", "insert.dropCap.options"});
@@ -54,14 +54,15 @@ TrackPolicy trackPolicyOf(const QString &id, bool *known)
         "mail.highlight", "mail.first", "mail.last", "mail.next", "mail.prev", "mail.find", "mail.check", "mail.editList", "mail.matchFields", "picture.lockAspect", "shape.createLink",
         "shape.breakLink"});
     // Changes that are not recorded yet, each made as it is with Track Changes off, with a notice (see DESIGN: the slices that record them are listed there): the properties of sections (page setup,
-    // columns, margins, line numbers, a watermark, page borders), numbering and indents, notes, generated tables and indexes, fields and links, content controls, headers and footers, the
+    // columns, margins, line numbers, a watermark, page borders), numbering and indents, generated tables and indexes, fields and links, content controls, what is put in a header or footer
+    // other than words (a page number, a field), the
     // drawn objects and pictures and their properties, and what is made of the merge.
     static const QStringList untrackedPrefixes = {QStringLiteral("layout."), QStringLiteral("design."), QStringLiteral("list."), QStringLiteral("refs."), QStringLiteral("insert.control."),
                                                 QStringLiteral("insert.chart."), QStringLiteral("insert.equation"), QStringLiteral("insert.textBox."), QStringLiteral("insert.object."),
                                                 QStringLiteral("insert.cover."), QStringLiteral("equation."), QStringLiteral("chart"), QStringLiteral("shape."),
                                                 QStringLiteral("picture."), QStringLiteral("pic."), QStringLiteral("arrange"), QStringLiteral("graphics"), QStringLiteral("pn."),
                                                 QStringLiteral("hf."), QStringLiteral("mail."), QStringLiteral("fields."), QStringLiteral("outline."), QStringLiteral("para.")};
-    static const QSet<QString> untracked = setOf({"insert.header", "insert.footer", "insert.field", "insert.bookmark", "insert.hyperlink", "insert.removeHyperlink", "insert.dateTime",
+    static const QSet<QString> untracked = setOf({"insert.field", "insert.bookmark", "insert.hyperlink", "insert.removeHyperlink", "insert.dateTime",
         "insert.barcode", "insert.icons", "insert.onlinePicture", "insert.picture", "insert.pictureClipboard", "insert.drawingCanvas", "insert.expandShortcut", "insert.textFromFile",
         "edit.pastePicture", "edit.pasteObject", "edit.replaceFonts"});
     // (A section moves as it is with Track Changes off, and says so.)

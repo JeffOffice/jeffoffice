@@ -1729,9 +1729,14 @@ bool PageView::enterHeaderFooterFor(int section, bool footer, int slot, int page
     }
     // (The empty one that was shown to be typed in goes when another is entered.)
     if (m_hf.active && m_doc->isPendingHeaderFooter(m_hf.story)) leaveHeaderFooter();
+    // (A header made now with Track Changes on is one change with its mark, in one step.)
+    std::optional<write::WriteDoc::StepGroup> made;
+    if (makeNow) made.emplace(*m_doc);
+    const quint64 stepsBefore = m_doc->nextStepSerial();
     if (!m_doc->createHeaderFooter(section, footer, slot, !makeNow)) return false;
     QTextDocument *story = m_doc->editableHeaderFooter(section, footer, slot);
     if (!story) return false;
+    if (makeNow && m_doc->nextStepSerial() > stepsBefore) write::trackStoryCreated(*m_doc, story);
     const bool was = m_hf.active;
     if (!was) m_bodyCursor = m_cursor;
     else QObject::disconnect(m_hfEdit);

@@ -6731,8 +6731,7 @@ private Q_SLOTS:
 
     void aCommandWhoseChangeIsNotRecordedWorksAsWithTrackingOffAndTheStatusBarSaysSo()
     {
-        for (const char *id : {"layout.size.a4", "layout.columns.2", "layout.margins.narrow", "layout.landscape", "para.bullets", "para.numbers", "para.indentInc", "refs.footnote", "refs.endnote",
-                               "insert.header", "insert.footer", "insert.control.text", "design.watermark.1", "insert.chart.bar", "insert.textBox.simple", "insert.equation.design.0"}) {
+        for (const char *id : {"layout.size.a4", "layout.columns.2", "layout.margins.narrow", "layout.landscape", "para.bullets", "para.numbers", "para.indentInc", "insert.control.text", "design.watermark.1", "insert.chart.bar", "insert.textBox.simple", "insert.equation.design.0"}) {
             WriteWindow w;
             w.setNotifier([](const QString &, const QString &) {});
             w.show();
@@ -6759,13 +6758,28 @@ private Q_SLOTS:
     {
         QString t = QString::fromUtf8(x);
         if (objectOverWord) {
-            t.remove(QRegularExpression(QStringLiteral("<w:rPr><w:ins [^>]*/></w:rPr>")));
-            t.remove(QRegularExpression(QStringLiteral("<w:del [^>]*>(?:(?!</w:del>).)*</w:del>"), QRegularExpression::DotMatchesEverythingOption));
+            // (Only the object's own marks: the one paragraph mark, and the one deletion that holds exactly the selected word; a stray mark anywhere else stays and fails the comparison.)
+            const QRegularExpression paragraphMark(QStringLiteral("<w:rPr><w:ins [^>]*/></w:rPr>"));
+            const QRegularExpression word(QStringLiteral("<w:del [^>/]*>(?:<w:r>(?:<w:rPr>(?:(?!</w:rPr>).)*</w:rPr>)?<w:delText[^>]*>beta</w:delText></w:r>)</w:del>"), QRegularExpression::DotMatchesEverythingOption);
+            if (const auto m = paragraphMark.match(t); m.hasMatch()) t.remove(m.capturedStart(), m.capturedLength());
+            if (const auto m = word.match(t); m.hasMatch()) t.remove(m.capturedStart(), m.capturedLength());
         }
         t.replace(QRegularExpression(QStringLiteral("<w:id w:val=\"-?\\d+\"/>")), QStringLiteral("<w:id w:val=\"#\"/>"));
         t.replace(QRegularExpression(QStringLiteral("(<(?:wp:docPr|w:bookmarkStart|w:bookmarkEnd|w:comment)\\b[^>]*? (?:w:)?id=\")\\d+\"")), QStringLiteral("\\1#\""));
         t.replace(QRegularExpression(QStringLiteral("w14:(?:paraId|textId)=\"[0-9A-Fa-f]+\"")), QStringLiteral("w14:x=\"#\""));
         return t.toUtf8();
+    }
+
+    // The strict form takes off only the object's own marks (the paragraph's mark and the one deletion of the selected word): a stray mark anywhere else stays, and fails the comparison.
+    void theStrictFormKeepsAStrayMarkAndTakesOffOnlyTheObjectsOwn()
+    {
+        const QByteArray own = "<w:p><w:pPr><w:rPr><w:ins w:id=\"1\" w:author=\"a\"/></w:rPr></w:pPr><w:r><w:t>x</w:t></w:r><w:del w:id=\"2\" w:author=\"a\"><w:r><w:delText xml:space=\"preserve\">beta</w:delText></w:r></w:del></w:p>";
+        const QByteArray stray = "<w:p><w:del w:id=\"3\" w:author=\"a\"><w:r><w:delText>gamma</w:delText></w:r></w:del></w:p>";
+        const QByteArray clean = strictForm(own, true);
+        QVERIFY2(!clean.contains("<w:del") && !clean.contains("<w:ins"), clean.constData());
+        QVERIFY(strictForm(own + stray, true).contains("gamma"));
+        QVERIFY(strictForm(stray + own, true).contains("gamma"));
+        QVERIFY(strictForm(own + QByteArray("<w:p><w:pPr><w:rPr><w:ins w:id=\"4\" w:author=\"a\"/></w:rPr></w:pPr></w:p>"), true).contains("<w:ins"));
     }
 
     // The walks over every command of the window are cut into chunks: a test function walks at most commandsPerChunk() of the sorted commands of one kind (the ones that are not recorded, or the ones
@@ -6862,6 +6876,7 @@ private Q_SLOTS:
     void walkRecorded(int chunk)
     {
         const QByteArray docx = makeDocx(para(run("alpha beta")) + para(run("gamma")) + tableOf({{QByteArray(), {cellOf({}, para(run("a1"))), cellOf({}, para(run("a2")))}}, {QByteArray(), {cellOf({}, para(run("b1"))), cellOf({}, para(run("b2")))}}}, 2));
+        // (The marks of every part: a note or a header is a part of its own.)
         WriteWindow w;
         w.setNotifier([](const QString &, const QString &) {});
         w.show();
@@ -6875,11 +6890,32 @@ private Q_SLOTS:
         const QStringList ids = commandsOfKind(w, true).mid(chunk * commandsPerChunk(), commandsPerChunk());
         for (const QString &id : ids) {
             for (int scenario = 0; scenario < 2; ++scenario) {
-                const Ran r = runCommand(w, id, true, scenario, docx, true, false);
-                if (!r.enabled) continue;
+                w.setDocument(open(docx), QString());
+                WriteDoc *doc = w.document();
+                doc->setTrackChanges(true);
+                const QByteArray before = doc->toDocx();
+                QTextCursor c(doc->story());
+                if (scenario == 0) {
+                    c.setPosition(6);
+                    c.setPosition(10, QTextCursor::KeepAnchor);
+                } else {
+                    c = inParagraph(*doc, "a1");
+                }
+                w.view()->setCursor(c);
+                const bool outline = id.startsWith(QLatin1String("outline."));
+                if (outline && w.outlineView() == nullptr) w.act(QStringLiteral("view.outline"))->trigger();
+                if (outline) {
+                    w.act(QStringLiteral("view.outline"))->trigger();
+                    w.outlineView()->selectParagraphAt(inParagraph(*doc, "gamma").block().position());
+                }
+                QAction *a = w.act(id);
+                if (!a || !a->isEnabled()) continue;
+                a->trigger();
+                if (outline) w.act(QStringLiteral("view.printLayout"))->trigger();
                 ++ran;
-                if (r.after == r.before) continue;
-                if (marksIn(r.after) <= marksIn(r.before)) silent << id;
+                const QByteArray after = doc->toDocx();
+                if (wordPartsOf(after) == wordPartsOf(before)) continue;
+                if (marksInEveryPart(after) <= marksInEveryPart(before)) silent << id;
             }
         }
         closer.stop();
@@ -7138,55 +7174,255 @@ private Q_SLOTS:
         QVERIFY2(documentXml(doc->toDocx()) == saved, qPrintable(documentXml(doc->toDocx())));
     }
 
-    void typingInAHeaderOrANoteWithTrackingOnWorksAsWithItOffAndSaysSoOnce()
+    // ---------------------------------------------------------------- Track Changes slice 3: headers, footers, footnotes, and endnotes
+    // The words of a part as they stand (what is in w:t, not w:delText).
+    static QString wordsOfPart(const QByteArray &part)
+    {
+        static const QRegularExpression t(QStringLiteral("<w:t(?: [^>]*)?>([^<]*)</w:t>"));
+        QString out;
+        for (auto m = t.globalMatch(QString::fromUtf8(part)); m.hasNext();) out += m.next().captured(1);
+        return out;
+    }
+    // The parts of the document of a saved package (the text, the headers, the notes), joined.
+    static QByteArray wordPartsOf(const QByteArray &zip)
+    {
+        office::Package p;
+        p.read(zip);
+        QStringList names = p.partNames();
+        names.sort();
+        QByteArray out;
+        for (const QString &name : std::as_const(names))
+            if (name.startsWith(QLatin1String("/word/")) && name.endsWith(QLatin1String(".xml"))) out += name.toUtf8() + p.part(name);
+        return out;
+    }
+    // Every mark of every part of a saved package.
+    static int marksInEveryPart(const QByteArray &zip)
+    {
+        office::Package p;
+        p.read(zip);
+        int n = 0;
+        for (const QString &name : p.partNames())
+            if (name.startsWith(QLatin1String("/word/")) && name.endsWith(QLatin1String(".xml"))) n += marksIn(p.part(name));
+        return n;
+    }
+    // The story that holds `word` (a header, a footer, or a footnote) and the place the word begins in it; the endnote's words are in the text.
+    static QTextDocument *storyWithWord(WriteDoc &doc, const QString &word, int *at)
+    {
+        int from = 0, to = 0;
+        if (word == QLatin1String("endn")) {
+            if (!doc.endnoteWords(2, &from, &to)) return nullptr;
+            *at = from;
+            return doc.story();
+        }
+        for (QTextDocument *story : doc.storiesWithChanges(true)) {
+            const int i = story->toPlainText().indexOf(word);
+            if (i >= 0) {
+                *at = i;
+                return story;
+            }
+        }
+        return nullptr;
+    }
+
+    // The word as the edit of the test leaves it: "NEW " before it, its second letter gone.
+    static QString editedWord(const char *word) { return QStringLiteral("NEW ") + QString::fromLatin1(word).left(1) + QString::fromLatin1(word).mid(2); }
+
+    void typingDeletingAndFormattingInEachSideStoryAreRecordedAndSettleToTheEditedOrTheOriginalWords()
     {
         StoryParts parts;
         parts.header = para(run("head"));
+        parts.footer = para(run("foot"));
         parts.footnote = para(run("note"));
-        QString results[2];
+        parts.endnote = para(run("endn"));
+        const struct { const char *word, *part; } kinds[] = {{"head", "/word/header1.xml"}, {"foot", "/word/footer1.xml"}, {"note", "/word/footnotes.xml"}, {"endn", "/word/endnotes.xml"}};
         for (const bool tracking : {true, false}) {
             WriteWindow w;
             w.setNotifier([](const QString &, const QString &) {});
             w.show();
             w.setDocument(open(makeDocxWithStories(parts)), QString());
             WriteDoc *doc = w.document();
+            doc->setReviewer(QStringLiteral("Zed"), QString());
             doc->setTrackChanges(tracking);
-            const QByteArray saved = documentXml(doc->toDocx());
-            const QVector<QTextDocument *> stories = doc->storiesWithChanges(true);
-            QVERIFY(stories.size() >= 2);
-            QSignalSpy shown(w.statusBar(), &QStatusBar::messageChanged);
-            for (QTextDocument *story : stories) {
-                const QString before = story->toPlainText();
+            QSignalSpy said(doc, &WriteDoc::untrackedChange);
+            for (const auto &k : kinds) {
+                int at = 0;
+                QTextDocument *story = storyWithWord(*doc, QString::fromLatin1(k.word), &at);
+                QVERIFY2(story, k.word);
                 QTextCursor c(story);
-                c.setPosition(1);
-                QSignalSpy said(doc, &WriteDoc::untrackedChange);
-                insertText(*doc, c, QStringLiteral("X"));
-                QVERIFY(story->toPlainText() != before);
-                QCOMPARE(said.count(), tracking ? 1 : 0);
-                // Deleting and Enter are made too, and say so.
-                QTextCursor del(story);
-                del.setPosition(1);
-                del.setPosition(3, QTextCursor::KeepAnchor);
-                removeSelection(*doc, del);
-                QCOMPARE(said.count(), tracking ? 2 : 0);
-                QVERIFY(story->toPlainText() != before);
-                results[tracking ? 0 : 1] += story->toPlainText() + QLatin1Char('|');
+                c.setPosition(at);
+                insertText(*doc, c, QStringLiteral("NEW "));
+                // (With Track Changes on the typed words have a piece before and a piece after them: the word begins after the piece that opens the insertion, its four characters, and the piece that closes it.)
+                const int h = at + (tracking ? 6 : 4);
+                QTextCursor bold(story);
+                bold.setPosition(h);
+                bold.setPosition(h + 1, QTextCursor::KeepAnchor);
+                toggleBold(*doc, bold);
+                QTextCursor gone(story);
+                gone.setPosition(h + 1);
+                gone.setPosition(h + 2, QTextCursor::KeepAnchor);   // (the second letter)
+                removeSelection(*doc, gone);
             }
-            QCOMPARE(marksIn(documentXml(doc->toDocx())), marksIn(saved));
-            // The status bar was told once for the run of typing in the first story (the notice stays up while typing goes on), and not at all with Track Changes off.
-            int notices = 0;
-            for (const QList<QVariant> &m : shown)
-                if (m.first().toString() == untrackedNoticeText()) ++notices;
-            QCOMPARE(notices, tracking ? 1 : 0);
+            QCOMPARE(said.count(), 0);   // (everything was recorded: nothing says it was not)
+            const QByteArray saved = savedByWindow(w);
+            for (const auto &k : kinds) {
+                const QByteArray part = partXml(saved, k.part);
+                QVERIFY2(!part.isEmpty(), k.part);
+                if (!tracking) {
+                    QVERIFY2(marksIn(part) == 0 && wordsOfPart(part) == editedWord(k.word), k.part);
+                    continue;
+                }
+                QVERIFY2(count(part, "<w:ins ") >= 1 && count(part, "<w:del ") >= 1 && part.contains("rPrChange") && part.contains("w:author=\"Zed\""), part.constData());
+                QCOMPARE(wordsOfPart(part), editedWord(k.word));
+                // Reject All: the words as they were; Accept All: the edited words, no mark left, in that part.
+                auto rejected = open(saved), accepted = open(saved);
+                QVERIFY(rejected && accepted);
+                QVERIFY(rejectAll(*rejected) >= 3);
+                QVERIFY(acceptAll(*accepted) >= 3);
+                const QByteArray back = partXml(rejected->toDocx(), k.part), kept = partXml(accepted->toDocx(), k.part);
+                QCOMPARE(wordsOfPart(back), QString::fromLatin1(k.word));
+                QCOMPARE(wordsOfPart(kept), editedWord(k.word));
+                QVERIFY2(marksIn(back) == 0 && marksIn(kept) == 0, k.part);
+            }
+            if (tracking) {
+                // Next and Previous Change and the list reach each of them, and all four stories' changes are counted.
+                QVERIFY(documentRevisionCount(*open(saved)) >= 12);
+            }
         }
-        QCOMPARE(results[0], results[1]);
     }
 
-    void replaceAllWithTrackingOnChangesTheTextAsTrackedChangesAndTheHeaderWithoutAMarkAndSaysSo()
+    void aNoteMadeWithTrackingOnIsOneInsertedChangeOfTheReferenceAndTheNote()
+    {
+        for (const bool endnote : {false, true}) {
+            const char *refTag = endnote ? "endnoteReference" : "footnoteReference";
+            const char *part = endnote ? "/word/endnotes.xml" : "/word/footnotes.xml";
+            WriteWindow w;
+            w.setNotifier([](const QString &, const QString &) {});
+            w.show();
+            w.setDocument(open(makeDocx(para(run("alpha beta")))), QString());
+            WriteDoc *doc = w.document();
+            doc->setReviewer(QStringLiteral("Zed"), QString());
+            const QByteArray plain = savedByWindow(w);
+            doc->setTrackChanges(true);
+            QTextCursor c(doc->story());
+            c.setPosition(5);
+            w.view()->setCursor(c);
+            QSignalSpy said(doc, &WriteDoc::untrackedChange);
+            w.act(QString::fromLatin1(endnote ? "refs.endnote" : "refs.footnote"))->trigger();
+            QCOMPARE(said.count(), 0);
+            // One Undo takes the reference and the note back, and Redo puts them both again (the caret is put in the note again by the command).
+            QVERIFY(doc->undo());
+            QVERIFY2(!documentXml(savedByWindow(w)).contains(refTag), "one undo");
+            QVERIFY(doc->redo());
+            QVERIFY2(documentXml(savedByWindow(w)).contains(refTag), "redo");
+            QVERIFY(!doc->canRedo());
+            QVERIFY(doc->undo());
+            w.view()->setCursor(c);
+            w.act(QString::fromLatin1(endnote ? "refs.endnote" : "refs.footnote"))->trigger();
+            {
+                // Made and nothing typed yet: the note's own start (its number and the blank) is inserted, so the list has the reference and the note.
+                const QByteArray first = savedByWindow(w);
+                QCOMPARE(count(partXml(first, part), "<w:ins "), 1);
+                QCOMPARE(documentRevisionCount(*open(first)), 2);
+            }
+            // The caret is in the note: the words typed there join the insertion.
+            QTextCursor inNote = w.view()->cursor();
+            insertText(*doc, inNote, QStringLiteral("Typed"));
+            const QByteArray saved = savedByWindow(w);
+            const QByteArray body = documentXml(saved), notes = partXml(saved, part);
+            QVERIFY2(body.contains("<w:ins ") && body.contains(refTag), body.constData());
+            QVERIFY2(QRegularExpression(QStringLiteral("<w:ins [^>]*><w:r>(?:<w:rPr>.*?</w:rPr>)?<w:%1 ").arg(QString::fromLatin1(refTag))).match(QString::fromUtf8(body)).hasMatch(), body.constData());
+            QVERIFY2(wordsOfPart(notes).contains(QStringLiteral("Typed")) && count(notes, "<w:ins ") == 1, notes.constData());
+            QCOMPARE(documentRevisionCount(*open(saved)), 2);   // (the reference in the text, and the note)
+            QVERIFY(marksInEveryPart(saved) >= 2);
+            // Reject All: no reference and no note in the file; Accept All: both, with no mark.
+            auto rejected = open(saved), accepted = open(saved);
+            QVERIFY(rejected && accepted);
+            const int rejectedCount = rejectAll(*rejected), acceptedCount = acceptAll(*accepted);
+            QVERIFY2(rejectedCount >= 1 && acceptedCount >= 2, qPrintable(QString::number(rejectedCount) + " " + QString::number(acceptedCount)));
+            const QByteArray back = rejected->toDocx(), kept = accepted->toDocx();
+            QVERIFY2(!documentXml(back).contains(refTag) && !wordsOfPart(partXml(back, part)).contains(QStringLiteral("Typed")), documentXml(back).constData());
+            QVERIFY2(documentXml(kept).contains(refTag) && wordsOfPart(partXml(kept, part)).contains(QStringLiteral("Typed")) && marksInEveryPart(kept) == 0, documentXml(kept).constData());
+            QCOMPARE(wordsOfPart(documentXml(back)), wordsOfPart(documentXml(plain)));
+        }
+    }
+
+    void deletingANoteTheReviewerMadeRemovesItAndDeletingAnotherPersonsMarksTheReferenceAndTheNote()
+    {
+        for (const bool endnote : {false, true}) {
+            const char *refTag = endnote ? "endnoteReference" : "footnoteReference";
+            const char *part = endnote ? "/word/endnotes.xml" : "/word/footnotes.xml";
+            // Own: made and then deleted by the same person: gone, no mark anywhere.
+            {
+                WriteWindow w;
+                w.setNotifier([](const QString &, const QString &) {});
+                w.show();
+                w.setDocument(open(makeDocx(para(run("alpha beta")))), QString());
+                WriteDoc *doc = w.document();
+                doc->setReviewer(QStringLiteral("Zed"), QString());
+                doc->setTrackChanges(true);
+                QTextCursor c(doc->story());
+                c.setPosition(5);
+                w.view()->setCursor(c);
+                w.act(QString::fromLatin1(endnote ? "refs.endnote" : "refs.footnote"))->trigger();
+                // (The reference is the one object character in the first paragraph: from after "alpha" with its piece before it.)
+                QTextCursor all(doc->story());
+                all.setPosition(0);
+                all.movePosition(QTextCursor::EndOfBlock, QTextCursor::KeepAnchor);
+                const QString was = all.selectedText();
+                QVERIFY(was.contains(QChar::ObjectReplacementCharacter));
+                QTextCursor del(doc->story());
+                del.setPosition(0);
+                del.movePosition(QTextCursor::EndOfBlock, QTextCursor::KeepAnchor);
+                removeSelection(*doc, del);   // (the whole paragraph's words, the note's reference among them: own insertions go, the rest is marked)
+                const QByteArray saved = savedByWindow(w);
+                QVERIFY2(!documentXml(saved).contains(refTag), documentXml(saved).constData());
+                QVERIFY2(!wordsOfPart(partXml(saved, part)).contains(QStringLiteral("Typed")), "no note");
+                QCOMPARE(count(partXml(saved, part), "<w:ins "), 0);
+            }
+            // Another person's note: the reference is marked deleted and so are the note's words; Reject All gives both back, Accept All takes both out.
+            {
+                StoryParts parts;
+                parts.footnote = para(run("note words"));
+                parts.endnote = para(run("endn words"));
+                WriteWindow w;
+                w.setNotifier([](const QString &, const QString &) {});
+                w.show();
+                w.setDocument(open(makeDocxWithStories(parts)), QString());
+                WriteDoc *doc = w.document();
+                doc->setReviewer(QStringLiteral("Zed"), QString());
+                doc->setTrackChanges(true);
+                const QByteArray plain = savedByWindow(w);
+                QTextDocument *story = doc->story();
+                int refAt = -1;
+                for (QTextBlock b = story->begin(); b.isValid() && refAt < 0; b = b.next())
+                    for (const int at : endnote ? doc->endnoteReferences(2) : doc->footnoteReferences(2)) refAt = refAt < 0 ? at : refAt;
+                QVERIFY(refAt >= 0);
+                QTextCursor del(story);
+                del.setPosition(refAt);
+                del.setPosition(refAt + 1, QTextCursor::KeepAnchor);
+                removeSelection(*doc, del);
+                const QByteArray saved = savedByWindow(w);
+                QVERIFY2(QRegularExpression(QStringLiteral("<w:del [^>]*><w:r>(?:<w:rPr>.*?</w:rPr>)?<w:%1 ").arg(QString::fromLatin1(refTag))).match(QString::fromUtf8(documentXml(saved))).hasMatch(), documentXml(saved).constData());
+                const QByteArray notes = partXml(saved, part);
+                QVERIFY2(count(notes, "<w:del ") >= 1 && notes.contains("<w:delText") && wordsOfPart(notes).isEmpty(), notes.constData());
+                auto rejected = open(saved), accepted = open(saved);
+                QVERIFY(rejected && accepted);
+                QVERIFY(rejectAll(*rejected) >= 1);
+                QVERIFY(acceptAll(*accepted) >= 1);
+                QVERIFY2(partXml(rejected->toDocx(), part) == partXml(plain, part) || wordsOfPart(partXml(rejected->toDocx(), part)) == wordsOfPart(partXml(plain, part)), partXml(rejected->toDocx(), part).constData());
+                QVERIFY(documentXml(rejected->toDocx()).contains(refTag));
+                QVERIFY2(marksInEveryPart(rejected->toDocx()) == 0 && marksInEveryPart(accepted->toDocx()) == 0, qPrintable(QString::fromUtf8(partXml(rejected->toDocx(), part) + "|" + documentXml(rejected->toDocx()) + "|" + partXml(accepted->toDocx(), part))));
+                QVERIFY2(!documentXml(accepted->toDocx()).contains(refTag) && !wordsOfPart(partXml(accepted->toDocx(), part)).contains(QStringLiteral("words")), "accepted: the note is gone");
+            }
+        }
+    }
+
+    void replaceAllWithTrackingOnIsRecordedInTheHeaderAndTheNoteToo()
     {
         StoryParts parts;
         parts.body = para(run("a cat sat"));
         parts.header = para(run("cat head"));
+        parts.footnote = para(run("cat note"));
         for (const bool tracking : {true, false}) {
             WriteWindow w;
             w.setNotifier([](const QString &, const QString &) {});
@@ -7200,13 +7436,61 @@ private Q_SLOTS:
             pane->findBox()->setText(QStringLiteral("cat"));
             pane->replaceBox()->setText(QStringLiteral("dog"));
             pane->replaceAll();
-            QStringList header;
-            for (QTextDocument *story : w.document()->storiesWithChanges(true)) header << story->toPlainText();
-            QVERIFY2(header.join(QLatin1Char(' ')).contains("dog head"), qPrintable(header.join(QLatin1Char('|'))));
-            QCOMPARE(said.count() > 0, tracking);
-            const QByteArray x = documentXml(w.document()->toDocx());
-            QVERIFY2(tracking ? x.contains("<w:ins ") && x.contains("<w:del ") : !x.contains("<w:ins "), x.constData());
+            QCOMPARE(said.count(), 0);
+            const QByteArray saved = savedByWindow(w);
+            for (const char *name : {"/word/header1.xml", "/word/footnotes.xml", "/word/document.xml"}) {
+                const QByteArray x = partXml(saved, name);
+                QVERIFY2(tracking ? (x.contains("<w:ins ") && x.contains("<w:del ") && x.contains("<w:delText")) : (!x.contains("<w:ins ") && !x.contains("cat")), name);
+            }
+            if (!tracking) continue;
+            auto rejected = open(saved), accepted = open(saved);
+            QVERIFY(rejected && accepted);
+            QVERIFY(rejectAll(*rejected) >= 3);
+            QVERIFY(acceptAll(*accepted) >= 3);
+            QCOMPARE(wordsOfPart(partXml(rejected->toDocx(), "/word/header1.xml")), QStringLiteral("cat head"));
+            QCOMPARE(wordsOfPart(partXml(accepted->toDocx(), "/word/header1.xml")), QStringLiteral("dog head"));
+            QCOMPARE(wordsOfPart(partXml(rejected->toDocx(), "/word/footnotes.xml")), QStringLiteral("cat note"));
+            QCOMPARE(wordsOfPart(partXml(accepted->toDocx(), "/word/footnotes.xml")), QStringLiteral("dog note"));
+            QVERIFY(w.document()->undo());   // (one step takes back every story)
+            QVERIFY2(wordsOfPart(partXml(savedByWindow(w), "/word/header1.xml")) == QStringLiteral("cat head"), "undo");
         }
+    }
+
+    // A header made with Track Changes on (none existed): the words typed in it are an inserted change; Reject All leaves the header empty, which looks as it did.
+    void aHeaderOrFooterCreatedWithTrackingOnRecordsTheWordsTypedInIt()
+    {
+        for (const bool footer : {false, true}) {
+            WriteWindow w;
+            w.setNotifier([](const QString &, const QString &) {});
+            w.show();
+            w.setDocument(open(makeDocx(para(run("body text")))), QString());
+            WriteDoc *doc = w.document();
+            doc->setReviewer(QStringLiteral("Zed"), QString());
+            doc->setTrackChanges(true);
+            w.statusBar()->clearMessage();
+            w.act(QString::fromLatin1(footer ? "insert.footer" : "insert.header"))->trigger();
+            QVERIFY(w.statusBar()->currentMessage() != untrackedNoticeText());   // (it is not a change that goes unrecorded: the words typed are recorded)
+            QTextCursor c = w.view()->cursor();
+            QVERIFY(doc->isSideStory(c.document()) || doc->isPendingHeaderFooter(c.document()));
+            insertText(*doc, c, QStringLiteral("Title"));
+            const char *name = footer ? "/word/footer1.xml" : "/word/header1.xml";
+            const QByteArray saved = savedByWindow(w);
+            const QByteArray x = partXml(saved, name);
+            QVERIFY2(wordsOfPart(x) == QStringLiteral("Title") && count(x, "<w:ins ") == 2, x.constData());   // (the new paragraph, and the words)
+            auto rejected = open(saved);
+            QVERIFY(rejected);
+            QCOMPARE(rejectAll(*rejected), 2);
+            QVERIFY(wordsOfPart(partXml(rejected->toDocx(), name)).isEmpty() && marksInEveryPart(rejected->toDocx()) == 0);
+            auto accepted = open(saved);
+            QCOMPARE(acceptAll(*accepted), 2);
+            QCOMPARE(wordsOfPart(partXml(accepted->toDocx(), name)), QStringLiteral("Title"));
+            QVERIFY(marksInEveryPart(accepted->toDocx()) == 0);
+        }
+    }
+
+    void theCommandsThatTrackNotesAndHeadersAreNamedRecordedByThePolicy()
+    {
+        for (const char *id : {"refs.footnote", "refs.endnote", "insert.header", "insert.footer"}) QCOMPARE(trackPolicyOf(QString::fromLatin1(id)), TrackPolicy::Tracked);
     }
 
     void numberingAndIndentCommandsWorkWithTrackingOnAndSaySo()

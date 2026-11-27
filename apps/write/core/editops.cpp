@@ -128,7 +128,7 @@ QTextCharFormat typingFormat(const QTextCursor &c)
     if (f.stringProperty(tp::Field).startsWith(QLatin1String("pageref:"))) f.clearProperty(tp::Field);
     // (Nor is text typed beside the blanks that are a reference's result: its blanks count in the line's height as any typed do.)
     f.clearProperty(tp::BlankFieldResult);
-    if (!isAtom(f)) return f;
+    if (!isAtom(f)) return c.block().length() == 1 ? withoutMarkRecords(f) : f;   // (in an empty paragraph the look is the mark's, without the records of the mark's own change)
     // Beside a piece kept as XML: the look of the text before it, else of the paragraph's mark.
     const QTextBlock b = c.block();
     for (int p = c.position() - 1; p >= b.position(); --p) {
@@ -136,7 +136,7 @@ QTextCharFormat typingFormat(const QTextCursor &c)
         t.clearProperty(tp::BlankFieldResult);
         if (!isAtom(t)) return t;
     }
-    return withoutAtom(markFormat(b));
+    return withoutMarkRecords(withoutAtom(markFormat(b)));
 }
 
 // The format for text typed at the cursor, with the look of the tracked changes the place is inside of (text put between the pieces of an insertion, by a person who does not track, is in it).
@@ -654,15 +654,18 @@ const QTextDocument *&trackedStory()
     return s;
 }
 
-// Whether an edit of the story the cursor is in is recorded as a tracked change.
-bool tracking(const WriteDoc &doc, const QTextCursor &c) { return doc.trackChanges() && untrackedDepth() == 0 && (c.document() == doc.story() || (trackedStory() && c.document() == trackedStory())); }
+// Whether an edit of the story the cursor is in is recorded as a tracked change: the text, a header, a footer, a footnote, or the story of a text box being changed.
+bool tracking(const WriteDoc &doc, const QTextCursor &c)
+{
+    return doc.trackChanges() && untrackedDepth() == 0 && (c.document() == doc.story() || doc.isSideStory(c.document()) || (trackedStory() && c.document() == trackedStory()));
+}
 
 // With Track Changes on, an edit that is not recorded as a tracked change (in a header, a footer, or a note; a list or an indent) is made as it is with Track Changes off, and the document says
 // so once the edit has made a step of the history.
 class UntrackedNote {
 public:
     UntrackedNote(WriteDoc &doc, bool applies = true) : m_doc(doc), m_before(doc.nextStepSerial()), m_on(applies && doc.trackChanges() && untrackedDepth() == 0) {}
-    UntrackedNote(WriteDoc &doc, const QTextCursor &c) : UntrackedNote(doc, doc.isSideStory(c.document()) && !isTrackedStory(c.document())) {}
+    UntrackedNote(WriteDoc &doc, const QTextCursor &c) : UntrackedNote(doc, doc.isSideStory(c.document()) && !tracking(doc, c)) {}
     ~UntrackedNote()
     {
         if (m_on && m_doc.nextStepSerial() > m_before) m_doc.noteUntrackedChange();
@@ -729,9 +732,99 @@ void trackedType(WriteDoc &doc, QTextCursor &c, const QString &text)
 
 // Deletes [from, to) of the body as tracked changes: text the reviewer typed as an insertion goes for good, the rest is marked deleted (and stays), and the mark of a paragraph the range
 // covers is marked deleted (or taken away, for one the reviewer inserted). `start` and `end` are put where the range began and ended.
-void trackedDeleteRange(WriteDoc &doc, QTextDocument *d, int from, int to, QTextCursor *start, QTextCursor *end)
+// A reference to a note, found in the text.
+struct NoteRef {
+    int id = 0;
+    bool endnote = false;
+    bool operator==(const NoteRef &o) const { return id == o.id && endnote == o.endnote; }
+};
+
+// The references to notes in [from, to) of the paragraph (each note once).
+void collectNoteReferences(const QTextBlock &b, int from, int to, QVector<NoteRef> *out)
 {
-    to = std::min(to, editableEnd(d));
+    for (QTextBlock::iterator it = b.begin(); !it.atEnd(); ++it) {
+        const QTextFragment f = it.fragment();
+        if (f.position() >= to || f.position() + int(f.length()) <= from) continue;
+        const QTextCharFormat cf = f.charFormat();
+        if (!cf.hasProperty(prop::Atom)) continue;
+        const QByteArray bytes = storedBytes(cf, prop::Atom);
+        if (!bytes.contains("footnoteReference") && !bytes.contains("endnoteReference")) continue;
+        const Inline a = unpackAtom(bytes);
+        const bool footnote = a.tag == QLatin1String("footnoteReference"), endnote = a.tag == QLatin1String("endnoteReference");
+        bool ok = false;
+        const int id = (footnote || endnote) ? a.key.toInt(&ok) : 0;
+        if (ok && !out->contains(NoteRef{id, endnote})) out->push_back({id, endnote});
+    }
+}
+
+void trackedDeleteRange(WriteDoc &doc, QTextDocument *d, int from, int to, QTextCursor *start, QTextCursor *end, bool inNote = false);
+void trackPastedAsInserted(WriteDoc &doc, QTextDocument *d, int from, int *to);
+
+// The words of a note marked deleted, as its reference was: someone else's note goes with its reference, and Reject brings both back. (The reviewer's own insertions in it go for good.)
+void markNoteDeleted(WriteDoc &doc, const NoteRef &ref)
+{
+    if (ref.endnote) {
+        int from = 0, to = 0;
+        if (!doc.endnoteWords(ref.id, &from, &to)) return;
+        QTextCursor in(doc.story());
+        in.setPosition(from);
+        const NoteScopeGuard guard(in);
+        trackedDeleteRange(doc, doc.story(), from, to, nullptr, nullptr, true);
+        return;
+    }
+    QTextDocument *note = doc.editableFootnote(ref.id);
+    if (!note) return;
+    trackedDeleteRange(doc, note, std::max(0, noteTextStart(note)), note->characterCount() - 1, nullptr, nullptr, true);
+}
+
+// The reference to a new note, and its words, marked as inserted (one change for the reviewer: Accept keeps both, Reject takes both).
+void markNoteInserted(WriteDoc &doc, const NoteRef &ref)
+{
+    QTextDocument *story = nullptr;
+    int from = 0, to = 0;
+    if (ref.endnote) {
+        int w0 = 0, w1 = 0;
+        if (!doc.endnoteWords(ref.id, &w0, &w1)) return;
+        story = doc.story();
+        const EndnoteSpan span = endnoteSpanAt(story, w1 > w0 ? w1 - 1 : w0);
+        if (!span.valid) return;
+        from = span.blockFrom;
+        to = span.textTo;
+    } else {
+        story = doc.editableFootnote(ref.id);
+        if (!story) return;
+        to = story->characterCount() - 1;
+    }
+    QTextCursor in(story);
+    in.setPosition(from);
+    const NoteScopeGuard guard(in);
+    trackPastedAsInserted(doc, story, from, &to);
+}
+
+// The reference to a new note (and the mark typed after it): inserted, inside the reviewer's own insertion when it is put in one.
+void trackNoteReferenceInserted(WriteDoc &doc, int from, int *to)
+{
+    QTextDocument *d = doc.story();
+    if (!insideOwnInsertion(doc, d->findBlock(from), from)) {
+        trackPastedAsInserted(doc, d, from, to);
+        return;
+    }
+    QTextCursor t(d);
+    const int author = doc.reviewerIndex(doc.reviewer());
+    t.setPosition(from);
+    t.setPosition(*to, QTextCursor::KeepAnchor);
+    t.setCharFormat(withRevisionLook(t.charFormat(), false, 1, author));
+}
+
+void trackedDeleteRange(WriteDoc &doc, QTextDocument *d, int from, int to, QTextCursor *start, QTextCursor *end, bool inNote)
+{
+    // (The words of an endnote the caret is in are past the text's end, and are changed where they stand; those of the other notes are not touched.)
+    const EndnoteSpan span = endnoteSpanAt(d, from);
+    if (span.valid && span.editable) {
+        inNote = true;
+        to = std::min(to, span.textTo);
+    }
+    if (!inNote) to = std::min(to, editableEnd(d));
     if (from >= to) return;
     QTextCursor edit(d);
     QTextCursor head(d), tail(d);
@@ -740,9 +833,10 @@ void trackedDeleteRange(WriteDoc &doc, QTextDocument *d, int from, int to, QText
     tail.setPosition(to);
     edit.beginEditBlock();
     const QString me = doc.reviewer();
+    QVector<NoteRef> noteRefs;   // (the notes whose reference is marked deleted: their words go with it)
     // From the last paragraph to the first, so that the places of the rest stay.
     for (QTextBlock b = d->findBlock(std::max(0, to - 1)); b.isValid() && b.position() + b.length() > from; b = b.previous()) {
-        if (isLocked(b) || b.blockFormat().hasProperty(prop::EndnoteBlock)) {
+        if (isLocked(b) || (b.blockFormat().hasProperty(prop::EndnoteBlock) && !inNote)) {
             if (!b.previous().isValid()) break;
             continue;
         }
@@ -769,6 +863,9 @@ void trackedDeleteRange(WriteDoc &doc, QTextDocument *d, int from, int to, QText
                 continue;
             }
         }
+        if (d == doc.story() && !inNote)
+            for (const Run &r : std::as_const(runs))
+                if (!r.remove) collectNoteReferences(b, r.from, r.to, &noteRefs);
         for (const Run &r : std::as_const(runs)) {
             if (r.remove) removeOwnInsertion(d, r.from, r.to);
             else markDeleted(doc, d, r.from, r.to);
@@ -776,6 +873,7 @@ void trackedDeleteRange(WriteDoc &doc, QTextDocument *d, int from, int to, QText
         if (coversMark && !markFormat(d->findBlockByNumber(number)).hasProperty(prop::TrackedDeleted)) markParagraphMark(doc, d->findBlockByNumber(number), "del");
         if (!b.previous().isValid()) break;
     }
+    for (const NoteRef &ref : std::as_const(noteRefs)) markNoteDeleted(doc, ref);
     edit.endEditBlock();
     if (start) *start = head;
     if (end) *end = tail;
@@ -917,6 +1015,12 @@ void trackedDeleteOne(WriteDoc &doc, QTextCursor &c, bool back, bool byWord)
 
 void trackRangeDeleted(WriteDoc &doc, QTextDocument *story, int from, int to) { trackedDeleteRange(doc, story, from, to, nullptr, nullptr); }
 void trackRangeInserted(WriteDoc &doc, QTextDocument *story, int from, int *to) { trackPastedAsInserted(doc, story, from, to); }
+
+void trackStoryCreated(WriteDoc &doc, QTextDocument *story)
+{
+    if (!doc.trackChanges() || untrackedDepth() != 0 || !story || !story->begin().isValid()) return;
+    markParagraphMark(doc, story->begin(), "ins");
+}
 
 bool untrackedEditActive() { return untrackedDepth() != 0; }
 UntrackedEdit::UntrackedEdit() { ++untrackedDepth(); }
@@ -1911,6 +2015,9 @@ QTextDocument *insertFootnote(WriteDoc &doc, QTextCursor &c, const QString &mark
     if (!intoBody(at) || inEndnoteWords(at)) return nullptr;
     if (at.hasSelection()) at.setPosition(at.selectionEnd());
     if (isLocked(at.block())) return nullptr;
+    const bool record = tracking(doc, at);   // (with Track Changes on the reference and the note are one inserted change)
+    std::optional<WriteDoc::StepGroup> group;
+    if (record) group.emplace(doc);
     NumberGuard numbers(doc, doc.story());
     const int id = doc.makeFootnote(mark);
     if (!id) return nullptr;
@@ -1918,11 +2025,17 @@ QTextDocument *insertFootnote(WriteDoc &doc, QTextCursor &c, const QString &mark
     at.beginEditBlock();
     settleBesideDeletions(at);
     const QTextCharFormat reference = doc.footnoteReferenceFormat(id, style, mark);
+    const int referenceAt = at.position();
     at.insertText(QString(QChar::ObjectReplacementCharacter), reference);
     if (!mark.isEmpty()) at.insertText(mark, markTextFormat(reference));
+    if (record) {
+        int to = at.position();
+        trackNoteReferenceInserted(doc, referenceAt, &to);
+    }
     at.endEditBlock();
     QTextDocument *note = doc.editableFootnote(id);
     if (!note) return nullptr;
+    if (record) markNoteInserted(doc, NoteRef{id, false});
     QTextCursor inNote(note);
     inNote.setPosition(note->characterCount() - 1);
     c = inNote;
@@ -1937,6 +2050,9 @@ bool insertEndnote(WriteDoc &doc, QTextCursor &c, const QString &mark)
     if (at.hasSelection()) at.setPosition(at.selectionEnd());
     if (isLocked(at.block())) return false;
     int id = 0;
+    const bool record = tracking(doc, at);   // (with Track Changes on the reference and the note are one inserted change)
+    std::optional<WriteDoc::StepGroup> group;
+    if (record) group.emplace(doc);
     {
         NumberGuard numbers(doc, doc.story());
         id = doc.makeEndnote(mark);
@@ -1945,10 +2061,16 @@ bool insertEndnote(WriteDoc &doc, QTextCursor &c, const QString &mark)
         at.beginEditBlock();
         settleBesideDeletions(at);
         const QTextCharFormat reference = doc.endnoteReferenceFormat(id, style, mark);
+        const int referenceAt = at.position();
         at.insertText(QString(QChar::ObjectReplacementCharacter), reference);
         if (!mark.isEmpty()) at.insertText(mark, markTextFormat(reference));
+        if (record) {
+            int end = at.position();
+            trackNoteReferenceInserted(doc, referenceAt, &end);
+        }
         at.endEditBlock();
     }   // (the notes are set again as the guard ends, the new one among them, and the notes and their references are numbered anew)
+    if (record) markNoteInserted(doc, NoteRef{id, true});
     int from = 0, to = 0;
     if (!doc.endnoteWords(id, &from, &to)) return true;   // (the note is not set: too many, or too long; the reference is in the text)
     QTextCursor inNote(doc.story());

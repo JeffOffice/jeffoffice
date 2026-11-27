@@ -117,6 +117,9 @@ int noteStartOf(const QTextCursor &c);
 // With a `mark`, the note has that text for its mark and takes no number (as for a footnote).
 bool insertEndnote(WriteDoc &doc, QTextCursor &c, const QString &mark = QString());
 
+// A header or footer made now, with Track Changes on: its one paragraph is an inserted one (Accept keeps the header, Reject leaves it empty, which looks as it did). Nothing where Track Changes is off.
+void trackStoryCreated(WriteDoc &doc, QTextDocument *story);
+
 // References > Convert: the footnotes become endnotes, the endnotes become footnotes, or each kind becomes the other (Swap), as one step of the history. The words of a note go with it,
 // and its styles and number mark are those of its new kind. `onlyFootnote` or `onlyEndnote` (a note's Id) limits it to that note's references. Returns how many references were converted.
 enum class NoteConversion { FootnotesToEndnotes, EndnotesToFootnotes, Swap };

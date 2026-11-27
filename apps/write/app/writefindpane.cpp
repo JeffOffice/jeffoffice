@@ -1040,14 +1040,16 @@ FindWords WriteFindPane::wordsOf(StoryWords *text)
     // The new words take the place of the first of the characters of the match, and the look of the first of them; the characters of it between pieces kept as XML
     // are taken away, and the pieces stay. (The matches come from the last to the first, so that no swap moves another.)
     write::WriteDoc *doc = m_win->document();
-    const auto putOne = [doc, text, story](QTextCursor &match, const QString &with) {
+    // (The text, a header, a footer, a footnote, and the words of a text box being changed are all recorded.)
+    const bool recorded = doc && doc->trackChanges() && (story == doc->story() || doc->isSideStory(story) || write::isTrackedStory(story));
+    const auto putOne = [doc, text, story, recorded](QTextCursor &match, const QString &with) {
         if (!match.hasSelection()) {   // (a match of no characters: the new words go in at its place)
             if (with.isEmpty()) return;
             QTextCursor at(story);
             at.setPosition(text->toStory(match.selectionStart()));
             const QTextCharFormat here = at.charFormat();
             at.beginEditBlock();
-            if (doc && doc->trackChanges() && (story == doc->story() || write::isTrackedStory(story))) write::insertText(*doc, at, with);
+            if (recorded) write::insertText(*doc, at, with);
             else at.insertText(with, here);
             at.endEditBlock();
             return;
@@ -1059,8 +1061,8 @@ FindWords WriteFindPane::wordsOf(StoryWords *text)
         const QTextCharFormat look = first.charFormat();
         QTextCursor edit(story);
         edit.beginEditBlock();
-        // With Track Changes on, what goes is marked as deleted and the new words as inserted, as when they are typed over (the text, and a text box's words being changed, see TrackedStory).
-        const bool record = doc && doc->trackChanges() && (story == doc->story() || write::isTrackedStory(story));
+        // With Track Changes on, what goes is marked as deleted and the new words as inserted, as when they are typed over.
+        const bool record = recorded;
         for (int i = int(pieces.size()) - 1; i >= 1; --i) {
             edit.setPosition(pieces[i].first);
             edit.setPosition(pieces[i].second, QTextCursor::KeepAnchor);
@@ -1074,12 +1076,7 @@ FindWords WriteFindPane::wordsOf(StoryWords *text)
         else write::insertText(*doc, edit, with);
         edit.endEditBlock();
     };
-    // (Changes in a header, a footer, or a note are not recorded as tracked changes yet: they are made, and the document says so.)
-    w.put = [doc, story, putOne](QTextCursor &match, const QString &with) {
-        const bool untracked = doc && doc->trackChanges() && story != doc->story() && !write::isTrackedStory(story);
-        putOne(match, with);
-        if (untracked) doc->noteUntrackedChange();
-    };
+    w.put = putOne;
     return w;
 }
 
