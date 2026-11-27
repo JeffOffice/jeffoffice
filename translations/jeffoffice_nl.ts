@@ -926,6 +926,7 @@
     </message>
     <message>
         <location line="+22"/>
+        <location filename="../apps/deck/app/presenterview.cpp" line="+250"/>
         <location filename="../apps/write/app/writewindow_view.cpp" line="+67"/>
         <location line="+2"/>
         <source>This file is open for reading only. Use Save a Copy, or Save As, to make a copy you can change.</source>
@@ -11968,7 +11969,7 @@ Nu downloaden van %2? (%3, eenmalig.)</translation>
         <translation type="unfinished">animatie</translation>
     </message>
     <message>
-        <location line="+606"/>
+        <location line="+607"/>
         <source>The presentation has more slide masters and layouts than a file can number.</source>
         <translation type="unfinished">De presentatie heeft meer diamodellen en indelingen dan een bestand kan nummeren.</translation>
     </message>
@@ -17876,12 +17877,12 @@ Open het bestand in uw e-mailprogramma, voeg geadresseerden toe en verzend het.<
 <context>
     <name>Show</name>
     <message>
-        <location filename="../apps/deck/app/deckwindow_show.cpp" line="+494"/>
+        <location filename="../apps/deck/app/deckwindow_show.cpp" line="+495"/>
         <source>Automatic</source>
         <translation type="unfinished">Automatisch</translation>
     </message>
     <message>
-        <location filename="../apps/deck/app/slideshow.cpp" line="+2769"/>
+        <location filename="../apps/deck/app/slideshow.cpp" line="+2773"/>
         <source>Screen %1</source>
         <translation type="unfinished">Scherm %1</translation>
     </message>
@@ -21345,7 +21346,7 @@ Desktop publishing</translation>
         <translation type="unfinished">Oekraïens</translation>
     </message>
     <message>
-        <location filename="../libs/text/text/textengine.cpp" line="+289"/>
+        <location filename="../libs/text/text/textengine.cpp" line="+303"/>
         <source>«Greeting Line»</source>
         <translation type="unfinished">«Begroetingsregel»</translation>
     </message>
@@ -21375,7 +21376,7 @@ Desktop publishing</translation>
         <translation type="unfinished">(Vervolg van pagina %1)</translation>
     </message>
     <message>
-        <location line="+6915"/>
+        <location line="+6911"/>
         <source>Notes</source>
         <translation>Notities</translation>
     </message>
@@ -25138,7 +25139,7 @@ Bron: %3</translation>
     <message>
         <location line="+24"/>
         <location filename="../apps/pub/app/mainwindow_actions.cpp" line="+158"/>
-        <location filename="../apps/deck/app/deckwindow.cpp" line="+349"/>
+        <location filename="../apps/deck/app/deckwindow.cpp" line="+350"/>
         <location filename="../apps/crunch/app/crunchwindow_clip.cpp" line="+55"/>
         <source>Paste All</source>
         <translation type="unfinished">Alles plakken</translation>
@@ -38545,12 +38546,12 @@ Het bestand kan niet worden gelezen.</translation>
         <translation type="unfinished">Er zijn geen dia&apos;s om af te drukken.</translation>
     </message>
     <message>
-        <location filename="../apps/deck/app/deckwindow.cpp" line="-274"/>
+        <location filename="../apps/deck/app/deckwindow.cpp" line="-275"/>
         <source>Presentation1</source>
         <translation type="unfinished">Presentatie1</translation>
     </message>
     <message>
-        <location line="+219"/>
+        <location line="+220"/>
         <source>%1 (%2)</source>
         <translation type="unfinished">%1 (%2)</translation>
     </message>
@@ -38762,7 +38763,7 @@ Het bestand kan niet worden gelezen.</translation>
     </message>
     <message>
         <location line="+2"/>
-        <location filename="../apps/deck/app/deckwindow_show.cpp" line="+388"/>
+        <location filename="../apps/deck/app/deckwindow_show.cpp" line="+392"/>
         <source>Notes</source>
         <translation>Notities</translation>
     </message>
@@ -38773,7 +38774,7 @@ Het bestand kan niet worden gelezen.</translation>
     </message>
     <message>
         <location line="+26"/>
-        <location filename="../apps/deck/app/deckwindow_views.cpp" line="+268"/>
+        <location filename="../apps/deck/app/deckwindow_views.cpp" line="+269"/>
         <source>Slide %1 of %2</source>
         <translation type="unfinished">Dia %1 van %2</translation>
     </message>
@@ -38950,7 +38951,7 @@ Het bestand kan niet worden gelezen.</translation>
     <message>
         <location filename="../apps/deck/app/deckwindow_animations.cpp" line="-492"/>
         <location line="+323"/>
-        <location filename="../apps/deck/app/deckwindow_show.cpp" line="-389"/>
+        <location filename="../apps/deck/app/deckwindow_show.cpp" line="-393"/>
         <location filename="../apps/deck/app/deckwindow_table.cpp" line="+0"/>
         <source>None</source>
         <translation type="unfinished">Geen</translation>
@@ -41392,23 +41393,23 @@ Het bestand kan niet worden gelezen.</translation>
     </message>
     <message>
         <location line="+6"/>
-        <location line="+492"/>
+        <location line="+502"/>
         <source>Set Up Slide Show</source>
         <translation type="unfinished">Diavoorstelling instellen</translation>
     </message>
     <message>
-        <location line="-491"/>
+        <location line="-501"/>
         <source>Custom Shows…</source>
         <translation type="unfinished">Aangepaste voorstellingen…</translation>
     </message>
     <message>
         <location line="+1"/>
-        <location line="+446"/>
+        <location line="+456"/>
         <source>Rehearse Timings</source>
         <translation type="unfinished">Tijdsinstellingen repeteren</translation>
     </message>
     <message>
-        <location line="-445"/>
+        <location line="-455"/>
         <location line="+2"/>
         <source>Use Timings</source>
         <translation type="unfinished">Tijdsinstellingen gebruiken</translation>
@@ -41656,7 +41657,7 @@ Het bestand kan niet worden gelezen.</translation>
         <translation type="unfinished">De diavoorstelling is ingesteld om dia %1 tot en met %2 af te spelen, maar de presentatie heeft er maar %3. Wijzig dit in Diavoorstelling instellen.</translation>
     </message>
     <message>
-        <location line="+113"/>
+        <location line="+123"/>
         <source>Do you want to keep your ink annotations?</source>
         <translation type="unfinished">Wilt u uw inktaantekeningen behouden?</translation>
     </message>
@@ -41697,7 +41698,7 @@ Het bestand kan niet worden gelezen.</translation>
     </message>
     <message>
         <location filename="../apps/deck/app/deckwindow_animations.cpp" line="-284"/>
-        <location filename="../apps/deck/app/deckwindow_show.cpp" line="-443"/>
+        <location filename="../apps/deck/app/deckwindow_show.cpp" line="-453"/>
         <source>Preview</source>
         <translation>Voorbeeld</translation>
     </message>
@@ -43882,7 +43883,7 @@ Het bestand kan niet worden gelezen.</translation>
 <context>
     <name>jp::Editor</name>
     <message>
-        <location filename="../libs/page/app/editor.cpp" line="+173"/>
+        <location filename="../libs/page/app/editor.cpp" line="+174"/>
         <source>Publication1</source>
         <translation type="unfinished">Publicatie1</translation>
     </message>
@@ -44211,8 +44212,8 @@ Het bestand kan niet worden gelezen.</translation>
         <translation type="unfinished">Tabel plakken</translation>
     </message>
     <message>
-        <location line="+46"/>
-        <location line="+20"/>
+        <location line="+74"/>
+        <location line="+23"/>
         <source>Paste</source>
         <translation type="unfinished">Plakken</translation>
     </message>
@@ -55190,7 +55191,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
 <context>
     <name>jp::NotesPageView</name>
     <message>
-        <location filename="../apps/deck/app/notespageview.cpp" line="+33"/>
+        <location filename="../apps/deck/app/notespageview.cpp" line="+44"/>
         <source>Slide Image</source>
         <translation type="unfinished">Dia-afbeelding</translation>
     </message>
@@ -55234,7 +55235,12 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
         <translation type="unfinished">Notitiepagina</translation>
     </message>
     <message>
-        <location line="+258"/>
+        <location line="+364"/>
+        <source>The rest of the notes does not print</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+101"/>
         <source>Notes text: change its look here</source>
         <translation type="unfinished">Notitietekst: wijzig hier de opmaak</translation>
     </message>
@@ -57888,7 +57894,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
 <context>
     <name>jp::PresenterView</name>
     <message>
-        <location filename="../apps/deck/app/presenterview.cpp" line="+110"/>
+        <location filename="../apps/deck/app/presenterview.cpp" line="-99"/>
         <location line="+1"/>
         <source>Presenter View</source>
         <translation type="unfinished">Presentatorweergave</translation>
@@ -57900,12 +57906,12 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
     </message>
     <message>
         <location line="+5"/>
-        <location line="+271"/>
+        <location line="+320"/>
         <source>Pause</source>
         <translation type="unfinished">Onderbreken</translation>
     </message>
     <message>
-        <location line="-270"/>
+        <location line="-319"/>
         <source>Reset</source>
         <translation type="unfinished">Opnieuw instellen</translation>
     </message>
@@ -57917,34 +57923,34 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
     <message>
         <location line="+15"/>
         <location line="+15"/>
-        <location line="+160"/>
+        <location line="+182"/>
         <source>End of slide show</source>
         <translation type="unfinished">Einde van diavoorstelling</translation>
     </message>
     <message>
-        <location line="-173"/>
+        <location line="-195"/>
         <source>Current slide</source>
         <translation type="unfinished">Huidige dia</translation>
     </message>
     <message>
         <location line="+7"/>
-        <location line="+48"/>
+        <location line="+72"/>
         <source>Next</source>
         <translation type="unfinished">Volgende</translation>
     </message>
     <message>
-        <location line="-40"/>
+        <location line="-64"/>
         <source>Next slide</source>
         <translation type="unfinished">Volgende dia</translation>
     </message>
     <message>
         <location line="+2"/>
-        <location line="+14"/>
+        <location line="+22"/>
         <source>Notes</source>
         <translation>Notities</translation>
     </message>
     <message>
-        <location line="-12"/>
+        <location line="-20"/>
         <source>A-</source>
         <translation type="unfinished">A-</translation>
     </message>
@@ -57966,12 +57972,12 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
         <translation type="unfinished">Grotere tekst</translation>
     </message>
     <message>
-        <location line="+8"/>
+        <location line="+16"/>
         <source>Click to add notes</source>
         <translation type="unfinished">Klik om notities toe te voegen</translation>
     </message>
     <message>
-        <location line="+11"/>
+        <location line="+27"/>
         <source>All slides</source>
         <translation type="unfinished">Alle dia&apos;s</translation>
     </message>
@@ -58021,12 +58027,12 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
         <translation type="unfinished">Schermen wisselen</translation>
     </message>
     <message>
-        <location line="+102"/>
+        <location line="+100"/>
         <source>Slide %1 of %2</source>
         <translation type="unfinished">Dia %1 van %2</translation>
     </message>
     <message>
-        <location line="+77"/>
+        <location line="+104"/>
         <source>Resume</source>
         <translation type="unfinished">Hervatten</translation>
     </message>
@@ -60199,13 +60205,13 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
     </message>
     <message>
         <location line="+4"/>
-        <location line="+414"/>
+        <location line="+459"/>
         <location line="+1"/>
         <source>Speaker Notes</source>
         <translation type="unfinished">Sprekersnotities</translation>
     </message>
     <message>
-        <location line="-411"/>
+        <location line="-456"/>
         <source>Zoom into the Slide</source>
         <translation type="unfinished">Inzoomen op de dia</translation>
     </message>
@@ -60240,12 +60246,13 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
         <translation type="unfinished">Voorstelling beëindigen</translation>
     </message>
     <message>
-        <location line="+351"/>
+        <location line="+354"/>
         <source>This slide has no notes.</source>
         <translation type="unfinished">Deze dia heeft geen notities.</translation>
     </message>
     <message>
         <location line="+6"/>
+        <location line="+43"/>
         <source>These notes were cut short because they are very long.</source>
         <translation type="unfinished">Deze notities zijn ingekort omdat ze erg lang zijn.</translation>
     </message>
@@ -60768,6 +60775,39 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
         <location filename="../libs/shell/app/splitmover.cpp" line="+67"/>
         <source>Move Split: use the arrow keys to move the divider, Tab for the next one, and Enter when it is where you want it.</source>
         <translation type="unfinished">Splitsing verplaatsen: gebruik de pijltjestoetsen om de scheiding te verplaatsen, Tab voor de volgende en Enter als deze op de gewenste plek staat.</translation>
+    </message>
+</context>
+<context>
+    <name>jp::StoryEdit</name>
+    <message>
+        <location filename="../libs/page/app/storyedit.cpp" line="+610"/>
+        <source>Undo</source>
+        <translation type="unfinished">Ongedaan maken</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Redo</source>
+        <translation type="unfinished">Opnieuw</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Cut</source>
+        <translation type="unfinished">Knippen</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Copy</source>
+        <translation type="unfinished">Kopiëren</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>Paste</source>
+        <translation type="unfinished">Plakken</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Select All</source>
+        <translation type="unfinished">Alles selecteren</translation>
     </message>
 </context>
 <context>
