@@ -2,6 +2,7 @@
 #include <QRandomGenerator>
 #include <QMessageBox>
 #include <QBuffer>
+#include <QSignalSpy>
 #include "deckhelpers.h"
 #include "../withdialog.h"
 #include "app/theme.h"
@@ -1956,7 +1957,7 @@ private Q_SLOTS:
         QCOMPARE(slideWords(ed), before);
     }
 
-    // The most a paste makes (256 rows of 64 cells, with bold and a fill in each) takes seconds, not minutes; 1,000 rows of 64 are past what a table holds and paste as words at once.
+    // The most a paste makes (256 rows of 64 cells, with bold and a fill in each) is a few steps, not one for each cell; 1,000 rows of 64 are past what a table holds and paste as words at once.
     void aBigPasteIsFast()
     {
         DeckWindow w;
@@ -1970,24 +1971,22 @@ private Q_SLOTS:
             }
             return html + QStringLiteral("</table>");
         };
+        // (Counted work, not time: the editor says "changed" once for each step of the paste, and a paste that did its work cell by cell would say it for every one of the 16,384 cells.)
         putCells(cellsOf(256));
-        QElapsedTimer timer;
-        timer.start();
+        QSignalSpy changes(ed, &Editor::changed);
         QVERIFY(command(w, "edit.paste"));
-        const qint64 ms = timer.elapsed();
-        qInfo("paste of 256 x 64 cells with bold and a fill: %lld ms", ms);
+        qInfo("paste of 256 x 64 cells with bold and a fill: %d changes", int(changes.count()));
         QVERIFY(theTable(ed));
         QCOMPARE(theTable(ed)->rows, 256);
-        const int slower = std::max(1, qEnvironmentVariableIntValue("JP_TEST_TIME_SCALE"));   // (a checked build runs slower and sets this)
-        QVERIFY2(ms < 15000 * slower, qPrintable(QString::number(ms)));
+        QVERIFY2(changes.count() <= 8, qPrintable(QString::number(changes.count())));
         ed->undo();
         QVERIFY(!theTable(ed));
         putCells(cellsOf(1000));
-        timer.restart();
+        changes.clear();
         QVERIFY(command(w, "edit.paste"));
-        qInfo("paste of 1000 x 64 cells (as words): %lld ms", timer.elapsed());
+        qInfo("paste of 1000 x 64 cells (as words): %d changes", int(changes.count()));
         QVERIFY(!theTable(ed));
-        QVERIFY(timer.elapsed() < 15000 * slower);
+        QVERIFY2(changes.count() <= 8, qPrintable(QString::number(changes.count())));
     }
 
     // A picture of a JeffCrunch range pasted on a slide, when JO_SHOT_DIR names a folder.
