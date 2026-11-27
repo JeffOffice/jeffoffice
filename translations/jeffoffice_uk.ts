@@ -6202,7 +6202,7 @@ Back page story	4</source>
     <message>
         <location filename="../libs/page/app/saveoptions.cpp" line="+29"/>
         <location filename="../apps/pub/app/mainwindow.cpp" line="+462"/>
-        <location filename="../apps/write/app/writewindow.cpp" line="+895"/>
+        <location filename="../apps/write/app/writewindow.cpp" line="+919"/>
         <source>Save</source>
         <translation type="unfinished">Зберегти</translation>
     </message>
@@ -63574,7 +63574,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
         <translation type="unfinished">Збігів: %1</translation>
     </message>
     <message>
-        <location line="+161"/>
+        <location line="+167"/>
         <source>Found in the footer of page %1.</source>
         <translation type="unfinished">Знайдено в нижньому колонтитулі сторінки %1.</translation>
     </message>
@@ -64200,7 +64200,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
         <translation type="unfinished">Немає тексту для перекладу.</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/writewindow.cpp" line="-803"/>
+        <location filename="../apps/write/app/writewindow.cpp" line="-826"/>
         <source>Document%1</source>
         <translation type="unfinished">Документ%1</translation>
     </message>
@@ -64226,12 +64226,12 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     </message>
     <message>
         <location line="+52"/>
-        <location filename="../apps/write/app/writewindow_view.cpp" line="+21"/>
+        <location filename="../apps/write/app/writewindow_view.cpp" line="+20"/>
         <source>%1 (%2)</source>
         <translation type="unfinished">%1 (%2)</translation>
     </message>
     <message>
-        <location line="+144"/>
+        <location line="+165"/>
         <source> (Protected)</source>
         <translation type="unfinished"> (захищено)</translation>
     </message>
@@ -64262,13 +64262,13 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
         <translation type="unfinished">Документ тепер використовує найновіші правила розмітки.</translation>
     </message>
     <message>
-        <location line="+47"/>
+        <location line="+48"/>
         <location filename="../apps/write/app/writewindow_repeat.cpp" line="+110"/>
         <source>Formatting is limited in this document. Only styles that are not locked can be used.</source>
         <translation type="unfinished">Форматування в цьому документі обмежено. Можна використовувати лише стилі, які не заблоковано.</translation>
     </message>
     <message>
-        <location line="+13"/>
+        <location line="+14"/>
         <source>Undo</source>
         <translation type="unfinished">Скасувати</translation>
     </message>
@@ -65210,7 +65210,7 @@ The password couldn&apos;t be put on the file.</source>
     <message>
         <location line="+9"/>
         <location line="+7"/>
-        <location filename="../apps/write/app/writewindow_tables.cpp" line="+576"/>
+        <location filename="../apps/write/app/writewindow_tables.cpp" line="+570"/>
         <source>Delete</source>
         <translation type="unfinished">Видалити</translation>
     </message>
@@ -65577,12 +65577,7 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished">Сортувати…</translation>
     </message>
     <message>
-        <location line="+3"/>
-        <source>Turn off Track Changes to sort: a sort is not recorded as a change.</source>
-        <translation type="unfinished">Вимкніть відстеження змін, щоб сортувати: сортування не записується як зміна.</translation>
-    </message>
-    <message>
-        <location line="+5"/>
+        <location line="+4"/>
         <source>Select two or more paragraphs to sort.</source>
         <translation type="unfinished">Виберіть два або більше абзаців для сортування.</translation>
     </message>
@@ -65613,12 +65608,12 @@ The password couldn&apos;t be put on the file.</source>
     </message>
     <message>
         <location line="+15"/>
-        <location line="+214"/>
+        <location line="+215"/>
         <source>Translate</source>
         <translation type="unfinished">Перекласти</translation>
     </message>
     <message>
-        <location line="-203"/>
+        <location line="-204"/>
         <source>Read Aloud</source>
         <translation type="unfinished">Читати вголос</translation>
     </message>
@@ -65638,7 +65633,7 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished">Лічильник слів</translation>
     </message>
     <message>
-        <location line="+19"/>
+        <location line="+20"/>
         <source>The rows are sorted.</source>
         <translation type="unfinished">Рядки відсортовано.</translation>
     </message>
@@ -66341,7 +66336,7 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished">Символи</translation>
     </message>
     <message>
-        <location line="+28"/>
+        <location line="+32"/>
         <source>The document has no style named &quot;%1&quot;, and it is not a built-in style, so the key changed nothing.</source>
         <translation type="unfinished">Документ не містить стилю з назвою «%1», і він не є вбудованим стилем, тому клавіша нічого не змінила.</translation>
     </message>
@@ -68254,7 +68249,7 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished">Лише заливка</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/writewindow_home.cpp" line="-121"/>
+        <location filename="../apps/write/app/writewindow_home.cpp" line="-122"/>
         <location filename="../apps/write/app/writewindow_tables.cpp" line="-166"/>
         <location line="+213"/>
         <source>No Border</source>
@@ -69301,7 +69296,7 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished">Виділення маркером: виділіть текст для виділення. Оберіть «Припинити виділення» або натисніть Esc, щоб припинити.</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/writewindow_tables.cpp" line="-321"/>
+        <location filename="../apps/write/app/writewindow_tables.cpp" line="-315"/>
         <location line="+19"/>
         <source>A table can&apos;t be put in a table cell here.</source>
         <translation type="unfinished">Таблицю не можна вставити в комірку таблиці.</translation>
@@ -69358,17 +69353,11 @@ The password couldn&apos;t be put on the file.</source>
     </message>
     <message>
         <location line="+1"/>
-        <location line="+4"/>
-        <source>Turn off Track Changes to delete cells and shift the others.</source>
-        <translation type="unfinished">Вимкніть відстеження змін, щоб видалити комірки та зсунути решту.</translation>
-    </message>
-    <message>
-        <location line="-1"/>
         <source>Delete Cells, Shift Up</source>
         <translation type="unfinished">Видалити комірки зі зсувом вгору</translation>
     </message>
     <message>
-        <location line="+4"/>
+        <location line="+1"/>
         <source>Delete Rows</source>
         <translation type="unfinished">Видалити рядки</translation>
     </message>
@@ -69808,7 +69797,7 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished">Повернуто до «%1». Збережіть документ, щоб зберегти це.</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/writewindow_view.cpp" line="-59"/>
+        <location filename="../apps/write/app/writewindow_view.cpp" line="-58"/>
         <source>Navigation Pane</source>
         <translation type="unfinished">Панель навігації</translation>
     </message>
@@ -69878,7 +69867,7 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished">Розділи можна переміщувати лише з основного тексту документа, а не з верхнього чи нижнього колонтитула, виноски, текстового поля або коментаря.</translation>
     </message>
     <message>
-        <location line="+3"/>
+        <location line="+2"/>
         <source>Put the caret in a heading, or under one, to move its section.</source>
         <translation type="unfinished">Установіть курсор у заголовок або під ним, щоб перемістити його розділ.</translation>
     </message>
@@ -81925,19 +81914,13 @@ The password couldn&apos;t be put on the file.</source>
 <context>
     <name>jp::write::BlockMove</name>
     <message>
-        <location filename="../apps/write/app/writewindow_view.cpp" line="-216"/>
-        <location filename="../apps/write/core/blockmove.cpp" line="+174"/>
+        <location filename="../apps/write/app/writewindow_view.cpp" line="-215"/>
+        <location filename="../apps/write/core/blockmove.cpp" line="+173"/>
         <source>This document is protected, so a section can&apos;t be moved.</source>
         <translation type="unfinished">Цей документ захищено, тому розділ не можна перемістити.</translation>
     </message>
     <message>
-        <location line="+6"/>
-        <location filename="../apps/write/core/blockmove.cpp" line="-1"/>
-        <source>Turn off Track Changes to move a section.</source>
-        <translation type="unfinished">Вимкніть Відстеження змін, щоб перемістити розділ.</translation>
-    </message>
-    <message>
-        <location filename="../apps/write/core/blockmove.cpp" line="+2"/>
+        <location filename="../apps/write/core/blockmove.cpp" line="+1"/>
         <source>Sections can&apos;t be moved while endnotes are collected at the end of each section. Put the endnotes at the end of the document first.</source>
         <translation type="unfinished">Розділи не можна переміщувати, поки кінцеві виноски зібрано в кінці кожного розділу. Спочатку перенесіть кінцеві виноски в кінець документа.</translation>
     </message>
@@ -83870,7 +83853,7 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished">Записів таблиці джерел не знайдено.</translation>
     </message>
     <message>
-        <location filename="../apps/write/core/tocops.cpp" line="+345"/>
+        <location filename="../apps/write/core/tocops.cpp" line="+346"/>
         <location line="+71"/>
         <source>No headings were found for this table of contents.</source>
         <translation type="unfinished">Для цього змісту заголовків не знайдено.</translation>
@@ -85022,7 +85005,7 @@ The password couldn&apos;t be put on the file.</source>
 <context>
     <name>jp::write::Inspector</name>
     <message>
-        <location filename="../apps/write/core/homeops.cpp" line="+438"/>
+        <location filename="../apps/write/core/homeops.cpp" line="+445"/>
         <source>Paragraph style</source>
         <translation>Стиль абзацу</translation>
     </message>
@@ -86381,23 +86364,23 @@ The password couldn&apos;t be put on the file.</source>
     </message>
     <message>
         <location filename="../apps/write/app/pageview_input.cpp" line="+146"/>
-        <location line="+599"/>
+        <location line="+608"/>
         <source>Keep Source Formatting</source>
         <translation type="unfinished">Зберегти вихідне форматування</translation>
     </message>
     <message>
-        <location line="-491"/>
+        <location line="-500"/>
         <source>The Spike is full. Paste it to empty it.</source>
         <translation type="unfinished">Буфер переповнено. Вставте його, щоб очистити.</translation>
     </message>
     <message>
         <location line="-107"/>
-        <location line="+599"/>
+        <location line="+608"/>
         <source>Merge Formatting</source>
         <translation type="unfinished">Об&apos;єднати форматування</translation>
     </message>
     <message>
-        <location line="-640"/>
+        <location line="-649"/>
         <source>A table with changes tracked in it is copied as its words, not as a table. Accept or reject the changes to copy it as a table.</source>
         <translation type="unfinished">Таблицю з відстежуваними змінами скопійовано як її слова, а не як таблицю. Прийміть або відхиліть зміни, щоб скопіювати її як таблицю.</translation>
     </message>
@@ -86413,12 +86396,12 @@ The password couldn&apos;t be put on the file.</source>
     </message>
     <message>
         <location line="+40"/>
-        <location line="+600"/>
+        <location line="+609"/>
         <source>Keep Text Only</source>
         <translation type="unfinished">Зберегти лише текст</translation>
     </message>
     <message>
-        <location line="-599"/>
+        <location line="-608"/>
         <source>Pasting within the same document</source>
         <translation type="unfinished">Вставлення в межах того самого документа</translation>
     </message>
@@ -86433,7 +86416,7 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished">Вставлення з інших програм</translation>
     </message>
     <message>
-        <location line="+599"/>
+        <location line="+608"/>
         <location filename="../apps/write/app/writewindow_options.cpp" line="+11"/>
         <source>Continue List</source>
         <translation type="unfinished">Продовжити список</translation>
@@ -86562,7 +86545,7 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished">JeffWrite відкриває посилання на веб-адреси, адреси електронної пошти, а також документи чи зображення лише на цьому комп&apos;ютері.</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/pageview_pictures.cpp" line="+209"/>
+        <location filename="../apps/write/app/pageview_pictures.cpp" line="+210"/>
         <source>Select three or more objects first: click one, then hold Ctrl and click the others.</source>
         <translation type="unfinished">Виділіть три або більше об&apos;єктів: спочатку клацніть один, потім утримуйте Ctrl і клацніть інші.</translation>
     </message>
@@ -86622,7 +86605,7 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished">Немає групи для відновлення. Повторне групування працює після розгрупування, поки його об&apos;єкти ще на місці.</translation>
     </message>
     <message>
-        <location line="+1036"/>
+        <location line="+1037"/>
         <source>This text box holds too many paragraphs to be typed in here.</source>
         <translation type="unfinished">Це текстове поле містить забагато абзаців, щоб вводити їх тут.</translation>
     </message>
@@ -86880,7 +86863,7 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished">Не вдається відкрити %1 як малюнок.</translation>
     </message>
     <message>
-        <location filename="../apps/write/core/editops.cpp" line="+2251"/>
+        <location filename="../apps/write/core/editops.cpp" line="+2279"/>
         <location filename="../apps/write/core/pictureops.cpp" line="-1574"/>
         <location line="+362"/>
         <location line="+2066"/>
@@ -87002,7 +86985,7 @@ The password couldn&apos;t be put on the file.</source>
 <context>
     <name>jp::write::ReadyTables</name>
     <message>
-        <location filename="../apps/write/core/tableops.cpp" line="+2319"/>
+        <location filename="../apps/write/core/tableops.cpp" line="+2390"/>
         <source>Column 1</source>
         <translation type="unfinished">Стовпець 1</translation>
     </message>
@@ -87159,7 +87142,7 @@ The password couldn&apos;t be put on the file.</source>
 <context>
     <name>jp::write::Ruler</name>
     <message>
-        <location filename="../apps/write/app/ruler.cpp" line="+58"/>
+        <location filename="../apps/write/app/ruler.cpp" line="+59"/>
         <source>Ruler</source>
         <translation type="unfinished">Лінійка</translation>
     </message>
@@ -87169,7 +87152,7 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished">Поля, відступи та позиції табуляції абзацу, в якому знаходиться курсор. Перетягніть маркер, щоб їх змінити.</translation>
     </message>
     <message>
-        <location line="+288"/>
+        <location line="+291"/>
         <source>First line indent</source>
         <translation>Відступ першого рядка</translation>
     </message>
@@ -87223,7 +87206,7 @@ The password couldn&apos;t be put on the file.</source>
     <name>jp::write::SectionMove</name>
     <message>
         <location filename="../apps/write/core/sectionmove.cpp" line="+65"/>
-        <location line="+11"/>
+        <location line="+13"/>
         <source>Only a heading, with what is under it, can be moved.</source>
         <translation type="unfinished">Можна перемістити лише заголовок разом із вмістом під ним.</translation>
     </message>
@@ -87678,7 +87661,7 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished">Тут немає стилю для оновлення.</translation>
     </message>
     <message>
-        <location filename="../apps/write/core/editops.cpp" line="+1090"/>
+        <location filename="../apps/write/core/editops.cpp" line="+1098"/>
         <source>The document has too many list styles.</source>
         <translation type="unfinished">Документ містить забагато стилів списків.</translation>
     </message>
@@ -87736,7 +87719,7 @@ The password couldn&apos;t be put on the file.</source>
 <context>
     <name>jp::write::Tables</name>
     <message>
-        <location filename="../apps/write/core/tableops.cpp" line="-2087"/>
+        <location filename="../apps/write/core/tableops.cpp" line="-2123"/>
         <source>A table can have at most 20,000 rows.</source>
         <translation type="unfinished">Таблиця може містити не більше 20 000 рядків.</translation>
     </message>
@@ -87764,7 +87747,7 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished">Нові стовпці не можна вставити туди: об&apos;єднані комірки перетинають місце, де вони мали б бути.</translation>
     </message>
     <message>
-        <location filename="../apps/write/core/tableops.cpp" line="+1513"/>
+        <location filename="../apps/write/core/tableops.cpp" line="+1549"/>
         <location line="+68"/>
         <source>A table can only be moved in the main text.</source>
         <translation type="unfinished">Таблицю можна перемістити лише в основному тексті.</translation>
@@ -87817,7 +87800,7 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished">Таблиця з такою кількістю стовпців занадто широка для комірки, в яку її вставлять.</translation>
     </message>
     <message>
-        <location line="+320"/>
+        <location line="+327"/>
         <source>A cell is split into at least two cells.</source>
         <translation type="unfinished">Комірку розділено щонайменше на дві комірки.</translation>
     </message>
@@ -87837,7 +87820,7 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished">Курсор не знаходиться в таблиці.</translation>
     </message>
     <message>
-        <location line="+3"/>
+        <location line="+4"/>
         <source>The caret is not in a cell.</source>
         <translation type="unfinished">Курсор не знаходиться в комірці.</translation>
     </message>
@@ -87863,12 +87846,12 @@ The password couldn&apos;t be put on the file.</source>
     </message>
     <message>
         <location line="+4"/>
-        <location line="+279"/>
+        <location line="+282"/>
         <source>Type the character that separates the cells.</source>
         <translation type="unfinished">Введіть символ, який розділяє комірки.</translation>
     </message>
     <message>
-        <location line="-80"/>
+        <location line="-81"/>
         <source>A table pasted from cells can have at most 500 rows and 63 columns.</source>
         <translation type="unfinished">Таблиця, вставлена з комірок, може мати щонайбільше 500 рядків і 63 стовпці.</translation>
     </message>
@@ -87883,7 +87866,7 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished">Частину вставлених комірок не вдалося розмістити в таблиці, тому їх пропущено.</translation>
     </message>
     <message>
-        <location line="+16"/>
+        <location line="+17"/>
         <source>A table that has a table in a cell has to be made into text from the inside out.</source>
         <translation type="unfinished">Таблицю, що містить таблицю в комірці, потрібно перетворити на текст, починаючи з внутрішніх таблиць.</translation>
     </message>
@@ -87898,7 +87881,7 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished">Комірка, об&apos;єднана вниз, проходить через цей рядок, тому таблицю тут не можна розділити.</translation>
     </message>
     <message>
-        <location line="+61"/>
+        <location line="+62"/>
         <source>Rows that have cells joined down can&apos;t be sorted.</source>
         <translation type="unfinished">Рядки, у яких комірки об&apos;єднані вниз, не можна сортувати.</translation>
     </message>
@@ -87913,6 +87896,11 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished">Рядки, комірки яких розташовані не в тих самих стовпцях, не можна сортувати.</translation>
     </message>
     <message>
+        <location line="+297"/>
+        <source>This change was not made: the rows hold too many tables to mark as deleted.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <location filename="../apps/write/app/pageview_input.cpp" line="-1047"/>
         <location filename="../apps/write/core/homeops.cpp" line="-62"/>
         <location line="+35"/>
@@ -87925,6 +87913,19 @@ The password couldn&apos;t be put on the file.</source>
         <location line="+9"/>
         <source>There are no cells to paste.</source>
         <translation type="unfinished">Немає комірок для вставлення.</translation>
+    </message>
+</context>
+<context>
+    <name>jp::write::Tracking</name>
+    <message>
+        <location filename="../apps/write/core/trackpolicy.cpp" line="+98"/>
+        <source>This change was not recorded as a tracked change.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>This change was not made: it would take part of a row that has tracked changes. Accept or reject them first.</source>
+        <translation type="unfinished"></translation>
     </message>
 </context>
 <context>

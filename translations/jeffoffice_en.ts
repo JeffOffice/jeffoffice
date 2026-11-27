@@ -781,7 +781,7 @@
 <context>
     <name>jp::WriteFindPane</name>
     <message numerus="yes">
-        <location filename="../apps/write/app/writefindpane.cpp" line="+1453"/>
+        <location filename="../apps/write/app/writefindpane.cpp" line="+1459"/>
         <source>%n match is in content that can&apos;t be changed.</source>
         <translation>
             <numerusform>%n match is in content that can&apos;t be changed.</numerusform>
@@ -800,7 +800,7 @@
 <context>
     <name>jp::WriteWindow</name>
     <message numerus="yes">
-        <location filename="../apps/write/app/writewindow.cpp" line="+871"/>
+        <location filename="../apps/write/app/writewindow.cpp" line="+895"/>
         <source>%1 of %n word(s)</source>
         <translation>
             <numerusform>%1 of %n word</numerusform>
@@ -808,7 +808,7 @@
         </translation>
     </message>
     <message numerus="yes">
-        <location filename="../apps/write/app/writewindow_home.cpp" line="+282"/>
+        <location filename="../apps/write/app/writewindow_home.cpp" line="+279"/>
         <source>There are too many paragraphs to sort at once. Select %n paragraph(s) or fewer.</source>
         <translation>
             <numerusform>There are too many paragraphs to sort at once. Select %n paragraph or fewer.</numerusform>

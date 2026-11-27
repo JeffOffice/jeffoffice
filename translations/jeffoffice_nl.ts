@@ -6052,7 +6052,7 @@ Artikel achterpagina	4</translation>
     <message>
         <location filename="../libs/page/app/saveoptions.cpp" line="-15"/>
         <location filename="../apps/pub/app/mainwindow.cpp" line="+462"/>
-        <location filename="../apps/write/app/writewindow.cpp" line="+895"/>
+        <location filename="../apps/write/app/writewindow.cpp" line="+919"/>
         <source>Save</source>
         <translation type="unfinished">Opslaan</translation>
     </message>
@@ -63489,7 +63489,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
         <translation type="unfinished">%1 overeenkomsten</translation>
     </message>
     <message>
-        <location line="+161"/>
+        <location line="+167"/>
         <source>Found in the footer of page %1.</source>
         <translation type="unfinished">Gevonden in de voettekst van pagina %1.</translation>
     </message>
@@ -64089,7 +64089,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
 <context>
     <name>jp::WriteWindow</name>
     <message>
-        <location filename="../apps/write/app/writewindow.cpp" line="-803"/>
+        <location filename="../apps/write/app/writewindow.cpp" line="-826"/>
         <source>Document%1</source>
         <translation type="unfinished">Document%1</translation>
     </message>
@@ -64115,12 +64115,12 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
     </message>
     <message>
         <location line="+52"/>
-        <location filename="../apps/write/app/writewindow_view.cpp" line="+21"/>
+        <location filename="../apps/write/app/writewindow_view.cpp" line="+20"/>
         <source>%1 (%2)</source>
         <translation type="unfinished">%1 (%2)</translation>
     </message>
     <message>
-        <location line="+144"/>
+        <location line="+165"/>
         <source> (Protected)</source>
         <translation type="unfinished"> (Beveiligd)</translation>
     </message>
@@ -64151,13 +64151,13 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
         <translation type="unfinished">Het document gebruikt nu de nieuwste indelingsregels.</translation>
     </message>
     <message>
-        <location line="+47"/>
+        <location line="+48"/>
         <location filename="../apps/write/app/writewindow_repeat.cpp" line="+110"/>
         <source>Formatting is limited in this document. Only styles that are not locked can be used.</source>
         <translation type="unfinished">De opmaak is beperkt in dit document. Alleen stijlen die niet zijn vergrendeld, kunnen worden gebruikt.</translation>
     </message>
     <message>
-        <location line="+13"/>
+        <location line="+14"/>
         <source>Undo</source>
         <translation type="unfinished">Ongedaan maken</translation>
     </message>
@@ -64542,17 +64542,11 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
     </message>
     <message>
         <location line="+1"/>
-        <location line="+4"/>
-        <source>Turn off Track Changes to delete cells and shift the others.</source>
-        <translation type="unfinished">Schakel Wijzigingen bijhouden uit om cellen te verwijderen en de overige cellen te verschuiven.</translation>
-    </message>
-    <message>
-        <location line="-1"/>
         <source>Delete Cells, Shift Up</source>
         <translation type="unfinished">Cellen verwijderen en omhoog verschuiven</translation>
     </message>
     <message>
-        <location line="+4"/>
+        <location line="+1"/>
         <source>Delete Rows</source>
         <translation type="unfinished">Rijen verwijderen</translation>
     </message>
@@ -64764,7 +64758,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
         <translation type="unfinished">Tekst omhoog draaien</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/writewindow_home.cpp" line="+163"/>
+        <location filename="../apps/write/app/writewindow_home.cpp" line="+159"/>
         <location filename="../apps/write/app/writewindow_tables.cpp" line="+3"/>
         <source>Bottom Border</source>
         <translation type="unfinished">Onderrand</translation>
@@ -67034,7 +67028,7 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
         <translation type="unfinished">Symbolen</translation>
     </message>
     <message>
-        <location line="+28"/>
+        <location line="+32"/>
         <source>The document has no style named &quot;%1&quot;, and it is not a built-in style, so the key changed nothing.</source>
         <translation type="unfinished">Het document heeft geen stijl met de naam &quot;%1&quot;, en het is geen ingebouwde stijl, dus de sneltoets heeft niets gewijzigd.</translation>
     </message>
@@ -68626,7 +68620,7 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
         <translation type="unfinished">Ga naar voetnoot</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/writewindow_home.cpp" line="-134"/>
+        <location filename="../apps/write/app/writewindow_home.cpp" line="-130"/>
         <source>Sentence case</source>
         <translation type="unfinished">Zinsconstructie</translation>
     </message>
@@ -68769,12 +68763,7 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
         <translation type="unfinished">Sorteren…</translation>
     </message>
     <message>
-        <location line="+3"/>
-        <source>Turn off Track Changes to sort: a sort is not recorded as a change.</source>
-        <translation type="unfinished">Schakel Wijzigingen bijhouden uit om te sorteren: een sortering wordt niet als wijziging vastgelegd.</translation>
-    </message>
-    <message>
-        <location line="+5"/>
+        <location line="+4"/>
         <source>Select two or more paragraphs to sort.</source>
         <translation type="unfinished">Selecteer twee of meer alinea&apos;s om te sorteren.</translation>
     </message>
@@ -68805,12 +68794,12 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
     </message>
     <message>
         <location line="+15"/>
-        <location line="+214"/>
+        <location line="+215"/>
         <source>Translate</source>
         <translation type="unfinished">Vertalen</translation>
     </message>
     <message>
-        <location line="-203"/>
+        <location line="-204"/>
         <source>Read Aloud</source>
         <translation type="unfinished">Voorlezen</translation>
     </message>
@@ -68848,7 +68837,7 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
         </translation>
     </message>
     <message>
-        <location filename="../apps/write/app/writewindow_home.cpp" line="+31"/>
+        <location filename="../apps/write/app/writewindow_home.cpp" line="+32"/>
         <source>The rows are sorted.</source>
         <translation type="unfinished">De rijen zijn gesorteerd.</translation>
     </message>
@@ -69555,7 +69544,7 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
         <translation type="unfinished">Plaats eerst de invoegmarkering in een lijst met autoriteiten.</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/writewindow_view.cpp" line="-59"/>
+        <location filename="../apps/write/app/writewindow_view.cpp" line="-58"/>
         <source>Navigation Pane</source>
         <translation type="unfinished">Navigatievenster</translation>
     </message>
@@ -69625,7 +69614,7 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
         <translation type="unfinished">Secties kunnen alleen worden verplaatst vanuit de hoofdtekst van het document, niet vanuit een koptekst, voettekst, voetnoot, tekstvak of opmerking.</translation>
     </message>
     <message>
-        <location line="+3"/>
+        <location line="+2"/>
         <source>Put the caret in a heading, or under one, to move its section.</source>
         <translation type="unfinished">Plaats de invoegpositie in een kop of eronder om de sectie te verplaatsen.</translation>
     </message>
@@ -69842,7 +69831,7 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
         <translation type="unfinished">URGENT</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/writewindow_home.cpp" line="-26"/>
+        <location filename="../apps/write/app/writewindow_home.cpp" line="-27"/>
         <source>Word Count</source>
         <translation type="unfinished">Woordenaantal</translation>
     </message>
@@ -81797,19 +81786,13 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
 <context>
     <name>jp::write::BlockMove</name>
     <message>
-        <location filename="../apps/write/app/writewindow_view.cpp" line="-216"/>
-        <location filename="../apps/write/core/blockmove.cpp" line="+174"/>
+        <location filename="../apps/write/app/writewindow_view.cpp" line="-215"/>
+        <location filename="../apps/write/core/blockmove.cpp" line="+173"/>
         <source>This document is protected, so a section can&apos;t be moved.</source>
         <translation type="unfinished">Dit document is beveiligd, dus een sectie kan niet worden verplaatst.</translation>
     </message>
     <message>
-        <location line="+6"/>
-        <location filename="../apps/write/core/blockmove.cpp" line="-1"/>
-        <source>Turn off Track Changes to move a section.</source>
-        <translation type="unfinished">Schakel Wijzigingen bijhouden uit om een sectie te verplaatsen.</translation>
-    </message>
-    <message>
-        <location filename="../apps/write/core/blockmove.cpp" line="+2"/>
+        <location filename="../apps/write/core/blockmove.cpp" line="+1"/>
         <source>Sections can&apos;t be moved while endnotes are collected at the end of each section. Put the endnotes at the end of the document first.</source>
         <translation type="unfinished">Secties kunnen niet worden verplaatst zolang eindnoten aan het einde van elke sectie worden verzameld. Zet de eindnoten eerst aan het einde van het document.</translation>
     </message>
@@ -83717,7 +83700,7 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
         <translation type="unfinished">Fout! Geen tekst met de opgegeven stijl in het document.</translation>
     </message>
     <message>
-        <location filename="../apps/write/core/tocops.cpp" line="+345"/>
+        <location filename="../apps/write/core/tocops.cpp" line="+346"/>
         <location line="+71"/>
         <source>No headings were found for this table of contents.</source>
         <translation type="unfinished">Er zijn geen koppen gevonden voor deze inhoudsopgave.</translation>
@@ -84893,7 +84876,7 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
 <context>
     <name>jp::write::Inspector</name>
     <message>
-        <location filename="../apps/write/core/homeops.cpp" line="+438"/>
+        <location filename="../apps/write/core/homeops.cpp" line="+445"/>
         <source>Paragraph style</source>
         <translation>Alineastijl</translation>
     </message>
@@ -86252,23 +86235,23 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
     </message>
     <message>
         <location filename="../apps/write/app/pageview_input.cpp" line="+146"/>
-        <location line="+599"/>
+        <location line="+608"/>
         <source>Keep Source Formatting</source>
         <translation type="unfinished">Bronopmaak behouden</translation>
     </message>
     <message>
-        <location line="-491"/>
+        <location line="-500"/>
         <source>The Spike is full. Paste it to empty it.</source>
         <translation type="unfinished">Het Klembord is vol. Plak het om het leeg te maken.</translation>
     </message>
     <message>
         <location line="-107"/>
-        <location line="+599"/>
+        <location line="+608"/>
         <source>Merge Formatting</source>
         <translation type="unfinished">Opmaak samenvoegen</translation>
     </message>
     <message>
-        <location line="-640"/>
+        <location line="-649"/>
         <source>A table with changes tracked in it is copied as its words, not as a table. Accept or reject the changes to copy it as a table.</source>
         <translation type="unfinished">Een tabel met bijgehouden wijzigingen wordt gekopieerd als de woorden, niet als tabel. Accepteer of weiger de wijzigingen om de tabel als tabel te kopiëren.</translation>
     </message>
@@ -86284,12 +86267,12 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
     </message>
     <message>
         <location line="+40"/>
-        <location line="+600"/>
+        <location line="+609"/>
         <source>Keep Text Only</source>
         <translation type="unfinished">Alleen tekst behouden</translation>
     </message>
     <message>
-        <location line="-599"/>
+        <location line="-608"/>
         <source>Pasting within the same document</source>
         <translation type="unfinished">Plakken binnen hetzelfde document</translation>
     </message>
@@ -86304,7 +86287,7 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
         <translation type="unfinished">Plakken uit andere programma&apos;s</translation>
     </message>
     <message>
-        <location line="+599"/>
+        <location line="+608"/>
         <location filename="../apps/write/app/writewindow_options.cpp" line="+11"/>
         <source>Continue List</source>
         <translation type="unfinished">Lijst voortzetten</translation>
@@ -86433,7 +86416,7 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
         <translation type="unfinished">JeffWrite opent koppelingen naar webadressen, e-mailadressen en documenten of afbeeldingen op deze computer alleen.</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/pageview_pictures.cpp" line="+209"/>
+        <location filename="../apps/write/app/pageview_pictures.cpp" line="+210"/>
         <source>Select three or more objects first: click one, then hold Ctrl and click the others.</source>
         <translation type="unfinished">Selecteer eerst drie of meer objecten: klik op één en houd vervolgens Ctrl ingedrukt terwijl u de andere aanklikt.</translation>
     </message>
@@ -86493,7 +86476,7 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
         <translation type="unfinished">Er is geen groep om terug te zetten. Opnieuw groeperen werkt na Groep opheffen, zolang de objecten er nog zijn.</translation>
     </message>
     <message>
-        <location line="+1036"/>
+        <location line="+1037"/>
         <source>This text box holds too many paragraphs to be typed in here.</source>
         <translation type="unfinished">Dit tekstvak bevat te veel alinea&apos;s om hier te worden getypt.</translation>
     </message>
@@ -86671,7 +86654,7 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
         <translation type="unfinished">%1 kan niet als afbeelding worden geopend.</translation>
     </message>
     <message>
-        <location filename="../apps/write/core/editops.cpp" line="+2251"/>
+        <location filename="../apps/write/core/editops.cpp" line="+2279"/>
         <location filename="../apps/write/core/pictureops.cpp" line="-1574"/>
         <location line="+362"/>
         <location line="+2066"/>
@@ -86873,7 +86856,7 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
 <context>
     <name>jp::write::ReadyTables</name>
     <message>
-        <location filename="../apps/write/core/tableops.cpp" line="+2319"/>
+        <location filename="../apps/write/core/tableops.cpp" line="+2390"/>
         <source>Column 1</source>
         <translation type="unfinished">Kolom 1</translation>
     </message>
@@ -87030,7 +87013,7 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
 <context>
     <name>jp::write::Ruler</name>
     <message>
-        <location filename="../apps/write/app/ruler.cpp" line="+58"/>
+        <location filename="../apps/write/app/ruler.cpp" line="+59"/>
         <source>Ruler</source>
         <translation type="unfinished">Liniaal</translation>
     </message>
@@ -87040,7 +87023,7 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
         <translation type="unfinished">De marges, inspringingen en tabstops van de alinea waarin de cursor staat. Sleep een markering om deze te wijzigen.</translation>
     </message>
     <message>
-        <location line="+288"/>
+        <location line="+291"/>
         <source>First line indent</source>
         <translation>Inspringing eerste regel</translation>
     </message>
@@ -87094,7 +87077,7 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
     <name>jp::write::SectionMove</name>
     <message>
         <location filename="../apps/write/core/sectionmove.cpp" line="+65"/>
-        <location line="+11"/>
+        <location line="+13"/>
         <source>Only a heading, with what is under it, can be moved.</source>
         <translation type="unfinished">Alleen een kop, met wat eronder staat, kan worden verplaatst.</translation>
     </message>
@@ -87547,7 +87530,7 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
         <translation type="unfinished">Er is hier geen stijl om bij te werken.</translation>
     </message>
     <message>
-        <location filename="../apps/write/core/editops.cpp" line="+1090"/>
+        <location filename="../apps/write/core/editops.cpp" line="+1098"/>
         <source>The document has too many list styles.</source>
         <translation type="unfinished">Het document heeft te veel lijststijlen.</translation>
     </message>
@@ -87605,7 +87588,7 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
 <context>
     <name>jp::write::Tables</name>
     <message>
-        <location filename="../apps/write/core/tableops.cpp" line="-2087"/>
+        <location filename="../apps/write/core/tableops.cpp" line="-2123"/>
         <source>A table can have at most 20,000 rows.</source>
         <translation type="unfinished">Een tabel kan maximaal 20.000 rijen hebben.</translation>
     </message>
@@ -87633,7 +87616,7 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
         <translation type="unfinished">Nieuwe kolommen kunnen hier niet komen: samengevoegde cellen lopen over de plek waar ze zouden staan.</translation>
     </message>
     <message>
-        <location filename="../apps/write/core/tableops.cpp" line="+1513"/>
+        <location filename="../apps/write/core/tableops.cpp" line="+1549"/>
         <location line="+68"/>
         <source>A table can only be moved in the main text.</source>
         <translation type="unfinished">Een tabel kan alleen in de hoofdtekst worden verplaatst.</translation>
@@ -87686,7 +87669,7 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
         <translation type="unfinished">Een tabel met zoveel kolommen is te breed voor de cel waarin hij zou komen.</translation>
     </message>
     <message>
-        <location line="+320"/>
+        <location line="+327"/>
         <source>A cell is split into at least two cells.</source>
         <translation type="unfinished">Een cel wordt in minstens twee cellen gesplitst.</translation>
     </message>
@@ -87706,7 +87689,7 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
         <translation type="unfinished">De cursor staat niet in een tabel.</translation>
     </message>
     <message>
-        <location line="+3"/>
+        <location line="+4"/>
         <source>The caret is not in a cell.</source>
         <translation type="unfinished">De cursor staat niet in een cel.</translation>
     </message>
@@ -87732,12 +87715,12 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
     </message>
     <message>
         <location line="+4"/>
-        <location line="+279"/>
+        <location line="+282"/>
         <source>Type the character that separates the cells.</source>
         <translation type="unfinished">Typ het teken dat de cellen scheidt.</translation>
     </message>
     <message>
-        <location line="-80"/>
+        <location line="-81"/>
         <source>A table pasted from cells can have at most 500 rows and 63 columns.</source>
         <translation type="unfinished">Een tabel die uit cellen is geplakt, kan hoogstens 500 rijen en 63 kolommen hebben.</translation>
     </message>
@@ -87752,7 +87735,7 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
         <translation type="unfinished">Sommige geplakte cellen pasten niet in de tabel en zijn weggelaten.</translation>
     </message>
     <message>
-        <location line="+16"/>
+        <location line="+17"/>
         <source>A table that has a table in a cell has to be made into text from the inside out.</source>
         <translation type="unfinished">Een tabel die een tabel in een cel bevat, moet van binnenuit naar tekst worden omgezet.</translation>
     </message>
@@ -87767,7 +87750,7 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
         <translation type="unfinished">Een cel die omlaag is samengevoegd, loopt over die rij heen, dus de tabel kan daar niet worden gesplitst.</translation>
     </message>
     <message>
-        <location line="+61"/>
+        <location line="+62"/>
         <source>Rows that have cells joined down can&apos;t be sorted.</source>
         <translation type="unfinished">Rijen met cellen die omlaag zijn samengevoegd, kunnen niet worden gesorteerd.</translation>
     </message>
@@ -87782,6 +87765,11 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
         <translation type="unfinished">Rijen waarvan de cellen niet in dezelfde kolommen staan, kunnen niet worden gesorteerd.</translation>
     </message>
     <message>
+        <location line="+297"/>
+        <source>This change was not made: the rows hold too many tables to mark as deleted.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <location filename="../apps/write/app/pageview_input.cpp" line="-1047"/>
         <location filename="../apps/write/core/homeops.cpp" line="-62"/>
         <location line="+35"/>
@@ -87794,6 +87782,19 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
         <location line="+9"/>
         <source>There are no cells to paste.</source>
         <translation type="unfinished">Er zijn geen cellen om te plakken.</translation>
+    </message>
+</context>
+<context>
+    <name>jp::write::Tracking</name>
+    <message>
+        <location filename="../apps/write/core/trackpolicy.cpp" line="+98"/>
+        <source>This change was not recorded as a tracked change.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>This change was not made: it would take part of a row that has tracked changes. Accept or reject them first.</source>
+        <translation type="unfinished"></translation>
     </message>
 </context>
 <context>

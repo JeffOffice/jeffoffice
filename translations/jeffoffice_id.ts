@@ -6051,7 +6051,7 @@ Berita halaman belakang	4</translation>
     <message>
         <location filename="../libs/page/app/saveoptions.cpp" line="-15"/>
         <location filename="../apps/pub/app/mainwindow.cpp" line="+462"/>
-        <location filename="../apps/write/app/writewindow.cpp" line="+895"/>
+        <location filename="../apps/write/app/writewindow.cpp" line="+919"/>
         <source>Save</source>
         <translation type="unfinished">Simpan</translation>
     </message>
@@ -63404,7 +63404,7 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
         <translation type="unfinished">%1 kecocokan</translation>
     </message>
     <message>
-        <location line="+161"/>
+        <location line="+167"/>
         <source>Found in the footer of page %1.</source>
         <translation type="unfinished">Ditemukan di footer halaman %1.</translation>
     </message>
@@ -64002,7 +64002,7 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
 <context>
     <name>jp::WriteWindow</name>
     <message>
-        <location filename="../apps/write/app/writewindow.cpp" line="-803"/>
+        <location filename="../apps/write/app/writewindow.cpp" line="-826"/>
         <source>Document%1</source>
         <translation type="unfinished">Dokumen%1</translation>
     </message>
@@ -64028,12 +64028,12 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
     </message>
     <message>
         <location line="+52"/>
-        <location filename="../apps/write/app/writewindow_view.cpp" line="+21"/>
+        <location filename="../apps/write/app/writewindow_view.cpp" line="+20"/>
         <source>%1 (%2)</source>
         <translation type="unfinished">%1 (%2)</translation>
     </message>
     <message>
-        <location line="+144"/>
+        <location line="+165"/>
         <source> (Protected)</source>
         <translation type="unfinished"> (Dilindungi)</translation>
     </message>
@@ -64064,13 +64064,13 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
         <translation type="unfinished">Dokumen kini menggunakan aturan tata letak terbaru.</translation>
     </message>
     <message>
-        <location line="+47"/>
+        <location line="+48"/>
         <location filename="../apps/write/app/writewindow_repeat.cpp" line="+110"/>
         <source>Formatting is limited in this document. Only styles that are not locked can be used.</source>
         <translation type="unfinished">Pemformatan terbatas dalam dokumen ini. Hanya gaya yang tidak dikunci yang dapat digunakan.</translation>
     </message>
     <message>
-        <location line="+13"/>
+        <location line="+14"/>
         <source>Undo</source>
         <translation type="unfinished">Urungkan</translation>
     </message>
@@ -64977,7 +64977,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
     <message>
         <location line="+9"/>
         <location line="+7"/>
-        <location filename="../apps/write/app/writewindow_tables.cpp" line="+576"/>
+        <location filename="../apps/write/app/writewindow_tables.cpp" line="+570"/>
         <source>Delete</source>
         <translation type="unfinished">Hapus</translation>
     </message>
@@ -65344,12 +65344,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
         <translation type="unfinished">Urutkan…</translation>
     </message>
     <message>
-        <location line="+3"/>
-        <source>Turn off Track Changes to sort: a sort is not recorded as a change.</source>
-        <translation type="unfinished">Matikan Lacak Perubahan untuk mengurutkan: pengurutan tidak dicatat sebagai perubahan.</translation>
-    </message>
-    <message>
-        <location line="+5"/>
+        <location line="+4"/>
         <source>Select two or more paragraphs to sort.</source>
         <translation type="unfinished">Pilih dua paragraf atau lebih untuk diurutkan.</translation>
     </message>
@@ -65380,12 +65375,12 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
     </message>
     <message>
         <location line="+15"/>
-        <location line="+214"/>
+        <location line="+215"/>
         <source>Translate</source>
         <translation type="unfinished">Terjemahkan</translation>
     </message>
     <message>
-        <location line="-203"/>
+        <location line="-204"/>
         <source>Read Aloud</source>
         <translation type="unfinished">Bacakan</translation>
     </message>
@@ -65427,7 +65422,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
         </translation>
     </message>
     <message>
-        <location filename="../apps/write/app/writewindow_home.cpp" line="+31"/>
+        <location filename="../apps/write/app/writewindow_home.cpp" line="+32"/>
         <source>The rows are sorted.</source>
         <translation type="unfinished">Baris telah diurutkan.</translation>
     </message>
@@ -67685,7 +67680,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
         <translation type="unfinished">Simbol</translation>
     </message>
     <message>
-        <location line="+28"/>
+        <location line="+32"/>
         <source>The document has no style named &quot;%1&quot;, and it is not a built-in style, so the key changed nothing.</source>
         <translation type="unfinished">Dokumen tidak memiliki gaya bernama &quot;%1&quot;, dan itu bukan gaya bawaan, sehingga tombol tidak mengubah apa pun.</translation>
     </message>
@@ -67970,7 +67965,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
         <translation type="unfinished">Penyorotan: pilih teks yang akan disorot. Pilih Hentikan Penyorotan atau tekan Esc untuk berhenti.</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/writewindow_tables.cpp" line="-294"/>
+        <location filename="../apps/write/app/writewindow_tables.cpp" line="-288"/>
         <location line="+19"/>
         <source>A table can&apos;t be put in a table cell here.</source>
         <translation type="unfinished">Tabel tidak dapat disisipkan di dalam sel tabel di sini.</translation>
@@ -68027,17 +68022,11 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
     </message>
     <message>
         <location line="+1"/>
-        <location line="+4"/>
-        <source>Turn off Track Changes to delete cells and shift the others.</source>
-        <translation type="unfinished">Matikan Lacak Perubahan untuk menghapus sel dan menggeser sel lainnya.</translation>
-    </message>
-    <message>
-        <location line="-1"/>
         <source>Delete Cells, Shift Up</source>
         <translation type="unfinished">Hapus Sel, Geser ke Atas</translation>
     </message>
     <message>
-        <location line="+4"/>
+        <location line="+1"/>
         <source>Delete Rows</source>
         <translation type="unfinished">Hapus Baris</translation>
     </message>
@@ -69257,7 +69246,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
         <translation type="unfinished">Putar Teks ke Atas</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/writewindow_home.cpp" line="-123"/>
+        <location filename="../apps/write/app/writewindow_home.cpp" line="-124"/>
         <location filename="../apps/write/app/writewindow_tables.cpp" line="+3"/>
         <source>Bottom Border</source>
         <translation type="unfinished">Bingkai Bawah</translation>
@@ -69458,7 +69447,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
         <translation type="unfinished">Perataan Sel</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/writewindow_view.cpp" line="-59"/>
+        <location filename="../apps/write/app/writewindow_view.cpp" line="-58"/>
         <source>Navigation Pane</source>
         <translation type="unfinished">Panel Navigasi</translation>
     </message>
@@ -69528,7 +69517,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
         <translation type="unfinished">Bagian hanya dapat dipindahkan dari teks utama dokumen, bukan dari header, footer, catatan, kotak teks, atau komentar.</translation>
     </message>
     <message>
-        <location line="+3"/>
+        <location line="+2"/>
         <source>Put the caret in a heading, or under one, to move its section.</source>
         <translation type="unfinished">Letakkan kursor di judul, atau di bawahnya, untuk memindahkan bagiannya.</translation>
     </message>
@@ -81669,19 +81658,13 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
 <context>
     <name>jp::write::BlockMove</name>
     <message>
-        <location filename="../apps/write/app/writewindow_view.cpp" line="-216"/>
-        <location filename="../apps/write/core/blockmove.cpp" line="+174"/>
+        <location filename="../apps/write/app/writewindow_view.cpp" line="-215"/>
+        <location filename="../apps/write/core/blockmove.cpp" line="+173"/>
         <source>This document is protected, so a section can&apos;t be moved.</source>
         <translation type="unfinished">Dokumen ini dilindungi, sehingga bagian tidak dapat dipindahkan.</translation>
     </message>
     <message>
-        <location line="+6"/>
-        <location filename="../apps/write/core/blockmove.cpp" line="-1"/>
-        <source>Turn off Track Changes to move a section.</source>
-        <translation type="unfinished">Nonaktifkan Lacak Perubahan untuk memindahkan bagian.</translation>
-    </message>
-    <message>
-        <location filename="../apps/write/core/blockmove.cpp" line="+2"/>
+        <location filename="../apps/write/core/blockmove.cpp" line="+1"/>
         <source>Sections can&apos;t be moved while endnotes are collected at the end of each section. Put the endnotes at the end of the document first.</source>
         <translation type="unfinished">Bagian tidak dapat dipindahkan selama catatan akhir dikumpulkan di akhir setiap bagian. Pindahkan catatan akhir ke akhir dokumen terlebih dahulu.</translation>
     </message>
@@ -83614,7 +83597,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
         <translation type="unfinished">Tidak ditemukan entri daftar rujukan.</translation>
     </message>
     <message>
-        <location filename="../apps/write/core/tocops.cpp" line="+345"/>
+        <location filename="../apps/write/core/tocops.cpp" line="+346"/>
         <location line="+71"/>
         <source>No headings were found for this table of contents.</source>
         <translation type="unfinished">Tidak ditemukan judul untuk daftar isi ini.</translation>
@@ -84764,7 +84747,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
 <context>
     <name>jp::write::Inspector</name>
     <message>
-        <location filename="../apps/write/core/homeops.cpp" line="+438"/>
+        <location filename="../apps/write/core/homeops.cpp" line="+445"/>
         <source>Paragraph style</source>
         <translation>Gaya paragraf</translation>
     </message>
@@ -86123,23 +86106,23 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
     </message>
     <message>
         <location filename="../apps/write/app/pageview_input.cpp" line="+146"/>
-        <location line="+599"/>
+        <location line="+608"/>
         <source>Keep Source Formatting</source>
         <translation type="unfinished">Pertahankan Format Sumber</translation>
     </message>
     <message>
-        <location line="-491"/>
+        <location line="-500"/>
         <source>The Spike is full. Paste it to empty it.</source>
         <translation type="unfinished">Spike penuh. Tempel untuk mengosongkannya.</translation>
     </message>
     <message>
         <location line="-107"/>
-        <location line="+599"/>
+        <location line="+608"/>
         <source>Merge Formatting</source>
         <translation type="unfinished">Gabungkan Format</translation>
     </message>
     <message>
-        <location line="-640"/>
+        <location line="-649"/>
         <source>A table with changes tracked in it is copied as its words, not as a table. Accept or reject the changes to copy it as a table.</source>
         <translation type="unfinished">Tabel dengan perubahan yang dilacak disalin sebagai kata-katanya, bukan sebagai tabel. Terima atau tolak perubahan untuk menyalin sebagai tabel.</translation>
     </message>
@@ -86155,12 +86138,12 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
     </message>
     <message>
         <location line="+40"/>
-        <location line="+600"/>
+        <location line="+609"/>
         <source>Keep Text Only</source>
         <translation type="unfinished">Pertahankan Hanya Teks</translation>
     </message>
     <message>
-        <location line="-599"/>
+        <location line="-608"/>
         <source>Pasting within the same document</source>
         <translation type="unfinished">Menempel dalam dokumen yang sama</translation>
     </message>
@@ -86175,7 +86158,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
         <translation type="unfinished">Menempel dari program lain</translation>
     </message>
     <message>
-        <location line="+599"/>
+        <location line="+608"/>
         <location filename="../apps/write/app/writewindow_options.cpp" line="+11"/>
         <source>Continue List</source>
         <translation type="unfinished">Lanjutkan Daftar</translation>
@@ -86304,7 +86287,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
         <translation type="unfinished">JeffWrite hanya membuka tautan ke alamat web, alamat email, serta dokumen atau gambar di komputer ini.</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/pageview_pictures.cpp" line="+209"/>
+        <location filename="../apps/write/app/pageview_pictures.cpp" line="+210"/>
         <source>Select three or more objects first: click one, then hold Ctrl and click the others.</source>
         <translation type="unfinished">Pilih tiga objek atau lebih terlebih dahulu: klik satu, lalu tahan Ctrl dan klik yang lain.</translation>
     </message>
@@ -86364,7 +86347,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
         <translation type="unfinished">Tidak ada kelompok untuk dikembalikan. Kelompokkan Ulang bekerja setelah Pisahkan Kelompok, selama objeknya masih ada.</translation>
     </message>
     <message>
-        <location line="+1036"/>
+        <location line="+1037"/>
         <source>This text box holds too many paragraphs to be typed in here.</source>
         <translation type="unfinished">Kotak teks ini memuat terlalu banyak paragraf untuk diketik di sini.</translation>
     </message>
@@ -86542,7 +86525,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
         <translation type="unfinished">%1 tidak dapat dibuka sebagai gambar.</translation>
     </message>
     <message>
-        <location filename="../apps/write/core/editops.cpp" line="+2251"/>
+        <location filename="../apps/write/core/editops.cpp" line="+2279"/>
         <location filename="../apps/write/core/pictureops.cpp" line="-1574"/>
         <location line="+362"/>
         <location line="+2066"/>
@@ -86744,7 +86727,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
 <context>
     <name>jp::write::ReadyTables</name>
     <message>
-        <location filename="../apps/write/core/tableops.cpp" line="+2319"/>
+        <location filename="../apps/write/core/tableops.cpp" line="+2390"/>
         <source>Column 1</source>
         <translation type="unfinished">Kolom 1</translation>
     </message>
@@ -86901,7 +86884,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
 <context>
     <name>jp::write::Ruler</name>
     <message>
-        <location filename="../apps/write/app/ruler.cpp" line="+58"/>
+        <location filename="../apps/write/app/ruler.cpp" line="+59"/>
         <source>Ruler</source>
         <translation type="unfinished">Penggaris</translation>
     </message>
@@ -86911,7 +86894,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
         <translation type="unfinished">Margin, indentasi, dan tab berhenti dari paragraf tempat kursor berada. Seret penanda untuk mengubahnya.</translation>
     </message>
     <message>
-        <location line="+288"/>
+        <location line="+291"/>
         <source>First line indent</source>
         <translation>Indentasi baris pertama</translation>
     </message>
@@ -86965,7 +86948,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
     <name>jp::write::SectionMove</name>
     <message>
         <location filename="../apps/write/core/sectionmove.cpp" line="+65"/>
-        <location line="+11"/>
+        <location line="+13"/>
         <source>Only a heading, with what is under it, can be moved.</source>
         <translation type="unfinished">Hanya judul, beserta isi di bawahnya, yang dapat dipindahkan.</translation>
     </message>
@@ -87416,7 +87399,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
         <translation type="unfinished">Tidak ada gaya yang dapat diperbarui di sini.</translation>
     </message>
     <message>
-        <location filename="../apps/write/core/editops.cpp" line="+1090"/>
+        <location filename="../apps/write/core/editops.cpp" line="+1098"/>
         <source>The document has too many list styles.</source>
         <translation type="unfinished">Dokumen memiliki terlalu banyak gaya daftar.</translation>
     </message>
@@ -87474,7 +87457,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
 <context>
     <name>jp::write::Tables</name>
     <message>
-        <location filename="../apps/write/core/tableops.cpp" line="-2087"/>
+        <location filename="../apps/write/core/tableops.cpp" line="-2123"/>
         <source>A table can have at most 20,000 rows.</source>
         <translation type="unfinished">Tabel dapat memiliki paling banyak 20.000 baris.</translation>
     </message>
@@ -87502,7 +87485,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
         <translation type="unfinished">Kolom baru tidak dapat ditempatkan di sana: sel gabungan melintang di tempat kolom itu seharusnya berada.</translation>
     </message>
     <message>
-        <location filename="../apps/write/core/tableops.cpp" line="+1513"/>
+        <location filename="../apps/write/core/tableops.cpp" line="+1549"/>
         <location line="+68"/>
         <source>A table can only be moved in the main text.</source>
         <translation type="unfinished">Tabel hanya dapat dipindahkan di teks utama.</translation>
@@ -87555,7 +87538,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
         <translation type="unfinished">Tabel dengan jumlah kolom sebanyak itu terlalu lebar untuk sel tempat tabel tersebut berada.</translation>
     </message>
     <message>
-        <location line="+320"/>
+        <location line="+327"/>
         <source>A cell is split into at least two cells.</source>
         <translation type="unfinished">Sel dipisah menjadi minimal dua sel.</translation>
     </message>
@@ -87575,7 +87558,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
         <translation type="unfinished">Kursor tidak berada di dalam tabel.</translation>
     </message>
     <message>
-        <location line="+3"/>
+        <location line="+4"/>
         <source>The caret is not in a cell.</source>
         <translation type="unfinished">Kursor tidak berada di dalam sel.</translation>
     </message>
@@ -87601,12 +87584,12 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
     </message>
     <message>
         <location line="+4"/>
-        <location line="+279"/>
+        <location line="+282"/>
         <source>Type the character that separates the cells.</source>
         <translation type="unfinished">Ketik karakter yang memisahkan sel.</translation>
     </message>
     <message>
-        <location line="-80"/>
+        <location line="-81"/>
         <source>A table pasted from cells can have at most 500 rows and 63 columns.</source>
         <translation type="unfinished">Tabel yang ditempel dari sel dapat memiliki paling banyak 500 baris dan 63 kolom.</translation>
     </message>
@@ -87621,7 +87604,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
         <translation type="unfinished">Beberapa sel yang ditempel tidak muat dalam tabel dan tidak disertakan.</translation>
     </message>
     <message>
-        <location line="+16"/>
+        <location line="+17"/>
         <source>A table that has a table in a cell has to be made into text from the inside out.</source>
         <translation type="unfinished">Tabel yang memiliki tabel di dalam sel harus diubah menjadi teks dari dalam ke luar.</translation>
     </message>
@@ -87636,7 +87619,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
         <translation type="unfinished">Sel yang digabungkan ke bawah melintasi baris itu, sehingga tabel tidak dapat dipisah di sana.</translation>
     </message>
     <message>
-        <location line="+61"/>
+        <location line="+62"/>
         <source>Rows that have cells joined down can&apos;t be sorted.</source>
         <translation type="unfinished">Baris yang memiliki sel yang digabungkan ke bawah tidak dapat diurutkan.</translation>
     </message>
@@ -87651,6 +87634,11 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
         <translation type="unfinished">Baris yang selnya tidak berada di kolom yang sama tidak dapat diurutkan.</translation>
     </message>
     <message>
+        <location line="+297"/>
+        <source>This change was not made: the rows hold too many tables to mark as deleted.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <location filename="../apps/write/app/pageview_input.cpp" line="-1047"/>
         <location filename="../apps/write/core/homeops.cpp" line="-62"/>
         <location line="+35"/>
@@ -87663,6 +87651,19 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
         <location line="+9"/>
         <source>There are no cells to paste.</source>
         <translation type="unfinished">Tidak ada sel untuk ditempel.</translation>
+    </message>
+</context>
+<context>
+    <name>jp::write::Tracking</name>
+    <message>
+        <location filename="../apps/write/core/trackpolicy.cpp" line="+98"/>
+        <source>This change was not recorded as a tracked change.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>This change was not made: it would take part of a row that has tracked changes. Accept or reject them first.</source>
+        <translation type="unfinished"></translation>
     </message>
 </context>
 <context>

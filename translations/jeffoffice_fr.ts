@@ -6052,7 +6052,7 @@ Article de dernière page	4</translation>
     <message>
         <location filename="../libs/page/app/saveoptions.cpp" line="-15"/>
         <location filename="../apps/pub/app/mainwindow.cpp" line="+462"/>
-        <location filename="../apps/write/app/writewindow.cpp" line="+895"/>
+        <location filename="../apps/write/app/writewindow.cpp" line="+919"/>
         <source>Save</source>
         <translation type="unfinished">Enregistrement</translation>
     </message>
@@ -63489,7 +63489,7 @@ Votre navigateur web ouvrira LibreTranslate, un service de traduction gratuit et
         <translation type="unfinished">%1 occurrences</translation>
     </message>
     <message>
-        <location line="+161"/>
+        <location line="+167"/>
         <source>Found in the footer of page %1.</source>
         <translation type="unfinished">Trouvé dans le pied de page de la page %1.</translation>
     </message>
@@ -64089,7 +64089,7 @@ Votre navigateur web ouvrira LibreTranslate, un service de traduction gratuit et
 <context>
     <name>jp::WriteWindow</name>
     <message>
-        <location filename="../apps/write/app/writewindow.cpp" line="-803"/>
+        <location filename="../apps/write/app/writewindow.cpp" line="-826"/>
         <source>Document%1</source>
         <translation type="unfinished">Document%1</translation>
     </message>
@@ -64115,12 +64115,12 @@ Votre navigateur web ouvrira LibreTranslate, un service de traduction gratuit et
     </message>
     <message>
         <location line="+52"/>
-        <location filename="../apps/write/app/writewindow_view.cpp" line="+21"/>
+        <location filename="../apps/write/app/writewindow_view.cpp" line="+20"/>
         <source>%1 (%2)</source>
         <translation type="unfinished">%1 (%2)</translation>
     </message>
     <message>
-        <location line="+144"/>
+        <location line="+165"/>
         <source> (Protected)</source>
         <translation type="unfinished"> (Protégé)</translation>
     </message>
@@ -64151,13 +64151,13 @@ Votre navigateur web ouvrira LibreTranslate, un service de traduction gratuit et
         <translation type="unfinished">Le document utilise désormais les règles de mise en page les plus récentes.</translation>
     </message>
     <message>
-        <location line="+47"/>
+        <location line="+48"/>
         <location filename="../apps/write/app/writewindow_repeat.cpp" line="+110"/>
         <source>Formatting is limited in this document. Only styles that are not locked can be used.</source>
         <translation type="unfinished">La mise en forme est limitée dans ce document. Seuls les styles non verrouillés peuvent être utilisés.</translation>
     </message>
     <message>
-        <location line="+13"/>
+        <location line="+14"/>
         <source>Undo</source>
         <translation type="unfinished">Annuler</translation>
     </message>
@@ -64542,17 +64542,11 @@ Votre navigateur web ouvrira LibreTranslate, un service de traduction gratuit et
     </message>
     <message>
         <location line="+1"/>
-        <location line="+4"/>
-        <source>Turn off Track Changes to delete cells and shift the others.</source>
-        <translation type="unfinished">Désactivez le suivi des modifications pour supprimer les cellules et décaler les autres.</translation>
-    </message>
-    <message>
-        <location line="-1"/>
         <source>Delete Cells, Shift Up</source>
         <translation type="unfinished">Supprimer les cellules et décaler vers le haut</translation>
     </message>
     <message>
-        <location line="+4"/>
+        <location line="+1"/>
         <source>Delete Rows</source>
         <translation type="unfinished">Supprimer les lignes</translation>
     </message>
@@ -64764,7 +64758,7 @@ Votre navigateur web ouvrira LibreTranslate, un service de traduction gratuit et
         <translation type="unfinished">Faire pivoter le texte vers le haut</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/writewindow_home.cpp" line="+163"/>
+        <location filename="../apps/write/app/writewindow_home.cpp" line="+159"/>
         <location filename="../apps/write/app/writewindow_tables.cpp" line="+3"/>
         <source>Bottom Border</source>
         <translation type="unfinished">Bordure inférieure</translation>
@@ -67034,7 +67028,7 @@ Le mot de passe n&apos;a pas pu être appliqué au fichier.</translation>
         <translation type="unfinished">Symboles</translation>
     </message>
     <message>
-        <location line="+28"/>
+        <location line="+32"/>
         <source>The document has no style named &quot;%1&quot;, and it is not a built-in style, so the key changed nothing.</source>
         <translation type="unfinished">Le document n&apos;a aucun style nommé « %1 », et ce n&apos;est pas un style intégré : la touche n&apos;a rien modifié.</translation>
     </message>
@@ -68626,7 +68620,7 @@ Le mot de passe n&apos;a pas pu être appliqué au fichier.</translation>
         <translation type="unfinished">Atteindre la note de bas de page</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/writewindow_home.cpp" line="-134"/>
+        <location filename="../apps/write/app/writewindow_home.cpp" line="-130"/>
         <source>Sentence case</source>
         <translation type="unfinished">Phrase</translation>
     </message>
@@ -68769,12 +68763,7 @@ Le mot de passe n&apos;a pas pu être appliqué au fichier.</translation>
         <translation type="unfinished">Trier…</translation>
     </message>
     <message>
-        <location line="+3"/>
-        <source>Turn off Track Changes to sort: a sort is not recorded as a change.</source>
-        <translation type="unfinished">Désactivez les modifications suivies pour trier : un tri n&apos;est pas enregistré comme modification.</translation>
-    </message>
-    <message>
-        <location line="+5"/>
+        <location line="+4"/>
         <source>Select two or more paragraphs to sort.</source>
         <translation type="unfinished">Sélectionnez deux paragraphes ou plus à trier.</translation>
     </message>
@@ -68805,12 +68794,12 @@ Le mot de passe n&apos;a pas pu être appliqué au fichier.</translation>
     </message>
     <message>
         <location line="+15"/>
-        <location line="+214"/>
+        <location line="+215"/>
         <source>Translate</source>
         <translation type="unfinished">Traduire</translation>
     </message>
     <message>
-        <location line="-203"/>
+        <location line="-204"/>
         <source>Read Aloud</source>
         <translation type="unfinished">Lire à voix haute</translation>
     </message>
@@ -68848,7 +68837,7 @@ Le mot de passe n&apos;a pas pu être appliqué au fichier.</translation>
         </translation>
     </message>
     <message>
-        <location filename="../apps/write/app/writewindow_home.cpp" line="+31"/>
+        <location filename="../apps/write/app/writewindow_home.cpp" line="+32"/>
         <source>The rows are sorted.</source>
         <translation type="unfinished">Les lignes sont triées.</translation>
     </message>
@@ -69555,7 +69544,7 @@ Le mot de passe n&apos;a pas pu être appliqué au fichier.</translation>
         <translation type="unfinished">Placez d&apos;abord le curseur dans une table des sources juridiques.</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/writewindow_view.cpp" line="-59"/>
+        <location filename="../apps/write/app/writewindow_view.cpp" line="-58"/>
         <source>Navigation Pane</source>
         <translation type="unfinished">Volet de navigation</translation>
     </message>
@@ -69625,7 +69614,7 @@ Le mot de passe n&apos;a pas pu être appliqué au fichier.</translation>
         <translation type="unfinished">Les sections ne peuvent être déplacées que depuis le texte principal du document, pas depuis un en-tête, un pied de page, une note, une zone de texte ou un commentaire.</translation>
     </message>
     <message>
-        <location line="+3"/>
+        <location line="+2"/>
         <source>Put the caret in a heading, or under one, to move its section.</source>
         <translation type="unfinished">Placez le curseur dans un titre, ou sous un titre, pour déplacer sa section.</translation>
     </message>
@@ -69842,7 +69831,7 @@ Le mot de passe n&apos;a pas pu être appliqué au fichier.</translation>
         <translation type="unfinished">URGENT</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/writewindow_home.cpp" line="-26"/>
+        <location filename="../apps/write/app/writewindow_home.cpp" line="-27"/>
         <source>Word Count</source>
         <translation type="unfinished">Nombre de mots</translation>
     </message>
@@ -81797,19 +81786,13 @@ Le mot de passe n&apos;a pas pu être appliqué au fichier.</translation>
 <context>
     <name>jp::write::BlockMove</name>
     <message>
-        <location filename="../apps/write/app/writewindow_view.cpp" line="-216"/>
-        <location filename="../apps/write/core/blockmove.cpp" line="+174"/>
+        <location filename="../apps/write/app/writewindow_view.cpp" line="-215"/>
+        <location filename="../apps/write/core/blockmove.cpp" line="+173"/>
         <source>This document is protected, so a section can&apos;t be moved.</source>
         <translation type="unfinished">Ce document est protégé, donc une section ne peut pas être déplacée.</translation>
     </message>
     <message>
-        <location line="+6"/>
-        <location filename="../apps/write/core/blockmove.cpp" line="-1"/>
-        <source>Turn off Track Changes to move a section.</source>
-        <translation type="unfinished">Désactivez le suivi des modifications pour déplacer une section.</translation>
-    </message>
-    <message>
-        <location filename="../apps/write/core/blockmove.cpp" line="+2"/>
+        <location filename="../apps/write/core/blockmove.cpp" line="+1"/>
         <source>Sections can&apos;t be moved while endnotes are collected at the end of each section. Put the endnotes at the end of the document first.</source>
         <translation type="unfinished">Les sections ne peuvent pas être déplacées tant que les notes de fin sont regroupées à la fin de chaque section. Placez d&apos;abord les notes de fin à la fin du document.</translation>
     </message>
@@ -83717,7 +83700,7 @@ Le mot de passe n&apos;a pas pu être appliqué au fichier.</translation>
         <translation type="unfinished">Erreur ! Il n&apos;y a pas de texte répondant à ce style dans ce document.</translation>
     </message>
     <message>
-        <location filename="../apps/write/core/tocops.cpp" line="+345"/>
+        <location filename="../apps/write/core/tocops.cpp" line="+346"/>
         <location line="+71"/>
         <source>No headings were found for this table of contents.</source>
         <translation type="unfinished">Aucun titre n&apos;a été trouvé pour cette table des matières.</translation>
@@ -84893,7 +84876,7 @@ Le mot de passe n&apos;a pas pu être appliqué au fichier.</translation>
 <context>
     <name>jp::write::Inspector</name>
     <message>
-        <location filename="../apps/write/core/homeops.cpp" line="+438"/>
+        <location filename="../apps/write/core/homeops.cpp" line="+445"/>
         <source>Paragraph style</source>
         <translation>Style de paragraphe</translation>
     </message>
@@ -86252,23 +86235,23 @@ Le mot de passe n&apos;a pas pu être appliqué au fichier.</translation>
     </message>
     <message>
         <location filename="../apps/write/app/pageview_input.cpp" line="+146"/>
-        <location line="+599"/>
+        <location line="+608"/>
         <source>Keep Source Formatting</source>
         <translation type="unfinished">Conserver la mise en forme source</translation>
     </message>
     <message>
-        <location line="-491"/>
+        <location line="-500"/>
         <source>The Spike is full. Paste it to empty it.</source>
         <translation type="unfinished">Le Spike est plein. Collez-le pour le vider.</translation>
     </message>
     <message>
         <location line="-107"/>
-        <location line="+599"/>
+        <location line="+608"/>
         <source>Merge Formatting</source>
         <translation type="unfinished">Fusionner la mise en forme</translation>
     </message>
     <message>
-        <location line="-640"/>
+        <location line="-649"/>
         <source>A table with changes tracked in it is copied as its words, not as a table. Accept or reject the changes to copy it as a table.</source>
         <translation type="unfinished">Un tableau contenant des modifications suivies est copié sous forme de mots, et non de tableau. Acceptez ou refusez les modifications pour le copier sous forme de tableau.</translation>
     </message>
@@ -86284,12 +86267,12 @@ Le mot de passe n&apos;a pas pu être appliqué au fichier.</translation>
     </message>
     <message>
         <location line="+40"/>
-        <location line="+600"/>
+        <location line="+609"/>
         <source>Keep Text Only</source>
         <translation type="unfinished">Conserver le texte seul</translation>
     </message>
     <message>
-        <location line="-599"/>
+        <location line="-608"/>
         <source>Pasting within the same document</source>
         <translation type="unfinished">Collage dans le même document</translation>
     </message>
@@ -86304,7 +86287,7 @@ Le mot de passe n&apos;a pas pu être appliqué au fichier.</translation>
         <translation type="unfinished">Collage depuis d&apos;autres programmes</translation>
     </message>
     <message>
-        <location line="+599"/>
+        <location line="+608"/>
         <location filename="../apps/write/app/writewindow_options.cpp" line="+11"/>
         <source>Continue List</source>
         <translation type="unfinished">Continuer la liste</translation>
@@ -86433,7 +86416,7 @@ Le mot de passe n&apos;a pas pu être appliqué au fichier.</translation>
         <translation type="unfinished">JeffWrite ouvre uniquement les liens vers des adresses web, des adresses e-mail, ainsi que des documents ou des images de cet ordinateur.</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/pageview_pictures.cpp" line="+209"/>
+        <location filename="../apps/write/app/pageview_pictures.cpp" line="+210"/>
         <source>Select three or more objects first: click one, then hold Ctrl and click the others.</source>
         <translation type="unfinished">Sélectionnez d&apos;abord trois objets ou plus : cliquez sur un, puis maintenez Ctrl enfoncé et cliquez sur les autres.</translation>
     </message>
@@ -86493,7 +86476,7 @@ Le mot de passe n&apos;a pas pu être appliqué au fichier.</translation>
         <translation type="unfinished">Il n&apos;y a aucun groupe à rétablir. Le regroupement fonctionne après la dissociation, tant que ses objets sont encore présents.</translation>
     </message>
     <message>
-        <location line="+1036"/>
+        <location line="+1037"/>
         <source>This text box holds too many paragraphs to be typed in here.</source>
         <translation type="unfinished">Cette zone de texte contient trop de paragraphes pour être saisie ici.</translation>
     </message>
@@ -86671,7 +86654,7 @@ Le mot de passe n&apos;a pas pu être appliqué au fichier.</translation>
         <translation type="unfinished">Impossible d&apos;ouvrir %1 en tant qu&apos;image.</translation>
     </message>
     <message>
-        <location filename="../apps/write/core/editops.cpp" line="+2251"/>
+        <location filename="../apps/write/core/editops.cpp" line="+2279"/>
         <location filename="../apps/write/core/pictureops.cpp" line="-1574"/>
         <location line="+362"/>
         <location line="+2066"/>
@@ -86873,7 +86856,7 @@ Le mot de passe n&apos;a pas pu être appliqué au fichier.</translation>
 <context>
     <name>jp::write::ReadyTables</name>
     <message>
-        <location filename="../apps/write/core/tableops.cpp" line="+2319"/>
+        <location filename="../apps/write/core/tableops.cpp" line="+2390"/>
         <source>Column 1</source>
         <translation type="unfinished">Colonne 1</translation>
     </message>
@@ -87030,7 +87013,7 @@ Le mot de passe n&apos;a pas pu être appliqué au fichier.</translation>
 <context>
     <name>jp::write::Ruler</name>
     <message>
-        <location filename="../apps/write/app/ruler.cpp" line="+58"/>
+        <location filename="../apps/write/app/ruler.cpp" line="+59"/>
         <source>Ruler</source>
         <translation type="unfinished">Règle</translation>
     </message>
@@ -87040,7 +87023,7 @@ Le mot de passe n&apos;a pas pu être appliqué au fichier.</translation>
         <translation type="unfinished">Marges, retraits et taquets de tabulation du paragraphe où se trouve le curseur. Faites glisser un repère pour les modifier.</translation>
     </message>
     <message>
-        <location line="+288"/>
+        <location line="+291"/>
         <source>First line indent</source>
         <translation>Retrait de première ligne</translation>
     </message>
@@ -87094,7 +87077,7 @@ Le mot de passe n&apos;a pas pu être appliqué au fichier.</translation>
     <name>jp::write::SectionMove</name>
     <message>
         <location filename="../apps/write/core/sectionmove.cpp" line="+65"/>
-        <location line="+11"/>
+        <location line="+13"/>
         <source>Only a heading, with what is under it, can be moved.</source>
         <translation type="unfinished">Seul un titre, avec ce qui se trouve sous lui, peut être déplacé.</translation>
     </message>
@@ -87547,7 +87530,7 @@ Le mot de passe n&apos;a pas pu être appliqué au fichier.</translation>
         <translation type="unfinished">Il n&apos;y a aucun style à mettre à jour ici.</translation>
     </message>
     <message>
-        <location filename="../apps/write/core/editops.cpp" line="+1090"/>
+        <location filename="../apps/write/core/editops.cpp" line="+1098"/>
         <source>The document has too many list styles.</source>
         <translation type="unfinished">Le document contient trop de styles de liste.</translation>
     </message>
@@ -87605,7 +87588,7 @@ Le mot de passe n&apos;a pas pu être appliqué au fichier.</translation>
 <context>
     <name>jp::write::Tables</name>
     <message>
-        <location filename="../apps/write/core/tableops.cpp" line="-2087"/>
+        <location filename="../apps/write/core/tableops.cpp" line="-2123"/>
         <source>A table can have at most 20,000 rows.</source>
         <translation type="unfinished">Un tableau peut contenir au maximum 20 000 lignes.</translation>
     </message>
@@ -87633,7 +87616,7 @@ Le mot de passe n&apos;a pas pu être appliqué au fichier.</translation>
         <translation type="unfinished">Les nouvelles colonnes ne peuvent pas être insérées ici : des cellules fusionnées s&apos;étendent à l&apos;emplacement où elles devraient être.</translation>
     </message>
     <message>
-        <location filename="../apps/write/core/tableops.cpp" line="+1513"/>
+        <location filename="../apps/write/core/tableops.cpp" line="+1549"/>
         <location line="+68"/>
         <source>A table can only be moved in the main text.</source>
         <translation type="unfinished">Un tableau ne peut être déplacé que dans le texte principal.</translation>
@@ -87686,7 +87669,7 @@ Le mot de passe n&apos;a pas pu être appliqué au fichier.</translation>
         <translation type="unfinished">Un tableau comportant autant de colonnes est trop large pour la cellule qui le contiendrait.</translation>
     </message>
     <message>
-        <location line="+320"/>
+        <location line="+327"/>
         <source>A cell is split into at least two cells.</source>
         <translation type="unfinished">Une cellule doit être fractionnée en au moins deux cellules.</translation>
     </message>
@@ -87706,7 +87689,7 @@ Le mot de passe n&apos;a pas pu être appliqué au fichier.</translation>
         <translation type="unfinished">Le curseur ne se trouve pas dans un tableau.</translation>
     </message>
     <message>
-        <location line="+3"/>
+        <location line="+4"/>
         <source>The caret is not in a cell.</source>
         <translation type="unfinished">Le curseur ne se trouve pas dans une cellule.</translation>
     </message>
@@ -87732,12 +87715,12 @@ Le mot de passe n&apos;a pas pu être appliqué au fichier.</translation>
     </message>
     <message>
         <location line="+4"/>
-        <location line="+279"/>
+        <location line="+282"/>
         <source>Type the character that separates the cells.</source>
         <translation type="unfinished">Saisissez le caractère qui sépare les cellules.</translation>
     </message>
     <message>
-        <location line="-80"/>
+        <location line="-81"/>
         <source>A table pasted from cells can have at most 500 rows and 63 columns.</source>
         <translation type="unfinished">Un tableau créé à partir de cellules peut comporter au maximum 500 lignes et 63 colonnes.</translation>
     </message>
@@ -87752,7 +87735,7 @@ Le mot de passe n&apos;a pas pu être appliqué au fichier.</translation>
         <translation type="unfinished">Certaines cellules collées ne tenaient pas dans le tableau et ont été omises.</translation>
     </message>
     <message>
-        <location line="+16"/>
+        <location line="+17"/>
         <source>A table that has a table in a cell has to be made into text from the inside out.</source>
         <translation type="unfinished">Un tableau qui contient un tableau dans une cellule doit être converti en texte de l&apos;intérieur vers l&apos;extérieur.</translation>
     </message>
@@ -87767,7 +87750,7 @@ Le mot de passe n&apos;a pas pu être appliqué au fichier.</translation>
         <translation type="unfinished">Une cellule fusionnée verticalement s&apos;étend sur cette ligne, donc le tableau ne peut pas être fractionné à cet endroit.</translation>
     </message>
     <message>
-        <location line="+61"/>
+        <location line="+62"/>
         <source>Rows that have cells joined down can&apos;t be sorted.</source>
         <translation type="unfinished">Les lignes contenant des cellules fusionnées verticalement ne peuvent pas être triées.</translation>
     </message>
@@ -87782,6 +87765,11 @@ Le mot de passe n&apos;a pas pu être appliqué au fichier.</translation>
         <translation type="unfinished">Les lignes dont les cellules ne se trouvent pas dans les mêmes colonnes ne peuvent pas être triées.</translation>
     </message>
     <message>
+        <location line="+297"/>
+        <source>This change was not made: the rows hold too many tables to mark as deleted.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <location filename="../apps/write/app/pageview_input.cpp" line="-1047"/>
         <location filename="../apps/write/core/homeops.cpp" line="-62"/>
         <location line="+35"/>
@@ -87794,6 +87782,19 @@ Le mot de passe n&apos;a pas pu être appliqué au fichier.</translation>
         <location line="+9"/>
         <source>There are no cells to paste.</source>
         <translation type="unfinished">Il n&apos;y a aucune cellule à coller.</translation>
+    </message>
+</context>
+<context>
+    <name>jp::write::Tracking</name>
+    <message>
+        <location filename="../apps/write/core/trackpolicy.cpp" line="+98"/>
+        <source>This change was not recorded as a tracked change.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>This change was not made: it would take part of a row that has tracked changes. Accept or reject them first.</source>
+        <translation type="unfinished"></translation>
     </message>
 </context>
 <context>

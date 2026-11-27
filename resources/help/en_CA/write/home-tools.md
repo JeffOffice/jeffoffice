@@ -34,7 +34,7 @@ Sorting puts paragraphs in order, such as A to Z. Use it for a list of names, or
 5. Check **The first paragraph is a header** to leave it where it is.
 6. Click **OK**.
 
-Each place keeps its own paragraph look. Sorting cannot be used while Track Changes is on, because a sort is not a change to show. Turn Track Changes off, sort, and turn it on again.
+Each place keeps its own paragraph look. While Track Changes is on, a sort is made as usual, without a record, and the status bar says it was not recorded as a tracked change. Sorting the rows of a table that has an inserted or a deleted row is not done: accept or reject those changes first.
 
 ## Paste in other ways
 

@@ -6052,7 +6052,7 @@ Artikel auf der Rückseite	4</translation>
     <message>
         <location filename="../libs/page/app/saveoptions.cpp" line="-15"/>
         <location filename="../apps/pub/app/mainwindow.cpp" line="+462"/>
-        <location filename="../apps/write/app/writewindow.cpp" line="+895"/>
+        <location filename="../apps/write/app/writewindow.cpp" line="+919"/>
         <source>Save</source>
         <translation type="unfinished">Speichern</translation>
     </message>
@@ -63489,7 +63489,7 @@ Ihr Webbrowser öffnet LibreTranslate, einen kostenlosen Open-Source-Übersetzun
         <translation type="unfinished">%1 Treffer</translation>
     </message>
     <message>
-        <location line="+161"/>
+        <location line="+167"/>
         <source>Found in the footer of page %1.</source>
         <translation type="unfinished">Gefunden in der Fußzeile von Seite %1.</translation>
     </message>
@@ -64089,7 +64089,7 @@ Ihr Webbrowser öffnet LibreTranslate, einen kostenlosen Open-Source-Übersetzun
 <context>
     <name>jp::WriteWindow</name>
     <message>
-        <location filename="../apps/write/app/writewindow.cpp" line="-803"/>
+        <location filename="../apps/write/app/writewindow.cpp" line="-826"/>
         <source>Document%1</source>
         <translation type="unfinished">Dokument%1</translation>
     </message>
@@ -64115,12 +64115,12 @@ Ihr Webbrowser öffnet LibreTranslate, einen kostenlosen Open-Source-Übersetzun
     </message>
     <message>
         <location line="+52"/>
-        <location filename="../apps/write/app/writewindow_view.cpp" line="+21"/>
+        <location filename="../apps/write/app/writewindow_view.cpp" line="+20"/>
         <source>%1 (%2)</source>
         <translation type="unfinished">%1 (%2)</translation>
     </message>
     <message>
-        <location line="+144"/>
+        <location line="+165"/>
         <source> (Protected)</source>
         <translation type="unfinished"> (Geschützt)</translation>
     </message>
@@ -64151,13 +64151,13 @@ Ihr Webbrowser öffnet LibreTranslate, einen kostenlosen Open-Source-Übersetzun
         <translation type="unfinished">Das Dokument verwendet jetzt die neuesten Layoutregeln.</translation>
     </message>
     <message>
-        <location line="+47"/>
+        <location line="+48"/>
         <location filename="../apps/write/app/writewindow_repeat.cpp" line="+110"/>
         <source>Formatting is limited in this document. Only styles that are not locked can be used.</source>
         <translation type="unfinished">Die Formatierung ist in diesem Dokument eingeschränkt. Nur Formatvorlagen, die nicht gesperrt sind, können verwendet werden.</translation>
     </message>
     <message>
-        <location line="+13"/>
+        <location line="+14"/>
         <source>Undo</source>
         <translation type="unfinished">Rückgängig</translation>
     </message>
@@ -64542,17 +64542,11 @@ Ihr Webbrowser öffnet LibreTranslate, einen kostenlosen Open-Source-Übersetzun
     </message>
     <message>
         <location line="+1"/>
-        <location line="+4"/>
-        <source>Turn off Track Changes to delete cells and shift the others.</source>
-        <translation type="unfinished">Schalten Sie die Änderungsverfolgung aus, um Zellen zu löschen und die übrigen zu verschieben.</translation>
-    </message>
-    <message>
-        <location line="-1"/>
         <source>Delete Cells, Shift Up</source>
         <translation type="unfinished">Zellen löschen und nach oben verschieben</translation>
     </message>
     <message>
-        <location line="+4"/>
+        <location line="+1"/>
         <source>Delete Rows</source>
         <translation type="unfinished">Zeilen löschen</translation>
     </message>
@@ -64764,7 +64758,7 @@ Ihr Webbrowser öffnet LibreTranslate, einen kostenlosen Open-Source-Übersetzun
         <translation type="unfinished">Text nach oben drehen</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/writewindow_home.cpp" line="+163"/>
+        <location filename="../apps/write/app/writewindow_home.cpp" line="+159"/>
         <location filename="../apps/write/app/writewindow_tables.cpp" line="+3"/>
         <source>Bottom Border</source>
         <translation type="unfinished">Rahmenlinie unten</translation>
@@ -67034,7 +67028,7 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
         <translation type="unfinished">Symbole</translation>
     </message>
     <message>
-        <location line="+28"/>
+        <location line="+32"/>
         <source>The document has no style named &quot;%1&quot;, and it is not a built-in style, so the key changed nothing.</source>
         <translation type="unfinished">Das Dokument enthält keine Formatvorlage namens &quot;%1&quot;, und es handelt sich nicht um eine integrierte Formatvorlage, daher hat die Tastenkombination nichts geändert.</translation>
     </message>
@@ -68626,7 +68620,7 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
         <translation type="unfinished">Zur Fußnote wechseln</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/writewindow_home.cpp" line="-134"/>
+        <location filename="../apps/write/app/writewindow_home.cpp" line="-130"/>
         <source>Sentence case</source>
         <translation type="unfinished">Satzbeginn groß</translation>
     </message>
@@ -68769,12 +68763,7 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
         <translation type="unfinished">Sortieren…</translation>
     </message>
     <message>
-        <location line="+3"/>
-        <source>Turn off Track Changes to sort: a sort is not recorded as a change.</source>
-        <translation type="unfinished">Zum Sortieren die Nachverfolgung von Änderungen deaktivieren: Ein Sortieren wird nicht als Änderung erfasst.</translation>
-    </message>
-    <message>
-        <location line="+5"/>
+        <location line="+4"/>
         <source>Select two or more paragraphs to sort.</source>
         <translation type="unfinished">Wählen Sie zwei oder mehr Absätze zum Sortieren aus.</translation>
     </message>
@@ -68805,12 +68794,12 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
     </message>
     <message>
         <location line="+15"/>
-        <location line="+214"/>
+        <location line="+215"/>
         <source>Translate</source>
         <translation type="unfinished">Übersetzen</translation>
     </message>
     <message>
-        <location line="-203"/>
+        <location line="-204"/>
         <source>Read Aloud</source>
         <translation type="unfinished">Vorlesen</translation>
     </message>
@@ -68848,7 +68837,7 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
         </translation>
     </message>
     <message>
-        <location filename="../apps/write/app/writewindow_home.cpp" line="+31"/>
+        <location filename="../apps/write/app/writewindow_home.cpp" line="+32"/>
         <source>The rows are sorted.</source>
         <translation type="unfinished">Die Zeilen wurden sortiert.</translation>
     </message>
@@ -69555,7 +69544,7 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
         <translation type="unfinished">Setzen Sie die Einfügemarke zuerst in ein Verzeichnis der Rechtsquellen.</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/writewindow_view.cpp" line="-59"/>
+        <location filename="../apps/write/app/writewindow_view.cpp" line="-58"/>
         <source>Navigation Pane</source>
         <translation type="unfinished">Navigationsbereich</translation>
     </message>
@@ -69625,7 +69614,7 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
         <translation type="unfinished">Abschnitte können nur aus dem Haupttext des Dokuments verschoben werden, nicht aus einer Kopf- oder Fußzeile, Fußnote, einem Textfeld oder Kommentar.</translation>
     </message>
     <message>
-        <location line="+3"/>
+        <location line="+2"/>
         <source>Put the caret in a heading, or under one, to move its section.</source>
         <translation type="unfinished">Setzen Sie den Cursor in eine Überschrift oder darunter, um deren Abschnitt zu verschieben.</translation>
     </message>
@@ -69842,7 +69831,7 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
         <translation type="unfinished">DRINGEND</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/writewindow_home.cpp" line="-26"/>
+        <location filename="../apps/write/app/writewindow_home.cpp" line="-27"/>
         <source>Word Count</source>
         <translation type="unfinished">Wortanzahl</translation>
     </message>
@@ -81797,19 +81786,13 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
 <context>
     <name>jp::write::BlockMove</name>
     <message>
-        <location filename="../apps/write/app/writewindow_view.cpp" line="-216"/>
-        <location filename="../apps/write/core/blockmove.cpp" line="+174"/>
+        <location filename="../apps/write/app/writewindow_view.cpp" line="-215"/>
+        <location filename="../apps/write/core/blockmove.cpp" line="+173"/>
         <source>This document is protected, so a section can&apos;t be moved.</source>
         <translation type="unfinished">Dieses Dokument ist geschützt, daher kann ein Abschnitt nicht verschoben werden.</translation>
     </message>
     <message>
-        <location line="+6"/>
-        <location filename="../apps/write/core/blockmove.cpp" line="-1"/>
-        <source>Turn off Track Changes to move a section.</source>
-        <translation type="unfinished">Schalten Sie die Änderungsnachverfolgung aus, um einen Abschnitt zu verschieben.</translation>
-    </message>
-    <message>
-        <location filename="../apps/write/core/blockmove.cpp" line="+2"/>
+        <location filename="../apps/write/core/blockmove.cpp" line="+1"/>
         <source>Sections can&apos;t be moved while endnotes are collected at the end of each section. Put the endnotes at the end of the document first.</source>
         <translation type="unfinished">Abschnitte können nicht verschoben werden, solange Endnoten am Ende jedes Abschnitts gesammelt werden. Setzen Sie die Endnoten zuerst an das Ende des Dokuments.</translation>
     </message>
@@ -83717,7 +83700,7 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
         <translation type="unfinished">Fehler! Kein Text mit angegebener Formatvorlage im Dokument.</translation>
     </message>
     <message>
-        <location filename="../apps/write/core/tocops.cpp" line="+345"/>
+        <location filename="../apps/write/core/tocops.cpp" line="+346"/>
         <location line="+71"/>
         <source>No headings were found for this table of contents.</source>
         <translation type="unfinished">Für dieses Inhaltsverzeichnis wurden keine Überschriften gefunden.</translation>
@@ -84893,7 +84876,7 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
 <context>
     <name>jp::write::Inspector</name>
     <message>
-        <location filename="../apps/write/core/homeops.cpp" line="+438"/>
+        <location filename="../apps/write/core/homeops.cpp" line="+445"/>
         <source>Paragraph style</source>
         <translation>Absatzformatvorlage</translation>
     </message>
@@ -86252,23 +86235,23 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
     </message>
     <message>
         <location filename="../apps/write/app/pageview_input.cpp" line="+146"/>
-        <location line="+599"/>
+        <location line="+608"/>
         <source>Keep Source Formatting</source>
         <translation type="unfinished">Quellformatierung beibehalten</translation>
     </message>
     <message>
-        <location line="-491"/>
+        <location line="-500"/>
         <source>The Spike is full. Paste it to empty it.</source>
         <translation type="unfinished">Der Spike ist voll. Fügen Sie ihn ein, um ihn zu leeren.</translation>
     </message>
     <message>
         <location line="-107"/>
-        <location line="+599"/>
+        <location line="+608"/>
         <source>Merge Formatting</source>
         <translation type="unfinished">Formatierung zusammenführen</translation>
     </message>
     <message>
-        <location line="-640"/>
+        <location line="-649"/>
         <source>A table with changes tracked in it is copied as its words, not as a table. Accept or reject the changes to copy it as a table.</source>
         <translation type="unfinished">Eine Tabelle mit nachverfolgten Änderungen wird als ihre Wörter kopiert, nicht als Tabelle. Akzeptieren oder lehnen Sie die Änderungen ab, um sie als Tabelle zu kopieren.</translation>
     </message>
@@ -86284,12 +86267,12 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
     </message>
     <message>
         <location line="+40"/>
-        <location line="+600"/>
+        <location line="+609"/>
         <source>Keep Text Only</source>
         <translation type="unfinished">Nur Text beibehalten</translation>
     </message>
     <message>
-        <location line="-599"/>
+        <location line="-608"/>
         <source>Pasting within the same document</source>
         <translation type="unfinished">Einfügen innerhalb desselben Dokuments</translation>
     </message>
@@ -86304,7 +86287,7 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
         <translation type="unfinished">Einfügen aus anderen Programmen</translation>
     </message>
     <message>
-        <location line="+599"/>
+        <location line="+608"/>
         <location filename="../apps/write/app/writewindow_options.cpp" line="+11"/>
         <source>Continue List</source>
         <translation type="unfinished">Liste fortsetzen</translation>
@@ -86433,7 +86416,7 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
         <translation type="unfinished">JeffWrite öffnet Links zu Webadressen, E-Mail-Adressen sowie Dokumente oder Bilder nur auf diesem Computer.</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/pageview_pictures.cpp" line="+209"/>
+        <location filename="../apps/write/app/pageview_pictures.cpp" line="+210"/>
         <source>Select three or more objects first: click one, then hold Ctrl and click the others.</source>
         <translation type="unfinished">Wählen Sie zuerst drei oder mehr Objekte aus: Klicken Sie auf eines, halten Sie dann Strg gedrückt und klicken Sie auf die anderen.</translation>
     </message>
@@ -86493,7 +86476,7 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
         <translation type="unfinished">Es gibt keine Gruppe zum Wiederherstellen. Gruppierung wiederherstellen funktioniert nach Gruppierung aufheben, solange ihre Objekte noch vorhanden sind.</translation>
     </message>
     <message>
-        <location line="+1036"/>
+        <location line="+1037"/>
         <source>This text box holds too many paragraphs to be typed in here.</source>
         <translation type="unfinished">Dieses Textfeld enthält zu viele Absätze, um hier eingegeben zu werden.</translation>
     </message>
@@ -86671,7 +86654,7 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
         <translation type="unfinished">%1 kann nicht als Bild geöffnet werden.</translation>
     </message>
     <message>
-        <location filename="../apps/write/core/editops.cpp" line="+2251"/>
+        <location filename="../apps/write/core/editops.cpp" line="+2279"/>
         <location filename="../apps/write/core/pictureops.cpp" line="-1574"/>
         <location line="+362"/>
         <location line="+2066"/>
@@ -86873,7 +86856,7 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
 <context>
     <name>jp::write::ReadyTables</name>
     <message>
-        <location filename="../apps/write/core/tableops.cpp" line="+2319"/>
+        <location filename="../apps/write/core/tableops.cpp" line="+2390"/>
         <source>Column 1</source>
         <translation type="unfinished">Spalte 1</translation>
     </message>
@@ -87030,7 +87013,7 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
 <context>
     <name>jp::write::Ruler</name>
     <message>
-        <location filename="../apps/write/app/ruler.cpp" line="+58"/>
+        <location filename="../apps/write/app/ruler.cpp" line="+59"/>
         <source>Ruler</source>
         <translation type="unfinished">Lineal</translation>
     </message>
@@ -87040,7 +87023,7 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
         <translation type="unfinished">Die Seitenränder, Einzüge und Tabstopps des Absatzes, in dem sich die Einfügemarke befindet. Ziehen Sie eine Markierung, um sie zu ändern.</translation>
     </message>
     <message>
-        <location line="+288"/>
+        <location line="+291"/>
         <source>First line indent</source>
         <translation>Einzug erste Zeile</translation>
     </message>
@@ -87094,7 +87077,7 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
     <name>jp::write::SectionMove</name>
     <message>
         <location filename="../apps/write/core/sectionmove.cpp" line="+65"/>
-        <location line="+11"/>
+        <location line="+13"/>
         <source>Only a heading, with what is under it, can be moved.</source>
         <translation type="unfinished">Nur eine Überschrift mit dem darunterliegenden Inhalt kann verschoben werden.</translation>
     </message>
@@ -87547,7 +87530,7 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
         <translation type="unfinished">Hier gibt es keine Formatvorlage zum Aktualisieren.</translation>
     </message>
     <message>
-        <location filename="../apps/write/core/editops.cpp" line="+1090"/>
+        <location filename="../apps/write/core/editops.cpp" line="+1098"/>
         <source>The document has too many list styles.</source>
         <translation type="unfinished">Das Dokument enthält zu viele Listenformatvorlagen.</translation>
     </message>
@@ -87605,7 +87588,7 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
 <context>
     <name>jp::write::Tables</name>
     <message>
-        <location filename="../apps/write/core/tableops.cpp" line="-2087"/>
+        <location filename="../apps/write/core/tableops.cpp" line="-2123"/>
         <source>A table can have at most 20,000 rows.</source>
         <translation type="unfinished">Eine Tabelle kann höchstens 20.000 Zeilen enthalten.</translation>
     </message>
@@ -87633,7 +87616,7 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
         <translation type="unfinished">Neue Spalten können dort nicht stehen: Verbundene Zellen reichen über die Stelle, an der sie stehen würden.</translation>
     </message>
     <message>
-        <location filename="../apps/write/core/tableops.cpp" line="+1513"/>
+        <location filename="../apps/write/core/tableops.cpp" line="+1549"/>
         <location line="+68"/>
         <source>A table can only be moved in the main text.</source>
         <translation type="unfinished">Eine Tabelle kann nur im Haupttext verschoben werden.</translation>
@@ -87686,7 +87669,7 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
         <translation type="unfinished">Eine Tabelle mit so vielen Spalten ist zu breit für die Zelle, in der sie stehen würde.</translation>
     </message>
     <message>
-        <location line="+320"/>
+        <location line="+327"/>
         <source>A cell is split into at least two cells.</source>
         <translation type="unfinished">Eine Zelle wird in mindestens zwei Zellen geteilt.</translation>
     </message>
@@ -87706,7 +87689,7 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
         <translation type="unfinished">Die Einfügemarke befindet sich nicht in einer Tabelle.</translation>
     </message>
     <message>
-        <location line="+3"/>
+        <location line="+4"/>
         <source>The caret is not in a cell.</source>
         <translation type="unfinished">Die Einfügemarke befindet sich nicht in einer Zelle.</translation>
     </message>
@@ -87732,12 +87715,12 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
     </message>
     <message>
         <location line="+4"/>
-        <location line="+279"/>
+        <location line="+282"/>
         <source>Type the character that separates the cells.</source>
         <translation type="unfinished">Geben Sie das Zeichen ein, das die Zellen trennt.</translation>
     </message>
     <message>
-        <location line="-80"/>
+        <location line="-81"/>
         <source>A table pasted from cells can have at most 500 rows and 63 columns.</source>
         <translation type="unfinished">Eine aus Zellen eingefügte Tabelle kann höchstens 500 Zeilen und 63 Spalten haben.</translation>
     </message>
@@ -87752,7 +87735,7 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
         <translation type="unfinished">Einige der eingefügten Zellen passten nicht in die Tabelle und wurden ausgelassen.</translation>
     </message>
     <message>
-        <location line="+16"/>
+        <location line="+17"/>
         <source>A table that has a table in a cell has to be made into text from the inside out.</source>
         <translation type="unfinished">Eine Tabelle, die in einer Zelle eine Tabelle enthält, muss von innen nach außen in Text umgewandelt werden.</translation>
     </message>
@@ -87767,7 +87750,7 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
         <translation type="unfinished">Eine nach unten verbundene Zelle erstreckt sich über diese Zeile, daher kann die Tabelle dort nicht geteilt werden.</translation>
     </message>
     <message>
-        <location line="+61"/>
+        <location line="+62"/>
         <source>Rows that have cells joined down can&apos;t be sorted.</source>
         <translation type="unfinished">Zeilen mit nach unten verbundenen Zellen können nicht sortiert werden.</translation>
     </message>
@@ -87782,6 +87765,11 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
         <translation type="unfinished">Zeilen, deren Zellen nicht in denselben Spalten liegen, können nicht sortiert werden.</translation>
     </message>
     <message>
+        <location line="+297"/>
+        <source>This change was not made: the rows hold too many tables to mark as deleted.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <location filename="../apps/write/app/pageview_input.cpp" line="-1047"/>
         <location filename="../apps/write/core/homeops.cpp" line="-62"/>
         <location line="+35"/>
@@ -87794,6 +87782,19 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
         <location line="+9"/>
         <source>There are no cells to paste.</source>
         <translation type="unfinished">Es gibt keine Zellen zum Einfügen.</translation>
+    </message>
+</context>
+<context>
+    <name>jp::write::Tracking</name>
+    <message>
+        <location filename="../apps/write/core/trackpolicy.cpp" line="+98"/>
+        <source>This change was not recorded as a tracked change.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>This change was not made: it would take part of a row that has tracked changes. Accept or reject them first.</source>
+        <translation type="unfinished"></translation>
     </message>
 </context>
 <context>
