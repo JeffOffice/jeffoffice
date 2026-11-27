@@ -5685,7 +5685,7 @@ private Q_SLOTS:
         QCOMPARE(w.compareWith(dir.filePath(QStringLiteral("revised.docx")), o), 1);
         WriteWindow *made = nullptr;
         for (QWidget *top : QApplication::topLevelWidgets())
-            if (auto *ww = qobject_cast<WriteWindow *>(top); ww && ww != &w) made = ww;
+            if (auto *ww = qobject_cast<WriteWindow *>(top); ww && ww != &w && ww->isVisible()) made = ww;
         QVERIFY(made);
         const QString path = dir.filePath(QStringLiteral("compared.docx"));
         QVERIFY(made->saveTo(path));
@@ -5803,6 +5803,25 @@ private Q_SLOTS:
         QVERIFY(!kept.tracked);
         QCOMPARE(kept.texts, storyTexts(*lone));
         QCOMPARE(kept.tables.value(0).rows, (QVector<QStringList>{{"a1", "a2"}, {"b1", "b2"}}));
+    }
+
+    void aTableTakenOutOrPutInIsOneDifferenceThroughTheWindowsCompare()
+    {
+        auto counted = [](const AppCompared &r) {
+            const QRegularExpressionMatch m = QRegularExpression(QStringLiteral("(\\d+) difference")).match(r.status);
+            return m.hasMatch() ? m.captured(1).toInt() : 0;
+        };
+        const QByteArray t1 = twoByTwo("a1", "a2", "b1", "b2"), t2 = twoByTwo("x1", "x2", "y1", "y2");
+        const QByteArray with = para(run("p")) + t1 + para(run("m")) + t2, without = para(run("p")) + t1;
+        AppCompared r = compareInApp(makeDocx(with), makeDocx(without));
+        QCOMPARE(counted(r), 1);   // (the table taken out)
+        r = compareInApp(makeDocx(without), makeDocx(with));
+        QCOMPARE(counted(r), 1);   // (the table put in)
+        // A table taken out and a paragraph changed that has nothing to do with it: the paragraph is marked, the table is counted once.
+        r = compareInApp(makeDocx(para(run("p one")) + t1 + para(run("m")) + t2), makeDocx(para(run("p two")) + t1));
+        QCOMPARE(counted(r), 1);
+        QVERIFY2(r.changes > 0, qPrintable(QString::number(r.changes)));
+        QVERIFY(resolved(r.saved, true).texts != resolved(r.saved, false).texts);
     }
 
     void tablesArePairedByTheirPlaceAmongTheParagraphsAndATableWithNoPartnerIsCounted()
@@ -5942,7 +5961,20 @@ private Q_SLOTS:
         c.body = d.body = para(run("same"));
         d.header = para(run("new header"));
         note = noteOf(c, d, &count);
-        QVERIFY2(note.contains(QStringLiteral("(headers and footers)")), qPrintable(note));
+        QVERIFY2(note.contains(QStringLiteral("(headers or footers)")), qPrintable(note));
+        // That kind in a list of two and of three.
+        NoteDoc e, f;
+        e.body = para(run("x ")) + twoByTwo("a1", "a2", "b1", "b2");
+        f.body = para(run("x ")) + markedWords({2}) + twoByTwo("a1", "a2", "b1", "b2");
+        f.notes = {"a note"};
+        f.header = para(run("new header"));
+        note = noteOf(e, f, &count);
+        QCOMPARE(count, qint64(2));
+        QVERIFY2(note.contains(QStringLiteral("(footnotes and headers or footers)")), qPrintable(note));
+        f.body = para(run("x ")) + markedWords({2});
+        note = noteOf(e, f, &count);
+        QCOMPARE(count, qint64(3));
+        QVERIFY2(note.contains(QStringLiteral("(tables, footnotes, and headers or footers)")), qPrintable(note));
     }
 
     // ---- the limits

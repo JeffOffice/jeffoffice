@@ -1025,7 +1025,8 @@ Outcome compareStory(CompareContext &context, WriteDoc *out, QTextDocument *stor
                 // paragraph with its own mark deleted that has them left can't be joined to the next, where this one's mark is the one that is left.)
                 const bool lastWay = !blk.next().isValid() || movedA.at(t) >= 0;
                 if (lastWay && blk.previous().isValid() && tablesA.tableOfBlock.value(t - 1, -1) >= 0) {   // (the last paragraph, after a table: its mark is not the one that can go)
-                    context.work.countUnmarked(CompareWork::Tables);
+                    const int before = tablesA.tableOfBlock.value(t - 1, -1);
+                    if (partnerA.value(before, -1) >= 0) context.work.countUnmarked(CompareWork::Tables);   // (after a table with no partner, it is that table's difference, counted already)
                     continue;
                 }
                 const int markPos = !lastWay || !blk.previous().isValid() ? blk.position() : blk.previous().position();
@@ -1171,7 +1172,7 @@ QString kindsOfUnmarked(const CompareWork &work)
         case CompareWork::Footnotes: names << QCoreApplication::translate("jp::write::Compare", "footnotes"); break;
         case CompareWork::Endnotes: names << QCoreApplication::translate("jp::write::Compare", "endnotes"); break;
         case CompareWork::TextBoxes: names << QCoreApplication::translate("jp::write::Compare", "text boxes"); break;
-        case CompareWork::HeadersFooters: names << QCoreApplication::translate("jp::write::Compare", "headers and footers"); break;
+        case CompareWork::HeadersFooters: names << QCoreApplication::translate("jp::write::Compare", "headers or footers"); break;
         default: names << QCoreApplication::translate("jp::write::Compare", "parts kept as they were written"); break;
         }
     }
