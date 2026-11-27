@@ -732,7 +732,7 @@
         },
         {
          "status": "partly",
-         "text": "6f2f03c4712f5e570a118aea951da84d8299660399f246647ed1dc36c37320dd"
+         "text": "f0c11f2fbb39a831252240b6d221a16f0257e5d305e70aea3a3c625197263057"
         },
         {
          "hide_soon": true,
@@ -16895,18 +16895,6 @@
     "fr": ""
    }
   },
-  "6f2f03c4712f5e570a118aea951da84d8299660399f246647ed1dc36c37320dd": {
-   "drop": false,
-   "en": "Create radar, radar with markers, and filled radar charts, and read and save them in `.xlsx` and `.ods` files. Doughnut charts and combo charts with a secondary axis are also available.",
-   "es": "Cree gráficos de radar, de radar con marcadores y de radar relleno, y léalos y guárdelos en archivos `.xlsx` y `.ods`. También están disponibles los gráficos de anillos y los gráficos combinados con eje secundario.",
-   "fr": "Créez des graphiques radar, radar avec marqueurs et radar plein, puis lisez-les et enregistrez-les dans des fichiers `.xlsx` et `.ods`. Les graphiques en anneau et les graphiques combinés avec axe secondaire sont aussi disponibles.",
-   "soon": {
-    "drop": false,
-    "en": "Stock, bubble, pie of pie, bar of pie, 3-D column, 3-D bar, 3-D line, 3-D area, 3-D pie, and surface charts",
-    "es": "Gráficos de cotizaciones, de burbujas, de circular de circular, de barras de circular, de columnas 3D, de barras 3D, de líneas 3D, de áreas 3D, circulares 3D y de superficie",
-    "fr": "Graphiques boursiers, à bulles, secteurs de secteurs, barres de secteurs, histogrammes 3D, barres 3D, courbes 3D, aires 3D, secteurs 3D et de surface"
-   }
-  },
   "6f5567233b3586917bc6fa3e9ebcb15af1023df0be5a62d8862d4246193b0c8d": {
    "drop": false,
    "en": "Write right-to-left and complex script text, with a right-to-left paragraph direction on the Home tab and in the Paragraph dialog.",
@@ -25977,6 +25965,18 @@
     "en": "",
     "es": "",
     "fr": ""
+   }
+  },
+  "f0c11f2fbb39a831252240b6d221a16f0257e5d305e70aea3a3c625197263057": {
+   "drop": false,
+   "en": "Create doughnut, radar (with markers and filled), and stock charts (high-low-close, open-high-low-close, and the two volume forms), plus combo charts that put a column and a line together with a secondary axis. Charts open and save in `.xlsx` and `.ods` files, and open from `.xls` and `.odp` files.",
+   "es": "Cree gráficos de anillos, radiales (con marcadores y rellenos) y de cotizaciones (máximos-mínimos-cierre, apertura-máximos-mínimos-cierre y las dos formas con volumen), además de gráficos combinados que unen columnas y líneas con un eje secundario. Los gráficos se abren y se guardan en `.xlsx` y `.ods`, y se abren desde `.xls` y `.odp`.",
+   "fr": "Créez des graphiques en anneau, en radar (avec marqueurs et remplis) et boursiers (haut-bas-clôture, ouverture-haut-bas-clôture et les deux formes avec volume), ainsi que des graphiques combinés associant colonnes et courbes avec un axe secondaire. Les graphiques s’ouvrent et s’enregistrent en `.xlsx` et `.ods`, et s’ouvrent depuis `.xls` et `.odp`.",
+   "soon": {
+    "drop": false,
+    "en": "More chart kinds: bubble, pie of pie, bar of pie, surface, and 3-D column, bar, line, pie, and area",
+    "es": "Más tipos de gráficos: burbujas, circular de circular, barra de circular, de superficie y en 3D de columnas, barras, líneas, circular y áreas",
+    "fr": "Autres types de graphiques : bulles, secteur de secteur, barre de secteur, surface, et colonnes, barres, courbes, secteurs et aires en 3D"
    }
   },
   "f0cea6489a10036df2daf8bbdbcc3762135ffe4392ea5948a3af26227ca7ceb1": {
