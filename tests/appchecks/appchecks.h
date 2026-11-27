@@ -249,7 +249,7 @@ QStringList filesNow();
 // Whether the picture has something drawn on it (more than one color).
 bool hasDrawnContent(const QPixmap &picture);
 // The print preview of the window (its Print page shown, the page waited for), and whether it shows more than the preview of a blank document of the app does.
-QPixmap printPreviewOf(Adapter &app, jp::AppWindow *w);
+QPixmap printPreviewOf(Adapter &app, jp::AppWindow *w, bool mayBeBlank = false);
 bool previewShowsTheDocument(Adapter &app, jp::AppWindow *w);
 
 // Whether a File screen's Open page lists the file among the recent ones (a list whose entries carry the file's path).

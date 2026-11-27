@@ -347,27 +347,37 @@ void typeInto(QWidget *target, const QString &text)
     }
 }
 
-QPixmap printPreviewOf(Adapter &app, jp::AppWindow *w)
+// (`mayBeBlank`: a blank document of a program may show no picture at all, or one with nothing drawn on it; either is an answer, taken after 50 rounds, or once the picture has stayed the same for ten. Before, a blank workbook's preview, which stays empty, was waited for up to the five-minute ceiling: 304 s of CrunchAppChecks::firstFiveMinutes)
+QPixmap printPreviewOf(Adapter &app, jp::AppWindow *w, bool mayBeBlank)
 {
     QWidget *screen = app.showPrint(w);
     QPixmap shown;
+    QImage last;
+    int same = 0;
     waitFor([&] {
         const QLabel *preview = screen ? screen->findChild<QLabel *>(QStringLiteral("printPreview")) : nullptr;
-        if (!preview || preview->pixmap().isNull() || !hasDrawnContent(preview->pixmap())) return false;
+        if (!preview || preview->pixmap().isNull()) return false;
+        if (!hasDrawnContent(preview->pixmap())) {
+            if (!mayBeBlank) return false;
+            const QImage now = preview->pixmap().toImage();
+            same = now == last ? same + 1 : 0;
+            last = now;
+            if (same < 10) return false;
+        }
         shown = preview->pixmap();
         return true;
-    });
+    }, mayBeBlank ? 1000 : 300000);
     return shown;
 }
 
 bool previewShowsTheDocument(Adapter &app, jp::AppWindow *w)
 {
-    const QPixmap shown = printPreviewOf(app, w);
+    const QPixmap shown = printPreviewOf(app, w, false);
     if (shown.isNull()) return false;
     // (what a blank document of the program prints: a page with its edge and its shadow, which is not the document)
     std::unique_ptr<jp::AppWindow> blank(app.launch());
     app.settle(blank.get());
-    const QPixmap empty = printPreviewOf(app, blank.get());
+    const QPixmap empty = printPreviewOf(app, blank.get(), true);
     return empty.isNull() || shown.size() != empty.size() || shown.toImage() != empty.toImage();
 }
 

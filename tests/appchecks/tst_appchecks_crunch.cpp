@@ -96,6 +96,7 @@ QString shown(CrunchWindow *w, quint32 row, quint32 col)
 
 }
 
+
 class CrunchAppChecks : public QObject {
     Q_OBJECT
 
@@ -673,7 +674,8 @@ private Q_SLOTS:
         QCOMPARE(shown(w.get(), 3, 0), QString());
     }
 
-    void firstFiveMinutes()
+    // The first five minutes, in parts that each stand alone (one function of 304 s, nearly all of it a wait for a blank preview, went over the test library's limit of 300 s per function).
+    void aNewWindowHoldsAReadyWorkbookThatTakesTyping()
     {
         Watch watch;
         std::unique_ptr<CrunchWindow> w(launchBlank());
@@ -709,8 +711,16 @@ private Q_SLOTS:
         redo->trigger();
         QVERIFY(waitFor([&] { return quiet(w.get()); }));
         QCOMPARE(shown(w.get(), 0, 1), QStringLiteral("42"));
+    }
 
-        // Save As in the program's own format (the name is picked in the test's folder): the window takes the file's name.
+    // Save As in the program's own format (the name is picked in the test's folder): the window takes the file's name, the file is among the recent ones, and it opens again with the same cells.
+    void aSavedWorkbookIsNamedListedAsRecentAndOpensAgain()
+    {
+        Watch watch;
+        std::unique_ptr<CrunchWindow> w(launchBlank());
+        enter(w.get(), 0, 0, QStringLiteral("21"));
+        enter(w.get(), 0, 1, QStringLiteral("=A1*2"));
+        QVERIFY(waitFor([&] { return quiet(w.get()); }));
         const QString path = tempFile(QStringLiteral("five.xlsx"));
         QFile::remove(path);
         w->setSavePicker([&](const QString &, const QString &) { return path; });
@@ -744,16 +754,27 @@ private Q_SLOTS:
         QVERIFY(!again->isModified());
         QCOMPARE(again->filePath(), path);
 
-        // File > New: a second window with a blank workbook of its own that takes typing.
+        // An unchanged workbook goes without a question.
+        const CloseResult plain = closeWindow(again.get(), watch);
+        QVERIFY(plain.closed);
+        QCOMPARE(plain.asked, 0);
+        QVERIFY2(watch.warnings.isEmpty(), qPrintable(watch.warnings.join('\n')));
+    }
+
+    // File > New: a second window with a blank workbook of its own that takes typing.
+    void fileNewMakesASecondWindowThatTakesTyping()
+    {
+        Watch watch;
+        std::unique_ptr<CrunchWindow> first(launchBlank());
         const int windows = AppWindow::windows().size();
-        QAction *fileNew = again->act(QStringLiteral("file.new"));
+        QAction *fileNew = first->act(QStringLiteral("file.new"));
         QVERIFY2(fileNew, "JeffCrunch has no File > New");
         fileNew->trigger();
         drain();
         QCOMPARE(AppWindow::windows().size(), windows + 1);
         CrunchWindow *second = nullptr;
         for (AppWindow *other : AppWindow::windows())
-            if (other != again.get()) second = asCrunch(other);
+            if (other != first.get()) second = asCrunch(other);
         QVERIFY(second);
         QPointer<CrunchWindow> guard(second);
         QVERIFY(waitFor([&] { return second->hasWorkbook() && quiet(second); }));
@@ -765,18 +786,24 @@ private Q_SLOTS:
         QVERIFY(!asked.closed);
         second->setAttribute(Qt::WA_DeleteOnClose, false);
         delete second;
+        QVERIFY2(watch.warnings.isEmpty(), qPrintable(watch.warnings.join('\n')));
+    }
 
-        // The print layout: the File screen's Print page, with the sheet drawn (not a blank one).
-        QVERIFY2(previewShowsTheDocument(m_app, again.get()), "the print preview shows no more than a blank page");
-        auto *screen = again->findChild<FileScreen *>();
+    // The print layout: the File screen's Print page, with the sheet drawn (not a blank one).
+    void thePrintPageShowsTheSheetNotABlankPage()
+    {
+        Watch watch;
+        std::unique_ptr<CrunchWindow> w(launchBlank());
+        enter(w.get(), 0, 0, QStringLiteral("21"));
+        QVERIFY(waitFor([&] { return quiet(w.get()); }));
+        QVERIFY2(previewShowsTheDocument(m_app, w.get()), "the print preview shows no more than a blank page");
+        auto *screen = w->findChild<FileScreen *>();
         QVERIFY(screen && screen->isVisible());
         QCOMPARE(screen->currentPage(), QStringLiteral("print"));
-        again->hideFileScreen();
-
-        // An unchanged workbook goes without a question.
-        const CloseResult plain = closeWindow(again.get(), watch);
-        QVERIFY(plain.closed);
-        QCOMPARE(plain.asked, 0);
+        w->hideFileScreen();
+        // (the sheet was changed: the question at the close is answered no, as above)
+        closeWindow(w.get(), watch);
+        w.reset();
         QVERIFY2(watch.warnings.isEmpty(), qPrintable(watch.warnings.join('\n')));
     }
 
