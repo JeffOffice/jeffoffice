@@ -20,6 +20,19 @@ namespace jp::write {
 
 namespace {
 
+qint64 s_bandsVisited = 0;
+
+// The bands of a search that touch the places from..to of a story: the bands are in order and do not overlap, so they are found by their place and only those there are visited.
+template <class F>
+void forBandsIn(const QVector<QPair<int, int>> &bands, int from, int to, F each)
+{
+    auto it = std::lower_bound(bands.cbegin(), bands.cend(), from, [](const QPair<int, int> &w, int at) { return w.second <= at; });
+    for (; it != bands.cend() && it->first <= to; ++it) {
+        ++s_bandsVisited;
+        each(*it);
+    }
+}
+
 // The story that the page's text boxes show: the text of the document (a header, a footer, or a note is a story of its own).
 QString bodyStoryId(const flow::MaterializedPage &page)
 {
@@ -89,8 +102,7 @@ void paintCellFound(QPainter *p, const flow::MaterializedPage &page, const PageD
             const int first = text.firstPosition(0), last = text.lastPosition(0);
             if (first < 0) return;
             QVector<QPair<int, int>> words;
-            for (const auto &w : *d.found)
-                if (w.second > first && w.first <= last) words << w;
+            forBandsIn(*d.found, first, last, [&](const QPair<int, int> &w) { words << w; });
             if (words.isEmpty()) return;
             QLineF onPage;
             int frame = 0;
@@ -288,6 +300,8 @@ void paintEditedEdge(QPainter *p, const flow::MaterializedPage &page, const Page
 
 } // namespace
 
+qint64 bandsVisitedForTest() { return s_bandsVisited; }
+
 int anchorsExaminedByPagePaint() { return s_anchorsExamined; }
 
 void setPaintObserver(const std::function<void(const flow::MaterializedPage &, const PageDrawing &)> &observer) { s_observer = observer; }
@@ -348,8 +362,7 @@ void paintPage(QPainter *p, flow::MaterializedPage &page, LayoutCache *layouts, 
     if (d.found && !d.output && body && body->doc) {
         const int length = body->doc->characterCount();
         QVector<QPair<int, int>> words;
-        for (const auto &w : *d.found)
-            if (w.second > page.storyFrom && w.first < page.storyFrom + length) words << qMakePair(std::max(0, w.first - page.storyFrom), std::min(length, w.second - page.storyFrom));
+        forBandsIn(*d.found, page.storyFrom, page.storyFrom + length - 1, [&](const QPair<int, int> &w) { words << qMakePair(std::max(0, w.first - page.storyFrom), std::min(length, w.second - page.storyFrom)); });
         if (!words.isEmpty()) ctx.opt.found.insert(bodyId, words);
     }
     // The header, footer, or note being edited: the selection and the misspelled words in the boxes that show it.

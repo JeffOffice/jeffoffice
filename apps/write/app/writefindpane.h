@@ -52,6 +52,8 @@ public:
     // The bands stay on the pages when the pane is closed (Read Mode closes it too) until the person clears them or edits the document.
     bool keepsHighlights() const { return m_kept; }
     void clearHighlights();
+    // The window was given another document: the bands, the kept state, and what was watched in the old one end.
+    void documentReplaced();
     // How many times a story has been searched for a match (a count for tests of the work a search up does).
     int scansMade() const { return m_scans; }
     // How many times the count has been made again (for tests that wait for a refresh to have come).

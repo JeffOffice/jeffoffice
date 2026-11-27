@@ -93,6 +93,7 @@
 #include <QImage>
 #include <QApplication>
 #include <QTemporaryDir>
+#include "app/pagepaint.h"
 #include <QFile>
 #include <QCryptographicHash>
 #include <QScrollBar>
@@ -4083,7 +4084,7 @@ private Q_SLOTS:
         QTRY_VERIFY(pane->isVisible());
         QTRY_COMPARE(pane->matchCount(), 10);
         QVERIFY(!pane->keepsHighlights());
-        // Closing the pane keeps the bands, and Clear Highlighting takes them away; the document is as it was.
+        // Closing the pane keeps the bands, and Clear Find Highlights takes them away; the document is as it was.
         pane->hide();
         QVERIFY(pane->keepsHighlights());
         QCOMPARE(w.view()->findHighlights().size(), 10);
@@ -4150,6 +4151,112 @@ private Q_SLOTS:
         QCOMPARE(w.view()->findHighlights().size(), int(WriteFindPane::kMostMatches));
         QVERIFY2(pane->status().contains(QStringLiteral("or more")), qPrintable(pane->status()));
         QVERIFY2(pane->status().contains(QString::number(WriteFindPane::kMostMatches)), qPrintable(pane->status()));
+    }
+
+    QByteArray keptNeedleDoc()
+    {
+        QByteArray b;
+        for (int i = 0; i < 30; ++i) b += para(run(i % 5 == 0 ? "a needle here" : "plain line"));
+        return makeDocx(b);
+    }
+    void keepBands(WriteWindow &w, const QByteArray &docx, bool protect = false)
+    {
+        auto doc = open(docx);
+        if (protect) doc->setProtection(jp::office::wml::makeDocumentProtection(QStringLiteral("readOnly"), QString()));
+        w.setNotifier([](const QString &, const QString &) {});
+        w.resize(1100, 800);
+        w.show();
+        w.setDocument(std::move(doc), QString());
+        w.act(QStringLiteral("edit.find"))->trigger();
+        QTRY_VERIFY(w.view()->pageCount() >= 1);
+        w.findPane()->findBox()->setText(QStringLiteral("needle"));
+        QTRY_VERIFY(w.findPane()->matchCount() >= 1);
+        w.findPane()->hide();
+        QVERIFY(w.findPane()->keepsHighlights());
+    }
+
+    // Another document in the window (open in an empty window, Compare, revert, and recover all come to the one setDocument, the only place the window takes a document) ends the kept bands: none sit on the new document's words.
+    void keptFindHighlightsEndWhenTheDocumentIsReplaced()
+    {
+        WriteWindow w;
+        keepBands(w, keptNeedleDoc());
+        QVERIFY(!w.view()->findHighlights().isEmpty());
+        QVERIFY(w.act(QStringLiteral("edit.clearHighlighting"))->isEnabled());
+        w.setDocument(open(keptNeedleDoc()), QString());
+        QVERIFY(w.view()->findHighlights().isEmpty());
+        QVERIFY(!w.findPane()->keepsHighlights());
+        QVERIFY(!w.act(QStringLiteral("edit.clearHighlighting"))->isEnabled());
+        QCOMPARE(w.findPane()->matchCount(), 0);
+        // An edit in the new document is its own: nothing comes back, and nothing is read from the old one.
+        w.view()->insertText(QStringLiteral("needle "));
+        QCOMPARE(w.view()->findHighlights().size(), 0);
+        QVERIFY(!w.findPane()->keepsHighlights());
+    }
+
+    // Clear Find Highlights works in a read-only window and in a protected document (it changes nothing in the document).
+    void clearFindHighlightsWorksWhereTheDocumentCannotBeEdited()
+    {
+        for (int how = 0; how < 2; ++how) {
+            WriteWindow w;
+            keepBands(w, keptNeedleDoc(), how == 1);
+            if (how == 0) w.setReadOnly(true);
+            QVERIFY(w.act(QStringLiteral("edit.clearHighlighting"))->isEnabled());
+            w.act(QStringLiteral("edit.clearHighlighting"))->trigger();
+            QVERIFY(w.view()->findHighlights().isEmpty());
+            QVERIFY(!w.findPane()->keepsHighlights());
+        }
+    }
+
+    // While the bands are only kept, a note nobody searched before (it is on a page that was not drawn while the pane was open) gets none, and no search is made for it.
+    void keptFindHighlightsMakeNoNewSearch()
+    {
+        WriteWindow w;
+        w.setNotifier([](const QString &, const QString &) {});
+        w.resize(1100, 900);
+        w.show();
+        w.setDocument(open(docWithSideNeedles(true, 120)), QString());
+        w.act(QStringLiteral("edit.find"))->trigger();
+        WriteFindPane *pane = w.findPane();
+        QTRY_VERIFY(w.view()->pageCount() >= 2);
+        pane->findBox()->setText(QStringLiteral("needle"));
+        QTRY_COMPARE(pane->matchCount(), 1);
+        pane->hide();
+        QVERIFY(pane->keepsHighlights());
+        const int scans = pane->scansMade();
+        const QTextDocument *note = w.document()->editableFootnote(2);
+        QVERIFY(note);
+        QVERIFY(pane->matchesInSideStory(note).isEmpty());
+        QCOMPARE(pane->scansMade(), scans);
+        // Open, the same story is searched.
+        pane->show();
+        QTRY_VERIFY(!pane->matchesInSideStory(note).isEmpty());
+    }
+
+    void paintingVisitsOnlyTheBandsOfThePlacesItPaints()
+    {
+        QByteArray body;
+        for (int i = 0; i < 400; ++i) body += para(run("e e e e e e e e e e e e e e e e e e e e e e e e e e e e e e e e e e e e e e e e e e e e"));
+        WriteWindow w;
+        w.setNotifier([](const QString &, const QString &) {});
+        w.resize(1100, 800);
+        w.show();
+        w.setDocument(open(makeDocx(body)), QString());
+        w.act(QStringLiteral("edit.find"))->trigger();
+        WriteFindPane *pane = w.findPane();
+        QTRY_VERIFY(w.view()->pageCount() >= 1);
+        pane->findBox()->setText(QStringLiteral("e"));
+        QTRY_VERIFY(pane->matchCount() >= 10000);
+        pane->hide();
+        const int bands = w.view()->findHighlights().size();
+        QVERIFY(bands >= 10000);
+        w.view()->verticalScrollBar()->setValue(w.view()->verticalScrollBar()->maximum());   // (the last pages: the bands of the pages above are not visited)
+        QTest::qWait(0);
+        w.view()->viewport()->grab();
+        const qint64 before = write::bandsVisitedForTest();
+        w.view()->viewport()->grab();
+        const qint64 visited = write::bandsVisitedForTest() - before;
+        QVERIFY2(visited > 0, "no band was painted");
+        QVERIFY2(visited < bands / 2, qPrintable(QString::number(visited) + " of " + QString::number(bands)));
     }
 
     void wildcardsAndSpecialCodesMakeAPatternAndTheReplacementCanUseTheGroups()
@@ -4810,15 +4917,26 @@ private Q_SLOTS:
         QVERIFY(pane->matchesInSideStory(w.document()->headerFooterStory(0, false, 0)).isEmpty());
     }
 
+    // (With filler paragraphs the note's mark is on the last paragraph, a page or more below the first.)
+    static QByteArray bodyParagraphs(bool bodyNeedle, int filler)
+    {
+        const QByteArray ref = "<w:r><w:footnoteReference w:id=\"2\"/></w:r>";
+        const QByteArray first = run(bodyNeedle ? "body needle text" : "body text");
+        if (filler == 0) return para(first + ref) + para(run("end"));
+        QByteArray out = para(first);
+        for (int i = 0; i < filler; ++i) out += para(run("filler line"));
+        return out + para(run("last") + ref);
+    }
+
     // A document with a header, a footer, and a note that each hold "needle", and a body that does not (Find Next, Replace, and Replace All must reach them).
-    QByteArray docWithSideNeedles(bool bodyNeedle = false)
+    QByteArray docWithSideNeedles(bool bodyNeedle = false, int fillerParagraphs = 0)
     {
         const QByteArray sect = "<w:sectPr><w:headerReference w:type=\"default\" r:id=\"rIdHead\"/><w:footerReference w:type=\"default\" r:id=\"rIdFoot\"/><w:pgSz w:w=\"12240\" w:h=\"15840\"/><w:pgMar w:top=\"1440\" w:right=\"1440\" w:bottom=\"1440\" w:left=\"1440\" w:header=\"720\" w:footer=\"720\" w:gutter=\"0\"/></w:sectPr>";
         office::PackageWriter pw;
         const QString rel = QStringLiteral("http://schemas.openxmlformats.org/officeDocument/2006/relationships/");
         const QString wml = QStringLiteral("application/vnd.openxmlformats-officedocument.wordprocessingml.");
         pw.addPart(QStringLiteral("/word/document.xml"),
-                   xml(QByteArray("<w:document ") + kNs + "><w:body>" + para(run(bodyNeedle ? "body needle text" : "body text") + "<w:r><w:footnoteReference w:id=\"2\"/></w:r>") + para(run("end")) + sect + "</w:body></w:document>"),
+                   xml(QByteArray("<w:document ") + kNs + "><w:body>" + bodyParagraphs(bodyNeedle, fillerParagraphs) + sect + "</w:body></w:document>"),
                    wml + QStringLiteral("document.main+xml"));
         pw.addPart(QStringLiteral("/word/header1.xml"), xml(QByteArray("<w:hdr ") + kNs + "><w:p><w:r><w:t>needle in the header</w:t></w:r></w:p></w:hdr>"), wml + QStringLiteral("header+xml"));
         pw.addPart(QStringLiteral("/word/footer1.xml"), xml(QByteArray("<w:ftr ") + kNs + "><w:p><w:r><w:t>the footer needle</w:t></w:r></w:p></w:ftr>"), wml + QStringLiteral("footer+xml"));

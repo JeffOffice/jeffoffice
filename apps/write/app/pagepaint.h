@@ -16,6 +16,10 @@ class GrammarCheck;
 
 namespace jp::write {
 
+// How many bands of a search the pages' painting has looked at (for tests of what a paint costs).
+qint64 bandsVisitedForTest();
+
+
 class SpellCheck;
 class WriteTagger;
 

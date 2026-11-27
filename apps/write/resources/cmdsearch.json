@@ -55,8 +55,8 @@
    "locate"
   ],
   "edit.clearHighlighting": [
-   "remove highlights",
-   "find highlights",
+   "clear highlighting",
+   "remove find highlights",
    "unhighlight"
   ],
   "edit.replace": [

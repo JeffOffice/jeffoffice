@@ -610,8 +610,10 @@ void PageView::setZoomMode(ZoomMode mode, int across, int down)
 
 void PageView::setFindHighlights(const QVector<QPair<int, int>> &ranges)
 {
-    if (ranges == m_findHighlights) return;
-    m_findHighlights = ranges;
+    QVector<QPair<int, int>> sorted = ranges;   // (the pages find the bands of a place by where they are)
+    if (!std::is_sorted(sorted.cbegin(), sorted.cend())) std::sort(sorted.begin(), sorted.end());
+    if (sorted == m_findHighlights) return;
+    m_findHighlights = sorted;
     viewport()->update();
 }
 

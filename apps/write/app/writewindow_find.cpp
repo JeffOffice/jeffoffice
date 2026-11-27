@@ -15,7 +15,7 @@ void WriteWindow::createEditingActions()
 {
     mk("edit.find", tr("Find"), "search", QKeySequence::Find, [this] { showFindPane(false); });
     mk("edit.replace", tr("Replace"), "replace", QKeySequence(Qt::CTRL | Qt::Key_H), [this] { showFindPane(true); });
-    mk("edit.clearHighlighting", tr("Clear Highlighting"), "eraser", QKeySequence(), [this] {
+    mk("edit.clearHighlighting", tr("Clear Find Highlights"), "eraser", QKeySequence(), [this] {
         if (m_find) m_find->clearHighlights();
     })->setEnabled(false);
     mk("edit.replaceFonts", tr("Replace Fonts…"), "a-large-small", QKeySequence(), [this] { replaceFonts(); });

@@ -331,6 +331,7 @@ bool WriteWindow::commitShapeText()
 void WriteWindow::setDocument(std::unique_ptr<write::WriteDoc> doc, const QString &path)
 {
     if (m_find) m_find->cancelSearch();   // (a search belongs to the document that goes)
+    if (m_find) m_find->documentReplaced();   // (so do its bands)
     if (jp::ReadAloudBar *reading = jp::readAloudBarOf(this)) reading->documentChanged();   // (the text read is going: the reading ends)
     if (m_outlineOn) setOutlineMode(false);
     // (Highlighting and painting were for the document that goes: neither goes on into the next, and the format copied belonged to it.)

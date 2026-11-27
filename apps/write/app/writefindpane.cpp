@@ -501,9 +501,10 @@ StoryWords *WriteFindPane::sideWords(const QTextDocument *story)
 QVector<QPair<int, int>> WriteFindPane::matchesInSideStory(const QTextDocument *story)
 {
     if (!story || (!isVisible() && !m_kept) || !searching() || m_find->text().isEmpty()) return {};
-    if (m_kept && !isVisible()) {   // (a header, footer, or note that was edited since it was searched has no bands any more)
+    if (m_kept && !isVisible()) {   // (kept bands are only those of stories searched while the pane was open, and not edited since: no new search is made for them)
         const auto seen = m_side.constFind(story);
-        if (seen != m_side.constEnd() && seen->revision != -1 && seen->revision != story->revision()) return {};
+        if (seen == m_side.constEnd() || seen->revision == -1 || seen->revision != story->revision() || seen->generation != m_generation) return {};
+        return seen->ranges;
     }
     const struct Inline { bool &flag; bool was; Inline(bool &f) : flag(f), was(f) { flag = true; } ~Inline() { flag = was; } } inlineScans(m_inlineScans);   // (the pages are drawing: no box over them)
     Side &side = m_side[story];
@@ -525,7 +526,7 @@ QVector<QPair<int, int>> WriteFindPane::matchesInSideStory(const QTextDocument *
 void WriteFindPane::hideEvent(QHideEvent *e)
 {
     QWidget::hideEvent(e);
-    // (The bands stay while the person reads on; an edit or Clear Highlighting ends them.)
+    // (The bands stay while the person reads on; an edit or Clear Find Highlights ends them.)
     if (!m_matches.isEmpty() && searching() && !m_job) {
         setKept(true);
         return;
@@ -538,6 +539,23 @@ void WriteFindPane::setKept(bool kept)
     if (m_kept == kept) return;
     m_kept = kept;
     Q_EMIT highlightsKeptChanged(kept);
+}
+
+// The window was given another document: what was found belongs to the one that went.
+void WriteFindPane::documentReplaced()
+{
+    if (m_watched) {
+        QObject::disconnect(m_watched, nullptr, this, nullptr);
+        QObject::disconnect(m_watched, nullptr, m_refresh, nullptr);
+    }
+    m_watched = nullptr;
+    m_side.clear();
+    m_text.reset();
+    m_matches.clear();
+    ++m_generation;
+    setKept(false);
+    m_win->view()->setFindHighlights({});
+    if (isVisible()) m_refresh->start();
 }
 
 void WriteFindPane::clearHighlights()
