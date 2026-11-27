@@ -787,6 +787,15 @@ jobs:
         run: |
           # The programs run side by side, longest first, each with its own results file (Windows runners drop their console output)
           # (tools/ci_tests.sh): one after another they took 12 to 17 minutes.
+          # (macOS: this step goes first on a machine that also runs other test jobs: it registers as a priority user, so no other job STARTS meanwhile, and gives a
+          # running one up to 10 minutes to end; no lock script installed (any other machine), nothing happens)
+          MACLOCK=/Users/Shared/jo-locks/maclock.sh
+          if [ "$RUNNER_OS" = macOS ] && [ -f "$MACLOCK" ]; then
+            MLABEL="build-${{ github.run_id }}-${{ matrix.part }}-${{ matrix.shard }}-$$"
+            bash "$MACLOCK" register "$MLABEL" $$ || true
+            trap 'bash "$MACLOCK" release "$MLABEL" || true' EXIT
+            bash "$MACLOCK" yield "$MLABEL" 600 || true
+          fi
           # (the list is the one the Build step builds: tools/ci_targets.sh; a program in both halves runs half of its test classes in each)
           bash tools/ci_tests.sh $(bash tools/ci_targets.sh tests "$RUNNER_OS" "$SHARD" run)
         env:
@@ -798,6 +807,8 @@ jobs:
           JO_MINIMAL_FFMPEG: '1'
           # (our own Linux machine has the processors to run the biggest programs in parts; GitHub's have two to four)
           CI_SPLIT: ${{ runner.environment == 'self-hosted' && '4' || '1' }}
+          # (macOS only: a test program that fails runs once more; passing then, its first failures are listed in the job summary and as RETRIED-PASSED lines, tools/ci_retry_once.sh)
+          JO_RETRY_ONCE: ${{ runner.os == 'macOS' && '1' || '' }}
 
       # What every app's window must pass (tests/appchecks): the first five minutes of a person who launches it with no file, its standard commands, and every one of its commands run
       # once on a blank document and once on one opened from a file. The four programs run side by side (they wait on conditions, not on time, so a busy machine only makes them
@@ -809,6 +820,15 @@ jobs:
         run: |
           # (the same runner as the tests: side by side, a results file each, the debugger's stack for a crash; on our own Linux machine each
           # program's three long checks run in four parts, JO_APPCHECK_SHARD; on Windows and macOS the second half runs crunchchecks in two parts for the same reason)
+          # (macOS: this step goes first on a machine that also runs other test jobs: it registers as a priority user, so no other job STARTS meanwhile, and gives a
+          # running one up to 10 minutes to end; no lock script installed (any other machine), nothing happens)
+          MACLOCK=/Users/Shared/jo-locks/maclock.sh
+          if [ "$RUNNER_OS" = macOS ] && [ -f "$MACLOCK" ]; then
+            MLABEL="build-${{ github.run_id }}-${{ matrix.part }}-${{ matrix.shard }}-$$"
+            bash "$MACLOCK" register "$MLABEL" $$ || true
+            trap 'bash "$MACLOCK" release "$MLABEL" || true' EXIT
+            bash "$MACLOCK" yield "$MLABEL" 600 || true
+          fi
           programs=$(bash tools/ci_targets.sh checks "$RUNNER_OS" "$SHARD" run)
           if [ -z "$programs" ]; then echo "this job runs no check program (another job of the run does)"; exit 0; fi
           bash tools/ci_tests.sh $programs

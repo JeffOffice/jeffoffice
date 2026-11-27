@@ -141,6 +141,14 @@ while read -r ID N SHARD ARGS; do
     # (the seconds of each test class, to deal the classes by: WEIGHTS below)
     grep -a '^CLASSTIME ' "$ID.log" 2>/dev/null | tr -d '\r' | sort -k3 -n -r | head -12 | sed "s/^/$ID /"
     if [ "$ncode" -ne 0 ]; then echo "--- $ID.log (the end)"; tail -60 "$ID.log"; fi
+    # (macOS test job only, JO_RETRY_ONCE=1: a program that failed runs ONE more time; passing the second time lists its first failures as RETRIED-PASSED
+    # lines for the landing tools and the job summary, tools/ci_retry_once.sh; Jeff, Nov 27 2026)
+    if [ "$ncode" -ne 0 ] && [ "${JO_RETRY_ONCE:-}" = 1 ]; then
+        # shellcheck disable=SC2086
+        bash tools/ci_retry_once.sh "$ID" "$P" "$SHARD" $ARGS
+        ncode=$(cat "$ID.code" 2>/dev/null || echo 1)
+        [ "$ncode" -eq 0 ] && continue
+    fi
     # A crash: a nonzero exit with no failed test in the totals (QtTest exits with the number of failures; a program of several classes
     # prints a totals line for each class that finished, so a totals line alone doesn't say the program did). The stack of the first
     # crash is in the log; a crash can depend on the tests before it, so the part runs again as it did.
