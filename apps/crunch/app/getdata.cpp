@@ -1,6 +1,7 @@
 #include "app/getdata.h"
 
 #include "app/uistyle.h"
+
 #include "core/workthread.h"
 #include "sheet/datasourcebook.h"
 
@@ -15,6 +16,7 @@
 #include <QHBoxLayout>
 #include <QHeaderView>
 #include <QLabel>
+#include <QPointer>
 #include <QLineEdit>
 #include <QProgressDialog>
 #include <QPushButton>
@@ -149,12 +151,13 @@ bool runGetDataWork(QWidget *parent, const QString &text, std::atomic<bool> *can
         work();
         done.store(true);
     });
-    QProgressDialog dialog(text, QObject::tr("Cancel"), 0, 0, parent);
-    dialog.setObjectName(QStringLiteral("getDataProgress"));
-    dialog.setWindowModality(Qt::WindowModal);
-    dialog.setMinimumDuration(400);
+    // (the box is not a thing on this function's stack: a window closed while the file is read deletes its children, and the box is one of them)
+    QPointer<QProgressDialog> dialog = new QProgressDialog(text, QObject::tr("Cancel"), 0, 0, parent);
+    dialog->setObjectName(QStringLiteral("getDataProgress"));
+    dialog->setWindowModality(Qt::WindowModal);
+    dialog->setMinimumDuration(400);
     bool cancelled = false;
-    QObject::connect(&dialog, &QProgressDialog::canceled, &dialog, [&] {
+    QObject::connect(dialog, &QProgressDialog::canceled, dialog, [&] {
         cancelled = true;
         cancel->store(true);
     });
@@ -163,9 +166,12 @@ bool runGetDataWork(QWidget *parent, const QString &text, std::atomic<bool> *can
     QObject::connect(&timer, &QTimer::timeout, &loop, [&] {
         if (done.load()) loop.quit();
     });
+    // (a window that goes while the file is read stops the read: nothing is waited for that nobody will see)
+    if (parent) QObject::connect(parent, &QObject::destroyed, &timer, [cancel] { cancel->store(true); });
     timer.start(10);
     loop.exec();
     worker.join();
+    delete dialog.data();
     return !cancelled;
 }
 

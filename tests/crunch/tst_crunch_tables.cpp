@@ -30,8 +30,11 @@
 #include <QDialogButtonBox>
 #include <QElapsedTimer>
 #include <QLineEdit>
+#include <QPointer>
 #include <QProgressDialog>
 #include <QTimer>
+#include <atomic>
+#include <memory>
 #include <thread>
 #include <QFile>
 #include <QJsonArray>
@@ -2388,6 +2391,86 @@ private Q_SLOTS:
         QCOMPARE(s->workbook()->tables().size(), 1);
     }
 
+    // The link to the file is saved with the table and read back: after a save and an open, Refresh still works; taking the link off (Inspect) leaves the table.
+    void theLinkToTheFileSurvivesASaveAndOpen()
+    {
+        EditWindow e;
+        QVERIFY(e.open(buildXlsx({worksheet(row(9, text(QStringLiteral("A9"), QStringLiteral("keep"))))})));
+        crunch::EditSession *s = e.win.w.session();
+        s->setLocale(kUs);
+        QVERIFY(e.settle());
+        const QString file = e.folder.write(QStringLiteral("rows.json"), "[{\"a\":1,\"b\":\"x\"},{\"a\":2,\"b\":\"y\"}]");
+        e.win.w.setGetDataAsker([&](jp::GetDataRequest *r) {
+            r->conn.kind = QStringLiteral("json");
+            r->conn.path = file;
+            r->place = QStringLiteral("A1");
+            return true;
+        });
+        e.win.w.act(QStringLiteral("data.fromFile"))->trigger();
+        QVERIFY(e.settle());
+        QVERIFY(saveNow(e));
+        EditWindow f;
+        const QString copy = e.copyOfFile();
+        QVERIFY(!copy.isEmpty());
+        QVERIFY(f.win.open(copy));
+        f.win.w.setGetDataTrustAsker([](const QStringList &, const QString &) { return true; });   // (this test is about the saved query, not the ask)
+        QVERIFY(f.settle());
+        QCOMPARE(f.win.w.session()->workbook()->tables().size(), 1);
+        QCOMPARE(f.win.w.session()->workbook()->tables().first().dataSource, e.win.w.session()->workbook()->tables().first().dataSource);
+        e.folder.write(QStringLiteral("rows.json"), "[{\"a\":1,\"b\":\"x\"},{\"a\":2,\"b\":\"y\"},{\"a\":3,\"b\":\"z\"}]");
+        f.select(QStringLiteral("A2"));
+        f.win.w.act(QStringLiteral("data.refresh"))->trigger();
+        QVERIFY(f.settle());
+        QCOMPARE(f.win.w.session()->workbook()->tables().first().row2, 3u);
+        QCOMPARE(f.win.told.size(), 0);
+    }
+    // A window closed while its Refresh is reading: the read is stopped, the thread calls only its own copy of the test hook, the progress box is not deleted twice, and nothing is applied or shown.
+    void closingTheWindowDuringARefreshIsSafe()
+    {
+        Folder files;
+        const QString file = files.write(QStringLiteral("rows.json"), "[{\"a\":1},{\"a\":2}]");
+        struct Probe {
+            std::shared_ptr<std::atomic<int>> copies;
+            Probe(const Probe &o) : copies(o.copies) { ++*copies; }
+            Probe(std::shared_ptr<std::atomic<int>> c) : copies(std::move(c)) {}
+        };
+        auto copies = std::make_shared<std::atomic<int>>(0);
+        for (const bool all : {false, true}) {
+            auto *e = new EditWindow;
+            QPointer<CrunchWindow> guard(&e->win.w);
+            QVERIFY(e->open(buildXlsx({worksheet(row(9, text(QStringLiteral("A9"), QStringLiteral("keep"))))})));
+            e->win.w.session()->setLocale(kUs);
+            e->win.w.setGetDataAsker([&](jp::GetDataRequest *r) {
+                r->conn.kind = QStringLiteral("json");
+                r->conn.path = file;
+                r->place = QStringLiteral("A1");
+                return true;
+            });
+            e->win.w.act(QStringLiteral("data.fromFile"))->trigger();   // (made here: no ask)
+            QVERIFY(e->settle());
+            QCOMPARE(e->win.w.session()->workbook()->tables().size(), 1);
+            std::atomic<int> held{0}, sawCancel{0};
+            Probe probe(copies);
+            e->win.w.setGetDataHold([&, probe](const std::atomic<bool> &cancel) {
+                ++held;
+                for (int i = 0; i < 100000000 && !cancel.load(); ++i) std::this_thread::yield();   // (until the window is gone, which sets it)
+                if (cancel.load()) ++sawCancel;
+            });
+            const int before = copies->load();
+            e->select(QStringLiteral("A2"));
+            QTimer::singleShot(0, qApp, [&] {
+                QVERIFY(QTest::qWaitFor([&] { return held.load() == 1; }, 20000));
+                delete e;   // (what closing the last window does)
+                e = nullptr;
+            });
+            e->win.w.act(QString::fromLatin1(all ? "data.refreshAll" : "data.refresh"))->trigger();
+            QVERIFY(guard.isNull());
+            QCOMPARE(int(held), 1);
+            QCOMPARE(int(sawCancel), 1);   // (the read was told to stop)
+            QVERIFY(copies->load() > before);   // (the thread called a copy of the hook, not the window's own)
+        }
+    }
+
     // A query that came from an opened workbook names a file of the sender's choosing: nothing is read until this person has seen the whole path and said yes; the yes lives in that window only.
     void aQueryFromAnOpenedFileAsksBeforeItReads()
     {
@@ -2815,6 +2898,32 @@ private Q_SLOTS:
         QCOMPARE(s->workbook()->tables().first().dataSource, source);
         QCOMPARE(valueOf(e, QStringLiteral("A2")), QStringLiteral("s:bob"));
         QCOMPARE(valueOf(e, QStringLiteral("A9")), QStringLiteral("s:keep"));
+    }
+
+    // The state column says "newer version" only for a higher version number or an unknown kind of step; a garbled steps list, a text from an old form, and a missing path say "can't be read".
+    void theQueryStateTellsNewerFromUnreadable()
+    {
+        auto stateOf = [&](const QString &source) {
+            const QString part = QStringLiteral("<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\n<table xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\" id=\"1\" name=\"Q\" displayName=\"Q\" ref=\"F1:G3\">"
+                                               "<tableColumns count=\"2\"><tableColumn id=\"1\" name=\"a\"/><tableColumn id=\"2\" name=\"b\"/></tableColumns><tableStyleInfo name=\"TableStyleMedium2\" showRowStripes=\"1\"/>"
+                                               "<extLst><ext uri=\"{6A1F0C3E-5B7D-4E29-9C41-0D3B7A52E8F1}\"><jo:dataSource xmlns:jo=\"urn:jeffoffice:data-source\" text=\"%1\"/></ext></extLst></table>").arg(source.toHtmlEscaped());
+            QString rows = QStringLiteral("<row r=\"1\">%1%2</row>").arg(text(QStringLiteral("F1"), QStringLiteral("a")), text(QStringLiteral("G1"), QStringLiteral("b")));
+            rows += QStringLiteral("<row r=\"2\">%1%2</row><row r=\"3\">%3%4</row>").arg(num(QStringLiteral("F2"), 1), num(QStringLiteral("G2"), 2), num(QStringLiteral("F3"), 3), num(QStringLiteral("G3"), 4));
+            EditWindow e;
+            if (!e.open(withTables(buildXlsx({worksheet(rows)}), {part}))) return QStringLiteral("not opened");
+            QString state;
+            e.win.w.setConnectionsAsker([&](jp::ConnectionsPane *pane) { state = pane->table()->rowCount() == 1 ? pane->table()->item(0, 4)->text() : QStringLiteral("no row"); });
+            e.win.w.act(QStringLiteral("data.connections"))->trigger();
+            return state;
+        };
+        const QString base = QStringLiteral("jo-data:2?kind=json&path=%2Ftmp%2Fx.json");
+        QCOMPARE(stateOf(QStringLiteral("jo-data:3?kind=json&path=%2Ftmp%2Fx.json")), QStringLiteral("Made by a newer version, can't be run"));
+        QCOMPARE(stateOf(base + QStringLiteral("&steps=%5B%7B%22op%22%3A%22warp%22%7D%5D")), QStringLiteral("Steps can't be run: made by a newer version"));
+        QCOMPARE(stateOf(base + QStringLiteral("&steps=%5B%7B%22op%22%3A")), QStringLiteral("The steps can't be read, so it can't be run"));
+        QCOMPARE(stateOf(base + QStringLiteral("&steps=%5B%7B%22op%22%3A%22filter%22%2C%22col%22%3A%22a%22%2C%22cmp%22%3A%22zz%22%7D%5D")), QStringLiteral("The steps can't be read, so it can't be run"));
+        QCOMPARE(stateOf(QStringLiteral("jo-data:2?kind=json")), QStringLiteral("Can't be read, so it can't be run"));
+        QCOMPARE(stateOf(QStringLiteral("jo-data:1?garbled")), QStringLiteral("Can't be read, so it can't be run"));
+        QCOMPARE(stateOf(base), QStringLiteral("Ready"));
     }
 
     // The list of queries: name, file, last run, rows, state; Refresh runs the chosen one and the list shows the new count; a query from a newer version is listed, can't be run, and is saved as it was.

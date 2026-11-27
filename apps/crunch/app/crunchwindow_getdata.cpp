@@ -151,8 +151,9 @@ bool CrunchWindow::loadGetData(const GetDataRequest &req)
     GetDataFetch result;
     std::atomic<bool> cancel{false};
     QPointer<CrunchWindow> self(this);
+    const auto hold = m_getDataHold;   // (the thread uses a copy: it must not reach into a window that may be closed meanwhile)
     const bool finished = runGetDataWork(this, tr("Reading the file…"), &cancel, [&] {
-        if (m_getDataHold) m_getDataHold(cancel);
+        if (hold) hold(cancel);
         result = fetchGetData(req.conn, 0, [&cancel] { return cancel.load(); });
     });
     if (!self) return false;
