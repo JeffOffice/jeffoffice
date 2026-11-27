@@ -6687,15 +6687,9 @@ private Q_SLOTS:
 
     static int marksIn(const QByteArray &x) { return count(x, "<w:ins ") + count(x, "<w:del ") + count(x, "<w:ins/>") + count(x, "<w:del/>") + count(x, "Change "); }
 
-    // One command run with the caret in the text or in a table's cell, with Track Changes on or off: what the file is after it, whether the status bar said the change was not recorded, and how many
-    // Undo steps take it back.
-    static Ran runCommand(WriteWindow &w, const QString &id, bool tracking, int scenario, const QByteArray &body)
+    // The caret and selection of the walks below: scenario 0 selects a word of the first paragraph, anything else puts the caret in the table's first cell.
+    static void putCaret(WriteWindow &w, WriteDoc *doc, int scenario)
     {
-        Ran r;
-        w.setDocument(open(makeDocx(body)), QString());
-        WriteDoc *doc = w.document();
-        doc->setTrackChanges(tracking);
-        r.before = documentXml(doc->toDocx());
         QTextCursor c(doc->story());
         if (scenario == 0) {
             c.setPosition(6);
@@ -6704,6 +6698,17 @@ private Q_SLOTS:
             c = inParagraph(*doc, "a1");
         }
         w.view()->setCursor(c);
+    }
+
+    // One command run with the caret in the text or in a table's cell, with Track Changes on or off: what the file is after it, whether the status bar said the change was not recorded, and how many
+    // Undo steps take it back. The saves are made only where the caller reads them (wantBefore, wantUndos): each is a whole save of the document. docx is the one saved file every run opens.
+    static Ran runCommand(WriteWindow &w, const QString &id, bool tracking, int scenario, const QByteArray &docx, bool wantBefore = true, bool wantUndos = true)
+    {
+        Ran r;
+        w.setDocument(open(docx), QString());
+        WriteDoc *doc = w.document();
+        doc->setTrackChanges(tracking);
+        putCaret(w, doc, scenario);
         const bool outline = id.startsWith(QLatin1String("outline."));
         if (outline) {
             w.act(QStringLiteral("view.outline"))->trigger();
@@ -6712,12 +6717,15 @@ private Q_SLOTS:
         QAction *a = w.act(id);
         r.enabled = a && a->isEnabled();
         if (!r.enabled) return r;
+        // (the caret has not moved since: the file as it is before the command is the same save)
+        if (wantBefore) r.before = documentXml(doc->toDocx());
         w.statusBar()->clearMessage();
         a->trigger();
         if (outline) w.act(QStringLiteral("view.printLayout"))->trigger();
         r.said = w.statusBar()->currentMessage() == untrackedNoticeText();
         r.after = documentXml(doc->toDocx());
-        while (doc->canUndo() && r.undos < 50 && doc->undo()) ++r.undos;
+        if (wantUndos)
+            while (doc->canUndo() && r.undos < 50 && doc->undo()) ++r.undos;
         return r;
     }
 
@@ -6733,8 +6741,8 @@ private Q_SLOTS:
                 if (QWidget *m = QApplication::activeModalWidget()) m->close();
             });
             closer.start(20);
-            const QByteArray body = para(run("alpha beta")) + para(run("gamma"));
-            const Ran on = runCommand(w, QString::fromLatin1(id), true, 0, body), off = runCommand(w, QString::fromLatin1(id), false, 0, body);
+            const QByteArray docx = makeDocx(para(run("alpha beta")) + para(run("gamma")));
+            const Ran on = runCommand(w, QString::fromLatin1(id), true, 0, docx), off = runCommand(w, QString::fromLatin1(id), false, 0, docx);
             QVERIFY2(on.enabled && off.enabled, id);
             QVERIFY2(off.after != off.before, id);
             QVERIFY2(on.after != on.before, id);
@@ -6760,11 +6768,54 @@ private Q_SLOTS:
         return t.toUtf8();
     }
 
-    // Walks every command that does not record its change, with the caret in the text and in a table's cell: with Track Changes on it changes the file as it does with Track Changes off (the
-    // words and parts of it; the time of a field may differ), adds no mark, says so in the status bar, and one Undo takes it back.
-    void everyUntrackedCommandWorksAsWithTrackingOffAddsNoMarkSaysSoAndUndoesInOneStep()
+    // The walks over every command of the window are cut into chunks: a test function walks at most commandsPerChunk() of the sorted commands of one kind (the ones that are not recorded, or the ones
+    // that are), so that no function does more than that share however many commands the window has, and a busy machine that runs it several times slower is still far from the test library's limit
+    // for one function. The commands come sorted, so a chunk is a few neighboring groups. There are chunkCount() functions of each kind; the test that follows them fails when a kind outgrows them.
+    static int commandsPerChunk() { return 40; }
+    static int chunkCount() { return 14; }       // (the commands that are not recorded: 12 chunks today)
+    static int recordedChunkCount() { return 6; }   // (the commands that are recorded: 4 chunks today)
+
+    static QStringList commandsOfKind(WriteWindow &w, bool recorded)
     {
-        const QByteArray body = para(run("alpha beta")) + para(run("gamma")) + tableOf({{QByteArray(), {cellOf({}, para(run("a1"))), cellOf({}, para(run("a2")))}}, {QByteArray(), {cellOf({}, para(run("b1"))), cellOf({}, para(run("b2")))}}}, 2);
+        QStringList ids;
+        for (const QString &id : w.actionIds()) {
+            const TrackPolicy policy = trackPolicyOf(id);
+            if (recorded ? (policy == TrackPolicy::Tracked || policy == TrackPolicy::TrackedInText) : policy == TrackPolicy::Untracked) ids << id;
+        }
+        return ids;
+    }
+
+    void everyCommandIsWalkedByOneChunkOfTheProbes()
+    {
+        WriteWindow w;
+        QVERIFY2(commandsOfKind(w, false).size() <= chunkCount() * commandsPerChunk(), "more commands that are not recorded than the chunk functions walk: add chunks");
+        QVERIFY2(commandsOfKind(w, true).size() <= recordedChunkCount() * commandsPerChunk(), "more commands that are recorded than the chunk functions walk: add chunks");
+        QVERIFY(!commandsOfKind(w, false).isEmpty() && !commandsOfKind(w, true).isEmpty());
+    }
+
+    // The walks prove nothing if the commands they walk are disabled: with the caret as the walks put it, enough of each kind can be run.
+    void theWalksHaveEnoughEnabledCommandsToRun()
+    {
+        const QByteArray docx = makeDocx(para(run("alpha beta")) + para(run("gamma")) + tableOf({{QByteArray(), {cellOf({}, para(run("a1"))), cellOf({}, para(run("a2")))}}, {QByteArray(), {cellOf({}, para(run("b1"))), cellOf({}, para(run("b2")))}}}, 2));
+        WriteWindow w;
+        int enabled[2] = {0, 0};
+        for (int scenario = 0; scenario < 2; ++scenario) {
+            w.setDocument(open(docx), QString());
+            w.document()->setTrackChanges(true);
+            putCaret(w, w.document(), scenario);
+            for (int kind = 0; kind < 2; ++kind)
+                for (const QString &id : commandsOfKind(w, kind == 1))
+                    if (QAction *a = w.act(id); a && a->isEnabled()) ++enabled[kind];
+        }
+        QVERIFY2(enabled[0] > 200, qPrintable(QString::number(enabled[0])));
+        QVERIFY2(enabled[1] > 80, qPrintable(QString::number(enabled[1])));
+    }
+
+    // Walks the commands of one chunk that do not record their change, with the caret in the text and in a table's cell: with Track Changes on it changes the file as it does with Track Changes off (the
+    // words and parts of it; the time of a field may differ), adds no mark, says so in the status bar, and one Undo takes it back.
+    void walkUntracked(int chunk)
+    {
+        const QByteArray docx = makeDocx(para(run("alpha beta")) + para(run("gamma")) + tableOf({{QByteArray(), {cellOf({}, para(run("a1"))), cellOf({}, para(run("a2")))}}, {QByteArray(), {cellOf({}, para(run("b1"))), cellOf({}, para(run("b2")))}}}, 2));
         WriteWindow w;
         w.setNotifier([](const QString &, const QString &) {});
         w.show();
@@ -6773,18 +6824,20 @@ private Q_SLOTS:
             if (QWidget *m = QApplication::activeModalWidget()) m->close();
         });
         closer.start(20);
-        QStringList differs, marked, silent, manySteps;
-        int changed = 0;
-        for (const QString &id : w.actionIds()) {
-            if (trackPolicyOf(id) != TrackPolicy::Untracked) continue;
+        QStringList differs, silent, manySteps;
+        const QStringList ids = commandsOfKind(w, false).mid(chunk * commandsPerChunk(), commandsPerChunk());
+        for (const QString &id : ids) {
             for (int scenario = 0; scenario < 2; ++scenario) {
-                const Ran on = runCommand(w, id, true, scenario, body), off = runCommand(w, id, false, scenario, body);
-                if (!on.enabled || !off.enabled) continue;
-                if (off.after == off.before) {
+                // (the file before the command is read from the run with tracking off, and from the one with it on only when the command changed nothing with it off)
+                const Ran off = runCommand(w, id, false, scenario, docx, true, false);
+                if (!off.enabled) continue;
+                const bool offChanged = off.after != off.before;
+                const Ran on = runCommand(w, id, true, scenario, docx, !offChanged, true);
+                if (!on.enabled) continue;
+                if (!offChanged) {
                     if (on.after != on.before) differs << id;
                     continue;
                 }
-                ++changed;
                 // (An object put in the text goes in a paragraph of its own, and that paragraph's break is recorded as it was before: the object is not. In a table's cell nothing is.)
                 const bool objectInText = scenario == 0 && (id.startsWith(QLatin1String("insert.chart.")) || id.startsWith(QLatin1String("insert.equation")) || id.startsWith(QLatin1String("insert.textBox.")) ||
                                                            id == QLatin1String("insert.drawingCanvas") || id.startsWith(QLatin1String("mail.rule.")));
@@ -6800,18 +6853,15 @@ private Q_SLOTS:
         }
         closer.stop();
         QVERIFY2(differs.isEmpty(), qPrintable(QStringLiteral("differs: ") + differs.join(QLatin1Char(' '))));
-        QVERIFY2(marked.isEmpty(), qPrintable(QStringLiteral("marked: ") + marked.join(QLatin1Char(' '))));
         QVERIFY2(silent.isEmpty(), qPrintable(QStringLiteral("silent: ") + silent.join(QLatin1Char(' '))));
         QVERIFY2(manySteps.isEmpty(), qPrintable(QStringLiteral("steps: ") + manySteps.join(QLatin1Char(' '))));
-        QVERIFY2(changed > 30, qPrintable(QString::number(changed)));
     }
 
-    // Runs every command that is said to be recorded, with the caret in the text and in a table's cell, and checks that a change it makes comes with a mark: a command that changes the file and marks
-    // nothing is the worst case (it changes the document with no sign of it).
-    void everyCommandSaidToBeRecordedMarksItsChangeOrChangesNothing()
+    // Runs the commands of one chunk that are said to be recorded, with the caret in the text and in a table's cell, and checks that a change one makes comes with a mark: a command that changes the
+    // file and marks nothing is the worst case (it changes the document with no sign of it).
+    void walkRecorded(int chunk)
     {
-        const QByteArray body = para(run("alpha beta")) + para(run("gamma")) + tableOf({{QByteArray(), {cellOf({}, para(run("a1"))), cellOf({}, para(run("a2")))}}, {QByteArray(), {cellOf({}, para(run("b1"))), cellOf({}, para(run("b2")))}}}, 2);
-        auto marks = [](const QByteArray &x) { return count(x, "<w:ins ") + count(x, "<w:del ") + count(x, "<w:ins/>") + count(x, "<w:del/>") + count(x, "Change "); };
+        const QByteArray docx = makeDocx(para(run("alpha beta")) + para(run("gamma")) + tableOf({{QByteArray(), {cellOf({}, para(run("a1"))), cellOf({}, para(run("a2")))}}, {QByteArray(), {cellOf({}, para(run("b1"))), cellOf({}, para(run("b2")))}}}, 2));
         WriteWindow w;
         w.setNotifier([](const QString &, const QString &) {});
         w.show();
@@ -6821,44 +6871,42 @@ private Q_SLOTS:
         });
         closer.start(20);
         QStringList silent;
-        int ran = 0, marked = 0;
-        for (const QString &id : w.actionIds()) {
-            const TrackPolicy policy = trackPolicyOf(id);
-            if (policy != TrackPolicy::Tracked && policy != TrackPolicy::TrackedInText) continue;
+        int ran = 0;
+        const QStringList ids = commandsOfKind(w, true).mid(chunk * commandsPerChunk(), commandsPerChunk());
+        for (const QString &id : ids) {
             for (int scenario = 0; scenario < 2; ++scenario) {
-                w.setDocument(open(makeDocx(body)), QString());
-                WriteDoc *doc = w.document();
-                doc->setTrackChanges(true);
-                const QByteArray before = documentXml(doc->toDocx());
-                QTextCursor c(doc->story());
-                if (scenario == 0) {
-                    c.setPosition(6);
-                    c.setPosition(10, QTextCursor::KeepAnchor);
-                } else {
-                    c = inParagraph(*doc, "a1");
-                }
-                w.view()->setCursor(c);
-                const bool outline = id.startsWith(QLatin1String("outline."));
-                if (outline && w.outlineView() == nullptr) w.act(QStringLiteral("view.outline"))->trigger();
-                if (outline) {
-                    w.act(QStringLiteral("view.outline"))->trigger();
-                    w.outlineView()->selectParagraphAt(inParagraph(*doc, "gamma").block().position());
-                }
-                QAction *a = w.act(id);
-                if (!a || !a->isEnabled()) continue;
-                a->trigger();
-                if (outline) w.act(QStringLiteral("view.printLayout"))->trigger();
+                const Ran r = runCommand(w, id, true, scenario, docx, true, false);
+                if (!r.enabled) continue;
                 ++ran;
-                const QByteArray after = documentXml(doc->toDocx());
-                if (after == before) continue;
-                if (marks(after) > marks(before)) ++marked;
-                else silent << id;
+                if (r.after == r.before) continue;
+                if (marksIn(r.after) <= marksIn(r.before)) silent << id;
             }
         }
         closer.stop();
         QVERIFY2(silent.isEmpty(), qPrintable(silent.join(QLatin1Char(' '))));
-        QVERIFY2(ran > 40 && marked > 20, qPrintable(QStringLiteral("%1 ran, %2 marked").arg(ran).arg(marked)));
     }
+
+    void everyUntrackedCommandWorksAsWithTrackingOffAddsNoMarkSaysSoAndUndoesInOneStepChunk00() { walkUntracked(0); }
+    void everyUntrackedCommandWorksAsWithTrackingOffAddsNoMarkSaysSoAndUndoesInOneStepChunk01() { walkUntracked(1); }
+    void everyUntrackedCommandWorksAsWithTrackingOffAddsNoMarkSaysSoAndUndoesInOneStepChunk02() { walkUntracked(2); }
+    void everyUntrackedCommandWorksAsWithTrackingOffAddsNoMarkSaysSoAndUndoesInOneStepChunk03() { walkUntracked(3); }
+    void everyUntrackedCommandWorksAsWithTrackingOffAddsNoMarkSaysSoAndUndoesInOneStepChunk04() { walkUntracked(4); }
+    void everyUntrackedCommandWorksAsWithTrackingOffAddsNoMarkSaysSoAndUndoesInOneStepChunk05() { walkUntracked(5); }
+    void everyUntrackedCommandWorksAsWithTrackingOffAddsNoMarkSaysSoAndUndoesInOneStepChunk06() { walkUntracked(6); }
+    void everyUntrackedCommandWorksAsWithTrackingOffAddsNoMarkSaysSoAndUndoesInOneStepChunk07() { walkUntracked(7); }
+    void everyUntrackedCommandWorksAsWithTrackingOffAddsNoMarkSaysSoAndUndoesInOneStepChunk08() { walkUntracked(8); }
+    void everyUntrackedCommandWorksAsWithTrackingOffAddsNoMarkSaysSoAndUndoesInOneStepChunk09() { walkUntracked(9); }
+    void everyUntrackedCommandWorksAsWithTrackingOffAddsNoMarkSaysSoAndUndoesInOneStepChunk10() { walkUntracked(10); }
+    void everyUntrackedCommandWorksAsWithTrackingOffAddsNoMarkSaysSoAndUndoesInOneStepChunk11() { walkUntracked(11); }
+    void everyUntrackedCommandWorksAsWithTrackingOffAddsNoMarkSaysSoAndUndoesInOneStepChunk12() { walkUntracked(12); }
+    void everyUntrackedCommandWorksAsWithTrackingOffAddsNoMarkSaysSoAndUndoesInOneStepChunk13() { walkUntracked(13); }
+
+    void everyCommandSaidToBeRecordedMarksItsChangeOrChangesNothingChunk00() { walkRecorded(0); }
+    void everyCommandSaidToBeRecordedMarksItsChangeOrChangesNothingChunk01() { walkRecorded(1); }
+    void everyCommandSaidToBeRecordedMarksItsChangeOrChangesNothingChunk02() { walkRecorded(2); }
+    void everyCommandSaidToBeRecordedMarksItsChangeOrChangesNothingChunk03() { walkRecorded(3); }
+    void everyCommandSaidToBeRecordedMarksItsChangeOrChangesNothingChunk04() { walkRecorded(4); }
+    void everyCommandSaidToBeRecordedMarksItsChangeOrChangesNothingChunk05() { walkRecorded(5); }
 
     void aRowInsertedWithTrackingOnIsAnInsertedRowThatRejectTakesOutAndAcceptKeeps()
     {
@@ -7529,7 +7577,7 @@ private Q_SLOTS:
         WriteWindow w;
         w.setNotifier([](const QString &, const QString &) {});
         w.show();
-        const QByteArray body = para(run("alpha beta")) + para(run("gamma"));
+        const QByteArray body = makeDocx(para(run("alpha beta")) + para(run("gamma")));
         for (const char *id : {"refs.addText.1", "refs.addText.2", "refs.addText.3", "refs.addText.none"}) {
             const Ran on = runCommand(w, QString::fromLatin1(id), true, 0, body);
             QVERIFY2(on.enabled && on.after != on.before, id);
