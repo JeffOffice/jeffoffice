@@ -211,6 +211,13 @@ bool optionsDialog(QWidget *p, Editor *, const QVector<OptionsPage> &appPages, b
     pf->addRow(asType);
     if (grammarAsType) pf->addRow(grammarAsType);
     if (grammarSettings) pf->addRow(grammarSettings);
+    if (grammarSettings) {
+        auto *only = new QLabel(QCoreApplication::translate("Dialogs", "Grammar is checked in English only. Text in other languages is checked for spelling only."), proof);
+        only->setObjectName(QStringLiteral("grammarLanguageNote"));
+        only->setTextFormat(Qt::PlainText);
+        only->setWordWrap(true);
+        pf->addRow(only);
+    }
     pf->addRow(ignoreUpper);
     pf->addRow(ignoreNum);
     auto *customDictionary = new QPushButton(QCoreApplication::translate("Dialogs", "Custom Dictionary..."), proof);

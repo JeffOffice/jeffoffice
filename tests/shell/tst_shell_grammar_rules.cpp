@@ -114,6 +114,24 @@ private Q_SLOTS:
         }
     }
 
+    // Nov 27 2026: every flag of a rule read in a sample of 30 from the development documents; each wrong one is a near miss here, with a true flag beside it that must still be found.
+    void theNov27SampleNearMissesAreLeftAloneAndTheTrueFlagsStay()
+    {
+        leavesAlone({QStringLiteral("See line 8A, Cat. A obligations, for the rest."), QStringLiteral("A L Voss Associates"), QStringLiteral("A L P H A B E T I C A L PROBLEMS"),
+                     QStringLiteral("Take 0, 1, 2, an 3 and go."), QStringLiteral("Then an Lno equation follows"),
+                     QStringLiteral("They otherwise advise the contracting officer."), QStringLiteral("Based on Your the Rest of Your Inspection"),
+                     QStringLiteral("Rice,long grain"), QStringLiteral("kidneyshape buckwheat,stokes buckwheat"),
+                     QStringLiteral("See 47 FCC Rcd 6155 (1994), recon. denied, 15 FCC Rcd 10520 (2000)."), QStringLiteral("Then orig_label was used as the merge item. Fine."),
+                     QStringLiteral("Provided, <<NOTE: 10 USC 7430 note. elk hills school lands fund>> That it holds."),
+                     QStringLiteral("-  B5a is the first item"), QStringLiteral("Let G = (g1,g2) : g1 = w(z) , g2 = z"), QStringLiteral("The value of x , in this context, is 1 and the rest follow from it.\u00a0=")});
+        QCOMPARE(fixed(QStringLiteral("They calculated a S-RfD for the study.")), QStringLiteral("They calculated an S-RfD for the study."));
+        QCOMPARE(fixed(QStringLiteral("It was a estimated value.")), QStringLiteral("It was an estimated value."));
+        QCOMPARE(fixed(QStringLiteral("In your letter you said it clearly,and I agree with all of it. Thanks.")), QStringLiteral("In your letter you said it clearly, and I agree with all of it. Thanks."));
+        QCOMPARE(fixed(QStringLiteral("He lost his place in the line.  Then recon. denied was written. we stopped.")), QStringLiteral("He lost his place in the line.  Then recon. denied was written. We stopped."));
+        QCOMPARE(fixed(QStringLiteral("Take the road to Austin . Then go on.")), QStringLiteral("Take the road to Austin. Then go on."));
+        QCOMPARE(fixed(QStringLiteral("There was a  gap in the line of the road.")), QStringLiteral("There was a gap in the line of the road."));
+    }
+
     void aRepeatedWordIsFlaggedAndTheSecondOneRemoved()
     {
         fixes({{"This is the the best day.", "This is the best day."}, {"I went to to the store.", "I went to the store."}, {"It was The the end.", "It was The end."},

@@ -3,7 +3,7 @@
 // paragraph's text, so a paragraph that comes back to a text it had (an undo, a copy) is not checked again. Checking is done on a thread of its own, one paragraph
 // at a time, a moment after the paragraph stopped changing (only its latest text is sent: a person typing makes one check, not one for each key): nothing here holds the
 // window up, and a hostile paragraph cannot (the service caps what it looks at, and a budget caps what the whole document may spend). Only the stretches of a
-// paragraph in its first checked language (English, French, German, or Spanish) are checked. The view is told, by `changed`, when an answer has come, and, by `budgetExhausted`, once, when the budget is gone and the checking stops.
+// paragraph in English are checked. The view is told, by `changed`, when an answer has come, and, by `budgetExhausted`, once, when the budget is gone and the checking stops.
 
 #include "core/export.h"
 #include "app/grammar.h"
@@ -31,6 +31,7 @@ public:
         GrammarIssue::Kind kind = GrammarIssue::Grammar;
         QString message;
         QStringList suggestions;   // each is the whole text to put in place of [start, end)
+        QString rule;              // the name of the rule that found it (for the measuring tool)
         bool valid() const { return start >= 0; }
     };
 

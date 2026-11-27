@@ -8,18 +8,6 @@ bool grammarAvailable() { return true; }
 
 namespace {
 
-// The language a tag is checked as: English, French, German, and Spanish, in their regional forms (the rules do not differ between them); an empty tag is US English.
-grammar::Language languageOf(const QString &family, const QString &tag)
-{
-    if (family == QLatin1String("fr")) {
-        const QString t = tag.trimmed().toLower();
-        return t.startsWith(QLatin1String("fr-ca")) || t.startsWith(QLatin1String("fr_ca")) ? grammar::Language::FrenchCanada : grammar::Language::French;
-    }
-    if (family == QLatin1String("de")) return grammar::Language::German;
-    if (family == QLatin1String("es")) return grammar::Language::Spanish;
-    return grammar::Language::English;
-}
-
 // Where to cut a text that is too long: after the last sentence end within the limit, or at the limit (not between the halves of a surrogate pair).
 int cutAt(const QString &text, int limit)
 {
@@ -37,10 +25,8 @@ QString grammarFamily(const QString &language)
 {
     const QString l = language.trimmed().toLower();
     if (l.isEmpty()) return QStringLiteral("en");
-    for (const char *family : {"en", "fr", "de", "es"}) {
-        const QString f = QLatin1String(family);
-        if (l == f || l.startsWith(f + QLatin1Char('-')) || l.startsWith(f + QLatin1Char('_'))) return f;
-    }
+    // (Version 1 checks English only, in every regional form: the other languages get spelling.)
+    if (l == QLatin1String("en") || l.startsWith(QLatin1String("en-")) || l.startsWith(QLatin1String("en_"))) return QStringLiteral("en");
     return QString();
 }
 
@@ -63,7 +49,7 @@ QVector<GrammarIssue> grammarCheck(const QString &text, const QString &language,
     }
     QElapsedTimer timer;
     timer.start();
-    out = grammar::check(len == text.size() ? text : text.left(len), nullptr, kinds, languageOf(family, language));
+    out = grammar::check(len == text.size() ? text : text.left(len), nullptr, kinds, grammar::Language::English);
     if (budget) budget->spend(len, timer.elapsed());
     if (out.size() > kGrammarMaxIssues) {
         out.resize(kGrammarMaxIssues);

@@ -139,8 +139,16 @@ void GrammarCheck::setBudget(qint64 chars, int ms)
     m_exhausted = false;
 }
 
-// The paragraph as the checker takes it. Only one language is checked at a time (English, French, German, or Spanish): the language of the first stretch that is one of them
-// is the paragraph's, and the text of a stretch in another language, or marked "do not check", is blanked out (with a character that is no word and no space, so no rule joins
+// Text that is not the person's own words as they read: what a tracked change deleted or moved away (the sentence is checked as the words round it stand, never joined across the gap:
+// "the [big] cat" is not "the  cat"), text hidden from the page, and the result or code of a field (a page number, a generated list, a merge value). None of it is checked, and a flag that touches it is dropped.
+static bool unchecked(const QTextCharFormat &cf)
+{
+    const int revision = cf.intProperty(tp::Revision);
+    return cf.boolProperty(tp::HiddenText) || revision == 2 || revision == 3 || cf.intProperty(tp::FieldId) != 0;
+}
+
+// The paragraph as the checker takes it. Only English is checked (the language of the first stretch that is English
+// is the paragraph's), and the text of a stretch in another language, or marked "do not check", is blanked out (with a character that is no word and no space, so no rule joins
 // the words on its two sides); a paragraph with none of the four in it is not sent at all. The look is kept with the paragraph's revision, so that a repaint that changes
 // nothing asks no question of the text.
 const GrammarCheck::Look &GrammarCheck::lookAt(const QTextBlock &block)
@@ -151,7 +159,7 @@ const GrammarCheck::Look &GrammarCheck::lookAt(const QTextBlock &block)
     size_t marks = 0;
     for (auto it = block.begin(); !it.atEnd(); ++it) {
         const QTextCharFormat cf = it.fragment().charFormat();
-        marks = qHashMulti(marks, it.fragment().length(), cf.stringProperty(tp::Language), cf.boolProperty(tp::NoProof));
+        marks = qHashMulti(marks, it.fragment().length(), cf.stringProperty(tp::Language), cf.boolProperty(tp::NoProof), unchecked(cf));
     }
     if (cached.position == block.position() && cached.revision == block.revision() && cached.length == block.length() && cached.marks == marks && cached.look.text == block.text()) return cached.look;
     ++m_looksMade;
@@ -165,7 +173,7 @@ const GrammarCheck::Look &GrammarCheck::lookAt(const QTextBlock &block)
         QString language = cf.stringProperty(tp::Language);
         if (language.isEmpty()) language = m_language;
         const QString here = grammarFamily(language);
-        if (!here.isEmpty() && !cf.boolProperty(tp::NoProof) && (family.isEmpty() || family == here)) {
+        if (!here.isEmpty() && !cf.boolProperty(tp::NoProof) && !unchecked(cf) && (family.isEmpty() || family == here)) {
             if (checked.isEmpty()) {
                 checked = language.isEmpty() ? QStringLiteral("en") : language;
                 family = here;
@@ -220,6 +228,7 @@ QVector<GrammarCheck::Issue> GrammarCheck::issuesOf(const QTextBlock &block, con
         is.end = block.position() + g.end;
         is.kind = g.kind;
         is.message = g.message;
+        is.rule = g.rule;
         const bool blankInside = look.text.mid(g.start, g.end - g.start).contains(QChar(0xFFFC));
         for (const QString &sg : g.suggestions)
             if (blankInside || !sg.contains(QChar(0xFFFC))) is.suggestions << sg;

@@ -1,6 +1,7 @@
 #include "grammar/grammarrules.h"
 
 #include <QCoreApplication>
+#include <QRegularExpression>
 #include <QSet>
 #include <algorithm>
 
@@ -211,7 +212,7 @@ const QSet<QString> &abbreviations()
                  "jan", "feb", "mar", "apr", "jun", "jul", "aug", "sep", "sept", "oct", "nov", "dec", "mon", "tue", "wed", "thu", "fri", "sat", "sun", "nos", "vol", "eds", "sec", "dept", "govt", "univ",
                  "mount", "min", "max", "ref", "tel", "ext", "appt", "apt", "assoc", "bros", "esq", "hrs", "mgmt", "incl", "excl", "esp", "avg", "seq", "ibid", "viz", "resp", "orig", "def",
                  "subm", "cont", "prop", "admin", "educ", "bull", "amer", "meteor", "soc", "var", "ssp", "spp", "subsp", "imp", "exp", "yr", "pp", "dpto", "gov",
-                 "dist", "pres", "supt", "cos", "cert", "reg", "regs", "nat", "intl", "int", "mfg", "mfr", "pkg", "qty", "amt", "subj", "temp", "thru", "vol", "wk", "yr");
+                 "recon", "cat", "dist", "pres", "supt", "cos", "cert", "reg", "regs", "nat", "intl", "int", "mfg", "mfr", "pkg", "qty", "amt", "subj", "temp", "thru", "vol", "wk", "yr");
 }
 // Words that begin with a small letter after a period without being the start of a sentence.
 const QSet<QString> &startsLowerForGood()
@@ -401,10 +402,16 @@ bool startsSentence(const Ctx &c, int i)
     return k < 0 || (c.tokens[k].kind == Tok::Punct && QLatin1String(".!?").contains(c.text.at(c.tokens[k].start)));
 }
 
+// A short word that begins with a letter said with a vowel sound (F, H, L, M, N, R, S, X) and goes on with a consonant ("Lno", "Mrs"): said by its letters or not a word, so "a" or "an" is not decided.
+bool shortAcronymLike(const QString &w)
+{
+    return w.size() >= 2 && w.size() <= 3 && QLatin1String("fhlmnrsx").contains(w.at(0)) && !QLatin1String("aeiouy").contains(w.at(1));
+}
+
 void articles(Ctx &c)
 {
     const QSet<QString> &labels = WORDS("letter", "letters", "vowel", "vowels", "symbol", "character", "grade", "type", "vitamin", "plan", "option", "point", "section", "variable", "case", "part", "step", "item", "key",
-                                        "class", "category", "group", "column", "row", "label", "word", "words", "sound", "note", "chord", "size", "figure", "table", "appendix", "exhibit", "schedule", "form", "level");
+                                        "cat", "class", "category", "group", "column", "row", "label", "word", "words", "sound", "note", "chord", "size", "figure", "table", "appendix", "exhibit", "schedule", "form", "level");
     const QSet<QString> &notNouns = WORDS("is", "are", "am", "and", "or", "as", "at", "in", "on", "if", "of", "it", "its", "i", "a", "an", "be", "to", "us", "up", "any", "all");
     for (int i = 0; i < c.size(); ++i) {
         c.step();
@@ -416,9 +423,13 @@ void articles(Ctx &c)
         const bool capital = orig.at(0).isUpper();
         if (orig.size() == 2 && orig.at(1).isUpper() && orig.at(0).isLower()) continue;
         if (capital && !startsSentence(c, i)) continue;   // (Vitamin A, Plan A)
+        if (capital && i >= 3 && c.isPunct(i - 2, QLatin1Char('.')) && c.isWord(i - 3) && abbreviations().contains(c.tokens[i - 3].lower)) continue;   // (Cat. A obligations)
         if (const int p = c.prevWord(i); p >= 0 && labels.contains(c.tokens[p].lower)) continue;   // (the letter a, grade a, type a: a name, not the article)
         const int j = c.nextWord(i);
         if (j < 0 || notNouns.contains(c.tokens[j].lower)) continue;
+        // Not decided: initials and letters set apart ("A L Voss", "A L P H A B E T"), "an" before a figure (a slip for "and"), and a short word said by its letters ("Lno").
+        if ((c.tokens[j].end - c.tokens[j].start == 1 && (j + 1 >= c.size() || c.tokens[j + 1].kind == Tok::Space)) || (l == QLatin1String("an") && c.tokens[j].kind == Tok::Number)) continue;
+        if (c.tokens[j].kind == Tok::Word && !c.tokens[j].lower.contains(QLatin1Char('-')) && shortAcronymLike(c.tokens[j].lower)) continue;
         const Sound s = soundOfWord(c, j, shoutingAt(c, j));
         if (s == Sound::Unknown) continue;
         if (l == QLatin1String("a") && s == Sound::Vowel)
@@ -451,6 +462,7 @@ void lowercaseSentenceStartWith(Ctx &c, const QSet<QString> *shortened)
         if (!c.isPunct(i, QLatin1Char('.')) || c.tokens[i + 1].kind != Tok::Space) continue;
         const int w = i + 2;
         if (!lowercaseWord(w)) continue;
+        if (c.text.contains(QLatin1String("<<")) || (w + 1 < c.size() && c.tokens[w + 1].kind == Tok::Punct && c.text.at(c.tokens[w + 1].start) == QLatin1Char('_'))) continue;   // (markup, and a name in code: "orig_label")
         const int before = i - 1;
         if (!c.isWord(before)) continue;
         const QString &b = c.tokens[before].lower;
@@ -526,6 +538,7 @@ void yourYouAre(Ctx &c)
     for (int i = 0; i < c.size(); ++i) {
         c.step();
         if (c.tokens[i].kind != Tok::Word || c.tokens[i].lower != QLatin1String("your")) continue;
+        if (c.original(i).at(0).isUpper() && !startsSentence(c, i)) continue;   // (a heading in capitals: "Based on Your the Rest")
         const int j = c.nextWord(i);
         static const QSet<QString> nexts = {QStringLiteral("a"), QStringLiteral("an"), QStringLiteral("the"), QStringLiteral("not"), QStringLiteral("always"), QStringLiteral("never")};
         if (j < 0 || !nexts.contains(c.tokens[j].lower) || c.original(j) != c.tokens[j].lower) continue;   // (a capital letter: "Your A grade")
@@ -611,6 +624,7 @@ void doubleSpace(Ctx &c)
         c.step();
         if (c.tokens[i].kind != Tok::Space || c.tokens[i].end - c.tokens[i].start != 2 || !c.plainSpaces(i)) continue;   // (three or more are an alignment)
         if (numeric(i - 1) || numeric(i + 1)) continue;
+        if (i == 1 && c.tokens[0].kind == Tok::Punct) continue;   // (a dash or bullet typed for a list item, then spaces)
         // Two spaces after the end of a sentence are a way of typing, not a mistake.
         int k = i - 1;
         while (k > 0 && c.tokens[k].kind == Tok::Punct && QStringView(u"\"')]\u201D\u2019").contains(c.text.at(c.tokens[k].start))) --k;
@@ -622,6 +636,8 @@ void doubleSpace(Ctx &c)
 // A space before a comma, a period, or another mark that goes with the word before it.
 void spaceBeforeMark(Ctx &c)
 {
+    // A paragraph with a formula in it (an equals sign, or an object where an equation was set) is spaced as the formula is.
+    if (c.text.contains(QLatin1Char('=')) || c.text.indexOf(QChar(0xFFFC), 3) >= 0) return;
     for (int i = 1; i + 1 < c.size(); ++i) {
         c.step();
         if (c.tokens[i].kind != Tok::Space || !c.plainSpaces(i) || c.tokens[i].end - c.tokens[i].start != 1) continue;   // (a longer run is an alignment)
@@ -1047,7 +1063,7 @@ void choseAndChoose(Ctx &c)
 // advice (the noun) and advise (the verb).
 void adviceAndAdvise(Ctx &c)
 {
-    eachPair(c, WORDS("the", "some", "any", "your", "my", "his", "our", "their", "good", "bad", "great", "best", "free", "legal", "medical", "professional", "expert", "sound", "wise"), WORDS("advise"),
+    eachPair(c, WORDS("the", "some", "any", "your", "my", "his", "our", "their", "good", "bad", "great", "best", "free", "legal", "medical", "professional", "expert", "sound"), WORDS("advise"),
              [&](int, int j) { replaceToken(c, j, QStringLiteral("advice"), GK::WordChoice, QCoreApplication::translate("Grammar", "Use \"advice\" (the noun) here.")); });
     for (int i = 0; i < c.size(); ++i) {
         c.step();
@@ -1376,8 +1392,12 @@ void compoundHyphen(Ctx &c)
 // A comma with no space after it between two words: "yes,but".
 void commaSpace(Ctx &c)
 {
-    // (a paragraph that has three of these or more is a list or a table of values, not a slip of the keyboard)
-    int slips = 0;
+    // (a paragraph that has three of these or more is a list or a table of values, not a slip of the keyboard; and so is a short one with no sentence in it: "Rice,long grain")
+    static const QRegularExpression sentenceEnd(QStringLiteral("[.?!](\\s|$)"));
+    int slips = 0, words = 0;
+    for (int i = 0; i < c.size(); ++i)
+        if (c.tokens[i].kind == Tok::Word) ++words;
+    if (words < 8 || !c.text.contains(sentenceEnd)) return;
     for (int i = 1; i + 1 < c.size(); ++i) {
         c.step();
         if (c.isPunct(i, QLatin1Char(',')) && c.isWord(i - 1) && c.isWord(i + 1)) ++slips;

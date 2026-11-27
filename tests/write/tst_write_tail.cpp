@@ -12,6 +12,9 @@
 #include "core/appinfo.h"
 #include "core/editops.h"
 #include "core/fonts.h"
+#include "core/pictureops.h"
+#include "core/proofstories.h"
+#include "core/tableops.h"
 #include "core/spellcheck.h"
 #include "core/writedoc.h"
 #include "office/package.h"
@@ -490,6 +493,55 @@ private Q_SLOTS:
         QCOMPARE(check.looksMade(), looks);
         check.setEnabled(false);
         QCOMPARE(check.knownIssues(), 0);
+    }
+
+    // The words a rule flags, one in each kind of story: the text, a table cell, an endnote, a header, a footer, a footnote, and a text box. Each is found once, in its own kind.
+    void everyKindOfStoryIsChecked()
+    {
+        const QString bad = QStringLiteral("This is an test.");
+        auto doc = textDoc({bad, QStringLiteral("Second."), QStringLiteral("Third.")});
+        auto typeIn = [&](QTextDocument *story, const QString &t) {
+            QTextCursor c(story);
+            c.movePosition(QTextCursor::End);
+            insertText(*doc, c, t);
+        };
+        QTextCursor c(doc->story());
+        c.setPosition(doc->story()->findBlock(0).next().position());
+        NewTable t;
+        t.rows = 1;
+        t.columns = 1;
+        QVERIFY(insertTable(*doc, c, t));
+        insertText(*doc, c, bad);
+        QTextCursor n(doc->story());
+        n.setPosition(doc->story()->lastBlock().position());
+        QTextDocument *note = insertFootnote(*doc, n);
+        QVERIFY(note);
+        typeIn(note, bad);
+        QTextCursor e(doc->story());
+        e.setPosition(doc->story()->lastBlock().position());
+        QVERIFY(insertEndnote(*doc, e));
+        insertText(*doc, e, bad);
+        QVERIFY(doc->createHeaderFooter(0, false, 0));
+        typeIn(doc->headerFooterStory(0, false, 0), bad);
+        QVERIFY(doc->createHeaderFooter(0, true, 0));
+        typeIn(doc->headerFooterStory(0, true, 0), bad);
+        QTextCursor at(doc->story());
+        QCOMPARE(insertTextBox(*doc, at, textBoxDesigns().first()), PictureResult::Ok);
+        QTextDocument *box = nullptr;
+        for (const flow::FloatingObject &o : doc->flow().objects)
+            if (o.story) box = o.story.get();
+        QVERIFY(box);
+        typeIn(box, bad);
+        const ProofReport report = checkEveryStory(*doc);
+        QMap<StoryKind, int> counts;
+        for (const ProofIssue &p : report.issues) {
+            ++counts[p.kind];
+            QVERIFY2(p.text == QLatin1String("an test") || p.text.startsWith(QLatin1String("an")), qPrintable(p.context));
+            QCOMPARE(p.issue.rule, QStringLiteral("a-an"));
+        }
+        for (int k = 0; k < kStoryKinds; ++k) QVERIFY2(counts.value(StoryKind(k)) == 1, qPrintable(storyKindName(StoryKind(k)) + QStringLiteral(" has %1").arg(counts.value(StoryKind(k)))));
+        QVERIFY(!report.truncated);
+        QVERIFY(report.words.value(StoryKind::TextBox) >= 3);
     }
 
     void theStatusBarCountsErrorsAndAClickGoesToTheNextOneAndRoundTheEnd()

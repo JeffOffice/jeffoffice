@@ -14,10 +14,12 @@
 #include <QDialog>
 #include <QDialogButtonBox>
 #include <QElapsedTimer>
+#include <QLabel>
 #include <QPushButton>
 #include <QTextDocument>
 #include <QTimer>
 #include <QtTest>
+#include <functional>
 
 using namespace jp;
 
@@ -65,32 +67,67 @@ private Q_SLOTS:
         QVERIFY(text.mid(issues.first().start, issues.first().end - issues.first().start).contains(QStringLiteral("an")));
     }
 
-    void englishFrenchGermanAndSpanishAreChecked()
+    void englishInEveryRegionIsTheOnlyLanguageChecked()
     {
         QVERIFY(grammarSupports(QString()));
         QVERIFY(grammarSupports(QStringLiteral("en-GB")));
         QVERIFY(grammarSupports(QStringLiteral("en_AU")));
-        for (const char *tag : {"fr", "fr-FR", "fr_CA", "de-DE", "de-AT", "es-ES", "es_MX", "es-419"}) QVERIFY2(grammarSupports(QString::fromLatin1(tag)), tag);
-        for (const char *tag : {"it", "ja-JP", "pt-BR", "fra", "deu", "ru", "zh-CN", "eng"}) QVERIFY2(!grammarSupports(QString::fromLatin1(tag)), tag);
-        QCOMPARE(grammarFamily(QStringLiteral("fr-CA")), QStringLiteral("fr"));
-        QCOMPARE(grammarFamily(QStringLiteral("DE_ch")), QStringLiteral("de"));
+        QVERIFY(grammarSupports(QStringLiteral("EN-ca")));
+        for (const char *tag : {"fr", "fr-FR", "fr_CA", "de-DE", "de-AT", "es-ES", "es_MX", "es-419", "it", "ja-JP", "pt-BR", "fra", "deu", "ru", "zh-CN", "eng"})
+            QVERIFY2(!grammarSupports(QString::fromLatin1(tag)), tag);
+        QCOMPARE(grammarFamily(QStringLiteral("en-AU")), QStringLiteral("en"));
         QCOMPARE(grammarFamily(QString()), QStringLiteral("en"));
-        QVERIFY(grammarFamily(QStringLiteral("it")).isEmpty());
-        QVERIFY(grammarCheck(QStringLiteral("Das ist ein Test."), QStringLiteral("it")).isEmpty());
-        // Each language has its own rules: the text goes to the rules of the tag.
-        const QString french = QStringLiteral("Le ami de la école.");
-        QCOMPARE(grammarCheck(french, QStringLiteral("fr-FR")).size(), 2);
-        QVERIFY(grammarCheck(french, QStringLiteral("en")).isEmpty());
-        // The spacing of French follows the country: Quebec has no space before ? ! ;
-        QVERIFY(!grammarCheck(QStringLiteral("Quoi?"), QStringLiteral("fr-FR")).isEmpty());
-        QVERIFY(!grammarCheck(QStringLiteral("Quoi?"), QStringLiteral("fr")).isEmpty());
-        QVERIFY(grammarCheck(QStringLiteral("Quoi?"), QStringLiteral("fr-CA")).isEmpty());
-        QVERIFY(!grammarCheck(QStringLiteral("Note: texte"), QStringLiteral("fr_CA")).isEmpty());
-        QVERIFY(grammarCheck(french, QStringLiteral("it")).isEmpty());
+        QVERIFY(grammarFamily(QStringLiteral("fr-CA")).isEmpty());
+        // Text in another language gets no grammar issues, even text the rules of that language would have flagged.
+        QVERIFY(grammarCheck(QStringLiteral("Le ami de la école."), QStringLiteral("fr-FR")).isEmpty());
+        QVERIFY(grammarCheck(QStringLiteral("Quoi?"), QStringLiteral("fr-FR")).isEmpty());
+        QVERIFY(grammarCheck(QStringLiteral("Das ist ein Test."), QStringLiteral("de")).isEmpty());
+        QVERIFY(!grammarCheck(QStringLiteral("This is an test."), QStringLiteral("en-GB")).isEmpty());
     }
 
     // A paragraph is checked as the language of its first checked stretch, and what is in another language, even one that is checked, is blanked out and left alone.
-    void aParagraphIsCheckedInItsFirstLanguageOnly()
+    // The words a tracked change deleted, text that is hidden, and the result of a field are not the person's words as they read: none of them is checked, and no rule joins the words on either side.
+    void deletedHiddenAndFieldTextIsNotChecked()
+    {
+        bool allNamed = true;
+        auto issueCount = [&allNamed](const QString &before, const QString &middle, const QString &after, std::function<void(QTextCharFormat &)> mark) {
+            QTextDocument doc;
+            QTextCursor c(&doc);
+            c.insertText(before);
+            QTextCharFormat f;
+            mark(f);
+            c.insertText(middle, f);
+            c.insertText(after, QTextCharFormat());
+            GrammarCheck check(&doc);
+            int from = 0, next = 0, n = 0;
+            GrammarCheck::Issue found;
+            while (check.search(from, 5000, &found, &next) == GrammarCheck::Step::Found) {
+                ++n;
+                allNamed = allNamed && !found.rule.isEmpty();
+                from = found.end;
+            }
+            return n;
+        };
+        auto nothing = [](QTextCharFormat &) {};
+        auto deleted = [](QTextCharFormat &f) { f.setProperty(tp::Revision, 2); };
+        auto moved = [](QTextCharFormat &f) { f.setProperty(tp::Revision, 3); };
+        auto inserted = [](QTextCharFormat &f) { f.setProperty(tp::Revision, 1); };
+        auto hidden = [](QTextCharFormat &f) { f.setProperty(tp::HiddenText, true); };
+        auto field = [](QTextCharFormat &f) { f.setProperty(tp::FieldId, 7); };
+        // "the the" is flagged when it is there, and not when one of the two is deleted (the text would read "the cat"), hidden, or a field's result; an insertion is text like any other.
+        QCOMPARE(issueCount(QStringLiteral("I saw the "), QStringLiteral("the "), QStringLiteral("cat."), nothing), 1);
+        QCOMPARE(issueCount(QStringLiteral("I saw the "), QStringLiteral("the "), QStringLiteral("cat."), inserted), 1);
+        QCOMPARE(issueCount(QStringLiteral("I saw the "), QStringLiteral("the "), QStringLiteral("cat."), deleted), 0);
+        QCOMPARE(issueCount(QStringLiteral("I saw the "), QStringLiteral("the "), QStringLiteral("cat."), moved), 0);
+        QCOMPARE(issueCount(QStringLiteral("I saw the "), QStringLiteral("the "), QStringLiteral("cat."), hidden), 0);
+        QCOMPARE(issueCount(QStringLiteral("I saw the "), QStringLiteral("the "), QStringLiteral("cat."), field), 0);
+        // A mistake inside deleted words is not reported either, and the words round them are still checked.
+        QCOMPARE(issueCount(QStringLiteral("This is "), QStringLiteral("an test. "), QStringLiteral("Fine."), deleted), 0);
+        QCOMPARE(issueCount(QStringLiteral("This is "), QStringLiteral("fine. "), QStringLiteral("Here an test."), deleted), 1);
+        QVERIFY2(allNamed, "every issue names its rule");
+    }
+
+    void aParagraphIsCheckedInEnglishOnlyAndOtherLanguagesAreBlankedOut()
     {
         auto issuesOf = [](const QVector<QPair<QString, QString>> &parts) {
             QTextDocument doc;
@@ -111,12 +148,14 @@ private Q_SLOTS:
             return QPair<QVector<GrammarCheck::Issue>, QString>(out, doc.toPlainText());
         };
         const QString fr = QStringLiteral("Le ami est ici. "), en = QStringLiteral("This is an test. ");
+        // (French before English: the French stretch is blanked out and the English one is still checked.)
         const auto frFirst = issuesOf({{fr, QStringLiteral("fr-FR")}, {en, QStringLiteral("en-US")}});
         QCOMPARE(frFirst.first.size(), 1);
-        QVERIFY(frFirst.first.first().end <= fr.size());
+        QVERIFY(frFirst.first.first().start >= fr.size());
         const auto enFirst = issuesOf({{en, QStringLiteral("en-US")}, {fr, QStringLiteral("fr-FR")}});
         QCOMPARE(enFirst.first.size(), 1);
         QVERIFY(enFirst.first.first().start < en.size());
+        QVERIFY(issuesOf({{fr, QStringLiteral("fr-FR")}}).first.isEmpty());
         QVERIFY(issuesOf({{fr, QStringLiteral("it-IT")}, {QStringLiteral("Das ist ein Test. "), QStringLiteral("it-IT")}}).first.isEmpty());
     }
 
@@ -292,7 +331,7 @@ private Q_SLOTS:
     void theProofingPageOfOptionsHasTheButtonWhereGrammarIsChecked()
     {
         for (const bool grammarApp : {true, false}) {
-            bool found = false, button = false;
+            bool found = false, button = false, note = false;
             QTimer poll;
             poll.setInterval(20);
             QObject::connect(&poll, &QTimer::timeout, &poll, [&] {
@@ -301,6 +340,8 @@ private Q_SLOTS:
                     if (!dlg || !dlg->isVisible() || dlg->objectName() != QLatin1String("optionsDialog")) continue;
                     found = true;
                     button = dlg->findChild<QPushButton *>(QStringLiteral("grammarSettingsButton")) != nullptr;
+                    // (the page says plainly that grammar is for English only)
+                    if (QLabel *l = dlg->findChild<QLabel *>(QStringLiteral("grammarLanguageNote"))) note = l->text().contains(QStringLiteral("English only")) && l->text().contains(QStringLiteral("spelling only"));
                     dlg->reject();
                 }
             });
@@ -308,6 +349,7 @@ private Q_SLOTS:
             optionsDialog(nullptr, nullptr, {}, grammarApp);
             QVERIFY(found);
             QCOMPARE(button, grammarApp);
+            QCOMPARE(note, grammarApp);
         }
     }
 

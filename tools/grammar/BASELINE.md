@@ -234,3 +234,36 @@ Most of the text above is our own machine-translated Help, program strings, and 
 - **German**: all of it. The weakest of the three: 229,000 words, no human-written text.
 - **Spanish**: only the court rules of Puerto Rico (405,000 words) are human-written, and they are legal text from PDFs with no questions or exclamations in them. So es-inverted-marks, es-question-accent,
   es-a-ver, es-hay-ahi-ay, and es-hecho have never seen ordinary prose; the rest were checked against the court rules.
+
+## Version 1 gate, November 27, 2026 (through the program's own reader and check)
+
+`tools/grammar/measure_write.py` runs `writetool grammar` over the 445 development documents (word, word2, and word3 dev lists; no held-out list is opened): 1,375,618 words in every story the
+window's check reaches (body 1,179,265; table cells 144,586; footnotes 42,707; text boxes 4,715; footers 2,101; headers 1,930; endnotes 314). A rule ships at 90 percent right or better on a random
+sample of 30 flags (all of them when it has fewer), each read. 40 English rules had no flag in these words; only their tests prove that they flag, and BASELINE's govdocs table above is their false-alarm evidence.
+
+Before the narrowing (first run, 699 flags), the rules under 90 percent: a-an 78 percent (21 of 27: "Cat. A", "A L Voss", letter-spaced headings, "an 3", "an Lno"), advice-advise 0 of 1 ("other-wise advise" split by a soft hyphen),
+comma-space 2 of 21 (plant lists in table cells: "Rice,long grain"), sentence-start 5 of 19 (legal "recon. denied" in footnotes, code names, markup), space-before-mark 23 of 30 (equations), your-youre 0 of 1 (a capitalized heading),
+double-space 27 of 30 (bullet dashes). After the narrowing (602 flags) every rule is at or above 90 percent:
+
+| rule | flags | per 10,000 words | read | right |
+|---|---|---|---|---|
+| a-an | 20 | 0.145 | 20 | 20 |
+| chose-choose | 2 | 0.015 | 2 | 2 |
+| comma-after-year | 6 | 0.044 | 6 | 6 |
+| comma-space | 2 | 0.015 | 2 | 2 |
+| compound-hyphen | 3 | 0.022 | 3 | 3 |
+| double-space | 483 | 3.511 | 30 | 30 |
+| doubled-mark | 10 | 0.073 | 10 | 10 |
+| have-past | 1 | 0.007 | 1 | 1 |
+| its | 3 | 0.022 | 3 | 3 |
+| less-fewer | 1 | 0.007 | 1 | 1 |
+| lowercase-i | 3 | 0.022 | 3 | 3 |
+| missing-space | 5 | 0.036 | 5 | 5 |
+| repeated-word | 19 | 0.138 | 19 | 18 |
+| run-together | 1 | 0.007 | 1 | 1 |
+| sentence-start | 5 | 0.036 | 5 | 5 |
+| space-before-mark | 35 | 0.254 | 30 | 30 |
+| then-than | 3 | 0.022 | 3 | 3 |
+
+The one wrong repeated-word flag is "P&As as providing" (the word before the "&" is cut in two). Rules that fail the gate on a larger sample later are narrowed the same way; every wrong flag becomes a near-miss test
+(`theNov27SampleNearMissesAreLeftAloneAndTheTrueFlagsStay`). The reading is by one person (the helper), so it is a first read, not a second opinion.

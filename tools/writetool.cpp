@@ -11,6 +11,8 @@
 //   writetool review-text <file.docx> accept|reject|none         the text of the body (UTF-8, a paragraph ends in \r) after Accept All or Reject All of its tracked changes, or as it stands
 //   writetool review-save <file.docx> accept|reject <out.docx>   the document with all its changes accepted or rejected, saved
 //   writetool review-list <file.docx>                            the tracked changes of the text, the notes, the headers and footers, and the tables: kind, author, date, places, words, and the story
+//   writetool grammar <file.docx>                                every grammar issue of every story (text, table cells, endnotes, headers, footers, footnotes, text boxes) the way the window finds
+//                                                                them: "words", then one "flag" line (kind, rule, text, context, first suggestion) for each issue; used by tools/grammar/measure.py
 //   writetool field-check <file.docx>                           every field of the text with the result it has and the one an update works out (a tab-separated line each: name, outcome, machine, before, after, code)
 //   writetool bench [paragraphs=26443] [options]                 a made-up long story: the time to its first page, to all of its pages, and to repaginate after a typed character,
 //                                                                against the targets (all of 26,443 paragraphs in 5 s, the first page in 0.3 s, a typed character in 50 ms); exits 1 if one is missed.
@@ -27,6 +29,7 @@
 #include "text/textprops.h"
 #ifdef JW_DOCX
 #include "core/fieldops.h"
+#include "core/proofstories.h"
 #include "core/reviewops.h"
 #include "core/spellcheck.h"
 #include "core/writedoc.h"
@@ -590,6 +593,21 @@ int main(int argc, char **argv)
         return 0;
     }
     if ((cmd == "review-text" || cmd == "review-save" || cmd == "review-list") && args.size() >= 3) return reviewCommand(args, out);
+    if (cmd == "grammar" && args.size() >= 3) {
+        QFile f(args[2]);
+        if (!f.open(QIODevice::ReadOnly)) { out << "cannot read: " << f.errorString() << "\n"; return 1; }
+        QString why;
+        QStringList notes;
+        std::unique_ptr<write::WriteDoc> d = write::WriteDoc::fromFile(f.readAll(), &why, &notes);
+        if (!d) { out << "cannot open: " << why << "\n"; return 1; }
+        const write::ProofReport report = write::checkEveryStory(*d, jp::grammar::kAllKinds);
+        for (auto it = report.words.cbegin(); it != report.words.cend(); ++it) out << "words\t" << write::storyKindName(it.key()) << "\t" << it.value() << "\t" << report.paragraphs.value(it.key()) << "\n";
+        for (const write::ProofIssue &p : report.issues)
+            out << "flag\t" << write::storyKindName(p.kind) << "\t" << p.issue.rule << "\t" << p.text << "\t" << QString(p.context).replace(QLatin1Char('\t'), QLatin1Char(' ')) << "\t"
+                << (p.issue.suggestions.isEmpty() ? QStringLiteral("(none)") : p.issue.suggestions.first()) << "\n";
+        if (report.truncated) out << "truncated\n";
+        return 0;
+    }
     if (cmd == "field-check" && args.size() >= 3) {
         QFile f(args[2]);
         if (!f.open(QIODevice::ReadOnly)) { out << "cannot read: " << f.errorString() << "\n"; return 1; }
