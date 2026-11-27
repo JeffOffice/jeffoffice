@@ -7818,55 +7818,75 @@ private Q_SLOTS:
         QCOMPARE(sessionNoteWords(*reopened, endnote, 3 * n), expected);
     }
 
-    // The most a copy keeps is a total of characters over all the notes; a selection at it is copied whole, and one character over it is refused with a notice and nothing cut.
-    void aCutOfNotesAtTheLimitIsKeptWholeAndOneCharacterMoreIsRefused_data() { aCutOfManyNotesPastesEveryNotesWords_data(); }
-    void aCutOfNotesAtTheLimitIsKeptWholeAndOneCharacterMoreIsRefused()
+    // The most a copy keeps is a total of characters over all the notes; a selection at it is copied whole, and one character over it is refused with a notice and nothing cut. Each part is its
+    // own function (each builds windows of eighty notes at the limit).
+    static int noteCharactersAtBare(bool endnote, int n)
+    {
+        int bare = 0;
+        ManyNotesWindow m(manyNotesDoc(n, endnote, 0), n, false);
+        m.selectReferences();
+        const Clip clip = copySelection(*m.doc, m.w.view()->cursor());
+        if (clip.notesTooLarge) return -1;
+        for (const QVector<office::wml::Block> &blocks : clip.notes)
+            for (const office::wml::Block &b : blocks)
+                for (const office::wml::Inline &in : b.para.content) bare += int(in.text.size() + in.display.size());
+        return bare;
+    }
+    void cutAtTheLimitIsKeptWhole(bool endnote, bool tracking)
+    {
+        const int n = 80;
+        // What the 80 notes come to with no filler (the notes' own overhead), to fill them up to the limit exactly.
+        const int bare = noteCharactersAtBare(endnote, n);
+        QVERIFY2(bare > 0 && (kMostCopiedNoteChars - bare) % n == 0, qPrintable(QString::number(bare)));
+        const int filler = (kMostCopiedNoteChars - bare) / n;
+        const QStringList expected = manyExpected(n, filler);
+        ManyNotesWindow m(manyNotesDoc(n, endnote, filler), n, tracking);
+        m.cutAndPasteAfter();
+        QCOMPARE(sessionNoteWords(*m.doc, endnote, 3 * n), expected);
+        const QByteArray saved = savedByWindow(m.w);
+        QCOMPARE(packageProblem(saved), QString());
+        QCOMPARE(savedNoteWords(saved, endnote), expected);
+        QCOMPARE(sessionNoteWords(*open(saved), endnote, 3 * n), expected);
+    }
+    void aCutOfFootnotesAtTheLimitIsKeptWholeTracked() { cutAtTheLimitIsKeptWhole(false, true); }
+    void aCutOfFootnotesAtTheLimitIsKeptWholeUntracked() { cutAtTheLimitIsKeptWhole(false, false); }
+    void aCutOfEndnotesAtTheLimitIsKeptWholeTracked() { cutAtTheLimitIsKeptWhole(true, true); }
+    void aCutOfEndnotesAtTheLimitIsKeptWholeUntracked() { cutAtTheLimitIsKeptWhole(true, false); }
+    void oneCharacterOverTheLimitRefusesTheCommand(const char *command, bool endnote, bool tracking)
+    {
+        const int n = 80;
+        const int bare = noteCharactersAtBare(endnote, n);
+        QVERIFY2(bare > 0 && (kMostCopiedNoteChars - bare) % n == 0, qPrintable(QString::number(bare)));
+        const int filler = (kMostCopiedNoteChars - bare) / n;
+        const QStringList expected = manyExpected(n, filler, 1);
+        ManyNotesWindow m(manyNotesDoc(n, endnote, filler, 1), n, tracking);
+        const QString before = m.doc->story()->toPlainText();
+        const QByteArray savedBefore = savedByWindow(m.w);
+        QApplication::clipboard()->setText(QStringLiteral("kept on the clipboard"));
+        QSignalSpy said(m.w.view(), &PageView::notice);
+        m.selectReferences();
+        QTRY_VERIFY(m.w.act(command)->isEnabled());
+        m.w.act(command)->trigger();
+        QCOMPARE(said.size(), 1);
+        QVERIFY2(said.first().first().toString().contains(QLatin1String("too long")), qPrintable(said.first().first().toString()));
+        QCOMPARE(QApplication::clipboard()->text(), QStringLiteral("kept on the clipboard"));
+        QCOMPARE(m.doc->story()->toPlainText(), before);
+        QCOMPARE(sessionNoteWords(*m.doc, endnote, 3 * n), expected);
+        QCOMPARE(savedByWindow(m.w), savedBefore);
+    }
+    void aCutOneCharacterOverTheNoteLimitIsRefused_data() { aCutOfManyNotesPastesEveryNotesWords_data(); }
+    void aCutOneCharacterOverTheNoteLimitIsRefused()
     {
         QFETCH(bool, endnote);
         QFETCH(bool, tracking);
-        const int n = 80;
-        // What the 80 notes come to with no filler (the notes' own overhead), to fill them up to the limit exactly.
-        int bare = 0;
-        {
-            ManyNotesWindow m(manyNotesDoc(n, endnote, 0), n, false);
-            m.selectReferences();
-            const Clip clip = copySelection(*m.doc, m.w.view()->cursor());
-            QVERIFY(!clip.notesTooLarge);
-            for (const QVector<office::wml::Block> &blocks : clip.notes)
-                for (const office::wml::Block &b : blocks)
-                    for (const office::wml::Inline &in : b.para.content) bare += int(in.text.size() + in.display.size());
-        }
-        QVERIFY2(bare > 0 && (kMostCopiedNoteChars - bare) % n == 0, qPrintable(QString::number(bare)));
-        const int filler = (kMostCopiedNoteChars - bare) / n;
-        {
-            // At the limit: every note is pasted with its words.
-            const QStringList expected = manyExpected(n, filler);
-            ManyNotesWindow m(manyNotesDoc(n, endnote, filler), n, tracking);
-            m.cutAndPasteAfter();
-            QCOMPARE(sessionNoteWords(*m.doc, endnote, 3 * n), expected);
-            const QByteArray saved = savedByWindow(m.w);
-            QCOMPARE(packageProblem(saved), QString());
-            QCOMPARE(savedNoteWords(saved, endnote), expected);
-            QCOMPARE(sessionNoteWords(*open(saved), endnote, 3 * n), expected);
-        }
-        for (const char *command : {"edit.cut", "edit.copy"}) {
-            // One character over: nothing is cut or copied, and the person is told.
-            const QStringList expected = manyExpected(n, filler, 1);
-            ManyNotesWindow m(manyNotesDoc(n, endnote, filler, 1), n, tracking);
-            const QString before = m.doc->story()->toPlainText();
-            const QByteArray savedBefore = savedByWindow(m.w);
-            QApplication::clipboard()->setText(QStringLiteral("kept on the clipboard"));
-            QSignalSpy said(m.w.view(), &PageView::notice);
-            m.selectReferences();
-            QTRY_VERIFY(m.w.act(command)->isEnabled());
-            m.w.act(command)->trigger();
-            QCOMPARE(said.size(), 1);
-            QVERIFY2(said.first().first().toString().contains(QLatin1String("too long")), qPrintable(said.first().first().toString()));
-            QCOMPARE(QApplication::clipboard()->text(), QStringLiteral("kept on the clipboard"));
-            QCOMPARE(m.doc->story()->toPlainText(), before);
-            QCOMPARE(sessionNoteWords(*m.doc, endnote, 3 * n), expected);
-            QCOMPARE(savedByWindow(m.w), savedBefore);
-        }
+        oneCharacterOverTheLimitRefusesTheCommand("edit.cut", endnote, tracking);
+    }
+    void aCopyOneCharacterOverTheNoteLimitIsRefused_data() { aCutOfManyNotesPastesEveryNotesWords_data(); }
+    void aCopyOneCharacterOverTheNoteLimitIsRefused()
+    {
+        QFETCH(bool, endnote);
+        QFETCH(bool, tracking);
+        oneCharacterOverTheLimitRefusesTheCommand("edit.copy", endnote, tracking);
     }
 
     // Deleted endnotes: one Accept All or Reject All settles every mark, in the session and in the saved file opened again, for one, eight, and thirty references (marks were left behind from eight on).
