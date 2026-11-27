@@ -134,6 +134,12 @@ private Q_SLOTS:
     void pubWriterMaster();
     void aPubFileSaysWhatItDropsOfMacrosAndStoredFonts();
     void savingAsJpubSaysWhatItDropsOfMacrosAndStoredFonts();
+    void aJpubKeepsLinksInText();
+    void aJpubKeepsLines();
+    void aJpubKeepsPictureCropsAndEffects();
+    void aJpubKeepsBookletsAndCards();
+    void aJpubKeepsTextArt();
+    void aJpubKeepsAltText();
     void pubWriterHyphenation();
     void pubWriterStyles();
     void pubWriterTwoMasters();

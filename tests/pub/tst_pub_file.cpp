@@ -3137,6 +3137,194 @@ void PubFileTests::savingAsJpubSaysWhatItDropsOfMacrosAndStoredFonts()
 }
 
 
+// JeffPub's own format keeps what the checklist (docs/jeffpub-save-checklist.md) names: each of these goes through the window's own save and open, as a person's does.
+namespace {
+std::unique_ptr<jp::MainWindow> savedAndReopened(std::unique_ptr<jp::Document> doc, const QString &path)
+{
+    {
+        jp::MainWindow w;
+        w.editor()->setDocument(std::move(doc));
+        if (!w.saveTo(path)) return nullptr;
+    }
+    auto again = std::make_unique<jp::MainWindow>();
+    if (!again->openFile(path)) return nullptr;
+    return again;
+}
+}
+
+void PubFileTests::aJpubKeepsLinksInText()
+{
+    auto doc = jp::Document::blank(QSizeF(612, 792));
+    auto box = std::make_shared<jp::TextItem>();
+    box->rect = QRectF(72, 72, 400, 120);
+    box->storyId = doc->createStory();
+    QTextCursor c(doc->storyDoc(box->storyId));
+    QTextCharFormat link;
+    link.setAnchor(true);
+    link.setAnchorHref(QStringLiteral("https://example.com/in-text"));
+    c.insertText(QStringLiteral("a link"), link);
+    c.insertText(QStringLiteral(" and plain words"), QTextCharFormat());
+    doc->pages[0]->items.push_back(box);
+    QTemporaryDir dir;
+    auto w = savedAndReopened(std::move(doc), dir.filePath(QStringLiteral("links.jpub")));
+    QVERIFY(w);
+    const jp::Document *d = w->editor()->doc();
+    auto *t = dynamic_cast<jp::TextItem *>(d->pages[0]->items[0].get());
+    QVERIFY(t);
+    QString linked, plain;
+    for (QTextBlock b = d->storyDoc(t->storyId)->begin(); b.isValid(); b = b.next())
+        for (auto f = b.begin(); !f.atEnd(); ++f)
+            (f.fragment().charFormat().isAnchor() ? linked : plain) += f.fragment().text();
+    QCOMPARE(linked, QStringLiteral("a link"));
+    QCOMPARE(plain, QStringLiteral(" and plain words"));
+    QCOMPARE(d->storyDoc(t->storyId)->begin().begin().fragment().charFormat().anchorHref(), QStringLiteral("https://example.com/in-text"));
+}
+
+void PubFileTests::aJpubKeepsLines()
+{
+    auto doc = jp::Document::blank(QSizeF(612, 792));
+    auto line = std::make_shared<jp::LineItem>();
+    line->p1 = QPointF(100, 520);
+    line->p2 = QPointF(400, 450);
+    line->syncRect();
+    line->stroke = jp::Stroke::line(jp::ColorRef::rgb(QColor(200, 0, 0)), 3);
+    line->stroke.dash = jp::Stroke::DashLine;
+    line->stroke.endArrow = jp::Arrow::Triangle;
+    doc->pages[0]->items.push_back(line);
+    QTemporaryDir dir;
+    auto w = savedAndReopened(std::move(doc), dir.filePath(QStringLiteral("lines.jpub")));
+    QVERIFY(w);
+    QCOMPARE(int(w->editor()->doc()->pages[0]->items.size()), 1);
+    auto *got = dynamic_cast<jp::LineItem *>(w->editor()->doc()->pages[0]->items[0].get());
+    QVERIFY(got);
+    QCOMPARE(got->p1, QPointF(100, 520));
+    QCOMPARE(got->p2, QPointF(400, 450));
+    QCOMPARE(got->stroke.width, 3.0);
+    QCOMPARE(int(got->stroke.dash), int(jp::Stroke::DashLine));
+    QCOMPARE(int(got->stroke.endArrow), int(jp::Arrow::Triangle));
+    QCOMPARE(got->stroke.color.rgbValue().rgb(), QColor(200, 0, 0).rgb());
+}
+
+void PubFileTests::aJpubKeepsPictureCropsAndEffects()
+{
+    auto doc = jp::Document::blank(QSizeF(612, 792));
+    QImage photo(120, 90, QImage::Format_RGB32);
+    photo.fill(qRgb(10, 120, 240));
+    QByteArray png;
+    QBuffer buf(&png);
+    QVERIFY(buf.open(QIODevice::WriteOnly) && photo.save(&buf, "PNG"));
+    const QString id = doc->addImage(png, QStringLiteral("png"));
+    auto pic = std::make_shared<jp::PictureItem>();
+    pic->imageId = id;
+    pic->rect = QRectF(60, 80, 100, 75);
+    pic->imgRect = QRectF(-25, -10, 150, 100);
+    pic->brightness = 30;
+    pic->contrast = -20;
+    pic->recolor = jp::PictureItem::Sepia;
+    pic->hasTransparentColor = true;
+    pic->transparentColor = QColor(0, 0, 255);
+    pic->maskShape = QStringLiteral("hexagon");
+    pic->transparency = 0.4;
+    doc->pages[0]->items.push_back(pic);
+    QTemporaryDir dir;
+    auto w = savedAndReopened(std::move(doc), dir.filePath(QStringLiteral("crops.jpub")));
+    QVERIFY(w);
+    auto *got = dynamic_cast<jp::PictureItem *>(w->editor()->doc()->pages[0]->items[0].get());
+    QVERIFY(got);
+    QCOMPARE(got->imgRect, QRectF(-25, -10, 150, 100));
+    QCOMPARE(got->brightness, 30);
+    QCOMPARE(got->contrast, -20);
+    QCOMPARE(int(got->recolor), int(jp::PictureItem::Sepia));
+    QVERIFY(got->hasTransparentColor);
+    QCOMPARE(got->transparentColor, QColor(0, 0, 255));
+    QCOMPARE(got->maskShape, QStringLiteral("hexagon"));
+    QCOMPARE(got->transparency, 0.4);
+    QVERIFY(!w->editor()->doc()->image(got->imageId).isNull());
+}
+
+void PubFileTests::aJpubKeepsBookletsAndCards()
+{
+    QTemporaryDir dir;
+    for (const auto layout : {jp::PageSetup::Booklet, jp::PageSetup::FoldedCard}) {
+        auto doc = jp::Document::blank(QSizeF(396, 612));
+        doc->setup.layout = layout;
+        doc->setup.sheet = QSizeF(792, 612);
+        for (int i = 1; i < 4; ++i) doc->addPage();
+        for (int i = 0; i < 4; ++i) {
+            auto t = std::make_shared<jp::TextItem>();
+            t->rect = QRectF(72, 300, 200, 40);
+            t->storyId = doc->createStory(QStringLiteral("Page %1").arg(i + 1));
+            doc->pages[i]->items.push_back(t);
+        }
+        auto w = savedAndReopened(std::move(doc), dir.filePath(QStringLiteral("layout%1.jpub").arg(int(layout))));
+        QVERIFY(w);
+        const jp::Document *d = w->editor()->doc();
+        QCOMPARE(int(d->setup.layout), int(layout));
+        QCOMPARE(d->setup.sheet, QSizeF(792, 612));
+        QCOMPARE(int(d->pages.size()), 4);
+        for (int i = 0; i < 4; ++i) {
+            auto *t = dynamic_cast<jp::TextItem *>(d->pages[i]->items.front().get());
+            QVERIFY(t);
+            QCOMPARE(d->storyDoc(t->storyId)->toPlainText(), QStringLiteral("Page %1").arg(i + 1));
+        }
+    }
+}
+
+void PubFileTests::aJpubKeepsTextArt()
+{
+    auto doc = jp::Document::blank(QSizeF(612, 792));
+    auto ta = std::make_shared<jp::TextArtItem>();
+    ta->text = QStringLiteral("Around the circle");
+    ta->transform_ = QStringLiteral("circle");
+    ta->font = QStringLiteral("Arimo");
+    ta->bold = true;
+    ta->italic = true;
+    ta->spacing = 1.2;
+    ta->rotation = 20;
+    ta->rect = QRectF(60, 60, 220, 150);
+    ta->fill = jp::Fill::solid(jp::ColorRef::rgb(QColor(30, 150, 60)));
+    ta->stroke = jp::Stroke::none();
+    doc->pages[0]->items.push_back(ta);
+    QTemporaryDir dir;
+    auto w = savedAndReopened(std::move(doc), dir.filePath(QStringLiteral("textart.jpub")));
+    QVERIFY(w);
+    auto *got = dynamic_cast<jp::TextArtItem *>(w->editor()->doc()->pages[0]->items[0].get());
+    QVERIFY(got);
+    QCOMPARE(got->text, QStringLiteral("Around the circle"));
+    QCOMPARE(got->transform_, QStringLiteral("circle"));
+    QCOMPARE(got->font, QStringLiteral("Arimo"));
+    QVERIFY(got->bold && got->italic);
+    QCOMPARE(got->spacing, 1.2);
+    QCOMPARE(got->rotation, 20.0);
+    QCOMPARE(got->rect, QRectF(60, 60, 220, 150));
+    QCOMPARE(got->fill.color.rgbValue().rgb(), QColor(30, 150, 60).rgb());
+}
+
+void PubFileTests::aJpubKeepsAltText()
+{
+    auto doc = jp::Document::blank(QSizeF(612, 792));
+    auto shape = std::make_shared<jp::ShapeItem>();
+    shape->rect = QRectF(72, 100, 200, 80);
+    shape->altText = QStringLiteral("A green box");
+    shape->altTitle = QStringLiteral("Box");
+    auto rule = std::make_shared<jp::ShapeItem>();
+    rule->rect = QRectF(72, 300, 200, 10);
+    rule->decorative = true;
+    doc->pages[0]->items.push_back(shape);
+    doc->pages[0]->items.push_back(rule);
+    QTemporaryDir dir;
+    auto w = savedAndReopened(std::move(doc), dir.filePath(QStringLiteral("alt.jpub")));
+    QVERIFY(w);
+    const auto &items = w->editor()->doc()->pages[0]->items;
+    QCOMPARE(int(items.size()), 2);
+    QCOMPARE(items[0]->altText, QStringLiteral("A green box"));
+    QCOMPARE(items[0]->altTitle, QStringLiteral("Box"));
+    QVERIFY(!items[0]->decorative);
+    QVERIFY(items[1]->altText.isEmpty());
+    QVERIFY(items[1]->decorative);
+}
+
+
 // A story's automatic hyphenation setting survives .pub.
 void PubFileTests::pubWriterHyphenation()
 {
