@@ -708,6 +708,7 @@ private Q_SLOTS:
             {QStringLiteral("review.show.formatting"), QStringLiteral("it chooses whether the bars for changes of formatting are painted in the pages' margin, which no control shows; the window's tests check the painting")},
         };
         m_app.neverRun = {
+            {QStringLiteral("edit.clearHighlighting"), QStringLiteral("it is on only while the Find pane is closed with its bands still shown, which no place here has; findHighlightsFollowTheViewAndEndWithThePane and keptFindHighlightsEndWithAnEditOrAReopenedPane run it there")},
             {QStringLiteral("table.moveDown"), QStringLiteral("it is on only with a paragraph after the table that is not in a table, which no place here has; moveTableUpAndDownGoPastOneParagraphEach runs it on a table with paragraphs after it")},
             {QStringLiteral("view.moveSectionUp"), QStringLiteral("it is on only with the caret in a heading or under one, and no document here has a heading; commandsMoveTheSectionTheCaretIsInPastItsNeighbor and theSectionCommandsAreOffWithTheReasonWhereTheyWouldRefuse run it")},
             {QStringLiteral("view.moveSectionDown"), QStringLiteral("it is on only with the caret in a heading or under one, and no document here has a heading; commandsMoveTheSectionTheCaretIsInPastItsNeighbor and theSectionCommandsAreOffWithTheReasonWhereTheyWouldRefuse run it")},
