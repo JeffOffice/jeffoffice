@@ -820,6 +820,15 @@ QString DataConnection::text() const
     return text;
 }
 
+bool dataConnectionIsNewer(const QString &text)
+{
+    if (!text.startsWith(QLatin1String("jo-data:"))) return false;
+    int n = 0;
+    int i = 8;
+    for (; i < text.size() && text[i].isDigit() && i < 12; ++i) n = n * 10 + text[i].digitValue();
+    return i > 8 && i < text.size() && text[i] == QLatin1Char('?') && n > 2;
+}
+
 bool DataConnection::parse(const QString &text, DataConnection *out)
 {
     if ((!text.startsWith(QLatin1String("jo-data:1?")) && !text.startsWith(QLatin1String("jo-data:2?"))) || text.size() > kMaxConnectionChars) return false;
@@ -849,7 +858,7 @@ bool DataConnection::parse(const QString &text, DataConnection *out)
     }
     if (c.kind != QLatin1String("json") && c.kind != QLatin1String("xml") && c.kind != QLatin1String("workbook")) return false;
     if (c.path.isEmpty()) return false;
-    if (!c.stepsText.isEmpty() && !parseDataSteps(c.stepsText, &c.steps, &c.stepsProblem)) c.steps.clear();
+    if (!c.stepsText.isEmpty() && !parseDataSteps(c.stepsText, &c.steps, &c.stepsProblem, &c.stepsNewer)) c.steps.clear();
     *out = c;
     return true;
 }

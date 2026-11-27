@@ -59,11 +59,15 @@ struct DataConnection {
     qint64 rowCount = -1;  // the rows it gave then; -1 when not known
     QVector<DataStep> steps;   // what is done to the rows the file gives, in order (datasteps.h)
     QString stepsText;     // the steps as they were saved (JSON); kept as they were when they can't be read
+    bool stepsNewer = false;   // the steps can't be run because one is of a kind this version does not have
     QString stepsProblem;  // why the steps can't be run, in words; empty when they can
     QStringList columns;   // the names the file's columns had in the table when it was made, so that Refresh knows which columns are the file's and which the person added (left out when too many to keep)
     QString text() const;
     static bool parse(const QString &text, DataConnection *out);
 };
+
+// Whether the saved text has a version number higher than this version reads (it can't be read, and is kept as it was).
+bool dataConnectionIsNewer(const QString &text);
 
 // A column's kind from what it holds: 't' text, 'n' number, 'b' true or false, 'd' date (the year-month-day form, with a time or not). Everything is 't' when asText. A column of numbers with a leading
 // zero or more than 15 digits stays text (an identifier is not a quantity).

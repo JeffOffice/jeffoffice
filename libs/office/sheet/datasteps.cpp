@@ -82,8 +82,9 @@ QString dataStepsToJson(const QVector<DataStep> &steps)
     return QString::fromUtf8(QJsonDocument(all).toJson(QJsonDocument::Compact));
 }
 
-bool parseDataSteps(const QString &json, QVector<DataStep> *out, QString *why)
+bool parseDataSteps(const QString &json, QVector<DataStep> *out, QString *why, bool *newer)
 {
+    if (newer) *newer = false;
     auto fail = [&](const QString &text) {
         if (why) *why = text;
         return false;
@@ -106,8 +107,10 @@ bool parseDataSteps(const QString &json, QVector<DataStep> *out, QString *why)
         if (!all[i].isObject()) return fail(QCoreApplication::translate("jp::DataSteps", "The list of steps can't be read."));
         const QJsonObject o = all[i].toObject();
         DataStep s;
-        if (!o.value(QLatin1String("op")).isString() || !opFromName(o.value(QLatin1String("op")).toString(), &s.op))
+        if (!o.value(QLatin1String("op")).isString() || !opFromName(o.value(QLatin1String("op")).toString(), &s.op)) {
+            if (newer && o.value(QLatin1String("op")).isString()) *newer = true;
             return fail(QCoreApplication::translate("jp::DataSteps", "Step %1 is of a kind this version of JeffCrunch does not have. It may have been made in a newer version.").arg(i + 1));
+        }
         bool good = text(o, "col", &s.col) && text(o, "to", &s.to) && text(o, "cmp", &s.cmp) && text(o, "value", &s.value) && text(o, "kind", &s.kind) && text(o, "order", &s.order)
                     && text(o, "decimal", &s.decimal) && text(o, "group", &s.group) && text(o, "label", &s.label);
         if (o.contains(QLatin1String("cols"))) {
@@ -202,17 +205,49 @@ bool plainNumber(const QString &t, double *d)
 
 bool blank(const DataCell &c) { return c.text.trimmed().isEmpty(); }
 
-bool filterKeeps(const DataCell &c, const QString &cmp, const QString &value, bool valueIsNumber, double valueNumber)
+// One order for filter and sort: numbers, then dates (year-month-day), then text, blanks last. A comparison between values of different kinds is false.
+enum Kind { KindNumber = 0, KindDate = 1, KindText = 2, KindBlank = 3 };
+
+struct Typed {
+    Kind kind = KindText;
+    double number = 0;   // a number; for a date, the day count
+};
+
+Typed typedOf(const QString &text)
+{
+    Typed t;
+    const QString s = text.trimmed();
+    if (s.isEmpty()) {
+        t.kind = KindBlank;
+        return t;
+    }
+    if (plainNumber(s, &t.number)) {
+        t.kind = KindNumber;
+        return t;
+    }
+    static const QRegularExpression iso(QStringLiteral("^[0-9]{4}-[0-9]{2}-[0-9]{2}$"));
+    if (iso.match(s).hasMatch()) {
+        const QDate d = QDate::fromString(s, Qt::ISODate);
+        if (d.isValid()) {
+            t.kind = KindDate;
+            t.number = double(d.toJulianDay());
+        }
+    }
+    return t;
+}
+
+bool filterKeeps(const DataCell &c, const QString &cmp, const QString &value, const Typed &wanted)
 {
     if (cmp == QLatin1String("blank")) return blank(c);
     if (cmp == QLatin1String("notblank")) return !blank(c);
     if (cmp == QLatin1String("contains")) return c.text.contains(value, Qt::CaseInsensitive);
     if (cmp == QLatin1String("notcontains")) return !c.text.contains(value, Qt::CaseInsensitive);
     if (blank(c)) return cmp == QLatin1String("ne");
-    double d = 0;
+    const Typed have = typedOf(c.text);
+    if (have.kind != wanted.kind) return false;
     int order;
-    if (valueIsNumber && plainNumber(c.text, &d)) order = d < valueNumber ? -1 : d > valueNumber ? 1 : 0;
-    else order = QString::compare(c.text, value, Qt::CaseInsensitive);
+    if (have.kind == KindText) order = QString::compare(c.text, value, Qt::CaseInsensitive);
+    else order = have.number < wanted.number ? -1 : have.number > wanted.number ? 1 : 0;
     if (cmp == QLatin1String("eq")) return order == 0;
     if (cmp == QLatin1String("ne")) return order != 0;
     if (cmp == QLatin1String("gt")) return order > 0;
@@ -226,15 +261,14 @@ bool runFilter(Engine &e, const DataStep &s)
     int c;
     if (!e.needColumn(s.col, &c)) return false;
     if (!e.budget(e.rows.rows.size())) return false;
-    double number = 0;
-    const bool isNumber = plainNumber(s.value, &number);
+    const Typed wanted = typedOf(s.value);
     QVector<QVector<DataCell>> kept;
     for (int i = 0; i < e.rows.rows.size(); ++i) {
         if ((i & 4095) == 0 && e.stopped()) {
             e.why = QCoreApplication::translate("jp::DataSteps", "The read was stopped.");
             return false;
         }
-        if (filterKeeps(e.rows.rows[i].value(c), s.cmp, s.value, isNumber, number)) kept.push_back(std::move(e.rows.rows[i]));
+        if (filterKeeps(e.rows.rows[i].value(c), s.cmp, s.value, wanted)) kept.push_back(std::move(e.rows.rows[i]));
     }
     e.rows.rows = std::move(kept);
     return true;
@@ -247,7 +281,7 @@ bool runSort(Engine &e, const DataStep &s)
     const int n = e.rows.rows.size();
     if (!e.budget(qint64(n) * 4)) return false;
     struct Key {
-        int rank;   // 0 a number, 1 text, 2 blank
+        int rank;   // Kind: 0 a number, 1 a date, 2 text, 3 blank
         double number;
         QString text;
         int row;
@@ -256,9 +290,8 @@ bool runSort(Engine &e, const DataStep &s)
     keys.reserve(n);
     for (int i = 0; i < n; ++i) {
         const DataCell cell = e.rows.rows[i].value(c);
-        Key k{1, 0, cell.text, i};
-        if (blank(cell)) k.rank = 2;
-        else if (plainNumber(cell.text, &k.number)) k.rank = 0;
+        const Typed typed = typedOf(cell.text);
+        Key k{int(typed.kind), typed.number, cell.text, i};
         keys.push_back(std::move(k));
     }
     if (e.stopped()) {
@@ -267,10 +300,10 @@ bool runSort(Engine &e, const DataStep &s)
     }
     const bool desc = s.descending;
     std::stable_sort(keys.begin(), keys.end(), [desc](const Key &a, const Key &b) {
-        if ((a.rank == 2) != (b.rank == 2)) return a.rank != 2;   // blanks last, in either direction
-        if (a.rank == 2) return false;
+        if ((a.rank == KindBlank) != (b.rank == KindBlank)) return a.rank != KindBlank;   // blanks last, in either direction
+        if (a.rank == KindBlank) return false;
         if (a.rank != b.rank) return desc ? a.rank > b.rank : a.rank < b.rank;
-        const int order = a.rank == 0 ? (a.number < b.number ? -1 : a.number > b.number ? 1 : 0) : QString::compare(a.text, b.text, Qt::CaseInsensitive);
+        const int order = a.rank != KindText ? (a.number < b.number ? -1 : a.number > b.number ? 1 : 0) : QString::compare(a.text, b.text, Qt::CaseInsensitive);
         return desc ? order > 0 : order < 0;
     });
     QVector<QVector<DataCell>> sorted;
@@ -359,6 +392,16 @@ bool toNumber(const QString &text, const QString &decimal, const QString &group,
     const QString grp = group.isEmpty() ? (dec == QLatin1String(".") ? QStringLiteral(",") : QStringLiteral(".")) : group;
     if (dec == grp) return false;
     if (grp == QLatin1String(" ")) t.remove(QChar(0x00A0)).remove(QChar(0x202F));
+    // (a grouping mark counts only between groups of exactly three digits, after a first group of one to three: "12,34" is a decimal comma written the wrong way round, not 1234)
+    const qsizetype point = t.indexOf(dec);
+    const QString whole = point < 0 ? t : t.left(point);
+    if (t.mid(point < 0 ? t.size() : point).contains(grp)) return false;
+    if (whole.contains(grp)) {
+        const QStringList groups = (whole.startsWith(QLatin1Char('-')) || whole.startsWith(QLatin1Char('+')) ? whole.mid(1) : whole).split(grp);
+        if (groups.first().size() < 1 || groups.first().size() > 3) return false;
+        for (qsizetype g = 1; g < groups.size(); ++g)
+            if (groups[g].size() != 3) return false;
+    }
     t.remove(grp);
     t.replace(dec, QStringLiteral("."));
     double d;

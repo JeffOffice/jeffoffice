@@ -661,6 +661,64 @@ private Q_SLOTS:
         QCOMPARE(t.rows[0][0].kind, 's');
     }
 
+    // A grouping mark is read only between groups of exactly three digits, so a decimal comma written the wrong way round is refused with its value and row, never turned into a wrong number.
+    void aGroupingMarkNeedsGroupsOfThree()
+    {
+        auto read = [](const QString &value, QString *why) {
+            DataRows t;
+            t.header = {QStringLiteral("N")};
+            t.rows = {{{QStringLiteral("1"), 's'}}, {{value, 's'}}};
+            DataStep kind;
+            kind.op = DataStep::Op::Kind;
+            kind.col = QStringLiteral("N");
+            kind.kind = QStringLiteral("number");
+            const DataStepsRun run = applyDataSteps({kind}, &t, nullptr);
+            if (why) *why = run.why;
+            return run.ok ? t.rows[1][0].text : QString();
+        };
+        QString why;
+        QCOMPARE(read(QStringLiteral("1,234.5"), nullptr), QStringLiteral("1234.5"));
+        QCOMPARE(read(QStringLiteral("-12,345,678"), nullptr), QStringLiteral("-12345678"));
+        QCOMPARE(read(QStringLiteral("12"), nullptr), QStringLiteral("12"));
+        QVERIFY(read(QStringLiteral("12,34"), &why).isEmpty());
+        QVERIFY(why.contains(QLatin1String("\"12,34\" in row 2")));
+        QVERIFY(read(QStringLiteral("1.2.3,4"), &why).isEmpty());
+        QVERIFY(read(QStringLiteral("1234,567"), &why).isEmpty());
+        QVERIFY(read(QStringLiteral(",123"), &why).isEmpty());
+        QVERIFY(read(QStringLiteral("1,234.5,6"), &why).isEmpty());
+    }
+
+    // Filter and sort use one order (numbers, then dates, then text, blanks last), and a filter between unlike kinds keeps nothing; a date value compares as a date.
+    void filterAndSortAgreeOnMixedColumns()
+    {
+        auto make = [] {
+            DataRows t;
+            t.header = {QStringLiteral("V")};
+            for (const char *v : {"abc", "2024-01-02", "12", "", "5", "2022-03-04"}) t.rows.push_back({{QString::fromLatin1(v), 's'}});
+            return t;
+        };
+        auto kept = [&](const QString &cmp, const QString &value) {
+            DataRows t = make();
+            DataStep f;
+            f.op = DataStep::Op::Filter;
+            f.col = QStringLiteral("V");
+            f.cmp = cmp;
+            f.value = value;
+            return applyDataSteps({f}, &t, nullptr).ok ? column(t, 0) : QStringList{QStringLiteral("failed")};
+        };
+        QCOMPARE(kept(QStringLiteral("gt"), QStringLiteral("9")), (QStringList{QStringLiteral("12")}));   // (not the text "abc", not a date)
+        QCOMPARE(kept(QStringLiteral("gt"), QStringLiteral("2023-01-01")), (QStringList{QStringLiteral("2024-01-02")}));
+        QCOMPARE(kept(QStringLiteral("lt"), QStringLiteral("2023-01-01")), (QStringList{QStringLiteral("2022-03-04")}));
+        QCOMPARE(kept(QStringLiteral("gt"), QStringLiteral("abb")), (QStringList{QStringLiteral("abc")}));
+        QCOMPARE(kept(QStringLiteral("eq"), QStringLiteral("2024-1-2")), QStringList());   // (not a date in the one form, so text: nothing is equal)
+        DataRows t = make();
+        DataStep sort;
+        sort.op = DataStep::Op::Sort;
+        sort.col = QStringLiteral("V");
+        QVERIFY(applyDataSteps({sort}, &t, nullptr).ok);
+        QCOMPARE(column(t, 0), (QStringList{QStringLiteral("5"), QStringLiteral("12"), QStringLiteral("2022-03-04"), QStringLiteral("2024-01-02"), QStringLiteral("abc"), QString()}));
+    }
+
     void aStepThatCannotRunNamesItself()
     {
         DataRows t = peopleRows();

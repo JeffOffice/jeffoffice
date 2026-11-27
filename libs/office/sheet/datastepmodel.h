@@ -34,7 +34,7 @@ constexpr qint64 kMaxDataStepWork = 200000000;
 
 // The steps as JSON text, and back. parseDataSteps says in words (in *why) what is wrong with text that is not a list of known steps; a step from a newer version (an op not in the list) is such a case.
 QString dataStepsToJson(const QVector<DataStep> &steps);
-bool parseDataSteps(const QString &json, QVector<DataStep> *out, QString *why);
+bool parseDataSteps(const QString &json, QVector<DataStep> *out, QString *why, bool *newer = nullptr);   // *newer: the step is of a kind this version does not have
 
 // One line in words for a step: "Choose columns: a, b" and the like (its label, if it has one).
 QString dataStepTitle(const DataStep &step);
