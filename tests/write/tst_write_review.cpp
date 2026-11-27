@@ -33,6 +33,7 @@
 #include "core/trackpolicy.h"
 #include "core/writedoc.h"
 #include "core/writeprops.h"
+#include "io/zip.h"
 #include "office/package.h"
 #include "text/textengine.h"
 #include "text/textprops.h"
@@ -7224,6 +7225,52 @@ private Q_SLOTS:
         return nullptr;
     }
 
+    // What the Reviewing pane's list, Next and Previous Change, and Accept and Reject (singly and All) do with the document AS IT STANDS (no save, no reopen): "" when they agree with each other
+    // and see at least `most` changes in at least `stories` different stories. Everything is undone again, so the document is as it was.
+    static QString inSessionProblem(WriteDoc &doc, int most, int stories)
+    {
+        const QVector<StoryRevision> all = documentRevisions(doc);
+        QSet<const QTextDocument *> seen;
+        for (const StoryRevision &r : all) seen.insert(r.story);
+        if (all.size() < most || seen.size() < stories) return QStringLiteral("list: %1 changes in %2 stories").arg(all.size()).arg(seen.size());
+        if (documentRevisionCount(doc) != all.size()) return QStringLiteral("count %1 against list %2").arg(documentRevisionCount(doc)).arg(all.size());
+        int walked = 0, at = -1;
+        const QTextDocument *story = doc.story();
+        std::optional<StoryRevision> r;
+        while ((r = nextDocumentRevision(doc, story, at, true)) && walked < 500) {
+            ++walked;
+            story = r->story;
+            at = r->revision.from;
+        }
+        if (walked != all.size()) return QStringLiteral("Next walked %1 of %2").arg(walked).arg(all.size());
+        walked = 0;
+        story = all.last().story;
+        at = all.last().revision.from;
+        ++walked;
+        while ((r = nextDocumentRevision(doc, story, at, false)) && walked < 500) {
+            ++walked;
+            story = r->story;
+            at = r->revision.from;
+        }
+        if (walked != all.size()) return QStringLiteral("Previous walked %1 of %2").arg(walked).arg(all.size());
+        for (const bool accept : {true, false}) {
+            // One change of each story, singly.
+            QSet<const QTextDocument *> done;
+            for (const StoryRevision &one : all) {
+                if (done.contains(one.story)) continue;
+                done.insert(one.story);
+                if (resolveDocumentRevisions(doc, QVector<StoryRevision>{one}, accept) < 1) return QStringLiteral("a single change of a story was not settled");
+                if (documentRevisionCount(doc) >= all.size()) return QStringLiteral("a single change was settled and the count did not fall");
+                if (!doc.undo()) return QStringLiteral("no undo of a single change");
+                if (documentRevisionCount(doc) != all.size()) return QStringLiteral("undo of a single change did not bring it back");
+            }
+            const int n = accept ? acceptAll(doc) : rejectAll(doc);
+            if (n < 1 || documentRevisionCount(doc) != 0) return QStringLiteral("%1 All settled %2, %3 left").arg(accept ? "Accept" : "Reject").arg(n).arg(documentRevisionCount(doc));
+            if (!doc.undo() || documentRevisionCount(doc) != all.size()) return QStringLiteral("undo of All did not bring them back");
+        }
+        return QString();
+    }
+
     // The word as the edit of the test leaves it: "NEW " before it, its second letter gone.
     static QString editedWord(const char *word) { return QStringLiteral("NEW ") + QString::fromLatin1(word).left(1) + QString::fromLatin1(word).mid(2); }
 
@@ -7263,6 +7310,10 @@ private Q_SLOTS:
                 removeSelection(*doc, gone);
             }
             QCOMPARE(said.count(), 0);   // (everything was recorded: nothing says it was not)
+            if (tracking) {
+                const QString problem = inSessionProblem(*doc, 12, 4);   // (before any save: the pane, Next, and Accept and Reject see the edits made in this session)
+                QVERIFY2(problem.isEmpty(), qPrintable(problem));
+            }
             const QByteArray saved = savedByWindow(w);
             for (const auto &k : kinds) {
                 const QByteArray part = partXml(saved, k.part);
@@ -7327,6 +7378,10 @@ private Q_SLOTS:
             // The caret is in the note: the words typed there join the insertion.
             QTextCursor inNote = w.view()->cursor();
             insertText(*doc, inNote, QStringLiteral("Typed"));
+            {
+                const QString problem = inSessionProblem(*doc, 2, endnote ? 1 : 2);   // (the reference and the note, before any save: an endnote's words are in the text's own story)
+                QVERIFY2(problem.isEmpty(), qPrintable(problem));
+            }
             const QByteArray saved = savedByWindow(w);
             const QByteArray body = documentXml(saved), notes = partXml(saved, part);
             QVERIFY2(body.contains("<w:ins ") && body.contains(refTag), body.constData());
@@ -7401,6 +7456,10 @@ private Q_SLOTS:
                 del.setPosition(refAt);
                 del.setPosition(refAt + 1, QTextCursor::KeepAnchor);
                 removeSelection(*doc, del);
+                {
+                    const QString problem = inSessionProblem(*doc, 2, endnote ? 1 : 2);   // (the reference and the note's words, before any save)
+                    QVERIFY2(problem.isEmpty(), qPrintable(problem));
+                }
                 const QByteArray saved = savedByWindow(w);
                 QVERIFY2(QRegularExpression(QStringLiteral("<w:del [^>]*><w:r>(?:<w:rPr>.*?</w:rPr>)?<w:%1 ").arg(QString::fromLatin1(refTag))).match(QString::fromUtf8(documentXml(saved))).hasMatch(), documentXml(saved).constData());
                 const QByteArray notes = partXml(saved, part);
@@ -7437,6 +7496,10 @@ private Q_SLOTS:
             pane->replaceBox()->setText(QStringLiteral("dog"));
             pane->replaceAll();
             QCOMPARE(said.count(), 0);
+            if (tracking) {
+                const QString problem = inSessionProblem(*w.document(), 6, 3);
+                QVERIFY2(problem.isEmpty(), qPrintable(problem));
+            }
             const QByteArray saved = savedByWindow(w);
             for (const char *name : {"/word/header1.xml", "/word/footnotes.xml", "/word/document.xml"}) {
                 const QByteArray x = partXml(saved, name);
@@ -7475,6 +7538,10 @@ private Q_SLOTS:
             QVERIFY(doc->isSideStory(c.document()) || doc->isPendingHeaderFooter(c.document()));
             insertText(*doc, c, QStringLiteral("Title"));
             const char *name = footer ? "/word/footer1.xml" : "/word/header1.xml";
+            {
+                const QString problem = inSessionProblem(*doc, 1, 1);   // (the new header's words, before any save)
+                QVERIFY2(problem.isEmpty(), qPrintable(problem));
+            }
             const QByteArray saved = savedByWindow(w);
             const QByteArray x = partXml(saved, name);
             QVERIFY2(wordsOfPart(x) == QStringLiteral("Title") && count(x, "<w:ins ") == 1, x.constData());   // (only the words are marked: nothing marks the new header itself)
@@ -7487,6 +7554,376 @@ private Q_SLOTS:
             QCOMPARE(acceptAll(*accepted), 1);
             QCOMPARE(wordsOfPart(partXml(accepted->toDocx(), name)), QStringLiteral("Title"));
             QVERIFY(marksInEveryPart(accepted->toDocx()) == 0);
+        }
+    }
+
+    // How the notes and the references to them pair up in a saved package: "" when every reference cites one note, every note is cited by one reference, and no Id is used twice.
+    static QString notePairing(const QByteArray &zip)
+    {
+        QString problem;
+        for (const bool endnote : {false, true}) {
+            const QString kind = QLatin1String(endnote ? "endnote" : "footnote");
+            QStringList refs, notes;
+            const QString body = QString::fromUtf8(documentXml(zip));
+            for (auto m = QRegularExpression(QStringLiteral("<w:%1Reference [^>]*w:id=\"(\\d+)\"").arg(kind)).globalMatch(body); m.hasNext();) refs << m.next().captured(1);
+            const QString part = QString::fromUtf8(partXml(zip, endnote ? "/word/endnotes.xml" : "/word/footnotes.xml"));
+            for (auto m = QRegularExpression(QStringLiteral("<w:%1 ([^>]*)>").arg(kind)).globalMatch(part); m.hasNext();) {
+                const QString attrs = m.next().captured(1);
+                if (attrs.contains(QLatin1String("w:type="))) continue;   // (the separators)
+                const auto id = QRegularExpression(QStringLiteral("w:id=\"(\\d+)\"")).match(attrs);
+                if (id.hasMatch()) notes << id.captured(1);
+            }
+            QStringList a = refs, b = notes;
+            a.sort();
+            b.sort();
+            if (a != b || a.removeDuplicates() != 0 || b.removeDuplicates() != 0) problem += kind + QStringLiteral(" references [") + refs.join(QLatin1Char(',')) + QStringLiteral("] notes [") + notes.join(QLatin1Char(',')) + QStringLiteral("] ");
+        }
+        return problem;
+    }
+    static int referencesOf(const QByteArray &zip, bool endnote) { return count(documentXml(zip), endnote ? "<w:endnoteReference " : "<w:footnoteReference "); }
+    static QString packageProblem(const QByteArray &zip)
+    {
+        QVector<int> ids = revisionIdsInEveryPart(zip);
+        std::sort(ids.begin(), ids.end());
+        QString problem = notePairing(zip);
+        if (std::adjacent_find(ids.begin(), ids.end()) != ids.end()) problem += QStringLiteral("a revision id repeats ");
+        return problem;
+    }
+
+    // A note's reference cut or copied with its tracked words and pasted elsewhere, with Track Changes on: a new note that is a clean copy, recorded as one insertion with Ids of its own.
+    void aPastedNoteReferenceGetsANewCleanNoteRecordedAsOneInsertionAndTheFileStaysWhole()
+    {
+        for (const bool endnote : {false, true})
+            for (const bool own : {true, false})
+                for (const bool cut : {true, false}) {
+                    const QString label = QStringLiteral("%1 %2 %3").arg(endnote ? "endnote" : "footnote", own ? "own" : "other's", cut ? "cut" : "copy");
+                    WriteWindow w;
+                    w.setNotifier([](const QString &, const QString &) {});
+                    w.show();
+                    if (own) {
+                        w.setDocument(open(makeDocx(para(run("alpha beta")) + para(run("second")))), QString());
+                    } else {
+                        StoryParts parts;
+                        (endnote ? parts.endnote : parts.footnote) = para(inserted(35, "noteIn ") + deleted(36, "noteOut"));
+                        w.setDocument(open(makeDocxWithStories(parts)), QString());
+                    }
+                    WriteDoc *doc = w.document();
+                    doc->setReviewer(QStringLiteral("Zed"), QString());
+                    doc->setTrackChanges(true);
+                    if (own) {
+                        QTextCursor c(doc->story());
+                        c.setPosition(5);
+                        w.view()->setCursor(c);
+                        w.act(QString::fromLatin1(endnote ? "refs.endnote" : "refs.footnote"))->trigger();
+                        QTextCursor inNote = w.view()->cursor();
+                        insertText(*doc, inNote, QStringLiteral("Typed"));
+                    }
+                    int refAt = -1;
+                    for (int id = 1; id < 8 && refAt < 0; ++id) {
+                        const QVector<int> at = endnote ? doc->endnoteReferences(id) : doc->footnoteReferences(id);
+                        if (!at.isEmpty()) refAt = at.first();
+                    }
+                    QVERIFY2(refAt >= 0, qPrintable(label));
+                    QVERIFY2(packageProblem(savedByWindow(w)).isEmpty(), qPrintable(label + " before"));
+                    QTextCursor pick(doc->story());
+                    pick.setPosition(refAt);
+                    pick.setPosition(refAt + 1, QTextCursor::KeepAnchor);
+                    w.view()->setCursor(pick);
+                    QTRY_VERIFY2(w.act(cut ? "edit.cut" : "edit.copy")->isEnabled(), qPrintable(label));
+                    w.act(QString::fromLatin1(cut ? "edit.cut" : "edit.copy"))->trigger();
+                    QTextCursor to(doc->story());
+                    to.setPosition(0);
+                    w.view()->setCursor(to);
+                    QTRY_VERIFY2(w.act("edit.paste")->isEnabled(), qPrintable(label));
+                    w.act("edit.paste")->trigger();
+                    const QByteArray saved = savedByWindow(w);
+                    QVERIFY2(packageProblem(saved).isEmpty(), qPrintable(label + " after the paste: " + packageProblem(saved)));
+                    QVERIFY2(referencesOf(saved, endnote) == (cut && own ? 1 : 2), qPrintable(label + " references " + QString::number(referencesOf(saved, endnote)) + " " + QString::fromUtf8(documentXml(saved))));
+                    {
+                        // The pasted reference and the new note are each marked inserted, with Ids of their own (the cut one, if it was someone else's, is marked deleted: two more).
+                        const QByteArray notes = partXml(saved, endnote ? "/word/endnotes.xml" : "/word/footnotes.xml");
+                        const QByteArray body = documentXml(saved);
+                        QVERIFY2(count(body, "<w:ins ") >= 1 && count(notes, "<w:ins ") >= 1, qPrintable(label + " body: " + QString::fromUtf8(body) + " notes: " + QString::fromUtf8(notes)));
+                    }
+                    // One Undo takes the paste back whole, and Redo puts it again: the file is whole each time.
+                    QVERIFY2(doc->undo(), qPrintable(label));
+                    QVERIFY2(packageProblem(savedByWindow(w)).isEmpty(), qPrintable(label + " after undo: " + packageProblem(savedByWindow(w))));
+                    QVERIFY2(doc->redo(), qPrintable(label));
+                    QVERIFY2(packageProblem(savedByWindow(w)).isEmpty(), qPrintable(label + " after redo: " + packageProblem(savedByWindow(w))));
+                    // Accept All and Reject All, saved and opened.
+                    for (const bool accept : {true, false}) {
+                        auto reopened = open(saved);
+                        QVERIFY(reopened);
+                        QVERIFY2(accept ? acceptAll(*reopened) > 0 : rejectAll(*reopened) > 0, qPrintable(label));
+                        const QByteArray done = reopened->toDocx();
+                        QVERIFY2(packageProblem(done).isEmpty(), qPrintable(label + (accept ? " accepted: " : " rejected: ") + packageProblem(done)));
+                        QCOMPARE(marksInEveryPart(done), 0);
+                        const int refs = referencesOf(done, endnote);
+                        const QString words = wordsOfPart(partXml(done, endnote ? "/word/endnotes.xml" : "/word/footnotes.xml"));
+                        if (accept) {
+                            QVERIFY2(refs == (cut ? 1 : 2) && !words.contains(QLatin1String("noteOut")), qPrintable(label + " accepted: " + QString::number(refs) + " " + words));
+                            QVERIFY2(words.contains(QLatin1String(own ? "Typed" : "noteIn")), qPrintable(label + " accepted: " + words));
+                        } else {
+                            QVERIFY2(refs == (own ? 0 : 1), qPrintable(label + " rejected: " + QString::number(refs) + " " + words));
+                        }
+                        auto again = open(done);
+                        QVERIFY(again && packageProblem(again->toDocx()).isEmpty());   // (the settled file opens and is whole)
+                    }
+                    if (!endnote) {   // (the Reviewing pane misses the words of a pasted endnote until the file is saved: see the report)
+                        const QString problem = inSessionProblem(*doc, 2, 1);
+                        QVERIFY2(problem.isEmpty(), qPrintable(label + " in session: " + problem));
+                    }
+                }
+    }
+
+    // A note deleted with its reference is two changes in the list (as the reference program lists them): the reference, and the note's words (and its paragraph mark with them).
+    void aDeletedFootnotesWordsAreListedBesideItsReference()
+    {
+        int listed[2] = {0, 0};
+        for (const bool endnote : {false}) {   // (an endnote's words are not in the text's story once its reference is deleted: see the report)
+            StoryParts parts;
+            parts.body = para(run("body"));
+            (endnote ? parts.endnote : parts.footnote) = para(run(" Note text"));
+            WriteWindow w;
+            w.setNotifier([](const QString &, const QString &) {});
+            w.show();
+            w.setDocument(open(makeDocxWithStories(parts)), QString());
+            WriteDoc *doc = w.document();
+            QVERIFY(doc);
+            doc->setReviewer(QStringLiteral("Zed"), QString());
+            doc->setTrackChanges(true);
+            const QVector<int> at = endnote ? doc->endnoteReferences(2) : doc->footnoteReferences(2);
+            QVERIFY(!at.isEmpty());
+            QTextCursor del(doc->story());
+            del.setPosition(at.first());
+            del.setPosition(at.first() + 1, QTextCursor::KeepAnchor);
+            removeSelection(*doc, del);
+            const QVector<StoryRevision> all = documentRevisions(*doc);
+            QStringList what;
+            for (const StoryRevision &r : all) what << QStringLiteral("%1@%2[%3-%4]").arg(r.revision.kind).arg(r.story == doc->story() ? QStringLiteral("text") : QStringLiteral("note")).arg(r.revision.from).arg(r.revision.to);
+            // The reference, and the note's words as a deletion of their own (the paragraph's mark with them).
+            bool words = false;
+            for (const StoryRevision &r : all) {
+                QTextCursor c(r.story);
+                c.setPosition(r.revision.from);
+                c.setPosition(std::min(r.revision.to + 1, r.story->characterCount() - 1), QTextCursor::KeepAnchor);
+                words = words || (r.revision.isDeletion() && c.selectedText().contains(QLatin1String("Note text")));
+            }
+            QVERIFY2(words && all.size() >= 2 && documentRevisionCount(*doc) == all.size(), qPrintable(QLatin1String(endnote ? "endnote " : "footnote ") + what.join(QLatin1Char(' '))));
+            listed[endnote] = int(all.size());
+            QString problem = inSessionProblem(*doc, 2, endnote ? 1 : 2);
+            QVERIFY2(problem.isEmpty(), qPrintable(problem));
+        }
+        QVERIFY(listed[0] >= 2);
+    }
+
+    // Three pages; the first page, the even pages, and the other pages each have a header of their own (parts header1: ordinary, header2: first, header3: even).
+    static QByteArray makeDocxWithThreeHeaders()
+    {
+        const QString rel = QStringLiteral("http://schemas.openxmlformats.org/officeDocument/2006/relationships/");
+        const QString type = QStringLiteral("application/vnd.openxmlformats-officedocument.wordprocessingml.");
+        const QByteArray ns = QByteArray(kNs);
+        office::PackageWriter w;
+        const QByteArray brk = "<w:p><w:r><w:br w:type=\"page\"/></w:r></w:p>";
+        const QByteArray body = para(run("one")) + brk + para(run("two")) + brk + para(run("three")) +
+                                "<w:sectPr><w:headerReference w:type=\"default\" r:id=\"rIdH1\"/><w:headerReference w:type=\"first\" r:id=\"rIdH2\"/><w:headerReference w:type=\"even\" r:id=\"rIdH3\"/><w:titlePg/></w:sectPr>";
+        w.addPart(QStringLiteral("/word/document.xml"), xml("<w:document " + ns + "><w:body>" + body + "</w:body></w:document>"), type + QStringLiteral("document.main+xml"));
+        w.addRelationship(QStringLiteral("/"), rel + QStringLiteral("officeDocument"), QStringLiteral("/word/document.xml"));
+        const char *const words[] = {"ordinary", "firstpage", "evenpage"};
+        for (int i = 0; i < 3; ++i) {
+            const QString name = QStringLiteral("/word/header%1.xml").arg(i + 1);
+            w.addPart(name, xml("<w:hdr " + ns + ">" + para(run(words[i])) + "</w:hdr>"), type + QStringLiteral("header+xml"));
+            w.addRelationshipWithId(QStringLiteral("/word/document.xml"), QStringLiteral("rIdH%1").arg(i + 1), rel + QStringLiteral("header"), name);
+        }
+        w.addPart(QStringLiteral("/word/settings.xml"), xml("<w:settings " + ns + "><w:evenAndOddHeaders/></w:settings>"), type + QStringLiteral("settings+xml"));
+        w.addRelationship(QStringLiteral("/word/document.xml"), rel + QStringLiteral("settings"), QStringLiteral("/word/settings.xml"));
+        return w.finish();
+    }
+
+    // With a different first page and different odd and even pages, an edit of the header of each kind of page is recorded once, in the part of that header and no other.
+    void anEditOfTheFirstPageHeaderAndTheEvenPageHeaderIsRecordedOnceInItsOwnPart()
+    {
+        for (const bool tracking : {true, false}) {
+            WriteWindow w;
+            w.setNotifier([](const QString &, const QString &) {});
+            w.resize(900, 700);
+            w.show();
+            w.setDocument(open(makeDocxWithThreeHeaders()), QString());
+            WriteDoc *doc = w.document();
+            QVERIFY(doc && doc->differentOddEven() && doc->differentFirstPage(0));
+            doc->setReviewer(QStringLiteral("Zed"), QString());
+            doc->setTrackChanges(tracking);
+            // (page 0: the first page's header; page 1: the second page, an even one; page 2: an odd page that is not the first)
+            const struct { int page; const char *part, *word; } kinds[] = {{0, "/word/header2.xml", "firstpage"}, {1, "/word/header3.xml", "evenpage"}, {2, "/word/header1.xml", "ordinary"}};
+            for (const auto &k : kinds) {
+                const QByteArray before = savedByWindow(w);
+                QVERIFY2(w.view()->enterHeaderFooter(k.page, false), k.part);
+                QTextCursor c = w.view()->cursor();
+                QCOMPARE(c.document()->toPlainText().trimmed(), QString::fromLatin1(k.word));
+                c.setPosition(0);
+                insertText(*doc, c, QStringLiteral("X"));
+                w.view()->leaveHeaderFooter();
+                const QByteArray saved = savedByWindow(w);
+                for (const auto &other : kinds) {
+                    const QByteArray was = partXml(before, other.part), now = partXml(saved, other.part);
+                    if (other.part == k.part) {
+                        QVERIFY2(wordsOfPart(now).contains(QLatin1Char('X')), k.part);
+                        QCOMPARE(count(now, "<w:ins "), tracking ? 1 : 0);
+                    } else {
+                        QCOMPARE(now, was);   // (the other headers are as they were)
+                    }
+                }
+            }
+            if (!tracking) continue;
+            QString problem = inSessionProblem(*doc, 3, 3);
+            QVERIFY2(problem.isEmpty(), qPrintable(problem));
+            QVERIFY(packageProblem(savedByWindow(w)).isEmpty());
+        }
+    }
+
+    // Show Markup and the reviewer chosen in the Reviewing pane decide which changes "Accept All Changes Shown" takes, in the headers, footers, and notes as in the text.
+    void theReviewerChosenAndShowMarkupDecideWhichChangesOfHeadersFootersAndNotesAreShown()
+    {
+        StoryParts p;
+        p.body = para(run("plain text"));
+        p.header = para(inserted(33, "headin", "Ann"));
+        p.footer = para(inserted(37, "footin", "Bob"));
+        p.footnote = para(inserted(35, "notein", "Ann"));
+        p.endnote = para(inserted(39, "endin", "Bob"));
+        WriteWindow w;
+        w.setNotifier([](const QString &, const QString &) {});
+        w.show();
+        w.setDocument(open(makeDocxWithStories(p)), QString());
+        WriteDoc *doc = w.document();
+        QVERIFY(doc);
+        w.act(QStringLiteral("review.reviewingPane"))->trigger();
+        ReviewPane *pane = w.reviewPane();
+        QVERIFY(pane);
+        pane->showPage(ReviewPane::Changes);
+        pane->refresh();
+        QCOMPARE(pane->changeList()->topLevelItemCount(), 4);
+        const int ann = pane->personBox()->findText(QStringLiteral("Ann"));
+        QVERIFY(ann >= 0);
+        pane->personBox()->setCurrentIndex(ann);
+        pane->refresh();
+        QCOMPARE(pane->changeList()->topLevelItemCount(), 2);   // (the header's and the note's)
+        // Show Markup: with insertions and deletions off nothing is shown, and Accept All Changes Shown takes nothing.
+        w.act(QStringLiteral("review.show.insdel"))->trigger();
+        w.act(QStringLiteral("review.acceptShown"))->trigger();
+        QCOMPARE(documentRevisionCount(*doc), 4);
+        w.act(QStringLiteral("review.show.insdel"))->trigger();
+        // Ann's are shown: the header's and the note's go, Bob's footer and endnote stay marked, in the file as well.
+        w.act(QStringLiteral("review.acceptShown"))->trigger();
+        QCOMPARE(documentRevisionCount(*doc), 2);
+        const QByteArray saved = savedByWindow(w);
+        QVERIFY2(count(partXml(saved, "/word/header1.xml"), "<w:ins ") == 0 && count(partXml(saved, "/word/footnotes.xml"), "<w:ins ") == 0, "Ann's are settled");
+        QVERIFY2(count(partXml(saved, "/word/footer1.xml"), "<w:ins ") == 1 && count(partXml(saved, "/word/endnotes.xml"), "<w:ins ") == 1, "Bob's stay");
+        QVERIFY(doc->undo());
+        QCOMPARE(documentRevisionCount(*doc), 4);
+        // Rejecting what is shown for Ann takes her insertions out and leaves Bob's.
+        w.act(QStringLiteral("review.rejectShown"))->trigger();
+        QCOMPARE(documentRevisionCount(*doc), 2);
+        const QByteArray rejected = savedByWindow(w);
+        QVERIFY2(!wordsOfPart(partXml(rejected, "/word/header1.xml")).contains(QLatin1String("headin")) && wordsOfPart(partXml(rejected, "/word/footer1.xml")).contains(QLatin1String("footin")), "reject shown");
+    }
+
+    // A document that is read-only: the window's commands refuse in a header and a note as in the text, and nothing is changed or recorded.
+    void inAReadOnlyDocumentTheCommandsRefuseInHeadersAndNotesAsInTheText()
+    {
+        StoryParts p;
+        p.body = para(run("plain body"));
+        p.header = para(run("headtext"));
+        p.footnote = para(run("notetext"));
+        for (const bool track : {true, false}) {
+            WriteWindow w;
+            w.setNotifier([](const QString &, const QString &) {});
+            w.show();
+            w.setDocument(open(makeDocxWithStories(p)), QString());
+            WriteDoc *doc = w.document();
+            doc->setReviewer(QStringLiteral("Zed"), QString());
+            doc->setTrackChanges(track);
+            const QByteArray before = savedByWindow(w);
+            w.setReadOnly(true);
+            quint64 steps = doc->nextStepSerial();
+            QStringList applied;   // (what made a step of the history though the document is read-only)
+            auto watch = [&](const QString &what) {
+                if (doc->nextStepSerial() != steps) applied << what;
+                steps = doc->nextStepSerial();
+            };
+            {
+                // The text, as the control: the same commands are refused there.
+                QTextCursor t(doc->story());
+                t.setPosition(0);
+                t.setPosition(2, QTextCursor::KeepAnchor);
+                w.view()->setCursor(t);
+                for (const char *id : {"edit.cut", "fmt.bold"})
+                    if (w.act(id)->isEnabled()) w.act(id)->trigger();
+                QTest::keyClicks(w.view(), QStringLiteral("Z"));
+                watch(QStringLiteral("the text"));
+            }
+            QVERIFY(w.view()->enterHeaderFooter(0, false));
+            steps = doc->nextStepSerial();   // (entering is no edit)
+            QTextCursor c = w.view()->cursor();
+            c.setPosition(0);
+            c.setPosition(4, QTextCursor::KeepAnchor);
+            w.view()->setCursor(c);
+            for (const char *id : {"edit.cut", "edit.paste", "fmt.bold", "fmt.italic"}) {
+                QVERIFY2(w.act(id), id);
+                if (w.act(id)->isEnabled()) w.act(id)->trigger();
+                watch(QStringLiteral("header ") + QLatin1String(id));
+            }
+            QTest::keyClicks(w.view(), QStringLiteral("Z"));
+            watch(QStringLiteral("header typing"));
+            QTest::keyClick(w.view(), Qt::Key_Delete);
+            watch(QStringLiteral("header Delete"));
+            QTest::keyClick(w.view(), Qt::Key_Backspace);
+            watch(QStringLiteral("header Backspace"));
+            w.view()->leaveHeaderFooter();
+            watch(QStringLiteral("leaving the header"));
+            QVERIFY(w.view()->openNoteAt(doc->footnoteReferences(2).first()));
+            QVERIFY(w.view()->inNote());
+            steps = doc->nextStepSerial();
+            QTest::keyClicks(w.view(), QStringLiteral("Q"));
+            watch(QStringLiteral("note typing"));
+            QTest::keyClick(w.view(), Qt::Key_Backspace);
+            watch(QStringLiteral("note Backspace"));
+            QVERIFY2(applied.isEmpty(), qPrintable(applied.join(QLatin1String(", "))));
+            const QByteArray after = savedByWindow(w);
+            QCOMPARE(partXml(after, "/word/header1.xml"), partXml(before, "/word/header1.xml"));
+            QCOMPARE(partXml(after, "/word/footnotes.xml"), partXml(before, "/word/footnotes.xml"));
+            QCOMPARE(marksInEveryPart(after), 0);
+        }
+    }
+
+    // Saved as an .odt (which has no place for a change's mark in a header or a footer) the words of an insertion there stay as plain text, and Check Compatibility says so; a note keeps its marks.
+    void checkCompatibilityNamesTheTrackedChangesInHeadersAndFootersThatAnOdtCannotHold()
+    {
+        for (const bool inHeader : {true, false}) {
+            StoryParts p;
+            p.body = para(run("plain"));
+            if (inHeader) p.header = para(inserted(33, "headin"));
+            else p.footnote = para(inserted(35, "notein"));
+            WriteWindow w;
+            w.setNotifier([](const QString &, const QString &) {});
+            w.show();
+            w.setDocument(open(makeDocxWithStories(p)), QString());
+            const QStringList lost = w.incompatibilities();
+            bool says = false;
+            for (const QString &line : lost) says = says || line.contains(QLatin1String("tracked changes in headers"));
+            QVERIFY2(says == inHeader, qPrintable(lost.join(QLatin1Char('|'))));
+            QString error;
+            QStringList notKept;
+            const QByteArray odt = w.document()->toOdt(&error, &notKept);
+            QMap<QString, QByteArray> parts;
+            QVERIFY(!odt.isEmpty() && jp::readZip(odt, parts));
+            const QByteArray content = parts.value(QStringLiteral("content.xml")), styles = parts.value(QStringLiteral("styles.xml"));
+            if (inHeader) {
+                QVERIFY2(styles.contains("headin") || content.contains("headin"), "the header's words are in the file");
+                QVERIFY2(!styles.contains("text:insertion"), "no change region in the styles part");
+                QVERIFY2(!content.contains("text:insertion"), qPrintable(QString::fromUtf8(content.mid(std::max<qsizetype>(0, content.indexOf("text:insertion") - 300), 700))));
+            } else {
+                QVERIFY2(content.contains("text:insertion") && content.contains("notein"), "a note keeps its mark");
+            }
         }
     }
 

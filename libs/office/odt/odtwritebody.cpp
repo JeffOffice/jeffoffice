@@ -2281,6 +2281,10 @@ void Writer::emitInline(const T &t, int parent, ParaCtx *pc, int depth)
             pc->xml += "<text:change-start text:change-id=\"" + id.toUtf8() + "\"/>";
             emitInline(t, c, pc, depth + 1);
             pc->xml += "<text:change-end text:change-id=\"" + id.toUtf8() + "\"/>";
+        } else if ((name == "ins" || name == "moveTo") && m_sink != &m_content) {
+            // (A header or a footer has no place for the mark of a change: its words are kept as they stand now, and the person is told, as for deleted words.)
+            left(QCoreApplication::translate("odt", "tracked changes in headers, footers, and notes (saved as they stand now)"));
+            emitInline(t, c, pc, depth + 1);
         } else if (name == "smartTag" || name == "customXml" || name == "dir" || name == "bdo" || name == "ins" || name == "moveTo") emitInline(t, c, pc, depth + 1);
         else if (name == "sdt") {
             const int content = t.child(c, "sdtContent");

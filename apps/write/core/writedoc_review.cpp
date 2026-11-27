@@ -161,7 +161,8 @@ QVector<QTextDocument *> WriteDoc::storiesWithChanges(bool every)
                 has = true;
                 break;
             }
-        if (!has && !every) continue;
+        // (A note already made editable may hold changes made in this session, which its original markup does not: it is always looked through.)
+        if (!has && !every && !m_noteStories.contains(key)) continue;
         if (QTextDocument *n = editableFootnote(key.mid(2).toInt())) out.push_back(n);
     }
     return out;

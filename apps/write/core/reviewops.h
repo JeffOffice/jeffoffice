@@ -172,6 +172,11 @@ bool xmlHasTableChanges(const QByteArray &xml);
 // The Ids of the marks of changes in blocks about to be written: every Id is used once, and none is the Id of a comment or a bookmark (the first mark that has an Id keeps it; the others, which
 // splitting a paragraph and pasting copies make, get new ones).
 void makeChangeIdsUnique(WriteDoc &doc, QVector<office::wml::Block> *blocks);
+// A copy of blocks without any mark of a change: the changes of insertions, of looks, and of paragraph marks taken as made, and the words inside deletions left out (a copy of a note is a clean
+// note, which the program then records as one new insertion with Ids of its own).
+void withoutRevisionMarks(QVector<office::wml::Block> *blocks);
+// The paragraphs of a new note as one insertion by the reviewer, with an Id of its own (the words of each paragraph in a w:ins, and the mark of each paragraph that another follows).
+void markBlocksInserted(WriteDoc &doc, QVector<office::wml::Block> *blocks);
 // For tests of cost: the paragraphs looked through for changes, and the runs looked at to give the words of a change or to resolve a change of properties, since the program began.
 qint64 revisionBlocksScannedForTest();
 qint64 revisionRunsVisitedForTest();

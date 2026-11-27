@@ -327,6 +327,10 @@ public:
     int heldEndnotesForTest() const { return int(m_endnoteBlocks.size()); }
     // A copy of a footnote as a note of its own (what a pasted copy of a reference cites): its Id, 0 for none.
     int duplicateFootnote(int id);
+    // The paragraphs of a note as a clean copy of it (no marks of changes; none where there is no such note), and a new note made of such paragraphs (its Id, or 0 where none can be made).
+    QVector<office::wml::Block> noteContentForCopy(int id, bool endnote);
+    int footnoteFromBlocks(const QVector<office::wml::Block> &blocks);
+    int endnoteFromBlocks(const QVector<office::wml::Block> &blocks);
     // The look and the pieces of a reference to footnote `id`: its character format (the reference character style over the look of a paragraph of this style), to put
     // where the reference is.
     QTextCharFormat footnoteReferenceFormat(int id, const QString &paragraphStyle, const QString &mark = QString());

@@ -313,6 +313,7 @@ void rewrap(const QVector<Wrapper> &wrappers, QTextBlock first, QTextBlock secon
 
 namespace {
 // The copy of an endnote whose words the edit that is going on is in (see NoteScopeGuard): 0 for none.
+// (Main thread only: no worker thread reaches this: the only worker threads of the app run the find-pane scan (scanRegex over a copy of the plain text, with edits blocked meanwhile), a password check, and the recovery copy writer (writes a snapshot made on the window's thread); none calls an editing command. Trivially destructible, as tools/check_thread_local_allowed.txt says.)
 thread_local int t_noteScope = 0;
 } // namespace
 
@@ -363,6 +364,7 @@ bool inEndnoteWords(const QTextCursor &c)
 }
 
 namespace {
+// (Main thread only: no worker thread reaches this: the only worker threads of the app run the find-pane scan (scanRegex over a copy of the plain text, with edits blocked meanwhile), a password check, and the recovery copy writer (writes a snapshot made on the window's thread); none calls an editing command. Trivially destructible, as tools/check_thread_local_allowed.txt says.)
 thread_local int t_guardDepth = 0;
 } // namespace
 
@@ -615,6 +617,7 @@ struct NumberGuard {
             doc.renumberLists(story);
         }
     }
+    // (The counters of this guard are main thread only: no worker thread reaches this: the only worker threads of the app run the find-pane scan (scanRegex over a copy of the plain text, with edits blocked meanwhile), a password check, and the recovery copy writer (writes a snapshot made on the window's thread); none calls an editing command. Trivially destructible, as tools/check_thread_local_allowed.txt says.)
     static int &sections()
     {
         static thread_local int n = 0;
@@ -642,6 +645,7 @@ struct NumberGuard {
 
 namespace {
 
+// (This depth and the story below are main thread only: no worker thread reaches this: the only worker threads of the app run the find-pane scan (scanRegex over a copy of the plain text, with edits blocked meanwhile), a password check, and the recovery copy writer (writes a snapshot made on the window's thread); none calls an editing command. Trivially destructible, as tools/check_thread_local_allowed.txt says.)
 int &untrackedDepth()
 {
     static thread_local int d = 0;
@@ -756,6 +760,9 @@ void collectNoteReferences(const QTextBlock &b, int from, int to, QVector<NoteRe
         if (ok && !out->contains(NoteRef{id, endnote})) out->push_back({id, endnote});
     }
 }
+
+constexpr int kMostCopiedNotes = 64;   // (the notes a copy keeps: a selection of more has the rest made as the other copies are)
+QString noteKey(const NoteRef &r) { return QLatin1String(r.endnote ? "e" : "f") + QString::number(r.id); }
 
 void trackedDeleteRange(WriteDoc &doc, QTextDocument *d, int from, int to, QTextCursor *start, QTextCursor *end, bool inNote = false);
 void trackPastedAsInserted(WriteDoc &doc, QTextDocument *d, int from, int *to);
@@ -1723,7 +1730,11 @@ static void keepOutOfFurniture(QTextDocument *d, int from, int to)
 
 // A reference to a footnote or an endnote that was pasted cites the note it cited if nothing else in the text does now (it was cut: the note moves with it), and else a copy of the note
 // (it was copied: the pasted reference has a note of its own that says the same, and several pasted references to one note cite one copy).
-static void settlePastedNoteReferences(WriteDoc &doc, QTextDocument *d, int from, int to)
+// What a paste has to make notes of: the clip's own copies of them.
+struct PastedNotes {
+    const Clip *clip = nullptr;
+};
+static void settlePastedNoteReferences(WriteDoc &doc, QTextDocument *d, int from, int to, bool recording, PastedNotes *pasted)
 {
     if (d != doc.story()) return;
     struct Found {
@@ -1763,10 +1774,18 @@ static void settlePastedNoteReferences(WriteDoc &doc, QTextDocument *d, int from
         QHash<int, int> copies;
         static const QRegularExpression idAttribute(QStringLiteral("\\b((?:[\\w.-]+:)?id=\")\\d+(\")"));
         for (const Found &f : std::as_const(found)) {
-            if (outside.value(f.id) == 0) continue;
+            // With Track Changes on a pasted reference always has a note of its own, a clean copy recorded as one inserted change (the note it cited may be marked deleted now, or gone with the cut).
+            QVector<Block> own = recording && pasted && pasted->clip ? pasted->clip->notes.value(noteKey(NoteRef{f.id, endnote})) : QVector<Block>();
+            if (recording && own.isEmpty() && outside.value(f.id) != 0) own = doc.noteContentForCopy(f.id, endnote);
+            if (outside.value(f.id) == 0 && own.isEmpty()) continue;
             int fresh = copies.value(f.id);
             if (!fresh) {
-                fresh = endnote ? doc.duplicateEndnote(f.id) : doc.duplicateFootnote(f.id);
+                if (recording && !own.isEmpty()) {
+                    markBlocksInserted(doc, &own);
+                    fresh = endnote ? doc.endnoteFromBlocks(own) : doc.footnoteFromBlocks(own);
+                } else {
+                    fresh = endnote ? doc.duplicateEndnote(f.id) : doc.duplicateFootnote(f.id);
+                }
                 if (!fresh) continue;   // (no more notes can be made: the pasted reference cites the one the copied did)
                 copies.insert(f.id, fresh);
             }
@@ -1790,9 +1809,9 @@ static void settlePastedNoteReferences(WriteDoc &doc, QTextDocument *d, int from
 }
 
 // Pastes, and says where what was pasted is (from, to) when the paste is done.
-static void pasteInto(WriteDoc &doc, QTextCursor &c, const QTextDocumentFragment &fragment, int *pastedFrom, int *pastedTo, bool sameDocument, const QHash<int, int> *tableKeys = nullptr, const QVector<QTextCharFormat> *cellMarks = nullptr);
+static void pasteInto(WriteDoc &doc, QTextCursor &c, const QTextDocumentFragment &fragment, int *pastedFrom, int *pastedTo, bool sameDocument, const QHash<int, int> *tableKeys = nullptr, const QVector<QTextCharFormat> *cellMarks = nullptr, PastedNotes *pasted = nullptr);
 
-static void pasteInto(WriteDoc &doc, QTextCursor &c, const QTextDocumentFragment &fragment, int *pastedFrom, int *pastedTo, bool sameDocument, const QHash<int, int> *tableKeys, const QVector<QTextCharFormat> *cellMarks)
+static void pasteInto(WriteDoc &doc, QTextCursor &c, const QTextDocumentFragment &fragment, int *pastedFrom, int *pastedTo, bool sameDocument, const QHash<int, int> *tableKeys, const QVector<QTextCharFormat> *cellMarks, PastedNotes *pasted)
 {
     NumberGuard numbers(doc, c.document());
     c.beginEditBlock();
@@ -1923,7 +1942,7 @@ static void pasteInto(WriteDoc &doc, QTextCursor &c, const QTextDocumentFragment
     }
     // A header, a footer, or a note takes the words and their look, not a note's reference, a comment, a break of a page, a column, or a section.
     if (doc.isSideStory(d) || targetNote > 0) keepOutOfFurniture(d, from, c.position());
-    else if (sameDocument) settlePastedNoteReferences(doc, d, from, c.position());
+    else if (sameDocument) settlePastedNoteReferences(doc, d, from, c.position(), tracking(doc, c), pasted);
     if (tracking(doc, c)) {
         int end = c.position();
         trackPastedAsInserted(doc, d, from, &end);
@@ -2158,7 +2177,8 @@ void pasteFragment(WriteDoc &doc, QTextCursor &c, const QTextDocumentFragment &f
     }
     if (!contentControlsAllow(doc, c.document(), c.selectionStart(), c.selectionEnd(), true)) return;
     int from = 0, to = 0;
-    pasteInto(doc, c, fragment, &from, &to, true);
+    PastedNotes pasted;
+    pasteInto(doc, c, fragment, &from, &to, true, nullptr, nullptr, &pasted);
 }
 
 namespace {
@@ -2224,6 +2244,17 @@ Clip copySelection(const WriteDoc &doc, const QTextCursor &whole, bool keepChang
     clip.source = doc.id();
     clip.generation = byteStoreGeneration();
     if (!c.hasSelection()) return clip;
+    if (c.document() == doc.story() && !inEndnoteWords(c)) {
+        // The notes of the references in the selection, as they stand now (a tracked cut takes them out of the text, and may take the notes themselves: those the reviewer made).
+        QVector<NoteRef> refs;
+        for (QTextBlock b = c.document()->findBlock(c.selectionStart()); b.isValid() && b.position() < c.selectionEnd() && refs.size() < kMostCopiedNotes; b = b.next())
+            if (!isLocked(b)) collectNoteReferences(b, c.selectionStart(), c.selectionEnd(), &refs);
+        for (const NoteRef &r : std::as_const(refs)) {
+            if (clip.notes.size() >= kMostCopiedNotes) break;
+            const QVector<Block> blocks = const_cast<WriteDoc &>(doc).noteContentForCopy(r.id, r.endnote);
+            if (!blocks.isEmpty()) clip.notes.insert(noteKey(r), blocks);
+        }
+    }
     {
         // The tables the selection holds whole are kept as tables, with the styles they use: the paragraphs of the fragment carry their cells' keys, which `tables` says how to make again.
         const CopiedTables found = copyTables(doc, c, keepChangedTables);
@@ -2340,8 +2371,10 @@ void pasteClip(WriteDoc &doc, QTextCursor &c, const Clip &clip)
         dropAfter = clip.bracketedAfter && c.selectionEnd() == last.position() + last.length() - 1;
     }
     int from = 0, to = 0;
+    PastedNotes pasted;
+    pasted.clip = &clip;
     const bool madeTables = !tableKeys.isEmpty();
-    pasteInto(doc, c, madeTables && !clip.fragmentForTables.isEmpty() ? clip.fragmentForTables : clip.fragment, &from, &to, same, madeTables ? &tableKeys : nullptr, madeTables ? &clip.cellMarks : nullptr);
+    pasteInto(doc, c, madeTables && !clip.fragmentForTables.isEmpty() ? clip.fragmentForTables : clip.fragment, &from, &to, same, madeTables ? &tableKeys : nullptr, madeTables ? &clip.cellMarks : nullptr, &pasted);
     // (The places the pasted text begins and ends at, which follow the edits made to it below.)
     QTextCursor pastedFrom(c.document()), pastedTo(c.document());
     pastedFrom.setPosition(from);
@@ -2595,6 +2628,7 @@ bool allSelected(const QTextCursor &c, const std::function<bool(const QTextCharF
 }
 
 // A paragraph of a style that updates itself (w:autoRedefine) that has been formatted by hand gives the style what it says, as part of the edit's own step.
+// (Main thread only: no worker thread reaches this: the only worker threads of the app run the find-pane scan (scanRegex over a copy of the plain text, with edits blocked meanwhile), a password check, and the recovery copy writer (writes a snapshot made on the window's thread); none calls an editing command. Trivially destructible, as tools/check_thread_local_allowed.txt says.)
 static thread_local int g_autoRedefineOff = 0;
 AutoRedefineOff::AutoRedefineOff() { ++g_autoRedefineOff; }
 AutoRedefineOff::~AutoRedefineOff() { --g_autoRedefineOff; }

@@ -8,6 +8,7 @@
 #include "core/writedoc.h"
 
 #include "core/editops.h"
+#include "core/reviewops.h"
 #include "core/tablemodel.h"
 #include "core/writeprops.h"
 #include "flow/paginator.h"
@@ -392,18 +393,33 @@ int WriteDoc::makeFootnote(const QString &customMark)
     return id;
 }
 
-int WriteDoc::duplicateFootnote(int id)
+QVector<Block> WriteDoc::noteContentForCopy(int id, bool endnote)
 {
-    const QString key = QStringLiteral("fn%1").arg(id);
-    reclaimDeadNotes(false, id);
-    if (!m_noteBlocks.contains(key) || !roomForFootnote()) return 0;
     QVector<Block> blocks;
-    if (QTextDocument *s = editableFootnote(id)) {
-        VectorSink sink(&blocks);
-        exportInto(sink, s);
+    if (endnote) {
+        const QString key = QString::number(id);
+        if (!m_endnoteBlocks.contains(key)) return blocks;
+        const QSet<int> one{id};
+        captureEndnotes(&one);   // (what was said in it so far)
+        blocks = m_endnoteBlocks.value(key);
     } else {
-        blocks = m_noteBlocks.value(key);
+        const QString key = QStringLiteral("fn%1").arg(id);
+        if (!m_noteBlocks.contains(key)) return blocks;
+        if (QTextDocument *s = editableFootnote(id)) {
+            VectorSink sink(&blocks);
+            exportInto(sink, s);
+        } else {
+            blocks = m_noteBlocks.value(key);
+        }
     }
+    withoutRevisionMarks(&blocks);   // (a copy of a note is a clean note: its marks, and the Ids they have, stay with the note it was copied from)
+    return blocks;
+}
+
+int WriteDoc::footnoteFromBlocks(const QVector<Block> &blocks)
+{
+    reclaimDeadNotes(false, 0);
+    if (blocks.isEmpty() || !roomForFootnote()) return 0;
     const int fresh = nextFootnoteId();
     const QString freshKey = QStringLiteral("fn%1").arg(fresh);
     m_noteBlocks.insert(freshKey, blocks);
@@ -417,6 +433,25 @@ int WriteDoc::duplicateFootnote(int id)
     m_createdFootnoteStep[fresh] = 0;
     m_noteStepPending.push_back({false, fresh});
     return fresh;
+}
+
+int WriteDoc::endnoteFromBlocks(const QVector<Block> &blocks)
+{
+    reclaimDeadNotes(true, 0);
+    if (blocks.isEmpty() || !roomForEndnote()) return 0;
+    const int fresh = nextEndnoteId();
+    m_endnoteBlocks.insert(QString::number(fresh), blocks);
+    m_createdEndnotes.insert(fresh);
+    m_endnoteIdFloor = fresh;
+    m_createdEndnoteStep[fresh] = 0;
+    m_noteStepPending.push_back({true, fresh});
+    return fresh;
+}
+
+int WriteDoc::duplicateFootnote(int id)
+{
+    reclaimDeadNotes(false, id);
+    return footnoteFromBlocks(noteContentForCopy(id, false));
 }
 
 int WriteDoc::convertedNote(int id, bool toEndnote, int lastMade)
@@ -859,19 +894,8 @@ int WriteDoc::makeEndnote(const QString &customMark)
 
 int WriteDoc::duplicateEndnote(int id)
 {
-    const QString key = QString::number(id);
     reclaimDeadNotes(true, id);
-    if (!m_endnoteBlocks.contains(key) || !roomForEndnote()) return 0;
-    const QSet<int> one{id};
-    captureEndnotes(&one);   // (what was said in it so far)
-    const QVector<Block> blocks = m_endnoteBlocks.value(key);
-    const int fresh = nextEndnoteId();
-    m_endnoteBlocks.insert(QString::number(fresh), blocks);
-    m_createdEndnotes.insert(fresh);
-    m_endnoteIdFloor = fresh;
-    m_createdEndnoteStep[fresh] = 0;
-    m_noteStepPending.push_back({true, fresh});
-    return fresh;
+    return endnoteFromBlocks(noteContentForCopy(id, true));
 }
 
 QTextCharFormat WriteDoc::endnoteReferenceFormat(int id, const QString &paragraphStyle, const QString &mark)

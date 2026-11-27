@@ -185,6 +185,9 @@ struct Clip {
     // The tables the copy holds whole, kept as tables (see core/tableops.h), with the table styles they use (bases first). A paragraph of the fragment in one has the key of its cell there.
     QVector<CopiedTable> tables;
     QVector<office::wml::Style> tableStyles;
+    // The notes the copied text has a reference to, as clean copies (no marks of changes; the key is "f" or "e" and the note's Id): a cut may have taken the note out of the document
+    // (a note the reviewer made, cut with its reference), and a paste with Track Changes on makes the notes again, as new inserted ones.
+    QHash<QString, QVector<office::wml::Block>> notes;
     QVector<QTextCharFormat> cellMarks;   // the mark of each paragraph that is in a cell of those tables, in order
     QTextDocumentFragment fragmentForTables;   // the fragment with an empty paragraph made before it, or after it (a copy that begins or ends in a table), for the paste that makes the tables again; empty: the fragment is used
     bool bracketedBefore = false, bracketedAfter = false;   // the fragmentForTables has an empty paragraph before it, or after it

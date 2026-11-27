@@ -2125,6 +2125,61 @@ void makeChangeIdsUnique(WriteDoc &doc, QVector<Block> *blocks)
     }
 }
 
+void markBlocksInserted(WriteDoc &doc, QVector<Block> *blocks)
+{
+    for (qsizetype i = 0; i < blocks->size(); ++i) {
+        Block &b = (*blocks)[i];
+        if (b.isRaw) continue;
+        if (!b.para.content.isEmpty()) {
+            const QByteArray start = revisionStartTag(doc, QStringLiteral("ins"));
+            Inline open;
+            open.kind = Inline::ParaAtom;
+            open.role = Inline::Open;
+            open.tag = QStringLiteral("ins");
+            open.key = attributeOf(start, "id");
+            open.raw = start;
+            Inline close = open;
+            close.role = Inline::Close;
+            close.raw = "</w:ins>";
+            b.para.content.prepend(open);
+            b.para.content.push_back(close);
+        }
+        if (i + 1 < blocks->size()) {
+            // (The mark of a paragraph that another follows is inserted too; the last paragraph's is the note's own.)
+            if (!b.para.props.markRun) b.para.props.markRun = RunProps();
+            QByteArray element = revisionStartTag(doc, QStringLiteral("ins"));
+            element.chop(1);
+            element += "/>";
+            b.para.props.markRun->extra.push_back({runChildRankOf("ins"), element});
+        }
+    }
+}
+
+void withoutRevisionMarks(QVector<Block> *blocks)
+{
+    for (Block &b : *blocks) {
+        if (b.isRaw) continue;
+        QVector<Inline> kept;
+        int deleted = 0;   // (how many deletions the words are inside of: those words are not in a clean copy)
+        for (Inline &a : b.para.content) {
+            if (a.kind == Inline::ParaAtom && isRevisionTag(a.tag) && (a.role == Inline::Open || a.role == Inline::Close)) {
+                if (a.tag == QLatin1String("del") || a.tag == QLatin1String("moveFrom")) deleted += a.role == Inline::Open ? 1 : -1;
+                continue;
+            }
+            if (deleted > 0) continue;
+            for (qsizetype i = a.props.extra.size() - 1; i >= 0; --i)
+                if (isChangeMark(a.props.extra[i].xml)) a.props.extra.removeAt(i);
+            kept.push_back(a);
+        }
+        b.para.content = kept;
+        if (b.para.props.markRun)
+            for (qsizetype i = b.para.props.markRun->extra.size() - 1; i >= 0; --i)
+                if (isChangeMark(b.para.props.markRun->extra[i].xml)) b.para.props.markRun->extra.removeAt(i);
+        for (qsizetype i = b.para.props.extra.size() - 1; i >= 0; --i)
+            if (isChangeMark(b.para.props.extra[i].xml)) b.para.props.extra.removeAt(i);
+    }
+}
+
 // ---- making changes
 
 namespace {
