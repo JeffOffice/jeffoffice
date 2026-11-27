@@ -10,7 +10,7 @@ Use Find to jump to words in your document. Use Replace to change them. Both wor
 
 JeffWrite starts where your cursor is. It selects the next place where it finds your words, and scrolls the pages so you can see it. That place is called a **match**. Click **Find Next** again to go to the next match. After the last match, it goes back to the start of the document.
 
-As you type, the pane counts the matches, such as "9 matches", and every match gets a yellow band on the pages. The bands show in table cells, headers, footers, and footnotes too. After **Find Next**, the pane says which one you are on, such as "Match 2 of 4". The count and the bands change when you click **Match case** or **Find whole words only**, or when you change the text. The bands stay on the pages when you close the pane, and when you click **Read Mode**, so you can read with every match in view. Nothing in the document changes, and the bands are never printed or saved. They go away when you change the document, when you open the pane again, or when you click **Home > Editing > Clear Highlighting**.
+As you type, the pane counts the matches, such as "9 matches", and every match gets a yellow band on the pages. The bands show in table cells, headers, footers, and footnotes too. After **Find Next**, the pane says which one you are on, such as "Match 2 of 4". The count and the bands change when you click **Match case** or **Find whole words only**, or when you change the text. They go away when you close the pane.
 
 ## Find with wildcards
 
