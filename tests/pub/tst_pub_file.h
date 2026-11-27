@@ -133,6 +133,7 @@ private Q_SLOTS:
     void pubWriterTabsLists();
     void pubWriterMaster();
     void aPubFileSaysWhatItDropsOfMacrosAndStoredFonts();
+    void savingAsJpubSaysWhatItDropsOfMacrosAndStoredFonts();
     void pubWriterHyphenation();
     void pubWriterStyles();
     void pubWriterTwoMasters();

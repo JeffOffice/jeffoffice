@@ -3037,6 +3037,30 @@ void PubFileTests::pubWriterMaster()
     }
 
 
+// The .pub file at `from`, written again with a stream in its VBA storage, as a macro project has.
+static bool withMacroProject(const QString &from, const QString &to)
+{
+    QFile f(from);
+    if (!f.open(QIODevice::ReadOnly)) return false;
+    const QByteArray bytes = f.readAll();
+    f.close();
+    jp::cfb::File cf;
+    if (!jp::cfb::read(bytes, &cf)) return false;
+    int vba = -1;
+    for (int i = 0; i < cf.entries.size(); ++i)
+        if (cf.entries[i].type == jp::cfb::Entry::Storage && cf.entries[i].name == QLatin1String("VBA")) vba = i;
+    if (vba < 0) return false;
+    jp::cfb::Entry dirStream;
+    dirStream.name = QStringLiteral("dir");
+    dirStream.data = QByteArray(16, 'x');
+    cf.entries.push_back(dirStream);
+    cf.entries[vba].children.push_back(int(cf.entries.size()) - 1);
+    QFile out(to);
+    if (!out.open(QIODevice::WriteOnly)) return false;
+    out.write(jp::cfb::write(cf));
+    return true;
+}
+
 // A .pub file that holds a macro project is opened (the macros never run), and saving it as .pub drops the project: the compatibility notice says so, as it
 // says so for the fonts a file stored. A file with neither says nothing of them.
 void PubFileTests::aPubFileSaysWhatItDropsOfMacrosAndStoredFonts()
@@ -3050,27 +3074,8 @@ void PubFileTests::aPubFileSaysWhatItDropsOfMacrosAndStoredFonts()
     const QString plain = dir.filePath(QStringLiteral("plain.pub"));
     QString err;
     QVERIFY2(jp::exportPublisher(*doc, plain, &err), qPrintable(err));
-    QFile f(plain);
-    QVERIFY(f.open(QIODevice::ReadOnly));
-    const QByteArray bytes = f.readAll();
-    f.close();
-    // The same file with a stream in its VBA storage, as a macro project has.
-    jp::cfb::File cf;
-    QVERIFY(jp::cfb::read(bytes, &cf));
-    int vba = -1;
-    for (int i = 0; i < cf.entries.size(); ++i)
-        if (cf.entries[i].type == jp::cfb::Entry::Storage && cf.entries[i].name == QLatin1String("VBA")) vba = i;
-    QVERIFY(vba >= 0);
-    jp::cfb::Entry dirStream;
-    dirStream.name = QStringLiteral("dir");
-    dirStream.data = QByteArray(16, 'x');
-    cf.entries.push_back(dirStream);
-    cf.entries[vba].children.push_back(int(cf.entries.size()) - 1);
     const QString withMacros = dir.filePath(QStringLiteral("macros.pub"));
-    QFile out(withMacros);
-    QVERIFY(out.open(QIODevice::WriteOnly));
-    out.write(jp::cfb::write(cf));
-    out.close();
+    QVERIFY(withMacroProject(plain, withMacros));
     auto has = [](const QStringList &lost, const char *word) {
         for (const QString &l : lost)
             if (l.contains(QLatin1String(word))) return true;
@@ -3095,6 +3100,40 @@ void PubFileTests::aPubFileSaysWhatItDropsOfMacrosAndStoredFonts()
     QVERIFY(!has(jp::publisherLosses(*fresh), "alternative text"));
     first->hyperlink = QStringLiteral("https://example.com/");
     QVERIFY(has(jp::publisherLosses(*fresh), "on objects and on mouse-over"));
+}
+
+
+// The same through the window's own save to the JeffPub format: a publication that came from a .pub file with a macro project, or with fonts stored in it, says in the status bar
+// that the new file does not keep them (as saving to .pub says what that keeps out); one with neither says nothing of the kind.
+void PubFileTests::savingAsJpubSaysWhatItDropsOfMacrosAndStoredFonts()
+{
+    auto doc = jp::Document::blank(QSizeF(612, 792));
+    auto t = std::make_shared<jp::TextItem>();
+    t->rect = QRectF(72, 72, 300, 40);
+    t->storyId = doc->createStory(QStringLiteral("macro test"));
+    doc->pages[0]->items.push_back(t);
+    QTemporaryDir dir;
+    const QString plain = dir.filePath(QStringLiteral("plain.pub")), withMacros = dir.filePath(QStringLiteral("macros.pub"));
+    QString err;
+    QVERIFY2(jp::exportPublisher(*doc, plain, &err), qPrintable(err));
+    QVERIFY(withMacroProject(plain, withMacros));
+    {
+        jp::MainWindow w;
+        QVERIFY(w.openFile(plain));
+        QVERIFY(w.saveTo(dir.filePath(QStringLiteral("plain.jpub"))));
+        QVERIFY2(!w.statusBar()->currentMessage().contains(QLatin1String("Left out")), qPrintable(w.statusBar()->currentMessage()));
+    }
+    {
+        jp::MainWindow w;
+        QVERIFY(w.openFile(withMacros));
+        QVERIFY(w.editor()->doc()->pubMacros);
+        QVERIFY(w.saveTo(dir.filePath(QStringLiteral("macros.jpub")), true));   // (a copy says it too)
+        QVERIFY2(w.statusBar()->currentMessage().contains(QLatin1String("macro project")), qPrintable(w.statusBar()->currentMessage()));
+        QVERIFY(!w.statusBar()->currentMessage().contains(QLatin1String("fonts stored")));
+        w.editor()->doc()->fontAliases.insert(QStringLiteral("somefont"), QStringLiteral("private-somefont"));
+        QVERIFY(w.saveTo(dir.filePath(QStringLiteral("both.jpub"))));
+        QVERIFY2(w.statusBar()->currentMessage().contains(QLatin1String("macro project")) && w.statusBar()->currentMessage().contains(QLatin1String("fonts stored")), qPrintable(w.statusBar()->currentMessage()));
+    }
 }
 
 

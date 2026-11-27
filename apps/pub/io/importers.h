@@ -111,6 +111,8 @@ void setCellFormatLimitForTest(int limit);
 QStringList publisherListLosses(const Document &doc);
 // Everything a .pub file would lose of the publication, one phrase each (empty when nothing): hidden objects, the lists, and what the writer leaves out, found by writing it to memory.
 QStringList publisherLosses(const Document &doc);
+// What a .pub file brought that a new file of `kind` (".pub" or ".jpub") does not keep: its macro project, and the fonts stored in it.
+QStringList publisherFileLosses(const Document &doc, const QString &kind);
 // A process color's inks as a .pub file keeps them: the values of drawing
 // properties 0x019F and 0x01A6 (0 when not needed).
 QPair<quint32, quint32> packPubInks(const QColor &cmyk);

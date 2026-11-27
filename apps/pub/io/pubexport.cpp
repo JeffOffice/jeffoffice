@@ -3246,6 +3246,14 @@ QStringList publisherListLosses(const Document &doc)
     return out;
 }
 
+QStringList publisherFileLosses(const Document &doc, const QString &kind)
+{
+    QStringList phrases;
+    if (doc.pubMacros) phrases << QCoreApplication::translate("jp::PubExport", "the macro project the file held (it is never run, and a new %1 file does not keep it)").arg(kind);
+    if (!doc.fontAliases.isEmpty()) phrases << QCoreApplication::translate("jp::PubExport", "the fonts stored in the file (they are used while it is open, and a new %1 file does not keep them)").arg(kind);
+    return phrases;
+}
+
 QStringList publisherLosses(const Document &doc)
 {
     QStringList phrases;
@@ -3259,8 +3267,7 @@ QStringList publisherLosses(const Document &doc)
     if (anyObjectLink) phrases << QCoreApplication::translate("jp::PubExport", "links on objects and on mouse-over (links in text are kept)");
     if (anyHidden) phrases << QCoreApplication::translate("jp::PubExport", "hidden objects (the .pub format can't keep them hidden, so they are visible the next time it opens)");
     phrases << publisherListLosses(doc);
-    if (doc.pubMacros) phrases << QCoreApplication::translate("jp::PubExport", "the macro project the file held (it is never run, and a new .pub file does not keep it)");
-    if (!doc.fontAliases.isEmpty()) phrases << QCoreApplication::translate("jp::PubExport", "the fonts stored in the file (they are used while it is open, and a new .pub file does not keep them)");
+    phrases << publisherFileLosses(doc, QStringLiteral(".pub"));
     if (!doc.merge.isEmpty()) phrases << QCoreApplication::translate("jp::PubExport", "the mail merge list, and which of its recipients are left out");
     // (what the writer itself leaves out: written to memory, as a save would, and nothing put on disk)
     QStringList skipped;

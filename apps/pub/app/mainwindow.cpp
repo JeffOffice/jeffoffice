@@ -794,6 +794,8 @@ bool MainWindow::saveTo(const QString &pathIn, bool asCopy)
             jp::plainWarning(this, tr("Save"), tr("JeffPub couldn't save \"%1\".\n%2%3").arg(QFileInfo(path).fileName(), err, saveFailureHint(err)));
             return false;
         }
+        // (what came with a .pub file and a .jpub file does not keep is said the same way)
+        leftOut = publisherFileLosses(*m_ed->doc(), QStringLiteral(".jpub")).join(QStringLiteral("; "));
     }
     if (!asCopy) {
         if (toPub && m_fileProtected) {
