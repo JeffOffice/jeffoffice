@@ -283,6 +283,50 @@ static QByteArray moreLinkBook()
     });
 }
 
+// A workbook opened in a window of its own with the question answered as told: what was asked, the files shown, and what was read (the values of A6: 6 stored, 24 once prices.xlsx is read).
+struct LinkRun {
+    Window win;
+    int asked = 0;
+    QStringList paths;
+    QString words;
+    LinkRun(const QString &path, bool answer)
+    {
+        win.w.setGetDataTrustAsker([this, answer](const QStringList &p, const QString &w) {
+            ++asked;
+            paths = p;
+            words = w;
+            return answer;
+        });
+        opened = win.open(path);
+        QTest::qWaitFor([this] { return !win.w.isCalculating(); }, 20000);
+        for (int i = 0; i < 5; ++i) QCoreApplication::processEvents();
+    }
+    bool opened = false;
+    QString a6()
+    {
+        const std::optional<grid::Cell> cell = win.w.view()->sheet().cellAt(5, 0);
+        return cell ? win.w.view()->sheet().textOf(5, 0, *cell) : QString();
+    }
+    int touches() { return win.w.session()->externals()->fileTouches(); }
+};
+struct SentBook {
+    Folder folder;
+    QString path;
+    SentBook()
+    {
+        folder.write(QStringLiteral("prices.xlsx"), bookOfSheets({{"A1=7", "A2=8", "A3=9"}}));
+        path = folder.write(QStringLiteral("links.xlsx"), moreLinkBook());
+    }
+};
+struct ApprovalsReset {
+    ApprovalsReset() { trust::forgetApprovals(); }
+    ~ApprovalsReset()
+    {
+        trust::forgetApprovals();
+        trust::setLinkedFiles(trust::Choice::Ask);
+    }
+};
+
 class CrunchKeepTests : public QObject {
     Q_OBJECT
 
@@ -646,7 +690,7 @@ private Q_SLOTS:
             QCoreApplication::processEvents();
             QCoreApplication::processEvents();
             const bool fileNever = mode && std::strcmp(mode, "never") == 0;
-            if (ok && choice == trust::Choice::Ask && !fileNever) QTRY_COMPARE_WITH_TIMEOUT(e.win.linksAsked, 1, 10000);
+            if (ok && !network && choice != trust::Choice::Never && !fileNever) QTRY_COMPARE_WITH_TIMEOUT(e.win.linksAsked, 1, 10000);
             if (ok && !network && choice != trust::Choice::Never && !fileNever) QTRY_COMPARE_WITH_TIMEOUT(e.shownAt(QStringLiteral("A6")), QStringLiteral("24"), 10000);
             e.settle();
             *asked = e.win.linksAsked;
@@ -658,8 +702,8 @@ private Q_SLOTS:
         opened(trust::Choice::Ask, nullptr, false, &asked, &touches, &shown);   // (as it always was: asked, and the answer here is yes)
         QCOMPARE(asked, 1);
         QCOMPARE(shown, QStringLiteral("24"));
-        opened(trust::Choice::Yes, nullptr, false, &asked, &touches, &shown);
-        QCOMPARE(asked, 0);
+        opened(trust::Choice::Yes, nullptr, false, &asked, &touches, &shown);   // (a workbook this person has not approved for that file is asked about, whatever is chosen: see the remembered approvals tests)
+        QCOMPARE(asked, 1);
         QCOMPARE(shown, QStringLiteral("24"));
         opened(trust::Choice::Never, nullptr, false, &asked, &touches, &shown);
         QCOMPARE(asked, 0);
@@ -687,6 +731,156 @@ private Q_SLOTS:
             QCOMPARE(int(sources.size()), 1);
             QVERIFY(sources[0].network);   // (held back like a file on another computer)
         }
+    }
+
+    // Options > Security "Update them" updates without asking only for a workbook and a file this person has already approved together: a workbook sent by someone is asked about, and Don't Read reads nothing.
+    void updateThemStillAsksForAWorkbookThatWasNeverApproved()
+    {
+        const ApprovalsReset reset;
+        trust::setLinkedFiles(trust::Choice::Yes);
+        SentBook sent;
+        LinkRun r(sent.path, false);
+        QVERIFY(r.opened);
+        QCOMPARE(r.asked, 1);
+        QCOMPARE(r.paths, QStringList{QFileInfo(sent.folder.dir.filePath(QStringLiteral("prices.xlsx"))).canonicalFilePath()});   // (the whole path, as it will be opened)
+        QCOMPARE(r.a6(), QStringLiteral("6"));
+        QCOMPARE(r.touches(), 0);
+        QCOMPARE(trust::approvalCount(), 0);   // (a no remembers nothing)
+    }
+
+    // A yes is remembered for the pair: opened again with "Update them" nothing is asked and the file is read; with "Ask me first" the box shows every time, and a yes there keeps the one pair.
+    void anApprovalIsRememberedForUpdateThemAndAskMeFirstKeepsAsking()
+    {
+        const ApprovalsReset reset;
+        trust::setLinkedFiles(trust::Choice::Yes);
+        SentBook sent;
+        {
+            LinkRun first(sent.path, true);
+            QCOMPARE(first.asked, 1);
+            QTRY_COMPARE_WITH_TIMEOUT(first.a6(), QStringLiteral("24"), 10000);
+        }
+        QCOMPARE(trust::approvalCount(), 1);
+        {
+            LinkRun again(sent.path, false);   // (a no is waiting here: a question would be answered no)
+            QTRY_COMPARE_WITH_TIMEOUT(again.a6(), QStringLiteral("24"), 10000);
+            QCOMPARE(again.asked, 0);
+        }
+        trust::setLinkedFiles(trust::Choice::Ask);
+        for (int time = 0; time < 2; ++time) {
+            LinkRun asks(sent.path, time == 1);
+            QCOMPARE(asks.asked, 1);
+            if (time == 1) QTRY_COMPARE_WITH_TIMEOUT(asks.a6(), QStringLiteral("24"), 10000);
+            else QCOMPARE(asks.a6(), QStringLiteral("6"));
+        }
+        QCOMPARE(trust::approvalCount(), 1);
+        trust::setLinkedFiles(trust::Choice::Yes);
+        trust::forgetApprovals();   // (Forget All: the next open asks again)
+        LinkRun forgotten(sent.path, false);
+        QCOMPARE(forgotten.asked, 1);
+        QCOMPARE(forgotten.a6(), QStringLiteral("6"));
+    }
+
+    // The approval is for this workbook at this place: moved or renamed it asks again.
+    void aMovedOrRenamedWorkbookAsksAgain()
+    {
+        const ApprovalsReset reset;
+        trust::setLinkedFiles(trust::Choice::Yes);
+        SentBook sent;
+        {
+            LinkRun first(sent.path, true);
+            QCOMPARE(first.asked, 1);
+        }
+        const QString renamed = sent.folder.write(QStringLiteral("renamed.xlsx"), moreLinkBook());
+        LinkRun r(renamed, false);
+        QCOMPARE(r.asked, 1);
+        QCOMPARE(r.a6(), QStringLiteral("6"));
+        LinkRun same(sent.path, false);   // (the one that was approved still reads)
+        QTRY_COMPARE_WITH_TIMEOUT(same.a6(), QStringLiteral("24"), 10000);
+        QCOMPARE(same.asked, 0);
+    }
+
+    // The approval is for the file that was named: the same workbook edited to name another file asks about that one.
+    void aWorkbookEditedToNameAnotherFileAsksForIt()
+    {
+        const ApprovalsReset reset;
+        trust::setLinkedFiles(trust::Choice::Yes);
+        SentBook sent;
+        {
+            LinkRun first(sent.path, true);
+            QCOMPARE(first.asked, 1);
+        }
+        sent.folder.write(QStringLiteral("secret.xlsx"), bookOfSheets({{"A1=100", "A2=200", "A3=300"}}));
+        sent.folder.write(QStringLiteral("links.xlsx"), repack(moreLinkBook(), [](Parts &p) { p[QStringLiteral("xl/externalLinks/_rels/externalLink1.xml.rels")].replace("prices.xlsx", "secret.xlsx"); }));
+        {
+            LinkRun r(sent.path, false);
+            QCOMPARE(r.asked, 1);
+            QCOMPARE(r.paths.size(), 1);
+            QVERIFY2(r.paths.first().endsWith(QLatin1String("secret.xlsx")), qPrintable(r.paths.first()));
+            QCOMPARE(r.a6(), QStringLiteral("6"));
+            QCOMPARE(r.touches(), 0);
+        }
+        LinkRun yes(sent.path, true);   // (and a yes for it reads it)
+        QTRY_COMPARE_WITH_TIMEOUT(yes.a6(), QStringLiteral("600"), 10000);
+    }
+
+    // The approval is for the file as the system names it: a file that is replaced by a link to another file has another name, so it asks again.
+    void aFileReplacedByALinkToAnotherFileAsksAgain()
+    {
+        const ApprovalsReset reset;
+        trust::setLinkedFiles(trust::Choice::Yes);
+        SentBook sent;
+        {
+            LinkRun first(sent.path, true);
+            QCOMPARE(first.asked, 1);
+        }
+        const QString elsewhere = sent.folder.write(QStringLiteral("elsewhere.xlsx"), bookOfSheets({{"A1=1", "A2=2", "A3=3"}}));
+        const QString named = sent.folder.dir.filePath(QStringLiteral("prices.xlsx"));
+        QVERIFY(QFile::remove(named));
+        if (!QFile::link(elsewhere, named)) QSKIP("this system can't make a symbolic link here");
+        if (QFileInfo(named).canonicalFilePath() != QFileInfo(elsewhere).canonicalFilePath()) QSKIP("this system does not follow the link");
+        LinkRun r(sent.path, false);
+        QCOMPARE(r.asked, 1);
+        QCOMPARE(r.paths, QStringList{QFileInfo(elsewhere).canonicalFilePath()});
+        QCOMPARE(r.a6(), QStringLiteral("6"));
+        QCOMPARE(r.touches(), 0);
+    }
+
+    // "Never update them" reads nothing and shows nothing, whatever was approved before.
+    void neverReadsNothingAndShowsNothing()
+    {
+        const ApprovalsReset reset;
+        trust::setLinkedFiles(trust::Choice::Yes);
+        SentBook sent;
+        {
+            LinkRun first(sent.path, true);
+            QCOMPARE(first.asked, 1);
+        }
+        trust::setLinkedFiles(trust::Choice::Never);
+        LinkRun r(sent.path, true);
+        QCOMPARE(r.asked, 0);
+        QCOMPARE(r.a6(), QStringLiteral("6"));
+        QCOMPARE(r.touches(), 0);
+    }
+
+    // The store holds at most kMostApprovals pairs and drops the one used longest ago, and a window still asks, remembers, and reads at the limit.
+    void theStoreAtItsLimitDropsTheOldestAndStillWorks()
+    {
+        const ApprovalsReset reset;
+        trust::setLinkedFiles(trust::Choice::Yes);
+        for (int i = 0; i < trust::kMostApprovals; ++i) trust::rememberRead(QStringLiteral("/b/%1").arg(i), QStringLiteral("/f/%1").arg(i));
+        QCOMPARE(trust::approvalCount(), trust::kMostApprovals);
+        QVERIFY(trust::readApproved(QStringLiteral("/b/0"), QStringLiteral("/f/0")));   // (used now, so it is the newest)
+        SentBook sent;
+        {
+            LinkRun first(sent.path, true);
+            QCOMPARE(first.asked, 1);
+        }
+        QCOMPARE(trust::approvalCount(), trust::kMostApprovals);
+        QVERIFY(!trust::readApproved(QStringLiteral("/b/1"), QStringLiteral("/f/1")));   // (the one used longest ago went)
+        QVERIFY(trust::readApproved(QStringLiteral("/b/0"), QStringLiteral("/f/0")));
+        LinkRun again(sent.path, false);
+        QTRY_COMPARE_WITH_TIMEOUT(again.a6(), QStringLiteral("24"), 10000);
+        QCOMPARE(again.asked, 0);
     }
 
     // A workbook from the internet or another computer opens for reading first, unless Options > Security says to open it as any other.
@@ -744,8 +938,9 @@ private Q_SLOTS:
         const QByteArray book = repack(moreLinkBook(), [](Parts &p) { p[QStringLiteral("xl/externalLinks/_rels/externalLink1.xml.rels")].replace("prices.xlsx", "\\\\host\\share\\prices.xlsx"); });
         QVERIFY(e.open(book, QStringLiteral("links.xlsx")));
         QVERIFY(e.settle());
-        QTRY_COMPARE_WITH_TIMEOUT(e.win.linksAsked, 1, 10000);
-        QCOMPARE(touchedAtAsk, 0);
+        QVERIFY(e.settle());
+        QCOMPARE(e.win.linksAsked, 0);   // (nothing on this computer to read: nothing to ask about)
+        QCOMPARE(touchedAtAsk, -1);
         QVERIFY(e.settle());
         QCOMPARE(e.win.w.session()->externals()->fileTouches(), 0);   // (not after the answer either)
         QCOMPARE(e.shownAt(QStringLiteral("A6")), QStringLiteral("6"));

@@ -1,6 +1,7 @@
 // Tests of tables as a person makes and changes them through the edit session (core/edittables.cpp): making one from cells, turning it back, naming it, the row of names and the row of totals,
 // resizing, the table growing by a cell typed next to it, a formula typed in an empty column filling it, structured references in formulas, one step of Undo each, and what a save leaves of
 // the file. The workbook is built here.
+#include "sheet/datasource.h"
 #include "app/crunchwindow.h"
 #include "app/crunchinfo.h"
 #include "app/getdata.h"
@@ -2439,7 +2440,7 @@ private Q_SLOTS:
         f.win.w.act(QStringLiteral("data.refresh"))->trigger();
         QVERIFY(f.settle());
         QCOMPARE(asks, 1);
-        QCOMPARE(paths, QStringList{QDir::cleanPath(QFileInfo(file).absoluteFilePath())});
+        QCOMPARE(paths, QStringList{jp::office::sheet::dataReadablePath(file)});
         QVERIFY(words.contains(paths.first()));
         QCOMPARE(f.win.w.undoStack()->count(), 0);
         QCOMPARE(f.win.w.session()->workbook()->tables().first().dataSource, before);
@@ -2531,8 +2532,8 @@ private Q_SLOTS:
         QVERIFY(f.settle());
         QCOMPARE(asks, 1);
         QCOMPARE(int(paths.size()), files);
-        QVERIFY(words.contains(QDir::cleanPath(QFileInfo(names[19]).absoluteFilePath())));
-        QVERIFY(!words.contains(QDir::cleanPath(QFileInfo(names[20]).absoluteFilePath())));
+        QVERIFY(words.contains(jp::office::sheet::dataReadablePath(names[19])));
+        QVERIFY(!words.contains(jp::office::sheet::dataReadablePath(names[20])));
         QVERIFY(words.contains(QStringLiteral("and 3 more")));
         QVERIFY(words.trimmed().endsWith(QStringLiteral("Read the Files reads every file named here, including any that are only counted.")));
         QCOMPARE(f.win.w.undoStack()->count(), 0);

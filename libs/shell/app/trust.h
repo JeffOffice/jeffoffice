@@ -11,6 +11,8 @@
 #include <functional>
 
 class QComboBox;
+class QLabel;
+class QPushButton;
 
 namespace jp::trust {
 
@@ -22,6 +24,17 @@ enum class Choice { Ask, Yes, Never };
 // read); JeffCrunch asks, until the person chooses.
 JO_COMMON_EXPORT Choice linkedFiles(const QString &app = QString());
 JO_COMMON_EXPORT void setLinkedFiles(Choice choice, const QString &app = QString());
+// The files a workbook may read without asking, once this person has said yes to that workbook and that file (JeffCrunch): kept in this person's own settings only, never in a workbook. Each entry is a pair, the
+// workbook's full path and the full path of the file it reads, both as the system names them once links are worked out. Not a list of names: each path is kept as a keyed hash (HMAC-SHA-256, cut to 128 bits)
+// with a random key made for this person and kept beside them, so the settings file does not tell a casual reader which files this person has. At most kMostApprovals pairs are kept; when
+// another comes, the one used longest ago goes. A path longer than kLongestApprovedPath is never remembered (it is asked about each time), and an entry that is not of the form written is dropped.
+constexpr int kMostApprovals = 2000;
+constexpr int kLongestApprovedPath = 4096;
+// Whether this pair was approved (and, when it was, counts as used just now). An empty path, a too long one, or no pair: false.
+JO_COMMON_EXPORT bool readApproved(const QString &workbook, const QString &file);
+JO_COMMON_EXPORT void rememberRead(const QString &workbook, const QString &file);
+JO_COMMON_EXPORT int approvalCount();
+JO_COMMON_EXPORT void forgetApprovals();
 // Movies and sounds that a slide links to a file instead of holding (JeffDeck). Never, until the person chooses.
 JO_COMMON_EXPORT Choice linkedMedia();
 JO_COMMON_EXPORT void setLinkedMedia(Choice choice);
@@ -68,6 +81,8 @@ public:
 private:
     QComboBox *m_files = nullptr, *m_media = nullptr, *m_outside = nullptr;
     QString m_filesApp;
+    QLabel *m_approvals = nullptr;
+    QPushButton *m_forget = nullptr;
     bool m_filesAsks = false;
 };
 

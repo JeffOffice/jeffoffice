@@ -11,15 +11,21 @@ Macros are small programs kept inside a file. JeffCrunch keeps them in the file,
 
 ## Linked files and workbook links
 
-This is about the other workbooks that a workbook gets numbers from, called **links**. The choice is what JeffCrunch does when it opens a workbook that has some.
+This is about the other files that a workbook reads, such as the workbooks it gets numbers from, called **links**, the files its queries read, and the files its pivot tables are made from. The choice is what JeffCrunch does when it opens a workbook that reads some, and when you use **Refresh** or **Refresh All** on its queries and pivot tables.
 
-- **Ask me first** is the usual choice. JeffCrunch asks whether to update the numbers from the other workbooks.
-- **Update them** updates them without asking. This includes a workbook that someone else sent you: its links, and the pivot tables in it that are set to read their data from another file, are read as it opens, with no question. Choose **Ask me first** if you open workbooks from people you do not know.
-- **Never update them** keeps the numbers the file stored.
+- **Ask me first** is the usual choice. Before JeffCrunch reads one of those files, it shows the full path of the file and asks. Click **Read the File** only if you trust where the workbook came from. **Don't Read**, the standard button, reads nothing and leaves the workbook as it was. This choice asks every time, even for a file you said yes to before.
+- **Update them** reads a file without asking only if you have already said yes to that same workbook reading that same file. For every other file, including any file named in a workbook someone just sent you, it still asks first, the same way.
+- **Never update them** reads nothing when a workbook opens, and shows no question. The numbers the file stored stay as they are.
 
-With **Ask me first**, a pivot table that reads its data from another file shows the full path of each file before anything is read. Click **Read the Files** only if you trust where the workbook came from. **Don't Read** leaves the pivot tables as they were.
+## What is remembered
 
-A choice you make for one workbook in **Data > Edit Links** (**Startup prompt**) wins for that workbook. A workbook that says "never" is always left alone. A workbook on another computer is never read when a file opens, whatever you choose. You can still use **Update Values** in **Edit Links** yourself at any time.
+When you click **Read the File** or **Read the Files**, JeffCrunch remembers that pair: this workbook, and that file, each by its full path. Only the pair is remembered. If the workbook is moved or renamed, edited to read a different file, or the file is replaced by a shortcut to another file, JeffCrunch asks again. A workbook that you have never saved has no path, so nothing about it is remembered after you close it.
+
+The pairs are kept only in your own settings on this computer, never in a workbook, so a workbook cannot add one, and nobody who gets a workbook from you gets them. The settings keep a scrambled form of each path, not the path itself. Up to 2,000 pairs are kept; when there are more, the pair used longest ago is forgotten first.
+
+**Options > Security** shows how many pairs are remembered (**Remembered approvals**). Click **Forget All** to forget every one of them at once. No workbook is changed, and each one asks again the next time.
+
+A workbook that says "never" in its own **Startup prompt** (**Data > Edit Links**) is always left alone. A workbook on another computer is never read when a file opens, whatever you choose. You can still use **Update Values** in **Edit Links** yourself at any time.
 
 ## Linked movies and sounds
 

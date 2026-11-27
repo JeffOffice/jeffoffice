@@ -22,7 +22,7 @@ struct Window {
     std::function<void()> onLinksAsked;   // called at the question, before it is answered
     Window()
     {
-        w.setLinksAsker([this](int, int) {
+        w.setGetDataTrustAsker([this](const QStringList &, const QString &) {
             ++linksAsked;
             if (onLinksAsked) onLinksAsked();
             return linksAnswer;

@@ -7,6 +7,7 @@
 #include "sheet/datasource.h"
 
 #include "app/plaintext.h"
+#include "app/trust.h"
 #include "core/appinfo.h"
 
 #include <QAction>
@@ -29,9 +30,20 @@ static QString getDataTrustKey(const QString &path)
     return jp::office::sheet::dataReadablePath(path);
 }
 
-bool CrunchWindow::getDataTrusted(const QString &path) const
+bool CrunchWindow::getDataTrusted(const QString &path)
 {
-    return m_getDataTrusted.contains(getDataTrustKey(path));
+    return approvedFile(getDataTrustKey(path));
+}
+
+// Whether the file at `key` (a place as it will be opened) may be read without a question: this window has had a yes for it (or made it), or this person's own choice is "Update them" and the pair
+// (this workbook, this file) was said yes to before (Options > Security keeps those). A workbook that was never saved has no path, so no pair: its yes lives in this window only.
+bool CrunchWindow::approvedFile(const QString &key)
+{
+    if (m_getDataTrusted.contains(key)) return true;
+    if (m_path.isEmpty() || jp::trust::linkedFiles() != jp::trust::Choice::Yes) return false;
+    if (!jp::trust::readApproved(jp::office::sheet::dataReadablePath(m_path), key)) return false;
+    m_getDataTrusted.insert(key);
+    return true;
 }
 
 // A query or pivot table that came out of an opened workbook names a file of its own choosing: nothing is read until this person has seen the whole path and said yes. The yes is kept for this window only.
@@ -44,7 +56,7 @@ bool CrunchWindow::askToReadFiles(QWidget *parent, const QString &title, const Q
     if (paths.size() > shown) list += tr("and %1 more").arg(paths.size() - shown) + QLatin1Char('\n');
     QString text;
     if (paths.size() == 1) text = tr("%1 in this workbook asks to read this file from this computer:").arg(getDataVisibleText(names.first()));
-    else text = tr("Queries and pivot tables in this workbook ask to read these files from this computer:");
+    else text = tr("Queries, pivot tables, and links in this workbook ask to read these files from this computer:");
     text += QStringLiteral("\n\n") + list + QStringLiteral("\n") + tr("Read the file only if you trust where this workbook came from. Anything in it will be put in this workbook.");
     if (paths.size() > 1) text += QLatin1Char(' ') + tr("Read the Files reads every file named here, including any that are only counted.");
     if (m_getDataTrustAsker) return m_getDataTrustAsker(paths, text);
@@ -77,13 +89,17 @@ bool CrunchWindow::approveFiles(QWidget *parent, const QString &title, const std
 {
     if (withPivots && m_session)
         for (const auto &f : m_session->pivotExternalFiles(pivots)) {
-            if (m_getDataTrusted.contains(f.second) || paths.contains(f.second)) continue;
+            if (approvedFile(f.second) || paths.contains(f.second)) continue;
             names << f.first;
             paths << f.second;
         }
     if (paths.isEmpty()) return true;
     if (!askToReadFiles(parent, title, names, paths)) return false;
-    for (const QString &p : paths) m_getDataTrusted.insert(p);
+    const QString book = m_path.isEmpty() ? QString() : jp::office::sheet::dataReadablePath(m_path);
+    for (const QString &p : paths) {
+        m_getDataTrusted.insert(p);
+        if (!book.isEmpty()) jp::trust::rememberRead(book, p);
+    }
     return true;
 }
 

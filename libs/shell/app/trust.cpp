@@ -9,9 +9,14 @@
 #include <QCoreApplication>
 #include <QDir>
 #include <QFile>
+#include <QCryptographicHash>
+#include <QRegularExpression>
 #include <QSet>
 #include <QFileInfo>
 #include <QFormLayout>
+#include <QHBoxLayout>
+#include <QMessageAuthenticationCode>
+#include <QRandomGenerator>
 #include <QLabel>
 #include <QMessageBox>
 #include <QPushButton>
@@ -62,7 +67,84 @@ bool markedAsDownloaded(const QString &path)
 #endif
 }
 
+const QString kApprovalsKey = QStringLiteral("trust/approvals");
+const QString kApprovalKeyKey = QStringLiteral("trust/approvalKey");
+
+// The random key (32 bytes, as hex) this person's hashes are made with; made the first time it is needed. A key that is not what we wrote is replaced, which forgets the pairs made with the old one.
+QByteArray approvalKey()
+{
+    Settings &st = Settings::get();
+    const QByteArray stored = QByteArray::fromHex(st.value(kApprovalKeyKey).toString().toLatin1());
+    if (stored.size() == 32) return stored;
+    QByteArray fresh(32, '\0');
+    for (int i = 0; i < 32; i += 4) {
+        const quint32 r = QRandomGenerator::system()->generate();
+        memcpy(fresh.data() + i, &r, 4);
+    }
+    st.setValue(kApprovalKeyKey, QString::fromLatin1(fresh.toHex()));
+    st.remove(kApprovalsKey);
+    return fresh;
+}
+
+// One pair as it is kept: 32 hex digits for each path.
+QString approvalEntry(const QString &workbook, const QString &file)
+{
+    if (workbook.isEmpty() || file.isEmpty() || workbook.size() > kLongestApprovedPath || file.size() > kLongestApprovedPath) return QString();
+    const QByteArray key = approvalKey();
+    auto part = [&](const QString &path) { return QMessageAuthenticationCode::hash(path.toUtf8(), key, QCryptographicHash::Sha256).left(16).toHex(); };
+    return QString::fromLatin1(part(workbook) + part(file));
+}
+
+// The kept entries, oldest first: only those of the form written (64 lowercase hex digits), no repeats, never more than kMostApprovals (the oldest are left off).
+QStringList loadApprovals()
+{
+    static const QRegularExpression form(QStringLiteral("^[0-9a-f]{64}$"));
+    QStringList out;
+    QSet<QString> seen;
+    for (const QString &e : Settings::get().value(kApprovalsKey).toStringList())
+        if (form.match(e).hasMatch() && !seen.contains(e)) {
+            seen.insert(e);
+            out << e;
+        }
+    if (out.size() > kMostApprovals) out = out.mid(out.size() - kMostApprovals);
+    return out;
+}
+
+void storeApprovals(const QStringList &list)
+{
+    if (list.isEmpty()) Settings::get().remove(kApprovalsKey);
+    else Settings::get().setValue(kApprovalsKey, list);
+}
+
 } // namespace
+
+bool readApproved(const QString &workbook, const QString &file)
+{
+    const QString entry = approvalEntry(workbook, file);
+    if (entry.isEmpty()) return false;
+    QStringList list = loadApprovals();
+    const qsizetype at = list.indexOf(entry);
+    if (at < 0) return false;
+    if (at != list.size() - 1) {   // (used just now: it goes last, so the one used longest ago is the one to go)
+        list.move(at, list.size() - 1);
+        storeApprovals(list);
+    }
+    return true;
+}
+
+void rememberRead(const QString &workbook, const QString &file)
+{
+    const QString entry = approvalEntry(workbook, file);
+    if (entry.isEmpty()) return;
+    QStringList list = loadApprovals();
+    list.removeAll(entry);
+    list << entry;
+    while (list.size() > kMostApprovals) list.removeFirst();
+    storeApprovals(list);
+}
+
+int approvalCount() { return int(loadApprovals().size()); }
+void forgetApprovals() { Settings::get().remove(kApprovalsKey); }
 
 static QString filesKey(const QString &app) { return QStringLiteral("trust/linkedFiles/") + (app.isEmpty() ? appInfo().fileName : app); }
 static bool asksAboutFiles(const QString &app) { return (app.isEmpty() ? appInfo().fileName : app) != QLatin1String("jeffpub"); }
@@ -203,6 +285,30 @@ TrustPage::TrustPage(const Applies &applies, QWidget *parent) : QWidget(parent)
     m_filesAsks = applies.linkedFilesAsks;
     m_files->setCurrentIndex(m_filesAsks ? int(linkedFiles(applies.app)) : linkedFiles(applies.app) == Choice::Never ? 1 : 0);
     row(tr("Linked files and workbook links:"), m_files, applies.linkedFiles, applies.linkedFilesAbout, tr("This doesn't apply in this app: it has no linked files to update."));
+    if (applies.linkedFilesAsks) {
+        auto *line = new QWidget(this);
+        auto *hl = new QHBoxLayout(line);
+        hl->setContentsMargins(0, 0, 0, 0);
+        m_approvals = jp::plainLabel(new QLabel(this));
+        m_approvals->setObjectName(QStringLiteral("trustApprovalCount"));
+        m_forget = new QPushButton(tr("Forget All"), this);
+        m_forget->setObjectName(QStringLiteral("trustForgetAll"));
+        hl->addWidget(m_approvals);
+        hl->addStretch(1);
+        hl->addWidget(m_forget);
+        auto show = [this] {
+            const int n = approvalCount();
+            // plain: reviewed (a count of ours)
+            m_approvals->setText(tr("Remembered approvals: %1").arg(n));
+            m_forget->setEnabled(n > 0);
+        };
+        show();
+        connect(m_forget, &QPushButton::clicked, this, [show] {
+            forgetApprovals();
+            show();
+        });
+        form->addRow(QString(), line);
+    }
     m_media = choiceBox(QStringLiteral("trustLinkedMedia"), {tr("Ask me first"), tr("Play it"), tr("Never play it")}, applies.linkedMedia);
     m_media->setCurrentIndex(int(linkedMedia()));
     row(tr("Linked movies and sounds:"), m_media, applies.linkedMedia, applies.linkedMediaAbout, tr("This doesn't apply in this app: it has no linked movies or sounds to play."));

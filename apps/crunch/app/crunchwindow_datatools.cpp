@@ -80,48 +80,54 @@ crunch::EditSession::UpdateLinks CrunchWindow::linksOpeningMode() const
     return mode;
 }
 
-// Whether the files that pivot tables are made from may be read as the workbook opens. The person's own choice decides first (never: no; update them: yes, without a question, even for a workbook that came
-// from someone else); otherwise the box that Refresh uses asks, with the full path of each file. A yes is kept for this window, so Refresh then reads those files without asking again.
+// Whether the files that pivot tables are made from may be read as the workbook opens. "Never" says no, and nothing is shown. Otherwise a file is read without a question only when this person's choice is
+// "Update them" AND this workbook has been approved for that very file before; every other file is asked about, with its full path, in the box that Refresh uses. A yes is kept for this window and in
+// Options > Security's remembered approvals; "no" for any of them reads none.
 bool CrunchWindow::pivotFilesOnOpenAllowed(int)
 {
-    const crunch::EditSession::UpdateLinks mode = linksOpeningMode();
-    if (mode == crunch::EditSession::UpdateLinks::Never) return false;
+    if (linksOpeningMode() == crunch::EditSession::UpdateLinks::Never) return false;
     QStringList names, paths;
     for (const auto &f : m_session->pivotExternalFiles({}, true)) {
-        if (m_getDataTrusted.contains(f.second) || paths.contains(f.second)) continue;
+        if (approvedFile(f.second) || paths.contains(f.second)) continue;
         names << f.first;
         paths << f.second;
     }
-    if (mode == crunch::EditSession::UpdateLinks::Always) return true;
     return approveFiles(this, tr("Pivot Tables"), {}, false, names, paths);
 }
 
-// When a workbook that reads others has been opened and worked out: the choice the file has (Startup prompt in Edit Links) decides. Only links whose file is on this computer are asked about.
+// When a workbook that reads others has been opened and worked out: the choice the file has (Startup prompt in Edit Links) decides, and "never" leaves the stored values. The files on this computer that its
+// links name are read only once this person has seen each full path and said yes, unless "Update them" is chosen and this workbook was approved for that very file before. A link to another computer is never read here.
 void CrunchWindow::linksOnOpen()
 {
     if (!m_session || !m_loaded || isReadOnly()) return;
-    // (no file is touched before the person says yes: the question is made from the link parts of the workbook alone, since asking whether a file is there would reach a computer on a network)
-    crunch::EditSession::UpdateLinks mode = linksOpeningMode();
-    if (mode == crunch::EditSession::UpdateLinks::Never) return;
+    // (no file is touched before the person says yes: the box is made from the link parts of the workbook alone, since asking whether a file is there would reach a computer on a network)
+    if (linksOpeningMode() == crunch::EditSession::UpdateLinks::Never) return;
     const std::vector<crunch::EditSession::ExternalSource> sources = m_session->externalLinkSources(false);
-    if (sources.empty()) return;
-    if (mode == crunch::EditSession::UpdateLinks::Ask) {
-        const int cells = m_session->externalLinkCells();
-        const bool yes = m_linksAsker ? m_linksAsker(int(sources.size()), cells)
-                                      : plainQuestion(this, tr("Links"), tr("This workbook reads values from other workbooks. Update them now? You can change this in Edit Links, under Data.")) == QMessageBox::Yes;
-        if (!yes) return;
+    jp::office::sheet::ExternalBooks *links = m_session->externals();
+    if (sources.empty() || !links) return;
+    std::vector<int> local;
+    QStringList names, paths;
+    for (const crunch::EditSession::ExternalSource &s : sources) {
+        if (!s.local || s.network) continue;   // (one on another computer is left until it is asked for in Edit Links)
+        const QString path = links->localPath(s.index);
+        if (path.isEmpty()) continue;
+        local.push_back(s.index);
+        const QString key = jp::office::sheet::dataReadablePath(path);
+        if (approvedFile(key) || paths.contains(key)) continue;
+        names << tr("Link %1").arg(s.index);
+        paths << key;
     }
-    // the files on this computer are read on a thread of its own, behind a window with Cancel (one on another computer is left until it is asked for in Edit Links)
-    if (jp::office::sheet::ExternalBooks *links = m_session->externals()) {
-        std::vector<int> local;
-        for (const crunch::EditSession::ExternalSource &s : sources)
-            if (s.local && !s.network) local.push_back(s.index);
-        if (!runLinkReads(this, links, tr("Reading the workbooks the links point to..."), [&] {
-                for (const int index : local) links->probe(index);
-            })) {
-            setStatus(tr("Links not updated."));
-            return;
-        }
+    if (local.empty()) return;
+    if (!approveFiles(this, tr("Links"), {}, false, names, paths)) {
+        setStatus(tr("Links not updated."));
+        return;
+    }
+    // the files on this computer are read on a thread of its own, behind a window with Cancel
+    if (!runLinkReads(this, links, tr("Reading the workbooks the links point to..."), [&] {
+            for (const int index : local) links->probe(index);
+        })) {
+        setStatus(tr("Links not updated."));
+        return;
     }
     int updated = 0;
     const crunch::EditSession::Outcome o = m_session->updateAllExternalLinks(&updated);

@@ -4,6 +4,7 @@
 #include "app/theme.h"
 #include "app/crunchwindow.h"
 #include "app/settings.h"
+#include "app/trust.h"
 #include "findbooks.h"
 #include "app/icons.h"
 #include "app/pivotpane.h"
@@ -931,6 +932,46 @@ private Q_SLOTS:
             QVERIFY(e.settle());
             QCOMPARE(asked, allow ? 1 : 2);
             QCOMPARE(pivotExternalFilesOpened() - before, allow ? 2 : 0);
+        }
+    }
+
+    // "Update them" reads the file of a pivot table, when the workbook opens and on Refresh, without asking only for a workbook and file this person already approved together; "Ask me first" asks again.
+    void aRememberedApprovalLetsUpdateThemReadAPivotSourceWithoutAsking()
+    {
+        struct Reset {
+            Reset() { trust::forgetApprovals(); }
+            ~Reset()
+            {
+                trust::forgetApprovals();
+                trust::setLinkedFiles(trust::Choice::Ask);
+            }
+        } reset;
+        trust::setLinkedFiles(trust::Choice::Yes);
+        Folder folder;
+        folder.write(QStringLiteral("other.xlsx"), otherBook(100));
+        const QString path = folder.write(QStringLiteral("pivot.xlsx"), externalSourceBook(QStringLiteral("other.xlsx"), false, true));
+        for (int pass = 0; pass < 3; ++pass) {
+            if (pass == 2) trust::setLinkedFiles(trust::Choice::Ask);
+            Window w;
+            int asked = 0;
+            w.w.setGetDataTrustAsker([&](const QStringList &, const QString &) {
+                ++asked;
+                return pass == 0;   // (the first time: yes; after that a question is answered no)
+            });
+            const int before = pivotExternalFilesOpened();
+            QVERIFY(w.open(path));
+            crunch::EditSession *s = w.w.session();
+            QTRY_VERIFY(asked > 0 || pivotExternalFilesOpened() > before);
+            QVERIFY(QTest::qWaitFor([&] { return !w.w.isCalculating(); }, 20000));
+            QCOMPARE(asked, pass == 1 ? 0 : 1);
+            QCOMPARE(pivotExternalFilesOpened() - before, pass == 2 ? 0 : 1);
+            QCOMPARE(cachedAmountTotal(s, 0), pass == 2 ? 49.0 : 139.0);
+            if (pass == 1) {   // (Refresh: the same pair, so no question either)
+                w.w.view()->selectCell(4, 5);
+                w.w.act(QStringLiteral("pivot.refresh"))->trigger();
+                QCOMPARE(asked, 0);
+                QCOMPARE(pivotExternalFilesOpened() - before, 2);
+            }
         }
     }
 

@@ -870,7 +870,11 @@ QString dataReadablePath(const QString &path)
     if (dataPathIsRemote(path)) return path;
     const QFileInfo info(path);
     const QString canonical = info.canonicalFilePath();
-    return canonical.isEmpty() ? QDir::cleanPath(info.absoluteFilePath()) : canonical;
+    if (!canonical.isEmpty()) return canonical;
+    // (a file that is not there: its folder is still worked out, so the name is the same one a file that was there had)
+    const QFileInfo full(info.absoluteFilePath());
+    const QString folder = full.dir().canonicalPath();
+    return folder.isEmpty() ? QDir::cleanPath(full.absoluteFilePath()) : QDir::cleanPath(folder + QLatin1Char('/') + full.fileName());
 }
 
 bool dataReadFile(const QString &path, const DataLimits &limits, const std::function<bool()> &cancelled, QByteArray *bytes, QString *why)

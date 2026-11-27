@@ -10,6 +10,8 @@
 #include <QComboBox>
 #include <QFile>
 #include <QLabel>
+#include <QPushButton>
+#include <QRegularExpression>
 #include <QTemporaryDir>
 #include <QtTest>
 
@@ -64,6 +66,85 @@ private Q_SLOTS:
         // (a value that is not one of ours is the default, not a stranger's choice)
         Settings::get().setValue(QStringLiteral("trust/linkedFiles/jeffcrunch"), QStringLiteral("whatever"));
         QCOMPARE(trust::linkedFiles(QStringLiteral("jeffcrunch")), trust::Choice::Ask);
+    }
+
+    // The remembered approvals: a pair is found only when both paths are the same, nothing readable is kept in the settings, the store holds at most kMostApprovals pairs (the one used longest ago goes), a path
+    // that is too long is never kept, and another person's settings (another key) find none of them.
+    void rememberedApprovalsAreKeyedPairsWithinABound()
+    {
+        trust::forgetApprovals();
+        const QString book = QStringLiteral("/home/someone/Taxes 2026/sent.xlsx"), file = QStringLiteral("/home/someone/private/salaries.xlsx");
+        QVERIFY(!trust::readApproved(book, file));
+        trust::rememberRead(book, file);
+        QCOMPARE(trust::approvalCount(), 1);
+        QVERIFY(trust::readApproved(book, file));
+        QVERIFY(!trust::readApproved(book, file + QStringLiteral("x")));
+        QVERIFY(!trust::readApproved(file, book));   // (a pair, in order)
+        QVERIFY(!trust::readApproved(QString(), file));
+        trust::rememberRead(book, file);   // (again: still one)
+        QCOMPARE(trust::approvalCount(), 1);
+        // what is kept shows neither path, only 64 hex digits for the pair
+        Settings &st = Settings::get();
+        const QStringList kept = st.value(QStringLiteral("trust/approvals")).toStringList();
+        QCOMPARE(kept.size(), 1);
+        QVERIFY(QRegularExpression(QStringLiteral("^[0-9a-f]{64}$")).match(kept.first()).hasMatch());
+        for (const QString &key : {QStringLiteral("trust/approvals"), QStringLiteral("trust/approvalKey")}) {
+            const QString text = st.value(key).toStringList().join(QLatin1Char(' '));
+            QVERIFY2(!text.contains(QStringLiteral("salaries")) && !text.contains(QStringLiteral("Taxes")) && !text.contains(QStringLiteral("someone")), qPrintable(key));
+        }
+        // a stranger's entries (not of the form written) are dropped, and the count shows only ours
+        st.setValue(QStringLiteral("trust/approvals"), QStringList{QStringLiteral("not a hash"), kept.first(), kept.first()});
+        QCOMPARE(trust::approvalCount(), 1);
+        // another person's settings have another key: the same paths are not found
+        const QVariant key = st.value(QStringLiteral("trust/approvalKey"));
+        QVERIFY(!key.toString().isEmpty());
+        st.remove(QStringLiteral("trust/approvalKey"));
+        QVERIFY(!trust::readApproved(book, file));
+        QCOMPARE(trust::approvalCount(), 0);
+        // a path past the limit is never kept
+        const QString longPath = QStringLiteral("/") + QString(trust::kLongestApprovedPath, QLatin1Char('a'));
+        trust::rememberRead(longPath, file);
+        QCOMPARE(trust::approvalCount(), 0);
+        QVERIFY(!trust::readApproved(longPath, file));
+        // the bound: kMostApprovals pairs, and the one used longest ago goes first (a use counts)
+        for (int i = 0; i < trust::kMostApprovals; ++i) trust::rememberRead(QStringLiteral("/b/%1").arg(i), file);
+        QCOMPARE(trust::approvalCount(), trust::kMostApprovals);
+        QVERIFY(trust::readApproved(QStringLiteral("/b/0"), file));
+        trust::rememberRead(QStringLiteral("/b/new"), file);
+        QCOMPARE(trust::approvalCount(), trust::kMostApprovals);
+        QVERIFY(!trust::readApproved(QStringLiteral("/b/1"), file));
+        QVERIFY(trust::readApproved(QStringLiteral("/b/0"), file));
+        QVERIFY(trust::readApproved(QStringLiteral("/b/new"), file));
+        // a store that was made longer than the limit by hand is cut to it, the oldest first
+        QStringList many;
+        for (int i = 0; i < trust::kMostApprovals + 50; ++i) many << QStringLiteral("%1").arg(i, 64, 16, QLatin1Char('0'));
+        st.setValue(QStringLiteral("trust/approvals"), many);
+        QCOMPARE(trust::approvalCount(), trust::kMostApprovals);
+        trust::forgetApprovals();
+        QCOMPARE(trust::approvalCount(), 0);
+    }
+
+    // On the page: the count of remembered approvals, and Forget All (one click) forgets them all and leaves the choices.
+    void thePageShowsTheRememberedApprovalsAndForgetsThemAll()
+    {
+        trust::forgetApprovals();
+        trust::setLinkedFiles(trust::Choice::Yes, QStringLiteral("jeffcrunch"));
+        trust::rememberRead(QStringLiteral("/a/one.xlsx"), QStringLiteral("/a/x.xlsx"));
+        trust::rememberRead(QStringLiteral("/a/two.xlsx"), QStringLiteral("/a/x.xlsx"));
+        trust::TrustPage page(trust::appliesTo(QStringLiteral("jeffcrunch")));
+        auto *count = page.findChild<QLabel *>(QStringLiteral("trustApprovalCount"));
+        auto *forget = page.findChild<QPushButton *>(QStringLiteral("trustForgetAll"));
+        QVERIFY(count && forget);
+        QCOMPARE(count->text(), QStringLiteral("Remembered approvals: 2"));
+        QVERIFY(forget->isEnabled());
+        forget->click();
+        QCOMPARE(trust::approvalCount(), 0);
+        QCOMPARE(count->text(), QStringLiteral("Remembered approvals: 0"));
+        QVERIFY(!forget->isEnabled());
+        QCOMPARE(trust::linkedFiles(QStringLiteral("jeffcrunch")), trust::Choice::Yes);
+        // (an app with no question for its linked files has no such line)
+        trust::TrustPage pub(trust::appliesTo(QStringLiteral("jeffpub")));
+        QVERIFY(!pub.findChild<QLabel *>(QStringLiteral("trustApprovalCount")));
     }
 
     void aFileFromOutsideOpensForReadingUnlessTheChoiceSaysNormally()

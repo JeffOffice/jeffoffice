@@ -264,7 +264,6 @@ public:
     bool goToSpecial(const jp::crunch::SpecialOptions &options);
     // What Go To asks for (a reference) and Select by Kind (the kind of cells): dialogs unless these stand in for them (tests); false gives it up.
     // Asked at open when the workbook says to ask about its links: the number of sources that can be read and of cells that read them; true updates the links.
-    void setLinksAsker(const std::function<bool(int sources, int cells)> &asker) { m_linksAsker = asker; }
     void setGoToAsker(const std::function<bool(QString *)> &asker) { m_goToAsker = asker; }
     // What a conditional formatting rule is asked for (a test answers in place of the window): the kind of rule, the one or two values, and how the cells look (a place in the ready-made looks).
     struct CondAnswer {
@@ -1232,7 +1231,8 @@ private:
     std::function<bool(int)> m_getDataReplaceAsker;
     std::function<bool(const QStringList &, const QString &)> m_getDataTrustAsker;
     QSet<QString> m_getDataTrusted;   // full paths of files this person made a query from, or said yes to, in this window (kept in memory only)
-    bool getDataTrusted(const QString &path) const;
+    bool getDataTrusted(const QString &path);
+    bool approvedFile(const QString &key);
     std::shared_ptr<void> armPivotFileGate();
     bool approveFiles(QWidget *parent, const QString &title, const std::vector<int> &pivots, bool withPivots, QStringList names, QStringList paths);
     bool askToReadFiles(QWidget *parent, const QString &title, const QStringList &names, const QStringList &paths);
@@ -2008,7 +2008,6 @@ private:
     qint64 m_compatStarted = 0;
     qint64 m_changesNoted = 0;             // the changes the worker has been sent that the window has taken note of (WorkbookLoader::changesMade)
     bool m_linksOnOpenPending = false;     // the links of a file that was just opened are looked at once its calculation is done
-    std::function<bool(int, int)> m_linksAsker;
     bool m_refreshOnOpenPending = false;   // pivot tables that say so are read again once the calculation of a file that was just opened is done
     int m_sheet = -1;                            // the sheet in the grid, by its place in the workbook
     QVector<int> m_tabSheets;                    // the workbook's place of each tab
