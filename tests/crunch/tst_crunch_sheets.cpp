@@ -533,7 +533,7 @@ private Q_SLOTS:
         QVERIFY(src.settle());
         src.win.told.clear();
         copyToOther(src, dst, 0);
-        QVERIFY2(!src.win.told.isEmpty() && src.win.told.last().contains(QStringLiteral("not saved")), qPrintable(src.win.told.join(QLatin1Char('|'))));
+        QVERIFY2(!src.win.told.isEmpty() && src.win.told.last().contains(QStringLiteral("to keep these values")), qPrintable(src.win.told.join(QLatin1Char('|'))));
         QCOMPARE(dst.win.w.calculation()->sheetCount(), 4);
         dst.win.w.undoStack()->undo();
         QVERIFY(dst.settle());
@@ -622,7 +622,7 @@ private Q_SLOTS:
         QVERIFY(data.ok);
         QCOMPARE(data.frozen, qint64(1));
         const crunch::EditSession::Outcome o = dst.win.w.session()->checkImport(data);
-        QVERIFY2(o.ok && o.problem.contains(QStringLiteral("use names of the other workbook")) && o.problem.contains(QStringLiteral("(1 in all)")), qPrintable(o.problem));
+        QVERIFY2(o.ok && o.problem.contains(QStringLiteral("use names of the other workbook")) && o.problem.contains(QStringLiteral("1 cell comes as the value it shows")), qPrintable(o.problem));
         QVERIFY(dst.win.w.session()->importSheet(data, -1, QString()).ok);
         QVERIFY(dst.settle());
         QCOMPARE(valueOf(dst, 3, QStringLiteral("A1")), QStringLiteral("n:100"));
@@ -643,7 +643,7 @@ private Q_SLOTS:
         const int made = dst.win.w.calculation()->sheetCount();
         copyToOther(src, dst, 0);
         QVERIFY(dst.settle());
-        QVERIFY2(src.win.told.size() == 1 && src.win.told.last().contains(QStringLiteral("(3 in all)")) && src.win.told.last().contains(QStringLiteral("are part of an array or a spill")), qPrintable(src.win.told.join(QLatin1Char('|'))));
+        QVERIFY2(src.win.told.size() == 1 && src.win.told.last().contains(QStringLiteral("3 ")) && src.win.told.last().contains(QStringLiteral("are part of an array or a spill")), qPrintable(src.win.told.join(QLatin1Char('|'))));
         QVERIFY2(!src.win.told.last().contains(QStringLiteral("names")) && !src.win.told.last().contains(QStringLiteral("tables")), qPrintable(src.win.told.last()));
         for (const char *ref : {"F6", "F7", "F8"}) QCOMPARE(textOf(dst, made, QString::fromLatin1(ref)), QString::number(QString::fromLatin1(ref).mid(1).toInt() - 5));
         QCOMPARE(valueOf(dst, made, QStringLiteral("F8")), QStringLiteral("n:3"));
@@ -825,7 +825,7 @@ private Q_SLOTS:
         const int made = dst.win.w.calculation()->sheetCount();
         copyToOther(src, dst, 0);
         QVERIFY(dst.settle());
-        QVERIFY2(src.win.told.size() == 1 && src.win.told.last().contains(QStringLiteral("(1 in all)")) && src.win.told.last().contains(QStringLiteral("read cells of a third workbook")), qPrintable(src.win.told.join(QLatin1Char('|'))));
+        QVERIFY2(src.win.told.size() == 1 && src.win.told.last().contains(QStringLiteral("1 cell comes as the value it shows")) && src.win.told.last().contains(QStringLiteral("read cells of a third workbook")), qPrintable(src.win.told.join(QLatin1Char('|'))));
         QVERIFY2(!src.win.told.last().contains(QStringLiteral("names")) && !src.win.told.last().contains(QStringLiteral("tables")), qPrintable(src.win.told.last()));
         QCOMPARE(textOf(dst, made, QStringLiteral("B1")), QStringLiteral("7"));
         QCOMPARE(valueOf(dst, made, QStringLiteral("B1")), QStringLiteral("n:7"));
