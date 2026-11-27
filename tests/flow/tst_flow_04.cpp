@@ -2134,7 +2134,7 @@ void FlowTests::randomWallsAreWhereThePageLayerPutsTheText()
 
 // ---- what the objects cost
 
-// A paragraph of many runs (every other word in bold: 20,000 runs) costs no more with an object anchored in another paragraph than without: what a page looks for in the
+// A paragraph of many runs (every other word in bold: 4,000 runs; with 20,000 the test took 83 s, mostly in making the text, and counts no better) costs no more with an object anchored in another paragraph than without: what a page looks for in the
 // runs of the paragraphs it holds is found once for the paragraph, not for each of its lines.
 void FlowTests::aParagraphOfManyRunsCostsNoMoreWithAnObjectOnThePage()
 {
@@ -2146,7 +2146,7 @@ void FlowTests::aParagraphOfManyRunsCostsNoMoreWithAnObjectOnThePage()
         QTextCursor c(fd.story());
         c.movePosition(QTextCursor::End);
         c.insertBlock();
-        for (int i = 0; i < 20000; ++i) {
+        for (int i = 0; i < 4000; ++i) {
             QTextCharFormat f;
             f.setFontPointSize(11);
             f.setFontWeight(i % 2 ? QFont::Bold : QFont::Normal);
@@ -2160,10 +2160,10 @@ void FlowTests::aParagraphOfManyRunsCostsNoMoreWithAnObjectOnThePage()
         }
         const EngineWork before = EngineWork::now();
         Paginator pg(&fd);
-        QVERIFY(pg.pageCount() > 20);
+        QVERIFY(pg.pageCount() > 3);
         took[variant] = EngineWork::now().since(before);
     }
-    qInfo("20,000 runs with an object on the page: %s; without: %s", qPrintable(took[1].text()), qPrintable(took[0].text()));
+    qInfo("4,000 runs with an object on the page: %s; without: %s", qPrintable(took[1].text()), qPrintable(took[0].text()));
     QVERIFY2(took[1].runs < 2 * took[0].runs + 1000 && took[1].chars < 2 * took[0].chars + 1000 && took[1].ranges < 2 * took[0].ranges + 1000,
              qPrintable(QStringLiteral("with the object: %1; without: %2").arg(took[1].text(), took[0].text())));
 }

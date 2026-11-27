@@ -1463,6 +1463,7 @@ private Q_SLOTS:
     void mergingKeepsATableInACellIntact();
     void mergingKeepsThePiecesKeptBetweenCells();
     void aBookmarkBetweenRowsStaysWhenATableIsChanged();
+    void everyTableCommandRunsOnHostileTables_data();
     void everyTableCommandRunsOnHostileTables();
     void aTableWideAlignmentLooksAtTheContentLocksOnce();
     void theCaretMovingAboutALongTableLooksAtItsTablesOnce();

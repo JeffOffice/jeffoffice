@@ -314,17 +314,21 @@ private Q_SLOTS:
     void initTestCase() { jp::initCore(); }
 
     // The program does not write a file it would not read: a workbook of as many sheets as the reader takes (1,000) is given no more by Insert or by Copy, with a sentence that says why;
-    // one sheet deleted makes room for one; and the workbook with them all is saved, and read again.
-    void aWorkbookIsGivenNoMoreSheetsThanTheReaderTakes()
+    // one sheet deleted makes room for one; and the workbook with them all is saved, and read again. In three tests, each with its own book: every sheet edit of a book of 1,000 sheets
+    // takes some 16 s here (and opening one 9 s), so the one test of the four edits and a save took 66 s.
+    static QVector<QByteArray> oneRowSheets(int n)
+    {
+        QVector<QByteArray> sheets;
+        for (int i = 0; i < n; ++i) sheets.append(worksheet(rowXml(1, cellXml(QStringLiteral("A1"), QString::number(i)))));
+        return sheets;
+    }
+
+    void aWorkbookOfTheMostSheetsIsGivenNoMoreByInsertOrCopy()
     {
         const PinnedLocale english;
-        QVector<QByteArray> sheets;
-        for (int i = 0; i < 999; ++i) sheets.append(worksheet(rowXml(1, cellXml(QStringLiteral("A1"), QString::number(i)))));
         EditWindow e;
-        QVERIFY(e.open(buildXlsx(sheets, QByteArray(), QString(), QString(), reviewStyles())));
+        QVERIFY(e.open(buildXlsx(oneRowSheets(1000), QByteArray(), QString(), QString(), reviewStyles())));
         crunch::EditSession *s = e.win.w.session();
-        QCOMPARE(e.win.w.calculation()->sheetCount(), 999);
-        QVERIFY(s->insertSheet(-1, QString()).ok);
         QCOMPARE(e.win.w.calculation()->sheetCount(), 1000);
         const crunch::EditSession::Outcome more = s->insertSheet(-1, QString());
         QVERIFY(!more.ok);
@@ -333,14 +337,35 @@ private Q_SLOTS:
         QVERIFY(!copy.ok);
         QCOMPARE(copy.problem, more.problem);
         QCOMPARE(e.win.w.calculation()->sheetCount(), 1000);
-        // one deleted: room for one
-        QVERIFY(s->deleteSheet(5).ok);
+    }
+
+    // The last sheet that is allowed is made, no more is, and the workbook with them all is saved and read again.
+    void theLastSheetThatIsAllowedIsMadeAndSavedAndReadAgain()
+    {
+        const PinnedLocale english;
+        EditWindow e;
+        QVERIFY(e.open(buildXlsx(oneRowSheets(999), QByteArray(), QString(), QString(), reviewStyles())));
+        crunch::EditSession *s = e.win.w.session();
+        QCOMPARE(e.win.w.calculation()->sheetCount(), 999);
         QVERIFY(s->insertSheet(-1, QString()).ok);
+        QCOMPARE(e.win.w.calculation()->sheetCount(), 1000);
         QVERIFY(!s->insertSheet(-1, QString()).ok);
         QVERIFY(saveNow(e));
         Saved f;
         QVERIFY(f.open(e.path));
         QCOMPARE(f.book.info().sheets.size(), 1000);
+    }
+
+    // One sheet deleted: room for one (and no more than one).
+    void aSheetDeletedMakesRoomForOne()
+    {
+        const PinnedLocale english;
+        EditWindow e;
+        QVERIFY(e.open(buildXlsx(oneRowSheets(1000), QByteArray(), QString(), QString(), reviewStyles())));
+        crunch::EditSession *s = e.win.w.session();
+        QVERIFY(s->deleteSheet(5).ok);
+        QVERIFY(s->insertSheet(-1, QString()).ok);
+        QVERIFY(!s->insertSheet(-1, QString()).ok);
     }
 
     // A part whose elements all have a prefix ("x:worksheet", "x:styleSheet") is changed in the form it has: a format, a font, a fill, a border, and a number format added, a text typed, a

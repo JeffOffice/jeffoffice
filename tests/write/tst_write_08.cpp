@@ -1758,8 +1758,20 @@ void WriteTests::aBookmarkBetweenRowsStaysWhenATableIsChanged()
 
 // The commands of the Table tabs on tables made to be hard on them: one of 20,000 rows, one of 70 columns, and one whose merges and spans make no sense. Each runs in bounded time
 // and leaves the document whole and the records bounded.
+// (one row for each table and six of the 24 commands: all together took 78 s)
+void WriteTests::everyTableCommandRunsOnHostileTables_data()
+{
+    QTest::addColumn<int>("table");
+    QTest::addColumn<int>("firstCommand");
+    for (int table = 0; table < 3; ++table)
+        for (int part = 0; part < 4; ++part)
+            QTest::newRow(qPrintable(QStringLiteral("%1 commands %2 to %3").arg(table == 0 ? "tall" : table == 1 ? "wide" : "odd").arg(part * 6).arg(part * 6 + 5))) << table << part * 6;
+}
+
 void WriteTests::everyTableCommandRunsOnHostileTables()
 {
+    QFETCH(int, table);
+    QFETCH(int, firstCommand);
     QByteArray odd;
     odd += rowX(cellX(cellP("h0"), "<w:gridSpan w:val=\"9\"/><w:vMerge/>") + cellX(cellP("h1")));
     odd += rowX(cellX(cellP("h2"), "<w:vMerge w:val=\"restart\"/>") + cellX(cellP("h3"), "<w:gridSpan w:val=\"0\"/>") + cellX(cellP("h4"), "<w:gridSpan w:val=\"7\"/>"));
@@ -1771,9 +1783,9 @@ void WriteTests::everyTableCommandRunsOnHostileTables()
         QByteArray zip;
         int bound;
     };
-    const Doc docs[] = {{"tall", tableDocx(20000, 1), 60}, {"wide", tableDocx(3, 70), 20}, {"odd", makeDocx(cellP("top") + tableX(odd, 3) + cellP("tail"), kStyles), 20}};
-    for (const Doc &d : docs) {
-        for (int command = 0; command < 24; ++command) {
+    const Doc d = table == 0 ? Doc{"tall", tableDocx(20000, 1), 60} : table == 1 ? Doc{"wide", tableDocx(3, 70), 20} : Doc{"odd", makeDocx(cellP("top") + tableX(odd, 3) + cellP("tail"), kStyles), 20};
+    {
+        for (int command = firstCommand; command < firstCommand + 6; ++command) {
             auto doc = open(d.zip);
             QVERIFY(doc);
             QTextCursor c = cursorAt(*doc, QStringLiteral("top"));

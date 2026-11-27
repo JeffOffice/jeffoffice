@@ -635,8 +635,16 @@ private Q_SLOTS:
 
     // The same calls with whole columns and rows, a column of long texts, and what is built from them among the arguments, at the engine's own limit of steps: the arrays
     // and texts that the bounds tests build are met here by every function, and every call ends inside the steps and the cells it is allowed.
+    // (in eight parts of the function list, the function at place i in part i % 8, each with its own random numbers: one run took 80 s)
+    void randomFunctionCallsOnWholeColumnsEndInsideTheirBounds_data()
+    {
+        QTest::addColumn<int>("part");
+        for (int part = 0; part < 8; ++part) QTest::newRow(qPrintable(QString::number(part))) << part;
+    }
+
     void randomFunctionCallsOnWholeColumnsEndInsideTheirBounds()
     {
+        QFETCH(int, part);
         Grid g = sample();
         g.s("C1", "text").s("C2", "").e("C3", ErrorKind::NA).b("D1", true);
         QVariantList texts;
@@ -648,13 +656,13 @@ private Q_SLOTS:
                                            "H1:H200", "H1:H200&H1:H200", "1", "-1", "2.5", "\"a\"", "\"\"", "TRUE", "A1", "{1,2;3,4}", "\"x*\"", "\">1\"", "100", "0", "H1", "45366",
                                            "\"R1C1\"", "A1:XFD1", "#N/A", "1E308"};
         const int nargs = int(sizeof(args) / sizeof(args[0]));
-        QRandomGenerator rng(20261023);
         Settings plain;
         Settings array;
         array.array = true;
         const MemoryWatch watch;
         qint64 tooLarge = 0, tooMuch = 0, ok = 0, unsupported = 0, calls = 0;
-        for (int i = 0; i < functionCount(); ++i) {
+        for (int i = part; i < functionCount(); i += 8) {
+            QRandomGenerator rng(20261023 + quint32(i));
             const FunctionInfo &f = functionAt(i);
             const int most = f.maxArgs == 255 ? 6 : int(f.maxArgs);
             for (int trial = 0; trial < 3; ++trial) {
