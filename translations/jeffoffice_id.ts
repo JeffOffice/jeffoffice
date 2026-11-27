@@ -1864,12 +1864,12 @@ Berita halaman belakang	4</translation>
         <location filename="../libs/office/office/chart.cpp" line="+769"/>
         <location filename="../libs/office/sheet/chartdata.cpp" line="+440"/>
         <location filename="../libs/office/sheet/chartedit.cpp" line="+1026"/>
-        <location filename="../libs/office/sheet/chartmake.cpp" line="+490"/>
+        <location filename="../libs/office/sheet/chartmake.cpp" line="+610"/>
         <source>Series%1</source>
         <translation type="unfinished">Seri%1</translation>
     </message>
     <message>
-        <location line="+367"/>
+        <location line="+368"/>
         <source>The part is not a chart.</source>
         <translation type="unfinished">Bagian ini bukan bagan.</translation>
     </message>
@@ -1879,9 +1879,9 @@ Berita halaman belakang	4</translation>
         <translation type="unfinished">Bagan tidak memiliki gambar di dalamnya.</translation>
     </message>
     <message>
-        <location line="+152"/>
+        <location line="+160"/>
         <location filename="../libs/office/sheet/chartedit.cpp" line="-886"/>
-        <location filename="../libs/office/sheet/chartmake.cpp" line="-75"/>
+        <location filename="../libs/office/sheet/chartmake.cpp" line="-77"/>
         <location line="+9"/>
         <source>Chart Title</source>
         <translation type="unfinished">Judul Bagan</translation>
@@ -1943,7 +1943,7 @@ Berita halaman belakang	4</translation>
         <translation type="unfinished">Triliunan</translation>
     </message>
     <message>
-        <location filename="../libs/office/office/chart_svg.cpp" line="+2395"/>
+        <location filename="../libs/office/office/chart_svg.cpp" line="+2635"/>
         <source>Chart</source>
         <translation type="unfinished">Bagan</translation>
     </message>
@@ -10418,7 +10418,7 @@ Unduh dari %2 sekarang? (%3, sekali saja.)</translation>
         <translation type="unfinished">Hanya %1 bagan pertama yang digambar; sisanya tidak disertakan.</translation>
     </message>
     <message>
-        <location line="+227"/>
+        <location line="+244"/>
         <source>A chart has more points than a picture of it can show, so its picture is drawn from some of them.</source>
         <translation type="unfinished">Bagan memiliki lebih banyak titik daripada yang dapat ditampilkan oleh gambarnya, sehingga gambarnya dibuat dari sebagian titik tersebut.</translation>
     </message>
@@ -12816,7 +12816,7 @@ Unduh dari %2 sekarang? (%3, sekali saja.)</translation>
 <context>
     <name>QCoreApplication</name>
     <message>
-        <location filename="../apps/write/app/writewindow_shapes.cpp" line="+1258"/>
+        <location filename="../apps/write/app/writewindow_shapes.cpp" line="+1262"/>
         <source>Some of the shapes have text. Merging removes the text of every shape but the first one you selected. Merge anyway?</source>
         <translation type="unfinished">Beberapa bentuk memiliki teks. Penggabungan akan menghapus teks setiap bentuk kecuali bentuk pertama yang Anda pilih. Tetap gabungkan?</translation>
     </message>
@@ -17598,20 +17598,20 @@ Buka di program email Anda, tambahkan penerima, lalu kirim.</translation>
     </message>
     <message>
         <location filename="../libs/office/sheet/odschart.cpp" line="+241"/>
-        <location line="+625"/>
-        <location line="+270"/>
+        <location line="+632"/>
+        <location line="+287"/>
         <source>series past the %1 a chart may have</source>
         <translation type="unfinished">seri melebihi %1 yang boleh dimiliki sebuah bagan</translation>
     </message>
     <message>
-        <location line="-894"/>
-        <location line="+625"/>
-        <location line="+291"/>
+        <location line="-918"/>
+        <location line="+632"/>
+        <location line="+308"/>
         <source>points past the %1 a series may have</source>
         <translation type="unfinished">titik melebihi %1 yang boleh dimiliki sebuah seri</translation>
     </message>
     <message>
-        <location line="-915"/>
+        <location line="-939"/>
         <source>points past the %1 a chart may have</source>
         <translation type="unfinished">titik melebihi %1 yang boleh dimiliki sebuah bagan</translation>
     </message>
@@ -17628,12 +17628,12 @@ Buka di program email Anda, tambahkan penerima, lalu kirim.</translation>
     </message>
     <message>
         <location line="+2"/>
-        <location line="+201"/>
+        <location line="+206"/>
         <source>trendlines of charts past the %1 a series may have</source>
         <translation type="unfinished">garis tren bagan melebihi %1 yang boleh dimiliki sebuah seri</translation>
     </message>
     <message>
-        <location line="-200"/>
+        <location line="-205"/>
         <source>gradient and pattern fills of charts (they are written as one color)</source>
         <translation type="unfinished">isian gradasi dan pola pada bagan (ditulis sebagai satu warna)</translation>
     </message>
@@ -17663,7 +17663,7 @@ Buka di program email Anda, tambahkan penerima, lalu kirim.</translation>
         <translation type="unfinished">format angka melebihi 200 yang ditampung dokumen bagan (ditampilkan sebagai Umum)</translation>
     </message>
     <message>
-        <location line="+147"/>
+        <location line="+152"/>
         <source>trendlines of a kind the format does not have</source>
         <translation type="unfinished">garis tren dengan jenis yang tidak dimiliki format ini</translation>
     </message>
@@ -17683,7 +17683,7 @@ Buka di program email Anda, tambahkan penerima, lalu kirim.</translation>
         <translation type="unfinished">subjudul dan footer pada bagan</translation>
     </message>
     <message>
-        <location line="+276"/>
+        <location line="+295"/>
         <source>secondary axes of charts</source>
         <translation type="unfinished">sumbu sekunder pada bagan</translation>
     </message>
@@ -23837,7 +23837,7 @@ Sumber: %3</translation>
 <context>
     <name>jp::ChangeChartTypeDialog</name>
     <message>
-        <location filename="../libs/page/app/chartdialogs.cpp" line="+745"/>
+        <location filename="../libs/page/app/chartdialogs.cpp" line="+749"/>
         <source>Chart Kind</source>
         <translation type="unfinished">Jenis Bagan</translation>
     </message>
@@ -23964,12 +23964,32 @@ Sumber: %3</translation>
         <translation type="unfinished">Radar Terisi</translation>
     </message>
     <message>
+        <location line="+1"/>
+        <source>High-Low-Close</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Open-High-Low-Close</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Volume-High-Low-Close</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Volume-Open-High-Low-Close</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <location line="+50"/>
         <source>This chart has parts that are kept as they are, so it can&apos;t be changed here.</source>
         <translation type="unfinished">Bagan ini memiliki bagian yang dibiarkan apa adanya, sehingga tidak dapat diubah di sini.</translation>
     </message>
     <message>
-        <location line="+63"/>
+        <location line="+68"/>
         <location line="+44"/>
         <source>Edit Data…</source>
         <translation type="unfinished">Edit Data…</translation>
@@ -24030,7 +24050,7 @@ Sumber: %3</translation>
         <translation type="unfinished">Label Data</translation>
     </message>
     <message>
-        <location line="-142"/>
+        <location line="-147"/>
         <source>No Legend</source>
         <translation type="unfinished">Tanpa Keterangan</translation>
     </message>
@@ -24056,7 +24076,7 @@ Sumber: %3</translation>
     </message>
     <message>
         <location line="+86"/>
-        <location line="+100"/>
+        <location line="+105"/>
         <location line="+10"/>
         <source>Change Chart</source>
         <translation type="unfinished">Ubah Bagan</translation>
@@ -24115,7 +24135,7 @@ Sumber: %3</translation>
 <context>
     <name>jp::ChartButtons</name>
     <message>
-        <location filename="../libs/page/app/chartdesign.cpp" line="+762"/>
+        <location filename="../libs/page/app/chartdesign.cpp" line="+775"/>
         <source>Chart Elements</source>
         <translation type="unfinished">Elemen Bagan</translation>
     </message>
@@ -24159,7 +24179,7 @@ Sumber: %3</translation>
     </message>
     <message>
         <location line="+70"/>
-        <location filename="../libs/office/sheet/chartops.cpp" line="+329"/>
+        <location filename="../libs/office/sheet/chartops.cpp" line="+356"/>
         <source>This chart has no series.</source>
         <translation type="unfinished">Bagan ini tidak memiliki seri.</translation>
     </message>
@@ -24190,7 +24210,7 @@ Sumber: %3</translation>
 <context>
     <name>jp::ChartDesign</name>
     <message>
-        <location filename="../libs/page/app/chartdesign.cpp" line="-694"/>
+        <location filename="../libs/page/app/chartdesign.cpp" line="-707"/>
         <source>The words, or = and a cell such as =Sheet1!A1 to show what that cell holds:</source>
         <translation type="unfinished">Kata-kata, atau = dan sel seperti =Lembar1!A1 untuk menampilkan isi sel tersebut:</translation>
     </message>
@@ -24721,13 +24741,19 @@ Sumber: %3</translation>
         <translation type="unfinished">Seri %1</translation>
     </message>
     <message>
-        <location line="+23"/>
+        <location line="+28"/>
+        <location line="+8"/>
         <location line="+3"/>
         <source>Chart Filters</source>
         <translation type="unfinished">Filter Bagan</translation>
     </message>
     <message>
-        <location line="-3"/>
+        <location line="-11"/>
+        <source>The series of a stock chart can&apos;t be left out: the kind is made of all of them, in their order.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+8"/>
         <source>A chart needs at least one series. Check another series first.</source>
         <translation type="unfinished">Bagan memerlukan setidaknya satu seri. Periksa seri lain terlebih dahulu.</translation>
     </message>
@@ -24890,7 +24916,7 @@ Sumber: %3</translation>
 <context>
     <name>jp::ChartKinds</name>
     <message>
-        <location filename="../libs/page/app/chartdialogs.cpp" line="-733"/>
+        <location filename="../libs/page/app/chartdialogs.cpp" line="-737"/>
         <source>Columns</source>
         <translation>Kolom</translation>
     </message>
@@ -24988,6 +25014,46 @@ Sumber: %3</translation>
         <location line="+1"/>
         <source>Filled radar</source>
         <translation type="unfinished">Radar terisi</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>High-low-close</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Open-high-low-close</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Volume-high-low-close</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Volume-open-high-low-close</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../libs/office/sheet/chartmake.cpp" line="+176"/>
+        <source>A high-low-close chart needs exactly three series, in this order: high, low, and close. Select the cells again, with one column or row for each, in that order.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>An open-high-low-close chart needs exactly four series, in this order: open, high, low, and close. Select the cells again, with one column or row for each, in that order.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>A volume-high-low-close chart needs exactly four series, in this order: volume, high, low, and close. Select the cells again, with one column or row for each, in that order.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>A volume-open-high-low-close chart needs exactly five series, in this order: volume, open, high, low, and close. Select the cells again, with one column or row for each, in that order.</source>
+        <translation type="unfinished"></translation>
     </message>
 </context>
 <context>
@@ -26772,7 +26838,7 @@ Sumber: %3</translation>
     </message>
     <message>
         <location line="+9"/>
-        <location filename="../apps/crunch/app/crunchwindow_charts.cpp" line="+1000"/>
+        <location filename="../apps/crunch/app/crunchwindow_charts.cpp" line="+1009"/>
         <location filename="../apps/crunch/app/crunchwindow_file.cpp" line="-494"/>
         <location line="+112"/>
         <location line="+77"/>
@@ -26863,7 +26929,7 @@ Sumber: %3</translation>
     </message>
     <message>
         <location line="+1"/>
-        <location filename="../apps/crunch/app/crunchwindow_charts.cpp" line="-860"/>
+        <location filename="../apps/crunch/app/crunchwindow_charts.cpp" line="-864"/>
         <source>Save as Template…</source>
         <translation type="unfinished">Simpan sebagai Templat…</translation>
     </message>
@@ -27287,7 +27353,7 @@ Sumber: %3</translation>
     </message>
     <message>
         <location line="+11"/>
-        <location filename="../apps/crunch/app/crunchwindow_charts.cpp" line="+342"/>
+        <location filename="../apps/crunch/app/crunchwindow_charts.cpp" line="+346"/>
         <source>Rename Object</source>
         <translation type="unfinished">Ganti Nama Objek</translation>
     </message>
@@ -27682,8 +27748,8 @@ Sumber: %3</translation>
         <location line="+121"/>
         <location line="+29"/>
         <location line="+11"/>
-        <location filename="../apps/crunch/app/crunchwindow_charts.cpp" line="-335"/>
-        <location line="+867"/>
+        <location filename="../apps/crunch/app/crunchwindow_charts.cpp" line="-339"/>
+        <location line="+871"/>
         <location filename="../apps/crunch/app/crunchwindow_drawings.cpp" line="+191"/>
         <location line="+11"/>
         <location line="+6"/>
@@ -27970,7 +28036,7 @@ Sumber: %3</translation>
     </message>
     <message>
         <location line="+1"/>
-        <location filename="../apps/crunch/app/crunchwindow_charts.cpp" line="-952"/>
+        <location filename="../apps/crunch/app/crunchwindow_charts.cpp" line="-961"/>
         <location filename="../apps/crunch/app/crunchwindow_ops.cpp" line="+405"/>
         <source>Columns</source>
         <translation>Kolom</translation>
@@ -28033,23 +28099,23 @@ Sumber: %3</translation>
     </message>
     <message>
         <location line="+1"/>
-        <location line="+21"/>
+        <location line="+25"/>
         <source>Pie</source>
         <translation type="unfinished">Lingkaran</translation>
     </message>
     <message>
-        <location line="-20"/>
+        <location line="-24"/>
         <source>Doughnut</source>
         <translation type="unfinished">Donat</translation>
     </message>
     <message>
         <location line="+1"/>
-        <location line="+20"/>
+        <location line="+24"/>
         <source>Area</source>
         <translation type="unfinished">Area</translation>
     </message>
     <message>
-        <location line="-19"/>
+        <location line="-23"/>
         <source>Stacked area</source>
         <translation type="unfinished">Area Bertumpuk</translation>
     </message>
@@ -28070,12 +28136,12 @@ Sumber: %3</translation>
     </message>
     <message>
         <location line="+1"/>
-        <location line="+17"/>
+        <location line="+21"/>
         <source>Radar</source>
         <translation type="unfinished">Radar</translation>
     </message>
     <message>
-        <location line="-16"/>
+        <location line="-20"/>
         <source>Radar with markers</source>
         <translation type="unfinished">Radar dengan penanda</translation>
     </message>
@@ -28083,6 +28149,26 @@ Sumber: %3</translation>
         <location line="+1"/>
         <source>Filled radar</source>
         <translation type="unfinished">Radar terisi</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>High-low-close</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Open-high-low-close</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Volume-high-low-close</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Volume-open-high-low-close</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <location line="+11"/>
@@ -28100,7 +28186,12 @@ Sumber: %3</translation>
         <translation type="unfinished">Kombinasi</translation>
     </message>
     <message>
-        <location line="+9"/>
+        <location line="+2"/>
+        <source>Stock</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+8"/>
         <source>More Charts…</source>
         <translation type="unfinished">Bagan Lainnya…</translation>
     </message>
@@ -28163,30 +28254,31 @@ Sumber: %3</translation>
     </message>
     <message>
         <location line="+1"/>
-        <location line="+1046"/>
+        <location line="+1050"/>
         <source>Bring to Front</source>
         <translation type="unfinished">Bawa ke Depan</translation>
     </message>
     <message>
-        <location line="-1045"/>
-        <location line="+1045"/>
+        <location line="-1049"/>
+        <location line="+1049"/>
         <source>Bring Forward</source>
         <translation type="unfinished">Maju Satu Tingkat</translation>
     </message>
     <message>
-        <location line="-1044"/>
-        <location line="+1044"/>
+        <location line="-1048"/>
+        <location line="+1048"/>
         <source>Send Backward</source>
         <translation type="unfinished">Mundur Satu Tingkat</translation>
     </message>
     <message>
-        <location line="-1043"/>
-        <location line="+1043"/>
+        <location line="-1047"/>
+        <location line="+1047"/>
         <source>Send to Back</source>
         <translation type="unfinished">Kirim ke Belakang</translation>
     </message>
     <message>
-        <location line="-953"/>
+        <location line="-957"/>
+        <location line="+4"/>
         <location line="+4"/>
         <location line="+7"/>
         <location line="+9"/>
@@ -28196,16 +28288,16 @@ Sumber: %3</translation>
         <translation type="unfinished">Bagan Baru</translation>
     </message>
     <message>
-        <location line="-58"/>
-        <location line="+58"/>
+        <location line="-62"/>
+        <location line="+62"/>
         <location line="+21"/>
         <location filename="../apps/crunch/app/crunchwindow_pivotchart.cpp" line="+30"/>
         <source>The workbook is still being read. A chart can be made when it is open.</source>
         <translation type="unfinished">Buku kerja masih dibaca. Bagan dapat dibuat setelah buku kerja dibuka.</translation>
     </message>
     <message>
-        <location line="-75"/>
-        <location line="+75"/>
+        <location line="-79"/>
+        <location line="+79"/>
         <source>Select the cells that hold the numbers to chart. If the first row has names and the first column has labels, select those too.</source>
         <translation type="unfinished">Pilih sel yang berisi angka untuk dibagankan. Jika baris pertama berisi nama dan kolom pertama berisi label, pilih juga sel tersebut.</translation>
     </message>
@@ -28242,7 +28334,7 @@ Sumber: %3</translation>
         <translation type="unfinished">Properti</translation>
     </message>
     <message>
-        <location line="-388"/>
+        <location line="-392"/>
         <source>Recommended Charts…</source>
         <translation type="unfinished">Bagan yang Direkomendasikan…</translation>
     </message>
@@ -28257,7 +28349,7 @@ Sumber: %3</translation>
         <translation type="unfinished">Terapkan Templat…</translation>
     </message>
     <message>
-        <location line="+141"/>
+        <location line="+145"/>
         <location line="+28"/>
         <source>Recommended Charts</source>
         <translation type="unfinished">Bagan yang Direkomendasikan</translation>
@@ -34620,8 +34712,8 @@ Berkas ini dilindungi kata sandi. Kata sandi:</translation>
         <translation type="unfinished">Hapus Sparkline</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow_charts.cpp" line="-1098"/>
-        <location line="+24"/>
+        <location filename="../apps/crunch/app/crunchwindow_charts.cpp" line="-1107"/>
+        <location line="+28"/>
         <location filename="../apps/crunch/app/crunchwindow_insertobjects.cpp" line="-753"/>
         <location filename="../apps/crunch/app/crunchwindow_quick.cpp" line="+3"/>
         <location filename="../apps/crunch/app/crunchwindow_sparklines.cpp" line="+13"/>
@@ -45871,7 +45963,7 @@ Berkas tidak dapat dibaca.</translation>
 <context>
     <name>jp::FormatAxisDialog</name>
     <message>
-        <location filename="../libs/page/app/chartdialogs.cpp" line="+908"/>
+        <location filename="../libs/page/app/chartdialogs.cpp" line="+927"/>
         <location line="+48"/>
         <source>Automatic</source>
         <translation type="unfinished">Otomatis</translation>
@@ -46716,7 +46808,7 @@ Berkas tidak dapat dibaca.</translation>
 <context>
     <name>jp::FormatChartPartDialog</name>
     <message>
-        <location filename="../libs/page/app/chartdialogs.cpp" line="-460"/>
+        <location filename="../libs/page/app/chartdialogs.cpp" line="-479"/>
         <source>Format Chart Part</source>
         <translation type="unfinished">Format Bagian Bagan</translation>
     </message>
@@ -55279,7 +55371,7 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
 <context>
     <name>jp::ObjectPropertiesDialog</name>
     <message>
-        <location filename="../libs/page/app/chartdialogs.cpp" line="+709"/>
+        <location filename="../libs/page/app/chartdialogs.cpp" line="+728"/>
         <source>Properties</source>
         <translation type="unfinished">Properti</translation>
     </message>
@@ -59152,7 +59244,7 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
 <context>
     <name>jp::SelectChartDataDialog</name>
     <message>
-        <location filename="../libs/page/app/chartdialogs.cpp" line="-457"/>
+        <location filename="../libs/page/app/chartdialogs.cpp" line="-476"/>
         <source>Chart Data</source>
         <translation type="unfinished">Data Bagan</translation>
     </message>
@@ -59594,7 +59686,7 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
     </message>
     <message>
         <location line="+88"/>
-        <location filename="../apps/write/app/writewindow_shapes.cpp" line="-1034"/>
+        <location filename="../apps/write/app/writewindow_shapes.cpp" line="-1038"/>
         <source>Union</source>
         <translation type="unfinished">Gabungan</translation>
     </message>
@@ -59629,7 +59721,7 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
     </message>
     <message>
         <location line="+4"/>
-        <location filename="../apps/write/app/writewindow_shapes.cpp" line="+1038"/>
+        <location filename="../apps/write/app/writewindow_shapes.cpp" line="+1042"/>
         <source>Merge</source>
         <translation type="unfinished">Gabungkan</translation>
     </message>
@@ -64069,7 +64161,7 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
     </message>
     <message>
         <location line="+2"/>
-        <location filename="../apps/write/app/writewindow_shapes.cpp" line="-1013"/>
+        <location filename="../apps/write/app/writewindow_shapes.cpp" line="-1017"/>
         <source>Align Left</source>
         <translation type="unfinished">Rata Kiri</translation>
     </message>
@@ -64588,7 +64680,7 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
         <location filename="../apps/write/app/writewindow_graphics.cpp" line="+170"/>
         <location filename="../apps/write/app/writewindow_insert.cpp" line="+285"/>
         <location filename="../apps/write/app/writewindow_pictures.cpp" line="+266"/>
-        <location filename="../apps/write/app/writewindow_shapes.cpp" line="+643"/>
+        <location filename="../apps/write/app/writewindow_shapes.cpp" line="+647"/>
         <location line="+59"/>
         <location filename="../apps/write/app/writewindow_themes.cpp" line="+44"/>
         <source>All Files (*)</source>
@@ -65855,7 +65947,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
     </message>
     <message>
         <location line="+1"/>
-        <location filename="../apps/write/app/writewindow_shapes.cpp" line="-808"/>
+        <location filename="../apps/write/app/writewindow_shapes.cpp" line="-812"/>
         <source>Plain</source>
         <translation type="unfinished">Polos</translation>
     </message>
@@ -66963,7 +67055,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
     </message>
     <message>
         <location line="+32"/>
-        <location filename="../apps/write/app/writewindow_shapes.cpp" line="+530"/>
+        <location filename="../apps/write/app/writewindow_shapes.cpp" line="+534"/>
         <location line="+59"/>
         <source>Pictures (*.png *.jpg *.jpeg *.gif *.bmp *.tif *.tiff *.webp *.svg)</source>
         <translation type="unfinished">Gambar (*.png *.jpg *.jpeg *.gif *.bmp *.tif *.tiff *.webp *.svg)</translation>
@@ -68101,7 +68193,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
         <translation type="unfinished">Pindahkan Tabel</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/writewindow_shapes.cpp" line="-889"/>
+        <location filename="../apps/write/app/writewindow_shapes.cpp" line="-893"/>
         <location line="+295"/>
         <source>Line</source>
         <translation type="unfinished">Garis</translation>
@@ -68264,12 +68356,12 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
     </message>
     <message>
         <location line="+10"/>
-        <location line="+1145"/>
+        <location line="+1149"/>
         <source>Edit Points</source>
         <translation type="unfinished">Edit Titik</translation>
     </message>
     <message>
-        <location line="-1142"/>
+        <location line="-1146"/>
         <source>Drag a point to reshape. Ctrl+click a point to delete it, or the outline to add one. Press Esc when done.</source>
         <translation type="unfinished">Seret titik untuk mengubah bentuk. Ctrl+klik titik untuk menghapusnya, atau garis tepi untuk menambahkan titik. Tekan Esc jika sudah selesai.</translation>
     </message>
@@ -68559,6 +68651,26 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
         <location line="+1"/>
         <source>Filled Radar</source>
         <translation type="unfinished">Radar Terisi</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>High-Low-Close</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Open-High-Low-Close</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Volume-High-Low-Close</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Volume-Open-High-Low-Close</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <location line="+19"/>
@@ -69432,7 +69544,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
     </message>
     <message>
         <location filename="../apps/write/app/writewindow_outline.cpp" line="+25"/>
-        <location filename="../apps/write/app/writewindow_shapes.cpp" line="-1081"/>
+        <location filename="../apps/write/app/writewindow_shapes.cpp" line="-1085"/>
         <source>Outline</source>
         <translation type="unfinished">Garis Besar</translation>
     </message>
@@ -80308,12 +80420,12 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
         <translation type="unfinished">File ini memiliki lebih banyak format sel daripada file mana pun yang sebenarnya.</translation>
     </message>
     <message>
-        <location filename="../libs/office/sheet/odschart.cpp" line="-585"/>
+        <location filename="../libs/office/sheet/odschart.cpp" line="-604"/>
         <source>The chart is of a kind this program does not read.</source>
         <translation type="unfinished">Bagan ini berjenis yang tidak dibaca program ini.</translation>
     </message>
     <message>
-        <location line="+656"/>
+        <location line="+675"/>
         <source>The chart is larger than this program reads.</source>
         <translation type="unfinished">Bagan ini lebih besar daripada yang dapat dibaca program ini.</translation>
     </message>
@@ -86538,7 +86650,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
         <translation type="unfinished">Gambar ini tidak dapat diubah menjadi bentuk di sini.</translation>
     </message>
     <message>
-        <location filename="../libs/office/sheet/chartops.cpp" line="-268"/>
+        <location filename="../libs/office/sheet/chartops.cpp" line="-287"/>
         <source>Series %1</source>
         <translation type="unfinished">Seri %1</translation>
     </message>
@@ -86549,7 +86661,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
         <translation type="unfinished">Bagan ini memiliki bagian yang tidak diubah JeffWrite, sehingga tetap dibiarkan apa adanya.</translation>
     </message>
     <message>
-        <location filename="../libs/office/sheet/chartops.cpp" line="+30"/>
+        <location filename="../libs/office/sheet/chartops.cpp" line="+31"/>
         <source>Category 1</source>
         <translation type="unfinished">Kategori 1</translation>
     </message>
@@ -86574,7 +86686,52 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
         <translation type="unfinished">Seri 2</translation>
     </message>
     <message>
-        <location line="+147"/>
+        <location line="+11"/>
+        <source>Day 1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Day 2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Day 3</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Day 4</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Volume</source>
+        <translation>Volume</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Open</source>
+        <translation>Buka</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>High</source>
+        <translation type="unfinished">Tinggi</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Low</source>
+        <translation type="unfinished">Rendah</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Close</source>
+        <translation type="unfinished">Tutup</translation>
+    </message>
+    <message>
+        <location line="+149"/>
         <source>Chart Title</source>
         <translation type="unfinished">Judul Bagan</translation>
     </message>

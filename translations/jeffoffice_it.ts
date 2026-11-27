@@ -1865,12 +1865,12 @@ Articolo dell&apos;ultima pagina	4</translation>
         <location filename="../libs/office/office/chart.cpp" line="+769"/>
         <location filename="../libs/office/sheet/chartdata.cpp" line="+440"/>
         <location filename="../libs/office/sheet/chartedit.cpp" line="+1026"/>
-        <location filename="../libs/office/sheet/chartmake.cpp" line="+490"/>
+        <location filename="../libs/office/sheet/chartmake.cpp" line="+610"/>
         <source>Series%1</source>
         <translation type="unfinished">Serie%1</translation>
     </message>
     <message>
-        <location line="+367"/>
+        <location line="+368"/>
         <source>The part is not a chart.</source>
         <translation type="unfinished">La parte non è un grafico.</translation>
     </message>
@@ -1880,9 +1880,9 @@ Articolo dell&apos;ultima pagina	4</translation>
         <translation type="unfinished">Il grafico non contiene alcun disegno.</translation>
     </message>
     <message>
-        <location line="+152"/>
+        <location line="+160"/>
         <location filename="../libs/office/sheet/chartedit.cpp" line="-886"/>
-        <location filename="../libs/office/sheet/chartmake.cpp" line="-75"/>
+        <location filename="../libs/office/sheet/chartmake.cpp" line="-77"/>
         <location line="+9"/>
         <source>Chart Title</source>
         <translation type="unfinished">Titolo del grafico</translation>
@@ -1944,7 +1944,7 @@ Articolo dell&apos;ultima pagina	4</translation>
         <translation type="unfinished">Trilioni</translation>
     </message>
     <message>
-        <location filename="../libs/office/office/chart_svg.cpp" line="+2395"/>
+        <location filename="../libs/office/office/chart_svg.cpp" line="+2635"/>
         <source>Chart</source>
         <translation type="unfinished">Grafico</translation>
     </message>
@@ -10438,7 +10438,7 @@ Scaricarlo ora da %2? (%3, una sola volta.)</translation>
         <translation type="unfinished">Vengono disegnati solo i primi %1 grafici; i restanti vengono omessi.</translation>
     </message>
     <message>
-        <location line="+227"/>
+        <location line="+244"/>
         <source>A chart has more points than a picture of it can show, so its picture is drawn from some of them.</source>
         <translation type="unfinished">Un grafico contiene più punti di quanti un&apos;immagine possa mostrarne, quindi l&apos;immagine viene disegnata solo da una parte di essi.</translation>
     </message>
@@ -12844,7 +12844,7 @@ Scaricarlo ora da %2? (%3, una sola volta.)</translation>
 <context>
     <name>QCoreApplication</name>
     <message>
-        <location filename="../apps/write/app/writewindow_shapes.cpp" line="+1258"/>
+        <location filename="../apps/write/app/writewindow_shapes.cpp" line="+1262"/>
         <source>Some of the shapes have text. Merging removes the text of every shape but the first one you selected. Merge anyway?</source>
         <translation type="unfinished">Alcune forme contengono testo. Unisci elimina il testo di tutte le forme tranne la prima selezionata. Unire comunque?</translation>
     </message>
@@ -17634,20 +17634,20 @@ Aprilo nel programma di posta elettronica, aggiungi i destinatari e invialo.</tr
     </message>
     <message>
         <location filename="../libs/office/sheet/odschart.cpp" line="+241"/>
-        <location line="+625"/>
-        <location line="+270"/>
+        <location line="+632"/>
+        <location line="+287"/>
         <source>series past the %1 a chart may have</source>
         <translation type="unfinished">serie oltre le %1 consentite per un grafico</translation>
     </message>
     <message>
-        <location line="-894"/>
-        <location line="+625"/>
-        <location line="+291"/>
+        <location line="-918"/>
+        <location line="+632"/>
+        <location line="+308"/>
         <source>points past the %1 a series may have</source>
         <translation type="unfinished">punti oltre i %1 consentiti per una serie</translation>
     </message>
     <message>
-        <location line="-915"/>
+        <location line="-939"/>
         <source>points past the %1 a chart may have</source>
         <translation type="unfinished">punti oltre i %1 consentiti per un grafico</translation>
     </message>
@@ -17664,12 +17664,12 @@ Aprilo nel programma di posta elettronica, aggiungi i destinatari e invialo.</tr
     </message>
     <message>
         <location line="+2"/>
-        <location line="+201"/>
+        <location line="+206"/>
         <source>trendlines of charts past the %1 a series may have</source>
         <translation type="unfinished">linee di tendenza dei grafici oltre il %1 che una serie può avere</translation>
     </message>
     <message>
-        <location line="-200"/>
+        <location line="-205"/>
         <source>gradient and pattern fills of charts (they are written as one color)</source>
         <translation type="unfinished">riempimenti con sfumatura e motivo dei grafici (vengono scritti con un solo colore)</translation>
     </message>
@@ -17699,7 +17699,7 @@ Aprilo nel programma di posta elettronica, aggiungi i destinatari e invialo.</tr
         <translation type="unfinished">formati numero oltre i 200 contenuti nel documento di un grafico (vengono mostrati come Generale)</translation>
     </message>
     <message>
-        <location line="+147"/>
+        <location line="+152"/>
         <source>trendlines of a kind the format does not have</source>
         <translation type="unfinished">linee di tendenza di un tipo che il formato non supporta</translation>
     </message>
@@ -17719,7 +17719,7 @@ Aprilo nel programma di posta elettronica, aggiungi i destinatari e invialo.</tr
         <translation type="unfinished">sottotitoli e piè di pagina dei grafici</translation>
     </message>
     <message>
-        <location line="+276"/>
+        <location line="+295"/>
         <source>secondary axes of charts</source>
         <translation type="unfinished">assi secondari dei grafici</translation>
     </message>
@@ -23879,7 +23879,7 @@ Origine: %3</translation>
 <context>
     <name>jp::ChangeChartTypeDialog</name>
     <message>
-        <location filename="../libs/page/app/chartdialogs.cpp" line="+745"/>
+        <location filename="../libs/page/app/chartdialogs.cpp" line="+749"/>
         <source>Chart Kind</source>
         <translation type="unfinished">Tipo di grafico</translation>
     </message>
@@ -24006,13 +24006,33 @@ Origine: %3</translation>
         <translation type="unfinished">Radar riempito</translation>
     </message>
     <message>
+        <location line="+1"/>
+        <source>High-Low-Close</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Open-High-Low-Close</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Volume-High-Low-Close</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Volume-Open-High-Low-Close</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <location line="+50"/>
         <source>This chart has parts that are kept as they are, so it can&apos;t be changed here.</source>
         <translation type="unfinished">Questo grafico contiene parti che vengono mantenute così come sono, quindi non può essere modificato qui.</translation>
     </message>
     <message>
         <location line="+48"/>
-        <location line="+100"/>
+        <location line="+105"/>
         <location line="+10"/>
         <source>Change Chart</source>
         <translation type="unfinished">Cambia grafico</translation>
@@ -24129,7 +24149,7 @@ Origine: %3</translation>
         <translation type="unfinished">Cambia dati del grafico</translation>
     </message>
     <message>
-        <location line="-181"/>
+        <location line="-186"/>
         <source>No Legend</source>
         <translation type="unfinished">Nessuna legenda</translation>
     </message>
@@ -24157,7 +24177,7 @@ Origine: %3</translation>
 <context>
     <name>jp::ChartButtons</name>
     <message>
-        <location filename="../libs/page/app/chartdesign.cpp" line="+762"/>
+        <location filename="../libs/page/app/chartdesign.cpp" line="+775"/>
         <source>Chart Elements</source>
         <translation type="unfinished">Elementi grafico</translation>
     </message>
@@ -24201,7 +24221,7 @@ Origine: %3</translation>
     </message>
     <message>
         <location line="+70"/>
-        <location filename="../libs/office/sheet/chartops.cpp" line="+329"/>
+        <location filename="../libs/office/sheet/chartops.cpp" line="+356"/>
         <source>This chart has no series.</source>
         <translation type="unfinished">Questo grafico non ha serie.</translation>
     </message>
@@ -24232,7 +24252,7 @@ Origine: %3</translation>
 <context>
     <name>jp::ChartDesign</name>
     <message>
-        <location filename="../libs/page/app/chartdesign.cpp" line="-694"/>
+        <location filename="../libs/page/app/chartdesign.cpp" line="-707"/>
         <source>The words, or = and a cell such as =Sheet1!A1 to show what that cell holds:</source>
         <translation type="unfinished">Le parole, oppure = e una cella come =Foglio1!A1 per mostrare il contenuto di quella cella:</translation>
     </message>
@@ -24763,13 +24783,19 @@ Origine: %3</translation>
         <translation type="unfinished">Serie %1</translation>
     </message>
     <message>
-        <location line="+23"/>
+        <location line="+28"/>
+        <location line="+8"/>
         <location line="+3"/>
         <source>Chart Filters</source>
         <translation type="unfinished">Filtri grafico</translation>
     </message>
     <message>
-        <location line="-3"/>
+        <location line="-11"/>
+        <source>The series of a stock chart can&apos;t be left out: the kind is made of all of them, in their order.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+8"/>
         <source>A chart needs at least one series. Check another series first.</source>
         <translation type="unfinished">Un grafico deve contenere almeno una serie. Deseleziona prima un&apos;altra serie.</translation>
     </message>
@@ -24932,7 +24958,7 @@ Origine: %3</translation>
 <context>
     <name>jp::ChartKinds</name>
     <message>
-        <location filename="../libs/page/app/chartdialogs.cpp" line="-733"/>
+        <location filename="../libs/page/app/chartdialogs.cpp" line="-737"/>
         <source>Columns</source>
         <translation>Colonne</translation>
     </message>
@@ -25030,6 +25056,46 @@ Origine: %3</translation>
         <location line="+1"/>
         <source>Filled radar</source>
         <translation type="unfinished">Radar riempito</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>High-low-close</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Open-high-low-close</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Volume-high-low-close</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Volume-open-high-low-close</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../libs/office/sheet/chartmake.cpp" line="+176"/>
+        <source>A high-low-close chart needs exactly three series, in this order: high, low, and close. Select the cells again, with one column or row for each, in that order.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>An open-high-low-close chart needs exactly four series, in this order: open, high, low, and close. Select the cells again, with one column or row for each, in that order.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>A volume-high-low-close chart needs exactly four series, in this order: volume, high, low, and close. Select the cells again, with one column or row for each, in that order.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>A volume-open-high-low-close chart needs exactly five series, in this order: volume, open, high, low, and close. Select the cells again, with one column or row for each, in that order.</source>
+        <translation type="unfinished"></translation>
     </message>
 </context>
 <context>
@@ -26797,7 +26863,7 @@ Origine: %3</translation>
     </message>
     <message>
         <location line="+9"/>
-        <location filename="../apps/crunch/app/crunchwindow_charts.cpp" line="+1000"/>
+        <location filename="../apps/crunch/app/crunchwindow_charts.cpp" line="+1009"/>
         <location filename="../apps/crunch/app/crunchwindow_file.cpp" line="-494"/>
         <location line="+112"/>
         <location line="+77"/>
@@ -27024,7 +27090,7 @@ Origine: %3</translation>
     </message>
     <message>
         <location line="+4"/>
-        <location filename="../apps/crunch/app/crunchwindow_charts.cpp" line="-860"/>
+        <location filename="../apps/crunch/app/crunchwindow_charts.cpp" line="-864"/>
         <source>Save as Template…</source>
         <translation type="unfinished">Salva come modello…</translation>
     </message>
@@ -27222,12 +27288,12 @@ Origine: %3</translation>
     </message>
     <message>
         <location line="+11"/>
-        <location filename="../apps/crunch/app/crunchwindow_charts.cpp" line="+342"/>
+        <location filename="../apps/crunch/app/crunchwindow_charts.cpp" line="+346"/>
         <source>Rename Object</source>
         <translation type="unfinished">Rinomina oggetto</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow_charts.cpp" line="-379"/>
+        <location filename="../apps/crunch/app/crunchwindow_charts.cpp" line="-383"/>
         <source>More Charts…</source>
         <translation type="unfinished">Altri grafici…</translation>
     </message>
@@ -27275,30 +27341,31 @@ Origine: %3</translation>
     </message>
     <message>
         <location line="+1"/>
-        <location line="+1046"/>
+        <location line="+1050"/>
         <source>Bring to Front</source>
         <translation type="unfinished">Porta in primo piano</translation>
     </message>
     <message>
-        <location line="-1045"/>
-        <location line="+1045"/>
+        <location line="-1049"/>
+        <location line="+1049"/>
         <source>Bring Forward</source>
         <translation type="unfinished">Porta avanti</translation>
     </message>
     <message>
-        <location line="-1044"/>
-        <location line="+1044"/>
+        <location line="-1048"/>
+        <location line="+1048"/>
         <source>Send Backward</source>
         <translation type="unfinished">Porta indietro</translation>
     </message>
     <message>
-        <location line="-1043"/>
-        <location line="+1043"/>
+        <location line="-1047"/>
+        <location line="+1047"/>
         <source>Send to Back</source>
         <translation type="unfinished">Porta in secondo piano</translation>
     </message>
     <message>
-        <location line="-953"/>
+        <location line="-957"/>
+        <location line="+4"/>
         <location line="+4"/>
         <location line="+7"/>
         <location line="+9"/>
@@ -27308,16 +27375,16 @@ Origine: %3</translation>
         <translation type="unfinished">Nuovo grafico</translation>
     </message>
     <message>
-        <location line="-58"/>
-        <location line="+58"/>
+        <location line="-62"/>
+        <location line="+62"/>
         <location line="+21"/>
         <location filename="../apps/crunch/app/crunchwindow_pivotchart.cpp" line="+30"/>
         <source>The workbook is still being read. A chart can be made when it is open.</source>
         <translation type="unfinished">La cartella di lavoro è ancora in fase di lettura. Sarà possibile creare un grafico quando sarà aperta.</translation>
     </message>
     <message>
-        <location line="-75"/>
-        <location line="+75"/>
+        <location line="-79"/>
+        <location line="+79"/>
         <source>Select the cells that hold the numbers to chart. If the first row has names and the first column has labels, select those too.</source>
         <translation type="unfinished">Selezionare le celle che contengono i numeri da rappresentare. Se la prima riga contiene nomi e la prima colonna etichette, selezionare anche quelle.</translation>
     </message>
@@ -27354,13 +27421,13 @@ Origine: %3</translation>
         <translation type="unfinished">Proprietà</translation>
     </message>
     <message>
-        <location line="-415"/>
-        <location line="+17"/>
+        <location line="-424"/>
+        <location line="+21"/>
         <source>Radar</source>
         <translation type="unfinished">Radar</translation>
     </message>
     <message>
-        <location line="-16"/>
+        <location line="-20"/>
         <source>Radar with markers</source>
         <translation type="unfinished">Radar con indicatori</translation>
     </message>
@@ -27370,7 +27437,32 @@ Origine: %3</translation>
         <translation type="unfinished">Radar riempito</translation>
     </message>
     <message>
-        <location line="+25"/>
+        <location line="+1"/>
+        <source>High-low-close</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Open-high-low-close</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Volume-high-low-close</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Volume-open-high-low-close</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+16"/>
+        <source>Stock</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+10"/>
         <source>Recommended Charts…</source>
         <translation type="unfinished">Grafici consigliati…</translation>
     </message>
@@ -27400,7 +27492,7 @@ Origine: %3</translation>
         <translation type="unfinished">Applica modello…</translation>
     </message>
     <message>
-        <location line="+141"/>
+        <location line="+145"/>
         <location line="+28"/>
         <source>Recommended Charts</source>
         <translation type="unfinished">Grafici consigliati</translation>
@@ -29414,8 +29506,8 @@ Origine: %3</translation>
         <location line="+121"/>
         <location line="+29"/>
         <location line="+11"/>
-        <location filename="../apps/crunch/app/crunchwindow_charts.cpp" line="-1014"/>
-        <location line="+867"/>
+        <location filename="../apps/crunch/app/crunchwindow_charts.cpp" line="-1018"/>
+        <location line="+871"/>
         <location filename="../apps/crunch/app/crunchwindow_drawings.cpp" line="+191"/>
         <location line="+11"/>
         <location line="+6"/>
@@ -29691,7 +29783,7 @@ Origine: %3</translation>
     </message>
     <message>
         <location line="+1"/>
-        <location filename="../apps/crunch/app/crunchwindow_charts.cpp" line="-952"/>
+        <location filename="../apps/crunch/app/crunchwindow_charts.cpp" line="-961"/>
         <location filename="../apps/crunch/app/crunchwindow_ops.cpp" line="-120"/>
         <source>Columns</source>
         <translation>Colonne</translation>
@@ -30220,7 +30312,7 @@ Origine: %3</translation>
         <translation type="unfinished">Nome tabella</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow_charts.cpp" line="+1039"/>
+        <location filename="../apps/crunch/app/crunchwindow_charts.cpp" line="+1048"/>
         <location filename="../apps/crunch/app/crunchwindow_embeds.cpp" line="+89"/>
         <location filename="../apps/crunch/app/crunchwindow_pagelayout.cpp" line="+531"/>
         <location line="+9"/>
@@ -34501,8 +34593,8 @@ Impossibile leggere il file.</translation>
         <translation type="unfinished">Elimina sparkline</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow_charts.cpp" line="-1033"/>
-        <location line="+24"/>
+        <location filename="../apps/crunch/app/crunchwindow_charts.cpp" line="-1042"/>
+        <location line="+28"/>
         <location filename="../apps/crunch/app/crunchwindow_insertobjects.cpp" line="-753"/>
         <location filename="../apps/crunch/app/crunchwindow_quick.cpp" line="+3"/>
         <location filename="../apps/crunch/app/crunchwindow_sparklines.cpp" line="+13"/>
@@ -35201,7 +35293,7 @@ Impossibile leggere il file.</translation>
         <translation type="unfinished">Questo controllo non ha nulla da formattare qui.</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow_charts.cpp" line="-28"/>
+        <location filename="../apps/crunch/app/crunchwindow_charts.cpp" line="-32"/>
         <source>Stacked columns</source>
         <translation type="unfinished">Colonne in pila</translation>
     </message>
@@ -35237,23 +35329,23 @@ Impossibile leggere il file.</translation>
     </message>
     <message>
         <location line="+1"/>
-        <location line="+21"/>
+        <location line="+25"/>
         <source>Pie</source>
         <translation type="unfinished">Torta</translation>
     </message>
     <message>
-        <location line="-20"/>
+        <location line="-24"/>
         <source>Doughnut</source>
         <translation type="unfinished">Anello</translation>
     </message>
     <message>
         <location line="+1"/>
-        <location line="+20"/>
+        <location line="+24"/>
         <source>Area</source>
         <translation type="unfinished">Area</translation>
     </message>
     <message>
-        <location line="-19"/>
+        <location line="-23"/>
         <source>Stacked area</source>
         <translation type="unfinished">Aree in pila</translation>
     </message>
@@ -35273,7 +35365,7 @@ Impossibile leggere il file.</translation>
         <translation type="unfinished">Dispersione, linee smussate</translation>
     </message>
     <message>
-        <location line="+14"/>
+        <location line="+18"/>
         <source>Bar</source>
         <translation type="unfinished">Barre</translation>
     </message>
@@ -45945,7 +46037,7 @@ Impossibile leggere il file.</translation>
 <context>
     <name>jp::FormatAxisDialog</name>
     <message>
-        <location filename="../libs/page/app/chartdialogs.cpp" line="+908"/>
+        <location filename="../libs/page/app/chartdialogs.cpp" line="+927"/>
         <location line="+48"/>
         <source>Automatic</source>
         <translation type="unfinished">Automatico</translation>
@@ -46790,7 +46882,7 @@ Impossibile leggere il file.</translation>
 <context>
     <name>jp::FormatChartPartDialog</name>
     <message>
-        <location filename="../libs/page/app/chartdialogs.cpp" line="-460"/>
+        <location filename="../libs/page/app/chartdialogs.cpp" line="-479"/>
         <source>Format Chart Part</source>
         <translation type="unfinished">Formato parte del grafico</translation>
     </message>
@@ -55358,7 +55450,7 @@ Il browser web aprirà LibreTranslate, un servizio di traduzione gratuito e open
 <context>
     <name>jp::ObjectPropertiesDialog</name>
     <message>
-        <location filename="../libs/page/app/chartdialogs.cpp" line="+709"/>
+        <location filename="../libs/page/app/chartdialogs.cpp" line="+728"/>
         <source>Properties</source>
         <translation type="unfinished">Proprietà</translation>
     </message>
@@ -59236,7 +59328,7 @@ Il browser web aprirà LibreTranslate, un servizio di traduzione gratuito e open
 <context>
     <name>jp::SelectChartDataDialog</name>
     <message>
-        <location filename="../libs/page/app/chartdialogs.cpp" line="-457"/>
+        <location filename="../libs/page/app/chartdialogs.cpp" line="-476"/>
         <source>Chart Data</source>
         <translation>Dati grafico</translation>
     </message>
@@ -59678,7 +59770,7 @@ Il browser web aprirà LibreTranslate, un servizio di traduzione gratuito e open
     </message>
     <message>
         <location line="+88"/>
-        <location filename="../apps/write/app/writewindow_shapes.cpp" line="-1034"/>
+        <location filename="../apps/write/app/writewindow_shapes.cpp" line="-1038"/>
         <source>Union</source>
         <translation type="unfinished">Unione</translation>
     </message>
@@ -59713,7 +59805,7 @@ Il browser web aprirà LibreTranslate, un servizio di traduzione gratuito e open
     </message>
     <message>
         <location line="+4"/>
-        <location filename="../apps/write/app/writewindow_shapes.cpp" line="+1038"/>
+        <location filename="../apps/write/app/writewindow_shapes.cpp" line="+1042"/>
         <source>Merge</source>
         <translation type="unfinished">Unisci</translation>
     </message>
@@ -64156,7 +64248,7 @@ Il browser web aprirà LibreTranslate, un servizio di traduzione gratuito e open
     </message>
     <message>
         <location line="+2"/>
-        <location filename="../apps/write/app/writewindow_shapes.cpp" line="-1013"/>
+        <location filename="../apps/write/app/writewindow_shapes.cpp" line="-1017"/>
         <source>Align Left</source>
         <translation type="unfinished">Allinea a sinistra</translation>
     </message>
@@ -64866,12 +64958,12 @@ Il browser web aprirà LibreTranslate, un servizio di traduzione gratuito e open
     </message>
     <message>
         <location line="+10"/>
-        <location line="+1145"/>
+        <location line="+1149"/>
         <source>Edit Points</source>
         <translation type="unfinished">Modifica punti</translation>
     </message>
     <message>
-        <location line="-1142"/>
+        <location line="-1146"/>
         <source>Drag a point to reshape. Ctrl+click a point to delete it, or the outline to add one. Press Esc when done.</source>
         <translation type="unfinished">Trascina un punto per rimodellare. Ctrl+clic su un punto per eliminarlo, o sul contorno per aggiungerne uno. Premi Esc al termine.</translation>
     </message>
@@ -65155,6 +65247,26 @@ Il browser web aprirà LibreTranslate, un servizio di traduzione gratuito e open
         <location line="+1"/>
         <source>Filled Radar</source>
         <translation type="unfinished">Radar riempito</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>High-Low-Close</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Open-High-Low-Close</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Volume-High-Low-Close</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Volume-Open-High-Low-Close</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <location line="+19"/>
@@ -68892,7 +69004,7 @@ Impossibile applicare la password al file.</translation>
     </message>
     <message>
         <location line="+1"/>
-        <location filename="../apps/write/app/writewindow_shapes.cpp" line="-818"/>
+        <location filename="../apps/write/app/writewindow_shapes.cpp" line="-822"/>
         <source>Plain</source>
         <translation type="unfinished">Semplice</translation>
     </message>
@@ -80429,12 +80541,12 @@ Impossibile applicare la password al file.</translation>
         <translation type="unfinished">Il file contiene più formati di cella di qualsiasi file reale.</translation>
     </message>
     <message>
-        <location filename="../libs/office/sheet/odschart.cpp" line="-585"/>
+        <location filename="../libs/office/sheet/odschart.cpp" line="-604"/>
         <source>The chart is of a kind this program does not read.</source>
         <translation type="unfinished">Il grafico è di un tipo che questo programma non legge.</translation>
     </message>
     <message>
-        <location line="+656"/>
+        <location line="+675"/>
         <source>The chart is larger than this program reads.</source>
         <translation type="unfinished">Il grafico è più grande di quanto questo programma possa leggere.</translation>
     </message>
@@ -86667,7 +86779,7 @@ Impossibile applicare la password al file.</translation>
         <translation type="unfinished">Questa grafica non può essere convertita in forme qui.</translation>
     </message>
     <message>
-        <location filename="../libs/office/sheet/chartops.cpp" line="-268"/>
+        <location filename="../libs/office/sheet/chartops.cpp" line="-287"/>
         <source>Series %1</source>
         <translation type="unfinished">Serie %1</translation>
     </message>
@@ -86678,7 +86790,7 @@ Impossibile applicare la password al file.</translation>
         <translation type="unfinished">Questo grafico contiene parti che JeffWrite non modifica, quindi viene mantenuto così com&apos;è.</translation>
     </message>
     <message>
-        <location filename="../libs/office/sheet/chartops.cpp" line="+30"/>
+        <location filename="../libs/office/sheet/chartops.cpp" line="+31"/>
         <source>Category 1</source>
         <translation type="unfinished">Categoria 1</translation>
     </message>
@@ -86703,7 +86815,52 @@ Impossibile applicare la password al file.</translation>
         <translation type="unfinished">Serie 2</translation>
     </message>
     <message>
-        <location line="+147"/>
+        <location line="+11"/>
+        <source>Day 1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Day 2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Day 3</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Day 4</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Volume</source>
+        <translation>Volume</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Open</source>
+        <translation>Apri</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>High</source>
+        <translation type="unfinished">Alto</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Low</source>
+        <translation type="unfinished">Basso</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Close</source>
+        <translation type="unfinished">Chiudi</translation>
+    </message>
+    <message>
+        <location line="+149"/>
         <source>Chart Title</source>
         <translation type="unfinished">Titolo grafico</translation>
     </message>

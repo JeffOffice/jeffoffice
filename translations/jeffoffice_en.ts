@@ -770,7 +770,7 @@
     <name>jp::ShapeTools</name>
     <message numerus="yes">
         <location filename="../libs/page/app/shapetools.cpp" line="+142"/>
-        <location filename="../apps/write/app/writewindow_shapes.cpp" line="+1269"/>
+        <location filename="../apps/write/app/writewindow_shapes.cpp" line="+1273"/>
         <source>Made %n shapes.</source>
         <translation>
             <numerusform>Made %n shape.</numerusform>
