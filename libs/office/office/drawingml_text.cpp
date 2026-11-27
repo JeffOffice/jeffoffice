@@ -971,10 +971,13 @@ void Reader::paragraph(const QDomElement &p)
     // A bullet. Numbers go on while the paragraphs before are numbered the
     // same way at the level, are interrupted by a paragraph of the level
     // without one, and start over below a paragraph of a shallower level.
-    // An empty paragraph shows no bullet and is not in a list; like any paragraph of the level with no number, it ends the numbering above it (the lists on each side of it are
-    // two), marked as having no bullet or not, on a slide or in the notes (the reference program restarts at 1 in each of those cases).
+    // An empty paragraph shows no bullet and is not in a list. One that says nothing of its own about a bullet, or says it has none, ends the numbering above it, as any paragraph of
+    // the level with no number does (the lists on each side of it are two; the reference program restarts at 1 in both cases, on a slide and in the notes). One that carries a
+    // number of its own takes no part, and the numbering goes on past it.
     if (pieces.isEmpty()) {
-        for (int l = level; l < kLevels; ++l) m_lists[l] = ListRun();
+        const bool own = !pPr.isNull() && (!firstChild(pPr, QLatin1String("buAutoNum")).isNull() || !firstChild(pPr, QLatin1String("buChar")).isNull() || !firstChild(pPr, QLatin1String("buBlip")).isNull());
+        if (!own)
+            for (int l = level; l < kLevels; ++l) m_lists[l] = ListRun();
         return;
     }
     for (int l = level + 1; l < kLevels; ++l) m_lists[l] = ListRun();
