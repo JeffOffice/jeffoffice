@@ -7470,27 +7470,164 @@ private Q_SLOTS:
             w.statusBar()->clearMessage();
             w.act(QString::fromLatin1(footer ? "insert.footer" : "insert.header"))->trigger();
             QVERIFY(w.statusBar()->currentMessage() != untrackedNoticeText());   // (it is not a change that goes unrecorded: the words typed are recorded)
+            QCOMPARE(marksInEveryPart(savedByWindow(w)), 0);   // (nothing marks a header that is made and left empty)
             QTextCursor c = w.view()->cursor();
             QVERIFY(doc->isSideStory(c.document()) || doc->isPendingHeaderFooter(c.document()));
             insertText(*doc, c, QStringLiteral("Title"));
             const char *name = footer ? "/word/footer1.xml" : "/word/header1.xml";
             const QByteArray saved = savedByWindow(w);
             const QByteArray x = partXml(saved, name);
-            QVERIFY2(wordsOfPart(x) == QStringLiteral("Title") && count(x, "<w:ins ") == 2, x.constData());   // (the new paragraph, and the words)
+            QVERIFY2(wordsOfPart(x) == QStringLiteral("Title") && count(x, "<w:ins ") == 1, x.constData());   // (only the words are marked: nothing marks the new header itself)
             auto rejected = open(saved);
             QVERIFY(rejected);
-            QCOMPARE(rejectAll(*rejected), 2);
+            QCOMPARE(rejectAll(*rejected), 1);
             QVERIFY(wordsOfPart(partXml(rejected->toDocx(), name)).isEmpty() && marksInEveryPart(rejected->toDocx()) == 0);
+            QVERIFY(!partXml(rejected->toDocx(), name).isEmpty());   // (the header stays, empty)
             auto accepted = open(saved);
-            QCOMPARE(acceptAll(*accepted), 2);
+            QCOMPARE(acceptAll(*accepted), 1);
             QCOMPARE(wordsOfPart(partXml(accepted->toDocx(), name)), QStringLiteral("Title"));
             QVERIFY(marksInEveryPart(accepted->toDocx()) == 0);
         }
     }
 
+    // The ids of the marks (insertions, deletions, and changes of looks) of every part of a package, in order of the parts.
+    static QVector<int> revisionIdsInEveryPart(const QByteArray &zip)
+    {
+        office::Package p;
+        p.read(zip);
+        QStringList names = p.partNames();
+        names.sort();
+        QVector<int> ids;
+        static const QRegularExpression mark(QStringLiteral("<w:(?:ins|del|rPrChange|pPrChange) [^>]*w:id=\"(\\d+)\""));
+        for (const QString &name : std::as_const(names))
+            if (name.startsWith(QLatin1String("/word/")) && name.endsWith(QLatin1String(".xml")))
+                for (auto m = mark.globalMatch(QString::fromUtf8(p.part(name))); m.hasNext();) ids.push_back(m.next().captured(1).toInt());
+        return ids;
+    }
+
+    // A note deleted as the reference program marks it (its own files): the reference run in one deletion; in the note, the mark of its paragraph deleted, and the number mark and the words in ONE
+    // deletion. Accept All takes reference and note out of the file; Reject All gives both back with no mark.
+    void aNoteDeletedByAnotherPersonIsMarkedAsTheOtherProgramMarksIt()
+    {
+        for (const bool endnote : {false, true}) {
+            const QByteArray refMark = endnote ? "<w:endnoteRef/>" : "<w:footnoteRef/>";
+            StoryParts parts;
+            const QByteArray note = para(QByteArray("<w:r><w:rPr><w:rStyle w:val=\"NoteRef\"/></w:rPr>") + refMark + "</w:r>" + run(" Note text"));
+            (endnote ? parts.endnote : parts.footnote) = note;
+            const char *part = endnote ? "/word/endnotes.xml" : "/word/footnotes.xml";
+            const QByteArray refTag = endnote ? "endnoteReference" : "footnoteReference";
+            auto doc = open(makeDocxWithStories(parts));
+            QVERIFY(doc);
+            doc->setReviewer(QStringLiteral("Zed"), QString());
+            doc->setTrackChanges(true);
+            const QVector<int> refs = endnote ? doc->endnoteReferences(2) : doc->footnoteReferences(2);
+            QVERIFY(!refs.isEmpty());
+            QTextCursor del(doc->story());
+            del.setPosition(refs.first());
+            del.setPosition(refs.first() + 1, QTextCursor::KeepAnchor);
+            removeSelection(*doc, del);
+            const QByteArray saved = doc->toDocx();
+            QVERIFY2(QRegularExpression(QStringLiteral("<w:del [^>]*><w:r>(?:<w:rPr>.*?</w:rPr>)?<w:%1 ").arg(QString::fromLatin1(refTag))).match(QString::fromUtf8(documentXml(saved))).hasMatch(), documentXml(saved).constData());
+            const QByteArray notes = partXml(saved, part);
+            QVERIFY2(notes.contains("<w:pPr><w:rPr><w:del "), notes.constData());
+            QVERIFY2(QRegularExpression(QStringLiteral("<w:del [^>]*><w:r>(?:<w:rPr>.*?</w:rPr>)?%1</w:r><w:r>(?:<w:rPr>.*?</w:rPr>)?<w:delText[^>]*> Note text</w:delText></w:r></w:del>").arg(QString::fromLatin1(refMark))).match(QString::fromUtf8(notes)).hasMatch(), notes.constData());
+            // One counter: the ids are different in every part.
+            QVector<int> ids = revisionIdsInEveryPart(saved);
+            std::sort(ids.begin(), ids.end());
+            QVERIFY2(std::adjacent_find(ids.begin(), ids.end()) == ids.end() && ids.size() >= 3, "ids repeat");
+            auto accepted = open(saved), rejected = open(saved);
+            QVERIFY(accepted && rejected);
+            QVERIFY(acceptAll(*accepted) >= 1);
+            QVERIFY(rejectAll(*rejected) >= 1);
+            QVERIFY2(!documentXml(accepted->toDocx()).contains(refTag) && !wordsOfPart(partXml(accepted->toDocx(), part)).contains(QStringLiteral("Note text")), "accepted");
+            QVERIFY2(documentXml(rejected->toDocx()).contains(refTag) && wordsOfPart(partXml(rejected->toDocx(), part)) == QStringLiteral(" Note text") && marksInEveryPart(rejected->toDocx()) == 0, "rejected");
+        }
+    }
+
+    // A note one person inserted and another deleted: the insertion is outside and the deletion inside, on the reference run and in the note, and the note's paragraph mark has only the deletion;
+    // Accept All and Reject All both take the reference and the note out.
+    void aNoteOnePersonInsertedAndAnotherDeletedNestsTheDeletionInTheInsertionAndEitherSettlingRemovesIt()
+    {
+        for (const bool endnote : {false, true}) {
+            const char *refTag = endnote ? "endnoteReference" : "footnoteReference";
+            const char *part = endnote ? "/word/endnotes.xml" : "/word/footnotes.xml";
+            QByteArray saved;
+            {
+                WriteWindow w;
+                w.setNotifier([](const QString &, const QString &) {});
+                w.show();
+                w.setDocument(open(makeDocx(para(run("alpha beta")))), QString());
+                w.document()->setReviewer(QStringLiteral("Ann"), QString());
+                w.document()->setTrackChanges(true);
+                QTextCursor c(w.document()->story());
+                c.setPosition(5);
+                w.view()->setCursor(c);
+                w.act(QString::fromLatin1(endnote ? "refs.endnote" : "refs.footnote"))->trigger();
+                QTextCursor inNote = w.view()->cursor();
+                insertText(*w.document(), inNote, QStringLiteral("Typed"));
+                saved = savedByWindow(w);
+            }
+            // (One insertion around the number and the words, and no mark on the paragraph mark.)
+            QVERIFY2(!partXml(saved, part).contains("<w:rPr><w:ins "), partXml(saved, part).constData());
+            auto doc = open(saved);
+            QVERIFY(doc);
+            doc->setReviewer(QStringLiteral("Bob"), QString());
+            doc->setTrackChanges(true);
+            const int id = endnote ? doc->citedEndnotes().value(0) : doc->citedFootnotes().value(0);
+            QVERIFY(id > 0);
+            const QVector<int> refs = endnote ? doc->endnoteReferences(id) : doc->footnoteReferences(id);
+            QVERIFY(!refs.isEmpty());
+            QTextCursor del(doc->story());
+            del.setPosition(refs.first());
+            del.setPosition(refs.first() + 1, QTextCursor::KeepAnchor);
+            removeSelection(*doc, del);
+            const QByteArray both = doc->toDocx();
+            QVERIFY2(QRegularExpression(QStringLiteral("<w:ins [^>]*><w:del [^>]*><w:r>(?:<w:rPr>.*?</w:rPr>)?<w:%1 ").arg(QString::fromLatin1(refTag))).match(QString::fromUtf8(documentXml(both))).hasMatch(), documentXml(both).constData());
+            const QByteArray notes = partXml(both, part);
+            QVERIFY2(notes.contains("<w:rPr><w:del ") && !notes.contains("<w:rPr><w:ins ") && notes.contains("<w:ins ") && QString::fromUtf8(notes).contains(QRegularExpression(QStringLiteral("<w:ins [^>]*><w:del "))), notes.constData());
+            auto accepted = open(both), rejected = open(both);
+            QVERIFY(accepted && rejected);
+            acceptAll(*accepted);
+            rejectAll(*rejected);
+            for (auto *d : {accepted.get(), rejected.get()}) {
+                const QByteArray out = d->toDocx();
+                QVERIFY2(!documentXml(out).contains(refTag) && !wordsOfPart(partXml(out, part)).contains(QStringLiteral("Typed")) && marksInEveryPart(out) == 0, documentXml(out).constData());
+            }
+        }
+    }
+
+    void theRevisionIdsOfEveryPartOfADocumentWithChangesInHeaderFooterAndNotesAreDifferent()
+    {
+        StoryParts parts;
+        parts.header = para(run("head"));
+        parts.footer = para(run("foot"));
+        parts.footnote = para(run("note"));
+        parts.endnote = para(run("endn"));
+        parts.body = para(run("alpha beta"));
+        auto doc = open(makeDocxWithStories(parts));
+        QVERIFY(doc);
+        doc->setReviewer(QStringLiteral("Zed"), QString());
+        doc->setTrackChanges(true);
+        QTextCursor c = inParagraph(*doc, "alpha");
+        insertText(*doc, c, QStringLiteral("X"));
+        for (const char *word : {"head", "foot", "note", "endn"}) {
+            int at = 0;
+            QTextDocument *story = storyWithWord(*doc, QString::fromLatin1(word), &at);
+            QVERIFY(story);
+            QTextCursor e(story);
+            e.setPosition(at);
+            insertText(*doc, e, QStringLiteral("N"));
+        }
+        QVector<int> ids = revisionIdsInEveryPart(doc->toDocx());
+        QVERIFY(ids.size() >= 5);
+        std::sort(ids.begin(), ids.end());
+        QVERIFY2(std::adjacent_find(ids.begin(), ids.end()) == ids.end(), "ids repeat");
+    }
+
     void theCommandsThatTrackNotesAndHeadersAreNamedRecordedByThePolicy()
     {
-        for (const char *id : {"refs.footnote", "refs.endnote", "insert.header", "insert.footer"}) QCOMPARE(trackPolicyOf(QString::fromLatin1(id)), TrackPolicy::Tracked);
+        for (const char *id : {"refs.footnote", "refs.endnote"}) QCOMPARE(trackPolicyOf(QString::fromLatin1(id)), TrackPolicy::Tracked);
+        for (const char *id : {"insert.header", "insert.footer"}) QCOMPARE(trackPolicyOf(QString::fromLatin1(id)), TrackPolicy::Neutral);
     }
 
     void numberingAndIndentCommandsWorkWithTrackingOnAndSaySo()

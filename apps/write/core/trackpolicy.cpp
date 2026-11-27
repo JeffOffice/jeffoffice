@@ -37,16 +37,17 @@ TrackPolicy trackPolicyOf(const QString &id, bool *known)
                                                 QStringLiteral("edit.pasteTable"), QStringLiteral("layout.sectionBreak")};
     static const QSet<QString> tracked = setOf({"review.thesaurus", "edit.cut", "edit.paste", "edit.pasteMerge", "edit.pasteText", "edit.pasteSpecial", "edit.pasteFormat", "edit.pasteListContinue", "edit.pasteListMerge",
         "edit.pasteListNew", "insert.pageBreak", "insert.blankPage", "insert.symbol", "layout.columnBreak", "para.horizontalLine", "para.bordersShading", "para.dialog", "style.normal",
-        "refs.footnote", "refs.endnote", "insert.header", "insert.footer", "refs.addText.1", "refs.addText.2", "refs.addText.3", "refs.addText.none", "insert.cover.band", "insert.cover.classic", "insert.cover.plain", "review.noProof", "review.language",
+        "refs.footnote", "refs.endnote", "refs.addText.1", "refs.addText.2", "refs.addText.3", "refs.addText.none", "insert.cover.band", "insert.cover.classic", "insert.cover.plain", "review.noProof", "review.language",
         "insert.table", "insert.convertTextToTable", "outline.moveUp", "outline.moveDown", "outline.promote", "outline.demote", "outline.toHeading1", "outline.toBody"});
     // Tracked in the text, but not yet in a table's cell.
     static const QSet<QString> inText = setOf({"insert.dropCap.dropped", "insert.dropCap.none", "insert.dropCap.options"});
-    // Looking, finding, saving, opening, the way changes are shown, and settings of the document that are not edits of it.
+    // Looking, finding, saving, opening, the way changes are shown, and settings of the document that are not edits of it (Insert Header and Footer too: nothing marks a new header or footer as
+    // inserted, in the other program's files either; the words typed in it are recorded).
     static const QStringList neutralPrefixes = {QStringLiteral("ribbon"), QStringLiteral("_q_"), QStringLiteral("file."), QStringLiteral("view."), QStringLiteral("zoom."), QStringLiteral("win."),
                                                 QStringLiteral("help."), QStringLiteral("find."), QStringLiteral("show."), QStringLiteral("review."), QStringLiteral("outline.level."),
                                                 QStringLiteral("hf.go"), QStringLiteral("comment."), QStringLiteral("layout.hyphenation."), QStringLiteral("mail.recipients."),
                                                 QStringLiteral("mail.finish."), QStringLiteral("mail.type.")};
-    static const QSet<QString> neutral = setOf({"edit.copy", "edit.copyFormat", "edit.repeat", "edit.find", "edit.clearHighlighting", "edit.formatPainter", "edit.goTo", "edit.lastPlace", "edit.selectAll", "edit.selectObjects",
+    static const QSet<QString> neutral = setOf({"insert.header", "insert.footer", "edit.copy", "edit.copyFormat", "edit.repeat", "edit.find", "edit.clearHighlighting", "edit.formatPainter", "edit.goTo", "edit.lastPlace", "edit.selectAll", "edit.selectObjects",
         "edit.clipboardPane", "edit.undo", "edit.redo", "edit.replace", "outline.close", "outline.collapse", "outline.expand", "outline.firstLineOnly", "outline.showFormatting", "outline.showLevel",
         "style.pane", "style.inspector", "style.inspectorPane", "style.manage", "style.modify", "style.new", "style.update", "refs.nextFootnote", "refs.previousFootnote", "refs.nextEndnote",
         "refs.previousEndnote", "refs.showNotes", "refs.citationStyle", "refs.manageSources", "hf.close", "hf.showDocumentText", "hf.previousSection", "hf.nextSection", "fields.toggleCode",

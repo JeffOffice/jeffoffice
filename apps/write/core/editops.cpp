@@ -128,7 +128,7 @@ QTextCharFormat typingFormat(const QTextCursor &c)
     if (f.stringProperty(tp::Field).startsWith(QLatin1String("pageref:"))) f.clearProperty(tp::Field);
     // (Nor is text typed beside the blanks that are a reference's result: its blanks count in the line's height as any typed do.)
     f.clearProperty(tp::BlankFieldResult);
-    if (!isAtom(f)) return c.block().length() == 1 ? withoutMarkRecords(f) : f;   // (in an empty paragraph the look is the mark's, without the records of the mark's own change)
+    if (!isAtom(f)) return f;
     // Beside a piece kept as XML: the look of the text before it, else of the paragraph's mark.
     const QTextBlock b = c.block();
     for (int p = c.position() - 1; p >= b.position(); --p) {
@@ -136,7 +136,7 @@ QTextCharFormat typingFormat(const QTextCursor &c)
         t.clearProperty(tp::BlankFieldResult);
         if (!isAtom(t)) return t;
     }
-    return withoutMarkRecords(withoutAtom(markFormat(b)));
+    return withoutAtom(markFormat(b));
 }
 
 // The format for text typed at the cursor, with the look of the tracked changes the place is inside of (text put between the pieces of an insertion, by a person who does not track, is in it).
@@ -760,21 +760,34 @@ void collectNoteReferences(const QTextBlock &b, int from, int to, QVector<NoteRe
 void trackedDeleteRange(WriteDoc &doc, QTextDocument *d, int from, int to, QTextCursor *start, QTextCursor *end, bool inNote = false);
 void trackPastedAsInserted(WriteDoc &doc, QTextDocument *d, int from, int *to);
 
-// The words of a note marked deleted, as its reference was: someone else's note goes with its reference, and Reject brings both back. (The reviewer's own insertions in it go for good.)
+// The paragraph marks of [from, to) of a note's story marked deleted (but not those the reviewer inserted: they go with the text).
+void markNoteParagraphMarks(WriteDoc &doc, QTextDocument *story, int from, int to)
+{
+    const QString me = doc.reviewer();
+    for (QTextBlock b = story->findBlock(from); b.isValid() && b.position() <= to; b = b.next())
+        if (!markFormat(b).hasProperty(prop::TrackedDeleted) && !paragraphMarkInsertedBy(b, me)) markParagraphMark(doc, b, "del");
+}
+
+// A note marked deleted as its reference was: the number that begins it, its words, and the mark of each of its paragraphs, as the other program writes it. Someone else's note goes with its
+// reference, and Reject brings both back. (The reviewer's own insertions in it go for good.)
 void markNoteDeleted(WriteDoc &doc, const NoteRef &ref)
 {
     if (ref.endnote) {
         int from = 0, to = 0;
         if (!doc.endnoteWords(ref.id, &from, &to)) return;
+        const EndnoteSpan span = endnoteSpanAt(doc.story(), to > from ? to - 1 : from);
+        if (!span.valid) return;
         QTextCursor in(doc.story());
         in.setPosition(from);
         const NoteScopeGuard guard(in);
-        trackedDeleteRange(doc, doc.story(), from, to, nullptr, nullptr, true);
+        trackedDeleteRange(doc, doc.story(), span.blockFrom, span.textTo, nullptr, nullptr, true);
+        markNoteParagraphMarks(doc, doc.story(), span.blockFrom, endnoteSpanAt(doc.story(), span.blockFrom).textTo);
         return;
     }
     QTextDocument *note = doc.editableFootnote(ref.id);
     if (!note) return;
-    trackedDeleteRange(doc, note, std::max(0, noteTextStart(note)), note->characterCount() - 1, nullptr, nullptr, true);
+    trackedDeleteRange(doc, note, 0, note->characterCount() - 1, nullptr, nullptr, true);
+    markNoteParagraphMarks(doc, note, 0, note->characterCount() - 1);
 }
 
 // The reference to a new note, and its words, marked as inserted (one change for the reviewer: Accept keeps both, Reject takes both).
@@ -1015,12 +1028,6 @@ void trackedDeleteOne(WriteDoc &doc, QTextCursor &c, bool back, bool byWord)
 
 void trackRangeDeleted(WriteDoc &doc, QTextDocument *story, int from, int to) { trackedDeleteRange(doc, story, from, to, nullptr, nullptr); }
 void trackRangeInserted(WriteDoc &doc, QTextDocument *story, int from, int *to) { trackPastedAsInserted(doc, story, from, to); }
-
-void trackStoryCreated(WriteDoc &doc, QTextDocument *story)
-{
-    if (!doc.trackChanges() || untrackedDepth() != 0 || !story || !story->begin().isValid()) return;
-    markParagraphMark(doc, story->begin(), "ins");
-}
 
 bool untrackedEditActive() { return untrackedDepth() != 0; }
 UntrackedEdit::UntrackedEdit() { ++untrackedDepth(); }

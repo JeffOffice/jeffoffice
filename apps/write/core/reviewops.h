@@ -145,8 +145,6 @@ void removeOwnInsertion(QTextDocument *story, int from, int to);
 // A paragraph's mark said to be inserted ("ins") or deleted ("del") by the reviewer; the mark of a paragraph the reviewer inserted is taken away for good by removeParagraphMark.
 // With `keepOther`, a mark of the other kind (an insertion by someone else, when a deletion is put on) stays beside it, as a paragraph that two people changed has both.
 void markParagraphMark(WriteDoc &doc, QTextBlock block, const char *tag, bool keepOther = false);
-// The look of a paragraph mark with the records of its own tracked change (inserted, deleted, moved) taken off: what text typed in an empty paragraph whose mark was inserted starts from (it is not the mark).
-QTextCharFormat withoutMarkRecords(QTextCharFormat format);
 bool paragraphMarkInsertedBy(const QTextBlock &block, const QString &author);
 // Takes a paragraph's mark away: the paragraph is joined to the one after it (as when a deleted mark is accepted). False where it can't be (the mark stays, without its record).
 void removeParagraphMark(WriteDoc &doc, QTextDocument *story, int blockNumber);
