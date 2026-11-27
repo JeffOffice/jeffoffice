@@ -3932,7 +3932,7 @@
         },
         {
          "status": "partly",
-         "text": "9d8a6b0a9fbd2b37fe413272c5974291be71eb0d6def48f3b34c4741badf7082"
+         "text": "1b714cf33277acbef51da78dc41fbe7a92db422b17f8309d29f7025c8e454ab2"
         }
        ]
       }
@@ -9921,6 +9921,18 @@
     "en": "Choosing each level's options in the program, and drawing picture bullets",
     "es": "Elección de las opciones de cada nivel en el programa y dibujo de viñetas de imagen",
     "fr": "Choix des options de chaque niveau dans le programme et affichage des puces image"
+   }
+  },
+  "1b714cf33277acbef51da78dc41fbe7a92db422b17f8309d29f7025c8e454ab2": {
+   "drop": false,
+   "en": "Format speaker notes with bold, italic, underline, bulleted and numbered lists, and links. Notes are edited like slide text and shown formatted in the notes pane, Notes Page view, Presenter View, printed notes pages, and the slide show's Speaker Notes box.",
+   "es": "Dé formato a las notas del orador con negrita, cursiva, subrayado, listas con viñetas y numeradas, y vínculos. Las notas se editan como el texto de las diapositivas y se muestran con formato en el panel de notas, la vista Página de notas, la Vista del presentador, las páginas de notas impresas y el cuadro de notas del orador de la presentación.",
+   "fr": "Mettez en forme les notes du présentateur avec le gras, l’italique, le souligné, les listes à puces et numérotées, et les liens. Les notes se modifient comme le texte des diapositives et s’affichent mises en forme dans le volet des notes, la vue Page de notes, le mode Présentateur, les pages de notes imprimées et la zone de notes du présentateur du diaporama.",
+   "soon": {
+    "drop": false,
+    "en": "Pictures in speaker notes",
+    "es": "Imágenes en las notas del orador",
+    "fr": "Images dans les notes du présentateur"
    }
   },
   "1b93dc245163c4b7427260c23c72fc129dd4a73ba3135579a8c47012df3df61f": {
@@ -19941,18 +19953,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "9d8a6b0a9fbd2b37fe413272c5974291be71eb0d6def48f3b34c4741badf7082": {
-   "drop": false,
-   "en": "Speaker notes keep formatting in the file: bold, italic, bulleted and numbered lists, and links. Edit them in the notes pane like slide text, with bold, italic, underline, bullets, numbering, list levels, font, and links.",
-   "es": "Las notas del orador conservan el formato en el archivo: negrita, cursiva, listas con viñetas y numeradas, y vínculos. Edítelas en el panel de notas como el texto de una diapositiva, con negrita, cursiva, subrayado, viñetas, numeración, niveles de lista, fuente y vínculos.",
-   "fr": "Les notes du présentateur conservent leur mise en forme dans le fichier : gras, italique, listes à puces et numérotées, et liens. Modifiez-les dans le volet des notes comme le texte d’une diapositive, avec gras, italique, souligné, puces, numérotation, niveaux de liste, police et liens.",
-   "soon": {
-    "drop": false,
-    "en": "Formatted notes in Notes Page view, Presenter View, and the Speaker Notes box of the slide show",
-    "es": "Notas con formato en la vista Página de notas, la vista del presentador y el cuadro de notas del orador de la presentación",
-    "fr": "Notes mises en forme dans la vue Page de notes, le mode Présentateur et la zone de notes du diaporama"
    }
   },
   "9db480cbd18cdfea3ad2fc9103b349e19764bda55493d22c8026f86655f05a10": {
