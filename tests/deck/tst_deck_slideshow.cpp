@@ -1582,6 +1582,74 @@ private Q_SLOTS:
         QCOMPARE(pane->cursorForPosition(QPoint(4, 2)).blockNumber(), 0);
     }
 
+    // The person types at the END of a long note in one view; every other view then opens that note at its TOP (it opened at the end after the Notes Page was edited): each pair of
+    // views, in both directions: pane to Notes Page box, box to pane, pane to Presenter View, the pane after the show, box to Presenter View. (The show's Speaker Notes box is a fresh copy of the note for each slide: it is at the top by its making.)
+    // The view typed in keeps its caret where it was typed.
+    void everyViewOpensTheNoteAtItsTopAfterItWasEditedInAnother()
+    {
+        DeckWindow w;
+        Editor *ed = w.editor();
+        w.resize(1280, 800);
+        w.show();
+        w.newSlide();
+        {
+            QTextCursor c(ed->doc()->storyDoc(ed->doc()->pages[0]->notesStoryId));
+            for (int i = 0; i < 300; ++i) {
+                if (i) c.insertBlock();
+                c.insertText(QStringLiteral("Paragraph %1 of a long note").arg(i), QTextCharFormat());
+            }
+        }
+        ed->setCurrentPage(0);
+        w.notesPane()->reload();
+        ed->undoStack()->clear();
+        auto story = [&] { return ed->doc()->storyDoc(ed->doc()->pages[0]->notesStoryId); };
+        auto top = [&](QTextEdit *e, const QString &tag) {
+            QTRY_VERIFY2(e->isVisible() && e->document() == story(), qPrintable(tag + QStringLiteral(": not shown")));
+            QVERIFY2(e->verticalScrollBar()->maximum() > 0, qPrintable(tag + QStringLiteral(": the note is not longer than the view")));
+            QVERIFY2(e->verticalScrollBar()->value() == 0, qPrintable(tag + QStringLiteral(": scrolled to ") + QString::number(e->verticalScrollBar()->value())));
+            QVERIFY2(e->cursorForPosition(QPoint(4, 2)).blockNumber() == 0, qPrintable(tag + QStringLiteral(": the first line shown is not the note's first")));
+        };
+        auto typeAtEnd = [&](NotesPane *view, const QString &tag) {
+            view->setFocus();
+            QVERIFY2(view->takeTarget(), qPrintable(tag));
+            QTest::keyClick(view, Qt::Key_End, Qt::ControlModifier);
+            QTest::keyClick(view, Qt::Key_Z);
+            QVERIFY2(view->verticalScrollBar()->value() > 0, qPrintable(tag + QStringLiteral(": the view typed in follows its caret")));
+        };
+        // pane -> Notes Page box
+        top(w.notesPane(), QStringLiteral("pane at first"));
+        typeAtEnd(w.notesPane(), QStringLiteral("pane typed"));
+        w.act(QStringLiteral("view.notesPage"))->trigger();
+        NotesPane *box = w.notesPageView()->notesBox();
+        top(box, QStringLiteral("box after the pane was typed in"));
+        // box -> pane
+        typeAtEnd(box, QStringLiteral("box typed"));
+        w.act(QStringLiteral("view.normal"))->trigger();
+        top(w.notesPane(), QStringLiteral("pane after the box was typed in"));
+        // pane -> Presenter View
+        typeAtEnd(w.notesPane(), QStringLiteral("pane typed again"));
+        w.act("show.presenterView")->trigger();
+        SlideShow *show = w.slideShow();
+        QVERIFY(show && show->presenterView());
+        top(show->presenterView()->findChild<QTextEdit *>(QStringLiteral("notesText")), QStringLiteral("Presenter View after the pane was typed in"));
+        show->close();
+        QTRY_VERIFY(!w.slideShow());
+        top(w.notesPane(), QStringLiteral("pane after the show"));
+        typeAtEnd(w.notesPane(), QStringLiteral("pane typed before the box"));
+        w.act(QStringLiteral("view.notesPage"))->trigger();
+        top(box, QStringLiteral("box (after the show)"));
+        // box -> Presenter View
+        typeAtEnd(box, QStringLiteral("box typed before the show"));
+        w.act("show.presenterView")->trigger();
+        show = w.slideShow();
+        QVERIFY(show && show->presenterView());
+        top(show->presenterView()->findChild<QTextEdit *>(QStringLiteral("notesText")), QStringLiteral("Presenter View after the box was typed in"));
+        show->close();
+        QTRY_VERIFY(!w.slideShow());
+        w.act(QStringLiteral("view.normal"))->trigger();
+        top(w.notesPane(), QStringLiteral("pane after the show from the Notes Page"));
+    }
+
     // A+ and A- change how big the notes are shown and nothing in the note: its words, formats, default font, and revision stay; the shown size follows.
     void presenterViewTextSizeChangesOnlyTheDisplay()
     {

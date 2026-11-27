@@ -111,13 +111,14 @@ void StoryEdit::bind(const std::shared_ptr<Story> &story)
     }
     setTextCursor(c);
     if (!kept) {
+        m_took = false;   // (the person typed in the view that showed the words before, not in this one)
         verticalScrollBar()->setValue(0);
         horizontalScrollBar()->setValue(0);
     }
     m_syncing = false;
     markWords();
     m_markers->refresh();
-    if (isTarget()) followEditor();
+    if (isTarget() && isTyper()) followEditor();
     Q_EMIT storyShown();
 }
 
@@ -185,6 +186,10 @@ void StoryEdit::setYielding(bool yield)
     else setStory(m_id);
 }
 
+// The view the person is typing in: it has the keyboard, or took the Editor's text edit and has kept it. The other views of the same words (which show them in turn, or at once) do not
+// follow the caret: a note opens at its top in each, wherever the caret is.
+bool StoryEdit::isTyper() const { return hasFocus() || m_took; }
+
 bool StoryEdit::isTarget() const
 {
     return m_story && m_ed->editingStoryOnly() && m_ed->textTarget().storyId == m_id && m_ed->cursor().document() == m_story->doc.get();
@@ -199,13 +204,17 @@ bool StoryEdit::takeTarget()
         setStory(made);
         if (!m_story) return false;
     }
-    if (isTarget()) return true;
+    if (isTarget()) {
+        m_took = true;
+        return true;
+    }
     const QTextCursor c = textCursor();
     m_syncing = true;
     m_ed->beginStoryEdit(m_id, c.position());
     m_syncing = false;
     if (!isTarget()) return false;
     m_ed->setCursor(c);   // (with its selection)
+    m_took = true;
     return true;
 }
 
@@ -223,7 +232,7 @@ void StoryEdit::followView()
 
 void StoryEdit::followEditor()
 {
-    if (m_syncing || !isTarget()) return;
+    if (m_syncing || !isTarget() || !isTyper()) return;
     const QTextCursor &c = m_ed->cursor();
     const QTextCursor mine = textCursor();
     if (c.position() != mine.position() || c.anchor() != mine.anchor()) {

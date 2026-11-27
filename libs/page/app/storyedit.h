@@ -35,6 +35,8 @@ public:
     QString storyId() const { return m_id; }
     // The Editor's text edit is in this story now (the commands of the ribbon and the keys act on it).
     bool isTarget() const;
+    // The view the person is typing in (see the .cpp): the only one that follows the Editor's caret.
+    bool isTyper() const;
     // Puts the Editor's text edit here, at the view's caret: false when the presentation is read-only or there is no story.
     bool takeTarget();
     // Typed words are closed into one undo step (as a text box's are when the caret leaves or typing pauses).
@@ -120,6 +122,7 @@ private:
     double m_scale = 1.0;
     bool m_yield = false;
     bool m_ghost = false;
+    bool m_took = false;
     QImage m_device;                   // (only its resolution: the layout sizes the words by it when the display scale is not 1)
     bool m_syncing = false;
     QVector<Mark> m_marks;
