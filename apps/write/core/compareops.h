@@ -25,12 +25,14 @@ struct CompareLimits {
     qint64 moveWork = 20000000;                // the most words that are looked at to tell how like two paragraphs are
     qint64 moveCells = 100000000;              // the most cells of the tables that tell whether the words of two like paragraphs are in the same order (more: no more moves are looked for)
     qint64 diffCells = 2000000000;             // the most cells of the tables of lengths of all the paragraphs told apart word by word (more: a paragraph is one replacement); each paragraph is held to its own cap besides, so this is a bound of time
+    int stories = 500;                         // the most notes, headers, and footers (besides the text) that are told apart; the rest are left as they are, with a note
+    int boxes = 1000;                          // the most drawn objects (text boxes and others) of a document that are looked at to count the differences in text boxes (more: the rest are not looked at, with a note)
     int formatChanges = 20000;                 // the most changes of formatting that are made (more: the rest are left out)
     qint64 formatFragments = 500000;           // the most pieces of text of one look that are held to compare looks (more: the looks of the rest are not compared)
 };
 // What a compare did, for the tests of its cost: the pairs of paragraphs looked at for moves (with their words), the cells of tables, and the moves found.
 struct CompareWork {
-    qint64 moveComparisons = 0, moveWords = 0, moveCells = 0, diffCells = 0, moves = 0, formatChanges = 0, formatFragments = 0;
+    qint64 stories = 0, notMarked = 0, moveComparisons = 0, moveWords = 0, moveCells = 0, diffCells = 0, moves = 0, formatChanges = 0, formatFragments = 0;
 };
 // The limits and the count of work of one compare (made for each, so that none is shared).
 struct CompareContext {
@@ -38,8 +40,10 @@ struct CompareContext {
     CompareWork work;
 };
 
+// What a compare covers: the text, the footnotes (paired by the order of their marks), and the headers and footers (by section, kind, and slot). What it finds in a place it can't mark yet (a table that is not
+// the same shape in both, an endnote, a text box) is counted, and the note says how many: nothing that differs is left out without being told. (`revised` may have its notes and headers made ready to read; its words are not changed.)
 // A copy of `original` with the changes that make it `revised` as tracked changes by `options.author`: paragraphs of the text that are only in one, and the words that differ in the paragraphs
-// that are in both. Only the text of the body is compared (tables, headers and footers, and notes are not); paragraphs of it that were only moved are moves, and text that is the same but looks or is set differently is a change of formatting. `changes` gets how many changes were made, and `note` (when it is given) what the compare left out for the limits it has (empty when nothing).
+// that are in both. Moves are looked for in the text only; paragraphs of it that were only moved are moves, and text that is the same but looks or is set differently is a change of formatting. `changes` gets how many changes were made, and `note` (when it is given) what the compare left out for the limits it has (empty when nothing).
 // Inserted paragraphs have the revised paragraph's style, list, alignment, indents, and the look of its letters; the result has no protection of the original's. `progress` is told how many of the
 // differing places are done (of the total), and returns false to cancel (the result is then null, with an empty `error`). Null, with `error`, when the original cannot be copied.
 std::unique_ptr<WriteDoc> compareDocuments(WriteDoc &original, WriteDoc &revised, const CompareOptions &options, int *changes = nullptr, QString *error = nullptr,

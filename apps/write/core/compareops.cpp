@@ -1,8 +1,10 @@
 #include "core/compareops.h"
 
 #include "core/editops.h"
+#include "core/pictureops.h"
 #include "core/reviewops.h"
 #include "core/styleops.h"
+#include "core/tableops.h"
 #include "core/wordformat.h"
 #include "core/writeprops.h"
 #include "review/textdiff.h"
@@ -10,10 +12,13 @@
 #include "wml/wml.h"
 
 #include <QCoreApplication>
+#include <QHash>
 #include <QRegularExpression>
 #include <QSet>
 #include <QTextBlock>
+#include <QTextDocument>
 #include <algorithm>
+#include <climits>
 
 namespace jp::write {
 
@@ -81,6 +86,7 @@ struct Para {
     int blockFrom = 0;      // the paragraph's start in the story
     int blockEnd = 0;       // the end of its text (before its mark)
     bool ok = true;         // a paragraph that can be compared (not one that stands for a table or a note)
+    enum Kind { Normal, Cell, Endnote, Raw } kind = Normal;   // (what a paragraph that can't be compared is)
     struct Run {
         int from = 0;               // the first character of text that the run has
         QString key;                // its look, in a few words (lookKey)
@@ -101,11 +107,63 @@ QString lookKey(const QTextCharFormat &f)
     return k.join(QLatin1Char('|'));
 }
 
-QVector<Para> paragraphsOf(WriteDoc &doc, bool *tooMany, bool withLooks, CompareContext &ctx, bool *looksCut)
+// The tables of a story, for telling which cells can be compared: each table (a top-level one, by order) is its shape written as a few letters (a "p" for each paragraph, "," between cells, "|" between
+// rows; a table that holds another table is never the same as another), and each paragraph says which table it is in (-1: none).
+struct TableShapes {
+    QStringList shapes;
+    QVector<int> tableOfBlock;
+};
+TableShapes tableShapesOf(WriteDoc &doc, const QTextDocument *story, QChar side)
+{
+    TableShapes out;
+    QHash<const void *, int> ordinals;
+    int lastKey = 0;
+    const void *lastRow = nullptr;
+    for (QTextBlock b = story->begin(); b.isValid(); b = b.next()) {
+        int key = cellKeyOf(b);
+        const flow::CellRecord *rec = key ? doc.flow().tables.get(key) : nullptr;
+        if (!rec) {
+            out.tableOfBlock.push_back(-1);
+            lastKey = 0;
+            lastRow = nullptr;
+            continue;
+        }
+        bool nested = false;
+        const flow::CellRecord *root = rec;
+        for (int guard = 0; root->parent && guard < 64; ++guard) {
+            const flow::CellRecord *up = doc.flow().tables.get(root->parent);
+            if (!up) break;
+            root = up;
+            nested = true;
+        }
+        const void *table = root->table.get();
+        if (!ordinals.contains(table)) {
+            ordinals.insert(table, int(out.shapes.size()));
+            out.shapes << QString();
+        }
+        const int ordinal = ordinals.value(table);
+        out.tableOfBlock.push_back(ordinal);
+        QString &shape = out.shapes[ordinal];
+        if (nested) {
+            if (!shape.startsWith(QLatin1Char('!'))) shape = QLatin1Char('!') + side + shape;   // (never the same as the other side's)
+            continue;
+        }
+        if (rec->row.get() != lastRow) shape += QLatin1Char('|');
+        else if (key != lastKey) shape += QLatin1Char(',');
+        lastRow = rec->row.get();
+        lastKey = key;
+        shape += QLatin1Char('p');
+    }
+    return out;
+}
+
+QVector<Para> paragraphsOf(QTextDocument *story, const QVector<char> *comparableTable, const TableShapes &tables, bool *tooMany, bool withLooks, CompareContext &ctx, bool *looksCut)
 {
     QVector<Para> out;
     *tooMany = false;
-    for (QTextBlock b = doc.story()->begin(); b.isValid(); b = b.next()) {
+    int blockNumber = -1;
+    for (QTextBlock b = story->begin(); b.isValid(); b = b.next()) {
+        ++blockNumber;
         if (out.size() >= kMostParagraphs) {
             *tooMany = true;
             break;
@@ -114,6 +172,10 @@ QVector<Para> paragraphsOf(WriteDoc &doc, bool *tooMany, bool withLooks, Compare
         p.blockFrom = b.position();
         p.blockEnd = b.position() + b.length() - 1;
         p.ok = !isLocked(b) && !b.blockFormat().hasProperty(prop::EndnoteBlock);
+        if (!p.ok) p.kind = b.blockFormat().hasProperty(prop::EndnoteBlock) ? Para::Endnote : Para::Raw;
+        const int table = blockNumber < tables.tableOfBlock.size() ? tables.tableOfBlock.at(blockNumber) : -1;
+        if (table >= 0 && (!comparableTable || table >= comparableTable->size() || !comparableTable->at(table))) p.ok = false;   // (a cell of a table that is not the same shape in both)
+        if (!p.ok && p.kind == Para::Normal) p.kind = Para::Cell;
         if (p.ok) {
             for (QTextBlock::iterator it = b.begin(); !it.atEnd(); ++it) {
                 const QTextFragment f = it.fragment();
@@ -160,9 +222,9 @@ void giveLook(QTextCharFormat &f, const QTextCharFormat &from)
 
 // A paragraph put in after the cursor's paragraph: its words, in the look of the revised paragraph's, and the style, list, alignment, and indents of the revised paragraph. The paragraph mark and the words
 // are tracked insertions; the look given to them is part of the insertion (not a change of its own).
-int insertRevisedParagraph(WriteDoc &out, QTextCursor &c, WriteDoc &revised, const Para &source, bool before)
+int insertRevisedParagraph(WriteDoc &out, QTextDocument *ostory, QTextCursor &c, WriteDoc &revised, QTextDocument *rstory, const Para &source, bool before)
 {
-    const QTextBlock srcBlock = revised.story()->findBlock(source.blockFrom);
+    const QTextBlock srcBlock = rstory->findBlock(source.blockFrom);
     auto words = [&] {
         for (QTextBlock::iterator it = srcBlock.begin(); !it.atEnd(); ++it) {
             const QTextFragment f = it.fragment();
@@ -174,7 +236,7 @@ int insertRevisedParagraph(WriteDoc &out, QTextCursor &c, WriteDoc &revised, con
             const int from = c.position();
             insertText(out, c, piece);
             const UntrackedEdit untracked;
-            QTextCursor range(out.story());
+            QTextCursor range(ostory);
             range.setPosition(from);
             range.setPosition(c.position(), QTextCursor::KeepAnchor);
             changeCharFormat(out, range, [&](QTextCharFormat &g) { giveLook(g, cf); });
@@ -184,14 +246,14 @@ int insertRevisedParagraph(WriteDoc &out, QTextCursor &c, WriteDoc &revised, con
     if (before) {
         words();
         insertParagraph(out, c);
-        blockStart = out.story()->findBlock(c.position()).previous().position();
+        blockStart = ostory->findBlock(c.position()).previous().position();
     } else {
         insertParagraph(out, c);
-        blockStart = out.story()->findBlock(c.position()).position();
+        blockStart = ostory->findBlock(c.position()).position();
         words();
     }
     const UntrackedEdit untracked;
-    QTextCursor at(out.story());
+    QTextCursor at(ostory);
     at.setPosition(blockStart);
     const QString style = srcBlock.blockFormat().stringProperty(tp::StyleName);
     if (!style.isEmpty() && styleOfDocument(out, style)) applyParagraphStyle(out, at, style);
@@ -203,7 +265,7 @@ int insertRevisedParagraph(WriteDoc &out, QTextCursor &c, WriteDoc &revised, con
         bf.setTextIndent(sf.textIndent());
     });
     const ListKind kind = listKindOf(revised, srcBlock);
-    if (kind != ListKind::None && listKindOf(out, out.story()->findBlock(blockStart)) == ListKind::None) toggleList(out, at, kind == ListKind::Numbers);
+    if (kind != ListKind::None && listKindOf(out, ostory->findBlock(blockStart)) == ListKind::None) toggleList(out, at, kind == ListKind::Numbers);
     return blockStart;
 }
 
@@ -515,7 +577,7 @@ int runIndexAt(const QVector<Para::Run> &runs, int index)
 }
 
 // Records the changes of the look of the letters of text that is the same in both: the old look is kept as a change of properties and the new look is the revised one's.
-int compareRunLooks(WriteDoc &out, const Para &pa, const Para &pb, const QVector<Segment> &same, bool *capped, CompareContext &ctx)
+int compareRunLooks(WriteDoc &out, QTextDocument *ostory, const Para &pa, const Para &pb, const QVector<Segment> &same, bool *capped, CompareContext &ctx)
 {
     int made = 0;
     CompareWork &work = ctx.work;
@@ -535,13 +597,13 @@ int compareRunLooks(WriteDoc &out, const Para &pa, const Para &pb, const QVector
                         *capped = true;
                         return made;
                     }
-                    QTextCursor c(out.story());
+                    QTextCursor c(ostory);
                     c.setPosition(pa.places.at(k));
                     c.setPosition(pa.places.at(e - 1) + 1, QTextCursor::KeepAnchor);
                     const QTextCharFormat look = pb.runs.at(rb).format;
                     changeCharFormat(out, c, [&](QTextCharFormat &g) { giveLook(g, look); });
                     // (Only a change that was made is counted: the edit can be refused, or leave the look as it was.)
-                    QTextCursor after(out.story());
+                    QTextCursor after(ostory);
                     after.setPosition(pa.places.at(k) + 1);
                     if (after.charFormat().boolProperty(tp::RevisionFormat)) {
                         ++work.formatChanges;
@@ -564,10 +626,10 @@ bool paragraphLooksDiffer(const QTextBlockFormat &x, const QString &xStyle, cons
 }
 
 // Records a change of the paragraph's style, alignment, indents, or spacing (the old ones are kept) and gives it the revised paragraph's (with `apply` false, only tells whether they differ).
-int compareParagraphLooks(WriteDoc &out, int blockPos, WriteDoc &revised, int revisedBlockPos, bool apply = true)
+int compareParagraphLooks(WriteDoc &out, QTextDocument *ostory, int blockPos, WriteDoc &revised, QTextDocument *rstory, int revisedBlockPos, bool apply = true)
 {
-    QTextBlock blk = out.story()->findBlock(blockPos);
-    const QTextBlock src = revised.story()->findBlock(revisedBlockPos);
+    QTextBlock blk = ostory->findBlock(blockPos);
+    const QTextBlock src = rstory->findBlock(revisedBlockPos);
     if (!blk.isValid() || !src.isValid() || blk.blockFormat().hasProperty(prop::RawBlock) || src.blockFormat().hasProperty(prop::RawBlock)) return 0;
     auto styleOf = [](WriteDoc &d, const QTextBlock &b) {
         const QString s = b.blockFormat().stringProperty(tp::StyleName);
@@ -592,7 +654,7 @@ int compareParagraphLooks(WriteDoc &out, int blockPos, WriteDoc &revised, int re
             bf.setLineHeight(sf.lineHeight(), sf.lineHeightType());
         });
     }
-    blk = out.story()->findBlock(blockPos);
+    blk = ostory->findBlock(blockPos);
     const QTextBlockFormat now = blk.blockFormat();
     if (now == was) return 0;
     QTextCursor(blk).setBlockFormat(withParagraphRecord(out, was, now));
@@ -601,36 +663,30 @@ int compareParagraphLooks(WriteDoc &out, int blockPos, WriteDoc &revised, int re
 
 } // namespace
 
-std::unique_ptr<WriteDoc> compareDocuments(WriteDoc &original, WriteDoc &revised, const CompareOptions &options, int *changes, QString *error, const std::function<bool(int, int)> &progress, QString *note)
+namespace {
+
+enum class Outcome { Done, TooMany, Canceled };
+
+void addNote(QStringList *notes, const QString &text)
 {
-    CompareContext context;
-    return compareDocumentsWith(context, original, revised, options, changes, error, progress, note);
+    if (!notes->contains(text)) notes->push_back(text);
 }
 
-std::unique_ptr<WriteDoc> compareDocumentsWith(CompareContext &context, WriteDoc &original, WriteDoc &revised, const CompareOptions &options, int *changes, QString *error, const std::function<bool(int, int)> &progress,
-                                               QString *note)
+// One story of the copy against its partner in the revised document, with the limits and the counts of `context`. The body is the one that looks for moves.
+Outcome compareStory(CompareContext &context, WriteDoc *out, QTextDocument *story, WriteDoc &revised, QTextDocument *rstory, const CompareOptions &options, bool isBody, int *madeTotal, int *doneTotal, int storiesLeft,
+                     QStringList *notes, const std::function<bool(int, int)> &progress)
 {
-    if (changes) *changes = 0;
-    if (error) error->clear();
-    if (note) note->clear();
-    context.work = CompareWork();
-    QString err;
-    std::unique_ptr<WriteDoc> out = WriteDoc::fromDocx(original.toDocx(&err), &err);
-    if (!out) {
-        if (error) *error = err;
-        return nullptr;
+    const TableShapes tablesA = tableShapesOf(*out, story, QLatin1Char('a')), tablesB = tableShapesOf(revised, rstory, QLatin1Char('b'));
+    QVector<char> comparable(int(std::max(tablesA.shapes.size(), tablesB.shapes.size())), 0);
+    for (int k = 0; k < comparable.size(); ++k) {
+        comparable[k] = k < tablesA.shapes.size() && k < tablesB.shapes.size() && tablesA.shapes.at(k) == tablesB.shapes.at(k) && !tablesA.shapes.at(k).startsWith(QLatin1Char('!'));
+        if (!comparable.at(k)) ++context.work.notMarked;   // (a table that is not the same shape in both, or is in one only: not looked into, and not flattened)
     }
-    out->setReviewer(options.author.trimmed().isEmpty() ? QStringLiteral("Author") : options.author.trimmed(), QString());
-    // (A copy that shows the differences is not a protected document, whatever the original was.)
-    out->setProtection(std::nullopt);
     bool many1 = false, many2 = false;
     bool looksCut = false;
-    QVector<Para> a = paragraphsOf(*out, &many1, options.compareFormatting, context, &looksCut);
-    const QVector<Para> b = paragraphsOf(revised, &many2, options.compareFormatting, context, &looksCut);
-    if (many1 || many2) {
-        if (error) *error = QCoreApplication::translate("jp::write::Compare", "A document with that many paragraphs can't be compared.");
-        return nullptr;
-    }
+    QVector<Para> a = paragraphsOf(story, &comparable, tablesA, &many1, options.compareFormatting, context, &looksCut);
+    const QVector<Para> b = paragraphsOf(rstory, &comparable, tablesB, &many2, options.compareFormatting, context, &looksCut);
+    if (many1 || many2) return Outcome::TooMany;
     // The paragraphs that are the same in both, in order.
     auto key = [&](const Para &p) {
         QString k = p.ok ? p.text : QStringLiteral("\x01");
@@ -669,13 +725,12 @@ std::unique_ptr<WriteDoc> compareDocumentsWith(CompareContext &context, WriteDoc
         for (int j = g.b0; j < g.b1; ++j) gapB[j] = k;
         gaps.push_back(g);
     }
-    QString notes;
     // Paragraphs that only moved.
     QVector<int> movedA(a.size(), -1), movedB(b.size(), -1);
     QStringList moveNames;
     QStringList moveFromTexts;
     QVector<QVector<TextEdit>> moveEdits;   // for each move, the words that differ between its two halves (letter for letter, whatever the options ignore)
-    if (options.detectMoves) {
+    if (options.detectMoves && isBody) {
         bool skipped = false;
         const QVector<QPair<int, int>> moves = findMoves(a, b, ka, kb, gapA, gapB, matchedA, matchedB, options, context, &skipped);
         for (const auto &m : moves) {
@@ -698,7 +753,7 @@ std::unique_ptr<WriteDoc> compareDocumentsWith(CompareContext &context, WriteDoc
             moveFromTexts << pa.text;
         }
         context.work.moves = moves.size();
-        if (skipped) notes += QCoreApplication::translate("jp::write::Compare", "Too many changes to look for all the moved text.") + QLatin1Char(' ');
+        if (skipped) addNote(notes, QCoreApplication::translate("jp::write::Compare", "Too many changes to look for all the moved text."));
     }
     for (Gap &g : gaps) {
         for (int i = g.a0; i < g.a1; ++i)
@@ -734,42 +789,40 @@ std::unique_ptr<WriteDoc> compareDocumentsWith(CompareContext &context, WriteDoc
             pairList.push_back(p);
         }
     }
-    if (wholeReplaced) notes += QCoreApplication::translate("jp::write::Compare", "Too many changes to compare every paragraph word by word, so some are shown as replaced whole.") + QLatin1Char(' ');
+    if (wholeReplaced) addNote(notes, QCoreApplication::translate("jp::write::Compare", "Too many changes to compare every paragraph word by word, so some are shown as replaced whole."));
     // The places where the two differ, to tell the progress of.
     int places = 0;
     for (const Gap &g : std::as_const(gaps))
         if (g.a1 > g.a0 || g.b1 > g.b0) ++places;
-    out->setTrackChanges(true);
-    int made = 0, done = 0;
-    QTextDocument *story = out->story();
+    int &made = *madeTotal;
     // The looks: they change no length, so every place in the paragraphs stays where it is for the changes of the words that follow.
     if (options.compareFormatting) {
         bool capped = false;
         auto looks = [&](int ai, int bi, const QVector<TextEdit> &edits) {
             const Para &pa = a.at(ai), &pb = b.at(bi);
             if (!pa.ok || !pb.ok || capped) return;
-            made += compareRunLooks(*out, pa, pb, sameStretches(pa, pb, edits, options.ignoreCase), &capped, context);
+            made += compareRunLooks(*out, story, pa, pb, sameStretches(pa, pb, edits, options.ignoreCase), &capped, context);
             if (capped) return;
             if (context.work.formatChanges >= context.limits.formatChanges) {
                 // (The paragraph's own settings are counted as the looks of letters are.)
-                if (compareParagraphLooks(*out, pa.blockFrom, revised, pb.blockFrom, false) > 0) capped = true;
+                if (compareParagraphLooks(*out, story, pa.blockFrom, revised, rstory, pb.blockFrom, false) > 0) capped = true;
                 return;
             }
-            const int changed = compareParagraphLooks(*out, pa.blockFrom, revised, pb.blockFrom);
+            const int changed = compareParagraphLooks(*out, story, pa.blockFrom, revised, rstory, pb.blockFrom);
             context.work.formatChanges += changed;
             made += changed;
         };
         for (int k = 0; k < keepA.size(); ++k) looks(keepA.at(k), keepB.at(k), {});
         for (const PairInfo &p : std::as_const(pairList)) looks(p.a, p.b, p.edits);
-        if (capped || looksCut) notes += QCoreApplication::translate("jp::write::Compare", "Too many changes of formatting to show them all.") + QLatin1Char(' ');
+        if (capped || looksCut) addNote(notes, QCoreApplication::translate("jp::write::Compare", "Too many changes of formatting to show them all."));
     }
     // From the last gap to the first, so that a place found before an edit is still its place after the edits after it.
     for (int k = int(gaps.size()) - 1; k >= 0; --k) {
         const Gap &g = gaps.at(k);
         if (g.a1 == g.a0 && g.b1 == g.b0) continue;
-        if (progress && !progress(done++, places)) {
-            if (error) error->clear();
-            return nullptr;
+        if (progress) {
+            const int d = (*doneTotal)++;
+            if (!progress(d, d + places + storiesLeft)) return Outcome::Canceled;
         }
         const int pairs = int(std::min(g.aOnly.size(), g.bOnly.size()));
         // The paragraphs that are only in the revised version (or are moved here), put after the last paragraph of the gap (or after the one before it).
@@ -784,7 +837,11 @@ std::unique_ptr<WriteDoc> compareDocumentsWith(CompareContext &context, WriteDoc
             else c.setPosition(0);
             const bool atStart = after < 0;
             for (const int t : std::as_const(inserts)) {
-                const int at = insertRevisedParagraph(*out, c, revised, b.at(t), atStart);
+                if (!b.at(t).ok) {
+                    if (b.at(t).kind == Para::Raw) ++context.work.notMarked;   // (a paragraph that stands for something kept as it was written)
+                    continue;
+                }
+                const int at = insertRevisedParagraph(*out, story, c, revised, rstory, b.at(t), atStart);
                 if (movedB.at(t) >= 0) {
                     makeMove(*out, at, atStart ? at : story->findBlock(at).previous().position(), moveNames.at(movedB.at(t)), false);
                     markMovedEdits(*out, at, moveFromTexts.at(movedB.at(t)), moveEdits.at(movedB.at(t)));
@@ -807,7 +864,10 @@ std::unique_ptr<WriteDoc> compareDocumentsWith(CompareContext &context, WriteDoc
         for (const Op &op : std::as_const(ops)) {
             if (op.pair < 0) {
                 const int t = op.a;
-                if (!a.at(t).ok) continue;
+                if (!a.at(t).ok) {
+                    if (a.at(t).kind == Para::Raw) ++context.work.notMarked;
+                    continue;
+                }
                 QTextCursor c(story);
                 const QTextBlock blk = story->findBlock(a.at(t).blockFrom);
                 // (A paragraph that moved is deleted as the last one is: its text and the mark of the paragraph before it. The marks of the moves' ranges stay in it when the change is accepted, and a
@@ -857,9 +917,150 @@ std::unique_ptr<WriteDoc> compareDocumentsWith(CompareContext &context, WriteDoc
             }
         }
     }
-    if (progress) progress(places, places);
+    return Outcome::Done;
+}
+
+} // namespace
+
+std::unique_ptr<WriteDoc> compareDocuments(WriteDoc &original, WriteDoc &revised, const CompareOptions &options, int *changes, QString *error, const std::function<bool(int, int)> &progress, QString *note)
+{
+    CompareContext context;
+    return compareDocumentsWith(context, original, revised, options, changes, error, progress, note);
+}
+
+namespace {
+
+// The footnotes' Ids in the order their marks come in the text.
+QVector<int> footnotesInOrder(WriteDoc &doc)
+{
+    QVector<std::pair<int, int>> byPlace;
+    for (const int id : doc.citedFootnotes()) {
+        const QVector<int> refs = doc.footnoteReferences(id);
+        byPlace.push_back({refs.isEmpty() ? INT_MAX : refs.first(), id});
+    }
+    std::sort(byPlace.begin(), byPlace.end());
+    QVector<int> out;
+    for (const auto &p : std::as_const(byPlace)) out << p.second;
+    return out;
+}
+
+// The words of the endnotes' paragraphs and of the text boxes in the text, as lists to tell how many differ (these are not marked yet).
+void countUnmarkedElsewhere(WriteDoc &original, WriteDoc &revised, CompareContext &context, QStringList *notes)
+{
+    auto endnotes = [](WriteDoc &d) {
+        QStringList out;
+        for (QTextBlock b = d.story()->begin(); b.isValid(); b = b.next())
+            if (b.blockFormat().hasProperty(prop::EndnoteBlock)) out << b.text();
+        return out;
+    };
+    auto boxes = [&](WriteDoc &d) {
+        QStringList out;
+        int looked = 0;
+        for (QTextBlock blk = d.story()->begin(); blk.isValid(); blk = blk.next())
+            for (QTextBlock::iterator it = blk.begin(); !it.atEnd(); ++it) {
+                const QTextFragment f = it.fragment();
+                if (!f.charFormat().hasProperty(prop::Atom)) continue;
+                for (int i = 0; i < f.length(); ++i) {
+                    if (++looked > context.limits.boxes) {
+                        addNote(notes, QCoreApplication::translate("jp::write::Compare", "Too many text boxes to compare them all."));
+                        return out;
+                    }
+                    if (const std::optional<QStringList> words = textBoxText(d, f.position() + i)) out << words->join(QLatin1Char('\n'));
+                }
+            }
+        return out;
+    };
+    auto apart = [](const QStringList &x, const QStringList &y) {
+        QHash<QString, int> have;
+        for (const QString &t : x) ++have[t];
+        int missing = 0;
+        for (const QString &t : y)
+            if (have.value(t) > 0) --have[t];
+            else ++missing;
+        int left = 0;
+        for (auto it = have.constBegin(); it != have.constEnd(); ++it) left += it.value();
+        return std::max(missing, left);
+    };
+    context.work.notMarked += apart(endnotes(original), endnotes(revised));
+    context.work.notMarked += apart(boxes(original), boxes(revised));
+}
+
+} // namespace
+
+std::unique_ptr<WriteDoc> compareDocumentsWith(CompareContext &context, WriteDoc &original, WriteDoc &revised, const CompareOptions &options, int *changes, QString *error, const std::function<bool(int, int)> &progress,
+                                               QString *note)
+{
+    if (changes) *changes = 0;
+    if (error) error->clear();
+    if (note) note->clear();
+    context.work = CompareWork();
+    QString err;
+    std::unique_ptr<WriteDoc> out = WriteDoc::fromDocx(original.toDocx(&err), &err);
+    if (!out) {
+        if (error) *error = err;
+        return nullptr;
+    }
+    out->setReviewer(options.author.trimmed().isEmpty() ? QStringLiteral("Author") : options.author.trimmed(), QString());
+    // (A copy that shows the differences is not a protected document, whatever the original was.)
+    out->setProtection(std::nullopt);
+    out->setTrackChanges(true);
+    QStringList notes;
+    int made = 0, done = 0;
+    // The stories that are told apart: the text, then the footnotes (paired by the order of their marks), then the headers and footers (by section, kind, and slot, those a section has of its own in both).
+    struct Pair {
+        QTextDocument *story, *partner;
+        bool body;
+    };
+    QVector<Pair> pairs;
+    pairs.push_back({out->story(), revised.story(), true});
+    int skipped = 0;
+    auto add = [&](QTextDocument *x, QTextDocument *y) {
+        if (!x || !y) {
+            ++context.work.notMarked;
+        } else if (pairs.size() - 1 >= context.limits.stories) {
+            ++skipped;
+        } else {
+            pairs.push_back({x, y, false});
+        }
+    };
+    const QVector<int> notesA = footnotesInOrder(*out), notesB = footnotesInOrder(revised);
+    for (int k = 0; k < std::max(notesA.size(), notesB.size()); ++k)
+        add(k < notesA.size() ? out->editableFootnote(notesA.at(k)) : nullptr, k < notesB.size() ? revised.editableFootnote(notesB.at(k)) : nullptr);
+    for (int s = 0; s < std::max(out->sectionCount(), revised.sectionCount()); ++s)
+        for (const bool footer : {false, true})
+            for (int slot = 0; slot < 3; ++slot) {
+                const bool ownA = s < out->sectionCount() && out->hasOwnHeaderFooter(s, footer, slot), ownB = s < revised.sectionCount() && revised.hasOwnHeaderFooter(s, footer, slot);
+                if (ownA && ownB) add(out->editableHeaderFooter(s, footer, slot), revised.editableHeaderFooter(s, footer, slot));
+                else if (ownA || ownB) ++context.work.notMarked;
+            }
+    context.work.stories = pairs.size();
+    if (skipped) addNote(&notes, QCoreApplication::translate("jp::write::Compare", "Too many notes, headers, and footers to compare them all."));
+    for (int k = 0; k < pairs.size(); ++k) {
+        CompareOptions here = options;
+        here.detectMoves = options.detectMoves && pairs.at(k).body;
+        // (A change in a header, a footer, or a note is recorded as a change of that story, as the words of a text box are.)
+        std::optional<TrackedStory> tracked;
+        if (!pairs.at(k).body) tracked.emplace(pairs.at(k).story);
+        const Outcome r = compareStory(context, out.get(), pairs.at(k).story, revised, pairs.at(k).partner, here, pairs.at(k).body, &made, &done, int(pairs.size()) - k - 1, &notes, progress);
+        if (r == Outcome::Canceled) {
+            if (error) error->clear();
+            return nullptr;
+        }
+        if (r == Outcome::TooMany) {
+            if (pairs.at(k).body) {
+                if (error) *error = QCoreApplication::translate("jp::write::Compare", "A document with that many paragraphs can't be compared.");
+                return nullptr;
+            }
+            ++context.work.notMarked;   // (a note, header, or footer with that many paragraphs: left as it is, and told)
+        }
+    }
+    countUnmarkedElsewhere(original, revised, context, &notes);
+    if (context.work.notMarked > 0)
+        notes.push_back(QCoreApplication::translate("jp::write::Compare", "%n difference is in a place that Compare can't mark yet (a changed table, an endnote, or a text box), so it is not shown.",
+                                                    "", int(context.work.notMarked)));
+    if (progress) progress(done, done);
     if (changes) *changes = made;
-    if (note) *note = notes.trimmed();
+    if (note) *note = notes.join(QLatin1Char(' ')).trimmed();
     return out;
 }
 

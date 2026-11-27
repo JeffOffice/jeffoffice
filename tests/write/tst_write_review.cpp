@@ -5288,6 +5288,254 @@ private Q_SLOTS:
         QCOMPARE(countOf(documentXml(all->toDocx()), "<w:rPrChange"), 4);
     }
 
+    // ---- Compare everywhere: stories, tables, and what can't be marked yet
+    static QByteArray headerText(const QByteArray &zip, const char *part)
+    {
+        QByteArray x = partOf(zip, part);
+        x.replace("</w:t>", " ").replace("</w:p>", "\n");
+        QByteArray out;
+        bool tag = false;
+        for (const char c : std::as_const(x)) {
+            if (c == '<') tag = true;
+            else if (c == '>') tag = false;
+            else if (!tag) out += c;
+        }
+        return out.simplified();
+    }
+
+    void compareMarksTheChangesOfHeadersFootersAndFootnotesAndTheyAcceptAndRejectToTheTwoVersions()
+    {
+        StoryParts a, b;
+        a.body = b.body = para(run("same"));
+        a.header = para(run("head one"));
+        b.header = para(run("head two"));
+        a.footer = b.footer = para(run("foot"));
+        a.footnote = para(run("note one"));
+        b.footnote = para(run("note two"));
+        auto original = open(makeDocxWithStories(a)), revised = open(makeDocxWithStories(b));
+        CompareContext context;
+        CompareOptions o;
+        o.author = QStringLiteral("Rev");
+        int changes = 0;
+        QString note;
+        auto result = compareDocumentsWith(context, *original, *revised, o, &changes, nullptr, {}, &note);
+        QVERIFY(result);
+        QCOMPARE(context.work.stories, qint64(4));   // (the text, the footnote, the header, and the footer)
+        QCOMPARE(context.work.notMarked, qint64(0));
+        QVERIFY(note.isEmpty());
+        QCOMPARE(changes, 2);   // (one replaced word in each of two stories)
+        // Saved and opened again (the file's own path), the marks are in the header's and the note's parts, by the person, and nowhere else.
+        const QByteArray saved = result->toDocx();
+        for (const char *part : {"/word/header1.xml", "/word/footnotes.xml"}) {
+            const QByteArray x = partOf(saved, part);
+            QVERIFY2(x.contains("<w:ins ") && x.contains("<w:del ") && x.contains("w:author=\"Rev\""), part);
+        }
+        QVERIFY(!xmlHasChanges(partOf(saved, "/word/footer1.xml")));
+        for (const bool accept : {true, false}) {
+            auto again = open(saved);
+            QVERIFY(again);
+            if (accept) acceptAll(*again); else rejectAll(*again);
+            const QByteArray out = again->toDocx();
+            QCOMPARE(headerText(out, "/word/header1.xml"), QByteArray(accept ? "head two" : "head one"));
+            QCOMPARE(headerText(out, "/word/footnotes.xml"), QByteArray(accept ? "note two" : "note one"));
+        }
+    }
+
+    void theStoriesThatAreToldApartAreBoundedAndTheRestIsSaid()
+    {
+        StoryParts a, b;
+        a.body = b.body = para(run("same"));
+        a.header = para(run("head one"));
+        b.header = para(run("head two"));
+        a.footnote = para(run("note one"));
+        b.footnote = para(run("note two"));
+        auto original = open(makeDocxWithStories(a)), revised = open(makeDocxWithStories(b));
+        CompareOptions o;
+        o.author = QStringLiteral("Rev");
+        QString note;
+        int changes = 0;
+        CompareContext limited;
+        limited.limits.stories = 1;   // (the footnote only)
+        auto result = compareDocumentsWith(limited, *original, *revised, o, &changes, nullptr, {}, &note);
+        QVERIFY(result);
+        QCOMPARE(limited.work.stories, qint64(2));
+        QVERIFY(note.contains(QStringLiteral("Too many notes, headers, and footers")));
+        QCOMPARE(changes, 1);
+        QVERIFY(!xmlHasChanges(partOf(result->toDocx(), "/word/header1.xml")));
+        QVERIFY(xmlHasChanges(partOf(result->toDocx(), "/word/footnotes.xml")));
+        // (and with room for all, nothing is left out)
+        CompareContext roomy;
+        auto all = compareDocumentsWith(roomy, *original, *revised, o, &changes, nullptr, {}, &note);
+        QVERIFY(all && note.isEmpty());
+        QCOMPARE(changes, 2);
+    }
+
+    void aHeaderThatOnlyOneVersionHasIsCountedAsNotMarked()
+    {
+        StoryParts a, b;
+        a.body = b.body = para(run("same"));
+        b.header = para(run("new header"));
+        CompareContext context;
+        CompareOptions o;
+        o.author = QStringLiteral("Rev");
+        QString note;
+        auto original = open(makeDocxWithStories(a)), revised = open(makeDocxWithStories(b));
+        QVERIFY(compareDocumentsWith(context, *original, *revised, o, nullptr, nullptr, {}, &note));
+        QCOMPARE(context.work.notMarked, qint64(1));
+        QVERIFY(note.contains(QStringLiteral("can't mark yet")));
+    }
+
+    void aTableThatIsNotTheSameShapeIsNotFlattenedAndTheDifferenceIsCounted()
+    {
+        const QByteArray cellsA[] = {para(run("a1")), para(run("a2")), para(run("b1")), para(run("b2"))};
+        const QByteArray one = tableOf({{{}, {cellOf({}, cellsA[0]), cellOf({}, cellsA[1])}}, {{}, {cellOf({}, cellsA[2]), cellOf({}, cellsA[3])}}}, 2);
+        const QByteArray two = tableOf({{{}, {cellOf({}, para(run("a1"))), cellOf({}, para(run("a2")))}}, {{}, {cellOf({}, para(run("b1"))), cellOf({}, para(run("b2")))}},
+                                        {{}, {cellOf({}, para(run("c1"))), cellOf({}, para(run("c2")))}}}, 2);
+        QString note;
+        int changes = 0;
+        auto result = compared(one, two, CompareOptions(), &note, &changes);
+        QVERIFY(result);
+        QCOMPARE(testContext().work.notMarked, qint64(1));
+        QVERIFY(note.contains(QStringLiteral("can't mark yet")));
+        QCOMPARE(changes, 0);
+        // The table is as the original had it: two rows of two cells, one paragraph in each, and nothing tracked.
+        const QByteArray saved = documentXml(result->toDocx());
+        const QVector<SavedTable> tables = savedTables(saved);
+        QCOMPARE(tables.size(), 1);
+        QCOMPARE(tables[0].rows, (QVector<QStringList>{{"a1", "a2"}, {"b1", "b2"}}));
+        QCOMPARE(countOf(saved, "<w:ins "), 0);
+        // The words around it are compared as they were.
+        auto around = compared(para(run("before")) + one, para(run("before changed")) + two);
+        QVERIFY(countOf(documentXml(around->toDocx()), "<w:ins ") >= 1);
+        auto rejected = open(around->toDocx()), accepted = open(around->toDocx());
+        rejectAll(*rejected);
+        acceptAll(*accepted);
+        QCOMPARE(bodyTexts(*rejected).value(0), QStringLiteral("before"));
+        QCOMPARE(bodyTexts(*accepted).value(0), QStringLiteral("before changed"));
+        QCOMPARE(savedTables(documentXml(accepted->toDocx())).value(0).rows.size(), 2);   // (still the original's two rows)
+    }
+
+    void aTableOfTheSameShapeIsStillComparedCellByCell()
+    {
+        const QByteArray one = tableOf({{{}, {cellOf({}, para(run("a1"))), cellOf({}, para(run("a2")))}}, {{}, {cellOf({}, para(run("b1"))), cellOf({}, para(run("b2")))}}}, 2);
+        const QByteArray two = tableOf({{{}, {cellOf({}, para(run("a1"))), cellOf({}, para(run("a2")))}}, {{}, {cellOf({}, para(run("b1 more"))), cellOf({}, para(run("b2")))}}}, 2);
+        QString note;
+        int changes = 0;
+        auto result = compared(one, two, CompareOptions(), &note, &changes);
+        QVERIFY(result);
+        QCOMPARE(testContext().work.notMarked, qint64(0));
+        QVERIFY(note.isEmpty());
+        QCOMPARE(changes, 1);
+        verifyAcceptsAndRejects(one, two);
+        // (a table that is in one version only is counted, and not made up)
+        auto lone = compared(para(run("x")), para(run("x")) + one);
+        QVERIFY(lone);
+        QCOMPARE(testContext().work.notMarked, qint64(1));
+        QCOMPARE(savedTables(documentXml(lone->toDocx())).size(), 0);
+    }
+
+    void anEndnoteThatDiffersIsCountedAndNotDropped()
+    {
+        StoryParts a, b;
+        a.body = b.body = para(run("same"));
+        a.endnote = para(run("end one"));
+        b.endnote = para(run("end two"));
+        CompareContext context;
+        CompareOptions o;
+        o.author = QStringLiteral("Rev");
+        QString note;
+        auto original = open(makeDocxWithStories(a)), revised = open(makeDocxWithStories(b));
+        auto result = compareDocumentsWith(context, *original, *revised, o, nullptr, nullptr, {}, &note);
+        QVERIFY(result);
+        QCOMPARE(context.work.notMarked, qint64(1));
+        QVERIFY(note.contains(QStringLiteral("can't mark yet")));
+        // (the same endnotes are no difference)
+        CompareContext same;
+        auto original2 = open(makeDocxWithStories(a)), revised2 = open(makeDocxWithStories(a));
+        QVERIFY(compareDocumentsWith(same, *original2, *revised2, o, nullptr, nullptr, {}, &note));
+        QCOMPARE(same.work.notMarked, qint64(0));
+        QVERIFY(note.isEmpty());
+    }
+
+    void aTextBoxWhoseWordsDifferAreCountedAndTheNumberOfBoxesReadIsBounded()
+    {
+        auto box = [](const char *words) {
+            return para(QByteArray("<w:r><w:drawing><wp:anchor xmlns:wp=\"http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing\" xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\" "
+                                   "xmlns:wps=\"http://schemas.microsoft.com/office/word/2010/wordprocessingShape\" distT=\"0\" distB=\"0\" distL=\"0\" distR=\"0\" simplePos=\"0\" relativeHeight=\"1\" behindDoc=\"0\" locked=\"0\" layoutInCell=\"1\" allowOverlap=\"1\">"
+                                   "<wp:simplePos x=\"0\" y=\"0\"/><wp:positionH relativeFrom=\"page\"><wp:posOffset>100000</wp:posOffset></wp:positionH><wp:positionV relativeFrom=\"page\"><wp:posOffset>100000</wp:posOffset></wp:positionV>"
+                                   "<wp:extent cx=\"1270000\" cy=\"635000\"/><wp:wrapNone/><wp:docPr id=\"1\" name=\"Object\"/><wp:cNvGraphicFramePr/>"
+                                   "<a:graphic><a:graphicData uri=\"http://schemas.microsoft.com/office/word/2010/wordprocessingShape\"><wps:wsp><wps:cNvSpPr txBox=\"1\"/><wps:spPr><a:xfrm><a:off x=\"0\" y=\"0\"/>"
+                                   "<a:ext cx=\"1270000\" cy=\"635000\"/></a:xfrm><a:prstGeom prst=\"rect\"><a:avLst/></a:prstGeom></wps:spPr><wps:txbx><w:txbxContent><w:p><w:r><w:t>") + words +
+                        "</w:t></w:r></w:p></w:txbxContent></wps:txbx><wps:bodyPr/></wps:wsp></a:graphicData></a:graphic></wp:anchor></w:drawing></w:r>");
+        };
+        StoryParts a, b;
+        a.body = box("box one") + box("box same");
+        b.body = box("box two") + box("box same");
+        CompareOptions o;
+        o.author = QStringLiteral("Rev");
+        QString note;
+        {
+            CompareContext context;
+            auto original = open(makeDocxWithStories(a)), revised = open(makeDocxWithStories(b));
+            QVERIFY(compareDocumentsWith(context, *original, *revised, o, nullptr, nullptr, {}, &note));
+            QCOMPARE(context.work.notMarked, qint64(1));
+            QVERIFY(note.contains(QStringLiteral("can't mark yet")));
+        }
+        {
+            CompareContext context;
+            context.limits.boxes = 1;   // (only the first box of each is read: it differs, and the note says the rest were not)
+            auto original = open(makeDocxWithStories(a)), revised = open(makeDocxWithStories(b));
+            QVERIFY(compareDocumentsWith(context, *original, *revised, o, nullptr, nullptr, {}, &note));
+            QCOMPARE(context.work.notMarked, qint64(1));
+            QVERIFY(note.contains(QStringLiteral("Too many text boxes")));
+        }
+        {
+            CompareContext context;
+            auto original = open(makeDocxWithStories(a)), revised = open(makeDocxWithStories(a));
+            QVERIFY(compareDocumentsWith(context, *original, *revised, o, nullptr, nullptr, {}, &note));
+            QCOMPARE(context.work.notMarked, qint64(0));
+            QVERIFY(note.isEmpty());
+        }
+    }
+
+    void theCompareCommandSaysWhatItCouldNotMarkAndItsResultSavesAndOpensWithTheHeaderChanges()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        StoryParts a, b;
+        a.body = b.body = para(run("same"));
+        a.header = para(run("head one"));
+        b.header = para(run("head two"));
+        QFile f(dir.filePath(QStringLiteral("revised.docx")));
+        QVERIFY(f.open(QIODevice::WriteOnly));
+        f.write(makeDocxWithStories(b));
+        f.close();
+        WriteWindow w;
+        w.setNotifier([](const QString &, const QString &) {});
+        w.show();
+        w.setDocument(open(makeDocxWithStories(a)), QString());
+        CompareOptions o;
+        o.author = QStringLiteral("Me");
+        QCOMPARE(w.compareWith(dir.filePath(QStringLiteral("revised.docx")), o), 1);
+        WriteWindow *made = nullptr;
+        for (QWidget *top : QApplication::topLevelWidgets())
+            if (auto *ww = qobject_cast<WriteWindow *>(top); ww && ww != &w) made = ww;
+        QVERIFY(made);
+        const QString path = dir.filePath(QStringLiteral("compared.docx"));
+        QVERIFY(made->saveTo(path));
+        QFile saved(path);
+        QVERIFY(saved.open(QIODevice::ReadOnly));
+        const QByteArray bytes = saved.readAll();
+        saved.close();
+        auto again = open(bytes);
+        QVERIFY(again);
+        QCOMPARE(documentRevisionCount(*again), 2);
+        QCOMPARE(w.document()->story()->toPlainText(), QStringLiteral("same"));   // (the original is as it was)
+        QVERIFY(!xmlHasChanges(partOf(w.document()->toDocx(), "/word/header1.xml")));
+        made->document()->setModified(false);
+        made->close();
+    }
+
     // ---- the limits
 
     void textsOfMoreThanThreeThousandWordsAreOneReplacement()
