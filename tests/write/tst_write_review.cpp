@@ -5604,12 +5604,12 @@ private Q_SLOTS:
         QVERIFY(note.contains(QStringLiteral("can't mark yet")));
     }
 
-    void aTableThatIsNotTheSameShapeIsNotFlattenedAndTheDifferenceIsCounted()
+    void aTableThatGotAColumnIsNotFlattenedAndTheDifferenceIsCounted()
     {
         const QByteArray cellsA[] = {para(run("a1")), para(run("a2")), para(run("b1")), para(run("b2"))};
         const QByteArray one = tableOf({{{}, {cellOf({}, cellsA[0]), cellOf({}, cellsA[1])}}, {{}, {cellOf({}, cellsA[2]), cellOf({}, cellsA[3])}}}, 2);
-        const QByteArray two = tableOf({{{}, {cellOf({}, para(run("a1"))), cellOf({}, para(run("a2")))}}, {{}, {cellOf({}, para(run("b1"))), cellOf({}, para(run("b2")))}},
-                                        {{}, {cellOf({}, para(run("c1"))), cellOf({}, para(run("c2")))}}}, 2);
+        const QByteArray two = tableOf({{{}, {cellOf({}, para(run("a1"))), cellOf({}, para(run("a2"))), cellOf({}, para(run("a3")))}},
+                                        {{}, {cellOf({}, para(run("b1"))), cellOf({}, para(run("b2"))), cellOf({}, para(run("b3")))}}}, 3);
         QString note;
         int changes = 0;
         auto result = compared(one, two, CompareOptions(), &note, &changes);
@@ -5632,6 +5632,7 @@ private Q_SLOTS:
         QCOMPARE(bodyTexts(*rejected).value(0), QStringLiteral("before"));
         QCOMPARE(bodyTexts(*accepted).value(0), QStringLiteral("before changed"));
         QCOMPARE(savedTables(documentXml(accepted->toDocx())).value(0).rows.size(), 2);   // (still the original's two rows)
+        QCOMPARE(savedTables(documentXml(accepted->toDocx())).value(0).columns, 2);       // (and columns)
     }
 
     void aTableOfTheSameShapeIsStillComparedCellByCell()
@@ -5646,11 +5647,12 @@ private Q_SLOTS:
         QVERIFY(note.isEmpty());
         QCOMPARE(changes, 1);
         verifyAcceptsAndRejects(one, two);
-        // (a table that is in one version only is counted, and not made up)
+        // (a table that is in one version only is a tracked table put in, not counted)
         auto lone = compared(para(run("x")), para(run("x")) + one);
         QVERIFY(lone);
-        QCOMPARE(testContext().work.notMarked, qint64(1));
-        QCOMPARE(savedTables(documentXml(lone->toDocx())).size(), 0);
+        QCOMPARE(testContext().work.notMarked, qint64(0));
+        QCOMPARE(testContext().work.tablesPut, qint64(1));
+        QCOMPARE(savedTables(documentXml(lone->toDocx())).size(), 1);
     }
 
     void anEndnoteThatDiffersIsCountedAndNotDropped()
@@ -5858,48 +5860,422 @@ private Q_SLOTS:
         QCOMPARE(kept.tables.value(0).rows, (QVector<QStringList>{{"a1", "a2"}, {"b1", "b2"}}));
     }
 
-    void aTableTakenOutOrPutInIsOneDifferenceThroughTheWindowsCompare()
+    // ---- Compare, slice 2: tables by row and cell
+    static QByteArray gridOfRows(const QVector<QStringList> &rows)
+    {
+        QVector<TableRow> t;
+        for (const QStringList &r : rows) {
+            TableRow row;
+            for (const QString &c : r) row.cells << cellOf({}, para(run(c.toUtf8().constData())));
+            t << row;
+        }
+        return tableOf(t, int(rows.value(0).size()));
+    }
+    static QVector<SavedTable> tablesOf(const QByteArray &body)
+    {
+        auto d = open(makeDocx(body));
+        return d ? savedTables(documentXml(d->toDocx())) : QVector<SavedTable>();
+    }
+    static QStringList rowTexts(const SavedTable &t)
+    {
+        QStringList out;
+        for (const QStringList &r : t.rows) out << r.join(QLatin1Char(','));
+        return out;
+    }
+    // Compare run as a person runs it, saved and opened again: nothing is counted, nothing is left that Accept All or Reject All can't settle, Accept All gives the revised copy's tables and Reject All the
+    // original's, table by table (their rows' words, and the grid), and the words of the text are the two copies'. Returns the saved result.
+    QByteArray checkThroughTheWindow(const QByteArray &one, const QByteArray &two, const char *what)
+    {
+        const AppCompared r = compareInApp(makeDocx(one), makeDocx(two));
+        [&] {
+            QVERIFY2(!r.saved.isEmpty(), what);
+            QVERIFY2(!r.status.contains(QStringLiteral("can't mark yet")), what);
+            const Resolved accepted = resolved(r.saved, true), rejected = resolved(r.saved, false);
+            QVERIFY2(!accepted.tracked && !rejected.tracked, what);
+            const QVector<SavedTable> wantAccepted = tablesOf(two), wantRejected = tablesOf(one);
+            QVERIFY2(accepted.tables.size() == wantAccepted.size() && rejected.tables.size() == wantRejected.size(), what);
+            for (int i = 0; i < accepted.tables.size(); ++i) {
+                QVERIFY2(rowTexts(accepted.tables[i]) == rowTexts(wantAccepted[i]) && accepted.tables[i].columns == wantAccepted[i].columns && accepted.tables[i].valid(), what);
+            }
+            for (int i = 0; i < rejected.tables.size(); ++i) {
+                QVERIFY2(rowTexts(rejected.tables[i]) == rowTexts(wantRejected[i]) && rejected.tables[i].columns == wantRejected[i].columns && rejected.tables[i].valid(), what);
+            }
+            auto original = open(makeDocx(one)), revised = open(makeDocx(two));
+            QVERIFY2(accepted.texts == storyTexts(*revised), what);
+            QVERIFY2(rejected.texts == storyTexts(*original), what);
+        }();
+        return r.saved;
+    }
+
+    void rowsPutInAndTakenOutOfATableAreTrackedRowsThatAcceptAndRejectToTheTwoTables()
+    {
+        const QVector<QStringList> three = {{"a1", "a2"}, {"b1", "b2"}, {"c1", "c2"}};
+        const QByteArray lead = para(run("p"));
+        struct Case {
+            const char *what;
+            QVector<QStringList> from, to;
+            int put, taken;     // the rows that are marked as put in and as taken out
+        };
+        const QVector<Case> cases = {
+            {"a row put in the middle", three, {{"a1", "a2"}, {"x1", "x2"}, {"b1", "b2"}, {"c1", "c2"}}, 1, 0},
+            {"a row taken out of the middle", three, {{"a1", "a2"}, {"c1", "c2"}}, 0, 1},
+            {"a row put in at the top and at the end", three, {{"z1", "z2"}, {"a1", "a2"}, {"b1", "b2"}, {"c1", "c2"}, {"e1", "e2"}}, 2, 0},
+            {"the first and the last row taken out", {{"a1", "a2"}, {"b1", "b2"}, {"c1", "c2"}, {"d1", "d2"}}, {{"b1", "b2"}, {"c1", "c2"}}, 0, 2},
+            {"two rows in a row put in", three, {{"a1", "a2"}, {"x1", "x2"}, {"y1", "y2"}, {"b1", "b2"}, {"c1", "c2"}}, 2, 0},
+            {"two rows in a row taken out", {{"a1", "a2"}, {"b1", "b2"}, {"c1", "c2"}, {"d1", "d2"}}, {{"a1", "a2"}, {"d1", "d2"}}, 0, 2},
+            {"a row changed, one put in, and one taken out", {{"a1", "a2"}, {"b1", "b2"}, {"c1", "c2"}, {"d1", "d2"}}, {{"a1", "a2"}, {"b1", "B2"}, {"n1", "n2"}, {"d1", "d2"}}, 0, 0},
+            {"a row put in at the end of a long table", {{"1", "a"}, {"2", "b"}, {"3", "c"}, {"4", "d"}, {"5", "e"}, {"6", "f"}}, {{"1", "a"}, {"2", "b"}, {"3", "c"}, {"4", "d"}, {"5", "e"}, {"6", "f"}, {"7", "g"}}, 1, 0},
+        };
+        for (const Case &c : cases) {
+            const QByteArray saved = checkThroughTheWindow(lead + gridOfRows(c.from), lead + gridOfRows(c.to), c.what);
+            const QByteArray xml = documentXml(saved);
+            if (c.put || c.taken) {
+                QVERIFY2(countOf(xml, "<w:trPr><w:ins ") == c.put, c.what);
+                QVERIFY2(countOf(xml, "<w:trPr><w:del ") == c.taken, c.what);
+            }
+        }
+        // A row of cells with several paragraphs is put in with all of them.
+        QVector<TableRow> rows;
+        rows.push_back({{}, {cellOf({}, para(run("h1"))), cellOf({}, para(run("h2")))}});
+        const QByteArray plain = tableOf(rows, 2);
+        rows.push_back({{}, {cellOf({}, para(run("m1")) + para(run("m2"))), cellOf({}, para(run("n1")))}});
+        const QByteArray more = tableOf(rows, 2);
+        const QByteArray saved = checkThroughTheWindow(plain, more, "a row of cells with two paragraphs");
+        QCOMPARE(countOf(documentXml(saved), "<w:trPr><w:ins "), 1);
+    }
+
+    void aTableOnlyInOneCopyIsATrackedTablePutInOrTakenOutWhereverItIs()
+    {
+        const QByteArray t = gridOfRows({{"a1", "a2"}, {"b1", "b2"}, {"c1", "c2"}});
+        const QByteArray lone = gridOfRows({{"n1", "n2"}});
+        struct Case {
+            const char *what;
+            QByteArray from, to;
+            int put, taken;     // the tables put in and taken out
+            int rows;           // the rows of them
+        };
+        const QVector<Case> cases = {
+            {"a table put in after a paragraph at the end", para(run("p")), para(run("p")) + t, 1, 0, 3},
+            {"a table put in between two paragraphs", para(run("p")) + para(run("q")), para(run("p")) + t + para(run("q")), 1, 0, 3},
+            {"a table taken out between two paragraphs", para(run("p")) + t + para(run("q")), para(run("p")) + para(run("q")), 0, 1, 3},
+            {"a table taken out at the end", para(run("p")) + t, para(run("p")) + para(run("after")), 0, 1, 3},
+            {"a table put in before another table", para(run("p")) + t, para(run("p")) + lone + para(run("m")) + t, 1, 0, 1},
+            {"a table taken out after another table", para(run("p")) + t + para(run("m")) + lone, para(run("p")) + t + para(run("m")) + para(run("after")), 0, 1, 1},
+            {"a table put in with words put in beside it", para(run("p")) + para(run("q")), para(run("p")) + para(run("w1")) + t + para(run("w2")) + para(run("q")), 1, 0, 3},
+        };
+        for (const Case &c : cases) {
+            const QByteArray saved = checkThroughTheWindow(c.from, c.to, c.what);
+            const QByteArray xml = documentXml(saved);
+            QVERIFY2(countOf(xml, "<w:trPr><w:ins ") == (c.put ? c.rows : 0), c.what);
+            QVERIFY2(countOf(xml, "<w:trPr><w:del ") == (c.taken ? c.rows : 0), c.what);
+        }
+        // The same through the compare itself, with its counts.
+        auto result = compared(para(run("p")), para(run("p")) + t);
+        QVERIFY(result);
+        QCOMPARE(testContext().work.tablesPut, qint64(1));
+        QCOMPARE(testContext().work.rowsPut, qint64(3));
+        QCOMPARE(testContext().work.notMarked, qint64(0));
+        result = compared(para(run("p")) + t, para(run("p")) + para(run("after")));
+        QCOMPARE(testContext().work.tablesTaken, qint64(1));
+        QCOMPARE(testContext().work.rowsTaken, qint64(3));
+        QCOMPARE(testContext().work.notMarked, qint64(0));
+    }
+
+    void tablesArePairedByWhatIsInThemAndATableOfTheSameShapeThatIsPutInBeforeAnotherIsNotComparedWithIt()
+    {
+        const QByteArray t = gridOfRows({{"a1", "a2"}, {"b1", "b2"}});
+        const QByteArray fresh = gridOfRows({{"n1", "n2"}, {"m1", "m2"}});
+        // The revised copy has a new table of the same shape before the table the original has: the old table is not compared with the new one.
+        const QByteArray saved = checkThroughTheWindow(para(run("p")) + t, para(run("p")) + fresh + para(run("mid")) + t, "a table of the same shape put in before");
+        const QByteArray xml = documentXml(saved);
+        QCOMPARE(countOf(xml, "<w:trPr><w:ins "), 2);   // (the two rows of the new table, and no cell of the old one)
+        QCOMPARE(countOf(xml, "<w:trPr><w:del "), 0);
+        QVERIFY(!xml.contains("<w:del "));
+        // And the other way round: the new table is taken out.
+        const QByteArray back = checkThroughTheWindow(para(run("p")) + fresh + para(run("mid")) + t, para(run("p")) + para(run("mid")) + t, "a table of the same shape taken out before");
+        QCOMPARE(countOf(documentXml(back), "<w:trPr><w:del "), 2);
+        // Two tables of the same shape that are the only two between the same paragraphs are the same table changed: told apart cell by cell.
+        auto result = compared(para(run("p")) + t, para(run("p")) + gridOfRows({{"a1", "a2"}, {"b1", "changed"}}));
+        QVERIFY(result);
+        QCOMPARE(testContext().work.tablesPut + testContext().work.tablesTaken, qint64(0));
+        QCOMPARE(testContext().work.rowsPut + testContext().work.rowsTaken, qint64(0));
+        QCOMPARE(testContext().work.notMarked, qint64(0));
+    }
+
+    void tablesArePairedByHowAlikeTheyAreAtLeastAHalfOfTheCellsWithWords()
+    {
+        // The original has eight cells with words. A revised table that keeps four of them (each matched once) is the same table with changed rows; one that keeps three is another table.
+        const QByteArray one = gridOfRows({{"k1", "v1"}, {"k2", "v2"}, {"k3", "v3"}, {"k4", "v4"}});
+        const QByteArray half = gridOfRows({{"k1", "v1"}, {"x2", "y2"}, {"k4", "v4"}});
+        const QByteArray less = gridOfRows({{"k1", "v1"}, {"x2", "y2"}, {"x4", "k4"}});
+        {
+            auto result = compared(para(run("p")) + one, para(run("p")) + half);
+            QVERIFY(result);
+            CompareWork w = testContext().work;
+            QCOMPARE(w.tablesPut + w.tablesTaken, qint64(0));       // (the same table)
+            QCOMPARE(w.rowsTaken, qint64(1));                      // (the row k3 is taken out, the row k2 is changed in its cells)
+            QCOMPARE(w.rowsPut, qint64(0));
+            QCOMPARE(w.notMarked, qint64(0));
+            checkThroughTheWindow(para(run("p")) + one, para(run("p")) + half, "a table with changed rows");
+        }
+        {
+            auto result = compared(para(run("p")) + one, para(run("p")) + less);
+            QVERIFY(result);
+            CompareWork w = testContext().work;
+            QCOMPARE(w.tablesTaken, qint64(1));                    // (one table taken out and another put in)
+            QCOMPARE(w.tablesPut, qint64(1));
+            QCOMPARE(w.notMarked, qint64(0));
+            checkThroughTheWindow(para(run("p")) + one, para(run("p")) + less, "one table taken out and another put in");
+        }
+    }
+
+    void aChangedTableNextToAPutInParagraphIsCountedOnce()
     {
         auto counted = [](const AppCompared &r) {
             const QRegularExpressionMatch m = QRegularExpression(QStringLiteral("(\\d+) difference")).match(r.status);
             return m.hasMatch() ? m.captured(1).toInt() : 0;
         };
-        const QByteArray t1 = twoByTwo("a1", "a2", "b1", "b2"), t2 = twoByTwo("x1", "x2", "y1", "y2");
-        const QByteArray with = para(run("p")) + t1 + para(run("m")) + t2, without = para(run("p")) + t1;
-        AppCompared r = compareInApp(makeDocx(with), makeDocx(without));
-        QCOMPARE(counted(r), 1);   // (the table taken out)
-        r = compareInApp(makeDocx(without), makeDocx(with));
-        QCOMPARE(counted(r), 1);   // (the table put in)
-        // A table taken out and a paragraph changed that has nothing to do with it: the paragraph is marked, the table is counted once.
-        r = compareInApp(makeDocx(para(run("p one")) + t1 + para(run("m")) + t2), makeDocx(para(run("p two")) + t1));
-        QCOMPARE(counted(r), 1);
-        QVERIFY2(r.changes > 0, qPrintable(QString::number(r.changes)));
-        QVERIFY(resolved(r.saved, true).texts != resolved(r.saved, false).texts);
+        const QByteArray one = gridOfRows({{"a1", "a2"}, {"b1", "b2"}});
+        const QByteArray cols = gridOfRows({{"a1", "a2", "a3"}, {"b1", "b2", "b3"}});
+        // (a column put in is a change that is counted, with a paragraph put in after the table, before it, or both)
+        for (const char *where : {"after", "before", "both"}) {
+            const QByteArray text = para(run("p"));
+            const QByteArray extra = para(run("extra"));
+            const QByteArray before = (where[0] == 'a') ? QByteArray() : extra, after = (where[0] == 'b' && where[1] == 'e') ? QByteArray() : extra;
+            const AppCompared r = compareInApp(makeDocx(text + one), makeDocx(text + before + cols + after));
+            QVERIFY2(r.changes > 0, where);
+            QVERIFY2(counted(r) == 1, qPrintable(QStringLiteral("%1: %2").arg(QLatin1String(where), r.status)));
+            const Resolved rejected = resolved(r.saved, false);
+            QVERIFY2(rejected.tables.size() == 1 && rowTexts(rejected.tables[0]) == (QStringList{"a1,a2", "b1,b2"}) && rejected.tables[0].columns == 2, where);
+            QVERIFY2(!rejected.tracked, where);
+        }
     }
 
-    void tablesArePairedByTheirPlaceAmongTheParagraphsAndATableWithNoPartnerIsCounted()
+    void aParagraphPutInBeforeATableGoesBeforeItAndNotAfterTheWholeTable()
     {
-        const QByteArray first = twoByTwo("x", "y");
-        const QByteArray one = first + twoByTwo("old", "q");
-        // The revised copy has a table in between that the original has not: the table after it is still the one it was.
-        const QByteArray two = first + twoByTwo("r1", "s1", "r2", "s2") + twoByTwo("new", "q");
-        AppCompared r = compareInApp(makeDocx(one), makeDocx(two));
-        QVERIFY2(r.status.contains(QStringLiteral("(tables)")), qPrintable(r.status));
-        const Resolved accepted = resolved(r.saved, true), rejected = resolved(r.saved, false);
-        QVERIFY(!accepted.tracked && !rejected.tracked);   // (nothing is left that accepting or rejecting can't settle)
-        QCOMPARE(accepted.tables.size(), 2);
-        QCOMPARE(accepted.tables[0].rows, (QVector<QStringList>{{"x", "y"}}));
-        QCOMPARE(accepted.tables[1].rows, (QVector<QStringList>{{"new", "q"}}));
-        auto original = open(makeDocx(one));
+        const QByteArray t = gridOfRows({{"a1", "a2"}, {"b1", "b2"}, {"c1", "c2"}});
+        const QByteArray allNew = gridOfRows({{"q1", "q2"}, {"r1", "r2"}, {"s1", "s2"}});
+        // (a table with every cell changed is told apart cell by cell; with its words put in before and after it, Accept All gives the revised order)
+        checkThroughTheWindow(para(run("p")) + t, para(run("p")) + para(run("lead")) + allNew, "a paragraph before a table with every cell changed");
+        checkThroughTheWindow(para(run("p")) + t + para(run("q")), para(run("p")) + para(run("lead")) + allNew + para(run("tail")) + para(run("q")), "words before and after a table with every cell changed");
+        checkThroughTheWindow(para(run("p")) + t, para(run("p")) + para(run("lead")) + gridOfRows({{"a1", "a2"}, {"x1", "x2"}, {"b1", "b2"}, {"c1", "c2"}}), "a paragraph before a table with a row put in");
+        // A table that starts the text has no place before it: the paragraph is counted, and so is the table that changed its columns (two differences, each once).
+        auto counted = [](const AppCompared &r) {
+            const QRegularExpressionMatch m = QRegularExpression(QStringLiteral("(\\d+) difference")).match(r.status);
+            return m.hasMatch() ? m.captured(1).toInt() : 0;
+        };
+        const AppCompared r = compareInApp(makeDocx(t), makeDocx(para(run("lead")) + gridOfRows({{"a1", "a2", "a3"}, {"b1", "b2", "b3"}})));
+        QCOMPARE(counted(r), 2);
+        QVERIFY(!resolved(r.saved, false).tracked);
+    }
+
+    void aTableTakenOutWithTheParagraphAfterItIsCountedOnceAtTheEndOfTheText()
+    {
+        auto counted = [](const AppCompared &r) {
+            const QRegularExpressionMatch m = QRegularExpression(QStringLiteral("(\\d+) difference")).match(r.status);
+            return m.hasMatch() ? m.captured(1).toInt() : 0;
+        };
+        const QByteArray t1 = gridOfRows({{"a1", "a2"}, {"b1", "b2"}}), t2 = gridOfRows({{"x1", "x2"}, {"y1", "y2"}});
+        // The last paragraph of the text, after a table that is taken out, is one a deletion can't take (its mark is a cell's): one difference in all, for the table and it together.
+        const AppCompared r = compareInApp(makeDocx(para(run("p")) + t1 + para(run("m")) + t2), makeDocx(para(run("p")) + t1));
+        QCOMPARE(counted(r), 1);
+        const Resolved rejected = resolved(r.saved, false), accepted = resolved(r.saved, true);
+        QVERIFY(!rejected.tracked && !accepted.tracked);
+        QCOMPARE(rejected.tables.size(), 2);
+        QCOMPARE(accepted.tables.size(), 1);
+        QCOMPARE(rowTexts(accepted.tables[0]), (QStringList{"a1,a2", "b1,b2"}));
+        auto original = open(makeDocx(para(run("p")) + t1 + para(run("m")) + t2));
         QCOMPARE(rejected.texts, storyTexts(*original));
-        // A table of the original that has no partner is counted too, and the tables around it are not changed.
-        r = compareInApp(makeDocx(two), makeDocx(one));
+    }
+
+    void aTableThatCannotBeMarkedIsCountedAndLeftAsItWasNeverHalfMarked()
+    {
+        const QByteArray three = gridOfRows({{"a1", "a2"}, {"b1", "b2"}, {"c1", "c2"}});
+        // A column put in, cells joined (a row that is one cell across the two), and a table put in a cell: each is one difference that is counted, and the table is as the original had it.
+        QVector<TableRow> joined;
+        joined.push_back({{}, {cellOf({}, para(run("a1"))), cellOf({}, para(run("a2")))}});
+        joined.push_back({{}, {cellOf("<w:gridSpan w:val=\"2\"/>", para(run("b1 b2")))}});
+        joined.push_back({{}, {cellOf({}, para(run("c1"))), cellOf({}, para(run("c2")))}});
+        QVector<TableRow> nested;
+        nested.push_back({{}, {cellOf({}, para(run("a1"))), cellOf({}, para(run("a2")))}});
+        nested.push_back({{}, {cellOf({}, para(run("b1")) + gridOfRows({{"in1", "in2"}})), cellOf({}, para(run("b2")))}});
+        nested.push_back({{}, {cellOf({}, para(run("c1"))), cellOf({}, para(run("c2")))}});
+        QVector<TableRow> vmerged;
+        vmerged.push_back({{}, {cellOf("<w:vMerge w:val=\"restart\"/>", para(run("a1"))), cellOf({}, para(run("a2")))}});
+        vmerged.push_back({{}, {cellOf("<w:vMerge/>", para(run(""))), cellOf({}, para(run("b2")))}});
+        vmerged.push_back({{}, {cellOf({}, para(run("c1"))), cellOf({}, para(run("c2")))}});
+        const QVector<std::pair<const char *, QByteArray>> others = {
+            {"a column put in", gridOfRows({{"a1", "a2", "a3"}, {"b1", "b2", "b3"}, {"c1", "c2", "c3"}})},
+            {"cells joined", tableOf(joined, 2)},
+            {"a table put in a cell", tableOf(nested, 2)},
+            {"cells joined down", tableOf(vmerged, 2)},
+        };
+        for (const auto &o : others) {
+            const AppCompared r = compareInApp(makeDocx(para(run("p")) + three), makeDocx(para(run("p")) + o.second));
+            QVERIFY2(r.status.contains(QStringLiteral("(tables)")), o.first);
+            QVERIFY2(r.changes == 0, o.first);
+            const Resolved accepted = resolved(r.saved, true);
+            QVERIFY2(!accepted.tracked, o.first);
+            QVERIFY2(accepted.tables.size() == 1 && rowTexts(accepted.tables[0]) == (QStringList{"a1,a2", "b1,b2", "c1,c2"}) && accepted.tables[0].columns == 2, o.first);
+            QVERIFY2(!documentXml(r.saved).contains("<w:trPr><w:ins ") && !documentXml(r.saved).contains("<w:trPr><w:del "), o.first);
+        }
+        // A row is not taken out of a table that has cells joined down (the model can't record that as a tracked row): counted, and the table is as the original had it.
+        QVector<TableRow> merged4 = vmerged;
+        merged4.push_back({{}, {cellOf({}, para(run("d1"))), cellOf({}, para(run("d2")))}});
+        {
+            const AppCompared m = compareInApp(makeDocx(para(run("p")) + tableOf(merged4, 2)), makeDocx(para(run("p")) + tableOf(vmerged, 2)));
+            QVERIFY2(m.status.contains(QStringLiteral("(tables)")), qPrintable(m.status));
+            QVERIFY(!documentXml(m.saved).contains("<w:trPr><w:del "));
+            QCOMPARE(resolved(m.saved, true).tables.value(0).rows.size(), 4);
+        }
+        // A table that holds cells joined down is never taken out as tracked rows (the model can't record that): counted.
+        AppCompared r = compareInApp(makeDocx(para(run("p")) + tableOf(vmerged, 2)), makeDocx(para(run("p"))));
         QVERIFY2(r.status.contains(QStringLiteral("(tables)")), qPrintable(r.status));
-        const Resolved back = resolved(r.saved, true);
-        QVERIFY(!back.tracked);
-        QCOMPARE(back.tables.size(), 3);
-        QCOMPARE(back.tables[1].rows, (QVector<QStringList>{{"r1", "s1"}, {"r2", "s2"}}));
-        QCOMPARE(back.tables[2].rows, (QVector<QStringList>{{"old", "q"}}));
+        QVERIFY(!documentXml(r.saved).contains("<w:trPr><w:del "));
+        // A table in a header, a footer, or a note is told apart cell by cell only: a table put in is counted there.
+        NoteDoc a, b;
+        a.body = b.body = para(run("same"));
+        a.header = para(run("h"));
+        b.header = para(run("h")) + gridOfRows({{"x1", "x2"}});
+        CompareContext context;
+        auto original = open(noteDocx(a)), revised = open(noteDocx(b));
+        QString note;
+        QVERIFY(compareDocumentsWith(context, *original, *revised, CompareOptions(), nullptr, nullptr, {}, &note));
+        QCOMPARE(context.work.tablesPut, qint64(0));
+        QVERIFY(context.work.notMarked >= 1);
+    }
+
+    void theRowsAndTablesMarkedAreHeldToALimitAndAnHonestCountIsMadePastIt()
+    {
+        // A table of 300 rows against one with the same rows in another order: rows are put in and taken out as tracked rows only within the limit; past it the table is counted and left as it was.
+        const int n = 300;
+        QVector<QStringList> rows, shuffled;
+        for (int i = 0; i < n; ++i) rows.push_back({QStringLiteral("k%1").arg(i), QStringLiteral("v%1").arg(i)});
+        for (int i = 0; i < n; ++i) shuffled.push_back(rows[(i * 7 + 3) % n]);   // (7 and 300 have no factor in common: every row once)
+        const QByteArray one = para(run("p")) + gridOfRows(rows), two = para(run("p")) + gridOfRows(shuffled);
+        CompareLimitsGuard guard;
+        testContext().limits.tableRows = 50;
+        QString note;
+        auto result = compared(one, two, CompareOptions(), &note);
+        QVERIFY(result);
+        const CompareWork w = testContext().work;
+        QCOMPARE(w.rowsLined, qint64(4 * n));            // (the rows of both tables, lined up and likened: each counted once for each)
+        QCOMPARE(w.rowsPut + w.rowsTaken, qint64(0));    // (and none was marked: the rows to mark are past the limit)
+        QCOMPARE(w.tablesPut + w.tablesTaken, qint64(0));
+        QCOMPARE(w.notMarked, qint64(1));
+        QVERIFY2(note.contains(QStringLiteral("Too many rows and tables changed")), qPrintable(note));
+        QCOMPARE(savedTables(documentXml(result->toDocx())).value(0).rows.size(), n);
+        QVERIFY(!documentXml(result->toDocx()).contains("<w:trPr><w:ins "));
+        // With room for them all the same rows are marked (and they accept and reject to the two tables).
+        testContext().limits.tableRows = 100000;
+        result = compared(one, two);
+        QVERIFY(result);
+        QVERIFY(testContext().work.rowsPut + testContext().work.rowsTaken > 50);
+        QCOMPARE(testContext().work.notMarked, qint64(0));
+        // Two 5,000-row tables, one with its rows in another order: the lining up is counted (10,000 rows), and the 9,000 and more rows to mark are past the limit, so the table is counted.
+        testContext().limits = CompareLimits();
+        QVector<QStringList> big, bigShuffled;
+        for (int i = 0; i < 5000; ++i) big.push_back({QStringLiteral("k%1").arg(i), QStringLiteral("v%1").arg(i)});
+        for (int i = 0; i < 5000; ++i) bigShuffled.push_back(big[(i * 7 + 3) % 5000]);
+        result = compared(para(run("p")) + gridOfRows(big), para(run("p")) + gridOfRows(bigShuffled), CompareOptions(), &note);
+        QVERIFY(result);
+        QCOMPARE(testContext().work.rowsLined, qint64(20000));   // (the rows of both, lined up and likened)
+        QCOMPARE(testContext().work.rowsPut + testContext().work.rowsTaken, qint64(0));
+        QCOMPARE(testContext().work.notMarked, qint64(1));
+        QVERIFY2(note.contains(QStringLiteral("Too many rows and tables changed")), qPrintable(note));
+        // The rows looked at are held to their own limit too: with no room to tell how alike the two tables are, one is taken out and the other put in whole (and they still accept and reject to the two).
+        testContext().limits = CompareLimits();
+        testContext().limits.alignRows = 100;
+        result = compared(one, two, CompareOptions(), &note);
+        QVERIFY(result);
+        QCOMPARE(testContext().work.rowsLined, qint64(0));
+        QCOMPARE(testContext().work.tablesTaken + testContext().work.tablesPut, qint64(2));
+        QCOMPARE(testContext().work.notMarked, qint64(0));
+        QVERIFY2(note.contains(QStringLiteral("Too many rows and tables")), qPrintable(note));
+    }
+
+    void fiveHundredTablesAreAllToldApartWithinTheLimitsAndAHostileNestAddsNoWork()
+    {
+        // 500 tables with a paragraph between each, every one with a cell changed: told apart cell by cell, each once.
+        QByteArray one, two;
+        for (int i = 0; i < 500; ++i) {
+            one += para(run(qPrintable(QStringLiteral("para %1").arg(i)))) + gridOfRows({{QStringLiteral("a%1").arg(i), "x"}, {"y", "z"}});
+            two += para(run(qPrintable(QStringLiteral("para %1").arg(i)))) + gridOfRows({{QStringLiteral("a%1").arg(i), "x"}, {"y", QStringLiteral("z%1").arg(i)}});
+        }
+        int changes = 0;
+        auto result = compared(one, two, CompareOptions(), nullptr, &changes);
+        QVERIFY(result);
+        QCOMPARE(changes, 500);
+        QCOMPARE(testContext().work.notMarked, qint64(0));
+        QCOMPARE(testContext().work.tablesPut + testContext().work.tablesTaken, qint64(0));
+        QCOMPARE(testContext().work.alignBlocks, qint64(2 * 1500));   // (the body: 500 paragraphs, 500 tables, and 500 paragraphs after them, in each copy)
+        // 500 tables, each replaced by one of another shape: all taken out and put in as tracked tables (2,000 rows in all, within the limit).
+        QByteArray three;
+        for (int i = 0; i < 500; ++i) three += para(run(qPrintable(QStringLiteral("para %1").arg(i)))) + gridOfRows({{QStringLiteral("q%1").arg(i), "r"}});
+        result = compared(one, three);
+        QVERIFY(result);
+        QCOMPARE(testContext().work.tablesTaken, qint64(500));
+        QCOMPARE(testContext().work.tablesPut, qint64(500));
+        QCOMPARE(testContext().work.rowsTaken + testContext().work.rowsPut, qint64(1500));
+        QCOMPARE(testContext().work.notMarked, qint64(0));
+        // A table 30 deep (the file holds only as many as it reads as tables) is one difference that is counted, with no row lined up and no table marked.
+        result = compared(nestedTables(30, "leaf one"), nestedTables(30, "leaf two"));
+        QVERIFY(result);
+        QCOMPARE(testContext().work.rowsLined, qint64(2));   // (the one row of each outer table, to tell how alike they are; no row of them is lined up)
+        QCOMPARE(testContext().work.tablesPut + testContext().work.tablesTaken, qint64(0));
+        QCOMPARE(testContext().work.notMarked, qint64(1));
+    }
+
+    void aStretchTheCompareHasNoRoomToLineUpIsTakenOutAndPutInWholeAndSaidSo()
+    {
+        auto bodyOf = [](const char *prefix, int n) {
+            QByteArray body;
+            for (int i = 0; i < n; ++i) body += para(run(qPrintable(QStringLiteral("%1%2 alpha beta gamma delta").arg(QLatin1String(prefix)).arg(i))));
+            return body;
+        };
+        const QByteArray one = bodyOf("one", 60), two = bodyOf("two", 60);
+        CompareLimitsGuard guard;
+        // With the limit of cells of the lining up at 100, the 60 against 60 paragraphs (3,600 cells) are not lined up: all are taken out with one deletion and put in with one insertion.
+        testContext().limits.matchCells = 100;
+        QString note;
+        int changes = 0;
+        auto result = compared(one, two, CompareOptions(), &note, &changes);
+        QVERIFY(result);
+        QCOMPARE(changes, 2);
+        QCOMPARE(testContext().work.matchLeft, qint64(120));
+        QCOMPARE(testContext().work.diffCells, qint64(0));   // (no paragraph was told apart word by word)
+        QVERIFY2(note.contains(QStringLiteral("taken out and put in whole")), qPrintable(note));
+        verifyAcceptsAndRejects(one, two);
+        // With the room, the same paragraphs are lined up (none is the same), paired in order and told apart word by word: many changes, and no word of the note.
+        testContext().limits = CompareLimits();
+        result = compared(one, two, CompareOptions(), &note, &changes);
+        QVERIFY(result);
+        QVERIFY(changes > 2);
+        QCOMPARE(testContext().work.matchLeft, qint64(0));
+        QVERIFY2(!note.contains(QStringLiteral("taken out and put in whole")), qPrintable(note));
+        // Related documents are not changed by the limit: the same paragraphs with one changed are lined up as they were, whatever is left of the room.
+        const QByteArray related = bodyOf("one", 60);
+        QByteArray changed = bodyOf("one", 30) + para(run("a new paragraph")) + bodyOf("one", 60).mid(bodyOf("one", 30).size());
+        testContext().limits.matchCells = 100000;
+        result = compared(related, changed, CompareOptions(), &note, &changes);
+        QVERIFY(result);
+        QCOMPARE(changes, 1);
+        QCOMPARE(testContext().work.matchLeft, qint64(0));
+        // Two unrelated texts of 2,100 paragraphs (4,410,000 cells, more than a table of lengths is made of): taken out and put in whole at the limit of the table itself, in a counted amount of work.
+        testContext().limits = CompareLimits();
+        const QByteArray bigOne = bodyOf("big", 2100), bigTwo = bodyOf("other", 2100);
+        result = compared(bigOne, bigTwo, CompareOptions(), &note, &changes);
+        QVERIFY(result);
+        QCOMPARE(changes, 2);
+        QCOMPARE(testContext().work.matchLeft, qint64(4200));
+        QCOMPARE(testContext().work.matchCells, qint64(0));
+        QCOMPARE(testContext().work.diffCells, qint64(0));
+        // 20,000 paragraphs each, as unrelated: the same, in a number of changes that does not grow with the text.
+        result = compared(bodyOf("x", 20000), bodyOf("y", 20000), CompareOptions(), &note, &changes);
+        QVERIFY(result);
+        QCOMPARE(changes, 2);
+        QCOMPARE(testContext().work.matchLeft, qint64(40000));
+        QCOMPARE(testContext().work.diffCells, qint64(0));
     }
 
     void aDocumentComparedWithItselfReportsNothingInEveryKindOfStory()
@@ -5987,7 +6363,7 @@ private Q_SLOTS:
         };
         NoteDoc one, two;
         one.body = two.body = twoByTwo("a1", "a2", "b1", "b2");
-        two.body = twoByTwo("a1", "a2");
+        two.body = tableOf({{{}, {cellOf({}, para(run("a1"))), cellOf({}, para(run("a2"))), cellOf({}, para(run("a3")))}}, {{}, {cellOf({}, para(run("b1"))), cellOf({}, para(run("b2"))), cellOf({}, para(run("b3")))}}}, 3);
         qint64 count = 0;
         QString note = noteOf(one, two, &count);
         QCOMPARE(count, qint64(1));
@@ -6024,7 +6400,7 @@ private Q_SLOTS:
         note = noteOf(e, f, &count);
         QCOMPARE(count, qint64(2));
         QVERIFY2(note.contains(QStringLiteral("(footnotes and headers or footers)")), qPrintable(note));
-        f.body = para(run("x ")) + markedWords({2});
+        f.body = para(run("x ")) + markedWords({2}) + gridOfRows({{"a1", "a2", "a3"}, {"b1", "b2", "b3"}});   // (a column put in: counted, as a table taken out is no longer)
         note = noteOf(e, f, &count);
         QCOMPARE(count, qint64(3));
         QVERIFY2(note.contains(QStringLiteral("(tables, footnotes, and headers or footers)")), qPrintable(note));

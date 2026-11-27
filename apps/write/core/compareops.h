@@ -29,6 +29,9 @@ struct CompareLimits {
     int boxes = 1000;                          // the most text boxes of a document that are read to count the differences in them (more: the rest are not read, with a note)
     int drawings = 20000;                      // the most pictures and shapes of a document that are looked at to find its text boxes (more: the rest are not looked at, with a note)
     qint64 alignBlocks = 100000;               // the most paragraphs and tables, of all the stories and both documents, that are lined up to tell which table is which (more: no tables are paired, and they are counted)
+    qint64 alignRows = 200000;                 // the most rows, of both tables of all the pairs of tables that are told apart by row, and of the tables whose words are likened, that are lined up (more: those tables are counted and not marked)
+    int tableRows = 5000;                      // the most rows put in or taken out as tracked rows, a table put in or taken out whole counting its rows (a table whose rows would go past it is counted and not marked)
+    qint64 matchCells = 20000000;              // the most cells of the tables of lengths that lining up the paragraphs of all the stories fills (more: a stretch that is left is shown as taken out and put in whole)
     int formatChanges = 20000;                 // the most changes of formatting that are made (more: the rest are left out)
     qint64 formatFragments = 500000;           // the most pieces of text of one look that are held to compare looks (more: the looks of the rest are not compared)
 };
@@ -36,6 +39,7 @@ struct CompareLimits {
 struct CompareWork {
     // The kinds of difference that are counted and not marked, in the order the note names them.
     enum Unmarked { Tables, Footnotes, Endnotes, TextBoxes, HeadersFooters, KeptAsWritten, UnmarkedKinds };
+    qint64 rowsLined = 0, rowsPut = 0, rowsTaken = 0, tablesPut = 0, tablesTaken = 0, matchCells = 0, matchLeft = 0;   // (rows and tables marked as put in and taken out; paragraphs of stretches the bound left whole)
     qint64 stories = 0, notMarked = 0, moveComparisons = 0, moveWords = 0, moveCells = 0, diffCells = 0, moves = 0, formatChanges = 0, formatFragments = 0, alignBlocks = 0, drawings = 0, boxesRead = 0;
     qint64 unmarked[UnmarkedKinds] = {};   // (notMarked is the sum of these)
     void countUnmarked(Unmarked kind, qint64 n = 1)
@@ -50,9 +54,12 @@ struct CompareContext {
     CompareWork work;
 };
 
-// What a compare covers: the text, the footnotes (lined up by their words, so a note put in or taken out shifts none of the rest), and the headers and footers (by section, kind, and slot); tables are paired by
-// lining up the paragraphs and tables of a story. What it finds in a place it can't mark yet (a table with no partner of the same shape, a note put in or taken out or whose mark is in another place, a header or
-// footer only one has, an endnote, a text box) is counted by kind, and the note says how many: nothing that differs is left out without being told. (`revised` may have its notes and headers made ready to read; its words are not changed.)
+// What a compare covers: the text, the footnotes (lined up by their words, so a note put in or taken out shifts none of the rest), the headers and footers (by section, kind, and slot), and the tables of the text.
+// Tables are paired by lining up the paragraphs and tables of a story (by all they hold), then by how alike they are; a table of the text is told apart from its partner cell by cell and row by row (a row only in
+// one is a tracked row put in or taken out), and a table only in one is a tracked table put in or taken out, made with the calls a person's tracked row and table edits use. What it finds in a place it can't mark
+// yet (a column put in or taken out, cells joined or split, a table in a table, a table of a note, header, or footer that changed in shape, a note put in or taken out or whose mark is in another place, a header or
+// footer only one has, an endnote, a text box) is counted by kind, and the note says how many: nothing that differs is left out without being told. (`revised` may have its notes and headers made ready to read; its
+// words are not changed.)
 // A copy of `original` with the changes that make it `revised` as tracked changes by `options.author`: paragraphs of the text that are only in one, and the words that differ in the paragraphs
 // that are in both. Moves are looked for in the text only; paragraphs of it that were only moved are moves, and text that is the same but looks or is set differently is a change of formatting. `changes` gets how many changes were made, and `note` (when it is given) what the compare left out for the limits it has (empty when nothing).
 // Inserted paragraphs have the revised paragraph's style, list, alignment, indents, and the look of its letters; the result has no protection of the original's. `progress` is told how many of the

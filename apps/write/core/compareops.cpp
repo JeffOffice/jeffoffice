@@ -30,52 +30,69 @@ using textdiff::commonRun;
 constexpr int kMostParagraphs = 20000;   // the most paragraphs of a text that are compared
 constexpr qint64 kMostTableCells = 4000000;   // the most cells of the table of lengths for the paragraphs between two anchors (16 MB)
 
+// What the lining up of paragraphs may still do, for all the stories of a compare: the cells of the tables of lengths it may still fill, and the stretches (by where they begin in each text) it left without lining up
+// because it had no room for them, which are shown whole as taken out and put in.
+struct MatchBudget {
+    CompareContext &context;
+    QSet<QPair<int, int>> left;
+    explicit MatchBudget(CompareContext &c) : context(c) {}
+};
+
 // The paragraphs of the two texts that are the same, in order, as which of each are kept: the same paragraphs at the start and at the end first, then (when what is between is too large for a table of
-// lengths) the paragraphs that are alone in each text and the same, as anchors in their order (patience diff), and in each stretch between the anchors the same again.
-void matchParagraphs(const QStringList &ka, const QStringList &kb, int a0, int a1, int b0, int b1, QVector<QPair<int, int>> *out, int depth)
+// lengths, or the compare has no more room for one) the paragraphs that are alone in each text and the same, as anchors in their order (patience diff), and in each stretch between the anchors the same again.
+// A stretch that is still too large for a table, with no anchor in it, is left (`budget` says where it began).
+void matchParagraphs(const QStringList &ka, const QStringList &kb, int a0, int a1, int b0, int b1, QVector<QPair<int, int>> *out, int depth, MatchBudget *budget = nullptr)
 {
     while (a0 < a1 && b0 < b1 && ka.at(a0) == kb.at(b0)) out->push_back({a0++, b0++});
     QVector<QPair<int, int>> tail;
     while (a0 < a1 && b0 < b1 && ka.at(a1 - 1) == kb.at(b1 - 1)) tail.push_back({--a1, --b1});
     if (a0 < a1 && b0 < b1) {
-        if (qint64(a1 - a0) * qint64(b1 - b0) <= kMostTableCells) {
+        const qint64 cells = qint64(a1 - a0) * qint64(b1 - b0);
+        if (cells <= kMostTableCells && (!budget || budget->context.work.matchCells + cells <= budget->context.limits.matchCells)) {
+            if (budget) budget->context.work.matchCells += cells;
             const QStringList sa = ka.mid(a0, a1 - a0), sb = kb.mid(b0, b1 - b0);
             QVector<int> keepA, keepB;
             commonRun(sa, sb, &keepA, &keepB);
             for (int i = 0; i < keepA.size(); ++i) out->push_back({a0 + keepA.at(i), b0 + keepB.at(i)});
-        } else if (depth > 0) {
-            QHash<QString, int> countA, countB, placeB;
-            for (int i = a0; i < a1; ++i) ++countA[ka.at(i)];
-            for (int j = b0; j < b1; ++j) {
-                ++countB[kb.at(j)];
-                placeB.insert(kb.at(j), j);
-            }
-            // The paragraphs alone in both, in the order of the first text, then the longest run of them that is in order in the second (patience sorting).
-            QVector<QPair<int, int>> pairs;
-            for (int i = a0; i < a1; ++i)
-                if (countA.value(ka.at(i)) == 1 && countB.value(ka.at(i)) == 1) pairs.push_back({i, placeB.value(ka.at(i))});
-            QVector<int> tails, prev(pairs.size(), -1);   // (tails: for each length, the pair that ends the best run of it)
-            for (int k = 0; k < pairs.size(); ++k) {
-                int lo = 0, hi = int(tails.size());
-                while (lo < hi) {
-                    const int mid = (lo + hi) / 2;
-                    if (pairs.at(tails.at(mid)).second < pairs.at(k).second) lo = mid + 1;
-                    else hi = mid;
-                }
-                prev[k] = lo > 0 ? tails.at(lo - 1) : -1;
-                if (lo == tails.size()) tails.push_back(k);
-                else tails[lo] = k;
-            }
+        } else {
             QVector<QPair<int, int>> anchors;
-            for (int k = tails.isEmpty() ? -1 : tails.last(); k >= 0; k = prev.at(k)) anchors.prepend(pairs.at(k));
-            int pa = a0, pb = b0;
-            for (const auto &anchor : std::as_const(anchors)) {
-                matchParagraphs(ka, kb, pa, anchor.first, pb, anchor.second, out, depth - 1);
-                out->push_back(anchor);
-                pa = anchor.first + 1;
-                pb = anchor.second + 1;
+            if (depth > 0) {
+                QHash<QString, int> countA, countB, placeB;
+                for (int i = a0; i < a1; ++i) ++countA[ka.at(i)];
+                for (int j = b0; j < b1; ++j) {
+                    ++countB[kb.at(j)];
+                    placeB.insert(kb.at(j), j);
+                }
+                // The paragraphs alone in both, in the order of the first text, then the longest run of them that is in order in the second (patience sorting).
+                QVector<QPair<int, int>> pairs;
+                for (int i = a0; i < a1; ++i)
+                    if (countA.value(ka.at(i)) == 1 && countB.value(ka.at(i)) == 1) pairs.push_back({i, placeB.value(ka.at(i))});
+                QVector<int> tails, prev(pairs.size(), -1);   // (tails: for each length, the pair that ends the best run of it)
+                for (int k = 0; k < pairs.size(); ++k) {
+                    int lo = 0, hi = int(tails.size());
+                    while (lo < hi) {
+                        const int mid = (lo + hi) / 2;
+                        if (pairs.at(tails.at(mid)).second < pairs.at(k).second) lo = mid + 1;
+                        else hi = mid;
+                    }
+                    prev[k] = lo > 0 ? tails.at(lo - 1) : -1;
+                    if (lo == tails.size()) tails.push_back(k);
+                    else tails[lo] = k;
+                }
+                for (int k = tails.isEmpty() ? -1 : tails.last(); k >= 0; k = prev.at(k)) anchors.prepend(pairs.at(k));
             }
-            matchParagraphs(ka, kb, pa, a1, pb, b1, out, depth - 1);
+            if (anchors.isEmpty()) {
+                if (budget) budget->left.insert({a0, b0});
+            } else {
+                int pa = a0, pb = b0;
+                for (const auto &anchor : std::as_const(anchors)) {
+                    matchParagraphs(ka, kb, pa, anchor.first, pb, anchor.second, out, depth - 1, budget);
+                    out->push_back(anchor);
+                    pa = anchor.first + 1;
+                    pb = anchor.second + 1;
+                }
+                matchParagraphs(ka, kb, pa, a1, pb, b1, out, depth - 1, budget);
+            }
         }
     }
     for (int i = int(tail.size()) - 1; i >= 0; --i) out->push_back(tail.at(i));
@@ -88,7 +105,9 @@ struct Para {
     int blockEnd = 0;       // the end of its text (before its mark)
     bool ok = true;         // a paragraph that can be compared (not one that stands for a table or a note)
     int tablePair = -1;     // for a paragraph of a table that is told apart cell by cell: which table (its place among the original's tables); else -1
-    int cellIndex = 0;      // and which paragraph of that table it is
+    int cellIndex = 0;      // and which paragraph of that table it is (of the rows that are lined up, when only some are)
+    int tableOrd = -1;      // the table it is in (by order among its own text's tables), else -1
+    int row = -1;           // and its row
     enum Kind { Normal, Cell, Endnote, Raw } kind = Normal;   // (what a paragraph that can't be compared is)
     struct Run {
         int from = 0;               // the first character of text that the run has
@@ -110,13 +129,50 @@ QString lookKey(const QTextCharFormat &f)
     return k.join(QLatin1Char('|'));
 }
 
+// What a paragraph says as words to compare: the words without the pieces kept as they were written and what a tracked change took out, as the options say.
+QString comparedWords(const QTextBlock &b, const CompareOptions &options)
+{
+    QString k;
+    for (QTextBlock::iterator it = b.begin(); !it.atEnd(); ++it) {
+        const QTextCharFormat cf = it.fragment().charFormat();
+        if (isAtom(cf) || cf.hasProperty(prop::TrackedDeleted)) continue;
+        k += it.fragment().text();
+    }
+    k.remove(QChar::ObjectReplacementCharacter);
+    if (options.ignoreCase) k = k.toLower();
+    if (options.ignoreWhiteSpace) k = k.simplified();
+    return k;
+}
+
+// A row of a table, as the compare tells rows apart: where its paragraphs are, its words cell by cell, and its shape (for each cell the columns it takes, whether it is joined down, and how many
+// paragraphs it has, and the columns left before and after it).
+struct RowInfo {
+    int firstBlock = 0, blocks = 0;     // its paragraphs, by number
+    QString key, sig, form;             // (`form`: the shape without the paragraphs of each cell)
+    QVector<int> cellParas;             // how many paragraphs each cell has
+    QVector<QString> cellKeys;          // the words of each cell
+    QVector<QPair<int, int>> cellSpan;  // for each cell: the columns it takes, and 0 for a cell that is not joined down, 1 for one that begins a join, 2 for one that continues it
+    int before = 0, after = 0;
+    bool kept = false;                  // it holds an element that is kept as it was written (a picture, a field, a paragraph kept whole)
+};
+struct TableInfo {
+    QVector<RowInfo> rows;
+    bool nested = false;                // another table is in it
+    bool merged = false;                // a cell is joined with the one below
+    bool kept = false;
+    int columns = 0;
+    QString content;                    // all the words and the shape, as one short key (two tables with the same are the same)
+};
+
 // The tables of a story, for telling which cells can be compared: each table (a top-level one, by order) is its shape written as a few letters (a "p" for each paragraph, "," between cells, "|" between
-// rows; a table that holds another table is "!", its shape, and all its words, so that it is the same as another only when everything in it is), and each paragraph says which table it is in (-1: none).
+// rows; a table that holds another table is "!", its shape, and all its words, so that it is the same as another only when everything in it is), and each paragraph says which table it is in (-1: none)
+// and which row of it.
 struct TableShapes {
     QStringList shapes;
-    QVector<int> tableOfBlock;
+    QVector<int> tableOfBlock, rowOfBlock;
+    QVector<TableInfo> infos;
 };
-TableShapes tableShapesOf(WriteDoc &doc, const QTextDocument *story)
+TableShapes tableShapesOf(WriteDoc &doc, const QTextDocument *story, const CompareOptions &options)
 {
     TableShapes out;
     QHash<const void *, int> ordinals;
@@ -124,9 +180,12 @@ TableShapes tableShapesOf(WriteDoc &doc, const QTextDocument *story)
     QStringList words;
     int lastKey = 0;
     const void *lastRow = nullptr;
+    int blockNumber = -1;
     for (QTextBlock b = story->begin(); b.isValid(); b = b.next()) {
+        ++blockNumber;
         int key = cellKeyOf(b);
         const flow::CellRecord *rec = key ? doc.flow().tables.get(key) : nullptr;
+        out.rowOfBlock.push_back(-1);
         if (!rec) {
             out.tableOfBlock.push_back(-1);
             lastKey = 0;
@@ -147,31 +206,76 @@ TableShapes tableShapesOf(WriteDoc &doc, const QTextDocument *story)
             out.shapes << QString();
             words << QString();
             nestedSeen.push_back(0);
+            out.infos.push_back(TableInfo());
         }
         const int ordinal = ordinals.value(table);
         out.tableOfBlock.push_back(ordinal);
         words[ordinal] += b.text();
+        bool kept = b.blockFormat().hasProperty(prop::RawBlock);
         for (QTextBlock::iterator it = b.begin(); !it.atEnd(); ++it)   // (what an element kept as it was written holds is told by its bytes)
-            if (it.fragment().charFormat().hasProperty(prop::Atom)) words[ordinal] += QString::number(qHash(storedBytes(it.fragment().charFormat(), prop::Atom)), 16);
+            if (it.fragment().charFormat().hasProperty(prop::Atom)) {
+                words[ordinal] += QString::number(qHash(storedBytes(it.fragment().charFormat(), prop::Atom)), 16);
+                kept = true;
+            }
         if (b.blockFormat().hasProperty(prop::RawBlock)) words[ordinal] += QString::number(qHash(storedBytes(b.blockFormat(), prop::RawBlock)), 16);   // (so is what a paragraph kept as written holds)
         words[ordinal] += QLatin1Char('\x1e');
+        TableInfo &info = out.infos[ordinal];
+        if (kept) info.kept = true;
         if (nested) {
             nestedSeen[ordinal] = 1;
+            info.nested = true;
             continue;
         }
         QString &shape = out.shapes[ordinal];
-        if (rec->row.get() != lastRow) shape += QLatin1Char('|');
+        const bool newRow = rec->row.get() != lastRow;
+        if (newRow) shape += QLatin1Char('|');
         else if (key != lastKey) shape += QLatin1Char(',');
+        if (info.columns == 0) info.columns = int(rec->table->columns.size());
+        if (rec->cell.vmerge != flow::CellData::VMerge::None) info.merged = true;
+        if (newRow) {
+            RowInfo row;
+            row.firstBlock = blockNumber;
+            row.before = rec->row ? rec->row->before : 0;
+            row.after = rec->row ? rec->row->after : 0;
+            info.rows.push_back(row);
+        }
+        RowInfo &row = info.rows.last();
+        if (newRow || key != lastKey) {
+            row.cellParas.push_back(0);
+            row.cellKeys.push_back(QString());
+            row.cellSpan.push_back({rec->cell.span, rec->cell.vmerge == flow::CellData::VMerge::None ? 0 : rec->cell.vmerge == flow::CellData::VMerge::Restart ? 1 : 2});
+        }
+        ++row.cellParas.last();
+        row.cellKeys.last() += comparedWords(b, options) + QLatin1Char('\x1e');
+        ++row.blocks;
+        if (kept) row.kept = true;
+        out.rowOfBlock.last() = int(info.rows.size()) - 1;
         lastRow = rec->row.get();
         lastKey = key;
         shape += QLatin1Char('p');
     }
-    for (int k = 0; k < out.shapes.size(); ++k)
+    for (int k = 0; k < out.shapes.size(); ++k) {
         if (nestedSeen.at(k)) out.shapes[k] = QLatin1Char('!') + out.shapes.at(k) + QLatin1Char('\x1f') + words.at(k);
+        TableInfo &info = out.infos[k];
+        QCryptographicHash hash(QCryptographicHash::Sha1);
+        hash.addData(out.shapes.at(k).toUtf8());
+        for (RowInfo &row : info.rows) {
+            row.sig = row.form = QStringLiteral("%1,%2;").arg(row.before).arg(row.after);
+            for (int c = 0; c < row.cellParas.size(); ++c) {
+                row.sig += QStringLiteral("%1.%2.%3;").arg(row.cellSpan.at(c).first).arg(row.cellSpan.at(c).second).arg(row.cellParas.at(c));
+                row.form += QStringLiteral("%1.%2;").arg(row.cellSpan.at(c).first).arg(row.cellSpan.at(c).second);
+            }
+            row.key = row.cellKeys.join(QLatin1Char('\x1f'));
+            hash.addData(row.sig.toUtf8());
+            hash.addData(row.key.toUtf8());
+            hash.addData("\x1c");
+        }
+        info.content = QString::fromLatin1(hash.result().toHex());
+    }
     return out;
 }
 
-// What a paragraph or table is as a thing to line up: a paragraph by its words, a table (one block, at its first paragraph) by its shape.
+// What a paragraph or table is as a thing to line up: a paragraph by its words, a table (one block, at its first paragraph) by all it holds.
 struct Blocks {
     QStringList keys;
     QVector<int> table;   // for each: the table's ordinal, or -1 for a paragraph
@@ -187,7 +291,7 @@ Blocks blocksOf(const QTextDocument *story, const TableShapes &tables, const Com
         if (t >= 0) {
             if (seen.at(t)) continue;
             seen[t] = 1;
-            out.keys << QLatin1Char('\x02') + tables.shapes.at(t);
+            out.keys << QLatin1Char('\x02') + tables.infos.at(t).content;
             out.table << t;
             continue;
         }
@@ -201,7 +305,7 @@ Blocks blocksOf(const QTextDocument *story, const TableShapes &tables, const Com
     return out;
 }
 
-QVector<Para> paragraphsOf(QTextDocument *story, const QVector<int> &pairOfTable, const TableShapes &tables, bool *tooMany, bool withLooks, CompareContext &ctx, bool *looksCut)
+QVector<Para> paragraphsOf(QTextDocument *story, const QVector<int> &pairOfTable, const QVector<QVector<char>> &keptRows, const TableShapes &tables, bool *tooMany, bool withLooks, CompareContext &ctx, bool *looksCut)
 {
     QVector<Para> out;
     *tooMany = false;
@@ -220,11 +324,14 @@ QVector<Para> paragraphsOf(QTextDocument *story, const QVector<int> &pairOfTable
         if (!p.ok) p.kind = b.blockFormat().hasProperty(prop::EndnoteBlock) ? Para::Endnote : Para::Raw;
         const int table = blockNumber < tables.tableOfBlock.size() ? tables.tableOfBlock.at(blockNumber) : -1;
         if (table >= 0) {
-            if (table < pairOfTable.size() && pairOfTable.at(table) >= 0) {
+            p.tableOrd = table;
+            p.row = blockNumber < tables.rowOfBlock.size() ? tables.rowOfBlock.at(blockNumber) : -1;
+            const bool lined = keptRows.value(table).isEmpty() || (p.row >= 0 && p.row < keptRows.at(table).size() && keptRows.at(table).at(p.row));
+            if (table < pairOfTable.size() && pairOfTable.at(table) >= 0 && lined) {
                 p.tablePair = pairOfTable.at(table);
                 p.cellIndex = cellsSeen[table]++;
             } else {
-                p.ok = false;   // (a cell of a table that has no partner of the same shape)
+                p.ok = false;   // (a cell of a table that has no partner of the same shape, or of a row that has none)
             }
         }
         if (!p.ok && p.kind == Para::Normal) p.kind = Para::Cell;
@@ -275,36 +382,37 @@ void giveLook(QTextCharFormat &f, const QTextCharFormat &from)
 
 // A paragraph put in after the cursor's paragraph: its words, in the look of the revised paragraph's, and the style, list, alignment, and indents of the revised paragraph. The paragraph mark and the words
 // are tracked insertions; the look given to them is part of the insertion (not a change of its own).
-int insertRevisedParagraph(WriteDoc &out, QTextDocument *ostory, QTextCursor &c, WriteDoc &revised, QTextDocument *rstory, const Para &source, bool before)
+// The words of the revised paragraph `srcBlock`, each piece in its own look, put in at `c` (which ends after them). `inOwnRow`: it is a paragraph of a row that is put in, whose words are not changes of their own (they
+// take the paragraph mark's record of the row's insertion, which is let go).
+void putRevisedWords(WriteDoc &out, QTextDocument *ostory, QTextCursor &c, const QTextBlock &srcBlock, bool inOwnRow = false)
 {
-    const QTextBlock srcBlock = rstory->findBlock(source.blockFrom);
-    auto words = [&] {
-        for (QTextBlock::iterator it = srcBlock.begin(); !it.atEnd(); ++it) {
-            const QTextFragment f = it.fragment();
-            const QTextCharFormat cf = f.charFormat();
-            if (isAtom(cf) || cf.hasProperty(prop::TrackedDeleted)) continue;
-            QString piece = f.text();
-            piece.remove(QChar::ObjectReplacementCharacter);
-            if (piece.isEmpty()) continue;
-            const int from = c.position();
-            insertText(out, c, piece);
-            const UntrackedEdit untracked;
-            QTextCursor range(ostory);
-            range.setPosition(from);
-            range.setPosition(c.position(), QTextCursor::KeepAnchor);
-            changeCharFormat(out, range, [&](QTextCharFormat &g) { giveLook(g, cf); });
-        }
-    };
-    int blockStart = 0;
-    if (before) {
-        words();
-        insertParagraph(out, c);
-        blockStart = ostory->findBlock(c.position()).previous().position();
-    } else {
-        insertParagraph(out, c);
-        blockStart = ostory->findBlock(c.position()).position();
-        words();
+    for (QTextBlock::iterator it = srcBlock.begin(); !it.atEnd(); ++it) {
+        const QTextFragment f = it.fragment();
+        const QTextCharFormat cf = f.charFormat();
+        if (isAtom(cf) || cf.hasProperty(prop::TrackedDeleted)) continue;
+        QString piece = f.text();
+        piece.remove(QChar::ObjectReplacementCharacter);
+        if (piece.isEmpty()) continue;
+        const int from = c.position();
+        insertText(out, c, piece);
+        const UntrackedEdit untracked;
+        QTextCursor range(ostory);
+        range.setPosition(from);
+        range.setPosition(c.position(), QTextCursor::KeepAnchor);
+        changeCharFormat(out, range, [&](QTextCharFormat &g) {
+            giveLook(g, cf);
+            if (inOwnRow) {
+                g.clearProperty(prop::RawRPr);
+                g.clearProperty(tp::Revision);
+                g.clearProperty(tp::RevisionAuthor);
+            }
+        });
     }
+}
+
+// The paragraph at `blockStart` made like the revised paragraph `srcBlock`: its style, alignment, indents, and list.
+void dressLikeRevised(WriteDoc &out, QTextDocument *ostory, int blockStart, WriteDoc &revised, const QTextBlock &srcBlock)
+{
     const UntrackedEdit untracked;
     QTextCursor at(ostory);
     at.setPosition(blockStart);
@@ -319,6 +427,22 @@ int insertRevisedParagraph(WriteDoc &out, QTextDocument *ostory, QTextCursor &c,
     });
     const ListKind kind = listKindOf(revised, srcBlock);
     if (kind != ListKind::None && listKindOf(out, ostory->findBlock(blockStart)) == ListKind::None) toggleList(out, at, kind == ListKind::Numbers);
+}
+
+int insertRevisedParagraph(WriteDoc &out, QTextDocument *ostory, QTextCursor &c, WriteDoc &revised, QTextDocument *rstory, const Para &source, bool before, bool inOwnRow = false)
+{
+    const QTextBlock srcBlock = rstory->findBlock(source.blockFrom);
+    int blockStart = 0;
+    if (before) {
+        putRevisedWords(out, ostory, c, srcBlock, inOwnRow);
+        insertParagraph(out, c);
+        blockStart = ostory->findBlock(c.position()).previous().position();
+    } else {
+        insertParagraph(out, c);
+        blockStart = ostory->findBlock(c.position()).position();
+        putRevisedWords(out, ostory, c, srcBlock, inOwnRow);
+    }
+    dressLikeRevised(out, ostory, blockStart, revised, srcBlock);
     return blockStart;
 }
 
@@ -720,33 +844,185 @@ namespace {
 
 enum class Outcome { Done, TooMany, Canceled };
 
-// Which table of the second story is which of the first: for each table of each, its partner's place (-1: none). The paragraphs and tables of the two are lined up (tables by their shape), so a
-// table put in or taken out, or one that changed its shape, never shifts the pairing of the rest. Tables with no partner are counted (a changed table is one difference: the unpaired of each between
-// two kept blocks are counted as the greater of their numbers). The work is the blocks lined up, within the limit of all the stories; past it no table is paired, and `cut` says so.
-void pairTables(CompareContext &context, const QTextDocument *story, const TableShapes &ta, const QTextDocument *rstory, const TableShapes &tb, const CompareOptions &options, QVector<int> *partnerA,
-                QVector<int> *partnerB, bool *cut)
+// What the compare does with the tables of a story. A table is paired with the table of the other copy that is its partner, and then it is
+//   Exact: the same, so nothing is done;
+//   Same: the same shape, so told apart cell by cell (as every table was, once);
+//   Rows: not the same shape (rows put in or taken out), so told apart row by row: the rows that are the same, or only changed in some of their cells, are lined up and compared cell by cell, a row only
+//         in the revised copy is put in as a tracked row, one only in the original is taken out as a tracked row;
+// or it has no partner and it is
+//   Whole: put in or taken out whole as a tracked table;
+//   Counted: a difference that can't be marked yet (a column put in or taken out, cells joined or split, a table in a table, a table in a note, a header, or a footer, or too many changes), counted and left as it is.
+// Two tables are partners when the cells of their words, each matched once, are at least half of the cells that have words in the larger of the two (the same table with changed rows), or when they are the only
+// two between the same two paragraphs that are the same and have the same shape; tables that are not alike are one taken out and another put in.
+struct RowEdit {
+    int a = -1, b = -1;                 // the original's table, and the revised one's (by order)
+    QVector<int> deleted;               // the rows of the original's table that are only in it
+    struct Put {
+        int row;                        // a row of the revised table that is only in it
+        int ref;                        // the row of the original's table it goes beside, which has its shape
+        bool below;                     // under it (else above)
+    };
+    QVector<Put> put;
+};
+struct TablePlan {
+    enum State : char { Counted, Whole, Exact, Same, Rows };
+    QVector<int> partnerA, partnerB;
+    QVector<char> stateA, stateB;
+    QVector<QVector<char>> keptA, keptB;    // for a table told apart by row: which rows are lined up (each with one of the other's)
+    QVector<RowEdit> edits;
+};
+
+// Lines up the rows of two tables that are not of the same shape: rows that are the same, then in each stretch between them the rows in order, those that have the same shape each with each. False when the
+// tables can't be told apart by row (and `structure` says it is because of their shape; else no row is the same: they are not the same table).
+bool planRows(const TableInfo &ta, const TableInfo &tb, CompareContext &context, RowEdit *out, bool *structure, bool *cut)
 {
-    partnerA->fill(-1, int(ta.shapes.size()));
-    partnerB->fill(-1, int(tb.shapes.size()));
-    if (ta.shapes.isEmpty() && tb.shapes.isEmpty()) return;
-    if (ta.shapes == tb.shapes) {   // (the same tables in the same order: each is its own partner)
-        for (int k = 0; k < ta.shapes.size(); ++k) (*partnerA)[k] = (*partnerB)[k] = k;
+    *structure = false;
+    if (ta.nested || tb.nested || ta.columns != tb.columns || ta.rows.isEmpty() || tb.rows.isEmpty()) {
+        *structure = true;
+        return false;
+    }
+    const qint64 rows = qint64(ta.rows.size()) + tb.rows.size();
+    if (context.work.rowsLined + rows > context.limits.alignRows) {
+        *cut = true;
+        *structure = true;
+        return false;
+    }
+    context.work.rowsLined += rows;
+    QStringList ka, kb;
+    for (const RowInfo &r : ta.rows) ka << r.sig + QLatin1Char('\x1d') + r.key;
+    for (const RowInfo &r : tb.rows) kb << r.sig + QLatin1Char('\x1d') + r.key;
+    QVector<QPair<int, int>> same;
+    MatchBudget budget(context);
+    matchParagraphs(ka, kb, 0, int(ka.size()), 0, int(kb.size()), &same, 24, &budget);
+    std::sort(same.begin(), same.end());
+    QVector<QPair<int, int>> lined;
+    int ia = 0, ib = 0;
+    for (int m = 0; m <= same.size(); ++m) {
+        const int ea = m < same.size() ? same.at(m).first : int(ta.rows.size()), eb = m < same.size() ? same.at(m).second : int(tb.rows.size());
+        // (Between two rows that are the same: those of each in order, the ones of the same shape with each other.)
+        for (int t = 0; t < std::min(ea - ia, eb - ib); ++t)
+            if (ta.rows.at(ia + t).sig == tb.rows.at(ib + t).sig) lined.push_back({ia + t, ib + t});
+        if (m < same.size()) lined.push_back({ea, eb});
+        ia = ea + 1;
+        ib = eb + 1;
+    }
+    std::sort(lined.begin(), lined.end());
+    if (lined.isEmpty()) return false;
+    QVector<char> inA(ta.rows.size(), 0), inB(tb.rows.size(), 0);
+    for (const auto &p : std::as_const(lined)) inA[p.first] = inB[p.second] = 1;
+    for (int i = 0; i < inA.size(); ++i)
+        if (!inA.at(i)) out->deleted << i;
+    // (A row is not taken out of a table that has cells joined down, nor put in one: the model can't record that, so those tables are told apart only when no row goes or comes.)
+    if ((ta.merged || tb.merged) && (!out->deleted.isEmpty() || lined.size() < tb.rows.size())) {
+        *structure = true;
+        out->deleted.clear();
+        return false;
+    }
+    // A row only in the revised table goes beside the row of the original that its neighbor above is lined up with (under it), or, at the top, beside the first (above it); a row with cells that are joined or
+    // of other widths than that row's, or one that holds an element kept as written, can't be put in.
+    int up = -1;   // the lined-up pair just above
+    int next = 0;
+    for (int j = 0; j < inB.size(); ++j) {
+        if (inB.at(j)) {
+            up = next++;
+            continue;
+        }
+        RowEdit::Put put;
+        put.row = j;
+        put.below = up >= 0;
+        put.ref = lined.at(up >= 0 ? up : 0).first;
+        if (ta.rows.at(put.ref).form != tb.rows.at(j).form || tb.rows.at(j).kept) {
+            *structure = true;
+            out->deleted.clear();
+            out->put.clear();
+            return false;
+        }
+        out->put << put;
+    }
+    return true;
+}
+
+// A bag of the words of the cells of a table that have words, each cell by its words.
+QHash<QString, int> bagOfCells(const TableInfo &t, qint64 *cells)
+{
+    QHash<QString, int> bag;
+    *cells = 0;
+    for (const RowInfo &r : t.rows)
+        for (const QString &k : r.cellKeys)
+            {
+                const QString words = QString(k).remove(QLatin1Char('\x1e'));
+                if (words.isEmpty()) continue;
+                ++bag[words];
+                ++*cells;
+            }
+    return bag;
+}
+
+// Which table of the second story is which of the first, with what is done with each (see TablePlan). The paragraphs and tables of the two are lined up (a table that is the same as another by all it holds is
+// that one), so a table put in or taken out never shifts the pairing of the rest; the tables between two lined-up blocks are paired by how alike they are. Counted: the tables that have no partner and can't be
+// put in or taken out are counted as one difference for the unpaired of each between two kept blocks, the greater of their numbers. The work is the blocks lined up and the rows told apart, within the limits of
+// all the stories; past them `cut` says so.
+void pairTables(CompareContext &context, const QTextDocument *story, const TableShapes &ta, const QTextDocument *rstory, const TableShapes &tb, const CompareOptions &options, bool isBody, TablePlan *plan, bool *cut,
+                bool *rowsCut)
+{
+    const int na = int(ta.infos.size()), nb = int(tb.infos.size());
+    plan->partnerA.fill(-1, na);
+    plan->partnerB.fill(-1, nb);
+    plan->stateA.fill(TablePlan::Counted, na);
+    plan->stateB.fill(TablePlan::Counted, nb);
+    plan->keptA.resize(na);
+    plan->keptB.resize(nb);
+    if (na == 0 && nb == 0) return;
+    // (The rows a table puts in or takes out are held to a total for the whole compare: a table that would go past it is counted.)
+    auto reserve = [&](qint64 taken, qint64 put) {
+        if (context.work.rowsPut + context.work.rowsTaken + taken + put > context.limits.tableRows) {
+            *rowsCut = true;
+            return false;
+        }
+        context.work.rowsTaken += taken;
+        context.work.rowsPut += put;
+        return true;
+    };
+    auto settleLone = [&](int k, bool original) {
+        const TableInfo &t = original ? ta.infos.at(k) : tb.infos.at(k);
+        // (A table taken out can't have cells joined down, and one put in can't hold a picture, a field, or a table.)
+        const bool can = isBody && !t.rows.isEmpty() && !t.nested && (original ? !t.merged : !t.kept);
+        if (can && (original ? reserve(t.rows.size(), 0) : reserve(0, t.rows.size()))) (original ? plan->stateA : plan->stateB)[k] = TablePlan::Whole;
+    };
+    QStringList contentA, contentB;
+    for (const TableInfo &t : ta.infos) contentA << t.content;
+    for (const TableInfo &t : tb.infos) contentB << t.content;
+    if (contentA == contentB) {   // (the same tables in the same order: each is its own partner)
+        for (int k = 0; k < na; ++k) {
+            plan->partnerA[k] = plan->partnerB[k] = k;
+            plan->stateA[k] = plan->stateB[k] = TablePlan::Exact;
+        }
         return;
     }
-    if (ta.shapes.isEmpty() || tb.shapes.isEmpty()) {
-        context.work.countUnmarked(CompareWork::Tables, ta.shapes.size() + tb.shapes.size());
+    if (na == 0 || nb == 0) {
+        qint64 counted = 0;
+        for (int k = 0; k < na; ++k) {
+            settleLone(k, true);
+            if (plan->stateA.at(k) == TablePlan::Counted) ++counted;
+        }
+        for (int k = 0; k < nb; ++k) {
+            settleLone(k, false);
+            if (plan->stateB.at(k) == TablePlan::Counted) ++counted;
+        }
+        context.work.countUnmarked(CompareWork::Tables, counted);
         return;
     }
     const Blocks ba = blocksOf(story, ta, options), bb = blocksOf(rstory, tb, options);
     const qint64 blocks = qint64(ba.keys.size()) + bb.keys.size();
     if (context.work.alignBlocks + blocks > context.limits.alignBlocks) {
         *cut = true;
-        context.work.countUnmarked(CompareWork::Tables, std::max(ta.shapes.size(), tb.shapes.size()));
+        context.work.countUnmarked(CompareWork::Tables, std::max(na, nb));
         return;
     }
     context.work.alignBlocks += blocks;
     QVector<QPair<int, int>> matches;
-    matchParagraphs(ba.keys, bb.keys, 0, int(ba.keys.size()), 0, int(bb.keys.size()), &matches, 24);
+    MatchBudget budget(context);
+    matchParagraphs(ba.keys, bb.keys, 0, int(ba.keys.size()), 0, int(bb.keys.size()), &matches, 24, &budget);
     std::sort(matches.begin(), matches.end());
     QVector<int> gapOfA(ba.keys.size(), 0), gapOfB(bb.keys.size(), 0);
     QVector<char> keptA(ba.keys.size(), 0), keptB(bb.keys.size(), 0);
@@ -759,14 +1035,206 @@ void pairTables(CompareContext &context, const QTextDocument *story, const Table
         gapOfB[j] = gap;
         if (keptB.at(j)) ++gap;
     }
-    QVector<int> unpairedA(matches.size() + 1, 0), unpairedB(matches.size() + 1, 0);
     for (const auto &m : std::as_const(matches))
-        if (ba.table.at(m.first) >= 0 && bb.table.at(m.second) >= 0) (*partnerA)[ba.table.at(m.first)] = bb.table.at(m.second), (*partnerB)[bb.table.at(m.second)] = ba.table.at(m.first);
+        if (ba.table.at(m.first) >= 0 && bb.table.at(m.second) >= 0) {
+            const int a = ba.table.at(m.first), b = bb.table.at(m.second);
+            plan->partnerA[a] = b;
+            plan->partnerB[b] = a;
+            plan->stateA[a] = plan->stateB[b] = TablePlan::Exact;
+        }
+    QVector<QVector<int>> loneA(matches.size() + 1), loneB(matches.size() + 1);   // the tables with no partner yet, by the stretch between kept blocks
     for (int i = 0; i < ba.keys.size(); ++i)
-        if (!keptA.at(i) && ba.table.at(i) >= 0) ++unpairedA[gapOfA.at(i)];
+        if (!keptA.at(i) && ba.table.at(i) >= 0) loneA[gapOfA.at(i)] << ba.table.at(i);
     for (int j = 0; j < bb.keys.size(); ++j)
-        if (!keptB.at(j) && bb.table.at(j) >= 0) ++unpairedB[gapOfB.at(j)];
-    for (int g = 0; g < unpairedA.size(); ++g) context.work.countUnmarked(CompareWork::Tables, std::max(unpairedA.at(g), unpairedB.at(g)));
+        if (!keptB.at(j) && bb.table.at(j) >= 0) loneB[gapOfB.at(j)] << bb.table.at(j);
+    QVector<qint64> counted(matches.size() + 1, 0);   // (the unpaired tables that are counted, of each side)
+    QVector<qint64> countedB(matches.size() + 1, 0);
+    // How alike two tables are, as the cells of their words that are in both (each in as many as it is in both), of the cells with words in the larger one: at least a half makes them partners.
+    QHash<int, QHash<QString, int>> bagsA, bagsB;
+    QHash<int, qint64> cellsA, cellsB;
+    auto bagOf = [&](const TableInfo &t, int k, QHash<int, QHash<QString, int>> &bags, QHash<int, qint64> &cells) -> const QHash<QString, int> & {
+        auto it = bags.find(k);
+        if (it == bags.end()) {
+            context.work.rowsLined += t.rows.size();
+            qint64 n = 0;
+            it = bags.insert(k, bagOfCells(t, &n));
+            cells.insert(k, n);
+        }
+        return it.value();
+    };
+    for (int g = 0; g < loneA.size(); ++g) {
+        const QVector<int> &la = loneA.at(g), &lb = loneB.at(g);
+        QVector<QPair<int, int>> paired;
+        const bool both = !la.isEmpty() && !lb.isEmpty();
+        if (both && qint64(la.size()) * lb.size() <= 4096) {
+            QVector<QVector<double>> weight(la.size(), QVector<double>(lb.size(), 0.0));
+            for (int i = 0; i < la.size(); ++i)
+                for (int j = 0; j < lb.size(); ++j) {
+                    const TableInfo &x = ta.infos.at(la.at(i)), &y = tb.infos.at(lb.at(j));
+                    const qint64 needed = (bagsA.contains(la.at(i)) ? 0 : x.rows.size()) + (bagsB.contains(lb.at(j)) ? 0 : y.rows.size());
+                    if (context.work.rowsLined + needed > context.limits.alignRows) {   // (no room to look at the rows of these two tables)
+                        *rowsCut = true;
+                        continue;
+                    }
+                    const QHash<QString, int> &bx = bagOf(x, la.at(i), bagsA, cellsA), &by = bagOf(y, lb.at(j), bagsB, cellsB);
+                    qint64 common = 0;
+                    for (auto it = bx.constBegin(); it != bx.constEnd(); ++it) common += std::min(it.value(), by.value(it.key()));
+                    const qint64 most = std::max(cellsA.value(la.at(i)), cellsB.value(lb.at(j)));
+                    double w = 0;
+                    if (most > 0 && common * 2 >= most) w = double(common) / double(most);
+                    else if (most == 0 && ta.shapes.at(la.at(i)) == tb.shapes.at(lb.at(j))) w = 1;
+                    else if (la.size() == 1 && lb.size() == 1 && ta.shapes.at(la.at(i)) == tb.shapes.at(lb.at(j)) && !x.nested) w = 0.01;   // (the only two, of the same shape)
+                    weight[i][j] = w;
+                }
+            // The best way to pair them in order (as the longest run of words is found).
+            QVector<QVector<double>> best(la.size() + 1, QVector<double>(lb.size() + 1, 0.0));
+            for (int i = int(la.size()) - 1; i >= 0; --i)
+                for (int j = int(lb.size()) - 1; j >= 0; --j) {
+                    best[i][j] = std::max(best[i + 1][j], best[i][j + 1]);
+                    if (weight[i][j] > 0) best[i][j] = std::max(best[i][j], best[i + 1][j + 1] + weight[i][j]);
+                }
+            for (int i = 0, j = 0; i < la.size() && j < lb.size();) {
+                if (weight[i][j] > 0 && best[i][j] == best[i + 1][j + 1] + weight[i][j]) {
+                    paired.push_back({la.at(i), lb.at(j)});
+                    ++i;
+                    ++j;
+                } else if (best[i + 1][j] >= best[i][j + 1]) {
+                    ++i;
+                } else {
+                    ++j;
+                }
+            }
+        }
+        QSet<int> usedA, usedB;
+        for (const auto &p : std::as_const(paired)) {
+            const int a = p.first, b = p.second;
+            const TableInfo &x = ta.infos.at(a), &y = tb.infos.at(b);
+            if (!isBody) {   // (tables of a note, a header, or a footer are told apart only cell by cell, when their rows and cells are alike in shape)
+                bool same = ta.shapes.at(a) == tb.shapes.at(b) && !x.nested && x.columns == y.columns && x.rows.size() == y.rows.size();
+                for (int r = 0; same && r < x.rows.size(); ++r) same = x.rows.at(r).sig == y.rows.at(r).sig;
+                usedA.insert(a);
+                usedB.insert(b);
+                if (same) {
+                    plan->partnerA[a] = b;
+                    plan->partnerB[b] = a;
+                    plan->stateA[a] = plan->stateB[b] = TablePlan::Same;
+                } else {
+                    ++counted[g];
+                    ++countedB[g];
+                }
+                continue;
+            }
+            RowEdit edit;
+            bool structure = false;
+            if (planRows(x, y, context, &edit, &structure, rowsCut)) {
+                if (reserve(edit.deleted.size(), edit.put.size())) {
+                    edit.a = a;
+                    edit.b = b;
+                    plan->partnerA[a] = b;
+                    plan->partnerB[b] = a;
+                    plan->stateA[a] = plan->stateB[b] = TablePlan::Rows;
+                    plan->keptA[a].fill(1, int(x.rows.size()));
+                    plan->keptB[b].fill(1, int(y.rows.size()));
+                    for (const int r : std::as_const(edit.deleted)) plan->keptA[a][r] = 0;
+                    for (const RowEdit::Put &put : std::as_const(edit.put)) plan->keptB[b][put.row] = 0;
+                    plan->edits << edit;
+                    usedA.insert(a);
+                    usedB.insert(b);
+                    continue;
+                }
+                structure = true;
+            }
+            if (structure) {   // (cells joined or split, or a column put in or taken out: a difference that is counted, and the two tables are left as they are)
+                usedA.insert(a);
+                usedB.insert(b);
+                ++counted[g];
+                ++countedB[g];
+            }
+        }
+        for (const int a : la)
+            if (!usedA.contains(a) && plan->partnerA.at(a) < 0) {
+                settleLone(a, true);
+                if (plan->stateA.at(a) == TablePlan::Counted) ++counted[g];
+            }
+        for (const int b : lb)
+            if (!usedB.contains(b) && plan->partnerB.at(b) < 0) {
+                settleLone(b, false);
+                if (plan->stateB.at(b) == TablePlan::Counted) ++countedB[g];
+            }
+    }
+    for (int g = 0; g < counted.size(); ++g) context.work.countUnmarked(CompareWork::Tables, std::max(counted.at(g), countedB.at(g)));
+}
+
+// ---- tables put in and taken out
+
+// The row a paragraph is in (told by the record of its cell), or null.
+const void *rowOfParagraph(WriteDoc &doc, const QTextBlock &b)
+{
+    const int key = cellKeyOf(b);
+    const flow::CellRecord *rec = key ? doc.flow().tables.get(key) : nullptr;
+    return rec && rec->row ? rec->row.get() : nullptr;
+}
+
+// The revised table `t` put in whole at `c`, as a person's paste of it is made (tracked as an insertion). False (nothing done) when it can't be copied as a table.
+bool putWholeTable(WriteDoc &out, QTextCursor &c, WriteDoc &revised, QTextDocument *rstory, const TableInfo &t)
+{
+    if (t.rows.isEmpty()) return false;
+    const RowInfo &lastRow = t.rows.last();
+    const QTextBlock first = rstory->findBlockByNumber(t.rows.first().firstBlock), last = rstory->findBlockByNumber(lastRow.firstBlock + lastRow.blocks - 1);
+    if (!first.isValid() || !last.isValid()) return false;
+    QTextCursor selection(rstory);
+    selection.setPosition(first.position());
+    selection.setPosition(last.position() + last.length() - 1, QTextCursor::KeepAnchor);
+    const Clip clip = copySelection(revised, selection);
+    if (clip.tables.size() != 1 || clip.tablesAsWords > 0) return false;
+    pasteClip(out, c, clip);
+    return true;
+}
+
+// A row put in beside the row of the original's table whose first paragraph `refAt` holds (under it, or above it), as Insert Row Below and Above make one (tracked), with the words of the revised row `src`
+// put in its cells. False (nothing done) when the row was not made.
+bool putRow(WriteDoc &out, QTextDocument *story, const QTextCursor &refAt, bool below, WriteDoc &revised, QTextDocument *rstory, const RowInfo &src)
+{
+    QTextCursor c(story);
+    c.setPosition(refAt.position());
+    const int rowsBefore = cellPlace(out, c).rows;
+    insertTableRow(out, c, below);
+    c.setPosition(refAt.position());
+    if (cellPlace(out, c).rows != rowsBefore + 1) return false;
+    const QTextBlock ref = story->findBlock(refAt.position());
+    const void *refRow = rowOfParagraph(out, ref);
+    QVector<QTextBlock> cells;
+    if (below) {
+        QTextBlock last = ref;
+        for (QTextBlock x = ref.next(); x.isValid() && rowOfParagraph(out, x) == refRow; x = x.next()) last = x;
+        const QTextBlock begin = last.next();
+        const void *made = rowOfParagraph(out, begin);
+        for (QTextBlock x = begin; made && x.isValid() && rowOfParagraph(out, x) == made; x = x.next()) cells << x;
+        if (made == refRow) cells.clear();
+    } else {
+        const void *made = rowOfParagraph(out, ref.previous());
+        for (QTextBlock x = ref.previous(); made && x.isValid() && rowOfParagraph(out, x) == made; x = x.previous()) cells.prepend(x);
+        if (made == refRow) cells.clear();
+    }
+    if (cells.size() != src.cellParas.size()) return false;
+    const UntrackedEdit untracked;   // (the row says it is put in; what is in its cells is that row's)
+    int n = 0;
+    for (int ci = 0; ci < cells.size(); ++ci) {
+        QTextCursor cur(story);
+        cur.setPosition(cells.at(ci).position());
+        for (int k = 0; k < src.cellParas.at(ci); ++k, ++n) {
+            const QTextBlock sb = rstory->findBlockByNumber(src.firstBlock + n);
+            if (k == 0) {
+                putRevisedWords(out, story, cur, sb, true);
+                dressLikeRevised(out, story, story->findBlock(cur.position()).position(), revised, sb);
+            } else {
+                Para fake;
+                fake.blockFrom = sb.position();
+                insertRevisedParagraph(out, story, cur, revised, rstory, fake, false, true);
+            }
+        }
+    }
+    return true;
 }
 
 // What the compare of the text says about where each paragraph of the original went, for telling whether a note's mark moved: for each paragraph of the original, the paragraph of the revised one that
@@ -786,37 +1254,39 @@ void addNote(QStringList *notes, const QString &text)
 Outcome compareStory(CompareContext &context, WriteDoc *out, QTextDocument *story, WriteDoc &revised, QTextDocument *rstory, const CompareOptions &options, bool isBody, int *madeTotal, int *doneTotal, int storiesLeft,
                      QStringList *notes, const std::function<bool(int, int)> &progress, Alignment *alignment = nullptr)
 {
-    const TableShapes tablesA = tableShapesOf(*out, story), tablesB = tableShapesOf(revised, rstory);
-    // Which table is which: a table is told apart cell by cell only with the partner of the same shape that the paragraphs and tables around it lead to; a table with no partner is counted, and left as it is.
-    QVector<int> partnerA, partnerB, pairOfA, pairOfB;
-    bool tablesCut = false;
-    pairTables(context, story, tablesA, rstory, tablesB, options, &partnerA, &partnerB, &tablesCut);
+    const TableShapes tablesA = tableShapesOf(*out, story, options), tablesB = tableShapesOf(revised, rstory, options);
+    // Which table is which, and what is done with each (see TablePlan): a table of the text is told apart from its partner cell by cell, or row by row, or put in or taken out whole; what can't be marked is counted.
+    TablePlan plan;
+    bool tablesCut = false, rowsCut = false;
+    pairTables(context, story, tablesA, rstory, tablesB, options, isBody, &plan, &tablesCut, &rowsCut);
     if (tablesCut) addNote(notes, QCoreApplication::translate("jp::write::Compare", "Too much text to line up the tables, so they are not compared."));
-    pairOfA.fill(-1, int(partnerA.size()));
-    pairOfB.fill(-1, int(partnerB.size()));
-    for (int k = 0; k < partnerA.size(); ++k)
-        if (partnerA.at(k) >= 0 && !tablesA.shapes.at(k).startsWith(QLatin1Char('!'))) {
+    if (rowsCut) addNote(notes, QCoreApplication::translate("jp::write::Compare", "Too many rows and tables changed to mark them all."));
+    QVector<int> pairOfA(plan.partnerA.size(), -1), pairOfB(plan.partnerB.size(), -1);
+    for (int k = 0; k < plan.partnerA.size(); ++k)
+        if (plan.partnerA.at(k) >= 0 && !tablesA.shapes.at(k).startsWith(QLatin1Char('!'))) {
             pairOfA[k] = k;
-            pairOfB[partnerA.at(k)] = k;
+            pairOfB[plan.partnerA.at(k)] = k;
         }
     bool many1 = false, many2 = false;
     bool looksCut = false;
-    QVector<Para> a = paragraphsOf(story, pairOfA, tablesA, &many1, options.compareFormatting, context, &looksCut);
-    const QVector<Para> b = paragraphsOf(rstory, pairOfB, tablesB, &many2, options.compareFormatting, context, &looksCut);
+    QVector<Para> a = paragraphsOf(story, pairOfA, plan.keptA, tablesA, &many1, options.compareFormatting, context, &looksCut);
+    const QVector<Para> b = paragraphsOf(rstory, pairOfB, plan.keptB, tablesB, &many2, options.compareFormatting, context, &looksCut);
     if (many1 || many2) return Outcome::TooMany;
-    // The paragraphs that are the same in both, in order (the paragraphs of a table, only as the same place of its partner).
-    auto key = [&](const Para &p) {
+    // The paragraphs that are the same in both, in order (the paragraphs of a table, only as the same place of its partner; those of a table or row with no partner are never the same as any).
+    auto key = [&](const Para &p, int side) {
         QString k = p.ok ? p.text : QStringLiteral("\x01");
         if (options.ignoreCase) k = k.toLower();
         if (options.ignoreWhiteSpace) k = k.simplified();
         if (p.ok && p.tablePair >= 0) k = QStringLiteral("\x03%1:%2\x1f").arg(p.tablePair).arg(p.cellIndex) + k;
+        if (!p.ok && p.kind == Para::Cell) k = QStringLiteral("\x04%1:%2").arg(side).arg(p.blockFrom);
         return k;
     };
     QStringList ka, kb;
-    for (const Para &p : a) ka << key(p);
-    for (const Para &p : b) kb << key(p);
+    for (const Para &p : a) ka << key(p, 0);
+    for (const Para &p : b) kb << key(p, 1);
     QVector<QPair<int, int>> matches;
-    matchParagraphs(ka, kb, 0, int(ka.size()), 0, int(kb.size()), &matches, 24);
+    MatchBudget budget(context);
+    matchParagraphs(ka, kb, 0, int(ka.size()), 0, int(kb.size()), &matches, 24, &budget);
     std::sort(matches.begin(), matches.end());
     QVector<int> keepA, keepB;
     QVector<char> matchedA(a.size(), 0), matchedB(b.size(), 0);
@@ -831,6 +1301,7 @@ Outcome compareStory(CompareContext &context, WriteDoc *out, QTextDocument *stor
         QVector<int> aOnly, bOnly;      // the paragraphs of each that are not kept and are not moved
         QVector<int> pairs;             // the pairs of them that are told apart word by word, as indices in `pairList`
         QVector<int> aLeft, bLeft;      // the paragraphs of each that are in no pair (only in one: deleted, or put in)
+        bool whole = false;             // the compare had no room to line the paragraphs of this stretch up: each is taken out or put in whole
     };
     QVector<Gap> gaps;
     QVector<int> gapA(a.size(), 0), gapB(b.size(), 0);
@@ -842,8 +1313,13 @@ Outcome compareStory(CompareContext &context, WriteDoc *out, QTextDocument *stor
         g.b1 = k < keepB.size() ? keepB.at(k) : int(b.size());
         for (int i = g.a0; i < g.a1; ++i) gapA[i] = k;
         for (int j = g.b0; j < g.b1; ++j) gapB[j] = k;
+        if (g.a1 > g.a0 && g.b1 > g.b0 && budget.left.contains({g.a0, g.b0})) {
+            g.whole = true;
+            context.work.matchLeft += (g.a1 - g.a0) + (g.b1 - g.b0);
+        }
         gaps.push_back(g);
     }
+    if (context.work.matchLeft > 0) addNote(notes, QCoreApplication::translate("jp::write::Compare", "Too much changed to line up all the paragraphs, so a stretch of them is shown as taken out and put in whole, without the formatting of the new text."));
     // Paragraphs that only moved.
     QVector<int> movedA(a.size(), -1), movedB(b.size(), -1);
     QStringList moveNames;
@@ -895,9 +1371,11 @@ Outcome compareStory(CompareContext &context, WriteDoc *out, QTextDocument *stor
         Gap &g = gaps[k];
         // (A paragraph is paired with one of the same kind: a paragraph of a table only with the same table's, and the rest with each other, each in order.)
         QMap<int, QVector<int>> byClassA, byClassB;
-        auto classOf = [](const Para &p) { return p.ok ? p.tablePair : -2; };   // (what can't be compared is paired only with the same)
-        for (const int i : std::as_const(g.aOnly)) byClassA[classOf(a.at(i))] << i;
-        for (const int j : std::as_const(g.bOnly)) byClassB[classOf(b.at(j))] << j;
+        auto classOf = [](const Para &p, int side) { return p.ok ? p.tablePair : p.kind == Para::Cell ? -3 - side : -2; };   // (what can't be compared is paired only with the same, and a table or row with no partner with none)
+        if (!g.whole) {
+            for (const int i : std::as_const(g.aOnly)) byClassA[classOf(a.at(i), 0)] << i;
+            for (const int j : std::as_const(g.bOnly)) byClassB[classOf(b.at(j), 1)] << j;
+        }
         for (auto it = byClassA.constBegin(); it != byClassA.constEnd(); ++it) {
             const QVector<int> &inA = it.value();
             const QVector<int> inB = byClassB.value(it.key());
@@ -952,6 +1430,38 @@ Outcome compareStory(CompareContext &context, WriteDoc *out, QTextDocument *stor
         for (const PairInfo &p : std::as_const(pairList)) looks(p.a, p.b, p.edits);
         if (capped || looksCut) addNote(notes, QCoreApplication::translate("jp::write::Compare", "Too many changes of formatting to show them all."));
     }
+    // The tables of the original that are changed by rows, or taken out whole: held at the first paragraph of each row that is a place of the changes (the places follow the edits made to the text).
+    struct TableJob {
+        bool whole = false;
+        RowEdit edit;
+        QMap<int, QTextCursor> rowAt;
+    };
+    QVector<TableJob> jobs;
+    {
+        auto cursorAt = [&](const TableInfo &t, int row) {
+            QTextCursor c(story);
+            c.setPosition(story->findBlockByNumber(t.rows.at(row).firstBlock).position());
+            return c;
+        };
+        for (int k = 0; k < plan.stateA.size(); ++k)
+            if (plan.stateA.at(k) == TablePlan::Whole) {
+                TableJob job;
+                job.whole = true;
+                job.edit.a = k;
+                job.rowAt.insert(0, cursorAt(tablesA.infos.at(k), 0));
+                jobs << job;
+            }
+        for (const RowEdit &e : std::as_const(plan.edits)) {
+            TableJob job;
+            job.edit = e;
+            const TableInfo &t = tablesA.infos.at(e.a);
+            for (const int r : e.deleted) job.rowAt.insert(r, cursorAt(t, r));
+            for (const RowEdit::Put &put : e.put)
+                if (!job.rowAt.contains(put.ref)) job.rowAt.insert(put.ref, cursorAt(t, put.ref));
+            jobs << job;
+        }
+    }
+    QSet<int> putTables;   // the tables of the revised text that are put in (by order)
     // From the last gap to the first, so that a place found before an edit is still its place after the edits after it.
     for (int k = int(gaps.size()) - 1; k >= 0; --k) {
         const Gap &g = gaps.at(k);
@@ -960,32 +1470,117 @@ Outcome compareStory(CompareContext &context, WriteDoc *out, QTextDocument *stor
             const int d = (*doneTotal)++;
             if (!progress(d, d + places + storiesLeft)) return Outcome::Canceled;
         }
+        // A stretch the compare had no room to line up (see MatchBudget) that holds only paragraphs of words: all its paragraphs are taken out with one deletion and the revised stretch is put in with one insertion
+        // (a paragraph at a time, every edit looks through the whole text for what is locked, and the work grows with the square of the text). The new words have no look or style of the revised paragraphs'.
+        if (g.whole && g.bLeft.size() == g.b1 - g.b0 && g.aLeft.size() == g.a1 - g.a0) {
+            auto plain = [&](const QVector<Para> &list, int i, const QVector<int> &moved, const TableShapes &tables) {
+                return list.at(i).ok && list.at(i).kind == Para::Normal && list.at(i).tablePair < 0 && moved.at(i) < 0 && tables.tableOfBlock.value(i, -1) < 0;
+            };
+            bool all = true;
+            for (int i = g.a0; i < g.a1 && all; ++i) all = plain(a, i, movedA, tablesA);
+            for (int j = g.b0; j < g.b1 && all; ++j) all = plain(b, j, movedB, tablesB);
+            all = all && tablesA.tableOfBlock.value(g.a0 - 1, -1) < 0 && tablesA.tableOfBlock.value(g.a1, -1) < 0;
+            if (all) {
+                QString text;
+                for (int j = g.b0; j < g.b1; ++j) text += QLatin1Char('\n') + b.at(j).text;
+                QTextCursor c(story);
+                c.setPosition(a.at(g.a1 - 1).blockEnd);
+                insertText(*out, c, text);
+                const QTextBlock first = story->findBlock(a.at(g.a0).blockFrom), last = story->findBlock(a.at(g.a1 - 1).blockFrom);
+                QTextCursor d(story);
+                d.setPosition(first.position());
+                d.setPosition(last.next().position(), QTextCursor::KeepAnchor);
+                removeSelection(*out, d);
+                made += 2;
+                continue;
+            }
+        }
         // The paragraphs that are only in the revised version (or are moved here), put after the last paragraph of the gap (or after the one before it).
         QVector<int> inserts = g.bLeft;
         for (int j = g.b0; j < g.b1; ++j)
             if (movedB.at(j) >= 0) inserts << j;
         std::sort(inserts.begin(), inserts.end());
+        QTextCursor preAt(story);
+        QVector<int> preInserts;
         if (!inserts.isEmpty()) {
             QTextCursor c(story);
             const int after = g.a1 - 1;
             auto inTable = [&](int i) { return i >= 0 && i < a.size() && tablesA.tableOfBlock.value(i, -1) >= 0; };
+            bool putsTable = false;   // (a table that is only in the revised text is among them)
+            for (const int t : std::as_const(inserts))
+                if (!b.at(t).ok && b.at(t).kind == Para::Cell && b.at(t).tableOrd >= 0 && plan.stateB.value(b.at(t).tableOrd) == TablePlan::Whole && !putTables.contains(b.at(t).tableOrd)) putsTable = true;
             // After the paragraph before the gap; but not inside a table (right after a table's last cell, or at the start of a table): then before the paragraph the gap ends with, if that is not in a table.
+            // A table put in goes before the paragraph the gap ends with (as a person's paste at its start does), when there is one.
             bool atStart = after < 0, placed = true;
-            if (after >= 0 && !inTable(after)) {
+            bool holdMode = false;   // what is put in goes before the paragraph the gap ends with
+            if (putsTable && g.a1 < a.size() && !inTable(g.a1)) {
+                atStart = true;
+                holdMode = true;
+                c.setPosition(a.at(g.a1).blockFrom);
+            } else if (after >= 0 && !inTable(after)) {
                 c.setPosition(a.at(after).blockEnd);
             } else {
                 const int next = after >= 0 ? g.a1 : 0;
                 atStart = true;
-                if (next < a.size() && !inTable(next)) c.setPosition(a.at(next).blockFrom);
-                else placed = false;
+                if (next < a.size() && !inTable(next)) {
+                    c.setPosition(a.at(next).blockFrom);
+                    holdMode = true;
+                } else {
+                    placed = false;
+                }
             }
+            bool fillLast = false;   // the empty paragraph a table put in at the end of the text leaves is where the next paragraph's words go
+            // Paragraphs put in before a table (of the revised text) in a stretch that holds a table of the original go before that table, after the paragraph before it (and not after the whole table, where the
+            // end of the stretch is).
+            int firstATable = -1, firstBTable = -1;
+            for (int i = g.a0; i < g.a1 && firstATable < 0; ++i)
+                if (inTable(i)) firstATable = i;
+            for (int j = g.b0; j < g.b1 && firstBTable < 0; ++j)
+                if (tablesB.tableOfBlock.value(j, -1) >= 0) firstBTable = j;
+            const int beforeTable = firstATable - 1;   // (the paragraph before it)
+            const bool havePre = firstATable >= 0 && firstBTable >= 0 && beforeTable >= 0 && !inTable(beforeTable);
+            bool preCounted = false;
+            if (havePre) preAt.setPosition(a.at(beforeTable).blockEnd);
             for (const int t : std::as_const(inserts)) {
+                if (firstATable >= 0 && firstBTable >= 0 && t < firstBTable && b.at(t).ok && movedB.at(t) < 0 && b.at(t).tablePair < 0) {
+                    if (!havePre) {   // (the table starts the text: nothing can go before it)
+                        if (!preCounted) context.work.countUnmarked(CompareWork::Tables);
+                        preCounted = true;
+                    } else {
+                        preInserts << t;   // (put in after the edits of the stretch: the places of the paragraphs the edits are in are those before any of them)
+                    }
+                    continue;
+                }
                 if (!b.at(t).ok) {
-                    if (b.at(t).kind == Para::Raw) context.work.countUnmarked(CompareWork::KeptAsWritten);   // (a paragraph that stands for something kept as it was written)
+                    if (b.at(t).kind == Para::Raw) {
+                        context.work.countUnmarked(CompareWork::KeptAsWritten);   // (a paragraph that stands for something kept as it was written)
+                    } else if (b.at(t).kind == Para::Cell && b.at(t).tableOrd >= 0 && plan.stateB.value(b.at(t).tableOrd) == TablePlan::Whole && !putTables.contains(b.at(t).tableOrd)) {
+                        // (A table that is only in the revised text: put in whole, at the place of its first paragraph among the ones put in.)
+                        putTables.insert(b.at(t).tableOrd);
+                        if (holdMode) c.setPosition(c.block().position());   // (the start of the paragraph itself, before the marks of the changes that were put in it)
+                        if (placed && putWholeTable(*out, c, revised, rstory, tablesB.infos.at(b.at(t).tableOrd))) {
+                            ++context.work.tablesPut;
+                            ++made;
+                            if (!holdMode) {   // (put in at the end of a paragraph: the empty paragraph the table leaves, at the end of the text or before another table, is where the next paragraph's words go)
+                                fillLast = c.block().length() == 1 && cellKeyOf(c.block()) == 0;
+                                atStart = false;
+                            }
+                        } else {
+                            context.work.countUnmarked(CompareWork::Tables);
+                        }
+                    }
                     continue;
                 }
                 if (!placed || b.at(t).tablePair >= 0) {   // (no place that is not in a table, or a paragraph of a table: not put in)
                     context.work.countUnmarked(CompareWork::Tables);
+                    continue;
+                }
+                if (fillLast && movedB.at(t) < 0) {
+                    fillLast = false;
+                    const QTextBlock src = rstory->findBlock(b.at(t).blockFrom);
+                    putRevisedWords(*out, story, c, src);
+                    dressLikeRevised(*out, story, story->findBlock(c.position()).position(), revised, src);
+                    ++made;
                     continue;
                 }
                 const int at = insertRevisedParagraph(*out, story, c, revised, rstory, b.at(t), atStart);
@@ -1026,7 +1621,7 @@ Outcome compareStory(CompareContext &context, WriteDoc *out, QTextDocument *stor
                 const bool lastWay = !blk.next().isValid() || movedA.at(t) >= 0;
                 if (lastWay && blk.previous().isValid() && tablesA.tableOfBlock.value(t - 1, -1) >= 0) {   // (the last paragraph, after a table: its mark is not the one that can go)
                     const int before = tablesA.tableOfBlock.value(t - 1, -1);
-                    if (partnerA.value(before, -1) >= 0) context.work.countUnmarked(CompareWork::Tables);   // (after a table with no partner, it is that table's difference, counted already)
+                    if (plan.partnerA.value(before, -1) >= 0 || plan.stateA.value(before) == TablePlan::Whole) context.work.countUnmarked(CompareWork::Tables);   // (after a table that is not marked, it is that table's difference, counted already)
                     continue;
                 }
                 const int markPos = !lastWay || !blk.previous().isValid() ? blk.position() : blk.previous().position();
@@ -1071,6 +1666,45 @@ Outcome compareStory(CompareContext &context, WriteDoc *out, QTextDocument *stor
                 }
                 ++made;
             }
+        }
+        for (const int t : std::as_const(preInserts)) {
+            insertRevisedParagraph(*out, story, preAt, revised, rstory, b.at(t), false);
+            ++made;
+        }
+    }
+    // The tables of the original that are taken out whole, and the rows of the ones told apart by row that are taken out and put in (the rows taken out first; the places held above follow every edit made).
+    for (int ji = int(jobs.size()) - 1; ji >= 0; --ji) {   // (the last table first: a change of a table leaves the tables after it as they were)
+        TableJob &job = jobs[ji];
+        if (job.whole) {
+            QTextCursor c = job.rowAt.value(0);
+            deleteTable(*out, c);
+            ++context.work.tablesTaken;
+            ++made;
+            continue;
+        }
+        const QVector<int> &gone = job.edit.deleted;
+        for (int hi = int(gone.size()) - 1; hi >= 0;) {   // (the runs of rows that go, the last first)
+            int lo = hi;
+            while (lo > 0 && gone.at(lo - 1) == gone.at(lo) - 1) --lo;
+            QTextCursor c(story);
+            const QTextBlock lastFirst = story->findBlock(job.rowAt.value(gone.at(hi)).position());   // (the first paragraph of the last row: the rows between the two cursors' paragraphs go)
+            c.setPosition(job.rowAt.value(gone.at(lo)).position());
+            c.setPosition(lastFirst.position() + lastFirst.length() - 1, QTextCursor::KeepAnchor);
+            deleteTableRows(*out, c);
+            made += hi - lo + 1;
+            hi = lo - 1;
+        }
+        const TableInfo &partner = tablesB.infos.at(job.edit.b);
+        const QVector<RowEdit::Put> &put = job.edit.put;
+        for (int lo = 0; lo < put.size();) {   // (a run of rows that go beside the same row: the ones that go under it from the last, so that each is made next to it; the ones that go above it from the first)
+            int hi = lo;
+            while (hi + 1 < put.size() && put.at(hi + 1).ref == put.at(lo).ref && put.at(hi + 1).below == put.at(lo).below) ++hi;
+            for (int t = 0; t <= hi - lo; ++t) {
+                const RowEdit::Put &one = put.at(put.at(lo).below ? hi - t : lo + t);
+                if (putRow(*out, story, job.rowAt.value(one.ref), one.below, revised, rstory, partner.rows.at(one.row))) ++made;
+                else context.work.countUnmarked(CompareWork::Tables);
+            }
+            lo = hi + 1;
         }
     }
     if (alignment) {
