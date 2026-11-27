@@ -40,6 +40,7 @@
 #include "wml/wml.h"
 
 #include <QCheckBox>
+#include <QClipboard>
 #include <QComboBox>
 #include <QFile>
 #include <QImage>
@@ -883,6 +884,44 @@ static NoteDoc everyKindOfStory()
     return d;
 }
 
+
+// A window on the document, the first paragraphs (all the references) selected.
+struct ManyNotesWindow {
+    WriteWindow w;
+    WriteDoc *doc = nullptr;
+    int n = 0;
+    ManyNotesWindow(const QByteArray &zip, int notes, bool tracking) : n(notes)
+    {
+        w.setNotifier([](const QString &, const QString &) {});
+        w.resize(900, 700);
+        w.show();
+        w.setDocument(open(zip), QString());
+        doc = w.document();
+        doc->setReviewer(QStringLiteral("Zed"), QString());
+        doc->setTrackChanges(tracking);
+    }
+    int paragraphsOfReferences() const { return (n + 9) / 10; }
+    void selectReferences()
+    {
+        QTextDocument *st = doc->story();
+        const QTextBlock last = st->findBlockByNumber(paragraphsOfReferences() - 1);
+        QTextCursor c(st);
+        c.setPosition(0);
+        c.setPosition(last.position() + last.length() - 1, QTextCursor::KeepAnchor);
+        w.view()->setCursor(c);
+    }
+    void cutAndPasteAfter()
+    {
+        selectReferences();
+        QTRY_VERIFY(w.act("edit.cut")->isEnabled());
+        w.act("edit.cut")->trigger();
+        QTextCursor c(doc->story());
+        c.setPosition(doc->story()->findBlockByNumber(paragraphsOfReferences()).position());
+        w.view()->setCursor(c);
+        QTRY_VERIFY(w.act("edit.paste")->isEnabled());
+        w.act("edit.paste")->trigger();
+    }
+};
 
 class ReviewTests : public QObject {
     Q_OBJECT
@@ -7674,6 +7713,147 @@ private Q_SLOTS:
                         QVERIFY2(problem.isEmpty(), qPrintable(label + " in session: " + problem));
                     }
                 }
+    }
+
+    // ---------------------------------------------------------------- the second fix list: many notes at once
+    // A document of `n` notes of one kind, `perPara` references to a paragraph, then a tail paragraph. Note i says "W" and its number in three digits, a colon, `filler` letters, and `lastExtra` more in the last note.
+    static QString manyNoteText(int i, int filler) { return QStringLiteral("W%1:").arg(i, 3, 10, QLatin1Char('0')) + QString(filler, QLatin1Char('x')); }
+    static QByteArray manyNotesDoc(int n, bool endnote, int filler, int lastExtra = 0, int perPara = 10)
+    {
+        const QString rel = QStringLiteral("http://schemas.openxmlformats.org/officeDocument/2006/relationships/");
+        const QString type = QStringLiteral("application/vnd.openxmlformats-officedocument.wordprocessingml.");
+        const QByteArray ns = QByteArray(kNs);
+        const QByteArray tag = endnote ? "endnote" : "footnote";
+        QByteArray body, notes;
+        for (int i = 1; i <= n; i += perPara) {
+            QByteArray c = run("alpha ");
+            for (int j = i; j < std::min(n + 1, i + perPara); ++j)
+                c += "<w:r><w:rPr><w:rStyle w:val=\"" + QByteArray(endnote ? "EndnoteReference" : "FootnoteReference") + "\"/></w:rPr><w:" + tag + "Reference w:id=\"" + QByteArray::number(j) + "\"/></w:r>" + run(" beta ");
+            body += para(c);
+        }
+        body += para(run("tail paragraph")) + "<w:sectPr/>";
+        for (int i = 1; i <= n; ++i) notes += "<w:" + tag + " w:id=\"" + QByteArray::number(i) + "\">" + para(run((manyNoteText(i, filler) + QString(i == n ? lastExtra : 0, QLatin1Char('y'))).toLatin1().constData())) + "</w:" + tag + ">";
+        office::PackageWriter w;
+        w.addPart(QStringLiteral("/word/document.xml"), xml("<w:document " + ns + "><w:body>" + body + "</w:body></w:document>"), type + QStringLiteral("document.main+xml"));
+        w.addRelationship(QStringLiteral("/"), rel + QStringLiteral("officeDocument"), QStringLiteral("/word/document.xml"));
+        const QString nm = endnote ? QStringLiteral("endnotes") : QStringLiteral("footnotes");
+        w.addPart(QStringLiteral("/word/%1.xml").arg(nm), xml("<w:" + nm.toUtf8() + " " + ns + ">" + notes + "</w:" + nm.toUtf8() + ">"), type + nm + QStringLiteral("+xml"));
+        w.addRelationship(QStringLiteral("/word/document.xml"), rel + nm, QStringLiteral("/word/%1.xml").arg(nm));
+        return w.finish();
+    }
+    // The words of the notes the references that stand cite (a reference the reviewer deleted does not stand), in the order of the references; the session's own, before any save.
+    static QStringList sessionNoteWords(WriteDoc &doc, bool endnote, int mostId)
+    {
+        QMap<int, QString> byPlace;
+        for (int id = 1; id <= mostId; ++id)
+            for (const int at : endnote ? doc.endnoteReferences(id) : doc.footnoteReferences(id)) {
+                if (revisionLookAt(doc.story()->findBlock(at), at).deleted) continue;
+                QString words;
+                for (const office::wml::Block &b : doc.noteContentForCopy(id, endnote))
+                    for (const office::wml::Inline &in : b.para.content) words += in.text;
+                byPlace.insert(at, words);
+            }
+        return byPlace.values();
+    }
+    // The same from a saved package: the notes cited by the references that are not inside a deletion.
+    static QStringList savedNoteWords(const QByteArray &zip, bool endnote)
+    {
+        QString body = QString::fromUtf8(documentXml(zip));
+        body.remove(QRegularExpression(QStringLiteral("<w:del\\b[^>]*[^/]>.*?</w:del>"), QRegularExpression::DotMatchesEverythingOption));
+        const QString kind = QLatin1String(endnote ? "endnote" : "footnote");
+        const QString part = QString::fromUtf8(partXml(zip, endnote ? "/word/endnotes.xml" : "/word/footnotes.xml"));
+        QHash<int, QString> words;
+        for (auto m = QRegularExpression(QStringLiteral("<w:%1 [^>]*w:id=\"(\\d+)\"[^>]*>(.*?)</w:%1>").arg(kind), QRegularExpression::DotMatchesEverythingOption).globalMatch(part); m.hasNext();) {
+            const auto one = m.next();
+            words.insert(one.captured(1).toInt(), wordsOfPart(one.captured(2).toUtf8()));
+        }
+        QStringList out;
+        for (auto m = QRegularExpression(QStringLiteral("<w:%1Reference [^>]*w:id=\"(\\d+)\"").arg(kind)).globalMatch(body); m.hasNext();) out << words.value(m.next().captured(1).toInt());
+        return out;
+    }
+    static QStringList manyExpected(int n, int filler, int lastExtra = 0)
+    {
+        QStringList out;
+        for (int i = 1; i <= n; ++i) out << manyNoteText(i, filler) + QString(i == n ? lastExtra : 0, QLatin1Char('y'));
+        return out;
+    }
+    // A tracked or untracked cut of 65 or more references pastes every one of the notes with its own words (the 65th and later ones were pasted empty).
+    void aCutOfManyNotesPastesEveryNotesWords_data()
+    {
+        QTest::addColumn<bool>("endnote");
+        QTest::addColumn<bool>("tracking");
+        QTest::newRow("footnotes tracked") << false << true;
+        QTest::newRow("footnotes untracked") << false << false;
+        QTest::newRow("endnotes tracked") << true << true;
+        QTest::newRow("endnotes untracked") << true << false;
+    }
+    void aCutOfManyNotesPastesEveryNotesWords()
+    {
+        QFETCH(bool, endnote);
+        QFETCH(bool, tracking);
+        const int n = 70;
+        const QStringList expected = manyExpected(n, 30);
+        ManyNotesWindow m(manyNotesDoc(n, endnote, 30), n, tracking);
+        m.cutAndPasteAfter();
+        // In the session, before any save.
+        QCOMPARE(sessionNoteWords(*m.doc, endnote, 3 * n), expected);
+        const QByteArray saved = savedByWindow(m.w);
+        QCOMPARE(packageProblem(saved), QString());
+        QCOMPARE(savedNoteWords(saved, endnote), expected);
+        auto reopened = open(saved);
+        QVERIFY(reopened);
+        QCOMPARE(sessionNoteWords(*reopened, endnote, 3 * n), expected);
+    }
+
+    // The most a copy keeps is a total of characters over all the notes; a selection at it is copied whole, and one character over it is refused with a notice and nothing cut.
+    void aCutOfNotesAtTheLimitIsKeptWholeAndOneCharacterMoreIsRefused_data() { aCutOfManyNotesPastesEveryNotesWords_data(); }
+    void aCutOfNotesAtTheLimitIsKeptWholeAndOneCharacterMoreIsRefused()
+    {
+        QFETCH(bool, endnote);
+        QFETCH(bool, tracking);
+        const int n = 80;
+        // What the 80 notes come to with no filler (the notes' own overhead), to fill them up to the limit exactly.
+        int bare = 0;
+        {
+            ManyNotesWindow m(manyNotesDoc(n, endnote, 0), n, false);
+            m.selectReferences();
+            const Clip clip = copySelection(*m.doc, m.w.view()->cursor());
+            QVERIFY(!clip.notesTooLarge);
+            for (const QVector<office::wml::Block> &blocks : clip.notes)
+                for (const office::wml::Block &b : blocks)
+                    for (const office::wml::Inline &in : b.para.content) bare += int(in.text.size() + in.display.size());
+        }
+        QVERIFY2(bare > 0 && (kMostCopiedNoteChars - bare) % n == 0, qPrintable(QString::number(bare)));
+        const int filler = (kMostCopiedNoteChars - bare) / n;
+        {
+            // At the limit: every note is pasted with its words.
+            const QStringList expected = manyExpected(n, filler);
+            ManyNotesWindow m(manyNotesDoc(n, endnote, filler), n, tracking);
+            m.cutAndPasteAfter();
+            QCOMPARE(sessionNoteWords(*m.doc, endnote, 3 * n), expected);
+            const QByteArray saved = savedByWindow(m.w);
+            QCOMPARE(packageProblem(saved), QString());
+            QCOMPARE(savedNoteWords(saved, endnote), expected);
+            QCOMPARE(sessionNoteWords(*open(saved), endnote, 3 * n), expected);
+        }
+        for (const char *command : {"edit.cut", "edit.copy"}) {
+            // One character over: nothing is cut or copied, and the person is told.
+            const QStringList expected = manyExpected(n, filler, 1);
+            ManyNotesWindow m(manyNotesDoc(n, endnote, filler, 1), n, tracking);
+            const QString before = m.doc->story()->toPlainText();
+            const QByteArray savedBefore = savedByWindow(m.w);
+            QApplication::clipboard()->setText(QStringLiteral("kept on the clipboard"));
+            QSignalSpy said(m.w.view(), &PageView::notice);
+            m.selectReferences();
+            QTRY_VERIFY(m.w.act(command)->isEnabled());
+            m.w.act(command)->trigger();
+            QCOMPARE(said.size(), 1);
+            QVERIFY2(said.first().first().toString().contains(QLatin1String("too long")), qPrintable(said.first().first().toString()));
+            QCOMPARE(QApplication::clipboard()->text(), QStringLiteral("kept on the clipboard"));
+            QCOMPARE(m.doc->story()->toPlainText(), before);
+            QCOMPARE(sessionNoteWords(*m.doc, endnote, 3 * n), expected);
+            QCOMPARE(savedByWindow(m.w), savedBefore);
+        }
     }
 
     // A note deleted with its reference is two changes in the list (as the reference program lists them): the reference, and the note's words (and its paragraph mark with them).

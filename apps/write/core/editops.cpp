@@ -761,7 +761,16 @@ void collectNoteReferences(const QTextBlock &b, int from, int to, QVector<NoteRe
     }
 }
 
-constexpr int kMostCopiedNotes = 64;   // (the notes a copy keeps: a selection of more has the rest made as the other copies are)
+// The characters of the words of some blocks (a note's), what the limit of a copy counts.
+qsizetype noteCharacters(const QVector<Block> &blocks)
+{
+    qsizetype n = 0;
+    for (const Block &b : blocks) {
+        n += b.isRaw ? b.display.size() : 0;
+        for (const Inline &in : b.para.content) n += in.text.size() + in.display.size();
+    }
+    return n;
+}
 QString noteKey(const NoteRef &r) { return QLatin1String(r.endnote ? "e" : "f") + QString::number(r.id); }
 
 void trackedDeleteRange(WriteDoc &doc, QTextDocument *d, int from, int to, QTextCursor *start, QTextCursor *end, bool inNote = false);
@@ -2247,12 +2256,22 @@ Clip copySelection(const WriteDoc &doc, const QTextCursor &whole, bool keepChang
     if (c.document() == doc.story() && !inEndnoteWords(c)) {
         // The notes of the references in the selection, as they stand now (a tracked cut takes them out of the text, and may take the notes themselves: those the reviewer made).
         QVector<NoteRef> refs;
-        for (QTextBlock b = c.document()->findBlock(c.selectionStart()); b.isValid() && b.position() < c.selectionEnd() && refs.size() < kMostCopiedNotes; b = b.next())
+        for (QTextBlock b = c.document()->findBlock(c.selectionStart()); b.isValid() && b.position() < c.selectionEnd(); b = b.next())
             if (!isLocked(b)) collectNoteReferences(b, c.selectionStart(), c.selectionEnd(), &refs);
+        qsizetype characters = 0;
         for (const NoteRef &r : std::as_const(refs)) {
-            if (clip.notes.size() >= kMostCopiedNotes) break;
             const QVector<Block> blocks = const_cast<WriteDoc &>(doc).noteContentForCopy(r.id, r.endnote);
-            if (!blocks.isEmpty()) clip.notes.insert(noteKey(r), blocks);
+            if (blocks.isEmpty()) continue;
+            characters += noteCharacters(blocks);
+            if (characters > kMostCopiedNoteChars) {
+                // (Every note is kept whole or the copy is refused: a note pasted empty would lose the person's words.)
+                Clip refused;
+                refused.source = clip.source;
+                refused.generation = clip.generation;
+                refused.notesTooLarge = true;
+                return refused;
+            }
+            clip.notes.insert(noteKey(r), blocks);
         }
     }
     {

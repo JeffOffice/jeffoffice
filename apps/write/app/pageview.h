@@ -599,6 +599,7 @@ protected:
 
 private:
     void sayTablesAreWords(const Clip &clip);
+    bool copyToClipboard();   // Copy; false when nothing was copied because the notes of the selection are too long (said)
     struct Rendered;
     struct Hit {
         int page = -1;

@@ -101,6 +101,10 @@ void PageView::redo()
 // A table the selection held whole that goes as its words (and not as a table) is said, with why.
 void PageView::sayTablesAreWords(const Clip &clip)
 {
+    if (clip.notesTooLarge) {
+        Q_EMIT notice(tr("The notes in this selection are too long to copy or cut. Select less of the text, and try again."));
+        return;
+    }
     switch (clip.wholeAsWords) {
     case Clip::WholeAsWords::None: break;
     case Clip::WholeAsWords::Changes: Q_EMIT notice(tr("A table with changes tracked in it is copied as its words, not as a table. Accept or reject the changes to copy it as a table.")); break;
@@ -109,15 +113,18 @@ void PageView::sayTablesAreWords(const Clip &clip)
     }
 }
 
-void PageView::copy()
+void PageView::copy() { copyToClipboard(); }
+
+bool PageView::copyToClipboard()
 {
     if (m_shapeEditor) {
         m_shapeEditor->copy();
-        return;
+        return true;
     }
-    if (!m_doc || !m_cursor.hasSelection()) return;
+    if (!m_doc || !m_cursor.hasSelection()) return true;
     const Clip clip = copySelection(*m_doc, m_cursor);
     sayTablesAreWords(clip);
+    if (clip.notesTooLarge) return false;
     const QTextDocumentFragment &f = clip.fragment;
     auto *mime = new QMimeData;
     // (A field is the text it shows on the page being edited, or the one the caret is on.)
@@ -138,6 +145,7 @@ void PageView::copy()
     s_copiedText = text;
     s_copiedWhole = selectionIsWholeWords(m_cursor);
     QApplication::clipboard()->setMimeData(mime);
+    return true;
 }
 
 // Set Default Paste: the forms Paste may take by default, by where the content came from. The numbers are the PasteKind of each.
@@ -203,7 +211,7 @@ void PageView::cut()
         return;
     }
     if (!m_doc || !m_cursor.hasSelection()) return;
-    copy();
+    if (!copyToClipboard()) return;   // (the words are not cut when they could not be kept)
     if (smartCutPaste()) smartRemoveSelection(*m_doc, m_cursor);
     else removeSelection(*m_doc, m_cursor);
     caretMoved();
@@ -245,8 +253,8 @@ void PageView::cutToSpike()
 {
     if (!m_doc || editsBlockedAtSelection() || m_shapeEditor || !m_cursor.hasSelection()) return;
     const Clip clip = copySelection(*m_doc, m_cursor);
-    if (clip.isEmpty()) return;
     sayTablesAreWords(clip);
+    if (clip.isEmpty()) return;
     // (A spike of at most 1000 cuts, and a limit of bytes: the cut after that is let be, rather than lost.)
     qint64 held = sizeOfClip(clip);
     for (const Clip &c : spike()) held += sizeOfClip(c);

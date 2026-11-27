@@ -195,8 +195,11 @@ struct Clip {
     // Of those, the ones the selection held whole and could not keep as tables: a table with a tracked change, one in a selection that holds a part of a content control, or one past the most a copy keeps.
     enum class WholeAsWords { None, Changes, Control, Many };
     WholeAsWords wholeAsWords = WholeAsWords::None;
+    bool notesTooLarge = false;     // the notes of the references in the selection hold more than kMostCopiedNoteChars characters: nothing is copied (the fragment is empty)
     bool isEmpty() const { return fragment.isEmpty(); }
 };
+// The most characters of note text a copy or cut keeps in all, over every note its references cite; a selection with more is not copied (and not cut), and says so.
+constexpr int kMostCopiedNoteChars = 200000;
 // `keepChangedTables`: a table with a tracked change of its own is kept as a table too (the caller settles the change), not made its words.
 Clip copySelection(const WriteDoc &doc, const QTextCursor &c, bool keepChangedTables = false);
 void pasteClip(WriteDoc &doc, QTextCursor &c, const Clip &clip);
