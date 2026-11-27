@@ -244,12 +244,20 @@ QString pivotShown(EditWindow &e, const QString &range = QStringLiteral("E3:H7")
     return lines.join(QLatin1Char('\n'));
 }
 
-bool saveNow(EditWindow &e)
+// (when the save fails, the window's own words about it go to the test output and to *why: on Windows a file the test still holds open is the usual cause)
+bool saveNow(EditWindow &e, QString *why = nullptr)
 {
     if (!e.settle()) return false;
     QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
+    const int toldBefore = int(e.win.told.size());
     const bool started = e.win.w.save();
-    return started && (!saved.isEmpty() ? saved.last().value(1).toBool() : savedOk(saved));
+    const bool ok = started && (!saved.isEmpty() ? saved.last().value(1).toBool() : savedOk(saved));
+    if (!ok) {
+        const QString text = !started ? QStringLiteral("the save did not start") : QStringList(e.win.told.mid(toldBefore)).join(QLatin1Char('\n'));
+        if (why) *why = text;
+        qWarning("saveNow failed: %s", qPrintable(text));
+    }
+    return ok;
 }
 
 Parts readParts(const QString &path)
@@ -3005,9 +3013,12 @@ private Q_SLOTS:
         QVERIFY(saveNow(e));
         const Parts was = readParts(QString());   // (placeholder: replaced below)
         Q_UNUSED(was);
-        QFile saved(e.path);
-        QVERIFY(saved.open(QIODevice::ReadOnly));
-        const QByteArray bytes = saved.readAll();
+        QByteArray bytes;
+        {
+            QFile saved(e.path);
+            QVERIFY(saved.open(QIODevice::ReadOnly));
+            bytes = saved.readAll();
+        }   // (closed: the next save replaces this file, and Windows refuses to replace one that is open)
         const QByteArray drawing = drawingOf(bytes), original = drawingOf(book);
         const QStringList places = anchorPlaces(drawing), first = anchorPlaces(original);
         if (nestedForm()) {
@@ -3050,6 +3061,27 @@ private Q_SLOTS:
         for (auto it = bookParts.begin(); it != bookParts.end(); ++it) QVERIFY2(quietParts.value(it.key()) == it.value(), qPrintable(it.key()));
     }
     void aSlicerIsMovedWithTheMouseAndTheFileHasItThere_data() { forms(); }
+    // A save that fails says why in the test output (the folder is read-only)
+    void aFailedSaveInATestSaysWhy()
+    {
+        EditWindow e;
+        QVERIFY(e.open(pivotWorkbook(slicerSheetBook(listedSlicers()))));
+        e.select(QStringLiteral("A1"));
+        e.type(QStringLiteral("5"));
+        e.key(Qt::Key_Return);   // (an edit: a workbook nobody changed has nothing to save)
+        const QString folder = QFileInfo(e.path).absolutePath();
+        QVERIFY(QFile::setPermissions(folder, QFileDevice::ReadOwner | QFileDevice::ExeOwner));   // (no new file can be made beside the workbook: the save cannot be written)
+        if (QFileInfo(folder).isWritable()) {
+            QFile::setPermissions(folder, QFileDevice::ReadOwner | QFileDevice::WriteOwner | QFileDevice::ExeOwner);
+            QSKIP("this account can write to a folder that is read-only");
+        }
+        QString why;
+        QTest::ignoreMessage(QtWarningMsg, QRegularExpression(QStringLiteral("^saveNow failed: .*couldn't save")));
+        const bool saved = saveNow(e, &why);
+        QFile::setPermissions(folder, QFileDevice::ReadOwner | QFileDevice::WriteOwner | QFileDevice::ExeOwner);
+        QVERIFY(!saved);
+        QVERIFY2(why.contains(QStringLiteral("couldn't save")) && why.contains(QFileInfo(e.path).fileName()), qPrintable(why));
+    }
 
     // A handle sizes the slicer, the arrow keys move it (as they do another object), each one step; the anchor kind says how it follows cells.
     void aSlicerIsSizedWithAHandleAndMovedWithTheArrowKeys()
