@@ -7407,6 +7407,24 @@ private Q_SLOTS:
         }
     }
 
+    void aRowInsertedAboveTheFirstRowOfATableThatStartsTheBodyIsTakenOutWholeByReject()
+    {
+        auto doc = open(makeDocx(twoByTwo("a1", "a2", "b1", "b2") + para(run("END"))));
+        QVERIFY(doc);
+        doc->setReviewer(QStringLiteral("Zed"), QString());
+        const QByteArray saved = documentXml(doc->toDocx());
+        doc->setTrackChanges(true);
+        QTextCursor c = inParagraph(*doc, "a1");
+        insertTableRow(*doc, c, false);
+        QCOMPARE(documentRevisionCount(*doc), 1);
+        auto again = open(doc->toDocx());
+        QVERIFY(again);
+        QCOMPARE(rejectAll(*again), 1);
+        const QByteArray got = documentXml(again->toDocx());
+        QVERIFY2(!got.contains("<w:ins ") && got == saved, got.constData());
+        QCOMPARE(documentRevisionCount(*again), 0);
+    }
+
     void aRowInsertedWithTrackingOnThatThenHadTrackedTextTypedInIsTakenOutWithItsTextByReject()
     {
         auto doc = open(makeDocx(twoByTwoTable()));

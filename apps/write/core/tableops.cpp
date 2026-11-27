@@ -505,6 +505,9 @@ void removeParagraphs(QTextDocument *d, QTextBlock first, QTextBlock last)
             const QTextBlockFormat firstF = first.blockFormat();
             for (int k : {int(prop::LastSection), int(prop::MarkFormat)})
                 if (firstF.hasProperty(k)) nf.setProperty(k, firstF.property(k));
+            // (A mark that records a change goes with its paragraph here too: the one that comes to be first keeps its own mark.)
+            const QTextCharFormat firstMark = markFormat(first);
+            if (firstMark.hasProperty(prop::RawRPr) || firstMark.hasProperty(prop::TrackedDeleted)) setStored(nf, prop::MarkFormat, packFormat(nc));
         }
         // (A mark that records a change goes with its paragraph: it is not left on the paragraph that comes after.)
         const bool markedFirst = first.charFormat().hasProperty(prop::RawRPr) || first.charFormat().hasProperty(prop::TrackedDeleted);
