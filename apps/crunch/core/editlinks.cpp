@@ -480,6 +480,9 @@ std::vector<jp::office::sheet::SaveChanges::NewExternalLink> EditSession::newExt
         jp::office::sheet::SaveChanges::NewExternalLink l;
         l.target = m_book->externals->target(n);
         l.sheetNames = m_book->externals->sheetsRead(n);
+        // (a link no formula has read yet still names the sheets the formulas read: a part with no sheet names is not one a spreadsheet program opens)
+        for (const QString &name : m_book->externals->sheetNames(n))
+            if (!l.sheetNames.contains(name, Qt::CaseInsensitive)) l.sheetNames << name;
         l.cells = m_book->externals->readCells(n);
         out.push_back(std::move(l));
     }

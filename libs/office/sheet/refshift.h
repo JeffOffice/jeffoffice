@@ -109,6 +109,7 @@ QString deleteSheetInFormula(const QString &formula, const QString &name, bool *
 // could not be read, and whether any reference named a sheet other than the sheet's own.
 struct SheetLinkFacts {
     bool threeD = false, readsLinks = false, unreadable = false, readsOthers = false;
+    QStringList sheets;   // the other sheets it reads, once each (as the formula writes them)
 };
 // The formula of a cell of the sheet `ownName` as the same cell has it in ANOTHER workbook, where the sheet is called `newOwnName`: a reference that names the sheet itself names `newOwnName`
 // (it stays on the copied sheet), a reference that names another sheet of the first workbook becomes a link to it (`[link]Sheet2!A1`, `'[link]My Sheet'!A1`), and a reference with no sheet is

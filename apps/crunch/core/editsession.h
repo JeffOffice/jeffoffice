@@ -1070,6 +1070,7 @@ public:
         bool date1904 = false;
         bool bookChanged = false;       // it has changes that are not saved
         bool readsOtherSheets = false;  // some formula reads another sheet of the first workbook (it becomes a link, which needs the file)
+        QStringList linkedSheets;       // the other sheets of the first workbook that the formulas read (the names the link's part lists)
         std::vector<TransferCell> cells;
         std::vector<jp::office::sheet::FormatChange> looks, resolvedLooks;   // each distinct format of the cells, as it is and with its colors given as the colors they show
         QVector<jp::office::sheet::CellRange> merges;

@@ -804,6 +804,15 @@ int ExternalBooks::addLink(const QString &target, const QStringList &sheetNames)
     return int(d->links.size());
 }
 
+void ExternalBooks::addSheetNames(int index, const QStringList &names)
+{
+    const std::lock_guard<std::mutex> guard(d->lock);
+    if (index < 1 || index > int(d->links.size())) return;
+    QStringList &have = d->links[size_t(index - 1)].sheetNames;
+    for (const QString &n : names)
+        if (!have.contains(n, Qt::CaseInsensitive)) have << n;
+}
+
 int ExternalBooks::count() const
 {
     const std::lock_guard<std::mutex> guard(d->lock);

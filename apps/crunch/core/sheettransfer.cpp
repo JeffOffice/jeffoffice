@@ -148,6 +148,8 @@ EditSession::SheetExport EditSession::exportSheet(int sheet, const QString &file
                 }
                 tc.link = facts.readsOthers;
                 out.readsOtherSheets = out.readsOtherSheets || facts.readsOthers;
+                for (const QString &name : facts.sheets)
+                    if (!out.linkedSheets.contains(name, Qt::CaseInsensitive)) out.linkedSheets << name;
             }
         }
         if (tc.freeze) {
@@ -348,6 +350,7 @@ EditSession::Outcome EditSession::importSheet(const SheetExport &data, int befor
             link = links->addLink(QUrl::fromLocalFile(QFileInfo(data.bookPath).absoluteFilePath()).toString(QUrl::FullyEncoded));
             m_newLinks.insert(link);
         }
+        links->addSheetNames(link, data.linkedSheets);
         links->setLive(link, true);
     }
     // the cells that hold something, and the merged cells, as one step (the sheet is new and empty)
@@ -425,6 +428,9 @@ EditSession::Outcome EditSession::importSheet(const SheetExport &data, int befor
         sizes.sizes.push_back(std::move(e));
     }
     if (!sizes.sizes.empty()) pushStep(std::move(sizes), tr("Copy Sheet to Another Workbook"));
+    // the values the link holds: read from the saved file now (when the open workbook has changes that are not saved, what it shows now stays, and the link has none until its values are updated),
+    // so that a program that opens the saved copy without reading the first file shows the same numbers
+    if (link > 0 && !data.bookChanged) updateExternalValues(link, data.bookPath);
     m_undo.endMacro();
     if (made) *made = sheet;
     out = Outcome();

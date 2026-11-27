@@ -46,6 +46,8 @@ public:
     static std::shared_ptr<ExternalBooks> read(const Workbook &book, const QString &baseDir, const QDateTime &fileTime = QDateTime());
     // A link made by hand (a test, or a link to a workbook that is open): the number it has.
     int addLink(const QString &target, const QStringList &sheetNames = QStringList());
+    // Names more sheets of the link's source (those not named yet are added): a formula that reads one must find it among the part's sheet names.
+    void addSheetNames(int index, const QStringList &names);
 
     int count() const;
     // The address the link points to, as the file (or Change Source) has it; and the file on this computer it names (empty for a web address, or none).

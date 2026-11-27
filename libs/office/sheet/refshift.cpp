@@ -674,6 +674,7 @@ QString linkSheetsInFormula(const QString &formula, const QString &ownName, cons
         const QString plain = sheetPrefix(r.sheet1);
         out += plain.startsWith(QLatin1Char('\'')) ? QStringLiteral("'[%1]").arg(link) + plain.mid(1) : QStringLiteral("[%1]").arg(link) + plain;
         f.readsOthers = true;
+        if (!f.sheets.contains(r.sheet1, Qt::CaseInsensitive)) f.sheets << r.sheet1;
     }
     out += formula.mid(at);
     return out;

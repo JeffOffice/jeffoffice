@@ -512,6 +512,9 @@ private Q_SLOTS:
         QVERIFY(jp::readZip(file.readAll(), parts));
         QVERIFY(parts.contains(QStringLiteral("xl/externalLinks/externalLink1.xml")));
         QVERIFY2(QString::fromUtf8(parts.value(QStringLiteral("xl/externalLinks/_rels/externalLink1.xml.rels"))).contains(QFileInfo(src.path).fileName()), "the link names the first file");
+        // (the part names the sheet the formulas read: a part with no sheet names is not one a spreadsheet program opens)
+        QVERIFY2(QString::fromUtf8(parts.value(QStringLiteral("xl/externalLinks/externalLink1.xml"))).contains(QStringLiteral("<sheetName val=\"Other\"/>")), "the link part names the sheet");
+        QVERIFY2(QString::fromUtf8(parts.value(QStringLiteral("xl/externalLinks/externalLink1.xml"))).contains(QStringLiteral("<v>100</v>")), "the link holds the value it read");
     }
 
     // What can't be carried is refused in words and nothing changes (a workbook that was never saved, dates counted from another year, a sheet past the cap); moving to another workbook is not done
