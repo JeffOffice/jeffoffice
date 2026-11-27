@@ -5927,6 +5927,27 @@ private Q_SLOTS:
         QVERIFY(resolved(r.saved, true).texts.join(QLatin1Char('|')).contains(QStringLiteral("new  words")));   // (the words are put in; the mark and the picture are not)
     }
 
+    void aContentControlInANewRowIsNeverDroppedSilentlyItIsMarkedWithItsControlOrCounted()
+    {
+        const QByteArray sdt = "<w:sdt><w:sdtPr><w:alias w:val=\"quarter\"/></w:sdtPr><w:sdtContent>" + para(run("inControl")) + "</w:sdtContent></w:sdt>";
+        auto table = [&](bool extra) {
+            QVector<TableRow> rows;
+            rows.push_back({{}, {cellOf({}, para(run("a1"))), cellOf({}, para(run("a2")))}});
+            if (extra) rows.push_back({{}, {cellOf({}, sdt), cellOf({}, para(run("x")))}});
+            rows.push_back({{}, {cellOf({}, para(run("b1"))), cellOf({}, para(run("b2")))}});
+            return tableOf(rows, 2);
+        };
+        const AppCompared r = compareInApp(makeDocx(table(false)), makeDocx(table(true)));
+        auto accepted = open(r.saved), rejected = open(r.saved);
+        QVERIFY(accepted && rejected);
+        acceptAll(*accepted);
+        rejectAll(*rejected);
+        const QByteArray yes = documentXml(accepted->toDocx()), no = documentXml(rejected->toDocx());
+        const bool withControl = yes.contains("w:alias w:val=\"quarter\"") && yes.contains("inControl");
+        // Either the control comes in with its row, or the row is counted and left out: never the row without its control, and not a word of it in the original's text.
+        QVERIFY2(withControl || (r.status.contains(QStringLiteral("(tables)")) && !yes.contains("inControl")), qPrintable(r.status + QLatin1Char(' ') + QString::fromUtf8(yes)));
+        QVERIFY2(!no.contains("inControl") && !no.contains("<w:sdt>") && !yes.contains("<w:ins "), no.constData());
+    }
 
     // ---- Compare, slice 2: tables by row and cell
     static QByteArray gridOfRows(const QVector<QStringList> &rows)

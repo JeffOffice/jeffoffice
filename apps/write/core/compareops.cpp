@@ -211,7 +211,7 @@ TableShapes tableShapesOf(WriteDoc &doc, const QTextDocument *story, const Compa
         const int ordinal = ordinals.value(table);
         out.tableOfBlock.push_back(ordinal);
         words[ordinal] += b.text();
-        bool kept = b.blockFormat().hasProperty(prop::RawBlock);
+        bool kept = b.blockFormat().hasProperty(prop::RawBlock) || b.blockFormat().hasProperty(prop::RawBefore) || b.blockFormat().hasProperty(prop::RawAfter);   // (a content control's start or end is kept round the paragraph)
         for (QTextBlock::iterator it = b.begin(); !it.atEnd(); ++it)   // (what an element kept as it was written holds is told by its bytes)
             if (it.fragment().charFormat().hasProperty(prop::Atom)) {
                 words[ordinal] += QString::number(qHash(storedBytes(it.fragment().charFormat(), prop::Atom)), 16);
