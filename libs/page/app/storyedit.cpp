@@ -352,6 +352,20 @@ void StoryEdit::keyPressEvent(QKeyEvent *e)
 
 bool StoryEdit::event(QEvent *e)
 {
+    // A mouse event on the view itself (not on its viewport) is on the gutter beside the words, where a list's markers are: it is the click of the line it is beside, at the line's edge.
+    if ((e->type() == QEvent::MouseButtonPress || e->type() == QEvent::MouseButtonRelease || e->type() == QEvent::MouseMove || e->type() == QEvent::MouseButtonDblClick) && !m_ghost) {
+        auto *m = static_cast<QMouseEvent *>(e);
+        const QPointF at = m->position() - QPointF(viewport()->pos());
+        if (at.x() < 0 || at.x() >= viewport()->width()) {
+            if (at.y() >= 0 && at.y() < viewport()->height()) {
+                const QPointF edge(std::clamp(at.x(), 0.0, double(viewport()->width() - 1)), at.y());
+                QMouseEvent inside(m->type(), edge, m->scenePosition(), m->globalPosition(), m->button(), m->buttons(), m->modifiers(), m->pointingDevice());
+                QApplication::sendEvent(viewport(), &inside);
+            }
+            e->accept();
+            return true;
+        }
+    }
 
     // The window's own shortcuts (Cut, Copy, Paste, Undo, Redo) are the commands of the whole presentation: this view does not take them for itself.
     if (e->type() == QEvent::ShortcutOverride && !isReadOnly() && !m_ed->readOnly()) {

@@ -1,5 +1,6 @@
 #include "app/notesdisplay.h"
 
+#include "app/listmarkers.h"
 #include "text/textprops.h"
 
 #include <QTextBlock>
@@ -10,7 +11,7 @@
 
 namespace jp {
 
-std::unique_ptr<QTextDocument> notesDisplayCopy(const QTextDocument *story, int limit, double points, bool *cut, const ColorScheme *colors)
+std::unique_ptr<QTextDocument> notesDisplayCopy(const QTextDocument *story, int limit, double points, bool *cut, const ColorScheme *colors, double pixelsPerPoint)
 {
     auto out = std::make_unique<QTextDocument>();
     if (cut) *cut = false;
@@ -53,6 +54,23 @@ std::unique_ptr<QTextDocument> notesDisplayCopy(const QTextDocument *story, int 
                 c.setPosition(f.position() + f.length(), QTextCursor::KeepAnchor);
                 c.mergeCharFormat(sized);
             }
+        }
+        c.endEditBlock();
+    }
+    // Lists, as the printed page lays them (see the header).
+    if (pixelsPerPoint > 0) {
+        const double px = k * pixelsPerPoint;
+        QTextCursor c(out.get());
+        c.beginEditBlock();
+        for (QTextBlock b = out->begin(); b.isValid(); b = b.next()) {
+            if (!b.textList()) continue;
+            QTextBlockFormat bf = b.blockFormat();
+            if (bf.textIndent() >= 0) continue;
+            bf.setProperty(ListMarkers::HangProperty, bf.textIndent() * px);
+            bf.setLeftMargin(bf.leftMargin() * px);
+            bf.setTextIndent(0);
+            c.setPosition(b.position());
+            c.setBlockFormat(bf);
         }
         c.endEditBlock();
     }

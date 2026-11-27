@@ -15,6 +15,7 @@
 #include <QPointer>
 #include <QRectF>
 #include <QString>
+#include <QTextFormat>
 #include <QVector>
 #include <array>
 #include <functional>
@@ -27,6 +28,10 @@ namespace jp {
 class JO_COMMON_EXPORT ListMarkers : public QObject {
     Q_OBJECT
 public:
+    // A paragraph property (pixels, below 0) of a COPY of a note that a view shows read only: the copy lays the item's first line out as the printed page does (where the other lines
+    // are), and this says how far left of that line the marker is (the hang the story gave the item). A view of the story's own document has none: its first line is where the
+    // marker would be, and the marker is drawn left of it, in a gutter.
+    static constexpr int HangProperty = QTextFormat::UserProperty + 340;
     // `margins` puts the gutter on the view (QAbstractScrollArea::setViewportMargins is the view's own to call: the left and right widths); `colors` gives the scheme a bullet's theme
     // color is of (null: the standard one).
     ListMarkers(QTextEdit *edit, std::function<void(int, int)> margins, std::function<const ColorScheme *()> colors = {});
@@ -50,8 +55,9 @@ public:
         QRectF rect;
         double baseline = 0;       // (y, the baseline of the paragraph's first line)
         bool rightToLeft = false;
+        bool empty = false;        // (an item with no words has no marker on the printed page: it is counted, and not drawn)
     };
-    QVector<Marker> visibleMarkers() const;
+    QVector<Marker> visibleMarkers() const;   // (the items that show a marker)
 
     // Counted work (for the tests): the markers whose look was made (a paragraph's marker is made once for a state of the words and the size), and the times the paragraphs in view
     // were gone through.
@@ -72,6 +78,8 @@ private:
     class Layer;
     const Look &lookOf(const QTextBlock &b);
     void run(bool margins);
+    QVector<Marker> allMarkers() const;
+    static double hangOf(const QTextBlock &b);
     void paint(QPainter &p);
     QTextEdit *m_edit;
     std::function<void(int, int)> m_margins;

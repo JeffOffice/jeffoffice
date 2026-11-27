@@ -4404,6 +4404,61 @@ private Q_SLOTS:
         QCOMPARE(box->textCursor().position(), 0);
     }
 
+    // A click in the gutter beside the markers (on the view, not on its words) puts the caret at the start of the line it is beside, as a click left of the words of a line does.
+    void aClickInTheMarkerGutterPutsTheCaretAtTheStartOfThatLine()
+    {
+        DeckWindow w;
+        NotesPane *pane = notesWith(w, QStringLiteral("x"));
+        fillMixedListNote(notesStory(w.editor()));
+        pane->reload();
+        pane->setMinimumHeight(400);
+        ListMarkers *marks = pane->listMarkers();
+        QTRY_VERIFY(marks->gutterLeft() > 0 && marks->visibleMarkers().size() >= 8);
+        const QVector<ListMarkers::Marker> shown = marks->visibleMarkers();
+        for (int i : {1, 3, 5}) {
+            const ListMarkers::Marker m = shown[i];
+            const QPoint at(int(m.rect.center().x()), int(m.rect.center().y()));
+            QVERIFY2(at.x() < pane->viewport()->x(), "the marker is in the gutter, left of the words");
+            QTest::mouseClick(pane, Qt::LeftButton, Qt::NoModifier, at);
+            QVERIFY2(pane->textCursor().position() == m.blockPos && !pane->textCursor().hasSelection(), qPrintable(QStringLiteral("marker %1: caret at %2, line starts at %3").arg(m.text).arg(pane->textCursor().position()).arg(m.blockPos)));
+            QVERIFY(pane->isTarget());
+        }
+    }
+
+    // An item with no words has no marker on the printed page (the next one is still counted: 1 and 3); the views draw the same.
+    void anEmptyListItemShowsNoMarkerAsOnThePrintedPage()
+    {
+        DeckWindow w;
+        NotesPane *pane = notesWith(w, QStringLiteral("x"));
+        QTextDocument *st = notesStory(w.editor());
+        {
+            QTextCursor c(st);
+            c.select(QTextCursor::Document);
+            c.removeSelectedText();
+            c.insertText(QStringLiteral("one"));
+            c.insertBlock();
+            c.insertBlock();
+            c.insertText(QStringLiteral("three"));
+            QTextCursor all(st);
+            all.select(QTextCursor::Document);
+            QTextListFormat lf;
+            lf.setStyle(QTextListFormat::ListDecimal);
+            lf.setNumberSuffix(QStringLiteral("."));
+            lf.setIndent(0);
+            all.createList(lf);
+            for (QTextBlock b = st->begin(); b.isValid(); b = b.next()) {
+                QTextCursor bc(b);
+                QTextBlockFormat bf = b.blockFormat();
+                bf.setLeftMargin(18);
+                bf.setTextIndent(-18);
+                bc.setBlockFormat(bf);
+            }
+        }
+        pane->reload();
+        QCOMPARE(printedMarkerTexts(w.editor()), (QStringList{"1.", "3."}));
+        QTRY_COMPARE(markerTexts(pane), printedMarkerTexts(w.editor()));
+    }
+
     // A paragraph indented by levels (the indent a list's levels use) is indented once by the zoom: its text starts as far right of the plain text as the story's indent width, times the
     // zoom (it was times the zoom twice: 49 pixels at 100%, about 10 at 50%, 170 at 200%). (A left margin in points is laid out by the text view in pixels at any zoom: not covered.)
     void aListIsIndentedOnceAtEveryZoom()

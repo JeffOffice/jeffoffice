@@ -422,7 +422,7 @@ void PresenterView::showCopy(const QTextDocument *story, const QString &key)
     const QString full = key + QLatin1Char('/') + QString::number(m_notesSize);
     if (full == m_copyKey && m_copy) return;
     m_copyKey = full;
-    std::unique_ptr<QTextDocument> copy = notesDisplayCopy(story, -1, m_notesSize, nullptr, m_show && m_show->document() ? &m_show->document()->colors : nullptr);
+    std::unique_ptr<QTextDocument> copy = notesDisplayCopy(story, -1, m_notesSize, nullptr, m_show && m_show->document() ? &m_show->document()->colors : nullptr, m_notes->logicalDpiY() / 72.0);
     QTextDocument *own = m_copy;
     QTextDocument *now = copy.release();
     now->setParent(m_notes);

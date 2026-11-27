@@ -1995,12 +1995,52 @@ private Q_SLOTS:
             return texts.size() == 10;
         }());
         QCOMPARE(texts, (QStringList{"•", "•", "◦", "1.", "2.", "3.", "a.", "4.", "1.", "2."}));
-        QVERIFY(marks->gutterLeft() > 0);
+        QCOMPARE(marks->gutterLeft(), 0);   // (the markers hang in the indent the story gives its items: no gutter)
         for (const ListMarkers::Marker &m : marks->visibleMarkers()) {
             QTextCursor c(box->document());
             c.setPosition(m.blockPos);
             QVERIFY2(m.rect.right() < box->viewport()->x() + box->cursorRect(c).left(), qPrintable(m.text));
         }
+    }
+
+    // The Speaker Notes box lays a list as the printed page does: a paragraph that is no list item starts at the left edge (there is no gutter), a list item's first line starts where its other
+    // lines do, and its marker hangs left of them by the story's hang (it started plain paragraphs at the markers' gutter, and a wrapped item's first line left of the rest).
+    void speakerNotesBoxLaysAListAsThePrintedPageDoes()
+    {
+        auto d = showDeck(1);
+        QTextDocument *story = d->storyDoc(d->pages[0]->notesStoryId);
+        fillMixedListNote(story);
+        {
+            QTextCursor c(story->findBlockByNumber(1));
+            c.movePosition(QTextCursor::EndOfBlock);
+            c.insertText(QStringLiteral(" and so many more words that this item goes on over several lines of the box and wraps again and again"));
+            c.insertText(QString(QStringLiteral(" more words to wrap")).repeated(20));
+        }
+        LayoutCache cache;
+        SlideShow show(d.get(), &cache, 0);
+        show.resize(960, 540);
+        show.show();
+        show.showSpeakerNotes();
+        QTextEdit *box = show.speakerNotesBox();
+        QVERIFY(box && box->isVisible());
+        box->resize(box->width(), 900);
+        auto *marks = box->findChild<ListMarkers *>();
+        QVERIFY(marks);
+        QTRY_VERIFY(marks->visibleMarkers().size() >= 8);
+        QCOMPARE(marks->gutterLeft(), 0);
+        QTextDocument *doc = box->document();
+        QTextBlock plain = doc->findBlockByNumber(0), item = doc->findBlockByNumber(1);
+        QTRY_VERIFY((doc->size(), item.layout()->lineCount() >= 3));
+        QCOMPARE(plain.layout()->lineAt(0).x() + plain.layout()->position().x(), 0.0);
+        const double second = item.layout()->lineAt(1).x();
+        QVERIFY2(qAbs(item.layout()->lineAt(0).x() - second) < 0.5, qPrintable(QStringLiteral("first line at %1, second at %2").arg(item.layout()->lineAt(0).x()).arg(second)));
+        const ListMarkers::Marker m = marks->visibleMarkers()[0];
+        QCOMPARE(m.blockPos, item.position());
+        const double vx = box->viewport()->x();   // (the marker is in the view's own coordinates: the words' are the viewport's)
+        QVERIFY2(m.rect.left() - vx >= -0.5 && m.rect.left() - vx < second - 4 && m.rect.right() - vx <= second + 1, qPrintable(QStringLiteral("marker %1..%2, text at %3").arg(m.rect.left() - vx).arg(m.rect.right() - vx).arg(second)));
+        // a level in is as far in as the story has it: its marker is where the first level's text is
+        const ListMarkers::Marker deeper = marks->visibleMarkers()[2];
+        QVERIFY2(qAbs(deeper.rect.left() - vx - second) < 3, qPrintable(QStringLiteral("level 2 marker at %1, level 1 text at %2").arg(deeper.rect.left() - vx).arg(second)));
     }
 
     void speakerNotesBoxIsNotOfferedWhilePresenterViewIsUp()

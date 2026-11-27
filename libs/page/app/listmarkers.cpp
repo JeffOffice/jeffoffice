@@ -177,7 +177,10 @@ void ListMarkers::run(bool margins)
                     const QTextLine line = b.layout()->lineAt(0);
                     const QRectF text = line.naturalTextRect();
                     const double start = b.layout()->position().x() + text.left(), end = b.layout()->position().x() + text.right();
-                    if (b.textDirection() == Qt::RightToLeft) right = std::max(right, int(std::ceil(look.width + gap - ((doc->textWidth() > 0 ? doc->textWidth() : double(vp->width())) - end))));
+                    const double hang = hangOf(b);
+                    if (b.length() <= 1) {}   // (no marker is drawn: none needs room)
+                    else if (hang < 0) left = std::max(left, int(std::ceil(-(start + hang) - 1.0)));   // (the marker hangs left of the text, where the page has it)
+                    else if (b.textDirection() == Qt::RightToLeft) right = std::max(right, int(std::ceil(look.width + gap - ((doc->textWidth() > 0 ? doc->textWidth() : double(vp->width())) - end))));
                     else left = std::max(left, int(std::ceil(look.width + gap - start)));
                 }
                 if (b == last) break;
@@ -205,7 +208,21 @@ void ListMarkers::refresh() { run(true); }
 
 void ListMarkers::setShown(bool shown) { m_layer->setVisible(shown); }
 
+double ListMarkers::hangOf(const QTextBlock &b)
+{
+    const QVariant v = b.blockFormat().property(HangProperty);
+    return v.isValid() ? std::min(0.0, v.toDouble()) : 0.0;
+}
+
 QVector<ListMarkers::Marker> ListMarkers::visibleMarkers() const
+{
+    QVector<Marker> out;
+    for (const Marker &m : allMarkers())
+        if (!m.empty) out.push_back(m);
+    return out;
+}
+
+QVector<ListMarkers::Marker> ListMarkers::allMarkers() const
 {
     QVector<Marker> out;
     auto *self = const_cast<ListMarkers *>(this);
@@ -222,10 +239,12 @@ QVector<ListMarkers::Marker> ListMarkers::visibleMarkers() const
         const QPointF at = b.layout()->position();
         Marker m;
         m.blockPos = pos;
+        m.empty = b.length() <= 1;
         m.text = look.text;
         m.rightToLeft = b.textDirection() == Qt::RightToLeft;
         m.baseline = origin.y() + at.y() + line.y() + line.ascent();
-        const double x = m.rightToLeft ? origin.x() + at.x() + text.right() + gap : origin.x() + at.x() + text.left() - gap - look.width;
+        const double hang = hangOf(b);
+        const double x = hang < 0 ? origin.x() + at.x() + text.left() + hang : m.rightToLeft ? origin.x() + at.x() + text.right() + gap : origin.x() + at.x() + text.left() - gap - look.width;
         m.rect = QRectF(x, m.baseline - look.ascent, look.width, look.height);
         out.push_back(m);
     }
@@ -235,7 +254,7 @@ QVector<ListMarkers::Marker> ListMarkers::visibleMarkers() const
 void ListMarkers::paint(QPainter &p)
 {
     if (m_view.isEmpty()) return;
-    const QVector<Marker> markers = visibleMarkers();
+    const QVector<Marker> markers = allMarkers();
     const QRect vp = m_edit->viewport()->geometry();
     const QColor ground = m_edit->viewport()->palette().color(m_edit->viewport()->backgroundRole());
     p.setRenderHint(QPainter::TextAntialiasing);
@@ -255,6 +274,7 @@ void ListMarkers::paint(QPainter &p)
         p.setClipRect(vp);
         p.fillRect(cover, ground);
         p.restore();
+        if (m.empty) continue;
         if (m.rect.right() < 0 || m.rect.left() > m_layer->width() || m.rect.bottom() < 0 || m.rect.top() > m_layer->height()) continue;
         if (!look.picture.isNull()) {
             p.drawImage(QRectF(m.rect.left(), m.baseline - look.height * 0.9, look.width, look.height * 0.9), look.picture);
