@@ -206,7 +206,7 @@ EditSession::Outcome EditSession::checkImport(const SheetExport &data) const
     if (!data.notCopied.isEmpty()) said << tr("These will not be copied: %1.").arg(jp::systemLocale().locale.createSeparatedList(data.notCopied));
     if (data.readsOtherSheets) said << tr("Formulas that read other sheets of %1 become links to that file.").arg(data.bookName);
     if (!data.looks.empty() && m_book->book->styles().formats.isEmpty()) said << tr("This workbook has no formats to build on, so the copy does not have the fonts, colors, and borders of the sheet.");
-    if (data.frozen > 0) said << tr("%n cell(s) use names or tables of the other workbook, or are part of an array, so they come as the values they show.", nullptr, int(data.frozen));
+    if (data.frozen > 0) said << tr("Cells that use names or tables of the other workbook, or are part of an array, come as the values they show (%1 in all).").arg(data.frozen);
     out.problem = said.join(QLatin1Char(' '));
     return out;
 }
