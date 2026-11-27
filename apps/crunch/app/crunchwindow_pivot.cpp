@@ -458,11 +458,18 @@ void CrunchWindow::createPivotActions()
         }
         if (!editingAllowed()) return;
         if (m_edit.active && !commitEdit(CellEditor::Way::Stay)) return;
+        if (!approveFiles(this, tr("Refresh"), {t}, true, {}, {})) {
+            setStatus(tr("Nothing was read."));
+            return;
+        }
+        const auto gate = armPivotFileGate();
         pivotProblem(tr("Refresh"), m_session->refreshPivot(t));
     });
     mk("pivot.refreshAll", tr("Refresh All"), "refresh-ccw", QKeySequence(), [this] {
         if (!editingAllowed()) return;
         if (m_edit.active && !commitEdit(CellEditor::Way::Stay)) return;
+        if (!approveFiles(this, tr("Refresh All"), {}, true, {}, {})) setStatus(tr("Nothing was read."));
+        const auto gate = armPivotFileGate();   // (a file that was not approved is not read: its pivot tables keep their data)
         pivotProblem(tr("Refresh All"), m_session->refreshAllPivots());
     });
     mk("pivot.changeSource", tr("Change Data Source…"), "database", QKeySequence(), [this] {

@@ -437,6 +437,11 @@ public:
     bool pivotUsable(int table, QString *why = nullptr) const;
     // Reads the data again from the source (the cells of a sheet, a table, or a name) and works out every table made from it. Keeps each table's layout and the widths of columns.
     Outcome refreshPivot(int table);
+    // The files in other workbooks that Refresh of these pivot tables (all of them when `tables` is empty) would read, each with the name of a pivot table that needs it: the full path as it will be opened. A file on another computer is not listed (it is never read).
+    std::vector<std::pair<QString, QString>> pivotExternalFiles(const std::vector<int> &tables, bool onOpenOnly = false) const;   // (`onOpenOnly`: only those set to be read again when the file opens)
+    // The window's say over which of those files may be read again: asked with the path about to be opened (nothing set: all may). Only the window's own Refresh commands set it.
+    void setPivotFileGate(std::function<bool(const QString &)> gate) { m_pivotFileGate = std::move(gate); }
+    int pivotFileReads() const { return m_pivotFileReads; }   // (files opened for a pivot table, for tests)
     // Makes a pivot table from the cells or the table `source` names (as Change Data Source takes them), with an empty layout, at the cell (row, col) of the sheet `sheet`, or on a sheet of its own at A3
     // when `sheet` is -1 (the sheet is made first: a step of Undo of its own). The cells the empty table covers must be empty. `*made` is the new table's place.
     // `file`, when given, is a workbook file (or a file of values) on this computer: `source` is then a range, table, or name in it, and the pivot table is made from a copy of that data (the cache keeps it).
@@ -1618,6 +1623,8 @@ private:
     bool parsePivotSource(const QString &text, int defaultSheet, int *sheet, jp::office::sheet::CellRange *range, QString *name, QString *why) const;
     bool pivotNameRange(const QString &name, int *sheet, jp::office::sheet::CellRange *range) const;
     void fillPivotSource(jp::office::sheet::PivotSource *source, int sheet, const jp::office::sheet::CellRange &range);
+    std::function<bool(const QString &)> m_pivotFileGate;
+    mutable int m_pivotFileReads = 0;
     Outcome refreshPivotCaches(const std::vector<int> &caches, const QString &text, const SourceOver *over = nullptr, bool partial = false);
     // A change that puts text (never read as anything else) or a formula (as the file writes it) in a cell, or clears it.
     CellChange textCell(int sheet, quint32 row, quint32 col, const QString &text);

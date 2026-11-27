@@ -80,14 +80,20 @@ crunch::EditSession::UpdateLinks CrunchWindow::linksOpeningMode() const
     return mode;
 }
 
-// Whether the files that pivot tables are made from may be read as the workbook opens: the same question and the same choice as for its links.
-bool CrunchWindow::pivotFilesOnOpenAllowed(int tables)
+// Whether the files that pivot tables are made from may be read as the workbook opens. The person's own choice decides first (never: no; update them: yes, without a question, even for a workbook that came
+// from someone else); otherwise the box that Refresh uses asks, with the full path of each file. A yes is kept for this window, so Refresh then reads those files without asking again.
+bool CrunchWindow::pivotFilesOnOpenAllowed(int)
 {
     const crunch::EditSession::UpdateLinks mode = linksOpeningMode();
     if (mode == crunch::EditSession::UpdateLinks::Never) return false;
+    QStringList names, paths;
+    for (const auto &f : m_session->pivotExternalFiles({}, true)) {
+        if (m_getDataTrusted.contains(f.second) || paths.contains(f.second)) continue;
+        names << f.first;
+        paths << f.second;
+    }
     if (mode == crunch::EditSession::UpdateLinks::Always) return true;
-    if (m_linksAsker) return m_linksAsker(tables, 0);
-    return plainQuestion(this, tr("Pivot Tables"), tr("Pivot tables in this workbook read their data from other files. Read those files now?")) == QMessageBox::Yes;
+    return approveFiles(this, tr("Pivot Tables"), {}, false, names, paths);
 }
 
 // When a workbook that reads others has been opened and worked out: the choice the file has (Startup prompt in Edit Links) decides. Only links whose file is on this computer are asked about.

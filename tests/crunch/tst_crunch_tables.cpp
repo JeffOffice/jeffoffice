@@ -2384,6 +2384,250 @@ private Q_SLOTS:
         QCOMPARE(s->workbook()->tables().size(), 1);
     }
 
+    // A query that came from an opened workbook names a file of the sender's choosing: nothing is read until this person has seen the whole path and said yes; the yes lives in that window only.
+    void aQueryFromAnOpenedFileAsksBeforeItReads()
+    {
+        EditWindow e;
+        QVERIFY(e.open(buildXlsx({worksheet(row(9, text(QStringLiteral("A9"), QStringLiteral("keep"))))})));
+        e.win.w.session()->setLocale(kUs);
+        QVERIFY(e.settle());
+        const QString file = e.folder.write(QStringLiteral("rows.json"), "[{\"a\":1,\"b\":\"x\"},{\"a\":2,\"b\":\"y\"}]");
+        e.win.w.setGetDataAsker([&](jp::GetDataRequest *r) {
+            r->conn.kind = QStringLiteral("json");
+            r->conn.path = file;
+            r->place = QStringLiteral("A1");
+            return true;
+        });
+        int asked = 0;
+        e.win.w.setGetDataTrustAsker([&](const QStringList &, const QString &) {
+            ++asked;
+            return true;
+        });
+        e.win.w.act(QStringLiteral("data.fromFile"))->trigger();   // made here: trusted
+        QVERIFY(e.settle());
+        e.folder.write(QStringLiteral("rows.json"), "[{\"a\":1,\"b\":\"x\"},{\"a\":2,\"b\":\"y\"},{\"a\":3,\"b\":\"z\"}]");
+        e.select(QStringLiteral("A2"));
+        e.win.w.act(QStringLiteral("data.refresh"))->trigger();
+        QVERIFY(e.settle());
+        QCOMPARE(asked, 0);
+        QCOMPARE(int(e.win.w.session()->workbook()->tables().first().row2), 3);
+        QVERIFY(saveNow(e));
+        const QString copy = e.copyOfFile();
+        QVERIFY(!copy.isEmpty());
+
+        EditWindow f;
+        QVERIFY(f.win.open(copy));
+        QVERIFY(f.settle());
+        f.win.w.session()->setLocale(kUs);
+        QStringList paths;
+        QString words;
+        bool answer = false;
+        int asks = 0;
+        std::atomic<int> reads{0};
+        f.win.w.setGetDataHold([&](const std::atomic<bool> &) { ++reads; });   // (called by the thread just before a file is read)
+        f.win.w.setGetDataTrustAsker([&](const QStringList &p, const QString &w) {
+            ++asks;
+            paths = p;
+            words = w;
+            return answer;
+        });
+        e.folder.write(QStringLiteral("rows.json"), "[{\"a\":1,\"b\":\"x\"}]");   // (the file the query names; the sheet must change if it is read)
+        f.select(QStringLiteral("A2"));
+        const QString before = f.win.w.session()->workbook()->tables().first().dataSource;
+        const int rowsBefore = int(f.win.w.session()->workbook()->tables().first().row2);
+        // No: nothing is read, nothing changes, nothing to undo
+        f.win.w.act(QStringLiteral("data.refresh"))->trigger();
+        QVERIFY(f.settle());
+        QCOMPARE(asks, 1);
+        QCOMPARE(paths, QStringList{QDir::cleanPath(QFileInfo(file).absoluteFilePath())});
+        QVERIFY(words.contains(paths.first()));
+        QCOMPARE(f.win.w.undoStack()->count(), 0);
+        QCOMPARE(f.win.w.session()->workbook()->tables().first().dataSource, before);
+        QCOMPARE(int(f.win.w.session()->workbook()->tables().first().row2), rowsBefore);
+        // Refresh All, still no: asks once, still nothing read
+        f.win.w.act(QStringLiteral("data.refreshAll"))->trigger();
+        QVERIFY(f.settle());
+        QCOMPARE(asks, 2);
+        QCOMPARE(f.win.w.undoStack()->count(), 0);
+        QCOMPARE(int(reads), 0);   // (nothing was read)
+        // Yes: the file is read, and the window does not ask about it again
+        answer = true;
+        f.win.w.act(QStringLiteral("data.refresh"))->trigger();
+        QVERIFY(f.settle());
+        QCOMPARE(asks, 3);
+        QCOMPARE(int(reads), 1);
+        QCOMPARE(f.win.w.undoStack()->count(), 1);
+        QCOMPARE(int(f.win.w.session()->workbook()->tables().first().row2), 1);
+        f.win.w.act(QStringLiteral("data.refresh"))->trigger();
+        QVERIFY(f.settle());
+        QCOMPARE(asks, 3);
+        // Undo and Redo of that Refresh put rows back without reading the file again
+        e.folder.write(QStringLiteral("rows.json"), "[{\"a\":9,\"b\":\"q\"},{\"a\":8,\"b\":\"r\"},{\"a\":7,\"b\":\"s\"}]");
+        QCOMPARE(f.win.w.undoStack()->count(), 2);
+        f.win.w.undoStack()->undo();
+        f.win.w.undoStack()->undo();
+        QVERIFY(f.settle());
+        QCOMPARE(int(f.win.w.session()->workbook()->tables().first().row2), rowsBefore);
+        f.win.w.undoStack()->redo();
+        f.win.w.undoStack()->redo();
+        QVERIFY(f.settle());
+        QCOMPARE(int(f.win.w.session()->workbook()->tables().first().row2), 1);
+        QCOMPARE(asks, 3);
+        // the yes was not saved: a window opened again from the same file asks again
+        EditWindow g;
+        QVERIFY(g.win.open(e.copyOfFile()));
+        QVERIFY(g.settle());
+        int again = 0;
+        g.win.w.setGetDataTrustAsker([&](const QStringList &, const QString &) {
+            ++again;
+            return false;
+        });
+        g.select(QStringLiteral("A2"));
+        g.win.w.act(QStringLiteral("data.refresh"))->trigger();
+        QVERIFY(g.settle());
+        QCOMPARE(again, 1);
+        QCOMPARE(g.win.w.undoStack()->count(), 0);
+    }
+
+    // Refresh All asks once for every file, and lists at most 20 of them with a count of the rest.
+    void refreshAllAsksOnceAndListsTwentyFiles()
+    {
+        EditWindow e;
+        QVERIFY(e.open(buildXlsx({worksheet(row(900, text(QStringLiteral("A900"), QStringLiteral("keep"))))})));
+        e.win.w.session()->setLocale(kUs);
+        QVERIFY(e.settle());
+        const int files = 23;
+        QStringList names;
+        for (int i = 0; i < files; ++i) names << e.folder.write(QStringLiteral("f%1.json").arg(i), "[{\"a\":1}]");
+        int at = 0;
+        e.win.w.setGetDataAsker([&](jp::GetDataRequest *r) {
+            r->conn.kind = QStringLiteral("json");
+            r->conn.path = names[at];
+            r->place = QStringLiteral("A%1").arg(1 + 4 * at);
+            ++at;
+            return true;
+        });
+        for (int i = 0; i < files; ++i) {
+            e.win.w.act(QStringLiteral("data.fromFile"))->trigger();
+            QVERIFY(e.settle());
+        }
+        QCOMPARE(e.win.w.session()->workbook()->tables().size(), files);
+        QVERIFY(saveNow(e));
+        EditWindow f;
+        QVERIFY(f.win.open(e.copyOfFile()));
+        QVERIFY(f.settle());
+        int asks = 0;
+        QStringList paths;
+        QString words;
+        std::atomic<int> reads{0};
+        f.win.w.setGetDataHold([&](const std::atomic<bool> &) { ++reads; });
+        f.win.w.setGetDataTrustAsker([&](const QStringList &p, const QString &w) {
+            ++asks;
+            paths = p;
+            words = w;
+            return false;
+        });
+        f.win.w.act(QStringLiteral("data.refreshAll"))->trigger();
+        QVERIFY(f.settle());
+        QCOMPARE(asks, 1);
+        QCOMPARE(int(paths.size()), files);
+        QVERIFY(words.contains(QDir::cleanPath(QFileInfo(names[19]).absoluteFilePath())));
+        QVERIFY(!words.contains(QDir::cleanPath(QFileInfo(names[20]).absoluteFilePath())));
+        QVERIFY(words.contains(QStringLiteral("and 3 more")));
+        QVERIFY(words.trimmed().endsWith(QStringLiteral("Read the Files reads every file named here, including any that are only counted.")));
+        QCOMPARE(f.win.w.undoStack()->count(), 0);
+        QCOMPARE(int(reads), 0);
+    }
+
+    // What the box shows, what is approved, and what is read are one place: a path with a link and ".." is shown and opened as the system resolves it, not as the text reads.
+    void theBoxShowsAndTheReadOpensTheSamePlace()
+    {
+#ifdef Q_OS_WIN
+        QSKIP("on Windows a link made this way is a shortcut file, not a symbolic link, and making a real one needs a right a test machine may not have");
+#endif
+        Folder tree;
+        QVERIFY(QDir(tree.dir.path()).mkpath(QStringLiteral("near")));
+        QVERIFY(QDir(tree.dir.path()).mkpath(QStringLiteral("far/deep")));
+        const QString farFile = tree.write(QStringLiteral("far/x.json"), "[{\"a\":1},{\"a\":2},{\"a\":3}]");   // (what the system finds through the link)
+        tree.write(QStringLiteral("near/x.json"), "[{\"a\":9}]");                                                 // (what the text read lexically would find)
+        if (!QFile::link(tree.dir.filePath(QStringLiteral("far/deep")), tree.dir.filePath(QStringLiteral("near/link")))) QSKIP("this system cannot make a symbolic link here");
+        const QString tricky = tree.dir.filePath(QStringLiteral("near/link/../x.json"));
+        EditWindow e;
+        QVERIFY(e.open(buildXlsx({worksheet(row(9, text(QStringLiteral("A9"), QStringLiteral("keep"))))})));
+        e.win.w.session()->setLocale(kUs);
+        e.win.w.setGetDataAsker([&](jp::GetDataRequest *r) {
+            r->conn.kind = QStringLiteral("json");
+            r->conn.path = tricky;
+            r->place = QStringLiteral("A1");
+            return true;
+        });
+        e.win.w.act(QStringLiteral("data.fromFile"))->trigger();
+        QVERIFY(e.settle());
+        QCOMPARE(int(e.win.w.session()->workbook()->tables().first().row2), 3);   // (the made-here read opens the place the system names: three rows)
+        QVERIFY(saveNow(e));
+        EditWindow f;
+        QVERIFY(f.win.open(e.copyOfFile()));
+        QVERIFY(f.settle());
+        f.win.w.session()->setLocale(kUs);
+        QStringList paths;
+        QString words;
+        std::atomic<int> reads{0};
+        f.win.w.setGetDataHold([&](const std::atomic<bool> &) { ++reads; });
+        f.win.w.setGetDataTrustAsker([&](const QStringList &p, const QString &w) {
+            paths = p;
+            words = w;
+            return true;
+        });
+        tree.write(QStringLiteral("far/x.json"), "[{\"a\":1},{\"a\":2}]");   // (changes the place that is really read: two rows now)
+        f.select(QStringLiteral("A2"));
+        f.win.w.act(QStringLiteral("data.refresh"))->trigger();
+        QVERIFY(f.settle());
+        QCOMPARE(paths, QStringList{QFileInfo(farFile).canonicalFilePath()});   // (the place shown is the far one, with no link and no "..")
+        QVERIFY(!words.contains(QStringLiteral("..")));
+        QCOMPARE(int(reads), 1);
+        QCOMPARE(int(f.win.w.session()->workbook()->tables().first().row2), 2);   // (and it is the far one that was read)
+    }
+
+    // A path or name that could fake the box is shown as visible codes, never raw; a long path is whole.
+    void theBoxShowsOddCharactersAsCodes()
+    {
+        QCOMPARE(jp::getDataVisibleText(QStringLiteral("a\nb\r\tc")), QStringLiteral("a<U+000A>b<U+000D><U+0009>c"));
+        QCOMPARE(jp::getDataVisibleText(QString(QChar(0x202E)) + QStringLiteral("gnp.exe")), QStringLiteral("<U+202E>gnp.exe"));
+        QCOMPARE(jp::getDataVisibleText(QString(QChar(0x2028)) + QString(QChar(0x200B)) + QChar(0x2066)), QStringLiteral("<U+2028><U+200B><U+2066>"));
+        QCOMPARE(jp::getDataVisibleText(QString(QChar(0x7F)) + QChar(0x01)), QStringLiteral("<U+007F><U+0001>"));
+        QCOMPARE(jp::getDataVisibleText(QStringLiteral("C:\\Users\\José\\données 日本.json /tmp/a b")), QStringLiteral("C:\\Users\\José\\données 日本.json /tmp/a b"));
+        const QString longPath = QStringLiteral("/") + QString(3000, QLatin1Char('d')) + QStringLiteral("/end.json");
+        QCOMPARE(jp::getDataVisibleText(longPath), longPath);   // (whole: nothing is cut where the cut could hide the end)
+        // in the box itself: a name with a line break in it
+        EditWindow e;
+        QVERIFY(e.open(buildXlsx({worksheet(row(9, text(QStringLiteral("A9"), QStringLiteral("keep"))))})));
+        e.win.w.session()->setLocale(kUs);
+        const QString file = e.folder.write(QStringLiteral("evil\nRead the File.json"), "[{\"a\":1}]");
+        if (file.isEmpty()) QSKIP("this system cannot make a file name with a line break");
+        e.win.w.setGetDataAsker([&](jp::GetDataRequest *r) {
+            r->conn.kind = QStringLiteral("json");
+            r->conn.path = file;
+            r->place = QStringLiteral("A1");
+            return true;
+        });
+        e.win.w.act(QStringLiteral("data.fromFile"))->trigger();
+        QVERIFY(e.settle());
+        QVERIFY(saveNow(e));
+        EditWindow f;
+        QVERIFY(f.win.open(e.copyOfFile()));
+        QVERIFY(f.settle());
+        QString words;
+        f.win.w.setGetDataTrustAsker([&](const QStringList &, const QString &w) {
+            words = w;
+            return false;
+        });
+        f.select(QStringLiteral("A2"));
+        f.win.w.act(QStringLiteral("data.refresh"))->trigger();
+        QVERIFY(f.settle());
+        QVERIFY(words.contains(QStringLiteral("evil<U+000A>Read the File.json")));
+        QVERIFY(!words.contains(QStringLiteral("evil\n")));
+    }
+
     // The link to the file is saved with the table and read back: after a save and an open, Refresh still works; taking the link off (Inspect) leaves the table.
     void theLinkToTheFileSurvivesASaveAndOpen()
     {
@@ -2406,6 +2650,7 @@ private Q_SLOTS:
         const QString copy = e.copyOfFile();
         QVERIFY(!copy.isEmpty());
         QVERIFY(f.win.open(copy));
+        f.win.w.setGetDataTrustAsker([](const QStringList &, const QString &) { return true; });   // (this test is about the saved link, not the ask)
         QVERIFY(f.settle());
         QCOMPARE(f.win.w.session()->workbook()->tables().size(), 1);
         QCOMPARE(f.win.w.session()->workbook()->tables().first().dataSource, e.win.w.session()->workbook()->tables().first().dataSource);
@@ -2693,6 +2938,7 @@ private Q_SLOTS:
         EditWindow f;
         const QString copy = e.copyOfFile();
         QVERIFY(f.win.open(copy));
+        f.win.w.setGetDataTrustAsker([](const QStringList &, const QString &) { return true; });   // (this test is about the saved link, not the ask)
         QVERIFY(f.settle());
         f.select(QStringLiteral("A2"));
         f.win.w.act(QStringLiteral("data.refresh"))->trigger();

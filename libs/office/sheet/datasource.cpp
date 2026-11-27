@@ -1,6 +1,7 @@
 #include "sheet/datasource.h"
 
 #include <QCoreApplication>
+#include <QDir>
 #include <QFile>
 #include <QFileInfo>
 #include <QRegularExpression>
@@ -862,6 +863,14 @@ QVector<char> dataColumnKinds(const DataRows &table, bool asText)
         (void)anyN;
     }
     return kinds;
+}
+
+QString dataReadablePath(const QString &path)
+{
+    if (dataPathIsRemote(path)) return path;
+    const QFileInfo info(path);
+    const QString canonical = info.canonicalFilePath();
+    return canonical.isEmpty() ? QDir::cleanPath(info.absoluteFilePath()) : canonical;
 }
 
 bool dataReadFile(const QString &path, const DataLimits &limits, const std::function<bool()> &cancelled, QByteArray *bytes, QString *why)

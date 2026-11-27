@@ -64,6 +64,9 @@ QVector<char> dataColumnKinds(const DataRows &table, bool asText);
 // The bytes of a local file, read in pieces so that `cancelled` is asked as it goes. A web address, a path on another computer, a folder, and a file larger than the limit are refused, with *why in words.
 bool dataReadFile(const QString &path, const DataLimits &limits, const std::function<bool()> &cancelled, QByteArray *bytes, QString *why);
 
+// The place a path names, with links and ".." worked out when the file is there (else the cleaned full path): what a person is shown and says yes to, and what is then opened.
+QString dataReadablePath(const QString &path);
+
 // Whether the text names a place that is not a file on this computer's own disks (a web address, a network path).
 bool dataPathIsRemote(const QString &path);
 

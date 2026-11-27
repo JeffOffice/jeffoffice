@@ -36,6 +36,10 @@ struct GetDataFetch {
 // Reads the source of `conn`; the list is the first one the file offers when conn.list is empty. Safe on any thread: it asks `cancelled` as it goes.
 GetDataFetch fetchGetData(const jp::office::sheet::DataConnection &conn, int previewRows, const std::function<bool()> &cancelled);
 
+// The text with every character that could fake what is read shown as visible code, never raw: line breaks, other control and formatting characters (a direction override among them), and characters with no
+// meaning of their own. A character is written as <U+202E>. Used for a path and a name in the box that asks before a file is read.
+QString getDataVisibleText(const QString &text);
+
 // The kind of source a path is, by its ending and then by its first characters: "json", "xml", "workbook", or empty.
 QString guessGetDataKind(const QString &path);
 

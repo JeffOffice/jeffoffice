@@ -687,6 +687,9 @@ void CrunchWindow::onCalcBatch(const std::shared_ptr<crunch::CalcBatch> &batch)
                     const int files = self->isReadOnly() ? 0 : self->m_session->externalPivotsOnOpen();
                     const bool allowed = files > 0 && self->pivotFilesOnOpenAllowed(files);
                     if (!self || !self->m_session) return;
+                    const auto gate = self->armPivotFileGate();
+                    if (allowed)
+                        for (const auto &file : self->m_session->pivotExternalFiles({}, true)) self->m_getDataTrusted.insert(file.second);   // (the person said yes to these files just now)
                     const auto refreshed = self->m_session->refreshPivotsOnOpen(allowed);
                     if (!refreshed.problem.isEmpty()) self->setStatus(refreshed.problem.section(QLatin1Char('\n'), 0, 0));
                 });

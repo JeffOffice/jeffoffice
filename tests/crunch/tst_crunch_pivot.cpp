@@ -898,10 +898,14 @@ private Q_SLOTS:
     {
         for (const bool allow : {false, true}) {
             EditWindow e;
-            e.folder.write(QStringLiteral("other.xlsx"), otherBook(100));
+            const QString other = e.folder.write(QStringLiteral("other.xlsx"), otherBook(100));
             int asked = 0;
-            e.win.w.setLinksAsker([&](int, int) {
+            QStringList shown;
+            QString words;
+            e.win.w.setGetDataTrustAsker([&](const QStringList &p, const QString &w) {
                 ++asked;
+                shown = p;
+                words = w;
                 return allow;
             });
             const int before = pivotExternalFilesOpened();
@@ -910,6 +914,8 @@ private Q_SLOTS:
             QCOMPARE(s->externalPivotsOnOpen(), 1);
             QTRY_COMPARE(asked, 1);
             QVERIFY(e.settle());
+            QCOMPARE(shown, QStringList{QFileInfo(other).canonicalFilePath()});   // (the box has the full path of the file)
+            QVERIFY(words.contains(shown.first()));
             if (allow) {
                 QCOMPARE(pivotExternalFilesOpened() - before, 1);
                 QCOMPARE(cachedAmountTotal(s, 0), 139.0);
@@ -919,7 +925,57 @@ private Q_SLOTS:
                 QCOMPARE(cachedAmountTotal(s, 0), 49.0);
                 QCOMPARE(s->undoStack()->count(), 0);
             }
+            // a yes covers a later Refresh of those files and nothing asks again; a no leaves the question for the next Refresh
+            e.select(QStringLiteral("F5"));
+            e.win.w.act(QStringLiteral("pivot.refresh"))->trigger();
+            QVERIFY(e.settle());
+            QCOMPARE(asked, allow ? 1 : 2);
+            QCOMPARE(pivotExternalFilesOpened() - before, allow ? 2 : 0);
         }
+    }
+
+    // Refresh of a pivot table made from another file asks first, with the full path, in the window's one box for files; Don't Read opens nothing; Refresh All of the Data tab asks about the same files.
+    void aPivotTableFromAnotherFileAsksBeforeItIsRefreshed()
+    {
+        EditWindow e;
+        const QString other = e.folder.write(QStringLiteral("other.xlsx"), otherBook(100));
+        QVERIFY(e.open(externalSourceBook(QStringLiteral("other.xlsx"))));
+        crunch::EditSession *s = e.win.w.session();
+        QCOMPARE(cachedAmountTotal(s, 0), 49.0);
+        int asks = 0;
+        bool answer = false;
+        QStringList paths;
+        e.win.w.setGetDataTrustAsker([&](const QStringList &p, const QString &) {
+            ++asks;
+            paths = p;
+            return answer;
+        });
+        const int before = pivotExternalFilesOpened();
+        const QString where = QFileInfo(other).canonicalFilePath();
+        e.select(QStringLiteral("F5"));
+        QCOMPARE(e.win.w.pivotAtCursor(), 0);
+        for (const char *id : {"pivot.refresh", "pivot.refreshAll", "data.refreshAll"}) {
+            const int asked = asks;
+            e.win.w.act(QString::fromLatin1(id))->trigger();
+            QVERIFY(e.settle());
+            QCOMPARE(asks, asked + 1);
+            QCOMPARE(paths, QStringList{where});
+            QCOMPARE(pivotExternalFilesOpened() - before, 0);   // (no file was opened)
+            QCOMPARE(cachedAmountTotal(s, 0), 49.0);
+            QCOMPARE(s->undoStack()->count(), 0);
+        }
+        e.win.told.clear();
+        answer = true;
+        e.win.w.act(QStringLiteral("pivot.refresh"))->trigger();
+        QVERIFY(e.settle());
+        QCOMPARE(asks, 4);
+        QCOMPARE(pivotExternalFilesOpened() - before, 1);
+        QCOMPARE(cachedAmountTotal(s, 0), 139.0);
+        // the yes holds for this window: no more questions
+        e.win.w.act(QStringLiteral("data.refreshAll"))->trigger();
+        e.win.w.act(QStringLiteral("pivot.refreshAll"))->trigger();
+        QVERIFY(e.settle());
+        QCOMPARE(asks, 4);
     }
 
     // What one refresh may read: a file named by several tables is opened once; the number of files, their bytes together, and the time are held to limits, and a table past one keeps its data, with the notice.

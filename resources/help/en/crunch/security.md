@@ -14,8 +14,10 @@ Macros are small programs kept inside a file. JeffCrunch keeps them in the file,
 This is about the other workbooks that a workbook gets numbers from, called **links**. The choice is what JeffCrunch does when it opens a workbook that has some.
 
 - **Ask me first** is the usual choice. JeffCrunch asks whether to update the numbers from the other workbooks.
-- **Update them** updates them without asking.
+- **Update them** updates them without asking. This includes a workbook that someone else sent you: its links, and the pivot tables in it that are set to read their data from another file, are read as it opens, with no question. Choose **Ask me first** if you open workbooks from people you do not know.
 - **Never update them** keeps the numbers the file stored.
+
+With **Ask me first**, a pivot table that reads its data from another file shows the full path of each file before anything is read. Click **Read the Files** only if you trust where the workbook came from. **Don't Read** leaves the pivot tables as they were.
 
 A choice you make for one workbook in **Data > Edit Links** (**Startup prompt**) wins for that workbook. A workbook that says "never" is always left alone. A workbook on another computer is never read when a file opens, whatever you choose. You can still use **Update Values** in **Edit Links** yourself at any time.
 

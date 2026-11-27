@@ -6,6 +6,7 @@
 
 #include "calc/numfmt.h"
 #include "sheet/cellref.h"
+#include "sheet/datasource.h"
 #include "sheet/pivot.h"
 #include "sheet/externalbooks.h"
 #include "sheet/pivotbook.h"
@@ -185,8 +186,15 @@ bool EditSession::readExternalPivotSource(const QString &target, bool keeps, con
         *why = keeps ? tr("The file \"%1\" could not be read; the pivot keeps its last data.").arg(shown.isEmpty() ? target : shown) : tr("The file \"%1\" can't be read from here.").arg(shown.isEmpty() ? target : shown);
         return false;
     }
+    // (what is opened is the one place that was approved: links and ".." worked out once, here)
+    const QString opened = jp::office::sheet::dataReadablePath(path);
+    if (keeps && m_pivotFileGate && !m_pivotFileGate(opened)) {
+        *why = tr("The file \"%1\" was not read, because it was not approved. The pivot keeps its last data.").arg(shown);
+        return false;
+    }
     QString reason;
-    if (!reads->read(path, where, ps, sheet, ref, name, &reason)) {
+    ++m_pivotFileReads;
+    if (!reads->read(opened, where, ps, sheet, ref, name, &reason)) {
         *why = keeps ? tr("The file \"%1\" could not be read; the pivot keeps its last data.").arg(shown) : tr("The data in \"%1\" can't be read: %2.").arg(shown, reason);
         return false;
     }
@@ -944,6 +952,28 @@ EditSession::Outcome EditSession::refreshPivotCaches(const std::vector<int> &cac
     notDone << skipped;
     if (result.ok && !notDone.isEmpty()) result.problem = tr("These pivot tables were not refreshed:\n%1").arg(notDone.join(QLatin1Char('\n')));
     return result;
+}
+
+std::vector<std::pair<QString, QString>> EditSession::pivotExternalFiles(const std::vector<int> &tables, bool onOpenOnly) const
+{
+    std::vector<std::pair<QString, QString>> out;
+    if (!m_book || !m_book->book) return out;
+    PivotBook &pb = m_book->book->pivots();
+    const QString folder = !m_book->path.isEmpty() ? QFileInfo(m_book->path).absolutePath() : QString();
+    std::vector<int> wanted = tables;
+    if (wanted.empty())
+        for (int t = 0; t < pb.tableCount(); ++t) wanted.push_back(t);
+    for (int t : wanted) {
+        if (t < 0 || t >= pb.tableCount() || !pivotUsable(t)) continue;
+        const int ci = pb.table(t).cache;
+        if (ci < 0 || !pb.cache(ci).cache || !pb.cache(ci).external) continue;
+        if (onOpenOnly && !(pb.cache(ci).cache->refreshOnLoad && pb.cache(ci).cache->externalSource)) continue;
+        bool network = false;
+        const QString path = jp::office::sheet::externalFilePath(pb.cache(ci).cache->externalTarget, folder, &network);
+        if (path.isEmpty() || network) continue;
+        out.emplace_back(pb.table(t).table ? pb.table(t).table->name : QString(), jp::office::sheet::dataReadablePath(path));
+    }
+    return out;
 }
 
 EditSession::Outcome EditSession::refreshPivot(int table)

@@ -436,6 +436,8 @@ public:
     // test hook: runs on the worker thread before a file is read, with the flag Cancel sets (a test holds the worker there until it has pressed Cancel)
     void setGetDataHold(std::function<void(const std::atomic<bool> &)> hold) { m_getDataHold = std::move(hold); }
     void setGetDataReplaceAsker(std::function<bool(int cells)> asker) { m_getDataReplaceAsker = std::move(asker); }
+    // test hook: the box that asks before a file named by a query from an opened workbook is read (the full paths and the words shown); true to read
+    void setGetDataTrustAsker(std::function<bool(const QStringList &, const QString &)> asker) { m_getDataTrustAsker = std::move(asker); }
     void setRemoveDuplicatesAsker(std::function<bool(const QStringList &, QList<int> *)> asker) { m_removeDuplicatesAsker = std::move(asker); }
     void setPivotMoveAsker(std::function<bool(QString *)> asker) { m_pivotMoveAsker = std::move(asker); }
     void setPivotCreateAsker(std::function<bool(QString *, bool *, QString *)> asker) { m_pivotCreateAsker = std::move(asker); }
@@ -1228,6 +1230,12 @@ private:
     std::function<void(DataFormDialog *)> m_dataFormAsker;
     std::function<bool(GetDataRequest *)> m_getDataAsker;
     std::function<bool(int)> m_getDataReplaceAsker;
+    std::function<bool(const QStringList &, const QString &)> m_getDataTrustAsker;
+    QSet<QString> m_getDataTrusted;   // full paths of files this person made a query from, or said yes to, in this window (kept in memory only)
+    bool getDataTrusted(const QString &path) const;
+    std::shared_ptr<void> armPivotFileGate();
+    bool approveFiles(QWidget *parent, const QString &title, const std::vector<int> &pivots, bool withPivots, QStringList names, QStringList paths);
+    bool askToReadFiles(QWidget *parent, const QString &title, const QStringList &names, const QStringList &paths);
     std::function<void(const std::atomic<bool> &)> m_getDataHold;
     std::function<bool(bool *)> m_pivotOptionsAsker;
     std::function<bool(QString *)> m_pivotFileAsker;

@@ -97,6 +97,29 @@ GetDataFetch fetchGetData(const DataConnection &conn, int previewRows, const std
     return out;
 }
 
+QString getDataVisibleText(const QString &text)
+{
+    QString out;
+    out.reserve(text.size());
+    for (qsizetype i = 0; i < text.size(); ++i) {
+        const char32_t cp = text[i].isHighSurrogate() && i + 1 < text.size() && text[i + 1].isLowSurrogate() ? QChar::surrogateToUcs4(text[i], text[i + 1]) : char32_t(text[i].unicode());
+        if (cp > 0xFFFF) ++i;
+        switch (QChar::category(cp)) {
+        case QChar::Other_Control:
+        case QChar::Other_Format:
+        case QChar::Other_Surrogate:
+        case QChar::Other_PrivateUse:
+        case QChar::Other_NotAssigned:
+        case QChar::Separator_Line:
+        case QChar::Separator_Paragraph:
+            out += QStringLiteral("<U+%1>").arg(qulonglong(cp), 4, 16, QLatin1Char('0')).toUpper();
+            break;
+        default: out += QString::fromUcs4(&cp, 1);
+        }
+    }
+    return out;
+}
+
 bool runGetDataWork(QWidget *parent, const QString &text, std::atomic<bool> *cancel, const std::function<void()> &work)
 {
     cancel->store(false);
