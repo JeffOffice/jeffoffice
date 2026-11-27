@@ -35,6 +35,36 @@
 #include <QTcpServer>
 #include <QTcpSocket>
 
+// A loopback server that stands for "outside", with the control that proves it sees a request made on purpose.
+struct Outside {
+    QTcpServer server;
+    int requests = 0;
+    QString base;
+    static void settle()
+    {
+        for (int i = 0; i < 40; ++i) QCoreApplication::processEvents(QEventLoop::AllEvents, 5);
+    }
+    void start()
+    {
+        QVERIFY(server.listen(QHostAddress::LocalHost));
+        QObject::connect(&server, &QTcpServer::newConnection, &server, [this] {
+            while (QTcpSocket *s = server.nextPendingConnection()) {
+                ++requests;
+                s->close();
+                s->deleteLater();
+            }
+        });
+        base = QStringLiteral("http://127.0.0.1:%1/").arg(server.serverPort());
+        QNetworkAccessManager net;
+        net.setProxy(QNetworkProxy::NoProxy);
+        QNetworkReply *reply = net.get(QNetworkRequest(QUrl(base + QStringLiteral("control"))));
+        QTRY_VERIFY2(requests >= 1, qPrintable(reply->errorString()));
+        delete reply;
+        settle();
+        requests = 0;
+    }
+};
+
 class PubPictureTests : public QObject {
     Q_OBJECT
 
@@ -2052,6 +2082,138 @@ private Q_SLOTS:
             }
         }
         QCOMPARE(requests, 0);
+    }
+
+    // The same for a Publisher file: the links in its words (and an address as its words) are read and kept, and opening it, drawing it, and exporting it make no request.
+    void aPubFileWithWebAddressesFetchesNothing()
+    {
+        Outside out;
+        out.start();
+        if (QTest::currentTestFailed()) return;
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        const QString path = dir.filePath(QStringLiteral("web.pub"));
+        {
+            jp::MainWindow w;
+            auto doc = jp::Document::blank(QSizeF(612, 792));
+            auto box = std::make_shared<jp::TextItem>();
+            box->rect = QRectF(72, 72, 400, 120);
+            box->storyId = doc->createStory();
+            QTextCursor c(doc->storyDoc(box->storyId));
+            QTextCharFormat link;
+            link.setAnchor(true);
+            link.setAnchorHref(out.base + QStringLiteral("click"));
+            c.insertText(QStringLiteral("a link "), link);
+            c.insertText(out.base + QStringLiteral("words"), QTextCharFormat());
+            doc->pages[0]->items.push_back(box);
+            w.editor()->setDocument(std::move(doc));
+            QVERIFY(w.saveTo(path));
+        }
+        for (jp::OpenHow how : {jp::OpenHow::Normal, jp::OpenHow::ReadOnly, jp::OpenHow::Copy}) {
+            jp::MainWindow w;
+            QVERIFY(w.openFile(path, how));
+            w.show();
+            Outside::settle();
+            const jp::Document *d = w.editor()->doc();
+            QString hrefs;
+            for (const auto &it : d->pages[0]->items)
+                if (auto *t = dynamic_cast<jp::TextItem *>(it.get()))
+                    for (QTextBlock b = d->storyDoc(t->storyId)->begin(); b.isValid(); b = b.next())
+                        for (auto f = b.begin(); !f.atEnd(); ++f) hrefs += f.fragment().charFormat().anchorHref();
+            QVERIFY2(hrefs.contains(out.base + QStringLiteral("click")), qPrintable(hrefs));   // (the link is kept, and not followed)
+            QVERIFY(w.exportPdfTo(dir.filePath(QStringLiteral("out.pdf")), jp::MainWindow::PdfSettings()));
+            Outside::settle();
+        }
+        QCOMPARE(out.requests, 0);
+    }
+
+    // The source of a mail merge is a path and the list's rows, which are only data: a list whose path and picture column hold web addresses is opened, shown record by record, exported, and
+    // merged into a new publication with no request, and the list is not read from the address.
+    void aMailMergeSourceWithWebAddressesFetchesNothing()
+    {
+        Outside out;
+        out.start();
+        if (QTest::currentTestFailed()) return;
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        const QString path = dir.filePath(QStringLiteral("merge.jpub"));
+        {
+            jp::MainWindow w;
+            auto doc = jp::Document::blank(QSizeF(612, 792));
+            auto frame = std::make_shared<jp::PictureItem>();
+            frame->rect = QRectF(100, 100, 200, 160);
+            frame->imgRect = QRectF(0, 0, 200, 160);
+            frame->name = QStringLiteral("merge:Photo");
+            doc->pages[0]->items.push_back(frame);
+            doc->merge.path = out.base + QStringLiteral("list.csv");
+            doc->merge.fields = {QStringLiteral("Photo")};
+            doc->merge.rows = {{out.base + QStringLiteral("face.png")}, {QStringLiteral("//127.0.0.1:%1/other.png").arg(out.server.serverPort())}, {QStringLiteral("file:///127.0.0.1/x.png")}};
+            doc->merge.include = {true, true, true};
+            doc->merge.pictureField = QStringLiteral("Photo");
+            w.editor()->setDocument(std::move(doc));
+            QVERIFY(w.saveTo(path));
+        }
+        for (jp::OpenHow how : {jp::OpenHow::Normal, jp::OpenHow::ReadOnly, jp::OpenHow::Copy}) {
+            jp::MainWindow w;
+            QVERIFY(w.openFile(path, how));
+            w.show();
+            Outside::settle();
+            jp::Document *d = w.editor()->doc();
+            QCOMPARE(d->merge.rows.size(), 3);   // (the list is kept as it was, and not read again)
+            QCOMPARE(d->merge.path, out.base + QStringLiteral("list.csv"));
+            for (int record = 0; record < 3; ++record) QVERIFY(linkColorsClose(mergeShows(d, record), QColor(255, 255, 255)));
+            QVERIFY(jp::mergeToNewPublication(*d));
+            QVERIFY(w.exportPdfTo(dir.filePath(QStringLiteral("out.pdf")), jp::MainWindow::PdfSettings()));
+            Outside::settle();
+        }
+        QCOMPARE(out.requests, 0);
+    }
+
+    // An object another program made (kept on its page as the package it came in, with the picture that shows it) is drawn from its picture: whatever links its package holds, and the
+    // address on its picture, are kept as they were, and opening, drawing, exporting, and saving a copy make no request.
+    void anEmbeddedObjectWithLinksFetchesNothing()
+    {
+        Outside out;
+        out.start();
+        if (QTest::currentTestFailed()) return;
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        const QString path = dir.filePath(QStringLiteral("object.jpub"));
+        const QByteArray package = QByteArray("PK\x03\x04", 4) + "<Relationship Target=\"" + out.base.toUtf8() + "external\" TargetMode=\"External\"/>" + QByteArray(22, '\0');
+        {
+            auto doc = jp::Document::blank(QSizeF(612, 792));
+            QImage img(40, 30, QImage::Format_RGB32);
+            img.fill(Qt::red);
+            QByteArray png;
+            QBuffer buf(&png);
+            QVERIFY(buf.open(QIODevice::WriteOnly) && img.save(&buf, "PNG"));
+            auto pic = std::make_shared<jp::PictureItem>();
+            pic->rect = QRectF(100, 100, 200, 150);
+            pic->imageId = doc->addImage(png, QStringLiteral("png"));
+            pic->hyperlink = out.base + QStringLiteral("object");
+            pic->hoverLink = out.base + QStringLiteral("over");
+            doc->pages[0]->items.push_back(pic);
+            QJsonObject entry{{QStringLiteral("item"), pic->id}, {QStringLiteral("kind"), QStringLiteral("object")}, {QStringLiteral("name"), QStringLiteral("Object 1")},
+                              {QStringLiteral("data"), QString::fromLatin1(package.toBase64())}};
+            doc->pages[0]->props[QStringLiteral("charts")] = QJsonArray{entry};
+            QString err;
+            QVERIFY2(jp::savePublication(*doc, path, QImage(), &err), qPrintable(err));
+        }
+        for (jp::OpenHow how : {jp::OpenHow::Normal, jp::OpenHow::ReadOnly, jp::OpenHow::Copy}) {
+            jp::MainWindow w;
+            QVERIFY(w.openFile(path, how));
+            w.show();
+            Outside::settle();
+            const jp::Document *d = w.editor()->doc();
+            const QJsonArray kept = d->pages[0]->props.value(QStringLiteral("charts")).toArray();
+            QCOMPARE(kept.size(), 1);
+            QVERIFY(QByteArray::fromBase64(kept[0].toObject().value(QStringLiteral("data")).toString().toLatin1()).contains(out.base.toUtf8() + "external"));
+            QCOMPARE(d->pages[0]->items[0]->hyperlink, out.base + QStringLiteral("object"));
+            QVERIFY(w.exportPdfTo(dir.filePath(QStringLiteral("out.pdf")), jp::MainWindow::PdfSettings()));
+            QVERIFY(w.saveTo(dir.filePath(QStringLiteral("copy.jpub")), true));
+            Outside::settle();
+        }
+        QCOMPARE(out.requests, 0);
     }
 
     // With "Never", a linked picture that keeps no copy is drawn from its preview, and PDF export and printing say so in the status bar.

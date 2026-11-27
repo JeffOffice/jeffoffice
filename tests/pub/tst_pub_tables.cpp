@@ -4,6 +4,7 @@
 #include "app/tableedit.h"
 #include "io/importers.h"
 #include <libmspub/jp_hooks.h>
+#include <QBuffer>
 #include <QElapsedTimer>
 #include "text/textprops.h"
 #include "wml/wmlhtmlread.h"
@@ -1978,6 +1979,59 @@ private Q_SLOTS:
         const auto *got = static_cast<const jp::TableItem *>(obj.get());
         QCOMPARE(got->rows, 2);
         QCOMPARE(got->cols, 2);
+    }
+
+    // A shape and a picture set in text come back in the text too, in their places, and the opening counts them.
+    void pubShapeAndPictureSetInTextComeBackInTheText()
+    {
+        auto doc = jp::Document::blank(QSizeF(612, 792));
+        auto frame = std::make_shared<jp::TextItem>();
+        frame->rect = QRectF(72, 72, 300, 300);
+        frame->storyId = doc->createStory(QStringLiteral("AB CD EF"));
+        QImage img(8, 6, QImage::Format_RGB32);
+        img.fill(Qt::red);
+        QByteArray png;
+        QBuffer buf(&png);
+        QVERIFY(buf.open(QIODevice::WriteOnly) && img.save(&buf, "PNG"));
+        jp::ShapeItem shape;
+        shape.rect = QRectF(0, 0, 20, 20);
+        jp::PictureItem pic;
+        pic.imageId = doc->addImage(png, QStringLiteral("png"));
+        pic.rect = QRectF(0, 0, 30, 20);
+        QTextCursor c(doc->storyDoc(frame->storyId));
+        // (the later position first, so the earlier one stays where it was counted)
+        const jp::Item *objects[] = {&pic, &shape};
+        const int where[] = {6, 3};
+        for (int i = 0; i < 2; ++i) {
+            c.setPosition(where[i]);
+            QTextCharFormat of = c.charFormat();
+            of.setProperty(jp::tp::InlineObject, QString::fromUtf8(QJsonDocument(objects[i]->toJson()).toJson(QJsonDocument::Compact)));
+            c.insertText(QString(QChar::ObjectReplacementCharacter), of);
+        }
+        doc->pages[0]->items = {frame};
+        QTemporaryDir dir;
+        const QString path = dir.filePath(QStringLiteral("objects-in-text.pub"));
+        QString err;
+        QVERIFY2(jp::exportPublisher(*doc, path, &err), qPrintable(err));
+        jp::PubImportReport rep;
+        auto back = jp::importPublisherFile(path, &err, &rep);
+        QVERIFY2(back, qPrintable(err));
+        QCOMPARE(rep.inlineObjects, 2);
+        QCOMPARE(int(back->pages[0]->items.size()), 1);   // neither is on the page of its own
+        auto *bt = dynamic_cast<jp::TextItem *>(back->pages[0]->items[0].get());
+        QVERIFY(bt);
+        QTextDocument *sd = back->storyDoc(bt->storyId);
+        QCOMPARE(sd->toPlainText(), QStringLiteral("AB ") + QChar(QChar::ObjectReplacementCharacter) + QStringLiteral("CD ") + QChar(QChar::ObjectReplacementCharacter) + QStringLiteral("EF"));
+        QList<jp::ItemType> kinds;
+        for (QTextBlock b = sd->begin(); b.isValid(); b = b.next())
+            for (auto f = b.begin(); !f.atEnd(); ++f) {
+                const QString v = f.fragment().charFormat().stringProperty(jp::tp::InlineObject);
+                if (v.isEmpty()) continue;
+                const jp::ItemPtr obj = jp::Item::fromJsonAny(QJsonDocument::fromJson(v.toUtf8()).object());
+                QVERIFY(obj);
+                kinds << obj->type();
+            }
+        QCOMPARE(kinds, (QList<jp::ItemType>{jp::ItemType::Shape, jp::ItemType::Picture}));
     }
 
     // A table of one cell has no list of cell ends in a file Publisher made: all of the table's text is the cell's. (The file here is
