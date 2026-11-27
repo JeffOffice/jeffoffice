@@ -5887,6 +5887,32 @@ private Q_SLOTS:
         QVERIFY2(w400.at(1) <= w100.at(1) + 4 && w400.at(2) <= w100.at(2) + 4, qPrintable(QStringLiteral("%1/%2 against %3/%4").arg(w100.at(1)).arg(w100.at(2)).arg(w400.at(1)).arg(w400.at(2))));
     }
 
+    // A compare of `one` with `two` through the window; "" when Accept All gives the revised text (or, with the difference counted as "(tables)", the original) and Reject All gives the original, no change left.
+    static QString acceptRejectProblem(const QByteArray &one, const QByteArray &two)
+    {
+        const AppCompared r = compareInApp(makeDocx(one), makeDocx(two));
+        auto original = open(makeDocx(one)), revised = open(makeDocx(two));
+        const Resolved accepted = resolved(r.saved, true), rejected = resolved(r.saved, false);
+        const bool counted = r.status.contains(QStringLiteral("(tables)"));
+        const Resolved &want = counted ? Resolved{storyTexts(*original), false, savedTables(documentXml(original->toDocx()))} : Resolved{storyTexts(*revised), false, savedTables(documentXml(revised->toDocx()))};
+        QStringList bad;
+        if (r.saved.isEmpty()) bad << QStringLiteral("no result");
+        if (accepted.tracked || rejected.tracked) bad << QStringLiteral("a change is left");
+        if (accepted.texts != want.texts || accepted.tables.size() != want.tables.size()) bad << QStringLiteral("accepted: %1 tables [%2]").arg(accepted.tables.size()).arg(accepted.texts.join(QLatin1Char('|')));
+        if (rejected.texts != storyTexts(*original)) bad << QStringLiteral("rejected: [%1]").arg(rejected.texts.join(QLatin1Char('|')));
+        return bad.join(QStringLiteral("; "));
+    }
+    void aTableTakenOutBesideAnotherTableOrAtTheStartAcceptsAsTheRevisedTextAndRejectsAsTheOriginal()
+    {
+        const QByteArray t1 = gridOfRows({{"a1", "a2"}, {"a3", "a4"}}), t2 = gridOfRows({{"b1", "b2"}, {"b3", "b4"}});
+        const QByteArray s = para(run("S")), m = para(run("m")), z = para(run("z"));
+        QStringList problems;
+        const QVector<QPair<QByteArray, QByteArray>> cases{{s + t1 + m + t2, s + t2}, {t1 + m + t2, t2 + m + t1}, {t1 + t2, t2}, {t1 + m + t2 + z, m + t2 + z}, {s + t1 + t2, s + t2}, {s + t1 + m + t2, s + t2 + m + t1}, {t1 + t2 + z, t2 + z}};
+        for (int i = 0; i < cases.size(); ++i)
+            if (const QString p = acceptRejectProblem(cases.at(i).first, cases.at(i).second); !p.isEmpty()) problems << QStringLiteral("case %1: %2").arg(i).arg(p);
+        QVERIFY2(problems.isEmpty(), qPrintable(problems.join(QLatin1Char('\n'))));
+    }
+
     // ---- Compare, slice 2: tables by row and cell
     static QByteArray gridOfRows(const QVector<QStringList> &rows)
     {

@@ -1635,6 +1635,7 @@ Outcome compareStory(CompareContext &context, WriteDoc *out, QTextDocument *stor
                 // paragraph with its own mark deleted that has them left can't be joined to the next, where this one's mark is the one that is left.)
                 const bool lastWay = !blk.next().isValid() || movedA.at(t) >= 0;
                 if (lastWay && blk.previous().isValid() && tablesA.tableOfBlock.value(t - 1, -1) >= 0) {   // (the last paragraph, after a table: its mark is not the one that can go)
+        QVector<QTextCursor> beforeTables;
                     const int before = tablesA.tableOfBlock.value(t - 1, -1);
                     if (plan.partnerA.value(before, -1) >= 0 || plan.stateA.value(before) == TablePlan::Whole) context.work.countUnmarked(CompareWork::Tables);   // (after a table that is not marked, it is that table's difference, counted already)
                     continue;
@@ -1668,6 +1669,9 @@ Outcome compareStory(CompareContext &context, WriteDoc *out, QTextDocument *stor
                 for (int end = to; end > from;) {
                     int begin = end - 1;
                     while (begin > from && pa.places.at(begin - 1) + 1 == pa.places.at(begin)) --begin;
+                    // (A paragraph before a table: its mark is not one a deletion records, as nothing joins a paragraph to a table; it is marked as taken out all the same, after the paragraphs before it are dealt
+                    // with, and Accept All takes the empty paragraph out.)
+                    if (!lastWay && blk.next().isValid() && cellKeyOf(blk.next()) && !cellKeyOf(blk)) beforeTables.push_back(QTextCursor(story->findBlock(a.at(t).blockFrom)));
                     QTextCursor c(story);
                     c.setPosition(pa.places.at(begin));
                     c.setPosition(pa.places.at(end - 1) + 1, QTextCursor::KeepAnchor);
@@ -1699,6 +1703,10 @@ Outcome compareStory(CompareContext &context, WriteDoc *out, QTextDocument *stor
         }
         const QVector<int> &gone = job.edit.deleted;
         for (int hi = int(gone.size()) - 1; hi >= 0;) {   // (the runs of rows that go, the last first)
+        for (const QTextCursor &at : std::as_const(beforeTables)) {
+            const QTextBlock blk = at.block();
+            if (blk.isValid() && !markFormat(blk).hasProperty(prop::TrackedDeleted)) markParagraphMark(*out, blk, "del");
+        }
             int lo = hi;
             while (lo > 0 && gone.at(lo - 1) == gone.at(lo) - 1) --lo;
             QTextCursor c(story);

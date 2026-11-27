@@ -1024,6 +1024,22 @@ void removeMark(WriteDoc &doc, QTextDocument *d, int blockNumber)
         t.removeSelectedText();
         return;
     }
+    if (n.isValid() && !isLocked(b) && !isLocked(n) && !canJoinBlocks(b, n) && inTable(n) && !inTable(b) && b.length() == 1 && b.position() == 0 && !n.blockFormat().hasProperty(prop::EndnoteBlock) &&
+        !bf.hasProperty(prop::RawBefore) && !bf.hasProperty(prop::RawAfter) && !bf.boolProperty(flow::fp::SectionBreakAfter) && bf.intProperty(flow::fp::Frame) == n.blockFormat().intProperty(flow::fp::Frame)) {
+        // Nothing of the first paragraph is left and the next is a table's, which it can't join: the paragraph goes, and the table's first cell, which is the first paragraph now, keeps its own look.
+        QTextBlockFormat nextFormat = n.blockFormat();
+        const QTextCharFormat nextMark = markFormat(n);
+        for (const int k : {int(prop::LastSection)})
+            if (bf.hasProperty(k)) nextFormat.setProperty(k, bf.property(k));
+        QTextCursor t(d);
+        t.setPosition(0);
+        t.setPosition(1, QTextCursor::KeepAnchor);
+        t.removeSelectedText();
+        t.setPosition(0);
+        t.setBlockFormat(nextFormat);
+        setMarkFormat(d->begin(), nextMark);
+        return;
+    }
     if (!n.isValid() || isLocked(b) || isLocked(n) || !canJoinBlocks(b, n) || n.blockFormat().hasProperty(prop::EndnoteBlock) ||
         bf.intProperty(flow::fp::Frame) != n.blockFormat().intProperty(flow::fp::Frame)) {
         clearMarkRecord(b);
@@ -1485,7 +1501,7 @@ int resolveRevisions(WriteDoc &doc, QTextDocument *story, const QVector<Revision
         if (markDeleted || markInserted) {
             const bool removes = markDeleted ? accept : !accept;
             const QTextBlock here = story->findBlockByNumber(blockNumber);
-            if (removes && !tablePlaces.isEmpty() && here.isValid() && here.next().isValid() && inTable(here.next()) && !inTable(here)) marksBeforeTables.push_back(QTextCursor(here));
+            if (removes && !tablePlaces.isEmpty() && here.isValid() && !inTable(here) && ((here.next().isValid() && inTable(here.next())) || (here.previous().isValid() && inTable(here.previous())))) marksBeforeTables.push_back(QTextCursor(here));   // (or after one: the paragraph joins the one before it, which is not to be a table's cell that is about to go)
             else if (removes) removeMark(doc, story, blockNumber);
             else clearMarkRecord(story->findBlockByNumber(blockNumber));
             ++done;
