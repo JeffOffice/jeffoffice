@@ -135,7 +135,7 @@ private Q_SLOTS:
     void aRepeatedWordIsFlaggedAndTheSecondOneRemoved()
     {
         fixes({{"This is the the best day.", "This is the best day."}, {"I went to to the store.", "I went to the store."}, {"It was The the end.", "It was The end."},
-               {"We saw saw a bird.", "We saw a bird."}});
+               {"We saw saw a bird.", "We saw a bird."}, {"The truth is is plain to see.", "The truth is plain to see."}});
         QCOMPARE(marked(QStringLiteral("This is the the best day.")), QStringList{QStringLiteral(" the")});
     }
     void legitimateRepeatsAreLeftAlone()
@@ -143,7 +143,7 @@ private Q_SLOTS:
         leavesAlone({QStringLiteral("He said that that was fine."), QStringLiteral("She had had enough."), QStringLiteral("Bye bye, see you."), 
                      QStringLiteral("It is what it is is a saying."), QStringLiteral("Go to the left, left of the door."), QStringLiteral("I think, therefore I am. Am I?"),
                      QStringLiteral("Line one one more."), QStringLiteral("1 1 2 3 5 8"), QStringLiteral("no no no"), QStringLiteral("Bora Bora, Walla Walla, and Pago Pago."), QStringLiteral("He said \"the the\" is a typo."), QStringLiteral("He said \u201Cthe the\u201D is a typo."), QStringLiteral("What it was was a mistake."),
-                     QStringLiteral("The truth is is plain."), QStringLiteral("We looked at at least two sites."), QStringLiteral("Receiving bank Bank One."), QStringLiteral("Declare Context context here."), QStringLiteral("column    prepared      prepared     prepared"), QStringLiteral("a\tthe\tthe"), QStringLiteral("The cell is put in in time."), QStringLiteral("It went on on Monday.")});
+                     QStringLiteral("The agency P&As as providing the data."), QStringLiteral("Use the and/or or rule here."), QStringLiteral("Where it is is not clear to anyone."), QStringLiteral("We looked at at least two sites."), QStringLiteral("Receiving bank Bank One."), QStringLiteral("Declare Context context here."), QStringLiteral("column    prepared      prepared     prepared"), QStringLiteral("a\tthe\tthe"), QStringLiteral("The cell is put in in time."), QStringLiteral("It went on on Monday.")});
     }
 
     void aAndAnFollowTheSoundOfTheNextWord()
@@ -169,7 +169,8 @@ private Q_SLOTS:
 
     void aSentenceThatStartsInLowercaseIsFlagged()
     {
-        fixes({{"It rained. we stayed in.", "It rained. We stayed in."}, {"He left. she stayed.", "He left. She stayed."}});
+        fixes({{"It rained. we stayed in.", "It rained. We stayed in."}, {"He left. she stayed.", "He left. She stayed."},
+               {"The dog barked. the cat ran away.", "The dog barked. The cat ran away."}, {"It was running. and it fell.", "It was running. And it fell."}});
     }
     void lowercaseAfterAbbreviationsNumbersAndNamesIsLeftAlone()
     {
@@ -248,7 +249,7 @@ private Q_SLOTS:
 
     void aDoubleSpaceIsFlaggedAndMadeOne()
     {
-        fixes({{"One  two.", "One two."}, {"Two  spaces  twice.", "Two spaces twice."}});
+        fixes({{"We left the house  at noon on Monday.", "We left the house at noon on Monday."}, {"Two  spaces  twice in this one sentence.", "Two spaces twice in this one sentence."}});
     }
     void singleSpacesAndIndentsAreLeftAlone()
     {
@@ -263,12 +264,42 @@ private Q_SLOTS:
 
     void aSpaceBeforePunctuationIsFlaggedAndTaken()
     {
-        fixes({{"Hello , world.", "Hello, world."}, {"Yes .", "Yes."}, {"Wait ; stop.", "Wait; stop."}, {"Why ?", "Why?"}, {"Look !", "Look!"}});
+        fixes({{"Hello , world and everyone else here.", "Hello, world and everyone else here."}, {"We said yes to the offer .", "We said yes to the offer."}, {"Wait ; stop and think about it.", "Wait; stop and think about it."},
+               {"Why did you leave so early ?", "Why did you leave so early?"}, {"Look at that big tree over there !", "Look at that big tree over there!"}});
     }
     void spacesBeforeOtherMarksAreLeftAlone()
     {
         leavesAlone({QStringLiteral("Hello, world."), QStringLiteral("Wait ... what"), QStringLiteral("Smile :) and wink ;) ok"), QStringLiteral("See .txt files and 3 .5"), QStringLiteral("Ratio 3 : 1 and 4:5"),
                      QStringLiteral("Dash - and dash — fine"), QStringLiteral("( and ) and \" ok"), QStringLiteral("Wait … what"), QStringLiteral("Dry weight 56.89 ?"), QStringLiteral("Blank field 19      ."), QStringLiteral("set x   ! a comment"), QStringLiteral("(call ?*frame* x)"), QStringLiteral("Name : John"), QStringLiteral("f : X -> Y"), QStringLiteral("Wait . . . what"), QStringLiteral("Done . . .")});
+    }
+
+    // Nov 27 2026: the spacing rules look only at running prose (runningProse in grammarrules.cpp). Every text below was flagged in the development documents and is a heading, a label,
+    // a table cell, a contents line, a citation, an address, or a glossary term: no flag. The real sentences beside them are still flagged.
+    void theSpacingRulesFlagOnlyRunningProse()
+    {
+        const auto spacing = [](const QString &t) {
+            int n = 0;
+            for (const GrammarIssue &g : grammar::check(t))
+                if (g.rule == QLatin1String("double-space") || g.rule == QLatin1String("space-before-mark")) ++n;
+            return n;
+        };
+        const QStringList notProse = {
+            QStringLiteral("Surgical  procedures (Continued)"), QStringLiteral("Not  Adj."), QStringLiteral("Agency  Building 1"), QStringLiteral("Phacelia integrifolia  var. integrifoloa"),
+            QStringLiteral("Thermal compressibility of water in  (atm)-1"), QStringLiteral("PURSUANT TO  AMENDED U.S.-MEXICO AIR TRANSPORT AGREEMENT,"),
+            QStringLiteral("Holbrook, S.J.,  D.C. Reed  and J. S. Bull. 1999. Methods for Enhancing Habitat for Fish in the Bay."),
+            QStringLiteral("Marzulli , FN and Maibach HI. 1975. Relevance of animal models to human skin tests in the field."),
+            QStringLiteral("REFRIGERATED ; COOKING"), QStringLiteral("Structural diagnostics ."), QStringLiteral("Name of the AUSA ;"), QStringLiteral("540 S. Dupont Highway , 3rd Floor"),
+            QStringLiteral("Industry Numbering Committee Report . Status of UNP."), QStringLiteral("GS - 2210 - 11 /13 , promotion potential GS - 13"),
+            QStringLiteral("Critical  limit.  The maximum or minimum value to which a physical hazard must be controlled."),
+            QStringLiteral("NOTE: The calendar  year deductible applies to almost all benefits in the plan."), QStringLiteral("After the calendar  year deductible and the plan limits apply\u2026"), QStringLiteral("a  Date/time is for sustained wind when both sustained and gusts are measured."),
+            QStringLiteral("Table 3.  The results  of the run in the second year."),
+            QStringLiteral("Contents of the first chapter and the second chapter ........ 4"), QStringLiteral("Plants of the dune  Acer rubrum, Quercus alba, Pinus strobus, Ilex opaca."),
+            QStringLiteral("Value of the gradient (in  K) is given at the top of each column and below."), QStringLiteral("The word was built from a field \uFFFC and then  we stopped here today.")};
+        for (const QString &t : notProse) QVERIFY2(spacing(t) == 0, qPrintable(t));
+        const QStringList prose = {
+            QStringLiteral("The meeting  starts at noon today."), QStringLiteral("We left the house early , and the rest of them stayed behind."), QStringLiteral("Please send me  the final draft as soon as you can."),
+            QStringLiteral("He asked why the door was open ."), QStringLiteral("The detail lasted from June 5th to September 22nd ."), QStringLiteral("She said that it was  a very long road to the farm.")};
+        for (const QString &t : prose) QVERIFY2(spacing(t) == 1, qPrintable(t));
     }
 
     void aMissingSpaceAfterAPeriodIsFlagged()

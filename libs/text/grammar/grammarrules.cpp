@@ -42,6 +42,8 @@ struct Ctx {
     }   // whether a word that opens a clause ("if", "when") came earlier in the same sentence
 
     bool canadian = false;   // French as written in Canada
+    bool english = false;    // the rules of English (the spacing rules look only at running prose there; see runningProse)
+    int prose = -1;          // whether the paragraph is running prose (found once, when a rule first asks)
     int curly = -1;   // whether the paragraph writes its apostrophes curly (found once, when a rule first asks)
     QString apostrophe()
     {
@@ -253,7 +255,7 @@ const QSet<QString> &functionWords()
 // "the the": the second of two words alike, with the space before it taken out.
 void repeatedWord(Ctx &c)
 {
-    const QSet<QString> &legitimate = WORDS("had", "that", "is", "bye", "no", "so", "very", "ha", "hah", "blah", "never", "knock", "yada", "choo", "boom", "tsk", "in", "on", "out", "up", "off", "over", "at", "was", "were", "are", "am");   // (put in in an hour; the particles can double)
+    const QSet<QString> &legitimate = WORDS("had", "that", "bye", "no", "so", "very", "ha", "hah", "blah", "never", "knock", "yada", "choo", "boom", "tsk", "in", "on", "out", "up", "off", "over", "at", "was", "were", "are", "am");   // (put in in an hour; the particles can double)
     for (int i = 0; i < c.size(); ++i) {
         c.step();
         if (c.tokens[i].kind != Tok::Word) continue;
@@ -263,6 +265,19 @@ void repeatedWord(Ctx &c)
         if (between.contains(QLatin1Char('\n')) || between.contains(QChar(0x2028)) || between.contains(QChar(0x2029))) continue;   // (across a line: left to the person)
         const QString &w = c.tokens[i].lower;
         if (w.size() < 2 || legitimate.contains(w)) continue;
+        // (a word joined to its neighbor by &, /, or an apostrophe is part of that name or pair, not a word of its own: "P&As as providing", "and/or or")
+        const QString joiners = QStringLiteral("&/'\u2019");
+        if ((c.tokens[i].start > 0 && joiners.contains(c.text.at(c.tokens[i].start - 1))) || (c.tokens[j].end < c.text.size() && joiners.contains(c.text.at(c.tokens[j].end)))) continue;
+        if (w == QLatin1String("is")) {   // ("What it is is a mess" is said that way on purpose: not when a "what", "where", "why", or "how" is within four words before)
+            bool wh = false;
+            for (int k = i - 1, seen = 0; k >= 0 && seen < 4 && !wh; --k) {
+                if (c.tokens[k].kind == Tok::Space) continue;
+                ++seen;
+                if (c.tokens[k].kind == Tok::Punct && QStringView(u".!?;:").contains(c.text.at(c.tokens[k].start))) break;
+                wh = c.tokens[k].kind == Tok::Word && (c.tokens[k].lower == QLatin1String("what") || c.tokens[k].lower == QLatin1String("where") || c.tokens[k].lower == QLatin1String("why") || c.tokens[k].lower == QLatin1String("how"));
+            }
+            if (wh) continue;
+        }
         if (c.firstUpper(i) && c.firstUpper(j)) continue;   // (Bora Bora, Walla Walla: a name said twice)
         if (c.firstUpper(j)) continue;                       // (bank Bank One)
         if (c.firstUpper(i) && !functionWords().contains(w)) continue;   // (Context context: a type and a name; only "The the" and the like are a slip)
@@ -488,7 +503,9 @@ void lowercaseSentenceStartWith(Ctx &c, const QSet<QString> *shortened)
         if (b.contains(QLatin1Char('\'')) || b.contains(QChar(0x2019))) continue;   // (addt'l., int'l.: shortened words)
         const QString shown = c.original(before);
         if (shown.at(shown.size() - 1).isUpper() && (shown.size() == 1 || !shown.at(shown.size() - 2).isLetter())) continue;   // (post-E. coli: an initial)
-        if (startsLowerForGood().contains(c.tokens[w].lower) || joiningWords().contains(c.tokens[w].lower)) continue;   // ("Admin. and Information": the sentence goes on)   // (pp. 72-107, et al.)
+        // (a lowercase word of an ordinary ending is a word, not a shortened one: "The dog barked. the cat ran" is a slip, where "Admin. and Information" goes on)
+        const bool plainWord = shown.size() >= 5 && shown.at(0).isLower() && (b.endsWith(QLatin1String("ed")) || b.endsWith(QLatin1String("ing")) || b.endsWith(QLatin1String("ly")));
+        if (startsLowerForGood().contains(c.tokens[w].lower) || (joiningWords().contains(c.tokens[w].lower) && !plainWord)) continue;   // ("Admin. and Information": the sentence goes on)   // (pp. 72-107, et al.)
         const int s0 = c.tokens[w].start;
         c.add(s0, s0 + 1, GK::Capitalization, QCoreApplication::translate("Grammar", "Start a sentence with a capital letter."), QString(c.text.at(s0).toUpper()));
     }
@@ -602,9 +619,73 @@ void couldOf(Ctx &c)
 
 void lowercaseSentenceStart(Ctx &c) { lowercaseSentenceStartWith(c, nullptr); }
 
+// Whether the paragraph (or the table cell, which is a paragraph of its own) is running prose: sentences a person typed, not a heading, a label, a list of names or values, a table
+// cell, a contents line, a citation, a caption, or text built by fields. The spacing rules (double space, space before a mark) flag only in running prose, because everywhere else
+// the spaces are layout and the marks are the author's. Plainly, ALL of these hold:
+//   1. at least kProseMinWords words, and it ends like a sentence (a period, !, or ?, then at most closing quotes or brackets);
+//   2. most of its words and numbers are plain words of letters (at least 60 percent: not capitalized except at the start of a sentence, not with a digit in them), capitalized words in the
+//      middle of a sentence are at most a quarter of the words,
+//      numbers are at most 15 percent, and letters are at least 70 percent of the characters that are not spaces;
+//   3. none of: a tab, an equals sign, dot leaders, an object or blanked-out stretch (U+FFFC: a field result, an equation, a picture), two or more initials ("J. S."), a citation word
+//      ("et al", "pp.", "Vol.", "Ibid") or a year standing as a sentence of its own (". 1975. "), or a label that opens it ("NOTE:", "Figure 3", "Table 2", "a  Footnote text").
+constexpr int kProseMinWords = 5;
+bool runningProse(Ctx &c)
+{
+    if (c.prose >= 0) return c.prose == 1;
+    c.prose = 0;
+    c.steps += quint64(c.text.size());
+    const QString &t = c.text;
+    if (t.contains(QChar(0xFFFC)) || t.contains(QLatin1Char('\t')) || t.contains(QLatin1Char('=')) || t.contains(QLatin1String("....")) || t.contains(QLatin1String(". . ."))) return false;
+    static const QRegularExpression citation(QStringLiteral("\\b(et al|pp\\.|vol\\.|ibid|proc\\.)|^\\s*(note|figure|fig\\.|table|source|exhibit)\\b\\s*[:.\\d]|\\.\\s+(1[5-9]|20)\\d\\d[a-z]?\\.\\s"), QRegularExpression::CaseInsensitiveOption);
+    static const QRegularExpression label(QStringLiteral("^\\s*([A-Z]{3,}:|[A-Za-z0-9*]{1,2}\\s{2,}\\S)"));   // (NOTE: ..., or a footnote mark or number and the spaces that line up the text after it)
+    if (citation.match(t).hasMatch() || label.match(t).hasMatch()) return false;
+    int end = int(t.size());
+    while (end > 0 && (t.at(end - 1).isSpace() || QStringView(u"\"')]\u201D\u2019").contains(t.at(end - 1)))) --end;
+    if (end == 0 || !QStringView(u".!?").contains(t.at(end - 1))) return false;   // (an ellipsis is a cell cut short)
+    int words = 0, numbers = 0, lower = 0, capitals = 0, initials = 0;
+    bool sentenceStart = true;
+    for (int i = 0; i < c.size(); ++i) {
+        const Token &k = c.tokens[i];
+        if (k.kind == Tok::Space) continue;
+        if (k.kind == Tok::Punct) {
+            if (QStringView(u".!?").contains(t.at(k.start))) sentenceStart = true;
+            continue;
+        }
+        if (k.kind == Tok::Number) {
+            if (!t.at(k.end - 1).isLetter()) ++numbers;   // (5th and 22nd are words of the sentence)
+            else {
+                ++words;
+                ++lower;
+            }
+            sentenceStart = false;
+            continue;
+        }
+        ++words;
+        const QChar first = t.at(k.start);
+        bool digits = false;
+        for (int p = k.start; p < k.end && !digits; ++p) digits = t.at(p).isDigit();
+        if (digits) {}
+        else if (first.isLower() || sentenceStart || (k.end - k.start == 1 && first == QLatin1Char('I'))) ++lower;   // (the first word of a sentence, and "I", are capitals that say nothing)
+        else if (first.isUpper()) ++capitals;
+        if (first.isUpper() && k.end - k.start == 1 && c.isPunct(i + 1, QLatin1Char('.'))) ++initials;
+        sentenceStart = false;
+    }
+    if (words < kProseMinWords || initials >= 2) return false;
+    if (lower * 10 < (words + numbers) * 6 || capitals * 4 > words || numbers * 100 > (words + numbers) * 15) return false;
+    int letters = 0, others = 0;
+    for (QChar ch : t) {
+        if (ch.isLetter()) ++letters;
+        else if (!ch.isSpace()) ++others;
+    }
+    if (letters * 10 < (letters + others) * 7) return false;
+    c.prose = 1;
+    return true;
+}
+
 // Two or more spaces between words.
 void doubleSpace(Ctx &c)
 {
+    if (c.english && !runningProse(c)) return;
     // A paragraph with a tab or a run of three spaces is set in columns (a table cell, a pasted table), and its double spaces are alignment.
     bool columns = c.text.contains(QLatin1Char('=')) || c.text.contains(QLatin1String("\",\""));   // (a formula: "P(U1  u1) = ...")
     int doubles = 0, words = 0;
@@ -621,9 +702,19 @@ void doubleSpace(Ctx &c)
         const Token &t = c.tokens[k];
         return t.kind == Tok::Number || (t.kind == Tok::Punct && !QStringView(u"\"'([\u201C\u2018,;").contains(c.text.at(t.start)) && (c.text.at(t.start) != QLatin1Char('-') || c.isPunct(k - 1, QLatin1Char('-')) || c.isPunct(k + 1, QLatin1Char('-')))) || (t.kind == Tok::Word && t.end - t.start == 1 && c.text.at(t.start) != QLatin1Char('a') && c.text.at(t.start) != QLatin1Char('I') && c.text.at(t.start) != QLatin1Char('A'));
     };
+    // A paragraph that opens with a term of three words or fewer and its definition ("Critical  limit.  The value to which...") has the spaces of a glossary in the term.
+    int termEnd = 0;
+    if (c.english) {
+        int w = 0;
+        for (int i = 0; i < c.size() && termEnd == 0; ++i) {
+            if (c.tokens[i].kind == Tok::Word) ++w;
+            else if (c.tokens[i].kind == Tok::Punct && QStringView(u".!?").contains(c.text.at(c.tokens[i].start))) termEnd = w <= 3 ? i : -1;
+        }
+    }
     for (int i = 1; i + 1 < c.size(); ++i) {
         c.step();
         if (c.tokens[i].kind != Tok::Space || c.tokens[i].end - c.tokens[i].start != 2 || !c.plainSpaces(i)) continue;   // (three or more are an alignment)
+        if (i < termEnd) continue;
         if (numeric(i - 1) || numeric(i + 1)) continue;
         if (i == 1 && c.tokens[0].kind == Tok::Punct) continue;   // (a dash or bullet typed for a list item, then spaces)
         // Two spaces after the end of a sentence are a way of typing, not a mistake.
@@ -639,6 +730,7 @@ void spaceBeforeMark(Ctx &c)
 {
     // A paragraph with a formula in it (an equals sign, or an object where an equation was set) is spaced as the formula is.
     if (c.text.contains(QLatin1Char('=')) || c.text.indexOf(QChar(0xFFFC), 3) >= 0) return;
+    if (c.english && !runningProse(c)) return;
     for (int i = 1; i + 1 < c.size(); ++i) {
         c.step();
         if (c.tokens[i].kind != Tok::Space || !c.plainSpaces(i) || c.tokens[i].end - c.tokens[i].start != 1) continue;   // (a longer run is an alignment)
@@ -1679,6 +1771,7 @@ QVector<GrammarIssue> check(const QString &text, quint64 *work, quint32 kinds, L
 {
     Ctx c(text);
     c.canadian = language == Language::FrenchCanada;
+    c.english = language == Language::English;
     tokenize(c);
     const RuleList list = rulesOf(language);
     for (size_t i = 0; i < list.n; ++i) {

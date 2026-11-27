@@ -1,6 +1,8 @@
 #include "app/grammarcheck.h"
 
 #include "app/settings.h"
+#include "app/spelling.h"
+#include "text/dictionaries.h"
 #include "text/textprops.h"
 
 #include <QElapsedTimer>
@@ -147,6 +149,31 @@ static bool unchecked(const QTextCharFormat &cf)
     return cf.boolProperty(tp::HiddenText) || revision == 2 || revision == 3 || cf.intProperty(tp::FieldId) != 0;
 }
 
+// Text that says no language is checked as English when the document's default is empty. A paragraph of such text whose lowercase words mostly fail the English dictionary (at least
+// kGuessMinWords of them, and at least kGuessFailPercent percent failing) is a passage in another language that nobody marked: it is not grammar-checked. A word that starts with a capital
+// (a name) or has a digit is not counted, so an English paragraph full of names is still checked; with no dictionary to ask, nothing is guessed.
+constexpr int kGuessMinWords = 8;
+constexpr int kGuessFailPercent = 50;
+constexpr int kGuessMostWords = 200;   // (the first 200 words say it: a paragraph of a hundred thousand letters costs no more than one of a page)
+static bool looksNotEnglish(const QTextBlock &block)
+{
+    const QString en = dict::match(QString());
+    if (en.isEmpty() || !dict::hasSpelling(en)) return false;
+    int words = 0, failed = 0;
+    for (auto it = block.begin(); !it.atEnd(); ++it) {
+        const QTextCharFormat cf = it.fragment().charFormat();
+        if (!cf.stringProperty(tp::Language).isEmpty() || cf.boolProperty(tp::NoProof) || unchecked(cf)) continue;
+        auto m = spellingWordPattern().globalMatch(it.fragment().text());
+        while (m.hasNext() && words < kGuessMostWords) {
+            const QString w = m.next().captured();
+            if (w.size() < 3 || !w.at(0).isLower()) continue;
+            ++words;
+            if (!dict::spell(en, w)) ++failed;
+        }
+    }
+    return words >= kGuessMinWords && failed * 100 >= words * kGuessFailPercent;
+}
+
 // The paragraph as the checker takes it. Only English is checked (the language of the first stretch that is English
 // is the paragraph's), and the text of a stretch in another language, or marked "do not check", is blanked out (with a character that is no word and no space, so no rule joins
 // the words on its two sides); a paragraph with none of the four in it is not sent at all. The look is kept with the paragraph's revision, so that a repaint that changes
@@ -167,13 +194,15 @@ const GrammarCheck::Look &GrammarCheck::lookAt(const QTextBlock &block)
     look.text = block.text();
     look.masked = look.text;
     QString checked, family;
+    const bool unmarkedIsOther = m_language.isEmpty() && looksNotEnglish(block);
     for (auto it = block.begin(); !it.atEnd(); ++it) {
         const QTextFragment f = it.fragment();
         const QTextCharFormat cf = f.charFormat();
         QString language = cf.stringProperty(tp::Language);
+        const bool other = unmarkedIsOther && language.isEmpty();
         if (language.isEmpty()) language = m_language;
         const QString here = grammarFamily(language);
-        if (!here.isEmpty() && !cf.boolProperty(tp::NoProof) && !unchecked(cf) && (family.isEmpty() || family == here)) {
+        if (!other && !here.isEmpty() && !cf.boolProperty(tp::NoProof) && !unchecked(cf) && (family.isEmpty() || family == here)) {
             if (checked.isEmpty()) {
                 checked = language.isEmpty() ? QStringLiteral("en") : language;
                 family = here;

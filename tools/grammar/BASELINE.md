@@ -267,3 +267,14 @@ double-space 27 of 30 (bullet dashes). After the narrowing (603 flags) every rul
 
 The one wrong repeated-word flag is "P&As as providing" (the word before the "&" is cut in two). Rules that fail the gate on a larger sample later are narrowed the same way; every wrong flag becomes a near-miss test
 (`theNov27SampleNearMissesAreLeftAloneAndTheTrueFlagsStay`). The reading is by one person (the helper), so it is a first read, not a second opinion.
+
+## Nov 27 2026, spacing rules in running prose only (development documents, seed 9091; every flag of the small rules read, 30 of double-space)
+
+| rule | flags before, after | read | right |
+|---|---|---|---|
+| double-space | 483, 141 (table cells 136, 18) | 30 | 30 (the first pass, 27 of 30, was narrowed) |
+| space-before-mark | 35, 12 | 12 | 12 |
+| repeated-word | 19, 20 | 20 | 20 |
+| sentence-start, doubled-mark, missing-space | 5, 10, 5 | all | all |
+
+The two spacing rules flag only in running prose (runningProse in libs/text/grammar/grammarrules.cpp; the test is written out in the design notes).

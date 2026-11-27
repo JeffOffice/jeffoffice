@@ -29,6 +29,30 @@ class ShellGrammarTests : public QObject {
 private Q_SLOTS:
     void theCheckerIsBuiltIn() { QVERIFY(grammarAvailable()); }
 
+    // Nov 27 2026: text with no language mark in a document whose default language is empty is English, unless its lowercase words mostly fail the English dictionary (a French
+    // passage nobody marked): that paragraph is not grammar-checked. An English paragraph full of names is. A document that names its default language is not guessed at.
+    void anUnmarkedPassageInAnotherLanguageIsNotCheckedButEnglishWithNamesIs()
+    {
+        const QString french = QStringLiteral("Je suis allé au marché hier matin et je les les ai vus, il a un pomme rouge  et c'est tout . Nous avons mangé beaucoup de fromage avec des amis dans la maison.");
+        const QString names = QStringLiteral("Then Hawthorne and Pemberton visited Kowalczyk in Tallahassee, and they they went with Gutierrez to see Obuchowski near Ouagadougou, Zanzibar, and Reykjavik.");
+        auto count = [](const QString &text, const QString &defaultLanguage) {
+            QTextDocument doc;
+            doc.setPlainText(text);
+            GrammarCheck check(&doc);
+            check.setDefaultLanguage(defaultLanguage);
+            int from = 0, next = 0, n = 0;
+            GrammarCheck::Issue found;
+            while (check.search(from, 5000, &found, &next) == GrammarCheck::Step::Found) {
+                ++n;
+                from = found.end;
+            }
+            return n;
+        };
+        QCOMPARE(count(french, QString()), 0);
+        QVERIFY(count(names, QString()) >= 1);   // ("they they")
+        QVERIFY(count(french, QStringLiteral("en-US")) >= 1);   // (the document says English: its words are not second-guessed)
+    }
+
     void aKnownSentenceGivesAKnownIssue()
     {
         const QString text = QStringLiteral("This is an test of the checker.");
