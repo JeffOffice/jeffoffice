@@ -81,7 +81,7 @@ Web Layout is only a way to look at the document. Printing, saving to PDF, and s
 
 ## Read Mode
 
-**View > Read Mode** is for reading. It hides the ribbon, the ruler, and the panes, puts the pages side by side in a row with each page fitted to the window, and keeps the text from being changed. Roll the mouse wheel to move along the row. Press **Esc** or **F11**, or choose **Read Mode** again, to go back.
+**View > Read Mode** is for reading. It hides the ribbon, the ruler, and the panes, puts the pages side by side in a row with each page fitted to the window, and keeps the document from being changed: formatting, Replace in the Find pane, and every other command that edits are refused, as they are in a document you can only read. Roll the mouse wheel to move along the row. Press **Esc** or **F11**, or choose **Read Mode** again, to go back.
 
 ## Gridlines
 
