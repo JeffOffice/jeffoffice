@@ -29,7 +29,7 @@
       },
       {
        "status": "partly",
-       "text": "44aa28f46ceedfcd6664cc12a5a2236333ba3f35a5c2cb06ed94221021d6b9e0"
+       "text": "596c9adba30ff041f521434d1ca2fc6f680cc1ea414f9d4f665f09338df44b70"
       },
       {
        "hide_soon": true,
@@ -38,7 +38,7 @@
       },
       {
        "status": "partly",
-       "text": "0fb535a474a0154f0f1b3075039defc28dafac0a705c78ee835857891dc0aeab"
+       "text": "bd91ebad9dcdfa30b97236b9114d0c1665cc758013af8c82efacedfe83b1c490"
       },
       {
        "hide_soon": true,
@@ -221,7 +221,7 @@
         },
         {
          "status": "partly",
-         "text": "0ac3577ab5d4eeea479b8939406471712a79dfb036d9940c7f2534422ca976c8"
+         "text": "354e5eca774946e4cf0e72ab28303013744a05309c574975590fbf3711958572"
         },
         {
          "hide_soon": true,
@@ -242,10 +242,6 @@
          "hide_soon": true,
          "status": "done",
          "text": "ea6eb80d8e1c6f010e4066d5d1e4e87ce6987025098371bc52403a08c3725ba7"
-        },
-        {
-         "status": "todo",
-         "text": "c4c06b473d63c47fe47aa56612541beec1003ad10c02183440b0149d89ca04c7"
         }
        ]
       },
@@ -453,7 +449,7 @@
         },
         {
          "status": "partly",
-         "text": "c743dba1a849a222a4e003c2892e275e15321c68f0f22bc4e530bf569bcfbb06"
+         "text": "457229178a127c1d67b3f215457c3aac7871afb2e99bfabf2c00846d3de7ec01"
         },
         {
          "hide_soon": true,
@@ -563,7 +559,7 @@
         },
         {
          "status": "partly",
-         "text": "5a05b6bcc8f91fec67ad8488a9c00f4133c0ab5d4590e0766e3e9700056fa28c"
+         "text": "2afcc200186d74e5088328a0e2979291111500bd1359f1f902fbdbfbc044ff59"
         },
         {
          "status": "partly",
@@ -649,7 +645,7 @@
         },
         {
          "status": "partly",
-         "text": "12f75525260b80f6c12caa92d290d85689a18796b24037f29ce8d70579859ba1"
+         "text": "bb28fc47f126fb5e775a18b60eef64e980e3ae87db713dc8a89ec2a167b7813a"
         }
        ]
       }
@@ -760,11 +756,11 @@
        "items": [
         {
          "status": "partly",
-         "text": "1ab5ecf8c48d9a120939010d56579f6ce36020c331ac7515e5d319df68efea4f"
+         "text": "394ac168e1c022f9f43acd57baf46cba6d11c336ca219a70eb8b294ba309a234"
         },
         {
          "status": "partly",
-         "text": "f2f07250f26eb67fd1fc1445b74a390ccc2ee471820db84010af04c3369f7c08"
+         "text": "5dd17a55979bc3494c8b8c2d0c5f92fd0a1d7e2f17b43f1ca3abd2f20e5a7f29"
         }
        ]
       },
@@ -1299,7 +1295,7 @@
         },
         {
          "status": "partly",
-         "text": "3aa5f601752dd25ab56e678747aa7d32624a20d23d1a92c7832b917a66dea308"
+         "text": "aef60d800937c80af3820adc108cdbc23ab13330eff5ac98e1147adc0a595e9c"
         },
         {
          "hide_soon": true,
@@ -1317,7 +1313,7 @@
         },
         {
          "status": "partly",
-         "text": "a1bee98c903dcb49df49adb6de24442e6441dd77eef7e96c7a2da4d1afa1c6b9"
+         "text": "e978a63c54fcc9440d2f72f2ddbd35fd8b3e507979e753ac2efbeea03ca0ebf5"
         }
        ]
       }
@@ -1452,7 +1448,7 @@
         },
         {
          "status": "partly",
-         "text": "826df42611b1f626425dfb1e9ea0dabded8422e5651b9a0b2893d4d5fd0fe96c"
+         "text": "af55d436d57b952bdee24e72f19538f5a367004256a779161bdb60eb6c72f123"
         }
        ]
       },
@@ -1668,14 +1664,16 @@
         },
         {
          "status": "partly",
-         "text": "f2ec7babdeec28fdbf32a086ab79d287ced8c37a06d7b16c26320aaad597a14a"
+         "text": "3425804fc7799804a94c405dedcea85e8027eab549d8e6a04599725c8662fa34"
         },
         {
-         "status": "partly",
+         "hide_soon": true,
+         "status": "done",
          "text": "424a8918f73e49a77861badf7dbc893afb9f9ada8633cd1c41f0f8d5bdcd50d8"
         },
         {
-         "status": "partly",
+         "hide_soon": true,
+         "status": "done",
          "text": "051d1637380bd5582694abaa29b1c109f6dfc2b05606185e52ef41802eeeb42b"
         },
         {
@@ -1684,7 +1682,8 @@
          "text": "6bed8cf5f5361a06452c67ae979e929a01071f85f8e87a406796079654682323"
         },
         {
-         "status": "partly",
+         "hide_soon": true,
+         "status": "done",
          "text": "54ee094e2c98007ee6864339a77eaa3f8a0e5331f9c07241b6ab6b0d251e8d2a"
         },
         {
@@ -1693,7 +1692,8 @@
          "text": "314e9d79bcc5dbfa29fcdb1b64f7b41e112724d9e21bde364466edb434a9cf13"
         },
         {
-         "status": "partly",
+         "hide_soon": true,
+         "status": "done",
          "text": "c7ee0f878d06c8792725ac095544efb10d048e9ac6463e3067d84d727c7ca77b"
         },
         {
@@ -1701,11 +1701,13 @@
          "text": "d53406752a27e6760e9ddb5477a42f260ab7432a8b9a76c42aa4cb9eb9426e13"
         },
         {
-         "status": "partly",
+         "hide_soon": true,
+         "status": "done",
          "text": "6ca3c3f6a4a60ac10db7566a6b9e7feca671cb162779d9c44b7c015e7af724f2"
         },
         {
-         "status": "partly",
+         "hide_soon": true,
+         "status": "done",
          "text": "dd5b242cb9eb094df97e00a58e800ced2a9ec58a016d9192793a87bee3421acc"
         },
         {
@@ -1714,11 +1716,13 @@
          "text": "12b64bbb6199d3f9a7ea1e162be32c2d355ed41f3a066c8393a7f3538c5cc031"
         },
         {
-         "status": "partly",
+         "hide_soon": true,
+         "status": "done",
          "text": "3392ab9f46beef4db49c0cc267db377989baa334ae5bc2e682491e22cd7c76ad"
         },
         {
-         "status": "partly",
+         "hide_soon": true,
+         "status": "done",
          "text": "f5db565cb2f968cc7e82188b07dfb112e0c4de1dbf5b318f84613b111dbba9bd"
         },
         {
@@ -1728,18 +1732,20 @@
         },
         {
          "status": "partly",
-         "text": "09967c12564893bc7b18e195581e66c2b05e83240e88dcc9f7eda66a28df451f"
+         "text": "7452083de3b71e371b6268ade0a690aacd1116bc77fb96848214fcc8c54f99da"
         },
         {
          "status": "partly",
          "text": "c32dcd695ef83704e93867eb05ec5868c63a2349628cbb0f934e59b6c8649961"
         },
         {
-         "status": "partly",
+         "hide_soon": true,
+         "status": "done",
          "text": "514d122a327fb503c5fa58c94ac09411ca3c273146d3035f91fce7152636f9bd"
         },
         {
-         "status": "partly",
+         "hide_soon": true,
+         "status": "done",
          "text": "24a0a957e798d9eb03e5e8b755eed12a2336170bafe5b0d42f3303944178c52b"
         },
         {
@@ -1909,10 +1915,6 @@
          "text": "e3228dd740386e7e1bc1b44946efe97810d19163d18f4325efdfc08b87d0ec61"
         },
         {
-         "status": "todo",
-         "text": "ce691010ef75176ff8e5c8c260f5b052de183c18ae6c5c2c2f1e601e071b4337"
-        },
-        {
          "status": "partly",
          "text": "03aa97a7813780a920c09cebdc2a6460199c8481c5d684cc30b82c5b5113fe70"
         },
@@ -2002,7 +2004,7 @@
         },
         {
          "status": "partly",
-         "text": "607b65a7e3cf6fdf8a441aabe91278ca850f29f5bc22c35c9374b98bded4d7c6"
+         "text": "1cdaa1d9ccff8a8ef1ea230764db803a50d3754f6441c93162039d2b019c2475"
         }
        ]
       }
@@ -2017,7 +2019,7 @@
        "items": [
         {
          "status": "partly",
-         "text": "e933904c8e2f8ac2d3feeb7f8fa8db3a34f0aa2dc87682e319e8c4ace820611a"
+         "text": "099c713a70deb372f3ba7d92587179c605067548bc2da95117ea991b4d68d80a"
         },
         {
          "status": "partly",
@@ -2119,7 +2121,7 @@
       },
       {
        "status": "partly",
-       "text": "8c78c706e0069f732df58bc5046cbda6c9482e541a285c8b1ca10b58655b1ef2"
+       "text": "33fb818bfe1321ef098e29bdcd2cc43b0799946c906cde6870a368b90be2fe46"
       },
       {
        "status": "partly",
@@ -2127,7 +2129,7 @@
       },
       {
        "status": "partly",
-       "text": "c96c5858b00aa0e04e7a59c71e315f7f4af744918ebf785000c9eb9229d6e41c"
+       "text": "772b2a266aa7fe06e9b98cd49b414c3982b346d88ccd2076aae770e6222cfc70"
       }
      ]
     },
@@ -2170,7 +2172,7 @@
       },
       {
        "status": "partly",
-       "text": "de696aa52311e1e995e721732dd934c5727ed08e30e05a712e92ee3cb5fc4cbb"
+       "text": "a7c895c1acfa1265fe0b1388bcc35b349d57650033bff2a31a36d5fae2750fae"
       },
       {
        "hide_soon": true,
@@ -2252,7 +2254,7 @@
         },
         {
          "status": "partly",
-         "text": "347c71a2690ae85067194b1e179ce73baa73c3dac512ff59c6c6c63b323497a9"
+         "text": "1c49eb7387471f0b179bdce595c73f6695893dc45930661569f2fd4bd7e87b2a"
         },
         {
          "hide_soon": true,
@@ -2331,7 +2333,8 @@
        "heading": "57a97100cd61826e7a17a18d6c3b64d697e478e2840d91322683fc40ca4cab51",
        "items": [
         {
-         "status": "partly",
+         "hide_soon": true,
+         "status": "done",
          "text": "2459f8f7ab217d3dddf4c58b145695e4ab99127ac8b461b01be4669ea85fdc08"
         },
         {
@@ -2344,7 +2347,7 @@
         },
         {
          "status": "partly",
-         "text": "185a611b012b0ac345d8a62ffcc2021363027bcaf628dd186e5c38a38472c51a"
+         "text": "ba1ca42b9259b19184313a11b0e967faea6e817f8fa2a4d3cf57e505323322a8"
         }
        ]
       }
@@ -2439,7 +2442,8 @@
        "text": "fe37bd2918b62640cfbedf59b84cb0abb3c81ee7688082ed98ce4e243fe0e2f2"
       },
       {
-       "status": "partly",
+       "hide_soon": true,
+       "status": "done",
        "text": "26f6db7ddad8d94ac901873cc4661eaf2b1ae1c7523c9d74a8b9b4786665e8ff"
       },
       {
@@ -2584,10 +2588,6 @@
          "text": "b40954ad2678d8dc579f66df89f32930bed3508001a231fe23c0e47a25257822"
         },
         {
-         "status": "todo",
-         "text": "a9938b6312365a63db87c256939d6ce473366d4e7d9769bfa8d6c35818097469"
-        },
-        {
          "hide_soon": true,
          "status": "done",
          "text": "dc21daba224164ac255a0b0f613b2acdc7f178dcf78d0010a4adb934519f84c9"
@@ -2661,10 +2661,6 @@
          "hide_soon": true,
          "status": "done",
          "text": "4ad0e4e1aeaeb74d8c4d5ec67badcebf483c82f5fe48d36013e8beb15566c5b9"
-        },
-        {
-         "status": "todo",
-         "text": "fd4f5d4321ed4ca4455b44d2dc6f7e9080989152695afdd4fa782ba751a764c7"
         },
         {
          "hide_soon": true,
@@ -2829,7 +2825,8 @@
          "text": "81126b14d499353b942cc05c0b54289df161a922eb500ed9fb131660a71d4e41"
         },
         {
-         "status": "partly",
+         "hide_soon": true,
+         "status": "done",
          "text": "cd066a4523f9d1275a413c47c0d2881516377e1af3280b5fa6260e8a22e5fe6a"
         }
        ]
@@ -2922,7 +2919,8 @@
          "text": "efdf1027308e07d10ef139ec1287738da1358f1c15de77c9e2dc66f6e1f94439"
         },
         {
-         "status": "partly",
+         "hide_soon": true,
+         "status": "done",
          "text": "42b7ba4c25cc2c8c715c1a590ce2401c634aef93846d67c3d4be1fc507413208"
         }
        ]
@@ -3139,8 +3137,9 @@
          "text": "b0104f657d8a72148e52d4960c805af1222c6216cb89fb0e2b0ab3bae390a6fd"
         },
         {
-         "status": "partly",
-         "text": "9492b1be8ba220453b7e9dc2da7a1f47aaf6cce27b447e9cac3a60df6b73420f"
+         "hide_soon": true,
+         "status": "done",
+         "text": "edae984104c27266b2435b9d1dcb23e7b2861d7288635bb0699cb0279fc1c563"
         },
         {
          "hide_soon": true,
@@ -3470,7 +3469,7 @@
       },
       {
        "status": "partly",
-       "text": "a1e578291d5baff63ab6fa6e9e6f1b95d8838a5e9b74cf760806061eb509a670"
+       "text": "e1ae8c377e2aa094f1529fed9406e61dc3d5a9bed92e1ded423c12ca1d016b9c"
       },
       {
        "hide_soon": true,
@@ -3633,7 +3632,8 @@
        "text": "0e7b7aeaf4d25cf42d37cf6fafd45dfdc0e0999cda9a72813a428d6495aa442f"
       },
       {
-       "status": "partly",
+       "hide_soon": true,
+       "status": "done",
        "text": "9098219370ba67ee5a5ddbfa5ed04bea2d4b37e9d8beeef096cd60278e25642b"
       },
       {
@@ -3817,7 +3817,7 @@
         },
         {
          "status": "partly",
-         "text": "21b29843b2414872faff41857681efee59dda43dadc21e2f861bd5f25218d30d"
+         "text": "c35faf3a0980200d67ca5a2b1e2d04c29a970eb9126b7270f6edcdf7460cc63a"
         },
         {
          "hide_soon": true,
@@ -3932,7 +3932,7 @@
         },
         {
          "status": "partly",
-         "text": "1b714cf33277acbef51da78dc41fbe7a92db422b17f8309d29f7025c8e454ab2"
+         "text": "d5c0b5a8335cf34493b22ffa85052b37a927c25500c6d260af345491b3ad0a93"
         }
        ]
       }
@@ -5915,7 +5915,7 @@
       },
       {
        "status": "partly",
-       "text": "3b57a9766c1ff6a2cadd36768e8415b8703f9bb6cc32cd269b80267033c0f1fa"
+       "text": "346e41bad666e72848f8b81bb8f3d0e7086e741289709749d1296d762f2be82b"
       },
       {
        "status": "partly",
@@ -6206,7 +6206,7 @@
        "items": [
         {
          "status": "partly",
-         "text": "52a08d7a207650138152c3f248f8c9db85037c443a4e5c29f4831687bfe74aea"
+         "text": "b5130c5807f3657cedf1338facfe7111e815d129a66342059a1642221c05c6f5"
         },
         {
          "hide_soon": true,
@@ -6618,7 +6618,7 @@
        "items": [
         {
          "status": "partly",
-         "text": "7c529414cccbb059c828b8701f2044935d91a74453fb4f886efba6dbe83bfb2d"
+         "text": "7299d564258267a7f80759499f41286839991cc35bdcabb7173520d9a114f3e9"
         },
         {
          "hide_soon": true,
@@ -7018,7 +7018,7 @@
        "items": [
         {
          "status": "partly",
-         "text": "f9f10a85f996bac45068be7045a00b681b3f1cfc26b0885d3558bd08203e0c82"
+         "text": "c248ec625e665fb053c4bd008378948e0034198d56d5ad915aa2d206c55a665f"
         },
         {
          "hide_soon": true,
@@ -7064,8 +7064,9 @@
        "heading": "e1c571928aeaa36f78783d7b7e6538879e64c192426b9cf57f89d6cb08764e90",
        "items": [
         {
-         "status": "partly",
-         "text": "2f07715f213d0289e0c616b63a584fd74c34729154c3b2861632c8c2a5ddc573"
+         "hide_soon": true,
+         "status": "done",
+         "text": "ff03d2ac95c3b490170c698f06bf06324b32574085a9c05c7e1a760cf0b7d129"
         },
         {
          "status": "partly",
@@ -7087,7 +7088,7 @@
         },
         {
          "status": "partly",
-         "text": "6ed2a66ea9d67893c24253a9bde248ad628f20085a87487b71f6924a9ac65601"
+         "text": "b6684165de511ee7a7729a2fa43a7c030f108fc0150e9c651807acd7cf969cc3"
         },
         {
          "hide_soon": true,
@@ -7159,11 +7160,11 @@
      "items": [
       {
        "status": "partly",
-       "text": "554a24c0deb9d7509c9b47c8408b3fec8a6f3e3e1e57392def65cbff937c2c36"
+       "text": "49aafd023260a8ba30c6f81308b072bc75afac1652114e8f31a84e56ac317a42"
       },
       {
        "status": "partly",
-       "text": "222aa69426816070c90cabcee12689eb0da436c88e4c864931a156dcb6f87f03"
+       "text": "16633d997ba6daf3f82c659f3063ce197e1558a0214b93f4c31bf355bc108430"
       },
       {
        "hide_soon": true,
@@ -7195,7 +7196,7 @@
         },
         {
          "status": "partly",
-         "text": "6789f3c842142e5a0bea23270cde7a4b919588e188e0b22715249aef79647387"
+         "text": "e530aa88cff8360078ae168316473c8d0e404fba3ea5df1ccdb2c5deac681e65"
         },
         {
          "hide_soon": true,
@@ -7208,7 +7209,8 @@
          "text": "4f808b1b2113731c8f9faef72e62068dd651d7d7ef25295be418dc2b784212fb"
         },
         {
-         "status": "partly",
+         "hide_soon": true,
+         "status": "done",
          "text": "e92ae5525eb3442725108528093f3c7d129753ce6105ff987f09da078bdc994d"
         },
         {
@@ -7235,8 +7237,9 @@
          "text": "c2b9119f700073035a9bc7066072151d93f6c15c3b9671e08e1afe26f357d9df"
         },
         {
-         "status": "partly",
-         "text": "4a0968ed688377a247e57331100af99bf20b57629557bf64367c0eb1131932e5"
+         "hide_soon": true,
+         "status": "done",
+         "text": "b5b8152b6d55ecdaaf222b153c3693794c4551f808905ad72e860df95bcf57fb"
         },
         {
          "status": "partly",
@@ -7294,8 +7297,9 @@
        "heading": "d8836a238b875d2aeecf7835c174775c48a4879c95a87962b19f28daf17ebc84",
        "items": [
         {
-         "status": "partly",
-         "text": "bf90f428fd8cdb7597a1d4c9e03b6f811fbdd9bd9d42c96f656ce99b7aae6b80"
+         "hide_soon": true,
+         "status": "done",
+         "text": "965a134d81b5b80712e7f63fccb4c96ed4e8f44ac4d933783e8fa885409a5a19"
         },
         {
          "hide_soon": true,
@@ -7377,7 +7381,8 @@
        "text": "cfcb49a76ba24244bc7d2d2f08ce83c45be046cd8bb99fc9a0e208e3b21300d1"
       },
       {
-       "status": "partly",
+       "hide_soon": true,
+       "status": "done",
        "text": "b43cf38b48910352fdec110736c88bf96d15ff600362ae37ff6d0676e4a899af"
       },
       {
@@ -7479,10 +7484,6 @@
         {
          "status": "partly",
          "text": "fa26a06416c68cfaadd0444aa1f200ac8dc3e641dd61d272d23c806bccfc9f16"
-        },
-        {
-         "status": "todo",
-         "text": "b48c8812864b838a56e40f6b481d2cbdd2a64056cedda9e9241ab4a1388d41b8"
         }
        ]
       },
@@ -7514,7 +7515,7 @@
         },
         {
          "status": "partly",
-         "text": "663b74d3930ea49dcfa5c33bb2b554abb7be37fc0caa574084bace51f94a9165"
+         "text": "42954b794c9aa79c741a67807439662681fb9b9cca973649e0ac5c80521ae2de"
         },
         {
          "status": "partly",
@@ -7544,8 +7545,9 @@
          "text": "9264ed38618098841a65f4c095d9f3000b39d030375b6aeddd604ccc6cec68db"
         },
         {
-         "status": "partly",
-         "text": "0b34cd64f82fde71f3a8b0ba442f605358125c966553788d079f42478c3b6ea5"
+         "hide_soon": true,
+         "status": "done",
+         "text": "d5cd4da1739bb2d16d8857657bf5cd7d4bdb24b8525e22ed63b4d67f232feb81"
         }
        ]
       },
@@ -7661,10 +7663,6 @@
         {
          "status": "partly",
          "text": "6c1003ccf0c39731b5a32f223f6626bec9c62aa603df4378809a39500b2b0f8e"
-        },
-        {
-         "status": "todo",
-         "text": "d367f1046c1628f69157953acde67589ef4bf490b054c5971a7cd3d927796045"
         }
        ]
       }
@@ -7694,7 +7692,8 @@
        "text": "374ea75affcbb0cc44cdec029c05f193dadf5699e2be05fea42904485dad0263"
       },
       {
-       "status": "partly",
+       "hide_soon": true,
+       "status": "done",
        "text": "52756844f341fd79fb30ff347fc8291fffc763486ea6163f229316d4e5977b1d"
       }
      ]
@@ -7740,10 +7739,6 @@
         {
          "status": "partly",
          "text": "776f0e98cab0e105065be58f6563b1a9819d43517543c1e237001488e252f00e"
-        },
-        {
-         "status": "todo",
-         "text": "fca61840feebe0aab54c92d18ca9d589ee3f74a6ce228376b605e61c5d79741d"
         },
         {
          "hide_soon": true,
@@ -8603,11 +8598,11 @@
     "fr": ""
    }
   },
-  "09967c12564893bc7b18e195581e66c2b05e83240e88dcc9f7eda66a28df451f": {
+  "0996fe7d371c1a65b0f6714994bfe517b036136acdb2b18e9c9bc36450bf7ee3": {
    "drop": false,
-   "en": "Use `HYPERLINK` to build a clickable link with a formula.",
-   "es": "Utilice `HYPERLINK` para crear un vínculo en el que se puede hacer clic mediante una fórmula.",
-   "fr": "Utilisez `HYPERLINK` pour créer un lien cliquable avec une formule.",
+   "en": "`SUM` adds numbers in cells, ranges, 3-D ranges, and a list of arguments. It skips text and blanks in a range, but counts a number typed as an argument and text typed as a number.",
+   "es": "`SUM` suma números de celdas, rangos, rangos 3D y una lista de argumentos. Omite el texto y las celdas en blanco de un rango, pero cuenta un número escrito como argumento y un texto escrito como número.",
+   "fr": "`SUM` additionne les nombres de cellules, de plages, de plages 3D et d’une liste d’arguments. Elle ignore le texte et les cellules vides d’une plage, mais compte un nombre saisi comme argument et un texte saisi comme nombre.",
    "soon": {
     "drop": true,
     "en": "",
@@ -8615,11 +8610,11 @@
     "fr": ""
    }
   },
-  "0996fe7d371c1a65b0f6714994bfe517b036136acdb2b18e9c9bc36450bf7ee3": {
+  "099c713a70deb372f3ba7d92587179c605067548bc2da95117ea991b4d68d80a": {
    "drop": false,
-   "en": "`SUM` adds numbers in cells, ranges, 3-D ranges, and a list of arguments. It skips text and blanks in a range, but counts a number typed as an argument and text typed as a number.",
-   "es": "`SUM` suma números de celdas, rangos, rangos 3D y una lista de argumentos. Omite el texto y las celdas en blanco de un rango, pero cuenta un número escrito como argumento y un texto escrito como número.",
-   "fr": "`SUM` additionne les nombres de cellules, de plages, de plages 3D et d’une liste d’arguments. Elle ignore le texte et les cellules vides d’une plage, mais compte un nombre saisi comme argument et un texte saisi comme nombre.",
+   "en": "The grid is drawn sharp from 10% to 400% zoom, with cell text, borders in all 13 styles, diagonal borders, wrapped and rotated text, text overflow into empty neighboring cells, and `####` when a number doesn’t fit.",
+   "es": "La cuadrícula se dibuja nítida con zoom del 10 % al 400 %, con texto de celda, bordes en los 13 estilos, bordes diagonales, texto ajustado y girado, desbordamiento del texto a celdas vecinas vacías y `####` cuando un número no cabe.",
+   "fr": "Le quadrillage est dessiné net de 10 % à 400 % de zoom, avec le texte des cellules, les bordures des 13 styles, les bordures diagonales, le texte renvoyé à la ligne et pivoté, le débordement du texte dans les cellules voisines vides et `####` lorsqu’un nombre ne tient pas.",
    "soon": {
     "drop": true,
     "en": "",
@@ -8769,30 +8764,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "0ac3577ab5d4eeea479b8939406471712a79dfb036d9940c7f2534422ca976c8": {
-   "drop": false,
-   "en": "Recover the cell values, formulas, and styles that can be read from a damaged `.xlsx` or `.xls` file with Open and Repair. The workbook opens as a copy with a note of what was dropped, and a warning names the sheet and row where pieces were joined by guess.",
-   "es": "Recupere los valores de celda, las fórmulas y los estilos que se puedan leer de un archivo `.xlsx` o `.xls` dañado con Abrir y reparar. El libro se abre como copia con una nota de lo que se omitió, y una advertencia indica la hoja y la fila donde se unieron piezas por suposición.",
-   "fr": "Récupérez les valeurs de cellule, les formules et les styles lisibles d’un fichier `.xlsx` ou `.xls` endommagé avec Ouvrir et réparer. Le classeur s’ouvre sous forme de copie avec une note indiquant ce qui a été abandonné, et un avertissement indique la feuille et la ligne où des morceaux ont été assemblés par supposition.",
-   "soon": {
-    "drop": true,
-    "en": "",
-    "es": "",
-    "fr": ""
-   }
-  },
-  "0b34cd64f82fde71f3a8b0ba442f605358125c966553788d079f42478c3b6ea5": {
-   "drop": false,
-   "en": "A file’s theme fonts and colors are read and used.",
-   "es": "Las fuentes y los colores del tema de un archivo se leen y se utilizan.",
-   "fr": "Les polices et les couleurs du thème d’un fichier sont lues et utilisées.",
-   "soon": {
-    "drop": false,
-    "en": "Theme commands: change a document’s theme",
-    "es": "Comandos de tema: cambiar el tema de un documento",
-    "fr": "Commandes de thème : modifier le thème d’un document"
    }
   },
   "0b6827b58f0dc286f4cc1dc0aa3292700ef6901487c8f4dc3408367a474b51e1": {
@@ -9069,18 +9040,6 @@
     "en": "Pivot chart: field buttons, filters, and following a table that gains or loses rows or columns",
     "es": "Gráfico dinámico: botones de campo, filtros y seguimiento de una tabla que gana o pierde filas o columnas",
     "fr": "Graphique croisé dynamique : boutons de champ, filtres et suivi d’un tableau qui gagne ou perd des lignes ou des colonnes"
-   }
-  },
-  "0fb535a474a0154f0f1b3075039defc28dafac0a705c78ee835857891dc0aeab": {
-   "drop": false,
-   "en": "A formula whose function the app doesn't have yet keeps the result the file stored and is written back as it was.",
-   "es": "Una fórmula cuya función la aplicación aún no tiene conserva el resultado almacenado en el archivo y se vuelve a escribir tal como estaba.",
-   "fr": "Une formule dont la fonction n’existe pas encore dans l’application conserve le résultat enregistré dans le fichier et est réécrite telle quelle.",
-   "soon": {
-    "drop": false,
-    "en": "More functions",
-    "es": "Más funciones",
-    "fr": "Davantage de fonctions"
    }
   },
   "102b122b81a9e221543c19ee46aeefba41193f35385d0688eb372b1559900811": {
@@ -9371,18 +9330,6 @@
     "fr": ""
    }
   },
-  "12f75525260b80f6c12caa92d290d85689a18796b24037f29ce8d70579859ba1": {
-   "drop": false,
-   "en": "Replace Fonts lists the fonts the cells use, with how many cells each, and renames the font you pick across the workbook’s styles, cell formats, and default, as one Undo step. Fonts used only by named styles are marked “styles only.” Rich text, shapes, text boxes, charts, and comments are renamed too.",
-   "es": "Reemplazar fuentes enumera las fuentes que usan las celdas, con el número de celdas de cada una, y cambia el nombre de la fuente elegida en los estilos, los formatos de celda y el valor predeterminado del libro, en un solo paso de deshacer. Las fuentes que solo usan estilos con nombre se marcan como «solo estilos». También se renombran el texto enriquecido, las formas, los cuadros de texto, los gráficos y los comentarios.",
-   "fr": "Remplacer les polices répertorie les polices utilisées par les cellules, avec le nombre de cellules pour chacune, et renomme la police choisie dans les styles, les formats de cellule et la valeur par défaut du classeur, en une seule étape d’annulation. Les polices utilisées seulement par des styles nommés sont marquées « styles seulement ». Le texte enrichi, les formes, les zones de texte, les graphiques et les commentaires sont aussi renommés.",
-   "soon": {
-    "drop": true,
-    "en": "",
-    "es": "",
-    "fr": ""
-   }
-  },
   "130a515f66e99171494d910f20c46ecceb30d557de542cbeec9eaa9c3ebd1d47": {
    "drop": false,
    "en": "Adjust pictures with brightness and contrast presets, sharpen and soften, recolor presets, color temperature, and a set transparent color. Apply blur, pencil grayscale, glow edges, or mosaic effects from a gallery that shows a sample of the picture, compress pictures, and reset a picture to remove the changes.",
@@ -9551,6 +9498,18 @@
     "fr": ""
    }
   },
+  "16633d997ba6daf3f82c659f3063ce197e1558a0214b93f4c31bf355bc108430": {
+   "drop": false,
+   "en": "A Help tab with Help, Keyboard Shortcuts (a table made from the commands themselves), What’s New, and Feedback. About with Check for Updates is on the File screen.",
+   "es": "Una pestaña Ayuda con Ayuda, Métodos abreviados de teclado (una tabla generada a partir de los propios comandos), Novedades y Comentarios. Acerca de, con Buscar actualizaciones, está en la pantalla Archivo.",
+   "fr": "Un onglet Aide avec Aide, Raccourcis clavier (un tableau généré à partir des commandes elles-mêmes), Nouveautés et Commentaires. À propos, avec Rechercher les mises à jour, se trouve dans l’écran Fichier.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "170abbe3fda5186dc803a541603034e8e85e1daeff0c7ba0e064e9b210f263fb": {
    "drop": false,
    "en": "Check accessibility in a pane, also reached from Info. It lists pictures without alt text, tables without a header row, blank cells, merged cells, skipped heading levels, low-contrast text, floating pictures, and unhelpful link text, with a click to go to each.",
@@ -9669,18 +9628,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "185a611b012b0ac345d8a62ffcc2021363027bcaf628dd186e5c38a38472c51a": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Stand-in fonts with the same letter widths for missing fonts in workbooks",
-    "es": "Fuentes sustitutas con el mismo ancho de letra para las fuentes ausentes en libros",
-    "fr": "Polices de remplacement de même largeur de lettres pour les polices absentes des classeurs"
    }
   },
   "186c2b1deb8ad1e2ead27f6c451b794e9ccb662be94a3a523a0b494f3c9a4afb": {
@@ -9863,18 +9810,6 @@
     "fr": ""
    }
   },
-  "1ab5ecf8c48d9a120939010d56579f6ce36020c331ac7515e5d319df68efea4f": {
-   "drop": false,
-   "en": "Slicers are listed in a pane. Click a button to filter the tables the slicer names, with Ctrl-click to add or remove an item, as one step of Undo. The choice is saved, and Report Connections names the tables.",
-   "es": "Las segmentaciones se muestran en un panel. Haga clic en un botón para filtrar las tablas que nombra la segmentación, con Ctrl+clic para agregar o quitar un elemento, como un paso de Deshacer. La selección se guarda y Conexiones de informe nombra las tablas.",
-   "fr": "Les segments sont listés dans un volet. Cliquez sur un bouton pour filtrer les tableaux que le segment nomme, avec Ctrl+clic pour ajouter ou retirer un élément, en une étape d’annulation. Le choix est enregistré et Connexions de rapport nomme les tableaux.",
-   "soon": {
-    "drop": false,
-    "en": "Slicers drawn over the cells, and a change of the tables a slicer filters",
-    "es": "Segmentaciones dibujadas sobre las celdas y cambio de las tablas que filtra una segmentación",
-    "fr": "Segments dessinés sur les cellules et modification des tableaux filtrés par un segment"
-   }
-  },
   "1affd6b5e834a6bf4924dd4884f838092cbb516ac8d2724aa9c06f0686cc8ad1": {
    "drop": false,
    "en": "Crop a picture with handles or by dragging it inside its frame, crop to a shape, set an aspect ratio from 12 shapes, and use Fit, Fill, Clear Crop, and pan the picture.",
@@ -9923,18 +9858,6 @@
     "fr": "Choix des options de chaque niveau dans le programme et affichage des puces image"
    }
   },
-  "1b714cf33277acbef51da78dc41fbe7a92db422b17f8309d29f7025c8e454ab2": {
-   "drop": false,
-   "en": "Format speaker notes with bold, italic, underline, bulleted and numbered lists, and links. Notes are edited like slide text and shown formatted in the notes pane, Notes Page view, Presenter View, printed notes pages, and the slide show's Speaker Notes box.",
-   "es": "Dé formato a las notas del orador con negrita, cursiva, subrayado, listas con viñetas y numeradas, y vínculos. Las notas se editan como el texto de las diapositivas y se muestran con formato en el panel de notas, la vista Página de notas, la Vista del presentador, las páginas de notas impresas y el cuadro de notas del orador de la presentación.",
-   "fr": "Mettez en forme les notes du présentateur avec le gras, l’italique, le souligné, les listes à puces et numérotées, et les liens. Les notes se modifient comme le texte des diapositives et s’affichent mises en forme dans le volet des notes, la vue Page de notes, le mode Présentateur, les pages de notes imprimées et la zone de notes du présentateur du diaporama.",
-   "soon": {
-    "drop": false,
-    "en": "Pictures in speaker notes",
-    "es": "Imágenes en las notas del orador",
-    "fr": "Images dans les notes du présentateur"
-   }
-  },
   "1b93dc245163c4b7427260c23c72fc129dd4a73ba3135579a8c47012df3df61f": {
    "drop": false,
    "en": "Change a picture from a file, keeping its place, frame width, wrap, alt text, colors, border, shape, and effects. Reset a picture to remove its shape and effects, or reset it with its size.",
@@ -9969,6 +9892,18 @@
     "en": "",
     "es": "",
     "fr": ""
+   }
+  },
+  "1c49eb7387471f0b179bdce595c73f6695893dc45930661569f2fd4bd7e87b2a": {
+   "drop": false,
+   "en": "Macro projects and OLE objects in an `.xls` file are noticed, and Save as `.xlsx` says that the macros won’t be kept.",
+   "es": "Los proyectos de macros y los objetos OLE de un archivo `.xls` se detectan, y Guardar como `.xlsx` avisa de que las macros no se conservarán.",
+   "fr": "Les projets de macros et les objets OLE d’un fichier `.xls` sont détectés, et Enregistrer sous `.xlsx` indique que les macros ne seront pas conservées.",
+   "soon": {
+    "drop": false,
+    "en": "Macro projects and OLE objects kept with the workbook",
+    "es": "Proyectos de macros y objetos OLE conservados con el libro",
+    "fr": "Projets de macros et objets OLE conservés avec le classeur"
    }
   },
   "1c4e6112b53705ca74a23115ace906859a38cdfa772096e959d1c60c9b608458": {
@@ -10012,6 +9947,18 @@
    "en": "Free and open source (GPL-3.0), with no license fee, subscription, account, or sign-in, and nothing that has to be online.",
    "es": "Gratuito y de código abierto (GPL-3.0), sin cuota de licencia, suscripción, cuenta ni inicio de sesión, y sin nada que requiera conexión.",
    "fr": "Libre et gratuit (GPL-3.0), sans frais de licence, abonnement, compte ni connexion, et rien ne nécessite d’être en ligne.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
+  "1cdaa1d9ccff8a8ef1ea230764db803a50d3754f6441c93162039d2b019c2475": {
+   "drop": false,
+   "en": "Formulas, defined names (including those of one sheet), rules, hyperlinks, and chart series follow a renamed or moved sheet, and anything that read a deleted sheet shows `#REF!`.",
+   "es": "Las fórmulas, los nombres definidos (también los de una sola hoja), las reglas, los hipervínculos y las series de gráficos siguen a una hoja cambiada de nombre o movida, y todo lo que leía una hoja eliminada muestra `#REF!`.",
+   "fr": "Les formules, les noms définis (y compris ceux d’une seule feuille), les règles, les liens hypertexte et les séries de graphiques suivent une feuille renommée ou déplacée, et tout ce qui lisait une feuille supprimée affiche `#REF!`.",
    "soon": {
     "drop": true,
     "en": "",
@@ -10523,18 +10470,6 @@
     "fr": "Netteté, saturation, température et couleur transparente"
    }
   },
-  "21b29843b2414872faff41857681efee59dda43dadc21e2f861bd5f25218d30d": {
-   "drop": false,
-   "en": "Add chart elements: axes, axis titles, chart title, data labels, gridlines, legend, error bars, lines, and trendline. Apply a quick layout to set several at once. Show a data table under the plot area, with options for lines between rows and columns, outline, and legend keys.",
-   "es": "Agregue elementos al gráfico: ejes, títulos de ejes, título del gráfico, etiquetas de datos, líneas de cuadrícula, leyenda, barras de error, líneas y línea de tendencia. Aplique un diseño rápido para configurar varios a la vez. Muestre una tabla de datos bajo el área de trazado, con opciones de líneas entre filas y columnas, contorno y claves de leyenda.",
-   "fr": "Ajoutez des éléments au graphique : axes, titres d’axes, titre du graphique, étiquettes de données, quadrillage, légende, barres d’erreur, lignes et courbe de tendance. Appliquez une disposition rapide pour en définir plusieurs à la fois. Affichez un tableau de données sous la zone de traçage, avec des options de lignes entre les lignes et les colonnes, de contour et de clés de légende.",
-   "soon": {
-    "drop": false,
-    "en": "Data table on bar charts with horizontal bars, scatter charts, and pie charts",
-    "es": "Tabla de datos en gráficos de barras horizontales, de dispersión y circulares",
-    "fr": "Tableau de données pour les graphiques à barres horizontales, nuages de points et secteurs"
-   }
-  },
   "21cd48e7f1dc03c79c7e1d87826f0124dd5f64dada4d4377c47630ec90c2221f": {
    "drop": false,
    "en": "Define custom colors in RGB, HSL, CMYK, or spot color entry by name and value, and use recent colors, an eyedropper, and transparency on fills, lines, and text. Colors entered as CMYK keep their exact ink amounts.",
@@ -10593,18 +10528,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "222aa69426816070c90cabcee12689eb0da436c88e4c864931a156dcb6f87f03": {
-   "drop": false,
-   "en": "The Help tab has Help, Keyboard Shortcuts, What's New, and Feedback. About with Check for Updates is on the File screen.",
-   "es": "La pestaña Ayuda incluye Ayuda, Métodos abreviados de teclado, Novedades y Comentarios. Acerca de, con Buscar actualizaciones, está en la pantalla Archivo.",
-   "fr": "L’onglet Aide comprend Aide, Raccourcis clavier, Nouveautés et Commentaires. À propos, avec Rechercher les mises à jour, se trouve dans l’écran Fichier.",
-   "soon": {
-    "drop": false,
-    "en": "Keyboard Shortcuts table made from the commands themselves",
-    "es": "Tabla de métodos abreviados generada a partir de los propios comandos",
-    "fr": "Tableau des raccourcis clavier généré à partir des commandes elles-mêmes"
    }
   },
   "228866671ffd3ba78890aac32980e7f442469fcfb811ee699d992d4eea3514cb": {
@@ -11471,6 +11394,18 @@
     "fr": "Application macOS signée et notariée pour s’ouvrir sans avertissement"
    }
   },
+  "2afcc200186d74e5088328a0e2979291111500bd1359f1f902fbdbfbc044ff59": {
+   "drop": false,
+   "en": "Apply cell styles from a gallery, create a new cell style, and modify a style so the cells that use it follow. Themed styles follow a theme change. Built-in styles also work in workbooks opened from text, older binary, or OpenDocument files.",
+   "es": "Aplique estilos de celda desde una galería, cree un estilo de celda nuevo y modifique un estilo para que las celdas que lo usan lo sigan. Los estilos con tema siguen un cambio de tema. Los estilos integrados también funcionan en libros abiertos desde archivos de texto, binarios antiguos u OpenDocument.",
+   "fr": "Appliquez des styles de cellule depuis une galerie, créez un nouveau style de cellule et modifiez un style pour que les cellules qui l’utilisent le suivent. Les styles à thème suivent un changement de thème. Les styles intégrés fonctionnent aussi dans les classeurs ouverts à partir de fichiers texte, binaires anciens ou OpenDocument.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "2b3ae44a23b3f16100a2d5d75d1e9887c71ba324b2002e3dec93f730f654f2de": {
    "drop": false,
    "en": "Use the lookup and reference functions GETPIVOTDATA, FILTER, FORMULATEXT, SORT, SORTBY, UNIQUE, XLOOKUP, and XMATCH. In an array formula they give their block of results.",
@@ -11764,18 +11699,6 @@
    "en": "Error Checking steps through formulas that give an error, inconsistent formulas, formulas that leave out neighboring cells, formulas that read empty cells, numbers stored as text, two-digit years, and formulas in unlocked cells. A green triangle marks each cell with a problem and opens a menu with what is wrong, the fix, Ignore Error, and Error Checking. Ignore Error is kept in the file, and each rule can be turned on or off under Options > Formulas.",
    "es": "La comprobación de errores recorre las fórmulas que dan error, las fórmulas incoherentes, las que omiten celdas contiguas, las que leen celdas vacías, los números almacenados como texto, los años de dos dígitos y las fórmulas en celdas desbloqueadas. Un triángulo verde marca cada celda con un problema y abre un menú con la descripción del problema, la corrección, Omitir error y Comprobación de errores. Omitir error se guarda en el archivo, y cada regla se puede activar o desactivar en Opciones > Fórmulas.",
    "fr": "La vérification des erreurs parcourt les formules qui donnent une erreur, les formules incohérentes, celles qui omettent des cellules voisines, celles qui lisent des cellules vides, les nombres stockés sous forme de texte, les années à deux chiffres et les formules dans des cellules déverrouillées. Un triangle vert marque chaque cellule problématique et ouvre un menu indiquant le problème, la correction, Ignorer l’erreur et Vérification des erreurs. Ignorer l’erreur est conservé dans le fichier, et chaque règle peut être activée ou désactivée sous Options > Formules.",
-   "soon": {
-    "drop": true,
-    "en": "",
-    "es": "",
-    "fr": ""
-   }
-  },
-  "2f07715f213d0289e0c616b63a584fd74c34729154c3b2861632c8c2a5ddc573": {
-   "drop": false,
-   "en": "Switch between Print Layout (pages as they print), Draft (one continuous column with a style area), and Outline, which has its own Outlining tab.",
-   "es": "Cambie entre Diseño de impresión (páginas tal como se imprimen), Borrador (una columna continua con un área de estilos) y Esquema, que tiene su propia pestaña Esquema.",
-   "fr": "Passez entre Mise en page (pages telles qu’elles s’impriment), Brouillon (une colonne continue avec une zone de styles) et Plan, qui a son propre onglet Plan.",
    "soon": {
     "drop": true,
     "en": "",
@@ -12191,6 +12114,18 @@
     "fr": ""
    }
   },
+  "33fb818bfe1321ef098e29bdcd2cc43b0799946c906cde6870a368b90be2fe46": {
+   "drop": false,
+   "en": "Accounting and currency formats show the symbol, align numbers on the decimal, and show negatives in parentheses or red.",
+   "es": "Los formatos de contabilidad y moneda muestran el símbolo, alinean los números en el decimal y muestran los negativos entre paréntesis o en rojo.",
+   "fr": "Les formats comptabilité et monétaire affichent le symbole, alignent les nombres sur la virgule décimale et affichent les négatifs entre parenthèses ou en rouge.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "341f21fb161bb64cafb25f95362749082a81e6ab998805cb8711b39c1fbcde0a": {
    "drop": false,
    "en": "Numbers are shown with the marks of the system’s language, and Format Cells lists ready-made dates, times, and currencies. The file keeps the neutral form.",
@@ -12201,6 +12136,18 @@
     "en": "Locale tags in a format, such as `[$-409]` and `[$-407]`",
     "es": "Etiquetas de configuración regional en un formato, como `[$-409]` y `[$-407]`",
     "fr": "Balises de langue dans un format, comme `[$-409]` et `[$-407]`"
+   }
+  },
+  "3425804fc7799804a94c405dedcea85e8027eab549d8e6a04599725c8662fa34": {
+   "drop": false,
+   "en": "`IF`, `AND`, `OR`, and `NOT` are available, and the branch of `IF` that is not taken is never run.",
+   "es": "`IF`, `AND`, `OR` y `NOT` están disponibles, y la rama de `IF` que no se toma nunca se ejecuta.",
+   "fr": "`IF`, `AND`, `OR` et `NOT` sont disponibles, et la branche de `IF` qui n’est pas prise n’est jamais exécutée.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
    }
   },
   "34446c56900e98e3a8e5b74570e798c473f8d2c40f6769ae59c44683a0ed3345": {
@@ -12215,6 +12162,18 @@
     "fr": ""
    }
   },
+  "346e41bad666e72848f8b81bb8f3d0e7086e741289709749d1296d762f2be82b": {
+   "drop": false,
+   "en": "Open and save OpenDocument text (`.odt`, `.ott`), including styles, lists, tables, sections, headers and footers, notes, fields, pictures, text boxes, comments, and tracked changes. Open `.ott` as a new document or save a document as one.",
+   "es": "Abra y guarde texto OpenDocument (`.odt`, `.ott`), incluidos estilos, listas, tablas, secciones, encabezados y pies de página, notas, campos, imágenes, cuadros de texto, comentarios y cambios con seguimiento. Abra `.ott` como documento nuevo o guarde un documento como tal.",
+   "fr": "Ouvrez et enregistrez du texte OpenDocument (`.odt`, `.ott`), y compris styles, listes, tableaux, sections, en-têtes et pieds de page, notes, champs, images, zones de texte, commentaires et modifications suivies. Ouvrez `.ott` comme nouveau document ou enregistrez un document sous ce format.",
+   "soon": {
+    "drop": false,
+    "en": "Formulas and some freeform shapes in `.odt` files",
+    "es": "Fórmulas y algunas formas libres en archivos `.odt`",
+    "fr": "Formules et certaines formes libres dans les fichiers `.odt`"
+   }
+  },
   "34761b1e5caf2296423757a02f62387390e9c5fcce05ef894744ac827385efc6": {
    "drop": false,
    "en": "Fill cells down (`Ctrl+D`), right (`Ctrl+R`), up, and left, across worksheets, as a series, and with Justify. Drag the fill handle and choose to copy cells, fill series, fill formatting only, fill without formatting, or fill days, weekdays, months, or years.",
@@ -12225,18 +12184,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "347c71a2690ae85067194b1e179ce73baa73c3dac512ff59c6c6c63b323497a9": {
-   "drop": false,
-   "en": "Macro projects and OLE objects in an `.xls` file are noticed and kept with the workbook, and Save as `.xlsx` says that the macros won’t be kept.",
-   "es": "Los proyectos de macros y los objetos OLE de un documento `.xls` se detectan y se conservan con el libro, y Guardar como `.xlsx` avisa de que las macros no se conservarán.",
-   "fr": "Les projets de macros et les objets OLE d’un fichier `.xls` sont repérés et conservés avec le classeur, et Enregistrer sous `.xlsx` indique que les macros ne seront pas conservées.",
-   "soon": {
-    "drop": false,
-    "en": "Macro projects: keep in an `.xlsm` file",
-    "es": "Proyectos de macros: conservación en un documento `.xlsm`",
-    "fr": "Projets de macros : conservation dans un fichier `.xlsm`"
    }
   },
   "34aa6f0179e5f3f84f2625854b5c4b1a7ba5b362613a14d854ef574028795540": {
@@ -12297,6 +12244,18 @@
     "en": "",
     "es": "",
     "fr": ""
+   }
+  },
+  "354e5eca774946e4cf0e72ab28303013744a05309c574975590fbf3711958572": {
+   "drop": false,
+   "en": "Open and Repair recovers cell values, formulas, and styles that can be read from a damaged `.xlsx`, and cell values from a damaged `.xls`. The workbook opens as a copy with a note of what was dropped.",
+   "es": "Abrir y reparar recupera los valores de celda, las fórmulas y los estilos que se pueden leer de un `.xlsx` dañado, y los valores de celda de un `.xls` dañado. El libro se abre como copia con una nota de lo que se descartó.",
+   "fr": "Ouvrir et réparer récupère les valeurs de cellule, les formules et les styles lisibles d’un `.xlsx` endommagé, et les valeurs de cellule d’un `.xls` endommagé. Le classeur s’ouvre comme copie, avec une note sur ce qui a été abandonné.",
+   "soon": {
+    "drop": false,
+    "en": "Formulas and styles recovered from a damaged `.xls`",
+    "es": "Fórmulas y estilos recuperados de un `.xls` dañado",
+    "fr": "Formules et styles récupérés d’un `.xls` endommagé"
    }
   },
   "35d755aadb9a81fa2c77f8ab28ab243d0db5bcba6cbc250b00a1060507c93e50": {
@@ -12587,6 +12546,18 @@
     "fr": "Regroupement : éléments de texte en groupes nommés, groupes de plusieurs jours et groupes lorsque deux tableaux partagent des données"
    }
   },
+  "394ac168e1c022f9f43acd57baf46cba6d11c336ca219a70eb8b294ba309a234": {
+   "drop": false,
+   "en": "Slicers saved in a file are drawn on the sheet and work there: click, `Ctrl`-click, or `Shift`-click buttons to filter a pivot table, and use the clear button. They can be moved, sized, and deleted. A Slicers pane lists them.",
+   "es": "Las segmentaciones guardadas en un archivo se dibujan en la hoja y funcionan allí: haga clic, `Ctrl`+clic o `Mayús`+clic en los botones para filtrar una tabla dinámica, y use el botón de borrar. Se pueden mover, cambiar de tamaño y eliminar. Un panel de segmentaciones las enumera.",
+   "fr": "Les segments enregistrés dans un fichier sont dessinés sur la feuille et y fonctionnent : cliquez, `Ctrl`+clic ou `Maj`+clic sur les boutons pour filtrer un tableau croisé dynamique, et utilisez le bouton d’effacement. Ils peuvent être déplacés, redimensionnés et supprimés. Un volet Segments les répertorie.",
+   "soon": {
+    "drop": false,
+    "en": "Slicers: insert, change connected tables, and style",
+    "es": "Segmentaciones: insertar, cambiar las tablas conectadas y aplicar estilo",
+    "fr": "Segments : insérer, changer les tableaux connectés et appliquer un style"
+   }
+  },
   "39ac727bf5666ce3a985550487a5f33f32f551c95fab69063b0f53590b7f6a51": {
    "drop": false,
    "en": "OpenDocument `.ods` and `.ots`",
@@ -12683,18 +12654,6 @@
     "fr": ""
    }
   },
-  "3aa5f601752dd25ab56e678747aa7d32624a20d23d1a92c7832b917a66dea308": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Zoom: 10% to 400%, 100%, and Zoom to Selection for each sheet",
-    "es": "Zoom: del 10 % al 400 %, 100 % y Zoom a la selección para cada hoja",
-    "fr": "Zoom : de 10 % à 400 %, 100 % et Zoom sur la sélection pour chaque feuille"
-   }
-  },
   "3aca49d32ac50564d77d80df9ac35fc67b56641bb61333593b17ebbbf8f7ef18": {
    "drop": false,
    "en": "Print",
@@ -12729,18 +12688,6 @@
     "en": "Filters and sorts on pivot tables",
     "es": "Filtros y ordenaciones en tablas dinámicas",
     "fr": "Filtres et tris sur les tableaux croisés dynamiques"
-   }
-  },
-  "3b57a9766c1ff6a2cadd36768e8415b8703f9bb6cc32cd269b80267033c0f1fa": {
-   "drop": false,
-   "en": "Open and save OpenDocument text files (`.odt`) with styles, lists, tables, sections, headers and footers, notes, fields, pictures, text boxes, comments, tracked changes, and charts. `.ott` files open as new documents.",
-   "es": "Abra y guarde archivos de texto OpenDocument (`.odt`) con estilos, listas, tablas, secciones, encabezados y pies de página, notas, campos, imágenes, cuadros de texto, comentarios, cambios con seguimiento y gráficos. Los archivos `.ott` se abren como documentos nuevos.",
-   "fr": "Ouvrez et enregistrez des fichiers texte OpenDocument (`.odt`) avec styles, listes, tableaux, sections, en-têtes et pieds de page, notes, champs, images, zones de texte, commentaires, modifications suivies et graphiques. Les fichiers `.ott` s’ouvrent comme de nouveaux documents.",
-   "soon": {
-    "drop": false,
-    "en": "Formulas and some freeform shapes in `.odt` files",
-    "es": "Fórmulas y algunas formas libres en archivos `.odt`",
-    "fr": "Formules et certaines formes libres dans les fichiers `.odt`"
    }
   },
   "3b9531d3894b44d8f76b6de3603841d5a05ef4d6fb59400b14bd48f8e03519f2": {
@@ -13331,6 +13278,18 @@
     "fr": ""
    }
   },
+  "42954b794c9aa79c741a67807439662681fb9b9cca973649e0ac5c80521ae2de": {
+   "drop": false,
+   "en": "Fields are worked out and updated: `PAGE`, `NUMPAGES`, `SECTIONPAGES`, `SECTION`, `STYLEREF`, `REF`, `PAGEREF`, `NOTEREF`, `TOC`, and `SEQ`. `HYPERLINK` keeps its result.",
+   "es": "Los campos se calculan y se actualizan: `PAGE`, `NUMPAGES`, `SECTIONPAGES`, `SECTION`, `STYLEREF`, `REF`, `PAGEREF`, `NOTEREF`, `TOC` y `SEQ`. `HYPERLINK` conserva su resultado.",
+   "fr": "Les champs sont calculés et mis à jour : `PAGE`, `NUMPAGES`, `SECTIONPAGES`, `SECTION`, `STYLEREF`, `REF`, `PAGEREF`, `NOTEREF`, `TOC` et `SEQ`. `HYPERLINK` conserve son résultat.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "42b7ba4c25cc2c8c715c1a590ce2401c634aef93846d67c3d4be1fc507413208": {
    "drop": false,
    "en": "Text shrinks to fit its placeholder, a shape can grow to fit its text, and the Format Shape pane sets how text fits, margins, wrap, and columns for text boxes.",
@@ -13511,18 +13470,6 @@
     "fr": ""
    }
   },
-  "44aa28f46ceedfcd6664cc12a5a2236333ba3f35a5c2cb06ed94221021d6b9e0": {
-   "drop": false,
-   "en": "Open OpenDocument spreadsheets (`.ods`, `.ots`), with a note of what is skipped. Save as `.xlsx` by default, as an `.ods` copy, or as an `.ots` template with Save As and Save as Template.",
-   "es": "Abra hojas de cálculo OpenDocument (`.ods`, `.ots`), con un aviso de lo que se omite. Guarde como `.xlsx` de forma predeterminada, como copia `.ods` o como plantilla `.ots` con Guardar como y Guardar como plantilla.",
-   "fr": "Ouvrez des feuilles de calcul OpenDocument (`.ods`, `.ots`), avec un avis de ce qui est ignoré. Enregistrez en `.xlsx` par défaut, en copie `.ods` ou en modèle `.ots` avec Enregistrer sous et Enregistrer comme modèle.",
-   "soon": {
-    "drop": true,
-    "en": "",
-    "es": "",
-    "fr": ""
-   }
-  },
   "44b17b274fe5fc80dfc6cae56f2514af0d59c2e44fa508f774b1061e4716a62a": {
    "drop": false,
    "en": "Compare the open document with a file you choose, word by word or character by character, optionally ignoring case or white space. The differences appear in a new window as tracked changes signed with a name you give. Moved paragraphs and changes to the look of text and paragraphs are found, and footnotes, headers, and footers are compared. Accepting all gives the revised text, and rejecting all gives the first version.",
@@ -13564,6 +13511,18 @@
    "en": "Recover unsaved workbooks from the Open screen, and get an offer to recover them at the next start after a crash.",
    "es": "Recupere libros no guardados desde la pantalla Abrir, y reciba la oferta de recuperarlos en el siguiente inicio tras un fallo.",
    "fr": "Récupérez les classeurs non enregistrés depuis l’écran Ouvrir, et recevez une proposition de les récupérer au démarrage suivant après un plantage.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
+  "457229178a127c1d67b3f215457c3aac7871afb2e99bfabf2c00846d3de7ec01": {
+   "drop": false,
+   "en": "Set font color and cell fill color from theme colors with tints, standard colors, and More Colors, or choose No Fill. A theme color is stored as a theme reference, so it follows a theme change.",
+   "es": "Defina el color de fuente y el color de relleno de celda con colores del tema con matices, colores estándar y Más colores, o elija Sin relleno. Un color del tema se guarda como referencia al tema, por lo que sigue un cambio de tema.",
+   "fr": "Définissez la couleur de police et la couleur de remplissage des cellules avec des couleurs de thème avec nuances, des couleurs standard et Autres couleurs, ou choisissez Aucun remplissage. Une couleur de thème est enregistrée comme référence au thème et suit donc un changement de thème.",
    "soon": {
     "drop": true,
     "en": "",
@@ -13943,6 +13902,18 @@
     "fr": ""
    }
   },
+  "49aafd023260a8ba30c6f81308b072bc75afac1652114e8f31a84e56ac317a42": {
+   "drop": false,
+   "en": "Help (`F1`): a built-in, offline pane of plain-language topics.",
+   "es": "Ayuda (`F1`): un panel integrado y sin conexión con temas en lenguaje sencillo.",
+   "fr": "Aide (`F1`) : un volet intégré, hors ligne, de sujets en langage simple.",
+   "soon": {
+    "drop": false,
+    "en": "Help pane: contents page, links, Back and Forward, and search for topics and commands",
+    "es": "Panel de ayuda: página de contenido, vínculos, Atrás y Adelante, y búsqueda de temas y comandos",
+    "fr": "Volet d’aide : sommaire, liens, Précédent et Suivant, et recherche de sujets et de commandes"
+   }
+  },
   "49d7a6f58c6341aade779a2e66f593093fb7bb76b2b0729b3f181407e913487a": {
    "drop": false,
    "en": "Open a text file or `.csv` file through an import preview where you set the file origin and encoding, delimiter, and column types. The app guesses each column's type from the first 200 rows, and you can change it before opening. The data then loads into a sheet.",
@@ -13984,18 +13955,6 @@
    "en": "Show, hide, rename, and reorder ribbon tabs and groups, and add your own tabs and groups with any command. Add, remove, and reorder commands on the quick toolbar (up to 100), and place it below the ribbon. Reset One and Reset All restore the defaults.",
    "es": "Muestre, oculte, cambie el nombre y reordene las pestañas y los grupos de la cinta de opciones, y agregue sus propias pestañas y grupos con cualquier comando. Agregue, quite y reordene comandos en la barra de herramientas rápida (hasta 100) y colóquela debajo de la cinta de opciones. Restablecer uno y Restablecer todo recuperan los valores predeterminados.",
    "fr": "Affichez, masquez, renommez et réorganisez les onglets et les groupes du ruban, et ajoutez vos propres onglets et groupes avec n’importe quelle commande. Ajoutez, retirez et réorganisez des commandes dans la barre d’outils rapide (jusqu’à 100) et placez-la sous le ruban. Réinitialiser un élément et Tout réinitialiser rétablissent les valeurs par défaut.",
-   "soon": {
-    "drop": true,
-    "en": "",
-    "es": "",
-    "fr": ""
-   }
-  },
-  "4a0968ed688377a247e57331100af99bf20b57629557bf64367c0eb1131932e5": {
-   "drop": false,
-   "en": "Drag the lines between columns and rows to resize them, and use the resize handle at the lower right corner to set the table width. A move handle at the upper left corner selects the table on a click and moves it to before the paragraph where it is released, with a line showing where. Move Table Up and Move Table Down on the Table Layout tab do the same from the keyboard.",
-   "es": "Arrastre las líneas entre columnas y filas para cambiar su tamaño, y use el controlador de tamaño de la esquina inferior derecha para fijar el ancho de la tabla. Un controlador de movimiento en la esquina superior izquierda selecciona la tabla con un clic y la mueve antes del párrafo donde se suelta, con una línea que indica dónde. Move Table Up y Move Table Down, en la pestaña Diseño de tabla, hacen lo mismo con el teclado.",
-   "fr": "Faites glisser les lignes entre les colonnes et les lignes pour les redimensionner, et utilisez la poignée de redimensionnement du coin inférieur droit pour définir la largeur du tableau. Une poignée de déplacement dans le coin supérieur gauche sélectionne le tableau d’un clic et le déplace avant le paragraphe où vous la relâchez, avec une ligne indiquant l’endroit. Move Table Up et Move Table Down, dans l’onglet Disposition du tableau, font de même au clavier.",
    "soon": {
     "drop": true,
     "en": "",
@@ -14579,18 +14538,6 @@
     "fr": ""
    }
   },
-  "52a08d7a207650138152c3f248f8c9db85037c443a4e5c29f4831687bfe74aea": {
-   "drop": false,
-   "en": "Options has a Security page. Macros are kept in the file and never run. A link that would start a program is always refused. Files from the internet or another computer open as read-only first or normally. A bar under a held-back file offers Enable Editing for that one file.",
-   "es": "Options tiene una página de seguridad. Las macros se conservan en el archivo y nunca se ejecutan. Un vínculo que iniciaría un programa siempre se rechaza. Los archivos de internet o de otro equipo se abren primero en modo de solo lectura o de forma normal. Una barra bajo un archivo retenido ofrece Enable Editing para ese único archivo.",
-   "fr": "Options comporte une page Sécurité. Les macros sont conservées dans le fichier et ne sont jamais exécutées. Un lien qui lancerait un programme est toujours refusé. Les fichiers provenant d’internet ou d’un autre ordinateur s’ouvrent d’abord en lecture seule ou normalement. Une barre sous un fichier retenu propose Enable Editing pour ce seul fichier.",
-   "soon": {
-    "drop": true,
-    "en": "",
-    "es": "",
-    "fr": ""
-   }
-  },
   "530e2a06ebacb4a9783fd47ab8cc50342a965550bd0455eaf0b1b85a36c1e7d2": {
    "drop": false,
    "en": "Create a PDF in standard, minimum size, high quality, or commercial press quality, with page ranges, document properties, PDF/A, and PDF/X-1a. Open the PDF after saving it. A booklet can be saved as its printed sheets, two pages to a side in folding order, or as single pages.",
@@ -14795,18 +14742,6 @@
     "fr": ""
    }
   },
-  "554a24c0deb9d7509c9b47c8408b3fec8a6f3e3e1e57392def65cbff937c2c36": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Help (F1): offline pane of topics with contents, links, and search",
-    "es": "Ayuda (F1): panel sin conexión con temas, contenido, vínculos y búsqueda",
-    "fr": "Aide (F1) : volet hors ligne avec sujets, sommaire, liens et recherche"
-   }
-  },
   "55ec9dea8a6cf8ffee77e01f22610b2327e4a4f1e4fc9571e46691fd7df3e78e": {
    "drop": false,
    "en": "Chart Data lists the series, each with a name, values, and X values from cells, plus the horizontal axis labels. Swap Rows and Columns, edit, add, and remove series, and choose how hidden and empty cells are shown: gaps, zero, or a connecting line, with or without hidden rows and columns.",
@@ -14975,6 +14910,18 @@
     "fr": "Rognage par poignée, Taille et Organiser"
    }
   },
+  "596c9adba30ff041f521434d1ca2fc6f680cc1ea414f9d4f665f09338df44b70": {
+   "drop": false,
+   "en": "Open OpenDocument spreadsheets (`.ods`, `.ots`), with skipped content reported. Save an `.ods` copy, and save `.ots` templates with Save As and Save as Template. `.xlsx` is the default format.",
+   "es": "Abra hojas de cálculo OpenDocument (`.ods`, `.ots`), con aviso del contenido omitido. Guarde una copia `.ods` y guarde plantillas `.ots` con Guardar como y Guardar como plantilla. `.xlsx` es el formato predeterminado.",
+   "fr": "Ouvrez des classeurs OpenDocument (`.ods`, `.ots`), avec indication du contenu ignoré. Enregistrez une copie `.ods` et enregistrez des modèles `.ots` avec Enregistrer sous et Enregistrer comme modèle. `.xlsx` est le format par défaut.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "597087dad1134a1019f80fad5f1c30bcde62e7ee6fd587eb73a4659efe38d026": {
    "drop": false,
    "en": "Start a blank document with the defaults of the Normal template.",
@@ -15009,18 +14956,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "5a05b6bcc8f91fec67ad8488a9c00f4133c0ab5d4590e0766e3e9700056fa28c": {
-   "drop": false,
-   "en": "Apply cell styles from the gallery and add a style of your own with New Cell Style. Themed styles follow a theme change, and built-in styles also work in workbooks opened from text, older binary, or OpenDocument files.",
-   "es": "Aplique estilos de celda desde la galería y agregue un estilo propio con Nuevo estilo de celda. Los estilos con tema siguen los cambios de tema, y los estilos integrados también funcionan en libros abiertos desde archivos de texto, binarios antiguos o OpenDocument.",
-   "fr": "Appliquez des styles de cellule depuis la galerie et ajoutez un style personnalisé avec Nouveau style de cellule. Les styles à thème suivent un changement de thème, et les styles intégrés fonctionnent aussi dans les classeurs ouverts depuis des fichiers texte, binaires anciens ou OpenDocument.",
-   "soon": {
-    "drop": false,
-    "en": "Modify cell style: cells that use it follow",
-    "es": "Modificar estilo de celda: las celdas que lo usan lo siguen",
-    "fr": "Modification d’un style de cellule : les cellules qui l’utilisent le suivent"
    }
   },
   "5a0b303566f38b642b3a0fb23944dba8cf6a700d56efd4f7c309106cacffa323": {
@@ -15347,6 +15282,18 @@
     "fr": "Symboles : touche de raccourci et entrée de correction automatique"
    }
   },
+  "5dd17a55979bc3494c8b8c2d0c5f92fd0a1d7e2f17b43f1ca3abd2f20e5a7f29": {
+   "drop": false,
+   "en": "Timelines saved in a file are read, and the Slicers pane lists them with their chosen items and span.",
+   "es": "Las escalas de tiempo guardadas en un archivo se leen, y el panel de segmentaciones las enumera con sus elementos y su intervalo.",
+   "fr": "Les chronologies enregistrées dans un fichier sont lues, et le volet Segments les répertorie avec leurs éléments choisis et leur période.",
+   "soon": {
+    "drop": false,
+    "en": "Timelines: insert, draw on the sheet, filter by level, and style",
+    "es": "Escalas de tiempo: insertar, dibujar en la hoja, filtrar por nivel y aplicar estilo",
+    "fr": "Chronologies : insérer, dessiner sur la feuille, filtrer par niveau et appliquer un style"
+   }
+  },
   "5dd25093749ee28785a27d06e365cfef91980380a1c66eb067f7fd204e1ecdb1": {
    "drop": false,
    "en": "Select a table, column, row, or cell, delete rows and columns, and insert them above, below, left, or right. View Gridlines shows dashed gray lines on cell edges that have no line, on screen only.",
@@ -15544,18 +15491,6 @@
    "en": "Behind the scenes: platform and packaging",
    "es": "Detrás de escena: plataforma y empaquetado",
    "fr": "Dans les coulisses : plateforme et paquets",
-   "soon": {
-    "drop": true,
-    "en": "",
-    "es": "",
-    "fr": ""
-   }
-  },
-  "607b65a7e3cf6fdf8a441aabe91278ca850f29f5bc22c35c9374b98bded4d7c6": {
-   "drop": false,
-   "en": "Formulas, defined names (including those of one sheet), rules, hyperlinks, and chart series follow a renamed or moved sheet, and anything that read a deleted sheet shows `#REF!`.",
-   "es": "Las fórmulas, los nombres definidos (incluidos los de una sola hoja), las reglas, los hipervínculos y las series de gráficos siguen a una hoja renombrada o movida, y todo lo que leía una hoja eliminada muestra `#REF!`.",
-   "fr": "Les formules, les noms définis (y compris ceux d’une seule feuille), les règles, les liens hypertexte et les séries de graphiques suivent une feuille renommée ou déplacée, et tout ce qui lisait une feuille supprimée affiche `#REF!`.",
    "soon": {
     "drop": true,
     "en": "",
@@ -16091,18 +16026,6 @@
     "fr": "Tout rechercher : sélectionner toutes les correspondances à la fois"
    }
   },
-  "663b74d3930ea49dcfa5c33bb2b554abb7be37fc0caa574084bace51f94a9165": {
-   "drop": false,
-   "en": "Fields PAGE, NUMPAGES, SECTIONPAGES, SECTION, STYLEREF, REF, PAGEREF, NOTEREF, TOC, and SEQ are worked out and updated, and CITATION and BIBLIOGRAPHY are worked out from the file’s sources. HYPERLINK keeps its result.",
-   "es": "Los campos PAGE, NUMPAGES, SECTIONPAGES, SECTION, STYLEREF, REF, PAGEREF, NOTEREF, TOC y SEQ se calculan y se actualizan, y CITATION y BIBLIOGRAPHY se calculan a partir de las fuentes del archivo. HYPERLINK conserva su resultado.",
-   "fr": "Les champs PAGE, NUMPAGES, SECTIONPAGES, SECTION, STYLEREF, REF, PAGEREF, NOTEREF, TOC et SEQ sont calculés et mis à jour, et CITATION et BIBLIOGRAPHY sont calculés à partir des sources du fichier. HYPERLINK conserve son résultat.",
-   "soon": {
-    "drop": false,
-    "en": "HYPERLINK field: update",
-    "es": "Campo HYPERLINK: actualización",
-    "fr": "Champ HYPERLINK : mise à jour"
-   }
-  },
   "66728dae6e735e6a9fca1a0ad301b80ee5c5fd7d3b3ccae06e7fca954c34441f": {
    "drop": false,
    "en": "Documents that hold merge fields keep them when saved and reopened (MERGEFIELD, NEXT, IF, ASK, and others), along with the data-source link.",
@@ -16180,18 +16103,6 @@
    "en": "View diagrams as they are drawn in the file. Pick, move, and resize a diagram as a whole, print it or save it to PDF as vectors, and save it back unchanged.",
    "es": "Vea los diagramas tal como están dibujados en el documento. Seleccione, mueva y cambie el tamaño de un diagrama como un todo, imprímalo o guárdelo en PDF como vectores, y guárdelo de nuevo sin cambios.",
    "fr": "Affichez les diagrammes tels qu’ils sont dessinés dans le fichier. Sélectionnez, déplacez et redimensionnez un diagramme comme un tout, imprimez-le ou enregistrez-le en PDF en vectoriel, puis réenregistrez-le sans modification.",
-   "soon": {
-    "drop": true,
-    "en": "",
-    "es": "",
-    "fr": ""
-   }
-  },
-  "6789f3c842142e5a0bea23270cde7a4b919588e188e0b22715249aef79647387": {
-   "drop": false,
-   "en": "Apply shading and borders to table cells or the whole table from the Table Design tab, with the Borders and Shading dialog offering style, width, color, sides, and fill. View Gridlines shows the cell edges on screen. Draw Borders offers Pen Style, Pen Weight, Pen Color, and a border painter: drag along table lines to set borders, and the No Border pen style erases them. Borders are kept in `.docx`, `.odt`, and `.rtf` files.",
-   "es": "Aplique sombreado y bordes a las celdas o a toda la tabla desde la pestaña Diseño de tabla; el cuadro de diálogo Bordes y sombreado ofrece estilo, grosor, color, lados y relleno. View Gridlines muestra los bordes de las celdas en pantalla. Draw Borders ofrece Pen Style, Pen Weight, Pen Color y un pincel de bordes: arrastre a lo largo de las líneas de la tabla para aplicar bordes, y el estilo de lápiz No Border los borra. Los bordes se conservan en archivos `.docx`, `.odt` y `.rtf`.",
-   "fr": "Appliquez des trames et des bordures aux cellules ou à tout le tableau depuis l’onglet Création de tableau ; la boîte de dialogue Bordures et trame propose le style, l’épaisseur, la couleur, les côtés et le remplissage. View Gridlines affiche les bords des cellules à l’écran. Draw Borders propose Pen Style, Pen Weight, Pen Color et un pinceau de bordures : faites glisser le long des lignes du tableau pour définir les bordures, et le style de stylo No Border les efface. Les bordures sont conservées dans les fichiers `.docx`, `.odt` et `.rtf`.",
    "soon": {
     "drop": true,
     "en": "",
@@ -16895,18 +16806,6 @@
     "fr": ""
    }
   },
-  "6ed2a66ea9d67893c24253a9bde248ad628f20085a87487b71f6924a9ac65601": {
-   "drop": false,
-   "en": "Open the Navigation pane to see Headings, Pages, and Results. In Headings, click a heading to go to it, collapse sections, promote or demote headings, and drag a heading to move its section with a line showing where it lands. Pages shows thumbnails of the first 60 pages. Results lists where a word occurs with the words around it, as text, under each heading, or under each page.",
-   "es": "Abra el panel de navegación para ver Encabezados, Páginas y Resultados. En Encabezados, haga clic en un encabezado para ir a él, contraiga secciones, ascienda o descienda encabezados y arrastre un encabezado para mover su sección, con una línea que indica dónde quedará. Páginas muestra miniaturas de las primeras 60 páginas. Resultados enumera dónde aparece una palabra con las palabras que la rodean, como texto, bajo cada encabezado o bajo cada página.",
-   "fr": "Ouvrez le volet de navigation pour afficher Titres, Pages et Résultats. Dans Titres, cliquez sur un titre pour y accéder, réduisez des sections, promouvez ou rétrogradez des titres, et faites glisser un titre pour déplacer sa section, une ligne indiquant où elle sera placée. Pages affiche les miniatures des 60 premières pages. Résultats indique où un mot apparaît avec les mots qui l’entourent, sous forme de texte, sous chaque titre ou sous chaque page.",
-   "soon": {
-    "drop": true,
-    "en": "",
-    "es": "",
-    "fr": ""
-   }
-  },
   "6ef07ea5be232551b565df92e5d54e6d92bd3d238744b1024d9f983f6b3bc32f": {
    "drop": false,
    "en": "Merge cells, split cells, and divide a cell with a diagonal; each half holds its own text, which wraps inside its triangle.",
@@ -17123,6 +17022,18 @@
     "fr": ""
    }
   },
+  "7299d564258267a7f80759499f41286839991cc35bdcabb7173520d9a114f3e9": {
+   "drop": false,
+   "en": "Draw a text box by dragging, with fill, outline, insets, and wrap. Set the text direction to horizontal or rotated 90 or 270 degrees, edit the words, and set fill, outline, wrap, and size on the Shape Format tab. The direction is kept in `.docx` and `.odt` files.",
+   "es": "Dibuje un cuadro de texto arrastrando, con relleno, contorno, márgenes interiores y ajuste. Establezca la dirección del texto en horizontal o girado 90 o 270 grados, edite las palabras y defina relleno, contorno, ajuste y tamaño en la pestaña Formato de forma. La dirección se conserva en archivos `.docx` y `.odt`.",
+   "fr": "Dessinez une zone de texte en la faisant glisser, avec remplissage, contour, marges intérieures et habillage. Définissez l’orientation du texte à l’horizontale ou pivotée de 90 ou 270 degrés, modifiez les mots et réglez remplissage, contour, habillage et taille dans l’onglet Format de la forme. L’orientation est conservée dans les fichiers `.docx` et `.odt`.",
+   "soon": {
+    "drop": false,
+    "en": "Linked text boxes: text continues from one to the next",
+    "es": "Cuadros de texto vinculados: el texto continúa de uno a otro",
+    "fr": "Zones de texte liées : le texte se poursuit de l’une à l’autre"
+   }
+  },
   "72a5f14d53d5c9b9fc06caed8c356c71ff9411ecf98515dc405e6a91af75326f": {
    "drop": false,
    "en": "An Equation tab appears while an equation is selected, with Edit Equation, Professional and Linear, Normal Text, the typing format, five symbol menus, and eleven structures. A button opens the equation box with the structure inserted, and the box has the same structures in a row of buttons. An equation brought in by a file can be changed in the box in UnicodeMath.",
@@ -17193,6 +17104,18 @@
     "en": "",
     "es": "",
     "fr": ""
+   }
+  },
+  "7452083de3b71e371b6268ade0a690aacd1116bc77fb96848214fcc8c54f99da": {
+   "drop": false,
+   "en": "`HYPERLINK` builds a link from a formula, and the link works in an exported PDF.",
+   "es": "`HYPERLINK` crea un vínculo a partir de una fórmula, y el vínculo funciona en un PDF exportado.",
+   "fr": "`HYPERLINK` crée un lien à partir d’une formule, et le lien fonctionne dans un PDF exporté.",
+   "soon": {
+    "drop": false,
+    "en": "`HYPERLINK`: clickable link in the cell on screen",
+    "es": "`HYPERLINK`: vínculo en el que se puede hacer clic en la celda en pantalla",
+    "fr": "`HYPERLINK` : lien cliquable dans la cellule à l’écran"
    }
   },
   "7478cca15a82e2118bd5d718e13a2c861e57685a887eedbe2e2dabf58b471ee5": {
@@ -17325,6 +17248,18 @@
     "en": "Setting paragraph shading and borders",
     "es": "Definir el sombreado y los bordes de párrafo",
     "fr": "Définition de l’ombrage et des bordures de paragraphe"
+   }
+  },
+  "772b2a266aa7fe06e9b98cd49b414c3982b346d88ccd2076aae770e6222cfc70": {
+   "drop": false,
+   "en": "The same number format codes drive `TEXT`, `FIXED`, `DOLLAR`, pivot values, chart labels, and CSV export “as shown”.",
+   "es": "Los mismos códigos de formato numérico se aplican en `TEXT`, `FIXED`, `DOLLAR`, los valores de tablas dinámicas, las etiquetas de gráficos y la exportación a CSV «tal como se muestra».",
+   "fr": "Les mêmes codes de format numérique s’appliquent à `TEXT`, `FIXED`, `DOLLAR`, aux valeurs de tableaux croisés dynamiques, aux étiquettes de graphiques et à l’export CSV « tel qu’affiché ».",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
    }
   },
   "776f0e98cab0e105065be58f6563b1a9819d43517543c1e237001488e252f00e": {
@@ -17661,18 +17596,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "7c529414cccbb059c828b8701f2044935d91a74453fb4f886efba6dbe83bfb2d": {
-   "drop": false,
-   "en": "Draw a text box by dragging on the page, with fill, outline, insets, and wrap. Set the text direction to horizontal or rotated 90 or 270 degrees. The direction is kept in `.docx` and `.odt` files.",
-   "es": "Dibuje un cuadro de texto arrastrando en la página, con relleno, contorno, márgenes internos y ajuste del texto. Establezca la dirección del texto en horizontal o girada 90 o 270 grados. La dirección se conserva en archivos `.docx` y `.odt`.",
-   "fr": "Dessinez une zone de texte en faisant glisser sur la page, avec remplissage, contour, marges internes et habillage. Réglez l’orientation du texte à l’horizontale ou pivotée de 90 ou 270 degrés. L’orientation est conservée dans les fichiers `.docx` et `.odt`.",
-   "soon": {
-    "drop": false,
-    "en": "Linked text boxes: text continues from one to the next",
-    "es": "Cuadros de texto vinculados: el texto continúa de uno a otro",
-    "fr": "Zones de texte liées : le texte continue de l’une à l’autre"
    }
   },
   "7c611972899c7b5cf05def3eddfe9e2c32aed8881f6f50a985358c79a912efad": {
@@ -18081,18 +18004,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "826df42611b1f626425dfb1e9ea0dabded8422e5651b9a0b2893d4d5fd0fe96c": {
-   "drop": false,
-   "en": "A Slicers pane lists the slicers and timelines of a file. Clicking a button filters the tables it names as one step of Undo, and `Ctrl`-click adds or removes an item. The choice is saved, and Report Connections names the tables.",
-   "es": "Un panel Segmentaciones muestra las segmentaciones y escalas de tiempo de un archivo. Al hacer clic en un botón se filtran las tablas que nombra, en un solo paso de deshacer, y `Ctrl`+clic agrega o quita un elemento. La elección se guarda, y Conexiones de informe nombra las tablas.",
-   "fr": "Un volet Segments liste les segments et les chronologies d’un fichier. Un clic sur un bouton filtre les tableaux qu’il désigne, en une seule étape d’annulation, et `Ctrl`+clic ajoute ou retire un élément. Le choix est enregistré, et Connexions de rapport nomme les tableaux.",
-   "soon": {
-    "drop": false,
-    "en": "Slicers: draw over the cells, change which tables are filtered, timeline clicks and levels, and style looks",
-    "es": "Segmentaciones: dibujar sobre las celdas, cambiar qué tablas se filtran, clics y niveles de escala de tiempo, y aspecto de los estilos",
-    "fr": "Segments : dessin sur les cellules, modification des tableaux filtrés, clics et niveaux de chronologie, et aspect des styles"
    }
   },
   "829b541552b0c3843343c26b9dc1ee8ce6045c04050ae6a6be025f088afb4b6c": {
@@ -18719,18 +18630,6 @@
     "fr": ""
    }
   },
-  "8c78c706e0069f732df58bc5046cbda6c9482e541a285c8b1ca10b58655b1ef2": {
-   "drop": false,
-   "en": "Accounting and currency formats show the symbol at the left edge, numbers aligned on the decimal, negatives in parentheses or red, the symbol for each currency and country, and the euro in either order.",
-   "es": "Los formatos de contabilidad y moneda muestran el símbolo en el borde izquierdo, los números alineados por el decimal, los negativos entre paréntesis o en rojo, el símbolo de cada moneda y país, y el euro en cualquiera de los dos órdenes.",
-   "fr": "Les formats comptabilité et monétaire affichent le symbole au bord gauche, les nombres alignés sur la virgule décimale, les négatifs entre parenthèses ou en rouge, le symbole de chaque devise et pays, et l’euro dans l’un ou l’autre ordre.",
-   "soon": {
-    "drop": false,
-    "en": "Currency choice from a list",
-    "es": "Elección de moneda desde una lista",
-    "fr": "Choix de la devise dans une liste"
-   }
-  },
   "8c8b9ec62b666885eb5cd2e3c4d44b56b34b451d4a240d0caa08d1e396f46b3e": {
    "drop": false,
    "en": "Find text with the Find and Replace pane (`Ctrl+F`): see the match count, step through matches with Find Next, and have every match highlighted on the pages, in tables, headers, footers, and notes. Results can be listed as text, by heading, or by page in the Navigation pane, with match case and whole words options.",
@@ -19259,18 +19158,6 @@
     "fr": ""
    }
   },
-  "9492b1be8ba220453b7e9dc2da7a1f47aaf6cce27b447e9cac3a60df6b73420f": {
-   "drop": false,
-   "en": "Insert text styles from a gallery of styles, change the words in a box, and see and save the shadow.",
-   "es": "Inserte estilos de texto desde una galería, cambie las palabras en un cuadro y vea y guarde la sombra.",
-   "fr": "Insérez des styles de texte depuis une galerie, modifiez les mots dans une zone, puis affichez et enregistrez l’ombre.",
-   "soon": {
-    "drop": false,
-    "en": "Text styles: change the style or warp once placed on the slide, and apply to any selected text",
-    "es": "Estilos de texto: cambiar el estilo o la deformación una vez colocados en la diapositiva, y aplicarlos a cualquier texto seleccionado",
-    "fr": "Styles de texte : modifier le style ou la déformation une fois placés sur la diapositive, et les appliquer à tout texte sélectionné"
-   }
-  },
   "94a0347cc8edcc427cb11efe55bbf6ddff143f5ebc6e0d0b564c38ed2f67f9d2": {
    "drop": false,
    "en": "The current slide can be exported to PNG or JPEG.",
@@ -19444,6 +19331,18 @@
    "en": "Insert a cross-reference as a link to a heading, bookmark, footnote, endnote, numbered item, or caption, as its text, number, page, or above and below. `Ctrl`+click follows it.",
    "es": "Inserte una referencia cruzada como vínculo a un título, marcador, nota al pie, nota final, elemento numerado o título de ilustración, como su texto, número, página o arriba y abajo. `Ctrl`+clic la sigue.",
    "fr": "Insérez un renvoi sous forme de lien vers un titre, un signet, une note de bas de page, une note de fin, un élément numéroté ou une légende, avec son texte, son numéro, sa page ou au-dessus et en dessous. `Ctrl`+clic le suit.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
+  "965a134d81b5b80712e7f63fccb4c96ed4e8f44ac4d933783e8fa885409a5a19": {
+   "drop": false,
+   "en": "Edit, add, and remove headers and footers, choose from a gallery of built-in designs, and insert page numbers at the top, bottom, in the margins, or at the caret. Shapes, text boxes, pictures, and watermarks in headers and footers are shown and saved.",
+   "es": "Edite, agregue y quite encabezados y pies de página, elija entre una galería de diseños integrados e inserte números de página en la parte superior, inferior, en los márgenes o en el cursor. Las formas, los cuadros de texto, las imágenes y las marcas de agua en encabezados y pies de página se muestran y se guardan.",
+   "fr": "Modifiez, ajoutez et supprimez des en-têtes et pieds de page, choisissez dans une galerie de modèles intégrés et insérez des numéros de page en haut, en bas, dans les marges ou au point d’insertion. Les formes, zones de texte, images et filigranes des en-têtes et pieds de page sont affichés et enregistrés.",
    "soon": {
     "drop": true,
     "en": "",
@@ -20159,30 +20058,6 @@
     "fr": ""
    }
   },
-  "a1bee98c903dcb49df49adb6de24442e6441dd77eef7e96c7a2da4d1afa1c6b9": {
-   "drop": false,
-   "en": "Collapse the Ribbon with `Ctrl+F1` and use Full Screen with `Ctrl+Shift+F1`. Right-click the status bar numbers to choose Average, Count, Numerical Count, Minimum, Maximum, and Sum of the selection.",
-   "es": "Contraiga la cinta de opciones con `Ctrl+F1` y use la pantalla completa con `Ctrl+Mayús+F1`. Haga clic con el botón derecho en los números de la barra de estado para elegir Promedio, Recuento, Recuento numérico, Mínimo, Máximo y Suma de la selección.",
-   "fr": "Réduisez le ruban avec `Ctrl+F1` et utilisez le plein écran avec `Ctrl+Maj+F1`. Faites un clic droit sur les nombres de la barre d’état pour choisir Moyenne, Nombre, Nombre numérique, Minimum, Maximum et Somme de la sélection.",
-   "soon": {
-    "drop": true,
-    "en": "",
-    "es": "",
-    "fr": ""
-   }
-  },
-  "a1e578291d5baff63ab6fa6e9e6f1b95d8838a5e9b74cf760806061eb509a670": {
-   "drop": false,
-   "en": "Grammar and style checking runs on your computer for slide text and speaker notes, in English. Grammar and style issues get a blue dotted line, and spelling keeps its red wave. Right-click shows the message and suggestions, and a suggestion changes the text as one step that can be undone. Ignore This Issue and Ignore All are available, the Spelling check (`F7`) continues on to grammar issues, and only the changed paragraph is checked again.",
-   "es": "La revisión gramatical y de estilo se ejecuta en su equipo para el texto de las diapositivas y las notas del orador, en inglés. Los problemas de gramática y estilo se marcan con una línea azul punteada, y la ortografía conserva su onda roja. Al hacer clic con el botón derecho se muestran el mensaje y las sugerencias, y una sugerencia cambia el texto en un solo paso que se puede deshacer. Están disponibles Ignorar este problema e Ignorar todo, la revisión ortográfica (`F7`) continúa con los problemas gramaticales, y solo se vuelve a revisar el párrafo modificado.",
-   "fr": "La vérification de la grammaire et du style s’exécute sur votre ordinateur pour le texte des diapositives et les notes du présentateur, en anglais. Les problèmes de grammaire et de style sont soulignés par une ligne pointillée bleue, et l’orthographe garde sa vague rouge. Un clic droit affiche le message et les suggestions, et une suggestion modifie le texte en une seule étape qui peut être annulée. Ignorer ce problème et Tout ignorer sont disponibles, la vérification orthographique (`F7`) passe ensuite aux problèmes de grammaire, et seul le paragraphe modifié est revérifié.",
-   "soon": {
-    "drop": false,
-    "en": "More grammar rules and languages other than English",
-    "es": "Más reglas gramaticales e idiomas distintos del inglés",
-    "fr": "Plus de règles de grammaire et langues autres que l’anglais"
-   }
-  },
   "a271f6ffec96d951b2a6f61809a1231909b90c708b64365cec92e95bf19f593e": {
    "drop": false,
    "en": "Use a data entry form for a table or range to view one record at a time, with New, Delete, Restore, Find Prev, Find Next, and Criteria. Each change is one Undo step.",
@@ -20507,6 +20382,18 @@
     "fr": ""
    }
   },
+  "a7c895c1acfa1265fe0b1388bcc35b349d57650033bff2a31a36d5fae2750fae": {
+   "drop": false,
+   "en": "A file that misstates its own contents, such as a part that inflates to gigabytes or a formula nested 10,000 deep, is stopped with a message, never a crash or a frozen window.",
+   "es": "Un archivo que declara de forma falsa su propio contenido, como una parte que se expande a gigabytes o una fórmula anidada 10 000 veces, se detiene con un mensaje, nunca con un bloqueo ni una ventana congelada.",
+   "fr": "Un fichier qui déclare faussement son contenu, comme une partie qui se décompresse en gigaoctets ou une formule imbriquée sur 10 000 niveaux, est arrêté avec un message, sans plantage ni fenêtre figée.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "a7d49d96f39be719785793f0d7b87fa118cc74dbe4246f13fa0d289f088c676b": {
    "drop": true,
    "en": "",
@@ -20637,18 +20524,6 @@
     "en": "Insert above, below, left, and right within the table only",
     "es": "Insertar arriba, abajo, a la izquierda y a la derecha solo dentro de la tabla",
     "fr": "Insertion au-dessus, en dessous, à gauche et à droite uniquement dans le tableau"
-   }
-  },
-  "a9938b6312365a63db87c256939d6ce473366d4e7d9769bfa8d6c35818097469": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Save As for `.ppt`, `.pps`, and `.pot`, with a warning of what they can’t hold",
-    "es": "Guardar como `.ppt`, `.pps` y `.pot`, con una advertencia de lo que no pueden contener",
-    "fr": "Enregistrer sous `.ppt`, `.pps` et `.pot`, avec un avertissement sur ce qu’ils ne peuvent pas contenir"
    }
   },
   "a9d835f99ba0badd0b4c314ad4e28a16c233effe97e79aa45dc9d5cd8b8454f2": {
@@ -21047,6 +20922,18 @@
     "fr": "Propriétés d’image : verrouillée, et image en remplissage de cellule ou en arrière-plan de la feuille"
    }
   },
+  "aef60d800937c80af3820adc108cdbc23ab13330eff5ac98e1147adc0a595e9c": {
+   "drop": false,
+   "en": "Zoom from 10% to 400%, kept for each sheet.",
+   "es": "Zoom del 10 % al 400 %, conservado para cada hoja.",
+   "fr": "Zoom de 10 % à 400 %, conservé pour chaque feuille.",
+   "soon": {
+    "drop": false,
+    "en": "100% and Zoom to Selection",
+    "es": "100 % y Ampliar selección",
+    "fr": "100 % et Zoom sur la sélection"
+   }
+  },
   "af2773748096f099a3cf5e03605755f0b21f43c0581731306be55e976fda028e": {
    "drop": false,
    "en": "Set alt text, arrange, and size for movies and sounds from the Playback tab.",
@@ -21069,6 +20956,18 @@
     "en": "",
     "es": "",
     "fr": ""
+   }
+  },
+  "af55d436d57b952bdee24e72f19538f5a367004256a779161bdb60eb6c72f123": {
+   "drop": false,
+   "en": "Pivot Table > Slicers lists the slicers and timelines in a file. A click on a slicer button filters the connected tables in one step that undoes, and Report Connections names the tables.",
+   "es": "Tabla dinámica > Segmentaciones enumera las segmentaciones y escalas de tiempo de un archivo. Un clic en un botón de segmentación filtra las tablas conectadas en un solo paso que se puede deshacer, y Conexiones de informe nombra las tablas.",
+   "fr": "Tableau croisé dynamique > Segments répertorie les segments et chronologies d’un fichier. Un clic sur un bouton de segment filtre les tableaux connectés en une seule étape annulable, et Connexions de rapport nomme les tableaux.",
+   "soon": {
+    "drop": false,
+    "en": "Slicers and timelines: insert, draw timelines, and change connected tables",
+    "es": "Segmentaciones y escalas de tiempo: insertar, dibujar escalas de tiempo y cambiar las tablas conectadas",
+    "fr": "Segments et chronologies : insérer, dessiner les chronologies et changer les tableaux connectés"
    }
   },
   "af6f129fc517aefcef15b58f1a2d2674e4bfaf3e1d3e646d8751dc6d6341eb0c": {
@@ -21395,18 +21294,6 @@
     "fr": ""
    }
   },
-  "b48c8812864b838a56e40f6b481d2cbdd2a64056cedda9e9241ab4a1388d41b8": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Document grid and East Asian layout: characters per line, lines per page, and vertical pages",
-    "es": "Cuadrícula del documento y diseño de Asia oriental: caracteres por línea, líneas por página y páginas verticales",
-    "fr": "Grille du document et mise en page pour l’Asie de l’Est : caractères par ligne, lignes par page et pages verticales"
-   }
-  },
   "b48cc7aa72692b66c579521f111cc1aa725704efcfcf46a5c4411812cd541321": {
    "drop": false,
    "en": "Add drop caps from a gallery or customize lines, size, font, and color, and set number styles (lining, old-style, proportional, tabular), ligatures, stylistic sets, stylistic alternates, swash, small caps, and true small caps.",
@@ -21448,6 +21335,18 @@
    "en": "Equation, Ink, and Zoom tools",
    "es": "Herramientas de ecuación, tinta y zoom",
    "fr": "Outils d’équation, d’encre et de zoom",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
+  "b5130c5807f3657cedf1338facfe7111e815d129a66342059a1642221c05c6f5": {
+   "drop": false,
+   "en": "The Security page in Options: macros are kept in the file and never run, links that would start a program are always refused, and files from the internet or another computer open as read-only first, with an Enable Editing bar for that file.",
+   "es": "La página Seguridad en Opciones: las macros se conservan en el archivo y nunca se ejecutan, los vínculos que iniciarían un programa siempre se rechazan, y los archivos de internet o de otro equipo se abren primero en solo lectura, con una barra para habilitar la edición de ese archivo.",
+   "fr": "La page Sécurité des Options : les macros sont conservées dans le fichier et jamais exécutées, les liens qui lanceraient un programme sont toujours refusés, et les fichiers venant d’internet ou d’un autre ordinateur s’ouvrent d’abord en lecture seule, avec une barre pour activer la modification de ce fichier.",
    "soon": {
     "drop": true,
     "en": "",
@@ -21515,6 +21414,18 @@
     "fr": "Onglet Chronologie : dessin sur les cellules, niveaux de temps, insertion d’une chronologie et styles"
    }
   },
+  "b5b8152b6d55ecdaaf222b153c3693794c4551f808905ad72e860df95bcf57fb": {
+   "drop": false,
+   "en": "Move a table with the handle at its upper left corner, resize it with the handle at the lower right corner, and drag the lines between columns and rows. Move Table Up and Down work from the keyboard.",
+   "es": "Mueva una tabla con el controlador de su esquina superior izquierda, cambie su tamaño con el de la esquina inferior derecha y arrastre las líneas entre columnas y filas. Mover tabla hacia arriba y hacia abajo funcionan con el teclado.",
+   "fr": "Déplacez un tableau avec la poignée de son coin supérieur gauche, redimensionnez-le avec la poignée du coin inférieur droit et faites glisser les lignes entre colonnes et lignes. Déplacer le tableau vers le haut et vers le bas fonctionnent au clavier.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "b608a5e43ba423bc70e16ce5a8dbf74817f4b081b474bea911305d7324867973": {
    "drop": false,
    "en": "New",
@@ -21544,6 +21455,18 @@
    "en": "Look up synonyms and related words offline, without going online.",
    "es": "Busque sinónimos y palabras relacionadas sin conexión, sin necesidad de ir a Internet.",
    "fr": "Recherchez des synonymes et des mots associés hors ligne, sans vous connecter à Internet.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
+  "b6684165de511ee7a7729a2fa43a7c030f108fc0150e9c651807acd7cf969cc3": {
+   "drop": false,
+   "en": "Navigation pane with Headings (click to go, drag to move a section, collapse, promote, and demote), Pages (thumbnails of the first 60 pages), and Results (a word’s places, listed as text, under each heading, or under each page).",
+   "es": "Panel de navegación con Encabezados (haga clic para ir, arrastre para mover una sección, contraiga, promueva y degrade), Páginas (miniaturas de las primeras 60 páginas) y Resultados (los lugares de una palabra, en forma de texto, bajo cada encabezado o bajo cada página).",
+   "fr": "Volet de navigation avec Titres (cliquez pour aller, faites glisser pour déplacer une section, réduisez, promouvez et rétrogradez), Pages (miniatures des 60 premières pages) et Résultats (les occurrences d’un mot, listées en texte, sous chaque titre ou sous chaque page).",
    "soon": {
     "drop": true,
     "en": "",
@@ -21755,6 +21678,18 @@
     "fr": ""
    }
   },
+  "ba1ca42b9259b19184313a11b0e967faea6e817f8fa2a4d3cf57e505323322a8": {
+   "drop": false,
+   "en": "A workbook names fonts without embedding them, and a missing font is drawn with a stand-in of the same letter widths so columns and wraps hold.",
+   "es": "Un libro nombra las fuentes sin incrustarlas, y una fuente ausente se dibuja con un sustituto de los mismos anchos de letra para que se mantengan las columnas y los saltos de línea.",
+   "fr": "Un classeur nomme les polices sans les incorporer, et une police manquante est dessinée avec une police de remplacement de mêmes largeurs de lettres afin que les colonnes et les retours à la ligne tiennent.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "ba430fbcd281ee39fd8349536ccd1d224a9e3debeda3521ae83ee9a216e52a8a": {
    "drop": false,
    "en": "Insert and edit equations with an equation editor.",
@@ -21813,6 +21748,18 @@
     "en": "Typing in the second pane and shared unsaved edits between windows",
     "es": "Escritura en el segundo panel y ediciones sin guardar compartidas entre ventanas",
     "fr": "Saisie dans le second volet et modifications non enregistrées partagées entre les fenêtres"
+   }
+  },
+  "bb28fc47f126fb5e775a18b60eef64e980e3ae87db713dc8a89ec2a167b7813a": {
+   "drop": false,
+   "en": "Replace Fonts lists the fonts the cells use, with a cell count for each, and renames the chosen font throughout the workbook (cell formats, named styles, shapes, charts, rich text, and comments) in one step that undoes.",
+   "es": "Reemplazar fuentes muestra las fuentes que usan las celdas, con el número de celdas de cada una, y cambia el nombre de la fuente elegida en todo el libro (formatos de celda, estilos con nombre, formas, gráficos, texto enriquecido y comentarios) en un solo paso que se puede deshacer.",
+   "fr": "Remplacer les polices liste les polices utilisées par les cellules, avec le nombre de cellules pour chacune, et renomme la police choisie dans tout le classeur (formats de cellule, styles nommés, formes, graphiques, texte enrichi et commentaires) en une seule étape annulable.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
    }
   },
   "bb7f7d357aeb3a0c50832d81ef7603494e0c0921d7e97ea3a2d232896b609cf3": {
@@ -21909,6 +21856,18 @@
     "en": "",
     "es": "",
     "fr": ""
+   }
+  },
+  "bd91ebad9dcdfa30b97236b9114d0c1665cc758013af8c82efacedfe83b1c490": {
+   "drop": false,
+   "en": "A formula whose function the app doesn't have yet keeps the result the file stored and is written back as it was.",
+   "es": "Una fórmula cuya función la aplicación aún no tiene conserva el resultado almacenado en el archivo y se vuelve a escribir tal como estaba.",
+   "fr": "Une formule dont la fonction n’existe pas encore dans l’application conserve le résultat stocké dans le fichier et est réécrite telle quelle.",
+   "soon": {
+    "drop": false,
+    "en": "More functions",
+    "es": "Más funciones",
+    "fr": "Davantage de fonctions"
    }
   },
   "bddc8d737ee0e569a1843dbd3653afec67fec0ce99de6338bc96abbee5734144": {
@@ -22053,18 +22012,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "bf90f428fd8cdb7597a1d4c9e03b6f811fbdd9bd9d42c96f656ce99b7aae6b80": {
-   "drop": false,
-   "en": "Edit a header or footer by double-clicking the top or bottom margin, or with Insert > Header and Footer. Add, edit, and remove headers and footers, choose from a gallery of designs, and insert page numbers at the top, bottom, in the margins, or at the cursor.",
-   "es": "Edite un encabezado o pie de página haciendo doble clic en el margen superior o inferior, o con Insertar > Encabezado y pie de página. Agregue, edite y quite encabezados y pies de página, elija entre una galería de diseños e inserte números de página arriba, abajo, en los márgenes o en el cursor.",
-   "fr": "Modifiez un en-tête ou un pied de page en double-cliquant sur la marge du haut ou du bas, ou avec Insertion > En-tête et pied de page. Ajoutez, modifiez et supprimez des en-têtes et pieds de page, choisissez parmi une galerie de modèles et insérez des numéros de page en haut, en bas, dans les marges ou au curseur.",
-   "soon": {
-    "drop": false,
-    "en": "Larger gallery of built-in header and footer designs",
-    "es": "Galería más amplia de diseños de encabezado y pie de página",
-    "fr": "Galerie plus large de modèles d’en-tête et de pied de page"
    }
   },
   "bfcb190aa034111c244a97b55c02f703497f9c3ff6a8a79fd3cdf169766a58a7": {
@@ -22259,6 +22206,18 @@
     "fr": ""
    }
   },
+  "c248ec625e665fb053c4bd008378948e0034198d56d5ad915aa2d206c55a665f": {
+   "drop": false,
+   "en": "Turn Track Changes on and off (`Ctrl+Shift+E`). Typing, deletions, and formatting changes are recorded with author and date. Next and Previous Change, the Reviewing pane, and Accept and Reject work on changes in text, headers, footers, footnotes, endnotes, tables, and text boxes.",
+   "es": "Active y desactive el control de cambios (`Ctrl+Shift+E`). Lo que escribe, las eliminaciones y los cambios de formato se registran con autor y fecha. Cambio siguiente y anterior, el panel de revisión y Aceptar y Rechazar funcionan con cambios en el texto, encabezados, pies de página, notas al pie, notas finales, tablas y cuadros de texto.",
+   "fr": "Activez et désactivez le suivi des modifications (`Ctrl+Shift+E`). La saisie, les suppressions et les changements de mise en forme sont enregistrés avec l’auteur et la date. Modification suivante et précédente, le volet de vérification et Accepter et Rejeter fonctionnent sur les modifications du texte, des en-têtes, pieds de page, notes de bas de page, notes de fin, tableaux et zones de texte.",
+   "soon": {
+    "drop": false,
+    "en": "Tracked changes for columns, cells, merge, split, text boxes, numbering, indents, sections, and moves",
+    "es": "Cambios con seguimiento para columnas, celdas, combinación, división, cuadros de texto, numeración, sangrías, secciones y movimientos",
+    "fr": "Modifications suivies pour colonnes, cellules, fusion, division, zones de texte, numérotation, retraits, sections et déplacements"
+   }
+  },
   "c27e688647cb90eaf19078e47a031862418dfd905cb644709e5245a3a4efbbd0": {
    "drop": false,
    "en": "Keep a backup copy on every save, as an option in General.",
@@ -22329,6 +22288,18 @@
     "en": "Text direction, alignment, margins, wrap, automatic sizing, and columns in text boxes, and text editing in other shapes",
     "es": "Dirección, alineación, márgenes, ajuste, tamaño automático y columnas del texto en cuadros de texto, y edición de texto en otras formas",
     "fr": "Direction, alignement, marges, habillage, taille automatique et colonnes du texte dans les zones de texte, et modification du texte dans les autres formes"
+   }
+  },
+  "c35faf3a0980200d67ca5a2b1e2d04c29a970eb9126b7270f6edcdf7460cc63a": {
+   "drop": false,
+   "en": "Add chart elements such as axes, axis titles, chart title, data labels, gridlines, legend, error bars, lines, trendline, and a data table, and apply a quick layout. The data table is saved in the `.pptx` file.",
+   "es": "Agregue elementos de gráfico como ejes, títulos de ejes, título del gráfico, etiquetas de datos, líneas de cuadrícula, leyenda, barras de error, líneas, línea de tendencia y una tabla de datos, y aplique un diseño rápido. La tabla de datos se guarda en el archivo `.pptx`.",
+   "fr": "Ajoutez des éléments de graphique comme les axes, les titres d’axes, le titre du graphique, les étiquettes de données, le quadrillage, la légende, les barres d’erreur, les lignes, la courbe de tendance et un tableau de données, et appliquez une disposition rapide. Le tableau de données est enregistré dans le fichier `.pptx`.",
+   "soon": {
+    "drop": false,
+    "en": "Data table on bar (horizontal), scatter, and pie charts",
+    "es": "Tabla de datos en gráficos de barras horizontales, de dispersión y circulares",
+    "fr": "Tableau de données sur les graphiques à barres horizontales, nuage de points et secteurs"
    }
   },
   "c38f2aff655c2c7cf0070d2abfdc9df311a7618f8286340034b0a00ef70d2e83": {
@@ -22413,18 +22384,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "c4c06b473d63c47fe47aa56612541beec1003ad10c02183440b0149d89ca04c7": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Convert workbook macros to a JeffOffice script, with review before running",
-    "es": "Conversión de las macros de un libro a un script de JeffOffice, con revisión antes de ejecutar",
-    "fr": "Conversion des macros d’un classeur en script JeffOffice, avec vérification avant exécution"
    }
   },
   "c4c84c8dddac7c63f184fc6a60893522642b34eee2c40fd709bbc9fd306d5fc5": {
@@ -22588,18 +22547,6 @@
    "en": "Draw every preset shape with its standard outline, text area, and yellow handles, including handles that move along two axes and handles that turn by an angle. A callout’s pointer counts as part of the shape.",
    "es": "Dibuje cada forma predefinida con su contorno, su área de texto y sus controles amarillos estándar, incluidos los controles que se mueven en dos ejes y los que giran según un ángulo. El puntero de una llamada cuenta como parte de la forma.",
    "fr": "Dessinez chaque forme prédéfinie avec son contour, sa zone de texte et ses poignées jaunes standard, y compris les poignées qui se déplacent selon deux axes et celles qui tournent selon un angle. La pointe d’une bulle fait partie de la forme.",
-   "soon": {
-    "drop": true,
-    "en": "",
-    "es": "",
-    "fr": ""
-   }
-  },
-  "c743dba1a849a222a4e003c2892e275e15321c68f0f22bc4e530bf569bcfbb06": {
-   "drop": false,
-   "en": "Set the font color and the cell fill color from theme colors with tints, standard colors, or more colors, or choose No Fill. A theme color stays a theme reference, so it follows a theme change.",
-   "es": "Establezca el color de fuente y el color de relleno de la celda con colores del tema con matices, colores estándar o más colores, o elija Sin relleno. Un color del tema se conserva como referencia al tema, por lo que sigue los cambios de tema.",
-   "fr": "Définissez la couleur de police et la couleur de remplissage de la cellule avec des couleurs de thème avec nuances, des couleurs standard ou d’autres couleurs, ou choisissez Aucun remplissage. Une couleur de thème reste une référence au thème et suit donc un changement de thème.",
    "soon": {
     "drop": true,
     "en": "",
@@ -22773,18 +22720,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "c96c5858b00aa0e04e7a59c71e315f7f4af744918ebf785000c9eb9229d6e41c": {
-   "drop": false,
-   "en": "The same codes drive `TEXT`, `FIXED`, `DOLLAR`, and CSV export “as shown”.",
-   "es": "Los mismos códigos controlan `TEXT`, `FIXED`, `DOLLAR` y la exportación a CSV «tal como se muestra».",
-   "fr": "Les mêmes codes pilotent `TEXT`, `FIXED`, `DOLLAR` et l’exportation CSV « tel qu’affiché ».",
-   "soon": {
-    "drop": false,
-    "en": "Number format codes in pivot values",
-    "es": "Códigos de formato numérico en los valores de tablas dinámicas",
-    "fr": "Codes de format de nombre dans les valeurs des tableaux croisés dynamiques"
    }
   },
   "c97ba2291251853bf6b964f61a6c126f9667d750d0baf38790ac5dd07116526f": {
@@ -23219,18 +23154,6 @@
     "fr": ""
    }
   },
-  "ce691010ef75176ff8e5c8c260f5b052de183c18ae6c5c2c2f1e601e071b4337": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Recalculation on all cores, with a thread count option",
-    "es": "Recálculo en todos los núcleos, con opción para el número de hilos",
-    "fr": "Recalcul sur tous les cœurs, avec option du nombre de threads"
-   }
-  },
   "ce87f7d46bb46313798d6cd2209572b02fc8edd9c44478a3710573769d3f8c21": {
    "drop": false,
    "en": "Structured references to tables, such as `Table1[Sales]`, `Table1[[#Totals],[Sales]]`, `[@Price]`, and `Table1[[Q1]:[Q4]]`, are evaluated and kept as written.",
@@ -23627,18 +23550,6 @@
     "fr": ""
    }
   },
-  "d367f1046c1628f69157953acde67589ef4bf490b054c5971a7cd3d927796045": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Touch and pen input, and high-DPI scaling on every system",
-    "es": "Entrada táctil y con lápiz, y escalado de alta resolución en todos los sistemas",
-    "fr": "Saisie tactile et au stylet, et mise à l’échelle haute résolution sur tous les systèmes"
-   }
-  },
   "d3a3ab7c136898c54fdb1fa1719c91943cc9fa814c2fb53e5e3effda54a11ed0": {
    "drop": false,
    "en": "Copy styles between documents and files in Manage Styles, by import and export. Inspect Document can detach the attached template.",
@@ -23812,6 +23723,30 @@
    "en": "Saved blocks (shared store)",
    "es": "Bloques guardados (almacén compartido)",
    "fr": "Blocs enregistrés (stockage partagé)",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
+  "d5c0b5a8335cf34493b22ffa85052b37a927c25500c6d260af345491b3ad0a93": {
+   "drop": false,
+   "en": "Speaker notes keep formatting: bold, italic, bulleted and numbered lists, and links. Edit them like slide text; they appear formatted in the notes pane, Notes Page view, Presenter View, and the slide show’s Speaker Notes box.",
+   "es": "Las notas del orador conservan el formato: negrita, cursiva, listas con viñetas y numeradas, y vínculos. Edítelas como el texto de las diapositivas; se muestran con formato en el panel de notas, la vista Página de notas, la vista del presentador y el cuadro de notas del orador de la presentación.",
+   "fr": "Les notes du présentateur conservent la mise en forme : gras, italique, listes à puces et numérotées, et liens. Modifiez-les comme le texte des diapositives ; elles s’affichent mises en forme dans le volet des notes, la vue Pages de notes, le mode Présentateur et la zone de notes du diaporama.",
+   "soon": {
+    "drop": false,
+    "en": "Pictures in notes",
+    "es": "Imágenes en las notas",
+    "fr": "Images dans les notes"
+   }
+  },
+  "d5cd4da1739bb2d16d8857657bf5cd7d4bdb24b8525e22ed63b4d67f232feb81": {
+   "drop": false,
+   "en": "Fonts and colors follow the theme, including heading and body fonts and accent colors with tints, so a theme change restyles the document. A command changes the theme’s colors and fonts in one step that undoes.",
+   "es": "Las fuentes y los colores siguen el tema, incluidas las fuentes de títulos y de cuerpo y los colores de énfasis con matices, de modo que un cambio de tema cambia el estilo del documento. Un comando cambia los colores y las fuentes del tema en un solo paso que se puede deshacer.",
+   "fr": "Les polices et les couleurs suivent le thème, y compris les polices de titre et de corps et les couleurs d’accentuation avec nuances, si bien qu’un changement de thème modifie le style du document. Une commande change les couleurs et les polices du thème en une seule étape annulable.",
    "soon": {
     "drop": true,
     "en": "",
@@ -24431,18 +24366,6 @@
     "fr": ""
    }
   },
-  "de696aa52311e1e995e721732dd934c5727ed08e30e05a712e92ee3cb5fc4cbb": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": true,
-    "en": "",
-    "es": "",
-    "fr": ""
-   }
-  },
   "de7792614c022aa6bb09a7aece9e4e9ea8c45e210e62b14325e23a94c50b4b05": {
    "drop": false,
    "en": "A small bar floats above words selected with the mouse in a text frame, shape, or table cell, with the font box, Bold, Italic, Underline, Decrease and Increase Font Size, the three alignments, Bullets, Numbering, and Font Color.",
@@ -24717,6 +24640,18 @@
     "en": "Reroute Connectors: reroute by hand",
     "es": "Redirigir conectores: redirigir manualmente",
     "fr": "Réacheminer les connecteurs : réacheminer manuellement"
+   }
+  },
+  "e1ae8c377e2aa094f1529fed9406e61dc3d5a9bed92e1ded423c12ca1d016b9c": {
+   "drop": false,
+   "en": "Grammar and style checking runs on your own computer for slide text and speaker notes, in English. Issues get a blue dotted line, and right-clicking shows the message and suggestions. A suggestion changes the text in one step that undoes, and you can ignore one issue or all. The spelling check (`F7`) continues on to grammar issues.",
+   "es": "La revisión de gramática y estilo se ejecuta en su propio equipo para el texto de las diapositivas y las notas del orador, en inglés. Los problemas se marcan con una línea azul punteada, y al hacer clic con el botón derecho se muestran el mensaje y las sugerencias. Una sugerencia cambia el texto en un solo paso que se puede deshacer, y puede ignorar un problema o todos. La revisión ortográfica (`F7`) continúa con los problemas de gramática.",
+   "fr": "La vérification de la grammaire et du style s’exécute sur votre propre ordinateur pour le texte des diapositives et les notes du présentateur, en anglais. Les problèmes sont soulignés par une ligne pointillée bleue, et un clic droit affiche le message et les suggestions. Une suggestion modifie le texte en une seule étape annulable, et vous pouvez ignorer un problème ou tous. La vérification orthographique (`F7`) se poursuit avec les problèmes de grammaire.",
+   "soon": {
+    "drop": false,
+    "en": "Grammar and style checking in other languages",
+    "es": "Revisión de gramática y estilo en otros idiomas",
+    "fr": "Vérification de la grammaire et du style dans d’autres langues"
    }
   },
   "e1c571928aeaa36f78783d7b7e6538879e64c192426b9cf57f89d6cb08764e90": {
@@ -25029,6 +24964,18 @@
     "en": "Defaults for new documents",
     "es": "Valores predeterminados para documentos nuevos",
     "fr": "Valeurs par défaut pour les nouveaux documents"
+   }
+  },
+  "e530aa88cff8360078ae168316473c8d0e404fba3ea5df1ccdb2c5deac681e65": {
+   "drop": false,
+   "en": "Shade cells and set borders from the Table Design tab or the Borders and Shading dialog, with style, width, color, sides, and fill for cells or the table. Draw borders with the border painter, and show cell edges with View Gridlines. Kept in `.docx`, `.odt`, and `.rtf` files.",
+   "es": "Sombree celdas y defina bordes desde la pestaña Diseño de tabla o el cuadro de diálogo Bordes y sombreado, con estilo, ancho, color, lados y relleno para las celdas o la tabla. Dibuje bordes con el pincel de bordes y muestre los bordes de las celdas con Ver cuadrícula. Se conserva en archivos `.docx`, `.odt` y `.rtf`.",
+   "fr": "Ombrez des cellules et définissez des bordures depuis l’onglet Création de tableau ou la boîte de dialogue Bordures et trame, avec style, épaisseur, couleur, côtés et remplissage pour les cellules ou le tableau. Dessinez des bordures avec le pinceau de bordures et affichez les bords des cellules avec Afficher le quadrillage. Conservé dans les fichiers `.docx`, `.odt` et `.rtf`.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
    }
   },
   "e561e4ef2ebbcd573b45a6935e2f0a8a9dd38d9a35d0cb281f67e94138f87076": {
@@ -25391,18 +25338,6 @@
     "fr": "Tableaux imbriqués sans limite de profondeur"
    }
   },
-  "e933904c8e2f8ac2d3feeb7f8fa8db3a34f0aa2dc87682e319e8c4ace820611a": {
-   "drop": false,
-   "en": "The grid is drawn at 10% to 400% zoom with borders in all 13 styles, diagonal borders, wrapped and rotated text, text overflow into empty neighbors, and `####` when a number doesn’t fit.",
-   "es": "La cuadrícula se dibuja con un zoom del 10 % al 400 % con bordes de los 13 estilos, bordes diagonales, texto ajustado y girado, desbordamiento del texto en celdas vacías contiguas y `####` cuando un número no cabe.",
-   "fr": "La grille est dessinée avec un zoom de 10 % à 400 %, avec des bordures des 13 styles, des bordures diagonales, du texte renvoyé à la ligne et pivoté, le débordement du texte dans les cellules voisines vides et `####` lorsqu’un nombre ne tient pas.",
-   "soon": {
-    "drop": true,
-    "en": "",
-    "es": "",
-    "fr": ""
-   }
-  },
   "e935df1f9f79e1f38d439283b9d44129327e98a71e518b8a882cf9b0ec07f5f9": {
    "drop": false,
    "en": "The Help tab has Help, Keyboard Shortcuts (opens the shortcuts page), What's New, and Feedback. About with Check for Updates is on the File screen.",
@@ -25449,6 +25384,18 @@
     "en": "Bevel for letters",
     "es": "Bisel para las letras",
     "fr": "Biseau pour les lettres"
+   }
+  },
+  "e978a63c54fcc9440d2f72f2ddbd35fd8b3e507979e753ac2efbeea03ca0ebf5": {
+   "drop": false,
+   "en": "Collapse the ribbon (`Ctrl+F1`) and use Full Screen (`Ctrl+Shift+F1`). Right-click the status bar numbers to choose Average, Count, Numerical Count, Minimum, Maximum, and Sum.",
+   "es": "Contraiga la cinta de opciones (`Ctrl+F1`) y use Pantalla completa (`Ctrl+Mayús+F1`). Haga clic con el botón derecho en los números de la barra de estado para elegir Promedio, Recuento, Recuento numérico, Mínimo, Máximo y Suma.",
+   "fr": "Réduisez le ruban (`Ctrl+F1`) et utilisez le mode Plein écran (`Ctrl+Maj+F1`). Faites un clic droit sur les nombres de la barre d’état pour choisir Moyenne, Nombre, Nombre de valeurs numériques, Minimum, Maximum et Somme.",
+   "soon": {
+    "drop": false,
+    "en": "Calculation mode choice in the status bar",
+    "es": "Elección del modo de cálculo en la barra de estado",
+    "fr": "Choix du mode de calcul dans la barre d’état"
    }
   },
   "e9ddc2103219380bf21287d39be060b9d17f585a55d54c6d4effdebb3d1df2b4": {
@@ -25756,6 +25703,18 @@
    "en": "Lists use the layout’s bullets and levels. A new slide’s text place takes its layout’s first paragraph, and Increase and Decrease List Level take the layout’s paragraph for the new level. An empty paragraph shows no bullet, and bullet colors follow the theme colors.",
    "es": "Las listas usan las viñetas y los niveles del diseño. El marcador de texto de una diapositiva nueva toma el primer párrafo de su diseño, y Aumentar y Disminuir nivel de lista toman el párrafo del diseño para el nuevo nivel. Un párrafo vacío no muestra viñeta, y los colores de las viñetas siguen los colores del tema.",
    "fr": "Les listes utilisent les puces et les niveaux de la disposition. L’espace de texte d’une nouvelle diapositive reprend le premier paragraphe de sa disposition, et Augmenter et Diminuer le niveau de liste reprennent le paragraphe de la disposition pour le nouveau niveau. Un paragraphe vide n’affiche pas de puce, et les couleurs des puces suivent les couleurs du thème.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
+  "edae984104c27266b2435b9d1dcb23e7b2861d7288635bb0699cb0279fc1c563": {
+   "drop": false,
+   "en": "Choose a text style from a gallery, change the words in a box, and see the shadow on screen and in the saved file.",
+   "es": "Elija un estilo de texto de una galería, cambie las palabras en un cuadro y vea la sombra en pantalla y en el documento guardado.",
+   "fr": "Choisissez un style de texte dans une galerie, modifiez les mots dans un cadre et voyez l’ombre à l’écran et dans le fichier enregistré.",
    "soon": {
     "drop": true,
     "en": "",
@@ -26145,30 +26104,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "f2ec7babdeec28fdbf32a086ab79d287ced8c37a06d7b16c26320aaad597a14a": {
-   "drop": false,
-   "en": "`IF` nests up to 64 levels deep and never runs the branch it does not take. `AND`, `OR`, and `NOT` work with it.",
-   "es": "`IF` admite hasta 64 niveles de anidamiento y nunca ejecuta la rama que no se toma. `AND`, `OR` y `NOT` funcionan con ella.",
-   "fr": "`IF` s’imbrique sur 64 niveaux au maximum et n’exécute jamais la branche non retenue. `AND`, `OR` et `NOT` fonctionnent avec elle.",
-   "soon": {
-    "drop": true,
-    "en": "",
-    "es": "",
-    "fr": ""
-   }
-  },
-  "f2f07250f26eb67fd1fc1445b74a390ccc2ee471820db84010af04c3369f7c08": {
-   "drop": false,
-   "en": "Timelines are read and kept as saved, with the items chosen, the span, and the caption.",
-   "es": "Las escalas de tiempo se leen y se conservan como se guardaron, con los elementos elegidos, el intervalo y el título.",
-   "fr": "Les chronologies sont lues et conservées telles qu’enregistrées, avec les éléments choisis, la période et la légende.",
-   "soon": {
-    "drop": false,
-    "en": "Timeline clicks and levels, and timelines drawn over the cells",
-    "es": "Clics y niveles de la escala de tiempo, y escalas de tiempo dibujadas sobre las celdas",
-    "fr": "Clics et niveaux de chronologie, et chronologies dessinées sur les cellules"
    }
   },
   "f2fc9d77c1e4a367721f7e75b9d0d1bdc312592329f53ad00fe7a1cd47fa9337": {
@@ -26699,18 +26634,6 @@
     "fr": ""
    }
   },
-  "f9f10a85f996bac45068be7045a00b681b3f1cfc26b0885d3558bd08203e0c82": {
-   "drop": false,
-   "en": "Turn Track Changes on and off (`Ctrl+Shift+E`). Inserted and deleted text, and changes to the look of text and paragraphs, are recorded with the author and date. Move through changes with Next and Previous, review them in the Reviewing pane, and accept or reject them one at a time or all at once, including changes in tables, headers, footers, footnotes, and endnotes.",
-   "es": "Active y desactive el control de cambios (`Ctrl+Shift+E`). El texto insertado y eliminado, y los cambios en el aspecto del texto y de los párrafos, se registran con el autor y la fecha. Recorra los cambios con Siguiente y Anterior, revíselos en el panel de revisión y acéptelos o recházelos uno por uno o todos a la vez, incluidos los cambios en tablas, encabezados, pies de página, notas al pie y notas finales.",
-   "fr": "Activez et désactivez le suivi des modifications (`Ctrl+Shift+E`). Le texte inséré et supprimé, ainsi que les changements d’aspect du texte et des paragraphes, sont enregistrés avec l’auteur et la date. Parcourez les modifications avec Suivante et Précédente, examinez-les dans le volet de vérification, et acceptez-les ou refusez-les une par une ou toutes à la fois, y compris dans les tableaux, les en-têtes, les pieds de page, les notes de bas de page et les notes de fin.",
-   "soon": {
-    "drop": false,
-    "en": "Tracked changes for columns, cell merge and split, table properties, text boxes, numbering, indents, sections, and moves",
-    "es": "Cambios con seguimiento para columnas, combinación y división de celdas, propiedades de tabla, cuadros de texto, numeración, sangrías, secciones y movimientos",
-    "fr": "Suivi des modifications pour les colonnes, la fusion et la division de cellules, les propriétés de tableau, les zones de texte, la numérotation, les retraits, les sections et les déplacements"
-   }
-  },
   "f9fee748ef0982d92b57afe3098aa17dc1b1c7b0fe237caab6caa569e9b95b87": {
    "drop": false,
    "en": "Saving reports what it leaves out; those objects stay in the publication and are kept in `.jpub`.",
@@ -26951,18 +26874,6 @@
     "fr": "Sources de bases de données : SQLite, ODBC, PostgreSQL, MySQL et MariaDB, avec connexions enregistrées et actualisation"
    }
   },
-  "fca61840feebe0aab54c92d18ca9d589ee3f74a6ce228376b605e61c5d79741d": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Save as `.doc`",
-    "es": "Guardar como `.doc`",
-    "fr": "Enregistrement au format `.doc`"
-   }
-  },
   "fcac0c2d029f09510afd09f774f0a29bef06ef119c003749b6c4ee8b93f4d3df": {
    "drop": false,
    "en": "Frames (paragraphs positioned on the page, which older files use for drop caps, side notes, and captions) are laid out where the file puts them and kept. The caret, a click, `Home`, `End`, and the up and down arrows work in their text.",
@@ -26985,18 +26896,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "fd4f5d4321ed4ca4455b44d2dc6f7e9080989152695afdd4fa782ba751a764c7": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Create a Video: MP4 of the show with transitions, animations, rehearsed timings, and narration, in a chosen size",
-    "es": "Crear un vídeo: MP4 de la presentación con transiciones, animaciones, tiempos ensayados y narración, en el tamaño elegido",
-    "fr": "Création d’une vidéo : MP4 du diaporama avec transitions, animations, minutages répétés et narration, dans la taille choisie"
    }
   },
   "fd895427eebd6d3792783a9a338ce193817a444ab9f9dafeda8f80a04f7429f9": {
@@ -27100,6 +26999,18 @@
    "en": "Look up synonyms for a word with the thesaurus.",
    "es": "Busque sinónimos de una palabra con el diccionario de sinónimos.",
    "fr": "Recherchez des synonymes d’un mot avec le dictionnaire des synonymes.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
+  "ff03d2ac95c3b490170c698f06bf06324b32574085a9c05c7e1a760cf0b7d129": {
+   "drop": false,
+   "en": "Switch between Print Layout (pages as they print), Draft (one continuous column with an optional style area), and Outline.",
+   "es": "Cambie entre Diseño de impresión (páginas tal como se imprimen), Borrador (una columna continua con un área de estilos opcional) y Esquema.",
+   "fr": "Passez de la mise en page Impression (pages telles qu’imprimées) au mode Brouillon (une colonne continue avec zone de styles facultative) et au mode Plan.",
    "soon": {
     "drop": true,
     "en": "",
