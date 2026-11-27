@@ -75,6 +75,8 @@ QString newCustomViewGuid();
 QString spansToText(const QVector<QPair<quint32, quint32>> &spans);
 // Reads at most `most` spans, stopping there without looking at the rest; each is kept inside `lines` rows (or columns) or dropped.
 QVector<QPair<quint32, quint32>> spansFromText(const QString &text, quint32 lines = kCustomViewRows, int most = kMaxCustomViewSpans);
+// For tests: the characters of text that spansFromText has gone through, over all its calls (a call that stops at its cap goes through the few it needs).
+qint64 spansTextScannedForTest();
 
 // Spans sorted, with the ones that touch or overlap joined; and the part of `a` that `b` does not cover (both given normalized).
 QVector<QPair<quint32, quint32>> normalizedSpans(QVector<QPair<quint32, quint32>> spans);

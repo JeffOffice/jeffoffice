@@ -821,11 +821,11 @@ private Q_SLOTS:
             z.add(QStringLiteral("mimetype"), parts.value(QStringLiteral("mimetype")), false);
             for (auto it = parts.constBegin(); it != parts.constEnd(); ++it)
                 if (it.key() != QLatin1String("mimetype")) z.add(it.key(), it.key() == QLatin1String("META-INF/manifest.xml") ? manifest : it.value(), false);
-            QElapsedTimer t;
-            t.start();
+            // (counted, not timed: the key derivation asks `cancelled` once in 8,192 rounds; a damaged file is refused with none or few asked, and one that went on would be stopped after 20 and end as Cancelled, not Damaged)
+            std::atomic<int> asked{0};
             QByteArray out;
-            QCOMPARE(oc::decryptOdf(z.finish(), QStringLiteral("test"), 1 << 30, false, &out), oc::CryptResult::Damaged);
-            QVERIFY2(t.elapsed() < 300 * std::max(1, qEnvironmentVariableIntValue("JP_TEST_TIME_SCALE")), c.name);
+            QCOMPARE(oc::decryptOdf(z.finish(), QStringLiteral("test"), 1 << 30, false, &out, [&asked] { return ++asked > 20; }), oc::CryptResult::Damaged);
+            QVERIFY2(asked.load() <= 20, c.name);
         }
     }
 

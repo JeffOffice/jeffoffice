@@ -57,13 +57,21 @@ public:
         for (const QString &p : pieces) {
             longest = std::max<int>(longest, int(p.size()));
             if (stubbornMs > 0) std::this_thread::sleep_for(std::chrono::milliseconds(stubbornMs.load()));
+            // (stuck: the piece does not end until it is let go, with a limit of 20 s so that a hang ends)
+            const bool wasStuck = stuck;
+            for (int turns = 0; stuck && turns < 10000; ++turns) std::this_thread::sleep_for(std::chrono::milliseconds(2));
+            if (wasStuck) ++letGo;
             while (hold && !(cancel && cancel->load())) std::this_thread::sleep_for(std::chrono::milliseconds(5));
             if (cancel && cancel->load()) return false;
             out->push_back(pair.key() + QLatin1Char(':') + p);
+            ++finished;
         }
         return true;
     }
     std::atomic<bool> hold{false};
+    std::atomic<bool> stuck{false};   // a piece that is not done until `stuck` is cleared (an engine in the middle of a sentence, held for as long as the test wants)
+    mutable std::atomic<int> letGo{0};        // the stuck pieces that were let go
+    mutable std::atomic<int> finished{0};     // the pieces it finished
     std::atomic<int> stubbornMs{0};   // a piece that takes this long whatever is asked of it (an engine in the middle of a sentence)
     std::atomic<int> longest{0};      // the longest piece it was given
     std::atomic<int> calls{0};
@@ -786,15 +794,14 @@ private Q_SLOTS:
         pane->show();
         pane->findChild<QComboBox *>(QStringLiteral("translateFrom"))->setCurrentIndex(pane->findChild<QComboBox *>(QStringLiteral("translateFrom"))->findData(QStringLiteral("en")));
         pane->findChild<QComboBox *>(QStringLiteral("translateTo"))->setCurrentIndex(pane->findChild<QComboBox *>(QStringLiteral("translateTo"))->findData(QStringLiteral("de")));
-        stub->stubbornMs = 700;   // (a piece the engine cannot be told to leave)
+        stub->stuck = true;   // (a piece the engine cannot be told to leave, and holds until it is let go)
         pane->translateNow();
         QTRY_VERIFY(stub->calls.load() > 0);
-        QElapsedTimer timer;
-        timer.start();
+        // (counted, not timed: the pane is gone while the engine is still in its piece; a pane that waited for the engine would wait for a piece that is let go only below, and the piece's own limit of 20 s would end it first)
         delete pane;
-        QVERIFY2(timer.elapsed() < 100 * std::max(1, qEnvironmentVariableIntValue("JP_TEST_TIME_SCALE")), qPrintable(QString::number(timer.elapsed())));
-        QTest::qWait(10);   // (the finished piece has nobody to tell)
-        stub->stubbornMs = 0;
+        QCOMPARE(stub->finished.load(), 0);
+        stub->stuck = false;
+        QTRY_COMPARE(stub->letGo.load(), 1);   // (the piece ends with nobody to tell)
     }
 
     void twoDownloadsOfOnePairDoNotDeleteEachOthersFiles()
@@ -919,12 +926,10 @@ private Q_SLOTS:
         c.insertText(QString(kMostSourceChars + 5, QLatin1Char('a')));
         c.setPosition(0);
         c.movePosition(QTextCursor::End, QTextCursor::KeepAnchor);
-        QElapsedTimer timer;
-        timer.start();
         const Source s = readSource(c);
         QVERIFY(s.tooLong);
         QVERIFY(s.paragraphs.isEmpty());
-        QVERIFY(timer.elapsed() < 500 * std::max(1, qEnvironmentVariableIntValue("JP_TEST_TIME_SCALE")));
+        QVERIFY(s.snapshot.isEmpty() && s.marks.isEmpty());   // (nothing was read: not the text, not the marks)
     }
 
     void deletedTextIsLeftAloneAndLeftOut()

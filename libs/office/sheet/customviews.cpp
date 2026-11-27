@@ -5,6 +5,8 @@
 
 #include <algorithm>
 
+#include <atomic>
+
 namespace jp::office::sheet {
 
 const char kCustomViewNs[] = "https://jeffoffice.com/xlsx/customview";
@@ -63,6 +65,9 @@ QString spansToText(const QVector<QPair<quint32, quint32>> &spans)
     return parts.join(QLatin1Char(' '));
 }
 
+static std::atomic<qint64> s_spansScanned{0};
+qint64 spansTextScannedForTest() { return s_spansScanned.load(); }
+
 QVector<QPair<quint32, quint32>> spansFromText(const QString &text, quint32 lines, int most)
 {
     QVector<QPair<quint32, quint32>> out;
@@ -94,6 +99,7 @@ QVector<QPair<quint32, quint32>> spansFromText(const QString &text, quint32 line
         if (!ok || !endsRight || a < 1 || b < a || a > qint64(lines)) continue;
         out.append({quint32(a - 1), quint32(std::min<qint64>(b, lines) - 1)});
     }
+    s_spansScanned += at;
     return out;
 }
 

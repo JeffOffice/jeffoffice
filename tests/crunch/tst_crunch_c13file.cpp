@@ -88,10 +88,10 @@ private Q_SLOTS:
     {
         using namespace jp::office::sheet;
         QString many = QStringLiteral("3 ").repeated(8 << 20);
-        QElapsedTimer t;
-        t.start();
+        const qint64 before = spansTextScannedForTest();
         QCOMPARE(spansFromText(many, kCustomViewRows, 5).size(), 5);
-        QVERIFY2(t.elapsed() < 500 * std::max(1, qEnvironmentVariableIntValue("JP_TEST_TIME_SCALE")), "the whole text was split before the cap was applied");
+        // (counted, not timed: five spans are ten characters of sixteen million)
+        QVERIFY2(spansTextScannedForTest() - before <= 100, qPrintable(QString::number(spansTextScannedForTest() - before)));
         // a run reads inside the sheet: one that starts past the last row is dropped, one that ends past it is cut, and what is not a span is skipped
         QCOMPARE(spansFromText(QStringLiteral("1048576 1048577 5:99999999 abc 7:x 8:"), kCustomViewRows), (Spans{{1048575, 1048575}, {4, 1048575}}));
         QCOMPARE(spansFromText(QStringLiteral("16384 16385 2:20000"), kCustomViewColumns), (Spans{{16383, 16383}, {1, 16383}}));
@@ -193,10 +193,11 @@ private Q_SLOTS:
         EditWindow e;
         QVERIFY(e.open(buildXlsx({worksheet(rows, ignored)})));
         QVERIFY(e.settle());
-        QElapsedTimer t;
-        t.start();
+        const qint64 before = CrunchWindow::ignoredRangesLookedAtForTest();
         const auto problems = e.win.w.formulaProblems(false);
-        QVERIFY2(t.elapsed() < 400 * std::max(1, qEnvironmentVariableIntValue("JP_TEST_TIME_SCALE")), qPrintable(QString::number(t.elapsed()) + QStringLiteral(" ms")));
+        // (counted, not timed: an index is asked, and looks at a few of the 9,000 ranges for each of the 4,000 cells; a look through all of them would be 36 million)
+        const qint64 looked = CrunchWindow::ignoredRangesLookedAtForTest() - before;
+        QVERIFY2(looked <= 4000 * 8, qPrintable(QString::number(looked) + QStringLiteral(" ranges looked at")));
         // (A10:A12 and A20 are ignored, the rest of the first 4,000 are not; the list stops at its cap)
         QCOMPARE(problems.size(), size_t(4000 - 4));
         for (const auto &p : problems) QVERIFY(!(p.col == 0 && (p.row == 9 || p.row == 10 || p.row == 11 || p.row == 19)));

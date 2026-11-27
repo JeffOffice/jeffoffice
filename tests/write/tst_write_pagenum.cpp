@@ -680,7 +680,7 @@ void WriteTests::aDesignIsAllOrNothingWhenAStepFails()
     QVERIFY(!w.document()->canUndo());
 }
 
-// The command state is worked out again only when a header, a footer, or the sections changed: with 2,000 sections refreshing the window takes under 50 ms, and Remove Page Numbers is
+// The command state is worked out again only when a header, a footer, or the sections changed: with 2,000 sections refreshing the window looks through nothing again, and Remove Page Numbers is
 // on only while something is marked (Undo and Redo and an edit of a header bring it up to date).
 void WriteTests::theRemoveCommandsStateIsCachedAndFollowsTheHeaders()
 {
@@ -697,11 +697,8 @@ void WriteTests::theRemoveCommandsStateIsCachedAndFollowsTheHeaders()
     w.refreshForTest();
     QVERIFY(!w.act("pn.remove")->isEnabled());
     const int scans = pageNumberScansForTest();
-    QElapsedTimer timer;
-    timer.start();
     for (int i = 0; i < 5; ++i) w.refreshForTest();
-    QCOMPARE(pageNumberScansForTest(), scans);   // (the answer was kept: the headers were not looked through again)
-    QVERIFY2(timer.elapsed() / 5 < 50 * std::max(1, qEnvironmentVariableIntValue("JP_TEST_TIME_SCALE")), qPrintable(QStringLiteral("%1 ms").arg(timer.elapsed() / 5)));
+    QCOMPARE(pageNumberScansForTest(), scans);   // (the answer was kept: the headers were not looked through again; counted, not timed)
     // The cache is brought up to date by what changes the headers.
     QVERIFY(w.insertPageNumberDesign(QStringLiteral("top.plain.right")));
     w.refreshForTest();

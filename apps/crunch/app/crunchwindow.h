@@ -794,6 +794,8 @@ public:
     {
         return (m_loaded && !m_loaded->calcIdle.load()) || m_breakJob || m_breaksTimer.isActive() || m_breaksStepTimer.isActive() || m_patternScan || (m_patternTimer && m_patternTimer->isActive()) || m_autoTimer.isActive();
     }
+    // For tests: the ranges of ignored errors that formulaProblems has looked at, over all calls (each problem is asked of an index, which looks at a few).
+    static qint64 ignoredRangesLookedAtForTest();
     void stepPageBreaksNow() { stepPageBreaks(); }
     static qint64 pageBreakSliceWork();
     // The lines for a sheet's pages: a row's line for each page that begins a band of rows, and a column's likewise (a break set by hand is marked, unless the sheet is fitted to pages).

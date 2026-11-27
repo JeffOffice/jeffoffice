@@ -1,4 +1,5 @@
 // Tools of the Review, Data, and Formulas tabs that are not part of an older group: Workbook Statistics, Goal Seek, Subtotal, and Advanced Filter.
+#include <atomic>
 #include "app/crunchwindow.h"
 #include "app/settings.h"
 #include <QMenu>
@@ -501,6 +502,7 @@ quint16 ignoreBitOf(crunch::FormulaProblem::Kind kind)
 
 namespace {
 // The cells a person chose to ignore, by kind, so that a problem is looked up and not compared with each range: the ranges of a kind sorted by their first row, with the largest last row of those up to each.
+std::atomic<qint64> g_ignoredLookedAt{0};
 struct IgnoreIndex {
     struct Entry {
         quint32 row1, row2, col1, col2;
@@ -531,12 +533,15 @@ struct IgnoreIndex {
         size_t n = size_t(std::upper_bound(k.ranges.begin(), k.ranges.end(), row, [](quint32 r, const Entry &e) { return r < e.row1; }) - k.ranges.begin());
         while (n > 0 && k.reach[n - 1] >= row) {
             const Entry &e = k.ranges[--n];
+            ++g_ignoredLookedAt;
             if (row <= e.row2 && col >= e.col1 && col <= e.col2) return true;
         }
         return false;
     }
 };
 } // namespace
+
+qint64 CrunchWindow::ignoredRangesLookedAtForTest() { return g_ignoredLookedAt.load(); }
 
 std::vector<crunch::FormulaProblem> CrunchWindow::formulaProblems(bool patterns) const
 {
