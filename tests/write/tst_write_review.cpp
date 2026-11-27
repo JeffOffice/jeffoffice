@@ -8217,6 +8217,41 @@ private Q_SLOTS:
         QVERIFY2(work[0] > 0 && work[1] < work[0] * 6, qPrintable(QStringLiteral("%1 then %2 for four times the references").arg(work[0]).arg(work[1])));
     }
 
+    // A tracked cut of footnotes tells the pages their notes changed once for the whole cut, not once for each note (each told the pages to lay the footnote area out again: the work was the notes
+    // times their words, a cut of 80 notes of 2,500 characters took half a minute). Counted: the times the notes changed, and the words they held each time.
+    void trackedCutNoteWork(int n, int filler, int *told, qint64 *work)
+    {
+        ManyNotesWindow m(manyNotesDoc(n, false, filler), n, true);
+        m.selectReferences();
+        QTRY_VERIFY(m.w.act("edit.cut")->isEnabled());
+        QSignalSpy changed(m.doc, &WriteDoc::noteChanged);
+        m.w.act("edit.cut")->trigger();
+        *told = int(changed.count());
+        *work = qint64(*told) * n * (filler + 5);
+    }
+    void aTrackedCutOfManyFootnotesTellsThePagesOnceNotOncePerNote()
+    {
+        int told[3] = {0, 0, 0};
+        qint64 few = 0, many = 0, manyLong = 0;
+        trackedCutNoteWork(20, 625, &told[0], &few);
+        trackedCutNoteWork(80, 625, &told[1], &many);
+        trackedCutNoteWork(80, 2490, &told[2], &manyLong);
+        QVERIFY2(few > 0 && many < few * 6, qPrintable(QStringLiteral("%1 then %2 for four times the notes").arg(few).arg(many)));
+        QVERIFY2(told[1] >= 1 && told[1] <= 3 && told[2] >= 1 && told[2] <= 3, qPrintable(QStringLiteral("%1 and %2").arg(told[1]).arg(told[2])));
+        QVERIFY(manyLong > 0);
+    }
+    // (And the cut is still one step: one Undo takes back every note's marks.)
+    void aTrackedCutOfFootnotesIsOneUndoStep()
+    {
+        ManyNotesWindow m(manyNotesDoc(10, false, 40), 10, true);
+        m.selectReferences();
+        QTRY_VERIFY(m.w.act("edit.cut")->isEnabled());
+        m.w.act("edit.cut")->trigger();
+        QVERIFY(m.doc->undo());
+        QCOMPARE(sessionNoteWords(*m.doc, false, 30), manyExpected(10, 40));
+        QCOMPARE(count(savedByWindow(m.w).isEmpty() ? QByteArray() : partXml(savedByWindow(m.w), "/word/footnotes.xml"), "<w:del "), 0);
+    }
+
     // A pasted note that holds a link and a simple field: with Track Changes on the insertions are inside the link and the field, never the link or the field inside an insertion (an insertion holds runs).
     static bool wrapperInsideInsertion(const QByteArray &part)
     {

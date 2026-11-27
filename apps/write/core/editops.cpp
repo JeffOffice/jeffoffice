@@ -902,7 +902,10 @@ void trackedDeleteRange(WriteDoc &doc, QTextDocument *d, int from, int to, QText
         if (coversMark && !markFormat(d->findBlockByNumber(number)).hasProperty(prop::TrackedDeleted)) markParagraphMark(doc, d->findBlockByNumber(number), "del");
         if (!b.previous().isValid()) break;
     }
-    for (const NoteRef &ref : std::as_const(noteRefs)) markNoteDeleted(doc, ref);
+    {
+        const WriteDoc::NoteChangeBatch batch(doc);   // (the pages are told once for all the notes)
+        for (const NoteRef &ref : std::as_const(noteRefs)) markNoteDeleted(doc, ref);
+    }
     edit.endEditBlock();
     if (start) *start = head;
     if (end) *end = tail;

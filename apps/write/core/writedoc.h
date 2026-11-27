@@ -223,6 +223,21 @@ public:
         NoteBatch &operator=(const NoteBatch &) = delete;
         WriteDoc &doc;
     };
+    // While alive, the notes edited tell the pages once, when it ends (noteChanged), not once for each edit of each (a tracked cut marks the words of every note it holds).
+    struct NoteChangeBatch {
+        explicit NoteChangeBatch(WriteDoc &d) : doc(d) { ++doc.m_noteChangeDefer; }
+        ~NoteChangeBatch()
+        {
+            if (--doc.m_noteChangeDefer == 0 && doc.m_noteChangeHeld) {
+                QTextDocument *last = doc.m_noteChangeHeld;
+                doc.m_noteChangeHeld = nullptr;
+                Q_EMIT doc.noteChanged(last);
+            }
+        }
+        NoteChangeBatch(const NoteChangeBatch &) = delete;
+        NoteChangeBatch &operator=(const NoteChangeBatch &) = delete;
+        WriteDoc &doc;
+    };
     // The references to endnotes changed in an edit that was not seen as a change of the text's revision (it was made inside an edit block begun before): the notes are to be set again.
     bool endnoteSettlePending() const { return m_endnoteSettlePending; }
     void rebuildEndnoteTails();
@@ -1016,6 +1031,8 @@ private:
     void reclaimDeadNotes(bool endnotes, int keep);
     // Notes made one after another by a paste (a batch): the Id of the next is the one after the last made, and notes put in and taken back are looked for once, at the first.
     int m_noteBatch = 0;
+    int m_noteChangeDefer = 0;
+    QTextDocument *m_noteChangeHeld = nullptr;   // the last note edited while the pages were not told
     int m_batchFootnoteHighest = 0, m_batchEndnoteHighest = 0;
     bool m_batchReclaimed[2] = {false, false};
     // The references to endnotes that the settling counts (those that name a note the document has, and are not what a tracked change deleted), kept as the story changes, so that an edit that

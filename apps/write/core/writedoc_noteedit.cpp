@@ -240,7 +240,8 @@ void WriteDoc::noteEdited(QTextDocument *story)
     if (!footnoteIdOf(story, &id)) return;
     if (!m_dirtyNotes.contains(story)) m_dirtyNotes.push_back(story);
     if (m_pager) m_pager->noteEdited(QStringLiteral("fn%1").arg(id), footnoteReferences(id));
-    Q_EMIT noteChanged(story);
+    if (m_noteChangeDefer > 0) m_noteChangeHeld = story;
+    else Q_EMIT noteChanged(story);
 }
 
 // ---- making notes
