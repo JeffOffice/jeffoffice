@@ -930,6 +930,11 @@ void CrunchWindow::createActions()
         mk(QStringLiteral("zoom.%1").arg(pct), QStringLiteral("%1%").arg(pct), pct == 100 ? "zoom-in" : "", QKeySequence(), [this, pct] { setViewZoom(pct / 100.0); });
     }
     act("zoom.100")->setText(tr("100%"));
+    mk("zoom.selection", tr("Zoom to Selection"), "zoom-in", QKeySequence(), [this] {
+        if (m_viewKind == 2) return;   // (the pages have their own zoom)
+        const grid::Selection &sel = m_view->selection();
+        m_view->zoomToRange(sel.range.row1, sel.range.col1, sel.range.row2, sel.range.col2);
+    });
     mk("view.freeze", tr("Freeze Panes"), "snowflake", QKeySequence(), [this] { freezeAtSelection(); });
     mk("view.freezeRow", tr("Freeze Top Row"), "panel-top", QKeySequence(), [this] { m_view->freezeTopRow(); syncPanes(); });
     mk("view.freezeCol", tr("Freeze First Column"), "panel-left", QKeySequence(), [this] { m_view->freezeFirstColumn(); syncPanes(); });

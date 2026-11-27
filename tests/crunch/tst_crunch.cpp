@@ -440,6 +440,47 @@ private Q_SLOTS:
         QVERIFY(win.w.findChild<QLabel *>(QStringLiteral("selectionStats"))->text().startsWith(QLatin1String("Average: ")));
     }
 
+    // Zoom to Selection makes the selected block as large as the window allows (whole percents, 10% to 400%) and brings its top left cell to the corner; 100% puts the zoom back.
+    void zoomToSelectionFillsTheWindowWithTheSelectedCells()
+    {
+        const PinnedLocale english;
+        Folder folder;
+        Window win;
+        QVERIFY(win.open(folder.write(QStringLiteral("budget.xlsx"), budgetWorkbook())));
+        grid::GridView *v = win.w.view();
+        const grid::GridLayout &L = v->sheet().layout();
+        QVERIFY(L.viewport().width() > 200 && L.viewport().height() > 100);
+        QVERIFY(win.w.act("zoom.selection")->isEnabled());
+        v->selectRange(2, 1, 5, 3);   // B3:D6
+        win.w.act("zoom.selection")->trigger();
+        const double z = v->zoom();
+        QVERIFY2(z > 1.0 && z < 4.0, qPrintable(QString::number(z)));
+        QCOMPARE(std::round(z * 100), z * 100);   // (a whole percent)
+        const double freeW = L.viewport().width() - L.headerWidth(), freeH = L.viewport().height() - L.headerHeight();
+        const double w = double(L.cols.position(4) - L.cols.position(1)), h = double(L.rows.position(6) - L.rows.position(2));
+        QVERIFY(w * z <= freeW + 1 && h * z <= freeH + 1);                       // (the block is whole in the window)
+        QVERIFY(w * (z + 0.01) > freeW - 1 || h * (z + 0.01) > freeH - 1);      // (and no larger percent would fit)
+        // (the first cell of the block is where the part that scrolls begins: past the rows and columns held in place)
+        auto cornerOk = [&](qint64 row, qint64 col) {
+            const QPoint want(L.headerWidth() + int(std::lround(L.zoom() * double(L.cols.position(L.frozenCols())))), L.headerHeight() + int(std::lround(L.zoom() * double(L.rows.position(L.frozenRows())))));
+            const QPoint got = L.cellRect(row, col).topLeft();
+            return std::abs(got.x() - want.x()) <= 2 && std::abs(got.y() - want.y()) <= 2;
+        };
+        QVERIFY(cornerOk(2, 1));
+        QCOMPARE(v->selection().range.row1, qint64(2));   // (the selection is as it was)
+        // one cell is zoomed as far as the most
+        v->selectCell(3, 2);
+        win.w.act("zoom.selection")->trigger();
+        QCOMPARE(v->zoom(), grid::GridLayout::kMaxZoom);
+        QVERIFY(cornerOk(3, 2));
+        // the whole sheet is zoomed as far as the least
+        win.w.act("edit.selectAll")->trigger();
+        win.w.act("zoom.selection")->trigger();
+        QCOMPARE(v->zoom(), grid::GridLayout::kMinZoom);
+        win.w.act("zoom.100")->trigger();
+        QCOMPARE(v->zoom(), 1.0);
+    }
+
     // The File screen has its Open and About pages (Open lists the workbooks opened lately), and Esc closes it; Help opens on the topic for the page.
     void theFileScreenAndHelp()
     {

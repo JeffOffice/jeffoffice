@@ -411,6 +411,27 @@ void GridView::setZoom(double z)
     Q_EMIT zoomChanged(L.zoom());
 }
 
+bool GridView::zoomToRange(qint64 row1, qint64 col1, qint64 row2, qint64 col2)
+{
+    GridLayout &L = m_sheet.layout();
+    if (row1 > row2) std::swap(row1, row2);
+    if (col1 > col2) std::swap(col1, col2);
+    row1 = std::max<qint64>(row1, 0);
+    col1 = std::max<qint64>(col1, 0);
+    row2 = std::min(row2, L.rows.count() - 1);
+    col2 = std::min(col2, L.cols.count() - 1);
+    if (row2 < row1 || col2 < col1) return false;
+    const qint64 w = L.cols.position(col2 + 1) - L.cols.position(col1), h = L.rows.position(row2 + 1) - L.rows.position(row1);
+    if (w <= 0 || h <= 0) return false;
+    const double freeW = std::max(1, L.viewport().width() - L.headerWidth()), freeH = std::max(1, L.viewport().height() - L.headerHeight());
+    const double fit = std::floor(std::min(freeW / double(w), freeH / double(h)) * 100) / 100;
+    setZoom(std::min(GridLayout::kMaxZoom, std::max(GridLayout::kMinZoom, fit)));
+    const qint64 x = col1 >= L.frozenCols() ? L.cols.position(col1) - L.cols.position(L.frozenCols()) : L.scrollX();
+    const qint64 y = row1 >= L.frozenRows() ? L.rows.position(row1) - L.rows.position(L.frozenRows()) : L.scrollY();
+    scrollTo(x, y);
+    return true;
+}
+
 void GridView::setShowGridlines(bool on)
 {
     m_gridlines = on;

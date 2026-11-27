@@ -70,6 +70,9 @@ public:
 
     double zoom() const { return m_sheet.layout().zoom(); }
     void setZoom(double zoom);
+    // Zooms (in whole percents, between the least and the most) so that the block of cells fills the window, and scrolls to put its top left corner at the corner of the window; false if the block
+    // has no size (all its rows or columns are hidden).
+    bool zoomToRange(qint64 row1, qint64 col1, qint64 row2, qint64 col2);
     bool showGridlines() const { return m_gridlines; }
     // Zeros shown or hidden on the sheet in view (the sheet view's showZeros).
     bool showZeros() const { return m_sheet.showZeros(); }

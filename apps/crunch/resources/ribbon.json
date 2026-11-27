@@ -553,9 +553,10 @@
             {
               "large": {"id": "ribbon.zoom", "text": "Zoom", "icon": "zoom-in"},
               "keytip": "Q",
-              "menu": ["zoom.200", "zoom.150", "zoom.100", "zoom.75", "zoom.50", "zoom.25", "zoom.10"]
+              "menu": ["zoom.200", "zoom.150", "zoom.100", "zoom.75", "zoom.50", "zoom.25", "zoom.10", "zoom.selection"]
             },
-            {"large": "zoom.100", "keytip": "J"}
+            {"large": "zoom.100", "keytip": "J"},
+            {"large": "zoom.selection", "keytip": "G"}
           ]
         },
         {
