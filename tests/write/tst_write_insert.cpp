@@ -1443,6 +1443,34 @@ private Q_SLOTS:
         QVERIFY(!w.act("view.navigationPane")->isChecked());
     }
 
+    void promotingAHeadingInTheNavigationPaneTakesTheHeadingsUnderItUpAndUndoesInOneStep()
+    {
+        QByteArray body;
+        body += "<w:p><w:pPr><w:outlineLvl w:val=\"0\"/></w:pPr><w:r><w:t>One</w:t></w:r></w:p>" + para("text") + "<w:p><w:pPr><w:outlineLvl w:val=\"1\"/></w:pPr><w:r><w:t>One A</w:t></w:r></w:p>"
+                + para("more text") + "<w:p><w:pPr><w:outlineLvl w:val=\"2\"/></w:pPr><w:r><w:t>One A a</w:t></w:r></w:p>" + "<w:p><w:pPr><w:outlineLvl w:val=\"0\"/></w:pPr><w:r><w:t>Two</w:t></w:r></w:p>";
+        WriteWindow w;
+        w.resize(1100, 800);
+        w.show();
+        w.setDocument(open(makeDocx(body)), QString());
+        w.act("view.navigationPane")->trigger();
+        QTreeWidget *tree = w.navigationPane()->headings();
+        auto level = [&](int block) { return w.document()->story()->findBlockByNumber(block).blockFormat().intProperty(write::prop::Outline); };
+        QCOMPARE(tree->topLevelItemCount(), 2);
+        QTreeWidgetItem *oneA = tree->topLevelItem(0)->child(0);
+        QCOMPARE(oneA->text(0), QStringLiteral("One A"));
+        QVERIFY(w.navigationPane()->moveHeadingLevel(oneA, -1));
+        QCOMPARE(level(2), 0);   // (One A)
+        QCOMPARE(level(4), 1);   // (One A a goes up with it)
+        QCOMPARE(level(0), 0);
+        QCOMPARE(level(5), 0);
+        QCOMPARE(tree->topLevelItemCount(), 3);
+        w.document()->undo();
+        QCOMPARE(level(2), 1);
+        QCOMPARE(level(4), 2);
+        QTRY_COMPARE(tree->topLevelItemCount(), 2);   // (the list is made again after a pause)
+        w.act("view.navigationPane")->trigger();
+    }
+
     void theNavigationPaneSearchListsEachPlaceAndGoesToIt()
     {
         Win win({"alpha beta", "beta gamma beta"});
