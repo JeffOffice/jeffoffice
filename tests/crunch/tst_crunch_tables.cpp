@@ -2871,6 +2871,7 @@ private Q_SLOTS:
     // The state column says "newer version" only for a higher version number or an unknown kind of step; a garbled steps list, a text from an old form, and a missing path say "can't be read".
     void theQueryStateTellsNewerFromUnreadable()
     {
+        QString shownPath;
         auto stateOf = [&](const QString &source) {
             const QString part = QStringLiteral("<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\n<table xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\" id=\"1\" name=\"Q\" displayName=\"Q\" ref=\"F1:G3\">"
                                                "<tableColumns count=\"2\"><tableColumn id=\"1\" name=\"a\"/><tableColumn id=\"2\" name=\"b\"/></tableColumns><tableStyleInfo name=\"TableStyleMedium2\" showRowStripes=\"1\"/>"
@@ -2880,7 +2881,10 @@ private Q_SLOTS:
             EditWindow e;
             if (!e.open(withTables(buildXlsx({worksheet(rows)}), {part}))) return QStringLiteral("not opened");
             QString state;
-            e.win.w.setConnectionsAsker([&](jp::ConnectionsPane *pane) { state = pane->table()->rowCount() == 1 ? pane->table()->item(0, 4)->text() : QStringLiteral("no row"); });
+            e.win.w.setConnectionsAsker([&](jp::ConnectionsPane *pane) {
+                state = pane->table()->rowCount() == 1 ? pane->table()->item(0, 4)->text() : QStringLiteral("no row");
+                if (pane->table()->rowCount() == 1) shownPath = pane->table()->item(0, 1)->text();
+            });
             e.win.w.act(QStringLiteral("data.connections"))->trigger();
             return state;
         };
@@ -2891,7 +2895,13 @@ private Q_SLOTS:
         QCOMPARE(stateOf(base + QStringLiteral("&steps=%5B%7B%22op%22%3A%22filter%22%2C%22col%22%3A%22a%22%2C%22cmp%22%3A%22zz%22%7D%5D")), QStringLiteral("The steps can't be read, so it can't be run"));
         QCOMPARE(stateOf(QStringLiteral("jo-data:2?kind=json")), QStringLiteral("Can't be read, so it can't be run"));
         QCOMPARE(stateOf(QStringLiteral("jo-data:1?garbled")), QStringLiteral("Can't be read, so it can't be run"));
+        QCOMPARE(stateOf(base + QStringLiteral("&steps=%5B%7B%22op%22%3A5%7D%5D")), QStringLiteral("The steps can't be read, so it can't be run"));   // (an op that is not text is unreadable, not newer)
         QCOMPARE(stateOf(base), QStringLiteral("Ready"));
+        // a path that holds a direction-changing character is shown with it as a visible code, never as the character
+        QCOMPARE(stateOf(QStringLiteral("jo-data:2?kind=json&path=%2Ftmp%2F%E2%80%AEx.json")), QStringLiteral("Ready"));
+        QVERIFY(!shownPath.isEmpty());
+        QVERIFY(!shownPath.contains(QChar(0x202E)));
+        QVERIFY(shownPath.contains(QStringLiteral("/tmp/")));
     }
 
     // The list of queries: name, file, last run, rows, state; Refresh runs the chosen one and the list shows the new count; a query from a newer version is listed, can't be run, and is saved as it was.

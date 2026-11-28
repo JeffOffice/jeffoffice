@@ -1,5 +1,7 @@
 #include "app/connectionspane.h"
 
+#include "app/getdata.h"
+
 #include "app/plaintext.h"
 #include "app/uistyle.h"
 #include "core/syslocale.h"
@@ -89,7 +91,7 @@ void ConnectionsPane::reload()
         else if (!conn.stepsProblem.isEmpty()) state = conn.stepsNewer ? tr("Steps can't be run: made by a newer version") : tr("The steps can't be read, so it can't be run");
         const QString last = conn.ranAt > 0 ? jp::systemLocale().locale.toString(QDateTime::fromSecsSinceEpoch(conn.ranAt), QLocale::ShortFormat) : tr("Not recorded");
         const QString rows = conn.rowCount >= 0 ? jp::systemLocale().locale.toString(conn.rowCount) : QString();
-        const QStringList cells{conn.name.isEmpty() ? tables[t].name : conn.name, readable ? conn.path : QString(), readable ? last : QString(), readable ? rows : QString(), state};
+        const QStringList cells{conn.name.isEmpty() ? tables[t].name : conn.name, readable ? getDataVisibleText(conn.path) : QString(), readable ? last : QString(), readable ? rows : QString(), state};
         for (int c = 0; c < cells.size(); ++c) {
             auto *item = new QTableWidgetItem(cells[c]);
             if (c == 1) item->setToolTip(jp::plainToolTip(cells[c]));
