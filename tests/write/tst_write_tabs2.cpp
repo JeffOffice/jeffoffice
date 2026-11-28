@@ -4,6 +4,7 @@
 #include "../withdialog.h"
 #include "io/blocklibrary.h"
 #include "app/help.h"
+#include "core/version.h"
 #include "app/writeoutlineview.h"
 #include "app/pagepaint.h"
 #include "app/pageview.h"
@@ -33,6 +34,10 @@
 
 #include "office/package.h"
 #include <QAction>
+#include <QListWidget>
+#include <QTextBrowser>
+#include <QToolButton>
+#include <QUrlQuery>
 #include <QApplication>
 #include <QFrame>
 #include <QMouseEvent>
@@ -574,6 +579,66 @@ private Q_SLOTS:
         w.act(QStringLiteral("help.shortcuts"))->trigger();
         dock = w.findChild<QDockWidget *>(QStringLiteral("helpDock"));
         QVERIFY(dock && dock->isVisible());
+    }
+
+    void theHelpPaneSearchesFollowsLinksAndGoesBackAndForward()
+    {
+        WriteWindow w;
+        w.resize(1300, 800);
+        w.setNotifier([](const QString &, const QString &) {});
+        w.show();
+        w.act(QStringLiteral("help.show"))->trigger();
+        jp::HelpView *v = w.helpView();
+        QVERIFY(v && v->isVisible());
+        QCOMPARE(v->currentTopic(), QStringLiteral("index"));
+        auto texts = [v] {
+            QStringList t;
+            for (int i = 0; i < v->results()->count(); ++i) t << v->results()->item(i)->text();
+            return t;
+        };
+        auto button = [v](const QString &name) {
+            for (auto *b : v->findChildren<QToolButton *>())
+                if (b->accessibleName() == name) return b;
+            return static_cast<QToolButton *>(nullptr);
+        };
+        // The search finds topics and commands, and says so when it finds nothing.
+        v->search(QStringLiteral("mail merge"));
+        QVERIFY(v->results()->isVisible() && !v->browser()->isVisible());
+        const QStringList found = texts();
+        QVERIFY2(found.contains(QStringLiteral("Help topics")) && found.contains(QStringLiteral("Commands")), qPrintable(found.join(QStringLiteral(" / "))));
+        v->search(QStringLiteral("zzqxv"));
+        QCOMPARE(texts(), QStringList{QStringLiteral("Nothing found. Try other words, or open the contents.")});
+        // Enter opens the first topic found, and the topic shows in place of the results.
+        v->search(QStringLiteral("mail merge"));
+        QTest::keyClick(v->searchBox(), Qt::Key_Return);
+        QCOMPARE(v->currentTopic(), QStringLiteral("mail-merge"));
+        QVERIFY(v->browser()->isVisible() && v->searchBox()->text().isEmpty());
+        // A link goes to its topic; Back and Forward go between the topics; Contents goes home.
+        QVERIFY(!button(QStringLiteral("Forward"))->isEnabled());
+        Q_EMIT v->browser()->anchorClicked(QUrl(QStringLiteral("fields.md")));
+        QCOMPARE(v->currentTopic(), QStringLiteral("fields"));
+        QVERIFY(button(QStringLiteral("Back"))->isEnabled());
+        button(QStringLiteral("Back"))->click();
+        QCOMPARE(v->currentTopic(), QStringLiteral("mail-merge"));
+        QVERIFY(button(QStringLiteral("Forward"))->isEnabled());
+        button(QStringLiteral("Forward"))->click();
+        QCOMPARE(v->currentTopic(), QStringLiteral("fields"));
+        button(QStringLiteral("Contents"))->click();
+        QCOMPARE(v->currentTopic(), QStringLiteral("index"));
+        // A web link goes to the browser, not to a topic. Feedback carries the program's name and version.
+        const auto saved = help::openUrl;
+        QList<QUrl> opened;
+        help::openUrl = [&](const QUrl &u) {
+            opened << u;
+            return true;
+        };
+        Q_EMIT v->browser()->anchorClicked(QUrl(QStringLiteral("https://example.com/page")));
+        w.act(QStringLiteral("help.feedback"))->trigger();
+        help::openUrl = saved;
+        QCOMPARE(v->currentTopic(), QStringLiteral("index"));
+        QCOMPARE(opened.size(), 2);
+        QCOMPARE(opened[0], QUrl(QStringLiteral("https://example.com/page")));
+        QVERIFY(QUrlQuery(opened[1]).queryItemValue(QStringLiteral("body"), QUrl::FullyDecoded).contains(QStringLiteral("JeffWrite ") + jp::versionText() + QStringLiteral(" on ")));
     }
 
     void aFieldsCodeCanBeReadAndChanged()
