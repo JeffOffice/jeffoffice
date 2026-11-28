@@ -1636,6 +1636,30 @@ The file can't be read.</source>
 No se puede leer el fichero.</translation>
     </message>
     <message>
+        <source>%1 in this workbook asks to read this file from this computer:</source>
+        <translation type="unfinished">%1 de este documento solicita leer este fichero de este equipo:</translation>
+    </message>
+    <message>
+        <source>Queries, pivot tables, and links in this workbook ask to read these files from this computer:</source>
+        <translation type="unfinished">Las consultas, tablas dinámicas y vínculos de este documento solicitan leer estos ficheros de este equipo:</translation>
+    </message>
+    <message>
+        <source>Read the file only if you trust where this workbook came from. Anything in it will be put in this workbook.</source>
+        <translation type="unfinished">Lea el fichero solo si confía en el origen de este documento. Todo lo que contenga se insertará en este documento.</translation>
+    </message>
+    <message>
+        <source>Read the Files reads every file named here, including any that are only counted.</source>
+        <translation type="unfinished">Leer los ficheros lee todos los ficheros indicados aquí, incluidos los que solo se cuentan.</translation>
+    </message>
+    <message>
+        <source>Read the File</source>
+        <translation type="unfinished">Leer el fichero</translation>
+    </message>
+    <message>
+        <source>Read the Files</source>
+        <translation type="unfinished">Leer los ficheros</translation>
+    </message>
+    <message>
         <source>From File…</source>
         <translation type="unfinished">Desde fichero…</translation>
     </message>
@@ -1650,6 +1674,10 @@ No se puede leer el fichero.</translation>
     <message>
         <source>%1: the link to the file can't be read, so nothing was changed.</source>
         <translation type="unfinished">%1: no se puede leer el vínculo al fichero, así que no se cambió nada.</translation>
+    </message>
+    <message>
+        <source>%1: the file was not read, because it was not approved.</source>
+        <translation type="unfinished">%1: el fichero no se leyó porque no fue aprobado.</translation>
     </message>
     <message>
         <source>The data was read again from its files.</source>
@@ -2425,6 +2453,17 @@ No se encontraron los ficheros de la Ayuda junto al programa. Volver a instalar 
     </message>
 </context>
 <context>
+    <name>jp::PubExport</name>
+    <message>
+        <source>the macro project the file held (it is never run, and a new %1 file does not keep it)</source>
+        <translation type="unfinished">el proyecto de macros que contenía el fichero (nunca se ejecuta, y un nuevo fichero %1 no lo conserva)</translation>
+    </message>
+    <message>
+        <source>the fonts stored in the file (they are used while it is open, and a new %1 file does not keep them)</source>
+        <translation type="unfinished">las fuentes almacenadas en el fichero (se usan mientras está abierto, y un nuevo fichero %1 no las conserva)</translation>
+    </message>
+</context>
+<context>
     <name>jp::ReusePane</name>
     <message>
         <source>All Files (*)</source>
@@ -2863,6 +2902,10 @@ No se pudo aplicar la contraseña al fichero.</translation>
     <message>
         <source>The file "%1" could not be read; the pivot keeps its last data.</source>
         <translation type="unfinished">No se pudo leer el fichero "%1"; la tabla dinámica conserva sus últimos datos.</translation>
+    </message>
+    <message>
+        <source>The file "%1" was not read, because it was not approved. The pivot keeps its last data.</source>
+        <translation type="unfinished">El fichero "%1" no se leyó porque no fue aprobado. La tabla dinámica conserva sus últimos datos.</translation>
     </message>
     <message numerus="yes">
         <source>%n pivot table(s) were not read again when the file opened: there is too much data. Use Refresh All.</source>

@@ -5948,7 +5948,7 @@ Back page story	4</source>
     <message>
         <location line="+36"/>
         <source>Grammar is checked in English only. Text in other languages is checked for spelling only.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Грамматика проверяется только для английского языка. Текст на других языках проверяется только на орфографию.</translation>
     </message>
     <message>
         <location line="+8"/>
@@ -29864,7 +29864,7 @@ The file that was there is as it was.</source>
     <message>
         <location line="-12"/>
         <source>Link %1</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Ссылка %1</translation>
     </message>
     <message>
         <location line="+18"/>
@@ -33576,37 +33576,37 @@ This file is protected with a password. Password:</source>
     <message>
         <location filename="../apps/crunch/app/crunchwindow_getdata.cpp" line="+59"/>
         <source>%1 in this workbook asks to read this file from this computer:</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">%1 в этой книге запрашивает чтение следующего файла с этого компьютера:</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Queries, pivot tables, and links in this workbook ask to read these files from this computer:</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Запросы, сводные таблицы и связи в этой книге запрашивают чтение следующих файлов с этого компьютера:</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Read the file only if you trust where this workbook came from. Anything in it will be put in this workbook.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Читайте файл, только если вы доверяете источнику этой книги. Всё, что в нём содержится, будет помещено в эту книгу.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Read the Files reads every file named here, including any that are only counted.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Кнопка «Читать файлы» прочитает все файлы, указанные здесь, включая те, которые только подсчитываются.</translation>
     </message>
     <message>
         <location line="+6"/>
         <source>Don&apos;t Read</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Не читать</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Read the File</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Прочитать файл</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Read the Files</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Прочитать файлы</translation>
     </message>
     <message>
         <location line="+41"/>
@@ -33681,7 +33681,7 @@ This file is protected with a password. Password:</source>
         <location filename="../apps/crunch/app/crunchwindow_pivot.cpp" line="-11"/>
         <location line="+9"/>
         <source>Nothing was read.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Ничего не прочитано.</translation>
     </message>
     <message>
         <location line="+15"/>
@@ -33691,7 +33691,7 @@ This file is protected with a password. Password:</source>
     <message>
         <location line="+6"/>
         <source>%1: the file was not read, because it was not approved.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">%1: файл не был прочитан, так как он не был одобрен.</translation>
     </message>
     <message>
         <location line="+8"/>
@@ -55368,7 +55368,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     <message>
         <location line="+373"/>
         <source>The rest of the notes does not print</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Остальная часть заметок не печатается</translation>
     </message>
     <message>
         <location line="+101"/>
@@ -58470,22 +58470,22 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     <message>
         <location line="+7"/>
         <source>the macro project the file held (it is never run, and a new %1 file does not keep it)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">проект макросов, содержащийся в файле (он никогда не запускается, и новый файл %1 его не сохраняет)</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>the fonts stored in the file (they are used while it is open, and a new %1 file does not keep them)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">шрифты, внедрённые в файл (они используются, пока он открыт, и новый файл %1 их не сохраняет)</translation>
     </message>
     <message>
         <location line="+13"/>
         <source>the alternative text of objects, and which objects are marked as decoration</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">альтернативный текст объектов и отметки объектов как оформительских элементов</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>links on objects and on mouse-over (links in text are kept)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">гиперссылки на объектах и при наведении указателя (гиперссылки в тексте сохраняются)</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -72400,7 +72400,7 @@ The password couldn&apos;t be put on the file.</source>
     <message>
         <location line="-6"/>
         <source>The file &quot;%1&quot; was not read, because it was not approved. The pivot keeps its last data.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Файл «%1» не был прочитан, так как он не был одобрен. Сводная таблица сохраняет свои последние данные.</translation>
     </message>
     <message>
         <location line="+6"/>
@@ -82157,12 +82157,12 @@ The password couldn&apos;t be put on the file.</source>
     <message>
         <location line="+7"/>
         <source>Forget All</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Забыть всё</translation>
     </message>
     <message>
         <location line="+8"/>
         <source>Remembered approvals: %1</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Запомненные разрешения: %1</translation>
     </message>
     <message>
         <location line="+10"/>
@@ -82504,12 +82504,12 @@ The password couldn&apos;t be put on the file.</source>
     <message>
         <location line="+1"/>
         <source>Too many rows and tables changed to mark them all.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Слишком много строк и таблиц изменено, чтобы отметить их все.</translation>
     </message>
     <message>
         <location line="+59"/>
         <source>Too much changed to line up all the paragraphs, so a stretch of them is shown as taken out and put in whole. The new text keeps its styles, lists, bold, and italic, but not its text colors, shading, or the spacing between paragraphs.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Изменений слишком много, чтобы сопоставить все абзацы, поэтому часть из них показана как удалённая и добавленная целиком. Новый текст сохраняет свои стили, списки, полужирное и курсивное начертание, но не сохраняет цвета текста, заливку и интервалы между абзацами.</translation>
     </message>
     <message>
         <location line="+84"/>
@@ -82580,30 +82580,30 @@ The password couldn&apos;t be put on the file.</source>
     <message>
         <location line="+38"/>
         <source>footnote and endnote marks</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">отметки сносок и концевых сносок</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>fields</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">поля</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>pictures</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">рисунки</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>links</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">связи</translation>
     </message>
     <message numerus="yes">
         <location line="+5"/>
         <source>%n part of the new text could not be shown (%1).</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
+            <numerusform>%n часть нового текста не может быть показана (%1).</numerusform>
+            <numerusform>%n части нового текста не могут быть показаны (%1).</numerusform>
+            <numerusform>%n частей нового текста не могут быть показаны (%1).</numerusform>
         </translation>
     </message>
     <message numerus="yes">
@@ -86896,7 +86896,7 @@ The password couldn&apos;t be put on the file.</source>
     <message>
         <location line="-661"/>
         <source>The notes in this selection are too long to copy or cut. Select less of the text, and try again.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Заметки в этом выделении слишком длинны для копирования или вырезания. Выделите меньше текста и повторите попытку.</translation>
     </message>
     <message>
         <location line="+5"/>

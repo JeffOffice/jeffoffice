@@ -5947,7 +5947,7 @@ Artikel achterpagina	4</translation>
     <message>
         <location line="+36"/>
         <source>Grammar is checked in English only. Text in other languages is checked for spelling only.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Grammatica wordt alleen in het Engels gecontroleerd. Tekst in andere talen wordt alleen op spelling gecontroleerd.</translation>
     </message>
     <message>
         <location line="+8"/>
@@ -32263,7 +32263,7 @@ Het bestaande bestand is ongewijzigd gebleven.</translation>
     <message>
         <location line="-12"/>
         <source>Link %1</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Koppeling %1</translation>
     </message>
     <message>
         <location line="+18"/>
@@ -33160,37 +33160,37 @@ Het bestand kan niet worden gelezen.</translation>
     <message>
         <location filename="../apps/crunch/app/crunchwindow_getdata.cpp" line="+59"/>
         <source>%1 in this workbook asks to read this file from this computer:</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">%1 in deze werkmap vraagt om dit bestand van deze computer te lezen:</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Queries, pivot tables, and links in this workbook ask to read these files from this computer:</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Query&apos;s, draaitabellen en koppelingen in deze werkmap vragen om deze bestanden van deze computer te lezen:</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Read the file only if you trust where this workbook came from. Anything in it will be put in this workbook.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Lees het bestand alleen als u de herkomst van deze werkmap vertrouwt. Alles erin wordt in deze werkmap geplaatst.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Read the Files reads every file named here, including any that are only counted.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Met Bestanden lezen worden alle hier genoemde bestanden gelezen, inclusief bestanden die alleen worden geteld.</translation>
     </message>
     <message>
         <location line="+6"/>
         <source>Don&apos;t Read</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Niet lezen</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Read the File</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Bestand lezen</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Read the Files</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Bestanden lezen</translation>
     </message>
     <message>
         <location line="+41"/>
@@ -33265,7 +33265,7 @@ Het bestand kan niet worden gelezen.</translation>
         <location filename="../apps/crunch/app/crunchwindow_pivot.cpp" line="-11"/>
         <location line="+9"/>
         <source>Nothing was read.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Er is niets gelezen.</translation>
     </message>
     <message>
         <location line="+15"/>
@@ -33275,7 +33275,7 @@ Het bestand kan niet worden gelezen.</translation>
     <message>
         <location line="+6"/>
         <source>%1: the file was not read, because it was not approved.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">%1: het bestand is niet gelezen, omdat het niet is goedgekeurd.</translation>
     </message>
     <message>
         <location line="+8"/>
@@ -55289,7 +55289,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
     <message>
         <location line="+373"/>
         <source>The rest of the notes does not print</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">De rest van de notities wordt niet afgedrukt</translation>
     </message>
     <message>
         <location line="+101"/>
@@ -58387,22 +58387,22 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
     <message>
         <location line="+7"/>
         <source>the macro project the file held (it is never run, and a new %1 file does not keep it)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">het macroproject dat in het bestand stond (het wordt nooit uitgevoerd, en een nieuw %1-bestand bewaart het niet)</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>the fonts stored in the file (they are used while it is open, and a new %1 file does not keep them)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">de lettertypen die in het bestand zijn opgeslagen (ze worden gebruikt terwijl het geopend is, en een nieuw %1-bestand bewaart ze niet)</translation>
     </message>
     <message>
         <location line="+13"/>
         <source>the alternative text of objects, and which objects are marked as decoration</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">de alternatieve tekst van objecten, en welke objecten als decoratie zijn gemarkeerd</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>links on objects and on mouse-over (links in text are kept)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">koppelingen op objecten en bij aanwijzen met de muis (koppelingen in tekst blijven behouden)</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -73175,7 +73175,7 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
     <message>
         <location line="-6"/>
         <source>The file &quot;%1&quot; was not read, because it was not approved. The pivot keeps its last data.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Het bestand &quot;%1&quot; is niet gelezen, omdat het niet is goedgekeurd. De draaitabel behoudt zijn laatste gegevens.</translation>
     </message>
     <message>
         <location line="+6"/>
@@ -82027,12 +82027,12 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
     <message>
         <location line="+7"/>
         <source>Forget All</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Alles vergeten</translation>
     </message>
     <message>
         <location line="+8"/>
         <source>Remembered approvals: %1</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Bewaarde goedkeuringen: %1</translation>
     </message>
     <message>
         <location line="+10"/>
@@ -82374,12 +82374,12 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
     <message>
         <location line="+1"/>
         <source>Too many rows and tables changed to mark them all.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Er zijn te veel rijen en tabellen gewijzigd om ze allemaal te markeren.</translation>
     </message>
     <message>
         <location line="+59"/>
         <source>Too much changed to line up all the paragraphs, so a stretch of them is shown as taken out and put in whole. The new text keeps its styles, lists, bold, and italic, but not its text colors, shading, or the spacing between paragraphs.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Er is te veel gewijzigd om alle alinea&apos;s uit te lijnen, dus een deel ervan wordt weergegeven als verwijderd en geheel opnieuw ingevoegd. De nieuwe tekst behoudt zijn stijlen, lijsten, vet en cursief, maar niet zijn tekstkleuren, arcering of de afstand tussen alinea&apos;s.</translation>
     </message>
     <message>
         <location line="+84"/>
@@ -82450,29 +82450,29 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
     <message>
         <location line="+38"/>
         <source>footnote and endnote marks</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">voetnoot- en eindnootmarkeringen</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>fields</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">velden</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>pictures</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">afbeeldingen</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>links</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">koppelingen</translation>
     </message>
     <message numerus="yes">
         <location line="+5"/>
         <source>%n part of the new text could not be shown (%1).</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
+            <numerusform>%n deel van de nieuwe tekst kon niet worden getoond (%1).</numerusform>
+            <numerusform>%n delen van de nieuwe tekst konden niet worden getoond (%1).</numerusform>
         </translation>
     </message>
     <message numerus="yes">
@@ -86763,7 +86763,7 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
     <message>
         <location line="-661"/>
         <source>The notes in this selection are too long to copy or cut. Select less of the text, and try again.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">De notities in deze selectie zijn te lang om te kopiëren of knippen. Selecteer minder tekst en probeer het opnieuw.</translation>
     </message>
     <message>
         <location line="+5"/>

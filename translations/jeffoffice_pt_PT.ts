@@ -5947,7 +5947,7 @@ Artigo da contracapa	4</translation>
     <message>
         <location line="+36"/>
         <source>Grammar is checked in English only. Text in other languages is checked for spelling only.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">A gramática é verificada apenas em inglês. O texto noutros idiomas é verificado apenas quanto à ortografia.</translation>
     </message>
     <message>
         <location line="+8"/>
@@ -32263,7 +32263,7 @@ O ficheiro existente manteve-se inalterado.</translation>
     <message>
         <location line="-12"/>
         <source>Link %1</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Ligação %1</translation>
     </message>
     <message>
         <location line="+18"/>
@@ -33160,37 +33160,37 @@ Não é possível ler o ficheiro.</translation>
     <message>
         <location filename="../apps/crunch/app/crunchwindow_getdata.cpp" line="+59"/>
         <source>%1 in this workbook asks to read this file from this computer:</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">%1 neste livro de cálculo pede para ler este ficheiro deste computador:</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Queries, pivot tables, and links in this workbook ask to read these files from this computer:</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Consultas, tabelas dinâmicas e ligações neste livro de cálculo pedem para ler estes ficheiros deste computador:</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Read the file only if you trust where this workbook came from. Anything in it will be put in this workbook.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Leia o ficheiro apenas se confiar na origem deste livro de cálculo. Tudo o que nele existir será inserido neste livro de cálculo.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Read the Files reads every file named here, including any that are only counted.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Ler os Ficheiros lê todos os ficheiros indicados aqui, incluindo os que apenas são contados.</translation>
     </message>
     <message>
         <location line="+6"/>
         <source>Don&apos;t Read</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Não Ler</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Read the File</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Ler o Ficheiro</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Read the Files</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Ler os Ficheiros</translation>
     </message>
     <message>
         <location line="+41"/>
@@ -33265,7 +33265,7 @@ Não é possível ler o ficheiro.</translation>
         <location filename="../apps/crunch/app/crunchwindow_pivot.cpp" line="-11"/>
         <location line="+9"/>
         <source>Nothing was read.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Nada foi lido.</translation>
     </message>
     <message>
         <location line="+15"/>
@@ -33275,7 +33275,7 @@ Não é possível ler o ficheiro.</translation>
     <message>
         <location line="+6"/>
         <source>%1: the file was not read, because it was not approved.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">%1: o ficheiro não foi lido, porque não foi aprovado.</translation>
     </message>
     <message>
         <location line="+8"/>
@@ -55289,7 +55289,7 @@ O seu browser irá abrir o LibreTranslate, um serviço de tradução gratuito e 
     <message>
         <location line="+373"/>
         <source>The rest of the notes does not print</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">O restante das notas não é impresso</translation>
     </message>
     <message>
         <location line="+101"/>
@@ -58387,22 +58387,22 @@ O seu browser irá abrir o LibreTranslate, um serviço de tradução gratuito e 
     <message>
         <location line="+7"/>
         <source>the macro project the file held (it is never run, and a new %1 file does not keep it)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">o projeto de macros que o ficheiro continha (nunca é executado, e um novo ficheiro %1 não o mantém)</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>the fonts stored in the file (they are used while it is open, and a new %1 file does not keep them)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">os tipos de letra guardados no ficheiro (são utilizados enquanto estiver aberto, e um novo ficheiro %1 não os mantém)</translation>
     </message>
     <message>
         <location line="+13"/>
         <source>the alternative text of objects, and which objects are marked as decoration</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">o texto alternativo dos objetos e os objetos marcados como decorativos</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>links on objects and on mouse-over (links in text are kept)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">ligações em objetos e em passagem do rato (as ligações em texto são mantidas)</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -73175,7 +73175,7 @@ Não foi possível aplicar a palavra-passe ao ficheiro.</translation>
     <message>
         <location line="-6"/>
         <source>The file &quot;%1&quot; was not read, because it was not approved. The pivot keeps its last data.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">O ficheiro &quot;%1&quot; não foi lido, porque não foi aprovado. A tabela dinâmica mantém os seus últimos dados.</translation>
     </message>
     <message>
         <location line="+6"/>
@@ -82027,12 +82027,12 @@ Não foi possível aplicar a palavra-passe ao ficheiro.</translation>
     <message>
         <location line="+7"/>
         <source>Forget All</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Esquecer Tudo</translation>
     </message>
     <message>
         <location line="+8"/>
         <source>Remembered approvals: %1</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Aprovações memorizadas: %1</translation>
     </message>
     <message>
         <location line="+10"/>
@@ -82374,12 +82374,12 @@ Não foi possível aplicar a palavra-passe ao ficheiro.</translation>
     <message>
         <location line="+1"/>
         <source>Too many rows and tables changed to mark them all.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Foram alteradas demasiadas linhas e tabelas para as marcar todas.</translation>
     </message>
     <message>
         <location line="+59"/>
         <source>Too much changed to line up all the paragraphs, so a stretch of them is shown as taken out and put in whole. The new text keeps its styles, lists, bold, and italic, but not its text colors, shading, or the spacing between paragraphs.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Foi alterado demasiado conteúdo para alinhar todos os parágrafos, por isso um conjunto deles é apresentado como removido e inserido por completo. O novo texto mantém os seus estilos, listas, negrito e itálico, mas não as cores do texto, o sombreado nem o espaçamento entre parágrafos.</translation>
     </message>
     <message>
         <location line="+84"/>
@@ -82450,29 +82450,29 @@ Não foi possível aplicar a palavra-passe ao ficheiro.</translation>
     <message>
         <location line="+38"/>
         <source>footnote and endnote marks</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">marcas de nota de rodapé e de nota de fim</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>fields</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">campos</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>pictures</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">imagens</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>links</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">ligações</translation>
     </message>
     <message numerus="yes">
         <location line="+5"/>
         <source>%n part of the new text could not be shown (%1).</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
+            <numerusform>%n parte do novo texto não pôde ser apresentada (%1).</numerusform>
+            <numerusform>%n partes do novo texto não puderam ser apresentadas (%1).</numerusform>
         </translation>
     </message>
     <message numerus="yes">
@@ -86763,7 +86763,7 @@ Não foi possível aplicar a palavra-passe ao ficheiro.</translation>
     <message>
         <location line="-661"/>
         <source>The notes in this selection are too long to copy or cut. Select less of the text, and try again.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">As notas nesta seleção são demasiado longas para copiar ou cortar. Selecione menos texto e tente novamente.</translation>
     </message>
     <message>
         <location line="+5"/>

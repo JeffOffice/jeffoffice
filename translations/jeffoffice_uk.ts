@@ -3578,7 +3578,7 @@ Back page story	4</source>
     <message>
         <location line="+36"/>
         <source>Grammar is checked in English only. Text in other languages is checked for spelling only.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Граматику перевіряють лише англійською мовою. Текст іншими мовами перевіряють лише на правопис.</translation>
     </message>
     <message>
         <location line="+8"/>
@@ -30180,7 +30180,7 @@ The file that was there is as it was.</source>
     <message>
         <location line="-12"/>
         <source>Link %1</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Посилання %1</translation>
     </message>
     <message>
         <location line="+18"/>
@@ -33946,37 +33946,37 @@ This file is protected with a password. Password:</source>
     <message>
         <location filename="../apps/crunch/app/crunchwindow_getdata.cpp" line="+2"/>
         <source>%1 in this workbook asks to read this file from this computer:</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">%1 у цій книзі просить прочитати з цього комп&apos;ютера такий файл:</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Queries, pivot tables, and links in this workbook ask to read these files from this computer:</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Запити, зведені таблиці та посилання в цій книзі просять прочитати з цього комп&apos;ютера такі файли:</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Read the file only if you trust where this workbook came from. Anything in it will be put in this workbook.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Читайте файл, лише якщо ви довіряєте джерелу, з якого отримано цю книгу. Усе, що в ньому міститься, буде вставлено в цю книгу.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Read the Files reads every file named here, including any that are only counted.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">«Прочитати файли» читає кожен названий тут файл, зокрема ті, що лише враховуються.</translation>
     </message>
     <message>
         <location line="+6"/>
         <source>Don&apos;t Read</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Не читати</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Read the File</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Прочитати файл</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Read the Files</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Прочитати файли</translation>
     </message>
     <message>
         <location line="+41"/>
@@ -34051,7 +34051,7 @@ This file is protected with a password. Password:</source>
         <location filename="../apps/crunch/app/crunchwindow_pivot.cpp" line="-11"/>
         <location line="+9"/>
         <source>Nothing was read.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Нічого не прочитано.</translation>
     </message>
     <message>
         <location line="+15"/>
@@ -34061,7 +34061,7 @@ This file is protected with a password. Password:</source>
     <message>
         <location line="+6"/>
         <source>%1: the file was not read, because it was not approved.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">%1: файл не прочитано, оскільки його не схвалено.</translation>
     </message>
     <message>
         <location line="+8"/>
@@ -55368,7 +55368,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     <message>
         <location line="+373"/>
         <source>The rest of the notes does not print</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Решта приміток не друкується</translation>
     </message>
     <message>
         <location line="+101"/>
@@ -58470,22 +58470,22 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     <message>
         <location line="+7"/>
         <source>the macro project the file held (it is never run, and a new %1 file does not keep it)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">макропроєкт, що містився у файлі (він ніколи не запускається, а новий файл %1 його не зберігає)</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>the fonts stored in the file (they are used while it is open, and a new %1 file does not keep them)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">шрифти, вбудовані у файл (вони використовуються, поки файл відкрито, а новий файл %1 їх не зберігає)</translation>
     </message>
     <message>
         <location line="+13"/>
         <source>the alternative text of objects, and which objects are marked as decoration</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">альтернативний текст об&apos;єктів і те, які об&apos;єкти позначено як оформлення</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>links on objects and on mouse-over (links in text are kept)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">посилання на об&apos;єктах і посилання при наведенні миші (посилання в тексті зберігаються)</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -72181,7 +72181,7 @@ The password couldn&apos;t be put on the file.</source>
     <message>
         <location line="-6"/>
         <source>The file &quot;%1&quot; was not read, because it was not approved. The pivot keeps its last data.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Файл «%1» не прочитано, оскільки його не схвалено. Зведена таблиця зберігає свої останні дані.</translation>
     </message>
     <message>
         <location line="+6"/>
@@ -82157,12 +82157,12 @@ The password couldn&apos;t be put on the file.</source>
     <message>
         <location line="+7"/>
         <source>Forget All</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Забути все</translation>
     </message>
     <message>
         <location line="+8"/>
         <source>Remembered approvals: %1</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Запам&apos;ятані схвалення: %1</translation>
     </message>
     <message>
         <location line="+10"/>
@@ -82504,12 +82504,12 @@ The password couldn&apos;t be put on the file.</source>
     <message>
         <location line="+1"/>
         <source>Too many rows and tables changed to mark them all.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Забагато змінених рядків і таблиць, щоб позначити їх усі.</translation>
     </message>
     <message>
         <location line="+59"/>
         <source>Too much changed to line up all the paragraphs, so a stretch of them is shown as taken out and put in whole. The new text keeps its styles, lists, bold, and italic, but not its text colors, shading, or the spacing between paragraphs.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Забагато змін, щоб вирівняти всі абзаци, тому частину з них показано як вилучену й вставлену цілком. Новий текст зберігає свої стилі, списки, жирний і курсивний шрифт, але не зберігає колір тексту, заливку чи інтервал між абзацами.</translation>
     </message>
     <message>
         <location line="+84"/>
@@ -82580,30 +82580,30 @@ The password couldn&apos;t be put on the file.</source>
     <message>
         <location line="+38"/>
         <source>footnote and endnote marks</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">позначки виносок і кінцевих виносок</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>fields</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">поля</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>pictures</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">малюнки</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>links</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">посилання</translation>
     </message>
     <message numerus="yes">
         <location line="+5"/>
         <source>%n part of the new text could not be shown (%1).</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
+            <numerusform>%n частину нового тексту не вдалося показати (%1).</numerusform>
+            <numerusform>%n частини нового тексту не вдалося показати (%1).</numerusform>
+            <numerusform>%n частин нового тексту не вдалося показати (%1).</numerusform>
         </translation>
     </message>
     <message numerus="yes">
@@ -86896,7 +86896,7 @@ The password couldn&apos;t be put on the file.</source>
     <message>
         <location line="-661"/>
         <source>The notes in this selection are too long to copy or cut. Select less of the text, and try again.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Примітки у цьому виділенні занадто довгі, щоб їх копіювати чи вирізати. Виділіть менше тексту й спробуйте знову.</translation>
     </message>
     <message>
         <location line="+5"/>

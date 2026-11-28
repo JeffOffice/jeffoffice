@@ -5946,7 +5946,7 @@ Berita halaman belakang	4</translation>
     <message>
         <location line="+36"/>
         <source>Grammar is checked in English only. Text in other languages is checked for spelling only.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Tata bahasa hanya diperiksa dalam bahasa Inggris. Teks dalam bahasa lain hanya diperiksa ejaannya.</translation>
     </message>
     <message>
         <location line="+8"/>
@@ -29762,7 +29762,7 @@ File yang ada sebelumnya tidak berubah.</translation>
     <message>
         <location line="-12"/>
         <source>Link %1</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Tautan %1</translation>
     </message>
     <message>
         <location line="+18"/>
@@ -33446,37 +33446,37 @@ Berkas ini dilindungi kata sandi. Kata sandi:</translation>
     <message>
         <location filename="../apps/crunch/app/crunchwindow_getdata.cpp" line="+59"/>
         <source>%1 in this workbook asks to read this file from this computer:</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">%1 dalam buku kerja ini meminta izin untuk membaca berkas ini dari komputer ini:</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Queries, pivot tables, and links in this workbook ask to read these files from this computer:</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Kueri, tabel pivot, dan tautan dalam buku kerja ini meminta izin untuk membaca berkas-berkas ini dari komputer ini:</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Read the file only if you trust where this workbook came from. Anything in it will be put in this workbook.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Baca berkas hanya jika Anda memercayai sumber buku kerja ini. Apa pun di dalamnya akan dimasukkan ke dalam buku kerja ini.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Read the Files reads every file named here, including any that are only counted.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Baca Berkas akan membaca setiap berkas yang disebutkan di sini, termasuk yang hanya dihitung.</translation>
     </message>
     <message>
         <location line="+6"/>
         <source>Don&apos;t Read</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Jangan Baca</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Read the File</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Baca Berkas</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Read the Files</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Baca Berkas</translation>
     </message>
     <message>
         <location line="+41"/>
@@ -33551,7 +33551,7 @@ Berkas ini dilindungi kata sandi. Kata sandi:</translation>
         <location filename="../apps/crunch/app/crunchwindow_pivot.cpp" line="-11"/>
         <location line="+9"/>
         <source>Nothing was read.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Tidak ada yang dibaca.</translation>
     </message>
     <message>
         <location line="+15"/>
@@ -33561,7 +33561,7 @@ Berkas ini dilindungi kata sandi. Kata sandi:</translation>
     <message>
         <location line="+6"/>
         <source>%1: the file was not read, because it was not approved.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">%1: berkas tidak dibaca karena tidak disetujui.</translation>
     </message>
     <message>
         <location line="+8"/>
@@ -55210,7 +55210,7 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
     <message>
         <location line="+373"/>
         <source>The rest of the notes does not print</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Sisa catatan tidak dicetak</translation>
     </message>
     <message>
         <location line="+101"/>
@@ -58304,22 +58304,22 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
     <message>
         <location line="+7"/>
         <source>the macro project the file held (it is never run, and a new %1 file does not keep it)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">proyek makro yang tersimpan dalam berkas (tidak pernah dijalankan, dan berkas %1 baru tidak menyimpannya)</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>the fonts stored in the file (they are used while it is open, and a new %1 file does not keep them)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">font yang tersimpan dalam berkas (digunakan selama berkas dibuka, dan berkas %1 baru tidak menyimpannya)</translation>
     </message>
     <message>
         <location line="+13"/>
         <source>the alternative text of objects, and which objects are marked as decoration</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">teks alternatif objek, dan objek mana yang ditandai sebagai dekorasi</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>links on objects and on mouse-over (links in text are kept)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">tautan pada objek dan saat kursor diarahkan (tautan dalam teks tetap disimpan)</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -72188,7 +72188,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
     <message>
         <location line="-6"/>
         <source>The file &quot;%1&quot; was not read, because it was not approved. The pivot keeps its last data.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Berkas &quot;%1&quot; tidak dibaca karena tidak disetujui. Tabel pivot tetap menggunakan data terakhirnya.</translation>
     </message>
     <message>
         <location line="+6"/>
@@ -81897,12 +81897,12 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
     <message>
         <location line="+7"/>
         <source>Forget All</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Lupakan Semua</translation>
     </message>
     <message>
         <location line="+8"/>
         <source>Remembered approvals: %1</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Persetujuan yang diingat: %1</translation>
     </message>
     <message>
         <location line="+10"/>
@@ -82244,12 +82244,12 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
     <message>
         <location line="+1"/>
         <source>Too many rows and tables changed to mark them all.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Terlalu banyak baris dan tabel yang berubah untuk ditandai semuanya.</translation>
     </message>
     <message>
         <location line="+59"/>
         <source>Too much changed to line up all the paragraphs, so a stretch of them is shown as taken out and put in whole. The new text keeps its styles, lists, bold, and italic, but not its text colors, shading, or the spacing between paragraphs.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Terlalu banyak yang berubah untuk menyejajarkan semua paragraf, sehingga sebagian paragraf ditampilkan sebagai dihapus dan disisipkan utuh. Teks baru tetap mempertahankan gayanya, daftar, cetak tebal, dan cetak miring, tetapi tidak warna teks, pewarnaan, atau spasi antarparagraf.</translation>
     </message>
     <message>
         <location line="+84"/>
@@ -82320,28 +82320,28 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
     <message>
         <location line="+38"/>
         <source>footnote and endnote marks</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">tanda catatan kaki dan catatan akhir</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>fields</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">bidang</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>pictures</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">gambar</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>links</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">tautan</translation>
     </message>
     <message numerus="yes">
         <location line="+5"/>
         <source>%n part of the new text could not be shown (%1).</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
+            <numerusform>%n bagian teks baru tidak dapat ditampilkan (%1).</numerusform>
         </translation>
     </message>
     <message numerus="yes">
@@ -86630,7 +86630,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
     <message>
         <location line="-661"/>
         <source>The notes in this selection are too long to copy or cut. Select less of the text, and try again.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Catatan dalam pilihan ini terlalu panjang untuk disalin atau dipotong. Pilih lebih sedikit teks, lalu coba lagi.</translation>
     </message>
     <message>
         <location line="+5"/>
