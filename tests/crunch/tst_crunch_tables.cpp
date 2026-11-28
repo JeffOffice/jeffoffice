@@ -2808,6 +2808,7 @@ private Q_SLOTS:
         // the file gains a row (n = 20, the largest) and a row that the filter drops; Refresh runs the steps on it
         e.folder.write(QStringLiteral("people.json"), stepsFile(",{\"name\":\"Eve\",\"n\":20,\"d\":\"05/05/2025\",\"amt\":\"7\"},{\"name\":\"Fay\",\"n\":0,\"d\":\"05/05/2025\",\"amt\":\"7\"}").toUtf8());
         f.select(QStringLiteral("A2"));
+        f.win.w.setGetDataTrustAsker([](const QStringList &, const QString &) { return true; });   // (this test is about the steps, not the ask: the ask has its own tests)
         f.win.w.act(QStringLiteral("data.refresh"))->trigger();
         QVERIFY(f.settle());
         QCOMPARE(f.win.told.size(), 0);
