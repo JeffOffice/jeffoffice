@@ -6,6 +6,7 @@
 #include "app/filetasks.h"
 #include "core/export.h"
 
+#include <QObject>
 #include <QString>
 #include <QWidget>
 #include <functional>
@@ -34,7 +35,15 @@ constexpr int kLongestApprovedPath = 4096;
 JO_COMMON_EXPORT bool readApproved(const QString &workbook, const QString &file);
 JO_COMMON_EXPORT void rememberRead(const QString &workbook, const QString &file);
 JO_COMMON_EXPORT int approvalCount();
+// Forgets every pair, and tells every open window (ApprovalNotifier::forgotten) to forget the yes it keeps in memory, so that the next read in any of them asks again.
 JO_COMMON_EXPORT void forgetApprovals();
+class JO_COMMON_EXPORT ApprovalNotifier : public QObject {
+    Q_OBJECT
+public:
+    static ApprovalNotifier &get();
+Q_SIGNALS:
+    void forgotten();
+};
 // Movies and sounds that a slide links to a file instead of holding (JeffDeck). Never, until the person chooses.
 JO_COMMON_EXPORT Choice linkedMedia();
 JO_COMMON_EXPORT void setLinkedMedia(Choice choice);

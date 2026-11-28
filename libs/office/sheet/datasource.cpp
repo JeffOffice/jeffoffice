@@ -868,7 +868,9 @@ QVector<char> dataColumnKinds(const DataRows &table, bool asText)
 QString dataReadablePath(const QString &path)
 {
     if (dataPathIsRemote(path)) return path;
+    if (path.trimmed().isEmpty()) return QString();   // (no name is no place: never the folder the program happens to be in)
     const QFileInfo info(path);
+    if (info.isDir()) return QString();   // (a folder is not a file to read or to approve)
     const QString canonical = info.canonicalFilePath();
     if (!canonical.isEmpty()) return canonical;
     // (a file that is not there: its folder is still worked out, so the name is the same one a file that was there had)

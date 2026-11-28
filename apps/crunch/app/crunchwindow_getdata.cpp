@@ -39,6 +39,7 @@ bool CrunchWindow::getDataTrusted(const QString &path)
 // (this workbook, this file) was said yes to before (Options > Security keeps those). A workbook that was never saved has no path, so no pair: its yes lives in this window only.
 bool CrunchWindow::approvedFile(const QString &key)
 {
+    if (key.isEmpty()) return false;
     if (m_getDataTrusted.contains(key)) return true;
     if (m_path.isEmpty() || jp::trust::linkedFiles() != jp::trust::Choice::Yes) return false;
     if (!jp::trust::readApproved(jp::office::sheet::dataReadablePath(m_path), key)) return false;
@@ -97,6 +98,7 @@ bool CrunchWindow::approveFiles(QWidget *parent, const QString &title, const std
     if (!askToReadFiles(parent, title, names, paths)) return false;
     const QString book = m_path.isEmpty() ? QString() : jp::office::sheet::dataReadablePath(m_path);
     for (const QString &p : paths) {
+        if (p.isEmpty()) continue;
         m_getDataTrusted.insert(p);
         if (!book.isEmpty()) jp::trust::rememberRead(book, p);
     }
@@ -182,7 +184,7 @@ bool CrunchWindow::loadGetData(const GetDataRequest &req)
         notice(title, outcome.problem + QLatin1Char(' ') + tr("Nothing was changed."));
         return false;
     }
-    m_getDataTrusted.insert(getDataTrustKey(req.conn.path));   // (made here: the person chose this file)
+    if (const QString made = getDataTrustKey(req.conn.path); !made.isEmpty()) m_getDataTrusted.insert(made);   // (made here: the person chose this file)
     if (!result.rows.notes.isEmpty()) setStatus(result.rows.notes.join(QLatin1Char(' ')));
     return true;
 }
@@ -214,6 +216,7 @@ void CrunchWindow::refreshDataCommand(bool all)
             DataConnection conn;
             if (!DataConnection::parse(table.dataSource, &conn) || conn.path.isEmpty() || getDataTrusted(conn.path)) continue;
             const QString key = getDataTrustKey(conn.path);
+            if (key.isEmpty()) continue;   // (no file to ask about: it is left alone below, with the others that were not approved)
             unasked << t;
             if (paths.contains(key)) continue;
             names << table.name;

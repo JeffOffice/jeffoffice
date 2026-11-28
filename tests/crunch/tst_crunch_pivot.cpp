@@ -962,7 +962,7 @@ private Q_SLOTS:
             QVERIFY(w.open(path));
             crunch::EditSession *s = w.w.session();
             QTRY_VERIFY(asked > 0 || pivotExternalFilesOpened() > before);
-            QVERIFY(QTest::qWaitFor([&] { return !w.w.isCalculating(); }, 20000));
+            QTRY_VERIFY_WITH_TIMEOUT(!w.w.isCalculating(), 20000);
             QCOMPARE(asked, pass == 1 ? 0 : 1);
             QCOMPARE(pivotExternalFilesOpened() - before, pass == 2 ? 0 : 1);
             QCOMPARE(cachedAmountTotal(s, 0), pass == 2 ? 49.0 : 139.0);

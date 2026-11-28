@@ -111,8 +111,9 @@ void CrunchWindow::linksOnOpen()
         if (!s.local || s.network) continue;   // (one on another computer is left until it is asked for in Edit Links)
         const QString path = links->localPath(s.index);
         if (path.isEmpty()) continue;
-        local.push_back(s.index);
         const QString key = jp::office::sheet::dataReadablePath(path);
+        if (key.isEmpty()) continue;
+        local.push_back(s.index);
         if (approvedFile(key) || paths.contains(key)) continue;
         names << tr("Link %1").arg(s.index);
         paths << key;

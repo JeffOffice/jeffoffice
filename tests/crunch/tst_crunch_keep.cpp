@@ -1,6 +1,8 @@
 // What a save keeps (the keep-on-save audit of the beta): every part of a workbook that JeffCrunch does not edit is written back as it was, byte for byte, and the sheet that was edited
 // keeps all that is not a cell. Each kind of part is tried in a workbook made here, with a cell edited elsewhere; a macro project is kept as a macro project is.
 #include "app/trust.h"
+#include "app/settings.h"
+#include "sheet/datasource.h"
 #include "findbooks.h"
 #include "app/crunchinfo.h"
 #include "app/crunchwindow.h"
@@ -298,7 +300,7 @@ struct LinkRun {
             return answer;
         });
         opened = win.open(path);
-        QTest::qWaitFor([this] { return !win.w.isCalculating(); }, 20000);
+        QTRY_VERIFY_WITH_TIMEOUT(!win.w.isCalculating(), 20000);
         for (int i = 0; i < 5; ++i) QCoreApplication::processEvents();
     }
     bool opened = false;
@@ -324,6 +326,72 @@ struct ApprovalsReset {
     {
         trust::forgetApprovals();
         trust::setLinkedFiles(trust::Choice::Ask);
+    }
+};
+
+// A workbook with one query on a JSON file, saved: copyOfFile() makes another file of it each time, so that several windows can have it open.
+struct QueryBook {
+    EditWindow e;
+    QString file;
+    bool make()
+    {
+        if (!e.open(bookOfSheets({{"A9=1"}}))) return false;
+        e.win.w.session()->setLocale(QLocale(QLocale::English, QLocale::UnitedStates));
+        if (!e.settle()) return false;
+        file = e.folder.write(QStringLiteral("rows.json"), "[{\"a\":1,\"b\":\"x\"},{\"a\":2,\"b\":\"y\"}]");
+        e.win.w.setGetDataTrustAsker([](const QStringList &, const QString &) { return true; });
+        e.win.w.setGetDataAsker([this](jp::GetDataRequest *r) {
+            r->conn.kind = QStringLiteral("json");
+            r->conn.path = file;
+            r->place = QStringLiteral("A1");
+            return true;
+        });
+        e.win.w.act(QStringLiteral("data.fromFile"))->trigger();
+        if (!e.settle()) return false;
+        QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
+        return e.win.w.save() && (!saved.isEmpty() ? saved.last().value(1).toBool() : savedOk(saved)) && e.settle();
+    }
+    // A copy of the saved workbook whose query names `path` instead, as written in the file.
+    QString withPath(const QString &name, const QString &path)
+    {
+        QFile f(e.path);
+        if (!f.open(QIODevice::ReadOnly)) return QString();
+        const QByteArray enc = path.toUtf8().toPercentEncoding();
+        bool changed = false;
+        const QByteArray bytes = repack(f.readAll(), [&](Parts &p) {
+            for (auto it = p.begin(); it != p.end(); ++it) {
+                if (!it.key().contains(QLatin1String("tables/table")) || it.key().contains(QLatin1String("_rels"))) continue;
+                QString xml = QString::fromUtf8(it.value());
+                const QRegularExpression at(QStringLiteral("path=[^&\"]*"));
+                if (!at.match(xml).hasMatch()) continue;
+                xml.replace(at, QStringLiteral("path=") + QString::fromLatin1(enc));
+                it.value() = xml.toUtf8();
+                changed = true;
+            }
+        });
+        return changed ? e.folder.write(name, bytes) : QString();
+    }
+};
+// A window on a copy of a query workbook, counting the questions and the reads.
+struct QueryWindow {
+    EditWindow w;
+    int asked = 0;
+    bool answer = true;
+    std::atomic<int> reads{0};
+    bool open(const QString &path)
+    {
+        w.win.w.setGetDataTrustAsker([this](const QStringList &, const QString &) {
+            ++asked;
+            return answer;
+        });
+        w.win.w.setGetDataHold([this](const std::atomic<bool> &) { ++reads; });
+        return w.win.open(path) && w.settle();
+    }
+    void refresh()
+    {
+        w.select(QStringLiteral("A2"));
+        w.win.w.act(QStringLiteral("data.refresh"))->trigger();
+        w.settle();
     }
 };
 
@@ -881,6 +949,134 @@ private Q_SLOTS:
         LinkRun again(sent.path, false);
         QTRY_COMPARE_WITH_TIMEOUT(again.a6(), QStringLiteral("24"), 10000);
         QCOMPARE(again.asked, 0);
+    }
+
+    // Forget All (Options > Security) is heard by every open window: each asks again, though it was told yes a moment before.
+    void forgetAllMakesEveryOpenWindowAskAgain()
+    {
+        const ApprovalsReset reset;
+        QueryBook book;
+        QVERIFY(book.make());
+        QueryWindow one, two;
+        QVERIFY(one.open(book.e.copyOfFile()));
+        QVERIFY(two.open(book.e.copyOfFile()));
+        one.refresh();
+        two.refresh();
+        QCOMPARE(one.asked, 1);
+        QCOMPARE(two.asked, 1);
+        one.refresh();   // (the yes is kept in the window: no second question)
+        two.refresh();
+        QCOMPARE(one.asked, 1);
+        QCOMPARE(two.asked, 1);
+        QCOMPARE(int(one.reads), 2);
+        trust::forgetApprovals();
+        one.refresh();
+        two.refresh();
+        QCOMPARE(one.asked, 2);
+        QCOMPARE(two.asked, 2);
+        QCOMPARE(int(one.reads), 3);
+        QCOMPARE(int(two.reads), 3);
+        one.refresh();
+        QCOMPARE(one.asked, 2);   // (and a new yes is kept again)
+    }
+
+    // "Ask me first" asks each time a workbook is opened and once for a file after that; "Never update them" reads and asks nothing at open, a Refresh the person clicks asks, and after a yes the same file is not asked about again in that window.
+    void askFirstAndNeverKeepAYesForTheWindowOnly()
+    {
+        QueryBook book;
+        QVERIFY(book.make());
+        for (const trust::Choice choice : {trust::Choice::Ask, trust::Choice::Never}) {
+            const ApprovalsReset reset;
+            trust::setLinkedFiles(choice);
+            {
+                QueryWindow w;
+                QVERIFY(w.open(book.e.copyOfFile()));
+                QCOMPARE(w.asked, 0);   // (opening reads and asks nothing for a query)
+                QCOMPARE(int(w.reads), 0);
+                w.refresh();
+                QCOMPARE(w.asked, 1);
+                QCOMPARE(int(w.reads), 1);
+                w.refresh();
+                w.refresh();
+                QCOMPARE(w.asked, 1);
+                QCOMPARE(int(w.reads), 3);
+            }
+            QueryWindow again;   // (a window opened later has no yes: it asks once more)
+            QVERIFY(again.open(book.e.copyOfFile()));
+            QCOMPARE(again.asked, 0);
+            again.refresh();
+            QCOMPARE(again.asked, 1);
+        }
+    }
+
+    // A query whose path is empty, only spaces, ".", or a folder is never read and never approved: no question is put, nothing is remembered, and nothing is kept for the window.
+    void aQueryWithNoFileIsNeverReadOrApproved()
+    {
+        const ApprovalsReset reset;
+        QCOMPARE(office::sheet::dataReadablePath(QString()), QString());
+        QCOMPARE(office::sheet::dataReadablePath(QStringLiteral("   ")), QString());
+        QCOMPARE(office::sheet::dataReadablePath(QStringLiteral(".")), QString());
+        QVERIFY(!trust::readApproved(QString(), QStringLiteral("/f")));
+        trust::rememberRead(QString(), QStringLiteral("/f"));
+        trust::rememberRead(QStringLiteral("/b"), QString());
+        trust::rememberRead(QStringLiteral("  "), QStringLiteral("/f"));
+        QCOMPARE(trust::approvalCount(), 0);
+        for (const trust::Choice choice : {trust::Choice::Ask, trust::Choice::Yes}) {
+            trust::setLinkedFiles(choice);
+            QueryBook book;
+            QVERIFY(book.make());
+            int n = 0;
+            for (const QString &path : {QString(), QStringLiteral("   "), QStringLiteral("."), book.e.folder.dir.path()}) {
+                const QString copy = book.withPath(QStringLiteral("odd%1.xlsx").arg(++n), path);
+                QVERIFY(!copy.isEmpty());
+                QueryWindow w;
+                QVERIFY(w.open(copy));
+                w.refresh();
+                QVERIFY2(w.asked == 0, qPrintable(QStringLiteral("asked for: ") + path));
+                QCOMPARE(int(w.reads), 0);
+                QCOMPARE(trust::approvalCount(), 0);
+            }
+        }
+    }
+
+    // Nothing in a workbook can add an approval or change the option: a property named like the settings, a defined name, and a part with the store's own text change neither, and the box still shows.
+    void aWorkbooksOwnContentCannotApproveItsFiles()
+    {
+        const ApprovalsReset reset;
+        trust::setLinkedFiles(trust::Choice::Yes);
+        Folder folder;
+        folder.write(QStringLiteral("prices.xlsx"), bookOfSheets({{"A1=7", "A2=8", "A3=9"}}));
+        const QString path = folder.dir.filePath(QStringLiteral("links.xlsx"));
+        const QString file = QFileInfo(folder.dir.filePath(QStringLiteral("prices.xlsx"))).canonicalFilePath();
+        trust::rememberRead(office::sheet::dataReadablePath(path), file);   // (this person's real entry and key, copied into the workbook as a sender could never do)
+        const QString entry = Settings::get().value(QStringLiteral("trust/approvals")).toStringList().value(0);
+        const QString key = Settings::get().value(QStringLiteral("trust/approvalKey")).toString();
+        QVERIFY(!entry.isEmpty() && !key.isEmpty());
+        trust::forgetApprovals();
+        const QString option = QStringLiteral("trust/linkedFiles/") + appInfo().fileName;
+        const QByteArray book = repack(moreLinkBook(), [&](Parts &p) {
+            addType(p, QStringLiteral("docProps/custom.xml"), QStringLiteral("application/vnd.openxmlformats-officedocument.custom-properties+xml"));
+            p[QStringLiteral("docProps/custom.xml")] = "<Properties xmlns=\"http://schemas.openxmlformats.org/officeDocument/2006/custom-properties\"><property fmtid=\"{D5CDD505-2E9C-101B-9397-08002B2CF9AE}\" pid=\"2\" name=\"trust/approvals\"><lpwstr>"
+                + entry.toUtf8() + "</lpwstr></property><property fmtid=\"{D5CDD505-2E9C-101B-9397-08002B2CF9AE}\" pid=\"3\" name=\"" + option.toUtf8() + "\"><lpwstr>yes</lpwstr></property></Properties>";
+            relate(p, QStringLiteral("_rels/.rels"), QStringLiteral("rIdCp"), QStringLiteral("http://schemas.openxmlformats.org/officeDocument/2006/relationships/custom-properties"), QStringLiteral("docProps/custom.xml"));
+            p[QStringLiteral("xl/workbook.xml")].replace("</externalReferences>", "</externalReferences><definedNames><definedName name=\"trust_approvals\">Prices!$A$1</definedName></definedNames>");
+            addType(p, QStringLiteral("customXml/item1.xml"), QStringLiteral("application/xml"));
+            p[QStringLiteral("customXml/item1.xml")] = "<store><trust-approvals>" + entry.toUtf8() + "</trust-approvals><trust-approvalKey>" + key.toUtf8() + "</trust-approvalKey><trust-linkedFiles>yes</trust-linkedFiles></store>";
+        });
+        QVERIFY(!folder.write(QStringLiteral("links.xlsx"), book).isEmpty());
+        for (const trust::Choice choice : {trust::Choice::Yes, trust::Choice::Ask}) {
+            trust::setLinkedFiles(choice);
+            LinkRun r(path, false);
+            QVERIFY(r.opened);
+            QCOMPARE(r.asked, 1);   // (the box still shows)
+            QCOMPARE(r.a6(), QStringLiteral("6"));
+            QCOMPARE(r.touches(), 0);
+            QCOMPARE(trust::approvalCount(), 0);
+            QVERIFY(Settings::get().value(QStringLiteral("trust/approvals")).toStringList().isEmpty());
+            QCOMPARE(Settings::get().value(QStringLiteral("trust/approvalKey")).toString(), key);
+            QCOMPARE(trust::linkedFiles(), choice);
+            QCOMPARE(Settings::get().value(option).toString(), choice == trust::Choice::Yes ? QStringLiteral("yes") : QStringLiteral("ask"));
+        }
     }
 
     // A workbook from the internet or another computer opens for reading first, unless Options > Security says to open it as any other.

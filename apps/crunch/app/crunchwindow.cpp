@@ -1,3 +1,4 @@
+#include "app/trust.h"
 #include "app/commandsearch.h"
 #include "core/invalidcells.h"
 #include "app/sortdialog.h"
@@ -134,6 +135,7 @@ QList<CrunchWindow *> CrunchWindow::hiddenWindows()
 CrunchWindow::CrunchWindow(QWidget *parent) : AppWindow(parent)
 {
     openWindows().append(this);
+    connect(&jp::trust::ApprovalNotifier::get(), &jp::trust::ApprovalNotifier::forgotten, this, [this] { m_getDataTrusted.clear(); });   // (Forget All in Options: this window asks again too)
     AppWindow::guardQuit();
     setObjectName(QStringLiteral("crunchWindow"));
     setAcceptDrops(true);

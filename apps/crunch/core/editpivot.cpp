@@ -188,6 +188,10 @@ bool EditSession::readExternalPivotSource(const QString &target, bool keeps, con
     }
     // (what is opened is the one place that was approved: links and ".." worked out once, here)
     const QString opened = jp::office::sheet::dataReadablePath(path);
+    if (opened.isEmpty()) {
+        *why = keeps ? tr("The file \"%1\" could not be read; the pivot keeps its last data.").arg(shown) : tr("The file \"%1\" can't be read from here.").arg(shown);
+        return false;
+    }
     if (keeps && m_pivotFileGate && !m_pivotFileGate(opened)) {
         *why = tr("The file \"%1\" was not read, because it was not approved. The pivot keeps its last data.").arg(shown);
         return false;
@@ -970,8 +974,9 @@ std::vector<std::pair<QString, QString>> EditSession::pivotExternalFiles(const s
         if (onOpenOnly && !(pb.cache(ci).cache->refreshOnLoad && pb.cache(ci).cache->externalSource)) continue;
         bool network = false;
         const QString path = jp::office::sheet::externalFilePath(pb.cache(ci).cache->externalTarget, folder, &network);
-        if (path.isEmpty() || network) continue;
-        out.emplace_back(pb.table(t).table ? pb.table(t).table->name : QString(), jp::office::sheet::dataReadablePath(path));
+        const QString place = path.isEmpty() || network ? QString() : jp::office::sheet::dataReadablePath(path);
+        if (place.isEmpty()) continue;
+        out.emplace_back(pb.table(t).table ? pb.table(t).table->name : QString(), place);
     }
     return out;
 }

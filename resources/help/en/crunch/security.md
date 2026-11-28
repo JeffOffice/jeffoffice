@@ -13,9 +13,9 @@ Macros are small programs kept inside a file. JeffCrunch keeps them in the file,
 
 This is about the other files that a workbook reads, such as the workbooks it gets numbers from, called **links**, the files its queries read, and the files its pivot tables are made from. The choice is what JeffCrunch does when it opens a workbook that reads some, and when you use **Refresh** or **Refresh All** on its queries and pivot tables.
 
-- **Ask me first** is the usual choice. Before JeffCrunch reads one of those files, it shows the full path of the file and asks. Click **Read the File** only if you trust where the workbook came from. **Don't Read**, the standard button, reads nothing and leaves the workbook as it was. This choice asks every time, even for a file you said yes to before.
+- **Ask me first** is the usual choice. Before JeffCrunch reads one of those files, it shows the full path of the file and asks. Click **Read the File** only if you trust where the workbook came from. **Don't Read**, the standard button, reads nothing and leaves the workbook as it was. This choice asks each time you open a workbook, and then once for each file. After you click **Read the File** for a file, JeffCrunch does not ask about that same file again in that window, until you close the window.
 - **Update them** reads a file without asking only if you have already said yes to that same workbook reading that same file. For every other file, including any file named in a workbook someone just sent you, it still asks first, the same way.
-- **Never update them** reads nothing when a workbook opens, and shows no question. The numbers the file stored stay as they are.
+- **Never update them** reads nothing when a workbook opens, and shows no question. The numbers the file stored stay as they are. When you click **Refresh** yourself, that is a request, so JeffCrunch shows the question then. After you click **Read the File**, it does not ask about that same file again in that window.
 
 ## What is remembered
 

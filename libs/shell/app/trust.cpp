@@ -89,7 +89,7 @@ QByteArray approvalKey()
 // One pair as it is kept: 32 hex digits for each path.
 QString approvalEntry(const QString &workbook, const QString &file)
 {
-    if (workbook.isEmpty() || file.isEmpty() || workbook.size() > kLongestApprovedPath || file.size() > kLongestApprovedPath) return QString();
+    if (workbook.trimmed().isEmpty() || file.trimmed().isEmpty() || workbook.size() > kLongestApprovedPath || file.size() > kLongestApprovedPath) return QString();
     const QByteArray key = approvalKey();
     auto part = [&](const QString &path) { return QMessageAuthenticationCode::hash(path.toUtf8(), key, QCryptographicHash::Sha256).left(16).toHex(); };
     return QString::fromLatin1(part(workbook) + part(file));
@@ -144,7 +144,17 @@ void rememberRead(const QString &workbook, const QString &file)
 }
 
 int approvalCount() { return int(loadApprovals().size()); }
-void forgetApprovals() { Settings::get().remove(kApprovalsKey); }
+void forgetApprovals()
+{
+    Settings::get().remove(kApprovalsKey);
+    ApprovalNotifier::get().forgotten();   // (every open window drops what it remembers too)
+}
+
+ApprovalNotifier &ApprovalNotifier::get()
+{
+    static ApprovalNotifier notifier;
+    return notifier;
+}
 
 static QString filesKey(const QString &app) { return QStringLiteral("trust/linkedFiles/") + (app.isEmpty() ? appInfo().fileName : app); }
 static bool asksAboutFiles(const QString &app) { return (app.isEmpty() ? appInfo().fileName : app) != QLatin1String("jeffpub"); }
