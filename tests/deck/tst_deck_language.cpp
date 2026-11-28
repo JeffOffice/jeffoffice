@@ -582,6 +582,109 @@ private Q_SLOTS:
         QVERIFY2(shown.contains(message.toHtmlEscaped()), qPrintable(shown));
     }
 
+    // The blue dotted line is really drawn under the words: the slide painted with the as-you-type issues has blue pixels, and without them none.
+    void theGrammarIssueIsDrawnAsABlueLineUnderTheWords()
+    {
+        const jptest::SettingGuard grammar(kGrammarOn, true, true);
+        DeckWindow w;
+        w.show();
+        Editor *ed = w.editor();
+        ed->setGrammarDelayMs(0);
+        editTitle(w, kAnTest, 0, 0);
+        const QString storyId = static_cast<TextItem *>(ed->doc()->pages[0]->items[0].get())->storyId;
+        QTRY_VERIFY(!ed->grammarIssuesIn(storyId).isEmpty());
+        auto blue = [&](const jp::RenderOptions &opt) {
+            jp::LayoutCache cache;
+            jp::PaintContext ctx;
+            ctx.doc = ed->doc();
+            ctx.cache = &cache;
+            ctx.opt = opt;
+            const QImage img = jp::Renderer::renderToImage(ctx, 0, 4.0).convertToFormat(QImage::Format_ARGB32);
+            int n = 0;
+            for (int y = 0; y < img.height(); ++y)
+                for (int x = 0; x < img.width(); ++x) {
+                    const QColor c = img.pixelColor(x, y);
+                    if (c.blue() > 150 && c.red() < 120 && c.green() < 150) ++n;
+                }
+            return n;
+        };
+        jp::RenderOptions without = ed->renderOptions();
+        without.grammar.clear();
+        QVERIFY(!ed->renderOptions().grammar.isEmpty());
+        QCOMPARE(blue(without), 0);
+        QVERIFY(blue(ed->renderOptions()) > 0);
+    }
+
+    // Right-click on the issue: the first line is its message (it does nothing), then the suggestions.
+    void theRightClickMenuShowsTheMessageOfTheIssue()
+    {
+        const jptest::SettingGuard grammar(kGrammarOn, true, true);
+        DeckWindow w;
+        w.show();
+        Editor *ed = w.editor();
+        ed->setGrammarDelayMs(0);
+        editTitle(w, kAnTest, 0, 0);
+        const QString storyId = static_cast<TextItem *>(ed->doc()->pages[0]->items[0].get())->storyId;
+        QTRY_VERIFY(!ed->grammarIssuesIn(storyId).isEmpty());
+        const auto issue = ed->grammarIssuesIn(storyId).first();
+        QVERIFY(!issue.message.isEmpty());
+        QTextCursor c = ed->cursor();
+        c.setPosition(issue.start + 1);
+        ed->setCursor(c);
+        QMenu menu;
+        QVERIFY(jp::addGrammarSuggestions(menu, ed));
+        QVERIFY(!menu.actions().isEmpty());
+        QCOMPARE(menu.actions().first()->text(), issue.message);
+        QVERIFY(!menu.actions().first()->isEnabled());
+    }
+
+    // F7 is the Spelling command; it shows the misspelling first and then goes on to the grammar issue, with its message.
+    void theSpellingCheckGoesOnToTheGrammarIssueAfterTheMisspellings()
+    {
+        const jptest::SettingGuard grammar(kGrammarOn, true, true);
+        DeckWindow w;
+        w.show();
+        QCOMPARE(w.act(QStringLiteral("review.spelling"))->shortcut().toString(QKeySequence::NativeText), QKeySequence(Qt::Key_F7).toString(QKeySequence::NativeText));
+        Editor *ed = w.editor();
+        ed->setGrammarDelayMs(0);
+        editTitle(w, kAnTest + QStringLiteral(" Xqzvwkp."), 0, 0);
+        const QString message = jp::grammarCheck(kAnTest).first().message;
+        const QString storyId = static_cast<TextItem *>(ed->doc()->pages[0]->items[0].get())->storyId;
+        QTRY_VERIFY(!ed->grammarIssuesIn(storyId).isEmpty());
+        QString first, second;
+        withDialog([&] { w.act(QStringLiteral("review.spelling"))->trigger(); }, QStringLiteral("pageSpellingDialog"), [&](QDialog *d) {
+            first = d->findChild<QLabel *>(QStringLiteral("spellingNotIn"))->text();
+            d->findChild<QPushButton *>(QStringLiteral("spellingIgnore"))->click();
+            second = d->findChild<QLabel *>(QStringLiteral("spellingNotIn"))->text();
+        }, false);
+        QVERIFY2(first.contains(QStringLiteral("Xqzvwkp")), qPrintable(first));
+        QVERIFY2(second.contains(message.toHtmlEscaped()), qPrintable(second));
+    }
+
+    // The Review command "Check Grammar as You Type" switches the marks off and back on.
+    void theReviewCommandSwitchesGrammarAsYouTypeOffAndOn()
+    {
+        const jptest::SettingGuard grammar(kGrammarOn, true, true);
+        DeckWindow w;
+        w.show();
+        Editor *ed = w.editor();
+        ed->setGrammarDelayMs(0);
+        editTitle(w, kAnTest, 0, 0);
+        const QString storyId = static_cast<TextItem *>(ed->doc()->pages[0]->items[0].get())->storyId;
+        QTRY_VERIFY(!ed->grammarIssuesIn(storyId).isEmpty());
+        QAction *cmd = w.act(QStringLiteral("review.checkGrammarAsType"));
+        QVERIFY(cmd->isChecked());
+        cmd->trigger();
+        QVERIFY(!jp::grammarAsYouType());
+        QVERIFY(!cmd->isChecked());
+        QVERIFY(ed->grammarIssuesIn(storyId).isEmpty());
+        QVERIFY(!ed->renderOptions().grammar.contains(storyId));
+        cmd->trigger();
+        QVERIFY(jp::grammarAsYouType());
+        QVERIFY(cmd->isChecked());
+        QTRY_VERIFY(!ed->grammarIssuesIn(storyId).isEmpty());
+    }
+
     // A command that turns the event loop before it shows its box does not make the helper give up on the box.
     void withDialogKeepsLookingWhileTheCommandSpinsTheEventLoop()
     {
