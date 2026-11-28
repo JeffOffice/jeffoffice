@@ -1381,6 +1381,42 @@ private Q_SLOTS:
         QCOMPARE(nextNoteReference(*doc, first + 1, false, false), -1);
         QCOMPARE(nextNoteReference(*doc, 0, true, true), -1);
     }
+
+    void aNoteReferenceFieldShowsTheNumberOfTheNoteAndSurvivesSaving()
+    {
+        auto doc = open(makeDocx(para(run("one two three"))));
+        QVERIFY(doc);
+        QTextCursor c(doc->story());
+        c.setPosition(4);
+        QVERIFY(insertFootnote(*doc, c));
+        QTextCursor d(doc->story());
+        d.setPosition(doc->story()->toPlainText().size() - 1);
+        QVERIFY(insertFootnote(*doc, d));
+        const int first = nextNoteReference(*doc, 0, true, false);
+        const int second = nextNoteReference(*doc, first + 1, true, false);
+        QVERIFY(first > 0 && second > first);
+        // A bookmark round the second note's mark.
+        QTextCursor mark(doc->story());
+        mark.setPosition(second);
+        mark.setPosition(second + 1, QTextCursor::KeepAnchor);
+        QVERIFY(addBookmark(*doc, mark, QStringLiteral("SecondNote")));
+        QTextCursor at(doc->story());
+        at.movePosition(QTextCursor::End);
+        QVERIFY(insertField(*doc, at, QStringLiteral("NOTEREF SecondNote")));
+        QTextCursor missing(doc->story());
+        missing.movePosition(QTextCursor::End);
+        QVERIFY(insertField(*doc, missing, QStringLiteral("NOTEREF NoSuchMark")));
+        updateFields(*doc, UpdateOptions(), true);
+        const QByteArray sep = "</w:instrText></w:r><w:r><w:fldChar w:fldCharType=\"separate\"/></w:r><w:r><w:t xml:space=\"preserve\">";
+        const QByteArray out = documentXml(doc->toDocx());
+        QVERIFY2(out.contains("NOTEREF SecondNote " + sep + "2<"), out.constData());
+        QVERIFY2(out.contains("NOTEREF NoSuchMark " + sep + fields::referenceSourceNotFound().toUtf8()), out.constData());
+        // Saved and opened again, the field is still a NOTEREF, and updating it again gives the number again.
+        auto again = open(doc->toDocx());
+        QVERIFY(again);
+        updateFields(*again, UpdateOptions(), true);
+        QVERIFY2(documentXml(again->toDocx()).contains("NOTEREF SecondNote " + sep + "2<"), documentXml(again->toDocx()).constData());
+    }
     void theCommandsForFieldsAreDimmedWhereThereIsNoFieldToWorkOn()
     {
         WriteWindow w;
