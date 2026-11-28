@@ -17,7 +17,7 @@ Your settings are in the **JeffPub Options** window. Click **File > Options** to
 These check boxes control spelling and typing help. See [Check spelling and hyphenation](proofing).
 
 - **Check spelling as you type**
-- **Check grammar as you type** marks clear grammar and style mistakes in English, French, German, and Spanish text with a blue dotted line.
+- **Check grammar as you type** marks clear grammar and style mistakes in English text, in every regional kind, with a blue dotted line. Text in other languages is checked for spelling only.
 - **Grammar settings** opens a list of the kinds of issues to look for: grammar, punctuation, capitalisation, mixed-up words, repetition, and style (which is off until you turn it on).
 - **Ignore words in UPPERCASE**
 - **Ignore words that contain numbers**

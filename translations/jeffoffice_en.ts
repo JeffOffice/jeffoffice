@@ -61,7 +61,7 @@
 <context>
     <name>Import</name>
     <message numerus="yes">
-        <location filename="../apps/pub/io/importers.cpp" line="+657"/>
+        <location filename="../apps/pub/io/importers.cpp" line="+408"/>
         <source>Created %n email file(s) in %1.</source>
         <translation>
             <numerusform>Created %n email file in %1.</numerusform>
@@ -679,7 +679,7 @@
 <context>
     <name>jp::MainWindow</name>
     <message numerus="yes">
-        <location filename="../apps/pub/app/mainwindow.cpp" line="+1687"/>
+        <location filename="../apps/pub/app/mainwindow.cpp" line="+1689"/>
         <source>Saved %n drawing(s).</source>
         <translation>
             <numerusform>Saved %n drawing.</numerusform>
@@ -1175,7 +1175,15 @@
 <context>
     <name>jp::write::Compare</name>
     <message numerus="yes">
-        <location filename="../apps/write/core/compareops.cpp" line="+1373"/>
+        <location filename="../apps/write/core/compareops.cpp" line="+2109"/>
+        <source>%n part of the new text could not be shown (%1).</source>
+        <translation>
+            <numerusform>%n part of the new text could not be shown (%1).</numerusform>
+            <numerusform>%n parts of the new text could not be shown (%1).</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <location line="+2"/>
         <source>%n difference is in a place that Compare can&apos;t mark yet (%1), so it is not shown.</source>
         <translation>
             <numerusform>%n difference is in a place that Compare can&apos;t mark yet (%1), so it is not shown.</numerusform>

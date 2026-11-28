@@ -1528,6 +1528,13 @@ Download it from %2 now? (%3, once.)</translation>
     </message>
 </context>
 <context>
+    <name>jp::write::Compare</name>
+    <message>
+        <source>Too much changed to line up all the paragraphs, so a stretch of them is shown as taken out and put in whole. The new text keeps its styles, lists, bold, and italic, but not its text colors, shading, or the spacing between paragraphs.</source>
+        <translation>Too much changed to line up all the paragraphs, so a stretch of them is shown as taken out and put in whole. The new text keeps its styles, lists, bold, and italic, but not its text colours, shading, or the spacing between paragraphs.</translation>
+    </message>
+</context>
+<context>
     <name>jp::write::Dialogs</name>
     <message>
         <source>Font color:</source>

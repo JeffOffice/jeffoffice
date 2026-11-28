@@ -5945,7 +5945,12 @@ Artikel auf der Rückseite	4</translation>
         <translation type="unfinished">Mini-Symbolleiste bei Auswahl anzeigen</translation>
     </message>
     <message>
-        <location line="+37"/>
+        <location line="+36"/>
+        <source>Grammar is checked in English only. Text in other languages is checked for spelling only.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+8"/>
         <source>Custom Dictionary...</source>
         <translation type="unfinished">Benutzerwörterbuch...</translation>
     </message>
@@ -5961,7 +5966,7 @@ Artikel auf der Rückseite	4</translation>
     </message>
     <message>
         <location filename="../libs/shell/app/commandsearch.cpp" line="-15"/>
-        <location filename="../libs/page/app/optionsdialog.cpp" line="-51"/>
+        <location filename="../libs/page/app/optionsdialog.cpp" line="-58"/>
         <source>General</source>
         <translation type="unfinished">Allgemein</translation>
     </message>
@@ -6012,7 +6017,7 @@ Artikel auf der Rückseite	4</translation>
     </message>
     <message>
         <location filename="../libs/shell/app/commandsearch.cpp" line="+1"/>
-        <location filename="../libs/page/app/optionsdialog.cpp" line="+22"/>
+        <location filename="../libs/page/app/optionsdialog.cpp" line="+29"/>
         <source>Proofing</source>
         <translation type="unfinished">Dokumentprüfung</translation>
     </message>
@@ -6046,7 +6051,7 @@ Artikel auf der Rückseite	4</translation>
         <translation type="unfinished"> Minuten</translation>
     </message>
     <message>
-        <location filename="../libs/page/app/optionsdialog.cpp" line="-126"/>
+        <location filename="../libs/page/app/optionsdialog.cpp" line="-133"/>
         <source>Always create backup copy</source>
         <translation type="unfinished">Immer Sicherungskopie erstellen</translation>
     </message>
@@ -6113,7 +6118,7 @@ Artikel auf der Rückseite	4</translation>
         <translation type="unfinished">Erweitert</translation>
     </message>
     <message>
-        <location filename="../libs/page/app/optionsdialog.cpp" line="+151"/>
+        <location filename="../libs/page/app/optionsdialog.cpp" line="+158"/>
         <source>Display Language</source>
         <translation type="unfinished">Anzeigesprache</translation>
     </message>
@@ -8021,13 +8026,13 @@ Ohne Sicherung speichern?</translation>
 <context>
     <name>Grammar</name>
     <message>
-        <location filename="../libs/text/grammar/grammarrules.cpp" line="+275"/>
+        <location filename="../libs/text/grammar/grammarrules.cpp" line="+291"/>
         <location filename="../libs/text/grammar/grammar_common.inc" line="+62"/>
         <source>Repeated word.</source>
         <translation type="unfinished">Wort wiederholt.</translation>
     </message>
     <message>
-        <location line="+150"/>
+        <location line="+160"/>
         <source>Use &quot;an&quot; before a word that starts with a vowel sound.</source>
         <translation type="unfinished">Verwenden Sie „ein“ vor einem Wort, das mit einem Vokallaut beginnt.</translation>
     </message>
@@ -8037,7 +8042,7 @@ Ohne Sicherung speichern?</translation>
         <translation type="unfinished">Verwenden Sie „eine“ vor einem Wort, das mit einem Konsonantenlaut beginnt.</translation>
     </message>
     <message>
-        <location line="+53"/>
+        <location line="+57"/>
         <source>Start a sentence with a capital letter.</source>
         <translation type="unfinished">Beginnen Sie einen Satz mit einem Großbuchstaben.</translation>
     </message>
@@ -8062,13 +8067,13 @@ Ohne Sicherung speichern?</translation>
         <translation type="unfinished">Verwenden Sie hier „deren“ (gehört ihnen).</translation>
     </message>
     <message>
-        <location line="+19"/>
-        <location line="+891"/>
+        <location line="+20"/>
+        <location line="+971"/>
         <source>Use &quot;you&apos;re&quot; (you are) here, not &quot;your&quot;.</source>
         <translation type="unfinished">Verwenden Sie hier „du bist“ (you are), nicht „deine“.</translation>
     </message>
     <message>
-        <location line="-888"/>
+        <location line="-968"/>
         <source>Use &quot;your&quot; (belonging to you) here, not &quot;you&apos;re&quot;.</source>
         <translation type="unfinished">Verwenden Sie hier „deine“ (gehört dir), nicht „du bist“.</translation>
     </message>
@@ -8098,12 +8103,12 @@ Ohne Sicherung speichern?</translation>
         <translation type="unfinished">Verwenden Sie nach diesem Wort „haben“, nicht „of“.</translation>
     </message>
     <message>
-        <location line="+33"/>
+        <location line="+108"/>
         <source>Use one space here.</source>
         <translation type="unfinished">Verwenden Sie hier ein Leerzeichen.</translation>
     </message>
     <message>
-        <location line="+30"/>
+        <location line="+33"/>
         <source>Take out the space before this mark.</source>
         <translation type="unfinished">Entfernen Sie das Leerzeichen vor diesem Zeichen.</translation>
     </message>
@@ -8325,7 +8330,7 @@ Ohne Sicherung speichern?</translation>
         <translation type="unfinished">Verbinden Sie diese mit einem Bindestrich, wenn sie vor einem Substantiv stehen.</translation>
     </message>
     <message>
-        <location line="+27"/>
+        <location line="+29"/>
         <source>Put a space after the comma.</source>
         <translation type="unfinished">Setzen Sie nach dem Komma ein Leerzeichen.</translation>
     </message>
@@ -8960,7 +8965,7 @@ Ohne Sicherung speichern?</translation>
         <translation type="unfinished">Die Datei enthält keine Zeilen.</translation>
     </message>
     <message>
-        <location filename="../apps/pub/io/importers.cpp" line="+557"/>
+        <location filename="../apps/pub/io/importers.cpp" line="+308"/>
         <source>%1 (merged)</source>
         <translation type="unfinished">%1 (zusammengeführt)</translation>
     </message>
@@ -9075,7 +9080,7 @@ Open them with your email program to send.</source>
         <translation type="unfinished">Der Publikationsinhalt ist beschädigt: %1</translation>
     </message>
     <message>
-        <location filename="../apps/pub/io/pubimport.cpp" line="+1307"/>
+        <location filename="../apps/pub/io/pubimport.cpp" line="+1308"/>
         <source>A %1 picture could not be displayed.</source>
         <translation type="unfinished">Ein %1-Bild konnte nicht angezeigt werden.</translation>
     </message>
@@ -9100,7 +9105,7 @@ Open them with your email program to send.</source>
         <translation type="unfinished">Die .pub-Datei ist beschädigt.</translation>
     </message>
     <message>
-        <location line="+7"/>
+        <location line="+8"/>
         <source>JeffPub could not read this .pub file. It may be damaged or use features that aren&apos;t supported yet.</source>
         <translation type="unfinished">JeffPub konnte diese .pub-Datei nicht lesen. Sie ist möglicherweise beschädigt oder verwendet Funktionen, die noch nicht unterstützt werden.</translation>
     </message>
@@ -9527,7 +9532,7 @@ Open them with your email program to send.</source>
 <context>
     <name>MainWindow</name>
     <message>
-        <location filename="../apps/pub/app/mainwindow.cpp" line="+606"/>
+        <location filename="../apps/pub/app/mainwindow.cpp" line="+608"/>
         <source>A picture on page %1 has low resolution (%2 ppi; printers ask for 300).</source>
         <translation type="unfinished">Ein Bild auf Seite %1 hat eine niedrige Auflösung (%2 ppi; Druckereien verlangen 300).</translation>
     </message>
@@ -30605,7 +30610,7 @@ Quelle: %3</translation>
         <location filename="../apps/crunch/app/crunchwindow_find.cpp" line="-113"/>
         <location filename="../apps/crunch/app/crunchwindow_pasteoffer.cpp" line="-24"/>
         <location line="+25"/>
-        <location filename="../apps/crunch/app/crunchwindow_tabs2.cpp" line="+125"/>
+        <location filename="../apps/crunch/app/crunchwindow_tabs2.cpp" line="+126"/>
         <source>Formulas</source>
         <translation type="unfinished">Formeln</translation>
     </message>
@@ -33950,12 +33955,12 @@ Die Datei kann nicht gelesen werden.</translation>
     </message>
     <message>
         <location line="+1"/>
-        <location line="+571"/>
+        <location line="+575"/>
         <source>Error Checking…</source>
         <translation type="unfinished">Fehlerüberprüfung…</translation>
     </message>
     <message>
-        <location line="-570"/>
+        <location line="-574"/>
         <source>Watch Window</source>
         <translation type="unfinished">Überwachungsfenster</translation>
     </message>
@@ -33966,14 +33971,14 @@ Die Datei kann nicht gelesen werden.</translation>
     </message>
     <message>
         <location line="+1"/>
-        <location line="+724"/>
+        <location line="+728"/>
         <location line="+3"/>
         <location line="+24"/>
         <source>Data Validation</source>
         <translation type="unfinished">Datenüberprüfung</translation>
     </message>
     <message>
-        <location line="-750"/>
+        <location line="-754"/>
         <location line="+2"/>
         <source>Circle Invalid Data</source>
         <translation type="unfinished">Ungültige Daten einkreisen</translation>
@@ -34000,13 +34005,13 @@ Die Datei kann nicht gelesen werden.</translation>
     </message>
     <message>
         <location line="+1"/>
-        <location line="+932"/>
+        <location line="+936"/>
         <location line="+108"/>
         <source>Thesaurus</source>
         <translation type="unfinished">Thesaurus</translation>
     </message>
     <message>
-        <location line="-1039"/>
+        <location line="-1043"/>
         <source>Check Accessibility</source>
         <translation type="unfinished">Barrierefreiheit prüfen</translation>
     </message>
@@ -34038,12 +34043,12 @@ Die Datei kann nicht gelesen werden.</translation>
     </message>
     <message>
         <location line="+2"/>
-        <location line="+736"/>
+        <location line="+740"/>
         <source>Consolidate</source>
         <translation type="unfinished">Konsolidieren</translation>
     </message>
     <message>
-        <location line="-734"/>
+        <location line="-738"/>
         <location line="+188"/>
         <location line="+22"/>
         <location line="+16"/>
@@ -34195,7 +34200,7 @@ Die Datei kann nicht gelesen werden.</translation>
         <translation type="unfinished">%1 von %2 Zeilen erfüllen die Bedingungen.</translation>
     </message>
     <message>
-        <location line="+90"/>
+        <location line="+94"/>
         <location line="+57"/>
         <source>Ignore Error</source>
         <translation type="unfinished">Fehler ignorieren</translation>
@@ -36938,7 +36943,7 @@ Die Datei kann nicht gelesen werden.</translation>
     </message>
     <message>
         <location line="+14"/>
-        <location filename="../apps/crunch/app/crunchwindow_tabs2.cpp" line="-1043"/>
+        <location filename="../apps/crunch/app/crunchwindow_tabs2.cpp" line="-1047"/>
         <source>Forecast Sheet</source>
         <translation type="unfinished">Prognoseblatt</translation>
     </message>
@@ -50300,7 +50305,7 @@ Quelle: %3</translation>
 <context>
     <name>jp::MainWindow</name>
     <message>
-        <location filename="../apps/pub/app/mainwindow.cpp" line="-1672"/>
+        <location filename="../apps/pub/app/mainwindow.cpp" line="-1674"/>
         <location filename="../apps/pub/app/mainwindow_actions.cpp" line="+505"/>
         <source>%1 (%2)</source>
         <translation type="unfinished">%1 (%2)</translation>
@@ -50333,13 +50338,13 @@ Quelle: %3</translation>
         <location line="+1"/>
         <location line="+4"/>
         <location line="+1"/>
-        <location line="+249"/>
+        <location line="+251"/>
         <location filename="../apps/pub/app/mainwindow_actions.cpp" line="-532"/>
         <source>Open</source>
         <translation type="unfinished">Öffnen</translation>
     </message>
     <message>
-        <location line="-358"/>
+        <location line="-360"/>
         <location line="+18"/>
         <location line="+34"/>
         <source>JeffPub can&apos;t open &quot;%1&quot;.
@@ -50374,7 +50379,7 @@ Quelle: %3</translation>
 %2%3</translation>
     </message>
     <message>
-        <location line="+27"/>
+        <location line="+29"/>
         <location line="+1090"/>
         <source>Saved %1</source>
         <translation type="unfinished">%1 gespeichert</translation>
@@ -50386,14 +50391,14 @@ Quelle: %3</translation>
         <translation type="unfinished">JeffPub-Publikation (*.jpub)</translation>
     </message>
     <message>
-        <location line="-287"/>
-        <location line="+269"/>
+        <location line="-289"/>
+        <location line="+271"/>
         <location line="+18"/>
         <source>.pub Publication Files (*.pub)</source>
         <translation type="unfinished">.pub-Publikationsdateien (*.pub)</translation>
     </message>
     <message>
-        <location line="-501"/>
+        <location line="-503"/>
         <source> (Read-Only)</source>
         <translation type="unfinished"> (Schreibgeschützt)</translation>
     </message>
@@ -50477,7 +50482,7 @@ Quelle: %3</translation>
         <translation type="unfinished">Diese Publikation wird nur zum Lesen geöffnet. Wählen Sie einen anderen Namen dafür.</translation>
     </message>
     <message>
-        <location line="+72"/>
+        <location line="+74"/>
         <source>Some versions kept before couldn&apos;t be given the new password, and stay as they were.</source>
         <translation type="unfinished">Einige zuvor gespeicherte Versionen konnten nicht mit dem neuen Kennwort versehen werden und bleiben unverändert.</translation>
     </message>
@@ -50727,20 +50732,20 @@ Quelle: %3</translation>
         <translation type="unfinished">Farbprofile (*.icc *.icm)</translation>
     </message>
     <message>
-        <location line="-582"/>
-        <location line="+582"/>
+        <location line="-584"/>
+        <location line="+584"/>
         <location filename="../apps/pub/app/mainwindow_actions.cpp" line="+616"/>
         <source>All Files (*)</source>
         <translation type="unfinished">Alle Dateien (*)</translation>
     </message>
     <message>
-        <location line="-394"/>
+        <location line="-396"/>
         <location filename="../apps/pub/app/mainwindow_info.cpp" line="+356"/>
         <source>publication</source>
         <translation type="unfinished">Publikation</translation>
     </message>
     <message>
-        <location line="+65"/>
+        <location line="+67"/>
         <source>Saved a copy as %1. Left out, as this kind of file can&apos;t hold it: %2</source>
         <translation type="unfinished">Als Kopie unter %1 gespeichert. Weggelassen, da diese Dateiart es nicht speichern kann: %2</translation>
     </message>
@@ -51075,7 +51080,7 @@ Quelle: %3</translation>
         <translation type="unfinished">Neue leere Publikation</translation>
     </message>
     <message>
-        <location filename="../apps/pub/app/mainwindow.cpp" line="-1686"/>
+        <location filename="../apps/pub/app/mainwindow.cpp" line="-1688"/>
         <location filename="../apps/pub/app/mainwindow_actions.cpp" line="+204"/>
         <source>Publications (*.jpub *.pub)</source>
         <translation type="unfinished">Publikationen (*.jpub *.pub)</translation>
@@ -51577,7 +51582,7 @@ Quelle: %3</translation>
         <translation type="unfinished">Unternehmensinformationen bearbeiten…</translation>
     </message>
     <message>
-        <location filename="../apps/pub/app/mainwindow.cpp" line="+1560"/>
+        <location filename="../apps/pub/app/mainwindow.cpp" line="+1562"/>
         <location line="+1"/>
         <location line="+7"/>
         <location line="+1"/>
@@ -53995,7 +54000,7 @@ Ihr Webbrowser öffnet LibreTranslate, einen kostenlosen Open-Source-Übersetzun
         <translation type="unfinished">Automatisch</translation>
     </message>
     <message>
-        <location filename="../apps/pub/app/mainwindow.cpp" line="-1942"/>
+        <location filename="../apps/pub/app/mainwindow.cpp" line="-1944"/>
         <location filename="../apps/pub/app/mainwindow_ribbon.cpp" line="+2"/>
         <source>Tints…</source>
         <translation type="unfinished">Farbtöne…</translation>
@@ -54405,7 +54410,7 @@ Ihr Webbrowser öffnet LibreTranslate, einen kostenlosen Open-Source-Übersetzun
         <translation type="unfinished">%1 × %2</translation>
     </message>
     <message>
-        <location filename="../apps/pub/app/mainwindow.cpp" line="+923"/>
+        <location filename="../apps/pub/app/mainwindow.cpp" line="+925"/>
         <location filename="../apps/pub/app/mainwindow_info.cpp" line="-31"/>
         <source>Pages</source>
         <translation>Seiten</translation>
@@ -58333,12 +58338,32 @@ Ihr Webbrowser öffnet LibreTranslate, einen kostenlosen Open-Source-Übersetzun
         <translation type="unfinished">Nummerierungen mit eigenem Text (sie werden als 1., 1) oder (1)) ausgegeben)</translation>
     </message>
     <message>
-        <location line="+9"/>
+        <location line="+7"/>
+        <source>the macro project the file held (it is never run, and a new %1 file does not keep it)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>the fonts stored in the file (they are used while it is open, and a new %1 file does not keep them)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+13"/>
+        <source>the alternative text of objects, and which objects are marked as decoration</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>links on objects and on mouse-over (links in text are kept)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
         <source>hidden objects (the .pub format can&apos;t keep them hidden, so they are visible the next time it opens)</source>
         <translation type="unfinished">ausgeblendete Objekte (das .pub-Format kann sie nicht ausgeblendet speichern, daher sind sie beim nächsten Öffnen sichtbar)</translation>
     </message>
     <message>
-        <location line="+2"/>
+        <location line="+3"/>
         <source>the mail merge list, and which of its recipients are left out</source>
         <translation type="unfinished">die Seriendruckliste und welche ihrer Empfänger ausgelassen werden</translation>
     </message>
@@ -82268,22 +82293,32 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
 <context>
     <name>jp::write::Compare</name>
     <message>
-        <location filename="../apps/write/core/compareops.cpp" line="+1355"/>
+        <location filename="../apps/write/core/compareops.cpp" line="+2078"/>
         <source>A document with that many paragraphs can&apos;t be compared.</source>
         <translation type="unfinished">Ein Dokument mit so vielen Absätzen kann nicht verglichen werden.</translation>
     </message>
     <message>
-        <location line="-478"/>
+        <location line="-671"/>
         <source>Too many changes to look for all the moved text.</source>
         <translation type="unfinished">Zu viele Änderungen, um den gesamten verschobenen Text zu finden.</translation>
     </message>
     <message>
-        <location line="-83"/>
+        <location line="-91"/>
         <source>Too much text to line up the tables, so they are not compared.</source>
         <translation type="unfinished">Zu viel Text, um die Tabellen aneinanderzureihen, daher werden sie nicht verglichen.</translation>
     </message>
     <message>
-        <location line="+134"/>
+        <location line="+1"/>
+        <source>Too many rows and tables changed to mark them all.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+59"/>
+        <source>Too much changed to line up all the paragraphs, so a stretch of them is shown as taken out and put in whole. The new text keeps its styles, lists, bold, and italic, but not its text colors, shading, or the spacing between paragraphs.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+84"/>
         <source>Too many changes to compare every paragraph word by word, so some are shown as replaced whole.</source>
         <translation type="unfinished">Zu viele Änderungen, um jeden Absatz Wort für Wort zu vergleichen, daher werden einige als vollständig ersetzt angezeigt.</translation>
     </message>
@@ -82293,7 +82328,7 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
         <translation type="unfinished">Zu viele Formatänderungen, um sie alle anzuzeigen.</translation>
     </message>
     <message>
-        <location line="+218"/>
+        <location line="+412"/>
         <source>tables</source>
         <translation type="unfinished">Tabellen</translation>
     </message>
@@ -82319,11 +82354,12 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
     </message>
     <message>
         <location line="+1"/>
+        <location line="+203"/>
         <source>parts kept as they were written</source>
         <translation type="unfinished">Teile, die unverändert bleiben</translation>
     </message>
     <message>
-        <location line="+5"/>
+        <location line="-219"/>
         <source>%1 and %2</source>
         <translation type="unfinished">%1 und %2</translation>
     </message>
@@ -82333,7 +82369,7 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
         <translation type="unfinished">%1 und %2</translation>
     </message>
     <message>
-        <location line="+22"/>
+        <location line="+40"/>
         <source>Too many pictures and shapes to look for all the text boxes among them.</source>
         <translation type="unfinished">Zu viele Bilder und Formen, um darin alle Textfelder zu suchen.</translation>
     </message>
@@ -82347,8 +82383,36 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
         <source>Too many notes, headers, and footers to compare them all.</source>
         <translation type="unfinished">Zu viele Notizen sowie Kopf- und Fußzeilen, um sie alle zu vergleichen.</translation>
     </message>
+    <message>
+        <location line="+38"/>
+        <source>footnote and endnote marks</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>fields</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>pictures</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>links</source>
+        <translation type="unfinished"></translation>
+    </message>
     <message numerus="yes">
-        <location line="+33"/>
+        <location line="+5"/>
+        <source>%n part of the new text could not be shown (%1).</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <location line="+2"/>
         <source>%n difference is in a place that Compare can&apos;t mark yet (%1), so it is not shown.</source>
         <translation type="unfinished">
             <numerusform>%n Unterschied befindet sich an einer Stelle, die Vergleichen noch nicht markieren kann (%1), daher wird er nicht angezeigt.</numerusform>
@@ -82386,37 +82450,37 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
     </message>
     <message>
         <location line="+349"/>
-        <location line="+760"/>
+        <location line="+774"/>
         <source>A content control goes in the text, not in a header, a footer, or a note.</source>
         <translation type="unfinished">Ein Inhaltssteuerelement gehört in den Text, nicht in eine Kopfzeile, Fußzeile oder Notiz.</translation>
     </message>
     <message>
-        <location line="-744"/>
+        <location line="-758"/>
         <source>The selection holds only part of another content control.</source>
         <translation type="unfinished">Die Auswahl enthält nur einen Teil eines anderen Inhaltssteuerelements.</translation>
     </message>
     <message>
         <location line="+4"/>
-        <location line="+748"/>
+        <location line="+762"/>
         <location line="+171"/>
         <source>The document has the most content controls it can hold.</source>
         <translation type="unfinished">Das Dokument enthält bereits die maximale Anzahl an Inhaltssteuerelementen.</translation>
     </message>
     <message>
-        <location line="-914"/>
-        <location line="+749"/>
+        <location line="-928"/>
+        <location line="+763"/>
         <source>Content controls can hold each other only so deep.</source>
         <translation type="unfinished">Inhaltssteuerelemente können nur so tief ineinander verschachtelt werden.</translation>
     </message>
     <message>
-        <location line="-745"/>
-        <location line="+741"/>
+        <location line="-759"/>
+        <location line="+755"/>
         <source>The content control there can&apos;t be changed.</source>
         <translation type="unfinished">Das Inhaltssteuerelement dort kann nicht geändert werden.</translation>
     </message>
     <message>
-        <location line="-689"/>
-        <location line="+601"/>
+        <location line="-703"/>
+        <location line="+615"/>
         <source>A list holds at most %1 items.</source>
         <translation type="unfinished">Eine Liste enthält höchstens %1 Elemente.</translation>
     </message>
@@ -87243,7 +87307,7 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
 <context>
     <name>jp::write::ReadyTables</name>
     <message>
-        <location filename="../apps/write/core/tableops.cpp" line="+2390"/>
+        <location filename="../apps/write/core/tableops.cpp" line="+2429"/>
         <source>Column 1</source>
         <translation type="unfinished">Spalte 1</translation>
     </message>
@@ -87975,7 +88039,7 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
 <context>
     <name>jp::write::Tables</name>
     <message>
-        <location filename="../apps/write/core/tableops.cpp" line="-2123"/>
+        <location filename="../apps/write/core/tableops.cpp" line="-2162"/>
         <source>A table can have at most 20,000 rows.</source>
         <translation type="unfinished">Eine Tabelle kann höchstens 20.000 Zeilen enthalten.</translation>
     </message>
@@ -88003,7 +88067,7 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
         <translation type="unfinished">Neue Spalten können dort nicht stehen: Verbundene Zellen reichen über die Stelle, an der sie stehen würden.</translation>
     </message>
     <message>
-        <location filename="../apps/write/core/tableops.cpp" line="+1549"/>
+        <location filename="../apps/write/core/tableops.cpp" line="+1588"/>
         <location line="+68"/>
         <source>A table can only be moved in the main text.</source>
         <translation type="unfinished">Eine Tabelle kann nur im Haupttext verschoben werden.</translation>

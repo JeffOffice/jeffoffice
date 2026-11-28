@@ -5945,7 +5945,12 @@ Artikel achterpagina	4</translation>
         <translation type="unfinished">Minibalk weergeven bij selectie</translation>
     </message>
     <message>
-        <location line="+37"/>
+        <location line="+36"/>
+        <source>Grammar is checked in English only. Text in other languages is checked for spelling only.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+8"/>
         <source>Custom Dictionary...</source>
         <translation type="unfinished">Aangepast woordenboek...</translation>
     </message>
@@ -5961,7 +5966,7 @@ Artikel achterpagina	4</translation>
     </message>
     <message>
         <location filename="../libs/shell/app/commandsearch.cpp" line="-15"/>
-        <location filename="../libs/page/app/optionsdialog.cpp" line="-51"/>
+        <location filename="../libs/page/app/optionsdialog.cpp" line="-58"/>
         <source>General</source>
         <translation type="unfinished">Algemeen</translation>
     </message>
@@ -6012,7 +6017,7 @@ Artikel achterpagina	4</translation>
     </message>
     <message>
         <location filename="../libs/shell/app/commandsearch.cpp" line="+1"/>
-        <location filename="../libs/page/app/optionsdialog.cpp" line="+22"/>
+        <location filename="../libs/page/app/optionsdialog.cpp" line="+29"/>
         <source>Proofing</source>
         <translation type="unfinished">Controle</translation>
     </message>
@@ -6046,7 +6051,7 @@ Artikel achterpagina	4</translation>
         <translation type="unfinished"> minuten</translation>
     </message>
     <message>
-        <location filename="../libs/page/app/optionsdialog.cpp" line="-126"/>
+        <location filename="../libs/page/app/optionsdialog.cpp" line="-133"/>
         <source>Always create backup copy</source>
         <translation type="unfinished">Altijd een reservekopie maken</translation>
     </message>
@@ -6113,7 +6118,7 @@ Artikel achterpagina	4</translation>
         <translation type="unfinished">Geavanceerd</translation>
     </message>
     <message>
-        <location filename="../libs/page/app/optionsdialog.cpp" line="+151"/>
+        <location filename="../libs/page/app/optionsdialog.cpp" line="+158"/>
         <source>Display Language</source>
         <translation type="unfinished">Weergavetaal</translation>
     </message>
@@ -8021,13 +8026,13 @@ Opslaan zonder reservekopie?</translation>
 <context>
     <name>Grammar</name>
     <message>
-        <location filename="../libs/text/grammar/grammarrules.cpp" line="+275"/>
+        <location filename="../libs/text/grammar/grammarrules.cpp" line="+291"/>
         <location filename="../libs/text/grammar/grammar_common.inc" line="+62"/>
         <source>Repeated word.</source>
         <translation type="unfinished">Woord herhaald.</translation>
     </message>
     <message>
-        <location line="+150"/>
+        <location line="+160"/>
         <source>Use &quot;an&quot; before a word that starts with a vowel sound.</source>
         <translation type="unfinished">Gebruik &quot;an&quot; voor een woord dat met een klinkerklank begint.</translation>
     </message>
@@ -8037,7 +8042,7 @@ Opslaan zonder reservekopie?</translation>
         <translation type="unfinished">Gebruik &quot;a&quot; voor een woord dat met een medeklinkerklank begint.</translation>
     </message>
     <message>
-        <location line="+53"/>
+        <location line="+57"/>
         <source>Start a sentence with a capital letter.</source>
         <translation type="unfinished">Begin een zin met een hoofdletter.</translation>
     </message>
@@ -8062,13 +8067,13 @@ Opslaan zonder reservekopie?</translation>
         <translation type="unfinished">Gebruik hier &quot;their&quot; (behorend bij hen).</translation>
     </message>
     <message>
-        <location line="+19"/>
-        <location line="+891"/>
+        <location line="+20"/>
+        <location line="+971"/>
         <source>Use &quot;you&apos;re&quot; (you are) here, not &quot;your&quot;.</source>
         <translation type="unfinished">Gebruik hier &quot;you&apos;re&quot; (you are), niet &quot;your&quot;.</translation>
     </message>
     <message>
-        <location line="-888"/>
+        <location line="-968"/>
         <source>Use &quot;your&quot; (belonging to you) here, not &quot;you&apos;re&quot;.</source>
         <translation type="unfinished">Gebruik hier &quot;your&quot; (behorend bij jou), niet &quot;you&apos;re&quot;.</translation>
     </message>
@@ -8098,12 +8103,12 @@ Opslaan zonder reservekopie?</translation>
         <translation type="unfinished">Gebruik na dit woord &quot;have&quot;, niet &quot;of&quot;.</translation>
     </message>
     <message>
-        <location line="+33"/>
+        <location line="+108"/>
         <source>Use one space here.</source>
         <translation type="unfinished">Gebruik hier één spatie.</translation>
     </message>
     <message>
-        <location line="+30"/>
+        <location line="+33"/>
         <source>Take out the space before this mark.</source>
         <translation type="unfinished">Verwijder de spatie vóór dit leesteken.</translation>
     </message>
@@ -8325,7 +8330,7 @@ Opslaan zonder reservekopie?</translation>
         <translation type="unfinished">Verbind deze met een koppelteken wanneer ze voor een zelfstandig naamwoord staan.</translation>
     </message>
     <message>
-        <location line="+27"/>
+        <location line="+29"/>
         <source>Put a space after the comma.</source>
         <translation type="unfinished">Zet een spatie na de komma.</translation>
     </message>
@@ -8960,7 +8965,7 @@ Opslaan zonder reservekopie?</translation>
         <translation type="unfinished">Het bestand bevat geen rijen.</translation>
     </message>
     <message>
-        <location filename="../apps/pub/io/importers.cpp" line="+557"/>
+        <location filename="../apps/pub/io/importers.cpp" line="+308"/>
         <source>%1 (merged)</source>
         <translation type="unfinished">%1 (samengevoegd)</translation>
     </message>
@@ -9075,7 +9080,7 @@ Open deze bestanden in uw e-mailprogramma om ze te verzenden.</translation>
         <translation type="unfinished">De publicatie-inhoud is beschadigd: %1</translation>
     </message>
     <message>
-        <location filename="../apps/pub/io/pubimport.cpp" line="+1307"/>
+        <location filename="../apps/pub/io/pubimport.cpp" line="+1308"/>
         <source>A %1 picture could not be displayed.</source>
         <translation type="unfinished">Een %1-afbeelding kan niet worden weergegeven.</translation>
     </message>
@@ -9100,7 +9105,7 @@ Open deze bestanden in uw e-mailprogramma om ze te verzenden.</translation>
         <translation type="unfinished">Het .pub-bestand is beschadigd.</translation>
     </message>
     <message>
-        <location line="+7"/>
+        <location line="+8"/>
         <source>JeffPub could not read this .pub file. It may be damaged or use features that aren&apos;t supported yet.</source>
         <translation type="unfinished">JeffPub kan dit .pub-bestand niet lezen. Het is mogelijk beschadigd of gebruikt functies die nog niet worden ondersteund.</translation>
     </message>
@@ -9527,7 +9532,7 @@ Open deze bestanden in uw e-mailprogramma om ze te verzenden.</translation>
 <context>
     <name>MainWindow</name>
     <message>
-        <location filename="../apps/pub/app/mainwindow.cpp" line="+606"/>
+        <location filename="../apps/pub/app/mainwindow.cpp" line="+608"/>
         <source>A picture on page %1 has low resolution (%2 ppi; printers ask for 300).</source>
         <translation type="unfinished">Een afbeelding op pagina %1 heeft een lage resolutie (%2 ppi; drukkerijen vragen 300).</translation>
     </message>
@@ -30605,7 +30610,7 @@ Bron: %3</translation>
         <location filename="../apps/crunch/app/crunchwindow_find.cpp" line="-113"/>
         <location filename="../apps/crunch/app/crunchwindow_pasteoffer.cpp" line="-24"/>
         <location line="+25"/>
-        <location filename="../apps/crunch/app/crunchwindow_tabs2.cpp" line="+125"/>
+        <location filename="../apps/crunch/app/crunchwindow_tabs2.cpp" line="+126"/>
         <source>Formulas</source>
         <translation type="unfinished">Formules</translation>
     </message>
@@ -33950,12 +33955,12 @@ Het bestand kan niet worden gelezen.</translation>
     </message>
     <message>
         <location line="+1"/>
-        <location line="+571"/>
+        <location line="+575"/>
         <source>Error Checking…</source>
         <translation type="unfinished">Foutcontrole…</translation>
     </message>
     <message>
-        <location line="-570"/>
+        <location line="-574"/>
         <source>Watch Window</source>
         <translation type="unfinished">Controlevenster</translation>
     </message>
@@ -33966,14 +33971,14 @@ Het bestand kan niet worden gelezen.</translation>
     </message>
     <message>
         <location line="+1"/>
-        <location line="+724"/>
+        <location line="+728"/>
         <location line="+3"/>
         <location line="+24"/>
         <source>Data Validation</source>
         <translation type="unfinished">Gegevensvalidatie</translation>
     </message>
     <message>
-        <location line="-750"/>
+        <location line="-754"/>
         <location line="+2"/>
         <source>Circle Invalid Data</source>
         <translation type="unfinished">Ongeldige gegevens markeren</translation>
@@ -34000,13 +34005,13 @@ Het bestand kan niet worden gelezen.</translation>
     </message>
     <message>
         <location line="+1"/>
-        <location line="+932"/>
+        <location line="+936"/>
         <location line="+108"/>
         <source>Thesaurus</source>
         <translation type="unfinished">Synoniemenlijst</translation>
     </message>
     <message>
-        <location line="-1039"/>
+        <location line="-1043"/>
         <source>Check Accessibility</source>
         <translation type="unfinished">Toegankelijkheid controleren</translation>
     </message>
@@ -34038,12 +34043,12 @@ Het bestand kan niet worden gelezen.</translation>
     </message>
     <message>
         <location line="+2"/>
-        <location line="+736"/>
+        <location line="+740"/>
         <source>Consolidate</source>
         <translation type="unfinished">Consolideren</translation>
     </message>
     <message>
-        <location line="-734"/>
+        <location line="-738"/>
         <location line="+188"/>
         <location line="+22"/>
         <location line="+16"/>
@@ -34195,7 +34200,7 @@ Het bestand kan niet worden gelezen.</translation>
         <translation type="unfinished">%1 van %2 rijen voldoen aan de voorwaarden.</translation>
     </message>
     <message>
-        <location line="+90"/>
+        <location line="+94"/>
         <location line="+57"/>
         <source>Ignore Error</source>
         <translation type="unfinished">Fout negeren</translation>
@@ -36938,7 +36943,7 @@ Het bestand kan niet worden gelezen.</translation>
     </message>
     <message>
         <location line="+14"/>
-        <location filename="../apps/crunch/app/crunchwindow_tabs2.cpp" line="-1043"/>
+        <location filename="../apps/crunch/app/crunchwindow_tabs2.cpp" line="-1047"/>
         <source>Forecast Sheet</source>
         <translation type="unfinished">Prognoseblad</translation>
     </message>
@@ -50300,7 +50305,7 @@ Bron: %3</translation>
 <context>
     <name>jp::MainWindow</name>
     <message>
-        <location filename="../apps/pub/app/mainwindow.cpp" line="-1672"/>
+        <location filename="../apps/pub/app/mainwindow.cpp" line="-1674"/>
         <location filename="../apps/pub/app/mainwindow_actions.cpp" line="+505"/>
         <source>%1 (%2)</source>
         <translation type="unfinished">%1 (%2)</translation>
@@ -50333,13 +50338,13 @@ Bron: %3</translation>
         <location line="+1"/>
         <location line="+4"/>
         <location line="+1"/>
-        <location line="+249"/>
+        <location line="+251"/>
         <location filename="../apps/pub/app/mainwindow_actions.cpp" line="-532"/>
         <source>Open</source>
         <translation type="unfinished">Openen</translation>
     </message>
     <message>
-        <location line="-358"/>
+        <location line="-360"/>
         <location line="+18"/>
         <location line="+34"/>
         <source>JeffPub can&apos;t open &quot;%1&quot;.
@@ -50374,7 +50379,7 @@ Bron: %3</translation>
 %2%3</translation>
     </message>
     <message>
-        <location line="+27"/>
+        <location line="+29"/>
         <location line="+1090"/>
         <source>Saved %1</source>
         <translation type="unfinished">%1 opgeslagen</translation>
@@ -50386,14 +50391,14 @@ Bron: %3</translation>
         <translation type="unfinished">JeffPub-publicatie (*.jpub)</translation>
     </message>
     <message>
-        <location line="-287"/>
-        <location line="+269"/>
+        <location line="-289"/>
+        <location line="+271"/>
         <location line="+18"/>
         <source>.pub Publication Files (*.pub)</source>
         <translation type="unfinished">.pub-publicatiebestanden (*.pub)</translation>
     </message>
     <message>
-        <location line="-501"/>
+        <location line="-503"/>
         <source> (Read-Only)</source>
         <translation type="unfinished"> (alleen-lezen)</translation>
     </message>
@@ -50477,7 +50482,7 @@ Bron: %3</translation>
         <translation type="unfinished">Deze publicatie is alleen-lezen geopend. Kies een andere naam ervoor.</translation>
     </message>
     <message>
-        <location line="+72"/>
+        <location line="+74"/>
         <source>Some versions kept before couldn&apos;t be given the new password, and stay as they were.</source>
         <translation type="unfinished">Sommige eerder bewaarde versies konden niet het nieuwe wachtwoord krijgen en blijven zoals ze waren.</translation>
     </message>
@@ -50727,20 +50732,20 @@ Bron: %3</translation>
         <translation type="unfinished">Kleurprofielen (*.icc *.icm)</translation>
     </message>
     <message>
-        <location line="-582"/>
-        <location line="+582"/>
+        <location line="-584"/>
+        <location line="+584"/>
         <location filename="../apps/pub/app/mainwindow_actions.cpp" line="+616"/>
         <source>All Files (*)</source>
         <translation type="unfinished">Alle bestanden (*)</translation>
     </message>
     <message>
-        <location line="-394"/>
+        <location line="-396"/>
         <location filename="../apps/pub/app/mainwindow_info.cpp" line="+356"/>
         <source>publication</source>
         <translation type="unfinished">publicatie</translation>
     </message>
     <message>
-        <location line="+65"/>
+        <location line="+67"/>
         <source>Saved a copy as %1. Left out, as this kind of file can&apos;t hold it: %2</source>
         <translation type="unfinished">Er is een kopie opgeslagen als %1. Weggelaten, omdat dit type bestand het niet kan bevatten: %2</translation>
     </message>
@@ -51075,7 +51080,7 @@ Bron: %3</translation>
         <translation type="unfinished">Nieuwe lege publicatie</translation>
     </message>
     <message>
-        <location filename="../apps/pub/app/mainwindow.cpp" line="-1686"/>
+        <location filename="../apps/pub/app/mainwindow.cpp" line="-1688"/>
         <location filename="../apps/pub/app/mainwindow_actions.cpp" line="+204"/>
         <source>Publications (*.jpub *.pub)</source>
         <translation type="unfinished">Publicaties (*.jpub *.pub)</translation>
@@ -51577,7 +51582,7 @@ Bron: %3</translation>
         <translation type="unfinished">Bedrijfsgegevens bewerken…</translation>
     </message>
     <message>
-        <location filename="../apps/pub/app/mainwindow.cpp" line="+1560"/>
+        <location filename="../apps/pub/app/mainwindow.cpp" line="+1562"/>
         <location line="+1"/>
         <location line="+7"/>
         <location line="+1"/>
@@ -53995,7 +54000,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
         <translation type="unfinished">Automatisch</translation>
     </message>
     <message>
-        <location filename="../apps/pub/app/mainwindow.cpp" line="-1942"/>
+        <location filename="../apps/pub/app/mainwindow.cpp" line="-1944"/>
         <location filename="../apps/pub/app/mainwindow_ribbon.cpp" line="+2"/>
         <source>Tints…</source>
         <translation type="unfinished">Tinten…</translation>
@@ -54405,7 +54410,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
         <translation type="unfinished">%1 × %2</translation>
     </message>
     <message>
-        <location filename="../apps/pub/app/mainwindow.cpp" line="+923"/>
+        <location filename="../apps/pub/app/mainwindow.cpp" line="+925"/>
         <location filename="../apps/pub/app/mainwindow_info.cpp" line="-31"/>
         <source>Pages</source>
         <translation>Pagina&apos;s</translation>
@@ -58333,12 +58338,32 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
         <translation type="unfinished">getallen met eigen tekst (ze worden weergegeven als 1., 1) of (1))</translation>
     </message>
     <message>
-        <location line="+9"/>
+        <location line="+7"/>
+        <source>the macro project the file held (it is never run, and a new %1 file does not keep it)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>the fonts stored in the file (they are used while it is open, and a new %1 file does not keep them)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+13"/>
+        <source>the alternative text of objects, and which objects are marked as decoration</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>links on objects and on mouse-over (links in text are kept)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
         <source>hidden objects (the .pub format can&apos;t keep them hidden, so they are visible the next time it opens)</source>
         <translation type="unfinished">verborgen objecten (het .pub-formaat kan ze niet verborgen houden, dus ze zijn zichtbaar de volgende keer dat het wordt geopend)</translation>
     </message>
     <message>
-        <location line="+2"/>
+        <location line="+3"/>
         <source>the mail merge list, and which of its recipients are left out</source>
         <translation type="unfinished">de adressenlijst voor afdruk samenvoegen, en welke ontvangers daarvan worden weggelaten</translation>
     </message>
@@ -82268,22 +82293,32 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
 <context>
     <name>jp::write::Compare</name>
     <message>
-        <location filename="../apps/write/core/compareops.cpp" line="+1355"/>
+        <location filename="../apps/write/core/compareops.cpp" line="+2078"/>
         <source>A document with that many paragraphs can&apos;t be compared.</source>
         <translation type="unfinished">Een document met zoveel alinea&apos;s kan niet worden vergeleken.</translation>
     </message>
     <message>
-        <location line="-478"/>
+        <location line="-671"/>
         <source>Too many changes to look for all the moved text.</source>
         <translation type="unfinished">Te veel wijzigingen om alle verplaatste tekst te zoeken.</translation>
     </message>
     <message>
-        <location line="-83"/>
+        <location line="-91"/>
         <source>Too much text to line up the tables, so they are not compared.</source>
         <translation type="unfinished">Te veel tekst om de tabellen uit te lijnen, dus ze worden niet vergeleken.</translation>
     </message>
     <message>
-        <location line="+134"/>
+        <location line="+1"/>
+        <source>Too many rows and tables changed to mark them all.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+59"/>
+        <source>Too much changed to line up all the paragraphs, so a stretch of them is shown as taken out and put in whole. The new text keeps its styles, lists, bold, and italic, but not its text colors, shading, or the spacing between paragraphs.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+84"/>
         <source>Too many changes to compare every paragraph word by word, so some are shown as replaced whole.</source>
         <translation type="unfinished">Te veel wijzigingen om elke alinea woord voor woord te vergelijken, dus sommige worden als volledig vervangen weergegeven.</translation>
     </message>
@@ -82293,7 +82328,7 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
         <translation type="unfinished">Te veel opmaakwijzigingen om ze allemaal weer te geven.</translation>
     </message>
     <message>
-        <location line="+218"/>
+        <location line="+412"/>
         <source>tables</source>
         <translation type="unfinished">tabellen</translation>
     </message>
@@ -82319,11 +82354,12 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
     </message>
     <message>
         <location line="+1"/>
+        <location line="+203"/>
         <source>parts kept as they were written</source>
         <translation type="unfinished">onderdelen die behouden blijven zoals ze geschreven zijn</translation>
     </message>
     <message>
-        <location line="+5"/>
+        <location line="-219"/>
         <source>%1 and %2</source>
         <translation type="unfinished">%1 en %2</translation>
     </message>
@@ -82333,7 +82369,7 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
         <translation type="unfinished">%1 en %2</translation>
     </message>
     <message>
-        <location line="+22"/>
+        <location line="+40"/>
         <source>Too many pictures and shapes to look for all the text boxes among them.</source>
         <translation type="unfinished">Te veel afbeeldingen en vormen om daartussen alle tekstvakken te zoeken.</translation>
     </message>
@@ -82347,8 +82383,36 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
         <source>Too many notes, headers, and footers to compare them all.</source>
         <translation type="unfinished">Te veel notities, koptekst- en voetteksten om ze allemaal te vergelijken.</translation>
     </message>
+    <message>
+        <location line="+38"/>
+        <source>footnote and endnote marks</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>fields</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>pictures</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>links</source>
+        <translation type="unfinished"></translation>
+    </message>
     <message numerus="yes">
-        <location line="+33"/>
+        <location line="+5"/>
+        <source>%n part of the new text could not be shown (%1).</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <location line="+2"/>
         <source>%n difference is in a place that Compare can&apos;t mark yet (%1), so it is not shown.</source>
         <translation type="unfinished">
             <numerusform>%n verschil bevindt zich op een plek die Vergelijken nog niet kan markeren (%1), dus het wordt niet getoond.</numerusform>
@@ -82386,37 +82450,37 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
     </message>
     <message>
         <location line="+349"/>
-        <location line="+760"/>
+        <location line="+774"/>
         <source>A content control goes in the text, not in a header, a footer, or a note.</source>
         <translation type="unfinished">Een inhoudsbeheerder hoort in de tekst, niet in een koptekst, voettekst of voetnoot.</translation>
     </message>
     <message>
-        <location line="-744"/>
+        <location line="-758"/>
         <source>The selection holds only part of another content control.</source>
         <translation type="unfinished">De selectie bevat alleen een deel van een andere inhoudsbeheerder.</translation>
     </message>
     <message>
         <location line="+4"/>
-        <location line="+748"/>
+        <location line="+762"/>
         <location line="+171"/>
         <source>The document has the most content controls it can hold.</source>
         <translation type="unfinished">Het document heeft het maximale aantal inhoudsbeheerders dat het kan bevatten.</translation>
     </message>
     <message>
-        <location line="-914"/>
-        <location line="+749"/>
+        <location line="-928"/>
+        <location line="+763"/>
         <source>Content controls can hold each other only so deep.</source>
         <translation type="unfinished">Inhoudsbeheerders kunnen elkaar maar tot op zekere diepte bevatten.</translation>
     </message>
     <message>
-        <location line="-745"/>
-        <location line="+741"/>
+        <location line="-759"/>
+        <location line="+755"/>
         <source>The content control there can&apos;t be changed.</source>
         <translation type="unfinished">De inhoudsbeheerder daar kan niet worden gewijzigd.</translation>
     </message>
     <message>
-        <location line="-689"/>
-        <location line="+601"/>
+        <location line="-703"/>
+        <location line="+615"/>
         <source>A list holds at most %1 items.</source>
         <translation type="unfinished">Een lijst bevat maximaal %1 items.</translation>
     </message>
@@ -87243,7 +87307,7 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
 <context>
     <name>jp::write::ReadyTables</name>
     <message>
-        <location filename="../apps/write/core/tableops.cpp" line="+2390"/>
+        <location filename="../apps/write/core/tableops.cpp" line="+2429"/>
         <source>Column 1</source>
         <translation type="unfinished">Kolom 1</translation>
     </message>
@@ -87975,7 +88039,7 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
 <context>
     <name>jp::write::Tables</name>
     <message>
-        <location filename="../apps/write/core/tableops.cpp" line="-2123"/>
+        <location filename="../apps/write/core/tableops.cpp" line="-2162"/>
         <source>A table can have at most 20,000 rows.</source>
         <translation type="unfinished">Een tabel kan maximaal 20.000 rijen hebben.</translation>
     </message>
@@ -88003,7 +88067,7 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
         <translation type="unfinished">Nieuwe kolommen kunnen hier niet komen: samengevoegde cellen lopen over de plek waar ze zouden staan.</translation>
     </message>
     <message>
-        <location filename="../apps/write/core/tableops.cpp" line="+1549"/>
+        <location filename="../apps/write/core/tableops.cpp" line="+1588"/>
         <location line="+68"/>
         <source>A table can only be moved in the main text.</source>
         <translation type="unfinished">Een tabel kan alleen in de hoofdtekst worden verplaatst.</translation>
