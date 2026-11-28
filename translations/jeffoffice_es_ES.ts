@@ -1736,10 +1736,6 @@ No se puede leer el fichero.</translation>
         <translation type="unfinished">Vínculos a ficheros de datos</translation>
     </message>
     <message>
-        <source>Tables made by Get Data remember the file they were loaded from, with its path on this computer. Removing the links keeps the tables and their cells, and Refresh no longer reads the files.</source>
-        <translation type="unfinished">Las tablas creadas con Obtener datos recuerdan el fichero del que se cargaron, con su ruta en este equipo. Al quitar los vínculos se conservan las tablas y sus celdas, y Actualizar ya no lee los ficheros.</translation>
-    </message>
-    <message>
         <source>Remove Links to Data Files</source>
         <translation type="unfinished">Quitar vínculos a ficheros de datos</translation>
     </message>

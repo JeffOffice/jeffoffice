@@ -17,7 +17,7 @@ The views are saved with the workbook. A view does not keep a filter, only the r
 
 ## Zoom
 
-Use the slider at the bottom right, the **Zoom** button on the View tab, or hold **Ctrl** and turn the mouse wheel. You can zoom from 10% to 400%. **100%** puts it back to normal size.
+Use the slider at the bottom right, the **Zoom** button on the View tab, or hold **Ctrl** and turn the mouse wheel. You can zoom from 10% to 400%. **100%** puts it back to normal size. **Zoom to Selection** makes the cells you selected as large as the window allows.
 
 ## Show and hide
 

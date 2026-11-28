@@ -12858,7 +12858,7 @@ Le télécharger depuis %2 maintenant ? (%3, une seule fois.)</translation>
 <context>
     <name>QObject</name>
     <message>
-        <location filename="../apps/crunch/app/getdata.cpp" line="+131"/>
+        <location filename="../apps/crunch/app/getdata.cpp" line="+155"/>
         <location filename="../apps/crunch/app/linkprogress.cpp" line="+25"/>
         <source>Cancel</source>
         <translation type="unfinished">Annuler</translation>
@@ -21785,7 +21785,7 @@ Publication assistée par ordinateur</translation>
 <context>
     <name>Widgets</name>
     <message>
-        <location filename="../libs/shell/app/widgets.cpp" line="+1213"/>
+        <location filename="../libs/shell/app/widgets.cpp" line="+1216"/>
         <source>Standard</source>
         <translation type="unfinished">Standard</translation>
     </message>
@@ -25231,13 +25231,13 @@ Source : %3</translation>
 <context>
     <name>jp::ColorPopup</name>
     <message>
-        <location line="-232"/>
-        <location line="+92"/>
+        <location line="-235"/>
+        <location line="+95"/>
         <source>Scheme Colors</source>
         <translation type="unfinished">Couleurs du jeu</translation>
     </message>
     <message>
-        <location line="-73"/>
+        <location line="-76"/>
         <source>Spot Colors</source>
         <translation type="unfinished">Couleurs d&apos;accompagnement</translation>
     </message>
@@ -25248,12 +25248,12 @@ Source : %3</translation>
     </message>
     <message>
         <location line="+8"/>
-        <location line="+68"/>
+        <location line="+71"/>
         <source>Standard Colors</source>
         <translation type="unfinished">Couleurs standard</translation>
     </message>
     <message>
-        <location line="-60"/>
+        <location line="-63"/>
         <source>Recent Colors</source>
         <translation type="unfinished">Couleurs récentes</translation>
     </message>
@@ -25263,7 +25263,7 @@ Source : %3</translation>
         <translation type="unfinished">Autres couleurs…</translation>
     </message>
     <message>
-        <location line="+11"/>
+        <location line="+14"/>
         <source>Eyedropper</source>
         <translation type="unfinished">Pipette</translation>
     </message>
@@ -26123,6 +26123,89 @@ Source : %3</translation>
     </message>
 </context>
 <context>
+    <name>jp::ConnectionsPane</name>
+    <message>
+        <location filename="../apps/crunch/app/connectionspane.cpp" line="+28"/>
+        <source>Queries &amp; Connections</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+8"/>
+        <source>Name</source>
+        <translation>Nom</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Source file</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Last run</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Rows</source>
+        <translation type="unfinished">Lignes</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>State</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+9"/>
+        <source>Refresh</source>
+        <translation type="unfinished">Actualiser</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Refresh All</source>
+        <translation type="unfinished">Actualiser tout</translation>
+    </message>
+    <message>
+        <location line="+42"/>
+        <source>Ready</source>
+        <translation type="unfinished">Prêt</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Made by a newer version, can&apos;t be run</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Can&apos;t be read, so it can&apos;t be run</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Steps can&apos;t be run: made by a newer version</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>The steps can&apos;t be read, so it can&apos;t be run</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Not recorded</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+10"/>
+        <source>This workbook has no queries. Get Data &gt; From File makes one.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>This workbook is read-only, so a query can&apos;t be run.</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
     <name>jp::ConsolidateDialog</name>
     <message>
         <location filename="../apps/crunch/app/consolidatedialog.cpp" line="+23"/>
@@ -26937,12 +27020,12 @@ Source : %3</translation>
     </message>
     <message>
         <location line="-64"/>
-        <location line="+442"/>
+        <location line="+447"/>
         <source>New Workbooks</source>
         <translation type="unfinished">Nouveaux classeurs</translation>
     </message>
     <message>
-        <location line="-436"/>
+        <location line="-441"/>
         <location line="+2"/>
         <source>Font of a new workbook</source>
         <translation>Police d&apos;un nouveau classeur</translation>
@@ -26959,12 +27042,12 @@ Source : %3</translation>
     </message>
     <message>
         <location line="+14"/>
-        <location line="+410"/>
+        <location line="+415"/>
         <source>Display</source>
         <translation type="unfinished">Affichage</translation>
     </message>
     <message>
-        <location line="-405"/>
+        <location line="-410"/>
         <location line="+8"/>
         <location line="+3"/>
         <source>Gridline color</source>
@@ -26983,7 +27066,7 @@ Source : %3</translation>
     </message>
     <message>
         <location line="+43"/>
-        <location line="+341"/>
+        <location line="+346"/>
         <source>Privacy</source>
         <translation type="unfinished">Confidentialité</translation>
     </message>
@@ -27023,7 +27106,7 @@ Source : %3</translation>
         <translation type="unfinished">Fermer la fenêtre une fois la recherche de valeur cible ou le scénario récapitulatif terminé.</translation>
     </message>
     <message>
-        <location line="-847"/>
+        <location line="-852"/>
         <location filename="../apps/crunch/app/crunchwindow_file.cpp" line="-287"/>
         <location filename="../apps/crunch/app/crunchwindow_objectformat.cpp" line="+1302"/>
         <location filename="../apps/crunch/app/crunchwindow_themes.cpp" line="+39"/>
@@ -27047,7 +27130,7 @@ Source : %3</translation>
     </message>
     <message>
         <location line="+7"/>
-        <location line="+655"/>
+        <location line="+660"/>
         <location filename="../apps/crunch/app/crunchwindow_copy.cpp" line="-218"/>
         <location line="+6"/>
         <location line="+14"/>
@@ -27079,7 +27162,7 @@ Source : %3</translation>
         <translation type="unfinished">Enregistrer</translation>
     </message>
     <message>
-        <location line="-654"/>
+        <location line="-659"/>
         <source>Save As…</source>
         <translation type="unfinished">Enregistrer sous…</translation>
     </message>
@@ -27201,12 +27284,12 @@ Source : %3</translation>
     </message>
     <message>
         <location line="+44"/>
-        <location line="+500"/>
+        <location line="+505"/>
         <source>Editing</source>
         <translation type="unfinished">Modification</translation>
     </message>
     <message>
-        <location line="-495"/>
+        <location line="-500"/>
         <location line="+4"/>
         <source>After pressing Enter, move the selection</source>
         <translation>Déplacer la sélection après validation</translation>
@@ -27253,12 +27336,12 @@ Source : %3</translation>
     </message>
     <message>
         <location line="+36"/>
-        <location line="+326"/>
+        <location line="+331"/>
         <source>Custom Lists</source>
         <translation type="unfinished">Listes personnalisées</translation>
     </message>
     <message>
-        <location line="-323"/>
+        <location line="-328"/>
         <source>A custom list is a row of words that Fill goes through, like the days of the week. Type one list on each line, with commas between the words. Type the first word in a cell and drag the fill handle to get the rest.</source>
         <translation type="unfinished">Une liste personnalisée est une série de mots que le remplissage parcourt, comme les jours de la semaine. Saisissez une liste par ligne, avec des virgules entre les mots. Saisissez le premier mot dans une cellule, puis faites glisser la poignée de recopie pour obtenir le reste.</translation>
     </message>
@@ -27283,7 +27366,12 @@ Source : %3</translation>
         <translation type="unfinished">Sauts de page</translation>
     </message>
     <message>
-        <location line="+17"/>
+        <location line="+11"/>
+        <source>Zoom to Selection</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+11"/>
         <source>Recalculate All</source>
         <translation type="unfinished">Tout recalculer</translation>
     </message>
@@ -27763,7 +27851,7 @@ Source : %3</translation>
         <translation type="unfinished">Graphique collé avec les valeurs qu&apos;il affichait : il ne lit pas les cellules de ce classeur.</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow.cpp" line="-219"/>
+        <location filename="../apps/crunch/app/crunchwindow.cpp" line="-224"/>
         <source>Select All</source>
         <translation type="unfinished">Sélectionner tout</translation>
     </message>
@@ -27833,7 +27921,7 @@ Source : %3</translation>
         <translation type="unfinished">100 %</translation>
     </message>
     <message>
-        <location line="+1"/>
+        <location line="+6"/>
         <source>Freeze Panes</source>
         <translation type="unfinished">Figer les volets</translation>
     </message>
@@ -27884,7 +27972,7 @@ Source : %3</translation>
         <translation type="unfinished">Coller</translation>
     </message>
     <message>
-        <location line="-887"/>
+        <location line="-892"/>
         <location filename="../apps/crunch/app/crunchwindow_ops.cpp" line="-201"/>
         <location line="+1"/>
         <location line="+43"/>
@@ -29153,7 +29241,7 @@ Source : %3</translation>
         <translation>Atteindre</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow.cpp" line="+507"/>
+        <location filename="../apps/crunch/app/crunchwindow.cpp" line="+512"/>
         <location filename="../apps/crunch/app/crunchwindow_find.cpp" line="-74"/>
         <location line="+8"/>
         <location line="+4"/>
@@ -30209,7 +30297,7 @@ Source : %3</translation>
         <translation type="unfinished">Cellules que le tableau doit couvrir (sa première cellule est conservée) :</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow.cpp" line="-676"/>
+        <location filename="../apps/crunch/app/crunchwindow.cpp" line="-681"/>
         <location filename="../apps/crunch/app/crunchwindow_quick.cpp" line="-484"/>
         <location filename="../apps/crunch/app/crunchwindow_tables.cpp" line="+59"/>
         <source>Count</source>
@@ -30897,7 +30985,7 @@ Source : %3</translation>
         <translation type="unfinished">Blancs non compris</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow.cpp" line="+572"/>
+        <location filename="../apps/crunch/app/crunchwindow.cpp" line="+577"/>
         <source>&quot;%1&quot; is not an address JeffCrunch can go to.</source>
         <translation type="unfinished">« %1 » n&apos;est pas une adresse à laquelle JeffCrunch peut accéder.</translation>
     </message>
@@ -31289,7 +31377,7 @@ Le fichier est introuvable.</translation>
         <translation type="unfinished">Enregistré %1. Les lignes, colonnes, cellules et objets supprimés avant cet enregistrement ne peuvent plus être annulés, ni ce que vous avez fait avant.</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow.cpp" line="-803"/>
+        <location filename="../apps/crunch/app/crunchwindow.cpp" line="-808"/>
         <location filename="../apps/crunch/app/crunchwindow_save.cpp" line="-124"/>
         <source>Save a Copy…</source>
         <translation type="unfinished">Enregistrer une copie…</translation>
@@ -33158,7 +33246,7 @@ Le fichier est illisible.</translation>
         <translation type="unfinished">Un autre tableau croisé dynamique s&apos;appelle « %1 ». Choisissez un autre nom.</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow_getdata.cpp" line="+59"/>
+        <location filename="../apps/crunch/app/crunchwindow_getdata.cpp" line="+62"/>
         <source>%1 in this workbook asks to read this file from this computer:</source>
         <translation type="unfinished">%1 dans ce classeur demande à lire ce fichier depuis cet ordinateur :</translation>
     </message>
@@ -33199,7 +33287,8 @@ Le fichier est illisible.</translation>
     </message>
     <message>
         <location line="+1"/>
-        <location line="+86"/>
+        <location line="+90"/>
+        <location line="+38"/>
         <location filename="../apps/crunch/app/crunchwindow_pivot.cpp" line="+23"/>
         <location line="+3"/>
         <location line="+5"/>
@@ -33208,10 +33297,11 @@ Le fichier est illisible.</translation>
         <translation type="unfinished">Actualiser</translation>
     </message>
     <message>
-        <location line="-85"/>
-        <location line="+85"/>
-        <location line="+80"/>
-        <location line="+14"/>
+        <location line="-127"/>
+        <location line="+89"/>
+        <location line="+38"/>
+        <location line="+68"/>
+        <location line="+17"/>
         <location filename="../apps/crunch/app/crunchwindow_pivot.cpp" line="+2"/>
         <location line="+3"/>
         <location line="+2"/>
@@ -33219,7 +33309,12 @@ Le fichier est illisible.</translation>
         <translation type="unfinished">Actualiser tout</translation>
     </message>
     <message>
-        <location line="-154"/>
+        <location line="-211"/>
+        <source>Queries &amp; Connections…</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+25"/>
         <source>Get Data</source>
         <translation type="unfinished">Obtenir des données</translation>
     </message>
@@ -33234,34 +33329,34 @@ Le fichier est illisible.</translation>
         <translation type="unfinished">Ce fichier n&apos;est ni du JSON, ni du XML, ni un classeur.</translation>
     </message>
     <message>
-        <location line="+6"/>
+        <location line="+7"/>
         <source>Reading the file…</source>
         <translation type="unfinished">Lecture du fichier…</translation>
     </message>
     <message>
         <location line="+6"/>
-        <location line="+107"/>
+        <location line="+135"/>
         <source>The read was stopped. Nothing was changed.</source>
         <translation type="unfinished">La lecture a été interrompue. Rien n&apos;a été modifié.</translation>
     </message>
     <message>
-        <location line="-103"/>
-        <location line="+24"/>
+        <location line="-131"/>
+        <location line="+26"/>
         <source>Nothing was changed.</source>
         <translation type="unfinished">Rien n&apos;a été modifié.</translation>
     </message>
     <message>
-        <location line="-8"/>
+        <location line="-10"/>
         <source>The table would go over cells that hold something (%1 cells in all). Replace them?</source>
         <translation type="unfinished">Le tableau recouvrirait des cellules qui contiennent des données (%1 cellules au total). Les remplacer ?</translation>
     </message>
     <message>
-        <location line="+30"/>
+        <location line="+32"/>
         <source>Click a cell in a table that was made by Get Data first.</source>
         <translation type="unfinished">Cliquez sur une cellule d&apos;un tableau créé auparavant avec Obtenir des données.</translation>
     </message>
     <message>
-        <location line="+22"/>
+        <location line="+48"/>
         <location filename="../apps/crunch/app/crunchwindow_pivot.cpp" line="-11"/>
         <location line="+9"/>
         <source>Nothing was read.</source>
@@ -33294,7 +33389,7 @@ Le fichier est illisible.</translation>
     </message>
     <message>
         <location line="+5"/>
-        <location line="+10"/>
+        <location line="+13"/>
         <source>%1: %2</source>
         <translation type="unfinished">%1 : %2</translation>
     </message>
@@ -34542,8 +34637,8 @@ Le fichier est illisible.</translation>
     </message>
     <message>
         <location line="+0"/>
-        <source>Tables made by Get Data remember the file they were loaded from, with its path on this computer. Removing the links keeps the tables and their cells, and Refresh no longer reads the files.</source>
-        <translation type="unfinished">Les tableaux créés par Obtenir des données mémorisent le fichier dont ils proviennent, avec son chemin sur cet ordinateur. Supprimer les liens conserve les tableaux et leurs cellules, mais Actualiser ne lit plus les fichiers.</translation>
+        <source>Tables made by Get Data remember the file they were loaded from, with its path on this computer, and the name and steps of their query. Removing the links removes that path, name, and steps. It keeps the tables and their cells, and Refresh no longer reads the files.</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <location line="+6"/>
@@ -36712,7 +36807,7 @@ Le fichier est illisible.</translation>
     </message>
     <message>
         <location line="+2"/>
-        <location filename="../apps/crunch/app/crunchwindow_getdata.cpp" line="-238"/>
+        <location filename="../apps/crunch/app/crunchwindow_getdata.cpp" line="-271"/>
         <location filename="../apps/crunch/app/crunchwindow_insertobjects.cpp" line="-157"/>
         <source>and %1 more</source>
         <translation type="unfinished">et %1 de plus</translation>
@@ -37875,6 +37970,200 @@ Le fichier est illisible.</translation>
         <location line="+0"/>
         <source>This is the first record.</source>
         <translation type="unfinished">C&apos;est le premier enregistrement.</translation>
+    </message>
+</context>
+<context>
+    <name>jp::DataSteps</name>
+    <message>
+        <location filename="../libs/office/sheet/datasteps.cpp" line="+93"/>
+        <source>The list of steps is too long.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <location line="+11"/>
+        <location line="+3"/>
+        <source>The list of steps can&apos;t be read.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-12"/>
+        <location line="+378"/>
+        <source>There are more steps than JeffCrunch runs.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-363"/>
+        <source>Step %1 is of a kind this version of JeffCrunch does not have. It may have been made in a newer version.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+20"/>
+        <source>Step %1 can&apos;t be read.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+11"/>
+        <source>Choose columns: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Remove columns: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Rename %1 to %2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>equals</source>
+        <translation type="unfinished">est égale à</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>does not equal</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>contains</source>
+        <translation type="unfinished">contient</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>does not contain</source>
+        <translation type="unfinished">ne contient pas</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>is greater than</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>is at least</source>
+        <translation type="unfinished">est supérieure ou égale à</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>is less than</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>is at most</source>
+        <translation type="unfinished">est inférieure ou égale à</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>is blank</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>is not blank</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Keep rows where %1 %2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Keep rows where %1 %2 %3</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Sort %1, largest first</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Sort %1, smallest first</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Change %1 to %2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>number</source>
+        <translation type="unfinished">nombre</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>date</source>
+        <translation type="unfinished">date</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>text</source>
+        <translation type="unfinished">texte</translation>
+    </message>
+    <message>
+        <location line="+27"/>
+        <source>The column &quot;%1&quot; is not there. The columns are: %2.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+7"/>
+        <source>The steps would take too long on this many rows.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+81"/>
+        <location line="+30"/>
+        <location line="+59"/>
+        <location line="+86"/>
+        <source>The read was stopped.</source>
+        <translation type="unfinished">La lecture a été interrompue.</translation>
+    </message>
+    <message>
+        <location line="-123"/>
+        <source>No column is chosen.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+7"/>
+        <source>The column &quot;%1&quot; is named twice.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+18"/>
+        <source>That would leave no columns.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+31"/>
+        <source>The new name is empty.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>Another column is already called &quot;%1&quot;.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+70"/>
+        <source>The value &quot;%1&quot; in row %2 of &quot;%3&quot; is not a number.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>The value &quot;%1&quot; in row %2 of &quot;%3&quot; is not a date in that order.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+39"/>
+        <source>Step %1 (%2): %3</source>
+        <translation type="unfinished"></translation>
     </message>
 </context>
 <context>
@@ -47772,7 +48061,7 @@ Le fichier est illisible.</translation>
 <context>
     <name>jp::GetDataDialog</name>
     <message>
-        <location filename="../apps/crunch/app/getdata.cpp" line="-97"/>
+        <location filename="../apps/crunch/app/getdata.cpp" line="-119"/>
         <source>number</source>
         <translation type="unfinished">nombre</translation>
     </message>
@@ -47792,18 +48081,18 @@ Le fichier est illisible.</translation>
         <translation type="unfinished">texte</translation>
     </message>
     <message>
-        <location line="+39"/>
-        <location line="+213"/>
+        <location line="+62"/>
+        <location line="+215"/>
         <source>The read was stopped.</source>
         <translation type="unfinished">La lecture a été interrompue.</translation>
     </message>
     <message>
-        <location line="-197"/>
+        <location line="-199"/>
         <source>That kind of file can&apos;t be loaded.</source>
         <translation type="unfinished">Ce type de fichier ne peut pas être chargé.</translation>
     </message>
     <message>
-        <location line="+62"/>
+        <location line="+64"/>
         <location line="+59"/>
         <source>Get Data from a File</source>
         <translation type="unfinished">Obtenir des données depuis un fichier</translation>
@@ -72009,7 +72298,7 @@ Le mot de passe n&apos;a pas pu être appliqué au fichier.</translation>
         <translation type="unfinished">Insérer une feuille de graphique</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/core/editdata.cpp" line="+84"/>
+        <location filename="../apps/crunch/core/editdata.cpp" line="+85"/>
         <location filename="../apps/crunch/core/editsheets.cpp" line="+49"/>
         <location filename="../apps/crunch/core/edittables.cpp" line="-320"/>
         <source>The workbook has as many tables as JeffCrunch works with.</source>
@@ -72660,12 +72949,18 @@ Le mot de passe n&apos;a pas pu être appliqué au fichier.</translation>
         <translation type="unfinished">Un tableau doit comporter une ligne de données sous ses noms de colonnes.</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/core/editdata.cpp" line="-2"/>
+        <location filename="../apps/crunch/core/editdata.cpp" line="-3"/>
         <source>There are no rows to load.</source>
         <translation type="unfinished">Il n&apos;y a aucune ligne à charger.</translation>
     </message>
     <message>
         <location line="+1"/>
+        <location line="+75"/>
+        <source>The steps of this query are too long to be saved with the table.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-74"/>
         <source>This sheet is protected, so a table can&apos;t be put on it.</source>
         <translation type="unfinished">Cette feuille est protégée, si bien qu&apos;un tableau ne peut pas y être placé.</translation>
     </message>
@@ -72714,7 +73009,7 @@ Le mot de passe n&apos;a pas pu être appliqué au fichier.</translation>
         <translation type="unfinished">Ce tableau n&apos;a pas été créé avec Obtenir des données : il n&apos;a donc pas de fichier à relire.</translation>
     </message>
     <message>
-        <location line="+1"/>
+        <location line="+2"/>
         <source>The table has a row of totals or no row of names. Take the row of totals off first, and refresh again.</source>
         <translation type="unfinished">Le tableau contient une ligne de totaux ou n&apos;a pas de ligne de noms. Supprimez d&apos;abord la ligne de totaux, puis actualisez à nouveau.</translation>
     </message>
@@ -72764,7 +73059,7 @@ Le mot de passe n&apos;a pas pu être appliqué au fichier.</translation>
         <translation type="unfinished">Les lignes dépasseraient la fin de la feuille, si bien que rien n&apos;a été modifié.</translation>
     </message>
     <message>
-        <location line="+11"/>
+        <location line="+12"/>
         <source>There is no room under the table for the new rows, so nothing was changed.</source>
         <translation type="unfinished">Il n&apos;y a pas assez de place sous le tableau pour les nouvelles lignes, si bien que rien n&apos;a été modifié.</translation>
     </message>
@@ -80468,7 +80763,7 @@ Le mot de passe n&apos;a pas pu être appliqué au fichier.</translation>
         <translation type="unfinished">Cet élément ne figure pas dans le fichier, ou ne contient aucune valeur à charger.</translation>
     </message>
     <message>
-        <location line="+102"/>
+        <location line="+127"/>
         <location filename="../libs/office/sheet/datasourcebook.cpp" line="-199"/>
         <source>Only a file on this computer can be loaded, not a web address or a file on another computer.</source>
         <translation type="unfinished">Seul un fichier de cet ordinateur peut être chargé, pas une adresse web ni un fichier situé sur un autre ordinateur.</translation>

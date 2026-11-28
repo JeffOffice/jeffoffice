@@ -12886,7 +12886,7 @@ Download it from %2 now? (%3, once.)</source>
 <context>
     <name>QObject</name>
     <message>
-        <location filename="../apps/crunch/app/getdata.cpp" line="+131"/>
+        <location filename="../apps/crunch/app/getdata.cpp" line="+155"/>
         <location filename="../apps/crunch/app/linkprogress.cpp" line="+25"/>
         <source>Cancel</source>
         <translation type="unfinished">Скасувати</translation>
@@ -21825,7 +21825,7 @@ Desktop publishing</source>
 <context>
     <name>Widgets</name>
     <message>
-        <location filename="../libs/shell/app/widgets.cpp" line="+1213"/>
+        <location filename="../libs/shell/app/widgets.cpp" line="+1216"/>
         <source>Standard</source>
         <translation type="unfinished">Стандартний</translation>
     </message>
@@ -25275,13 +25275,13 @@ Source: %3</source>
 <context>
     <name>jp::ColorPopup</name>
     <message>
-        <location line="-232"/>
-        <location line="+92"/>
+        <location line="-235"/>
+        <location line="+95"/>
         <source>Scheme Colors</source>
         <translation type="unfinished">Кольори схеми</translation>
     </message>
     <message>
-        <location line="-73"/>
+        <location line="-76"/>
         <source>Spot Colors</source>
         <translation type="unfinished">Спеціальні кольори</translation>
     </message>
@@ -25292,12 +25292,12 @@ Source: %3</source>
     </message>
     <message>
         <location line="+8"/>
-        <location line="+68"/>
+        <location line="+71"/>
         <source>Standard Colors</source>
         <translation type="unfinished">Стандартні кольори</translation>
     </message>
     <message>
-        <location line="-60"/>
+        <location line="-63"/>
         <source>Recent Colors</source>
         <translation type="unfinished">Нещодавні кольори</translation>
     </message>
@@ -25307,7 +25307,7 @@ Source: %3</source>
         <translation type="unfinished">Інші кольори…</translation>
     </message>
     <message>
-        <location line="+11"/>
+        <location line="+14"/>
         <source>Eyedropper</source>
         <translation type="unfinished">Піпетка</translation>
     </message>
@@ -26168,6 +26168,89 @@ Source: %3</source>
     </message>
 </context>
 <context>
+    <name>jp::ConnectionsPane</name>
+    <message>
+        <location filename="../apps/crunch/app/connectionspane.cpp" line="+28"/>
+        <source>Queries &amp; Connections</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+8"/>
+        <source>Name</source>
+        <translation>Ім&apos;я</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Source file</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Last run</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Rows</source>
+        <translation type="unfinished">Рядки</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>State</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+9"/>
+        <source>Refresh</source>
+        <translation type="unfinished">Оновити</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Refresh All</source>
+        <translation type="unfinished">Оновити все</translation>
+    </message>
+    <message>
+        <location line="+42"/>
+        <source>Ready</source>
+        <translation type="unfinished">Готово</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Made by a newer version, can&apos;t be run</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Can&apos;t be read, so it can&apos;t be run</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Steps can&apos;t be run: made by a newer version</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>The steps can&apos;t be read, so it can&apos;t be run</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Not recorded</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+10"/>
+        <source>This workbook has no queries. Get Data &gt; From File makes one.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>This workbook is read-only, so a query can&apos;t be run.</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
     <name>jp::ConsolidateDialog</name>
     <message>
         <location filename="../apps/crunch/app/consolidatedialog.cpp" line="+23"/>
@@ -26975,7 +27058,7 @@ Source: %3</source>
     </message>
     <message>
         <location line="+7"/>
-        <location line="+655"/>
+        <location line="+660"/>
         <location filename="../apps/crunch/app/crunchwindow_copy.cpp" line="-218"/>
         <location line="+6"/>
         <location line="+14"/>
@@ -27007,7 +27090,7 @@ Source: %3</source>
         <translation type="unfinished">Зберегти</translation>
     </message>
     <message>
-        <location line="-654"/>
+        <location line="-659"/>
         <source>Save As…</source>
         <translation type="unfinished">Зберегти як…</translation>
     </message>
@@ -27059,12 +27142,12 @@ Source: %3</source>
     </message>
     <message>
         <location line="+116"/>
-        <location line="+500"/>
+        <location line="+505"/>
         <source>Editing</source>
         <translation type="unfinished">Редагування</translation>
     </message>
     <message>
-        <location line="-495"/>
+        <location line="-500"/>
         <location line="+4"/>
         <source>After pressing Enter, move the selection</source>
         <translation>Після натискання Enter переміщувати вибір</translation>
@@ -27233,12 +27316,12 @@ Source: %3</source>
     </message>
     <message>
         <location line="+19"/>
-        <location line="+442"/>
+        <location line="+447"/>
         <source>New Workbooks</source>
         <translation type="unfinished">Нові книги</translation>
     </message>
     <message>
-        <location line="-436"/>
+        <location line="-441"/>
         <location line="+2"/>
         <source>Font of a new workbook</source>
         <translation>Шрифт нової книги</translation>
@@ -27255,12 +27338,12 @@ Source: %3</source>
     </message>
     <message>
         <location line="+14"/>
-        <location line="+410"/>
+        <location line="+415"/>
         <source>Display</source>
         <translation type="unfinished">Відображення</translation>
     </message>
     <message>
-        <location line="-405"/>
+        <location line="-410"/>
         <location line="+8"/>
         <location line="+3"/>
         <source>Gridline color</source>
@@ -27309,18 +27392,18 @@ Source: %3</source>
     </message>
     <message>
         <location line="+21"/>
-        <location line="+341"/>
+        <location line="+346"/>
         <source>Privacy</source>
         <translation type="unfinished">Конфіденційність</translation>
     </message>
     <message>
-        <location line="-326"/>
-        <location line="+326"/>
+        <location line="-331"/>
+        <location line="+331"/>
         <source>Custom Lists</source>
         <translation type="unfinished">Користувацькі списки</translation>
     </message>
     <message>
-        <location line="-323"/>
+        <location line="-328"/>
         <source>A custom list is a row of words that Fill goes through, like the days of the week. Type one list on each line, with commas between the words. Type the first word in a cell and drag the fill handle to get the rest.</source>
         <translation type="unfinished">Користувацький список — це ряд слів, який використовує Заповнення, наприклад дні тижня. Вводьте кожен список в окремому рядку, слова відокремлюйте комами. Введіть перше слово в комірку та перетягніть маркер заповнення, щоб отримати решту.</translation>
     </message>
@@ -27386,6 +27469,11 @@ Source: %3</source>
     </message>
     <message>
         <location line="+1"/>
+        <source>Zoom to Selection</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+5"/>
         <source>Freeze Panes</source>
         <translation type="unfinished">Закріпити області</translation>
     </message>
@@ -27743,7 +27831,7 @@ Source: %3</source>
         <translation type="unfinished"> або більше</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow.cpp" line="-767"/>
+        <location filename="../apps/crunch/app/crunchwindow.cpp" line="-772"/>
         <location filename="../apps/crunch/app/crunchwindow_calc.cpp" line="-160"/>
         <location filename="../apps/crunch/app/crunchwindow_format.cpp" line="+1028"/>
         <location filename="../apps/crunch/app/crunchwindow_page.cpp" line="+196"/>
@@ -28901,7 +28989,7 @@ Source: %3</source>
         <translation type="unfinished">%1 скопійовано</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow.cpp" line="+719"/>
+        <location filename="../apps/crunch/app/crunchwindow.cpp" line="+724"/>
         <location filename="../apps/crunch/app/crunchwindow_charts.cpp" line="+30"/>
         <location line="+17"/>
         <location line="+12"/>
@@ -28972,7 +29060,7 @@ Source: %3</source>
         <translation type="unfinished">Значення</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow.cpp" line="-742"/>
+        <location filename="../apps/crunch/app/crunchwindow.cpp" line="-747"/>
         <location filename="../apps/crunch/app/crunchwindow_clip.cpp" line="-344"/>
         <location line="+300"/>
         <location line="+44"/>
@@ -29265,7 +29353,7 @@ Source: %3</source>
     </message>
     <message>
         <location line="+2"/>
-        <location filename="../apps/crunch/app/crunchwindow_getdata.cpp" line="+57"/>
+        <location filename="../apps/crunch/app/crunchwindow_getdata.cpp" line="+60"/>
         <location filename="../apps/crunch/app/crunchwindow_insertobjects.cpp" line="+624"/>
         <source>and %1 more</source>
         <translation type="unfinished">і ще %1</translation>
@@ -32049,8 +32137,8 @@ This file is protected with a password. Password:</source>
     </message>
     <message>
         <location line="+0"/>
-        <source>Tables made by Get Data remember the file they were loaded from, with its path on this computer. Removing the links keeps the tables and their cells, and Refresh no longer reads the files.</source>
-        <translation type="unfinished">Таблиці, створені командою «Отримати дані», пам&apos;ятають файл, з якого їх завантажено, разом із його шляхом на цьому комп&apos;ютері. Видалення посилань залишає таблиці та їхні комірки, а «Оновити» більше не читає файли.</translation>
+        <source>Tables made by Get Data remember the file they were loaded from, with its path on this computer, and the name and steps of their query. Removing the links removes that path, name, and steps. It keeps the tables and their cells, and Refresh no longer reads the files.</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <location line="+6"/>
@@ -33985,7 +34073,8 @@ This file is protected with a password. Password:</source>
     </message>
     <message>
         <location line="+1"/>
-        <location line="+86"/>
+        <location line="+90"/>
+        <location line="+38"/>
         <location filename="../apps/crunch/app/crunchwindow_pivot.cpp" line="+23"/>
         <location line="+3"/>
         <location line="+5"/>
@@ -33994,10 +34083,11 @@ This file is protected with a password. Password:</source>
         <translation type="unfinished">Оновити</translation>
     </message>
     <message>
-        <location line="-85"/>
-        <location line="+85"/>
-        <location line="+80"/>
-        <location line="+14"/>
+        <location line="-127"/>
+        <location line="+89"/>
+        <location line="+38"/>
+        <location line="+68"/>
+        <location line="+17"/>
         <location filename="../apps/crunch/app/crunchwindow_pivot.cpp" line="+2"/>
         <location line="+3"/>
         <location line="+2"/>
@@ -34005,7 +34095,12 @@ This file is protected with a password. Password:</source>
         <translation type="unfinished">Оновити все</translation>
     </message>
     <message>
-        <location line="-154"/>
+        <location line="-211"/>
+        <source>Queries &amp; Connections…</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+25"/>
         <source>Get Data</source>
         <translation type="unfinished">Отримати дані</translation>
     </message>
@@ -34020,34 +34115,34 @@ This file is protected with a password. Password:</source>
         <translation type="unfinished">Цей файл не є JSON, XML або книгою.</translation>
     </message>
     <message>
-        <location line="+6"/>
+        <location line="+7"/>
         <source>Reading the file…</source>
         <translation type="unfinished">Читання файлу…</translation>
     </message>
     <message>
         <location line="+6"/>
-        <location line="+107"/>
+        <location line="+135"/>
         <source>The read was stopped. Nothing was changed.</source>
         <translation type="unfinished">Читання було зупинено. Нічого не змінено.</translation>
     </message>
     <message>
-        <location line="-103"/>
-        <location line="+24"/>
+        <location line="-131"/>
+        <location line="+26"/>
         <source>Nothing was changed.</source>
         <translation type="unfinished">Нічого не змінено.</translation>
     </message>
     <message>
-        <location line="-8"/>
+        <location line="-10"/>
         <source>The table would go over cells that hold something (%1 cells in all). Replace them?</source>
         <translation type="unfinished">Таблиця зайняла б комірки, які вже містять дані (усього %1 комірок). Замінити їх?</translation>
     </message>
     <message>
-        <location line="+30"/>
+        <location line="+32"/>
         <source>Click a cell in a table that was made by Get Data first.</source>
         <translation type="unfinished">Спочатку клацніть комірку в таблиці, створеній командою «Отримати дані».</translation>
     </message>
     <message>
-        <location line="+22"/>
+        <location line="+48"/>
         <location filename="../apps/crunch/app/crunchwindow_pivot.cpp" line="-11"/>
         <location line="+9"/>
         <source>Nothing was read.</source>
@@ -34080,7 +34175,7 @@ This file is protected with a password. Password:</source>
     </message>
     <message>
         <location line="+5"/>
-        <location line="+10"/>
+        <location line="+13"/>
         <source>%1: %2</source>
         <translation type="unfinished">%1: %2</translation>
     </message>
@@ -37941,6 +38036,200 @@ The file can&apos;t be read.</source>
         <location line="+0"/>
         <source>This is the first record.</source>
         <translation type="unfinished">Це перший запис.</translation>
+    </message>
+</context>
+<context>
+    <name>jp::DataSteps</name>
+    <message>
+        <location filename="../libs/office/sheet/datasteps.cpp" line="+93"/>
+        <source>The list of steps is too long.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <location line="+11"/>
+        <location line="+3"/>
+        <source>The list of steps can&apos;t be read.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-12"/>
+        <location line="+378"/>
+        <source>There are more steps than JeffCrunch runs.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-363"/>
+        <source>Step %1 is of a kind this version of JeffCrunch does not have. It may have been made in a newer version.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+20"/>
+        <source>Step %1 can&apos;t be read.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+11"/>
+        <source>Choose columns: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Remove columns: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Rename %1 to %2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>equals</source>
+        <translation type="unfinished">дорівнює</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>does not equal</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>contains</source>
+        <translation type="unfinished">містить</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>does not contain</source>
+        <translation type="unfinished">не містить</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>is greater than</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>is at least</source>
+        <translation type="unfinished">не менше за</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>is less than</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>is at most</source>
+        <translation type="unfinished">не більше за</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>is blank</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>is not blank</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Keep rows where %1 %2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Keep rows where %1 %2 %3</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Sort %1, largest first</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Sort %1, smallest first</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Change %1 to %2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>number</source>
+        <translation type="unfinished">число</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>date</source>
+        <translation type="unfinished">дата</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>text</source>
+        <translation type="unfinished">текст</translation>
+    </message>
+    <message>
+        <location line="+27"/>
+        <source>The column &quot;%1&quot; is not there. The columns are: %2.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+7"/>
+        <source>The steps would take too long on this many rows.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+81"/>
+        <location line="+30"/>
+        <location line="+59"/>
+        <location line="+86"/>
+        <source>The read was stopped.</source>
+        <translation type="unfinished">Читання було зупинено.</translation>
+    </message>
+    <message>
+        <location line="-123"/>
+        <source>No column is chosen.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+7"/>
+        <source>The column &quot;%1&quot; is named twice.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+18"/>
+        <source>That would leave no columns.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+31"/>
+        <source>The new name is empty.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>Another column is already called &quot;%1&quot;.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+70"/>
+        <source>The value &quot;%1&quot; in row %2 of &quot;%3&quot; is not a number.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>The value &quot;%1&quot; in row %2 of &quot;%3&quot; is not a date in that order.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+39"/>
+        <source>Step %1 (%2): %3</source>
+        <translation type="unfinished"></translation>
     </message>
 </context>
 <context>
@@ -47846,7 +48135,7 @@ The file can&apos;t be read.</source>
 <context>
     <name>jp::GetDataDialog</name>
     <message>
-        <location filename="../apps/crunch/app/getdata.cpp" line="-97"/>
+        <location filename="../apps/crunch/app/getdata.cpp" line="-119"/>
         <source>number</source>
         <translation type="unfinished">число</translation>
     </message>
@@ -47866,18 +48155,18 @@ The file can&apos;t be read.</source>
         <translation type="unfinished">текст</translation>
     </message>
     <message>
-        <location line="+39"/>
-        <location line="+213"/>
+        <location line="+62"/>
+        <location line="+215"/>
         <source>The read was stopped.</source>
         <translation type="unfinished">Читання було зупинено.</translation>
     </message>
     <message>
-        <location line="-197"/>
+        <location line="-199"/>
         <source>That kind of file can&apos;t be loaded.</source>
         <translation type="unfinished">Файл такого типу не можна завантажити.</translation>
     </message>
     <message>
-        <location line="+62"/>
+        <location line="+64"/>
         <location line="+59"/>
         <source>Get Data from a File</source>
         <translation type="unfinished">Отримати дані з файлу</translation>
@@ -73148,7 +73437,7 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished">Вставити аркуш</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/core/editdata.cpp" line="+84"/>
+        <location filename="../apps/crunch/core/editdata.cpp" line="+85"/>
         <location filename="../apps/crunch/core/editsheets.cpp" line="+49"/>
         <location filename="../apps/crunch/core/edittables.cpp" line="-744"/>
         <source>The workbook has as many tables as JeffCrunch works with.</source>
@@ -73563,12 +73852,18 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished">Таблиці потрібен рядок даних під її назвами.</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/core/editdata.cpp" line="-2"/>
+        <location filename="../apps/crunch/core/editdata.cpp" line="-3"/>
         <source>There are no rows to load.</source>
         <translation type="unfinished">Немає рядків для завантаження.</translation>
     </message>
     <message>
         <location line="+1"/>
+        <location line="+75"/>
+        <source>The steps of this query are too long to be saved with the table.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-74"/>
         <source>This sheet is protected, so a table can&apos;t be put on it.</source>
         <translation type="unfinished">Цей аркуш захищено, тому таблицю не можна на ньому розмістити.</translation>
     </message>
@@ -73617,7 +73912,7 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished">Цю таблицю створено не за допомогою Отримати дані, тому немає файлу, з якого її можна повторно прочитати.</translation>
     </message>
     <message>
-        <location line="+1"/>
+        <location line="+2"/>
         <source>The table has a row of totals or no row of names. Take the row of totals off first, and refresh again.</source>
         <translation type="unfinished">Таблиця має рядок підсумків або не має рядка назв. Спочатку приберіть рядок підсумків і оновіть знову.</translation>
     </message>
@@ -73667,7 +73962,7 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished">Рядки вийшли б за межі аркуша, тому нічого не було змінено.</translation>
     </message>
     <message>
-        <location line="+11"/>
+        <location line="+12"/>
         <source>There is no room under the table for the new rows, so nothing was changed.</source>
         <translation type="unfinished">Під таблицею немає місця для нових рядків, тому нічого не було змінено.</translation>
     </message>
@@ -80584,7 +80879,7 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished">Цього елемента немає у файлі або він не містить значень для завантаження.</translation>
     </message>
     <message>
-        <location line="+102"/>
+        <location line="+127"/>
         <location filename="../libs/office/sheet/datasourcebook.cpp" line="-199"/>
         <source>Only a file on this computer can be loaded, not a web address or a file on another computer.</source>
         <translation type="unfinished">Завантажити можна лише файл на цьому комп&apos;ютері, а не веб-адресу або файл на іншому комп&apos;ютері.</translation>

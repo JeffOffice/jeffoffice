@@ -37,6 +37,15 @@ The link to the file is kept in the table in a saved `.xlsx` workbook, in a part
 
 Files are read with limits: a file up to 64 MB, 200,000 rows, 256 columns, and 32,767 characters in a cell. XML with a document type or entities is refused. Anything cut by a limit is said.
 
+
+## Queries & Connections
+
+**Queries & Connections** in the **Get Data** group lists every table that was made by Get Data. Each row shows the query's name, the file it reads, when it last ran, the rows it gave, and whether it can run. Pick a row and click **Refresh** to read its file again, or click **Refresh All** for every query that can run. A query can carry steps, such as choosing columns, filtering rows, sorting, or changing a column to a number or a date. Refresh runs them again on the file as it is now. If a step can't run, you are told which step and why, and the table keeps its old data. A query saved by a newer version of the program is listed, can't be run, and is saved just as it was. A query that can't be read is listed too, and says so.
+
+When you open a workbook that someone else made, its queries are not read until you say so. The first time you click **Refresh** or **Refresh All** for a query from an opened workbook, a box shows the full path of the file the workbook asks to read. Click **Read the File** only if you trust where the workbook came from. **Don't Read** leaves everything as it was. After you click **Read the File**, that window does not ask about the same file again until you close it. The answer is never saved in the workbook. If you chose **Update them** in **Options > Security**, JeffCrunch also remembers the pair (this workbook and that file) in your own settings, and **Forget All** there clears it. A query you made yourself with **From File** is read without asking.
+
+**Change Type** turns a column into text, a number, or a date. A number may have a decimal mark and a grouping mark, such as 1.234,5 or 1,234.5. A grouping mark counts only between groups of three digits, so 12,34 is not read as 1234. A date is read in the order you choose, with four digits for the year. Two-digit years, a negative number in parentheses such as (5), and a percent such as 5% are not read. The step stops, names the value and its row, and the table keeps its old data. Filters and sorts put numbers first, then dates written as year-month-day, then text, and blanks last. A filter that compares a number with text or a date keeps nothing.
+
 ## Edit Links
 
 If a workbook has formulas that read another workbook (such as ='[Prices.xlsx]Sheet1'!A1), **Edit Links** in the **Get Data** group lists those other workbooks, which are called sources. Each row shows where the source is, and its status. Until the workbook is opened again with its sources, it shows the numbers its file stored from them.
