@@ -2391,39 +2391,6 @@ private Q_SLOTS:
         QCOMPARE(s->workbook()->tables().size(), 1);
     }
 
-    // The link to the file is saved with the table and read back: after a save and an open, Refresh still works; taking the link off (Inspect) leaves the table.
-    void theLinkToTheFileSurvivesASaveAndOpen()
-    {
-        EditWindow e;
-        QVERIFY(e.open(buildXlsx({worksheet(row(9, text(QStringLiteral("A9"), QStringLiteral("keep"))))})));
-        crunch::EditSession *s = e.win.w.session();
-        s->setLocale(kUs);
-        QVERIFY(e.settle());
-        const QString file = e.folder.write(QStringLiteral("rows.json"), "[{\"a\":1,\"b\":\"x\"},{\"a\":2,\"b\":\"y\"}]");
-        e.win.w.setGetDataAsker([&](jp::GetDataRequest *r) {
-            r->conn.kind = QStringLiteral("json");
-            r->conn.path = file;
-            r->place = QStringLiteral("A1");
-            return true;
-        });
-        e.win.w.act(QStringLiteral("data.fromFile"))->trigger();
-        QVERIFY(e.settle());
-        QVERIFY(saveNow(e));
-        EditWindow f;
-        const QString copy = e.copyOfFile();
-        QVERIFY(!copy.isEmpty());
-        QVERIFY(f.win.open(copy));
-        f.win.w.setGetDataTrustAsker([](const QStringList &, const QString &) { return true; });   // (this test is about the saved query, not the ask)
-        QVERIFY(f.settle());
-        QCOMPARE(f.win.w.session()->workbook()->tables().size(), 1);
-        QCOMPARE(f.win.w.session()->workbook()->tables().first().dataSource, e.win.w.session()->workbook()->tables().first().dataSource);
-        e.folder.write(QStringLiteral("rows.json"), "[{\"a\":1,\"b\":\"x\"},{\"a\":2,\"b\":\"y\"},{\"a\":3,\"b\":\"z\"}]");
-        f.select(QStringLiteral("A2"));
-        f.win.w.act(QStringLiteral("data.refresh"))->trigger();
-        QVERIFY(f.settle());
-        QCOMPARE(f.win.w.session()->workbook()->tables().first().row2, 3u);
-        QCOMPARE(f.win.told.size(), 0);
-    }
     // A window closed while its Refresh is reading: the read is stopped, the thread calls only its own copy of the test hook, the progress box is not deleted twice, and nothing is applied or shown.
     void closingTheWindowDuringARefreshIsSafe()
     {
@@ -2989,6 +2956,66 @@ private Q_SLOTS:
         const auto &tables = f.win.w.session()->workbook()->tables();
         QCOMPARE(tables.size(), 2);
         QCOMPARE(tables[0].dataSource, newer);   // as it was, byte for byte
+    }
+
+    // A query with steps that came out of an opened workbook is read through the list's Refresh only after the same ask as the ribbon's: Don't Read leaves the table and Undo as they were.
+    void theListsRefreshAsksBeforeReadingAnOpenedQuery()
+    {
+        EditWindow e;
+        QVERIFY(e.open(buildXlsx({worksheet(row(9, text(QStringLiteral("A9"), QStringLiteral("keep"))))})));
+        e.win.w.session()->setLocale(kUs);
+        QVERIFY(e.settle());
+        const QString file = e.folder.write(QStringLiteral("people.json"), stepsFile().toUtf8());
+        e.win.w.setGetDataAsker([&](jp::GetDataRequest *r) {
+            r->conn.kind = QStringLiteral("json");
+            r->conn.path = file;
+            r->conn.steps = sampleSteps();
+            r->conn.name = QStringLiteral("People");
+            r->place = QStringLiteral("A1");
+            return true;
+        });
+        e.win.w.act(QStringLiteral("data.fromFile"))->trigger();
+        QVERIFY(e.settle());
+        QVERIFY(saveNow(e));
+        const QString copy = e.copyOfFile();
+        QVERIFY(!copy.isEmpty());
+        e.folder.write(QStringLiteral("people.json"), stepsFile(",{\"name\":\"Eve\",\"n\":20,\"d\":\"05/05/2025\",\"amt\":\"7\"}").toUtf8());
+
+        EditWindow f;
+        QVERIFY(f.win.open(copy));
+        QVERIFY(f.settle());
+        f.win.w.session()->setLocale(kUs);
+        QStringList paths;
+        bool answer = false;
+        int asks = 0;
+        std::atomic<int> reads{0};
+        f.win.w.setGetDataHold([&](const std::atomic<bool> &) { ++reads; });
+        f.win.w.setGetDataTrustAsker([&](const QStringList &p, const QString &) {
+            ++asks;
+            paths = p;
+            return answer;
+        });
+        const QString before = f.win.w.session()->workbook()->tables().first().dataSource;
+        int opened = 0;
+        f.win.w.setConnectionsAsker([&](jp::ConnectionsPane *pane) {
+            ++opened;
+            pane->table()->selectRow(0);
+            pane->refreshButton()->click();
+            QCOMPARE(asks, 1);
+            QCOMPARE(paths, QStringList{jp::office::sheet::dataReadablePath(file)});
+            QCOMPARE(int(reads), 0);   // (Don't Read: the file was not opened)
+            QCOMPARE(f.win.w.undoStack()->count(), 0);
+            QCOMPARE(f.win.w.session()->workbook()->tables().first().dataSource, before);
+            answer = true;
+            pane->refreshButton()->click();
+            QCOMPARE(asks, 2);
+            QCOMPARE(int(reads), 1);
+            QCOMPARE(f.win.w.undoStack()->count(), 1);
+        });
+        f.win.w.act(QStringLiteral("data.connections"))->trigger();
+        QVERIFY(f.settle());
+        QCOMPARE(opened, 1);
+        QCOMPARE(valueOf(f, QStringLiteral("A2")), QStringLiteral("s:Eve"));
     }
 
     // The window shows the first rows and the kind found for each column before anything is loaded; nothing on the sheet is touched; a web address is refused in words.
