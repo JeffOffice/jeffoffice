@@ -1384,8 +1384,11 @@ private Q_SLOTS:
 
     void aNoteReferenceFieldShowsTheNumberOfTheNoteAndSurvivesSaving()
     {
-        auto doc = open(makeDocx(para(run("one two three"))));
-        QVERIFY(doc);
+        auto win = windowOn(para(run("one two three")));
+        QVERIFY(win);
+        const QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        auto doc = win->document();
         QTextCursor c(doc->story());
         c.setPosition(4);
         QVERIFY(insertFootnote(*doc, c));
@@ -1408,14 +1411,47 @@ private Q_SLOTS:
         QVERIFY(insertField(*doc, missing, QStringLiteral("NOTEREF NoSuchMark")));
         updateFields(*doc, UpdateOptions(), true);
         const QByteArray sep = "</w:instrText></w:r><w:r><w:fldChar w:fldCharType=\"separate\"/></w:r><w:r><w:t xml:space=\"preserve\">";
-        const QByteArray out = documentXml(doc->toDocx());
+        // (saved by the window, as a person saves, and read back from the file)
+        const QString first_ = dir.filePath(QStringLiteral("first.docx")), second_ = dir.filePath(QStringLiteral("second.docx"));
+        auto savedBy = [&](WriteWindow &w, const QString &path) {
+            QByteArray bytes;
+            if (!w.saveTo(path)) return bytes;
+            QFile f(path);
+            if (f.open(QIODevice::ReadOnly)) bytes = f.readAll();
+            return bytes;
+        };
+        const QByteArray out = documentXml(savedBy(*win, first_));
         QVERIFY2(out.contains("NOTEREF SecondNote " + sep + "2<"), out.constData());
         QVERIFY2(out.contains("NOTEREF NoSuchMark " + sep + fields::referenceSourceNotFound().toUtf8()), out.constData());
-        // Saved and opened again, the field is still a NOTEREF, and updating it again gives the number again.
-        auto again = open(doc->toDocx());
-        QVERIFY(again);
-        updateFields(*again, UpdateOptions(), true);
-        QVERIFY2(documentXml(again->toDocx()).contains("NOTEREF SecondNote " + sep + "2<"), documentXml(again->toDocx()).constData());
+        // Opened again from that file by the window, the field is still a NOTEREF, and updating it again gives the number again.
+        WriteWindow again;
+        again.setNotifier([](const QString &, const QString &) {});
+        QVERIFY(again.openFile(first_));
+        updateFields(*again.document(), UpdateOptions(), true);
+        const QByteArray last = documentXml(savedBy(again, second_));
+        QVERIFY2(last.contains("NOTEREF SecondNote " + sep + "2<"), last.constData());
+    }
+    void aHyperlinkFieldKeepsItsResultAndItsAddressThroughAnUpdateAndTheSave()
+    {
+        const QByteArray code = "HYPERLINK \"http://example.com/a?b=1\"";
+        auto win = windowOn(para(run("See ") + field(code, "the example page") + run(" now.")));
+        QVERIFY(win);
+        const QStringList before = lines(*win->document());
+        QCOMPARE(before.value(0), QStringLiteral("See the example page now."));
+        updateFields(*win->document(), UpdateOptions(), true);
+        QCOMPARE(lines(*win->document()), before);   // (the result is the text the file has: the update does not work one out)
+        const QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        const QString path = dir.filePath(QStringLiteral("link.docx"));
+        QVERIFY(win->saveTo(path));
+        WriteWindow back;
+        back.setNotifier([](const QString &, const QString &) {});
+        QVERIFY(back.openFile(path));
+        QCOMPARE(lines(*back.document()), before);
+        QFile f(path);
+        QVERIFY(f.open(QIODevice::ReadOnly));
+        const QByteArray xml = documentXml(f.readAll());
+        QVERIFY2(xml.contains("http://example.com/a?b=1") && xml.contains("the example page"), xml.constData());
     }
     void theCommandsForFieldsAreDimmedWhereThereIsNoFieldToWorkOn()
     {
