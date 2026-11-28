@@ -1219,6 +1219,62 @@ void WriteTests::shadingAndBordersOfTheSelectedCellsAreWrittenAndUndone()
 }
 
 
+// Every line style the borders offer, in a width and a color, on the outside of a table and between its cells, is on the cells' sides, written to the file, and read again.
+void WriteTests::everyBorderStyleIsKeptOutsideAndBetweenTheCells()
+{
+    struct Kind { flow::TableLine::Style style; const char *word; };
+    const Kind kinds[] = {{flow::TableLine::Style::Single, "single"}, {flow::TableLine::Style::Double, "double"}, {flow::TableLine::Style::Dotted, "dotted"},
+                          {flow::TableLine::Style::Dashed, "dashed"}, {flow::TableLine::Style::Triple, "triple"}};
+    const double widths[] = {0.5, 1.5, 3.0};
+    const QColor colors[] = {QColor(0xFF, 0, 0), QColor(0x00, 0x80, 0x00), QColor(0x12, 0x34, 0xAB)};
+    int n = 0;
+    for (const Kind &kind : kinds) {
+        const double width = widths[n % 3];
+        const QColor color = colors[n % 3];
+        ++n;
+        flow::TableLine line;
+        line.style = kind.style;
+        line.width = width;
+        line.color = color;
+        const QByteArray word = QByteArray("w:val=\"") + kind.word + "\" w:sz=\"" + QByteArray::number(int(std::lround(width * 8))) + "\" w:space=\"0\" w:color=\"" + color.name().mid(1).toUpper().toLatin1() + "\"";
+        auto side = [&](WriteDoc &d, const char *cell) { return d.flow().tables.get(cellKeyOf(cursorAt(d, QString::fromLatin1(cell)).block())); };
+        // Between the cells only: the middle cell has all four sides; a corner has the two toward the middle and none outside.
+        {
+            auto doc = open(tableDocx(3, 3));
+            QTextCursor c(doc->story());
+            selectCells(*doc, c, QStringLiteral("r0c0"), QStringLiteral("r2c2"));
+            setBorders(*doc, c, BorderSide::Inside, line);
+            const flow::CellRecord *mid = side(*doc, "r1c1");
+            for (const auto &edge : {mid->cell.top, mid->cell.bottom, mid->cell.left, mid->cell.right}) QVERIFY2(edge && *edge == line, kind.word);
+            const flow::CellRecord *corner = side(*doc, "r0c0");
+            QVERIFY(corner->cell.right && *corner->cell.right == line && corner->cell.bottom && *corner->cell.bottom == line);
+            QVERIFY(!corner->cell.top || !corner->cell.top->visible());
+            QVERIFY(!corner->cell.left || !corner->cell.left->visible());
+            QVERIFY2(documentXml(doc->toDocx()).contains(word), kind.word);
+            checkTablesReopenTheSame(*doc);
+            auto back = open(doc->toDocx());
+            QVERIFY(back);
+            const flow::CellRecord *again = side(*back, "r1c1");
+            QVERIFY2(again->cell.top && *again->cell.top == line && again->cell.right && *again->cell.right == line, kind.word);
+        }
+        // The outside only: the corner has its top and left, and its sides toward the middle have none.
+        {
+            auto doc = open(tableDocx(3, 3));
+            QTextCursor c(doc->story());
+            selectCells(*doc, c, QStringLiteral("r0c0"), QStringLiteral("r2c2"));
+            setBorders(*doc, c, BorderSide::Outside, line);
+            const flow::CellRecord *corner = side(*doc, "r0c0");
+            QVERIFY2(corner->cell.top && *corner->cell.top == line && corner->cell.left && *corner->cell.left == line, kind.word);
+            QVERIFY(!corner->cell.right || !corner->cell.right->visible());
+            const flow::CellRecord *mid = side(*doc, "r1c1");
+            QVERIFY(!mid->cell.top || !mid->cell.top->visible());
+            QVERIFY2(documentXml(doc->toDocx()).contains(word), kind.word);
+            checkTablesReopenTheSame(*doc);
+        }
+    }
+}
+
+
 // The nine places of text in a cell: across is the paragraphs' alignment, down is the cell's.
 void WriteTests::cellAlignmentIsAcrossInTheParagraphsAndDownInTheCell()
 {

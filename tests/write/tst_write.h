@@ -1445,6 +1445,7 @@ private Q_SLOTS:
     void updatingManyFormulaFieldsBuildsTheIndexOnce();
     void tableCellValuesAreFoundByNameAndDirection();
     void shadingAndBordersOfTheSelectedCellsAreWrittenAndUndone();
+    void everyBorderStyleIsKeptOutsideAndBetweenTheCells();
     void cellAlignmentIsAcrossInTheParagraphsAndDownInTheCell();
     void cellTextDirectionIsKeptInTheCellAndInTheFile();
     void cellSizeAndFitAreWrittenWithTheGrid();
