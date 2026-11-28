@@ -12858,7 +12858,7 @@ Nu downloaden van %2? (%3, eenmalig.)</translation>
 <context>
     <name>QObject</name>
     <message>
-        <location filename="../apps/crunch/app/getdata.cpp" line="+108"/>
+        <location filename="../apps/crunch/app/getdata.cpp" line="+131"/>
         <location filename="../apps/crunch/app/linkprogress.cpp" line="+25"/>
         <source>Cancel</source>
         <translation type="unfinished">Annuleren</translation>
@@ -21548,7 +21548,7 @@ Desktop publishing</translation>
 <context>
     <name>Trust</name>
     <message>
-        <location filename="../libs/shell/app/trust.cpp" line="+102"/>
+        <location filename="../libs/shell/app/trust.cpp" line="+194"/>
         <source>This file came from the internet or another computer, so it is open for reading only.</source>
         <translation type="unfinished">Dit bestand is afkomstig van internet of een andere computer, dus het is alleen geopend om te lezen.</translation>
     </message>
@@ -26738,7 +26738,7 @@ Bron: %3</translation>
 <context>
     <name>jp::CrunchWindow</name>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow.cpp" line="+349"/>
+        <location filename="../apps/crunch/app/crunchwindow.cpp" line="+351"/>
         <location filename="../apps/crunch/app/crunchwindow_format.cpp" line="+888"/>
         <location filename="../apps/crunch/app/crunchwindow_windows.cpp" line="+108"/>
         <source>%1 (%2)</source>
@@ -28143,7 +28143,7 @@ Bron: %3</translation>
         <location filename="../apps/crunch/app/crunchwindow_format.cpp" line="-843"/>
         <location line="+607"/>
         <location line="+1"/>
-        <location filename="../apps/crunch/app/crunchwindow_pivot.cpp" line="+496"/>
+        <location filename="../apps/crunch/app/crunchwindow_pivot.cpp" line="+503"/>
         <location line="+6"/>
         <location filename="../apps/crunch/app/crunchwindow_tables.cpp" line="-285"/>
         <source>Clear</source>
@@ -31105,7 +31105,7 @@ Het bestand bestaat niet.</translation>
         <translation type="unfinished">Deze werkmap heeft meer te berekenen dan één berekening aankan. De overgebleven formules behouden hun waarden en worden de volgende keer dat je iets wijzigt berekend.</translation>
     </message>
     <message>
-        <location line="+54"/>
+        <location line="+57"/>
         <source>Calculating… %1%</source>
         <translation type="unfinished">Berekenen… %1%</translation>
     </message>
@@ -31315,7 +31315,7 @@ Het bestand bestaat niet.</translation>
     <message>
         <location filename="../apps/crunch/app/crunchwindow_calc.cpp" line="-170"/>
         <location filename="../apps/crunch/app/crunchwindow_csv.cpp" line="-59"/>
-        <location filename="../apps/crunch/app/crunchwindow_file.cpp" line="-427"/>
+        <location filename="../apps/crunch/app/crunchwindow_file.cpp" line="-430"/>
         <location filename="../apps/crunch/app/crunchwindow_print.cpp" line="+28"/>
         <location filename="../apps/crunch/app/crunchwindow_protect.cpp" line="+68"/>
         <location filename="../apps/crunch/app/crunchwindow_save.cpp" line="-63"/>
@@ -32211,7 +32211,7 @@ Het bestaande bestand is ongewijzigd gebleven.</translation>
     </message>
     <message>
         <location line="+2"/>
-        <location line="+109"/>
+        <location line="+122"/>
         <location line="+23"/>
         <location line="+7"/>
         <location line="+5"/>
@@ -32221,15 +32221,15 @@ Het bestaande bestand is ongewijzigd gebleven.</translation>
         <translation type="unfinished">Duplicaten verwijderen</translation>
     </message>
     <message>
-        <location line="-143"/>
-        <location line="+164"/>
+        <location line="-156"/>
+        <location line="+177"/>
         <location line="+19"/>
         <location line="+6"/>
         <source>Text to Columns</source>
         <translation type="unfinished">Tekst naar kolommen</translation>
     </message>
     <message>
-        <location line="-188"/>
+        <location line="-201"/>
         <source>Form…</source>
         <translation type="unfinished">Formulier…</translation>
     </message>
@@ -32240,37 +32240,33 @@ Het bestaande bestand is ongewijzigd gebleven.</translation>
         <translation type="unfinished">Formulier</translation>
     </message>
     <message>
-        <location line="+47"/>
+        <location line="+52"/>
         <source>Pivot Tables</source>
         <translation type="unfinished">Draaitabellen</translation>
     </message>
     <message>
-        <location line="+0"/>
-        <source>Pivot tables in this workbook read their data from other files. Read those files now?</source>
-        <translation type="unfinished">Draaitabellen in deze werkmap lezen hun gegevens uit andere bestanden. Die bestanden nu lezen?</translation>
-    </message>
-    <message>
-        <location line="+15"/>
+        <location line="+27"/>
         <source>Links</source>
         <translation type="unfinished">Koppelingen</translation>
     </message>
     <message>
-        <location line="+0"/>
-        <source>This workbook reads values from other workbooks. Update them now? You can change this in Edit Links, under Data.</source>
-        <translation type="unfinished">Deze werkmap leest waarden uit andere werkmappen. Nu bijwerken? U kunt dit wijzigen bij Koppelingen bewerken, onder Gegevens.</translation>
-    </message>
-    <message>
-        <location line="+8"/>
+        <location line="+5"/>
         <source>Reading the workbooks the links point to...</source>
         <translation type="unfinished">De werkmappen waarnaar de koppelingen verwijzen worden gelezen...</translation>
     </message>
     <message>
-        <location line="+3"/>
+        <location line="-4"/>
+        <location line="+7"/>
         <source>Links not updated.</source>
         <translation type="unfinished">Koppelingen niet bijgewerkt.</translation>
     </message>
     <message>
-        <location line="+7"/>
+        <location line="-12"/>
+        <source>Link %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+18"/>
         <source>Links updated: %1 cells.</source>
         <translation type="unfinished">Koppelingen bijgewerkt: %1 cellen.</translation>
     </message>
@@ -33088,19 +33084,19 @@ Het bestand kan niet worden gelezen.</translation>
         <translation type="unfinished">Deze %1 zitten niet in een groep.</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow_pivot.cpp" line="-536"/>
+        <location filename="../apps/crunch/app/crunchwindow_pivot.cpp" line="-543"/>
         <location line="+7"/>
         <location line="+316"/>
-        <location line="+307"/>
+        <location line="+314"/>
         <location filename="../apps/crunch/app/crunchwindow_quick.cpp" line="+51"/>
         <location filename="../apps/crunch/app/crunchwindow_tables.cpp" line="+345"/>
         <source>Pivot Table</source>
         <translation type="unfinished">Draaitabel</translation>
     </message>
     <message>
-        <location line="-630"/>
+        <location line="-637"/>
         <location line="+393"/>
-        <location line="+15"/>
+        <location line="+22"/>
         <location line="+160"/>
         <location line="+29"/>
         <location line="+19"/>
@@ -33115,7 +33111,7 @@ Het bestand kan niet worden gelezen.</translation>
         <translation type="unfinished">Klik eerst op een cel in een draaitabel.</translation>
     </message>
     <message>
-        <location line="-952"/>
+        <location line="-959"/>
         <location line="+9"/>
         <location line="+78"/>
         <source>Create Pivot Table</source>
@@ -33162,30 +33158,68 @@ Het bestand kan niet worden gelezen.</translation>
         <translation type="unfinished">Er bestaat al een draaitabel met de naam &quot;%1&quot;. Kies een andere naam.</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow_getdata.cpp" line="+25"/>
+        <location filename="../apps/crunch/app/crunchwindow_getdata.cpp" line="+59"/>
+        <source>%1 in this workbook asks to read this file from this computer:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Queries, pivot tables, and links in this workbook ask to read these files from this computer:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Read the file only if you trust where this workbook came from. Anything in it will be put in this workbook.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Read the Files reads every file named here, including any that are only counted.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>Don&apos;t Read</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Read the File</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Read the Files</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+41"/>
         <source>From File…</source>
         <translation type="unfinished">Uit bestand…</translation>
     </message>
     <message>
         <location line="+1"/>
-        <location line="+85"/>
+        <location line="+86"/>
         <location filename="../apps/crunch/app/crunchwindow_pivot.cpp" line="+23"/>
         <location line="+3"/>
+        <location line="+5"/>
         <location line="+5"/>
         <source>Refresh</source>
         <translation type="unfinished">Vernieuwen</translation>
     </message>
     <message>
-        <location line="-84"/>
-        <location line="+84"/>
-        <location line="+49"/>
+        <location line="-85"/>
+        <location line="+85"/>
+        <location line="+80"/>
+        <location line="+14"/>
         <location filename="../apps/crunch/app/crunchwindow_pivot.cpp" line="+2"/>
         <location line="+3"/>
+        <location line="+2"/>
         <source>Refresh All</source>
         <translation type="unfinished">Alles vernieuwen</translation>
     </message>
     <message>
-        <location line="-108"/>
+        <location line="-154"/>
         <source>Get Data</source>
         <translation type="unfinished">Gegevens ophalen</translation>
     </message>
@@ -33206,12 +33240,12 @@ Het bestand kan niet worden gelezen.</translation>
     </message>
     <message>
         <location line="+6"/>
-        <location line="+75"/>
+        <location line="+107"/>
         <source>The read was stopped. Nothing was changed.</source>
         <translation type="unfinished">Het lezen is gestopt. Er is niets gewijzigd.</translation>
     </message>
     <message>
-        <location line="-71"/>
+        <location line="-103"/>
         <location line="+24"/>
         <source>Nothing was changed.</source>
         <translation type="unfinished">Er is niets gewijzigd.</translation>
@@ -33222,9 +33256,16 @@ Het bestand kan niet worden gelezen.</translation>
         <translation type="unfinished">De tabel zou over cellen heen gaan die iets bevatten (%1 cellen in totaal). Wilt u ze vervangen?</translation>
     </message>
     <message>
-        <location line="+29"/>
+        <location line="+30"/>
         <source>Click a cell in a table that was made by Get Data first.</source>
         <translation type="unfinished">Klik eerst op een cel in een tabel die met Gegevens ophalen is gemaakt.</translation>
+    </message>
+    <message>
+        <location line="+22"/>
+        <location filename="../apps/crunch/app/crunchwindow_pivot.cpp" line="-11"/>
+        <location line="+9"/>
+        <source>Nothing was read.</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <location line="+15"/>
@@ -33232,7 +33273,12 @@ Het bestand kan niet worden gelezen.</translation>
         <translation type="unfinished">%1: de koppeling naar het bestand kan niet worden gelezen, dus er is niets gewijzigd.</translation>
     </message>
     <message>
-        <location line="+5"/>
+        <location line="+6"/>
+        <source>%1: the file was not read, because it was not approved.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+8"/>
         <source>Reading %1…</source>
         <translation type="unfinished">%1 wordt gelezen…</translation>
     </message>
@@ -33253,7 +33299,7 @@ Het bestand kan niet worden gelezen.</translation>
         <translation type="unfinished">%1: %2</translation>
     </message>
     <message>
-        <location line="+10"/>
+        <location line="+13"/>
         <source>The data was read again from its files.</source>
         <translation type="unfinished">De gegevens zijn opnieuw gelezen uit de bestanden.</translation>
     </message>
@@ -33263,7 +33309,7 @@ Het bestand kan niet worden gelezen.</translation>
         <translation type="unfinished">Er hoefde niets opnieuw gelezen te worden.</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow_pivot.cpp" line="+2"/>
+        <location filename="../apps/crunch/app/crunchwindow_pivot.cpp" line="+4"/>
         <source>Change Data Source…</source>
         <translation type="unfinished">Andere gegevensbron…</translation>
     </message>
@@ -36666,6 +36712,7 @@ Het bestand kan niet worden gelezen.</translation>
     </message>
     <message>
         <location line="+2"/>
+        <location filename="../apps/crunch/app/crunchwindow_getdata.cpp" line="-238"/>
         <location filename="../apps/crunch/app/crunchwindow_insertobjects.cpp" line="-157"/>
         <source>and %1 more</source>
         <translation type="unfinished">en %1 meer</translation>
@@ -47725,7 +47772,7 @@ Het bestand kan niet worden gelezen.</translation>
 <context>
     <name>jp::GetDataDialog</name>
     <message>
-        <location filename="../apps/crunch/app/getdata.cpp" line="-74"/>
+        <location filename="../apps/crunch/app/getdata.cpp" line="-97"/>
         <source>number</source>
         <translation type="unfinished">getal</translation>
     </message>
@@ -47746,17 +47793,17 @@ Het bestand kan niet worden gelezen.</translation>
     </message>
     <message>
         <location line="+39"/>
-        <location line="+190"/>
+        <location line="+213"/>
         <source>The read was stopped.</source>
         <translation type="unfinished">Het lezen is gestopt.</translation>
     </message>
     <message>
-        <location line="-174"/>
+        <location line="-197"/>
         <source>That kind of file can&apos;t be loaded.</source>
         <translation type="unfinished">Dat soort bestand kan niet worden geladen.</translation>
     </message>
     <message>
-        <location line="+39"/>
+        <location line="+62"/>
         <location line="+59"/>
         <source>Get Data from a File</source>
         <translation type="unfinished">Gegevens uit een bestand ophalen</translation>
@@ -57519,7 +57566,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
 <context>
     <name>jp::PivotCreateDialog</name>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow_pivot.cpp" line="-1247"/>
+        <location filename="../apps/crunch/app/crunchwindow_pivot.cpp" line="-1254"/>
         <source>Create Pivot Table</source>
         <translation type="unfinished">Draaitabel maken</translation>
     </message>
@@ -72956,14 +73003,14 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
         <translation type="unfinished">Er is niets om ongedaan te maken.</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/core/editpivot.cpp" line="+100"/>
-        <location line="+244"/>
-        <location line="+661"/>
+        <location filename="../apps/crunch/core/editpivot.cpp" line="+101"/>
+        <location line="+255"/>
+        <location line="+684"/>
         <source>JeffCrunch can&apos;t read this pivot table.</source>
         <translation type="unfinished">JeffCrunch kan deze draaitabel niet lezen.</translation>
     </message>
     <message>
-        <location line="-901"/>
+        <location line="-935"/>
         <source>This pivot table has lost the data it is made from.</source>
         <translation type="unfinished">Deze draaitabel is de gegevens kwijt waarop hij is gebaseerd.</translation>
     </message>
@@ -72984,7 +73031,7 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
         <translation type="unfinished">Deze draaitabel toont een waarde als iets dat JeffCrunch nog niet berekent. Die blijft zoals hij is.</translation>
     </message>
     <message>
-        <location line="+80"/>
+        <location line="+91"/>
         <source>Type the cells the data is in, for example Sheet1!A1:D100, or the name of a table.</source>
         <translation type="unfinished">Typ de cellen waarin de gegevens staan, bijvoorbeeld Blad1!A1:D100, of de naam van een tabel.</translation>
     </message>
@@ -73047,19 +73094,19 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
     </message>
     <message>
         <location line="+15"/>
-        <location line="+1385"/>
+        <location line="+1408"/>
         <location line="+21"/>
         <source>The pivot table would go past the edge of the sheet.</source>
         <translation type="unfinished">De draaitabel zou buiten de rand van het blad vallen.</translation>
     </message>
     <message>
-        <location line="-1356"/>
-        <location line="+1396"/>
+        <location line="-1379"/>
+        <location line="+1419"/>
         <source>The pivot table would cover cells that have something in them (%1). Clear those cells, or move the pivot table, and try again.</source>
         <translation type="unfinished">De draaitabel zou cellen bedekken die niet leeg zijn (%1). Wis die cellen of verplaats de draaitabel en probeer het opnieuw.</translation>
     </message>
     <message>
-        <location line="-1380"/>
+        <location line="-1403"/>
         <source>The pivot table would be larger than JeffCrunch changes at once.</source>
         <translation type="unfinished">De draaitabel zou groter worden dan JeffCrunch in één keer kan wijzigen.</translation>
     </message>
@@ -73107,24 +73154,31 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
         <translation type="unfinished">De gegevens kunnen niet worden gelezen: %1.</translation>
     </message>
     <message>
-        <location line="-481"/>
+        <location line="-492"/>
         <location line="+19"/>
+        <location line="+6"/>
         <source>The file &quot;%1&quot; can&apos;t be read from here.</source>
         <translation type="unfinished">Het bestand &quot;%1&quot; kan vanaf hier niet worden gelezen.</translation>
     </message>
     <message>
-        <location line="-15"/>
+        <location line="-21"/>
         <source>Save this workbook first: a file named without its folder is looked for in the folder this workbook is in.</source>
         <translation type="unfinished">Sla deze werkmap eerst op: een bestand dat zonder zijn map is opgegeven, wordt gezocht in de map waarin deze werkmap staat.</translation>
     </message>
     <message>
         <location line="+15"/>
-        <location line="+5"/>
+        <location line="+6"/>
+        <location line="+10"/>
         <source>The file &quot;%1&quot; could not be read; the pivot keeps its last data.</source>
         <translation type="unfinished">Het bestand &quot;%1&quot; kon niet worden gelezen; de draaitabel behoudt zijn laatste gegevens.</translation>
     </message>
     <message>
-        <location line="+0"/>
+        <location line="-6"/>
+        <source>The file &quot;%1&quot; was not read, because it was not approved. The pivot keeps its last data.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+6"/>
         <source>The data in &quot;%1&quot; can&apos;t be read: %2.</source>
         <translation type="unfinished">De gegevens in &quot;%1&quot; kunnen niet worden gelezen: %2.</translation>
     </message>
@@ -73187,7 +73241,7 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
         <translation type="unfinished">De gegevens kunnen niet opnieuw worden gelezen: %1.</translation>
     </message>
     <message>
-        <location line="+50"/>
+        <location line="+73"/>
         <location line="+135"/>
         <location line="+93"/>
         <location line="+147"/>
@@ -80297,7 +80351,7 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
 <context>
     <name>jp::office::sheet::DataSource</name>
     <message>
-        <location filename="../libs/office/sheet/datasource.cpp" line="+25"/>
+        <location filename="../libs/office/sheet/datasource.cpp" line="+26"/>
         <location filename="../libs/office/sheet/datasourcebook.cpp" line="+32"/>
         <source>The file is larger than %1 MB, which is more than this program reads as data.</source>
         <translation type="unfinished">Het bestand is groter dan %1 MB, en dat is meer dan dit programma als gegevens inleest.</translation>
@@ -80414,7 +80468,7 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
         <translation type="unfinished">Dat item staat niet in het bestand, of bevat geen waarden om te laden.</translation>
     </message>
     <message>
-        <location line="+88"/>
+        <location line="+102"/>
         <location filename="../libs/office/sheet/datasourcebook.cpp" line="-199"/>
         <source>Only a file on this computer can be loaded, not a web address or a file on another computer.</source>
         <translation type="unfinished">Alleen een bestand op deze computer kan worden geladen, niet een webadres of een bestand op een andere computer.</translation>
@@ -81944,12 +81998,12 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
     </message>
     <message>
         <location line="+18"/>
-        <location line="+6"/>
+        <location line="+30"/>
         <source>Ask me first</source>
         <translation type="unfinished">Eerst vragen</translation>
     </message>
     <message>
-        <location line="-6"/>
+        <location line="-30"/>
         <location line="+1"/>
         <source>Update them</source>
         <translation type="unfinished">Bijwerken</translation>
@@ -81971,7 +82025,17 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
         <translation type="unfinished">Dit geldt niet in deze app: die heeft geen gekoppelde bestanden om bij te werken.</translation>
     </message>
     <message>
-        <location line="+1"/>
+        <location line="+7"/>
+        <source>Forget All</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+8"/>
+        <source>Remembered approvals: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+10"/>
         <source>Play it</source>
         <translation type="unfinished">Afspelen</translation>
     </message>

@@ -12830,7 +12830,7 @@ Unduh dari %2 sekarang? (%3, sekali saja.)</translation>
 <context>
     <name>QObject</name>
     <message>
-        <location filename="../apps/crunch/app/getdata.cpp" line="+108"/>
+        <location filename="../apps/crunch/app/getdata.cpp" line="+131"/>
         <location filename="../apps/crunch/app/linkprogress.cpp" line="+25"/>
         <source>Cancel</source>
         <translation type="unfinished">Batal</translation>
@@ -21512,7 +21512,7 @@ Penerbitan desktop</translation>
 <context>
     <name>Trust</name>
     <message>
-        <location filename="../libs/shell/app/trust.cpp" line="+102"/>
+        <location filename="../libs/shell/app/trust.cpp" line="+194"/>
         <source>This file came from the internet or another computer, so it is open for reading only.</source>
         <translation type="unfinished">Berkas ini berasal dari internet atau komputer lain, sehingga hanya dibuka untuk dibaca.</translation>
     </message>
@@ -26693,7 +26693,7 @@ Sumber: %3</translation>
 <context>
     <name>jp::CrunchWindow</name>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow.cpp" line="+205"/>
+        <location filename="../apps/crunch/app/crunchwindow.cpp" line="+207"/>
         <location filename="../apps/crunch/app/crunchwindow_edit.cpp" line="+213"/>
         <source>The new workbook is getting ready. It can be changed in a moment.</source>
         <translation type="unfinished">Buku kerja baru sedang disiapkan. Dapat diubah sebentar lagi.</translation>
@@ -28703,7 +28703,7 @@ Sumber: %3</translation>
         <location line="+44"/>
         <location filename="../apps/crunch/app/crunchwindow_pasteoffer.cpp" line="+110"/>
         <location line="+23"/>
-        <location filename="../apps/crunch/app/crunchwindow_pivot.cpp" line="+599"/>
+        <location filename="../apps/crunch/app/crunchwindow_pivot.cpp" line="+606"/>
         <source>Values</source>
         <translation type="unfinished">Nilai</translation>
     </message>
@@ -29710,7 +29710,7 @@ File yang ada sebelumnya tidak berubah.</translation>
     </message>
     <message>
         <location line="+2"/>
-        <location line="+109"/>
+        <location line="+122"/>
         <location line="+23"/>
         <location line="+7"/>
         <location line="+5"/>
@@ -29720,15 +29720,15 @@ File yang ada sebelumnya tidak berubah.</translation>
         <translation type="unfinished">Hapus Duplikat</translation>
     </message>
     <message>
-        <location line="-143"/>
-        <location line="+164"/>
+        <location line="-156"/>
+        <location line="+177"/>
         <location line="+19"/>
         <location line="+6"/>
         <source>Text to Columns</source>
         <translation type="unfinished">Teks ke Kolom</translation>
     </message>
     <message>
-        <location line="-188"/>
+        <location line="-201"/>
         <source>Form…</source>
         <translation type="unfinished">Formulir…</translation>
     </message>
@@ -29739,37 +29739,33 @@ File yang ada sebelumnya tidak berubah.</translation>
         <translation type="unfinished">Formulir</translation>
     </message>
     <message>
-        <location line="+47"/>
+        <location line="+52"/>
         <source>Pivot Tables</source>
         <translation type="unfinished">Tabel Pivot</translation>
     </message>
     <message>
-        <location line="+0"/>
-        <source>Pivot tables in this workbook read their data from other files. Read those files now?</source>
-        <translation type="unfinished">Tabel pivot dalam buku kerja ini membaca datanya dari berkas lain. Baca berkas tersebut sekarang?</translation>
-    </message>
-    <message>
-        <location line="+15"/>
+        <location line="+27"/>
         <source>Links</source>
         <translation type="unfinished">Tautan</translation>
     </message>
     <message>
-        <location line="+0"/>
-        <source>This workbook reads values from other workbooks. Update them now? You can change this in Edit Links, under Data.</source>
-        <translation type="unfinished">Buku kerja ini membaca nilai dari buku kerja lain. Perbarui sekarang? Anda dapat mengubahnya di Edit Tautan, di bawah Data.</translation>
-    </message>
-    <message>
-        <location line="+8"/>
+        <location line="+5"/>
         <source>Reading the workbooks the links point to...</source>
         <translation type="unfinished">Membaca buku kerja yang ditunjuk tautan...</translation>
     </message>
     <message>
-        <location line="+3"/>
+        <location line="-4"/>
+        <location line="+7"/>
         <source>Links not updated.</source>
         <translation type="unfinished">Tautan tidak diperbarui.</translation>
     </message>
     <message>
-        <location line="+7"/>
+        <location line="-12"/>
+        <source>Link %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+18"/>
         <source>Links updated: %1 cells.</source>
         <translation type="unfinished">Tautan diperbarui: %1 sel.</translation>
     </message>
@@ -30081,7 +30077,7 @@ Berkas ini dilindungi kata sandi. Kata sandi:</translation>
         <translation type="unfinished">Buku kerja ini memiliki lebih banyak yang harus dihitung daripada satu penghitungan. Rumus yang tersisa mempertahankan nilai yang dimilikinya, dan akan dihitung saat Anda mengubah sesuatu berikutnya.</translation>
     </message>
     <message>
-        <location line="+54"/>
+        <location line="+57"/>
         <source>Calculating… %1%</source>
         <translation type="unfinished">Menghitung… %1%</translation>
     </message>
@@ -33374,19 +33370,19 @@ Berkas ini dilindungi kata sandi. Kata sandi:</translation>
         <translation type="unfinished">Gambar (*.png *.jpg *.jpeg *.gif *.bmp)</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow_pivot.cpp" line="-429"/>
+        <location filename="../apps/crunch/app/crunchwindow_pivot.cpp" line="-436"/>
         <location line="+7"/>
         <location line="+316"/>
-        <location line="+307"/>
+        <location line="+314"/>
         <location filename="../apps/crunch/app/crunchwindow_quick.cpp" line="-252"/>
         <location filename="../apps/crunch/app/crunchwindow_tables.cpp" line="+58"/>
         <source>Pivot Table</source>
         <translation type="unfinished">Tabel Pivot</translation>
     </message>
     <message>
-        <location line="-630"/>
+        <location line="-637"/>
         <location line="+393"/>
-        <location line="+15"/>
+        <location line="+22"/>
         <location line="+160"/>
         <location line="+29"/>
         <location line="+19"/>
@@ -33401,7 +33397,7 @@ Berkas ini dilindungi kata sandi. Kata sandi:</translation>
         <translation type="unfinished">Klik sel di tabel pivot terlebih dahulu.</translation>
     </message>
     <message>
-        <location line="-952"/>
+        <location line="-959"/>
         <location line="+9"/>
         <location line="+78"/>
         <source>Create Pivot Table</source>
@@ -33448,30 +33444,68 @@ Berkas ini dilindungi kata sandi. Kata sandi:</translation>
         <translation type="unfinished">Tabel pivot lain bernama &quot;%1&quot;. Pilih nama lain.</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow_getdata.cpp" line="+25"/>
+        <location filename="../apps/crunch/app/crunchwindow_getdata.cpp" line="+59"/>
+        <source>%1 in this workbook asks to read this file from this computer:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Queries, pivot tables, and links in this workbook ask to read these files from this computer:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Read the file only if you trust where this workbook came from. Anything in it will be put in this workbook.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Read the Files reads every file named here, including any that are only counted.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>Don&apos;t Read</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Read the File</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Read the Files</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+41"/>
         <source>From File…</source>
         <translation type="unfinished">Dari File…</translation>
     </message>
     <message>
         <location line="+1"/>
-        <location line="+85"/>
+        <location line="+86"/>
         <location filename="../apps/crunch/app/crunchwindow_pivot.cpp" line="+23"/>
         <location line="+3"/>
+        <location line="+5"/>
         <location line="+5"/>
         <source>Refresh</source>
         <translation type="unfinished">Segarkan</translation>
     </message>
     <message>
-        <location line="-84"/>
-        <location line="+84"/>
-        <location line="+49"/>
+        <location line="-85"/>
+        <location line="+85"/>
+        <location line="+80"/>
+        <location line="+14"/>
         <location filename="../apps/crunch/app/crunchwindow_pivot.cpp" line="+2"/>
         <location line="+3"/>
+        <location line="+2"/>
         <source>Refresh All</source>
         <translation type="unfinished">Segarkan Semua</translation>
     </message>
     <message>
-        <location line="-108"/>
+        <location line="-154"/>
         <source>Get Data</source>
         <translation type="unfinished">Dapatkan Data</translation>
     </message>
@@ -33492,12 +33526,12 @@ Berkas ini dilindungi kata sandi. Kata sandi:</translation>
     </message>
     <message>
         <location line="+6"/>
-        <location line="+75"/>
+        <location line="+107"/>
         <source>The read was stopped. Nothing was changed.</source>
         <translation type="unfinished">Pembacaan dihentikan. Tidak ada yang diubah.</translation>
     </message>
     <message>
-        <location line="-71"/>
+        <location line="-103"/>
         <location line="+24"/>
         <source>Nothing was changed.</source>
         <translation type="unfinished">Tidak ada yang diubah.</translation>
@@ -33508,9 +33542,16 @@ Berkas ini dilindungi kata sandi. Kata sandi:</translation>
         <translation type="unfinished">Tabel akan menimpa sel yang berisi data (%1 sel seluruhnya). Ganti?</translation>
     </message>
     <message>
-        <location line="+29"/>
+        <location line="+30"/>
         <source>Click a cell in a table that was made by Get Data first.</source>
         <translation type="unfinished">Klik sel dalam tabel yang dibuat dengan Dapatkan Data terlebih dahulu.</translation>
+    </message>
+    <message>
+        <location line="+22"/>
+        <location filename="../apps/crunch/app/crunchwindow_pivot.cpp" line="-11"/>
+        <location line="+9"/>
+        <source>Nothing was read.</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <location line="+15"/>
@@ -33518,7 +33559,12 @@ Berkas ini dilindungi kata sandi. Kata sandi:</translation>
         <translation type="unfinished">%1: tautan ke file tidak dapat dibaca, sehingga tidak ada yang diubah.</translation>
     </message>
     <message>
-        <location line="+5"/>
+        <location line="+6"/>
+        <source>%1: the file was not read, because it was not approved.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+8"/>
         <source>Reading %1…</source>
         <translation type="unfinished">Membaca %1…</translation>
     </message>
@@ -33539,7 +33585,7 @@ Berkas ini dilindungi kata sandi. Kata sandi:</translation>
         <translation type="unfinished">%1: %2</translation>
     </message>
     <message>
-        <location line="+10"/>
+        <location line="+13"/>
         <source>The data was read again from its files.</source>
         <translation type="unfinished">Data telah dibaca ulang dari file-filenya.</translation>
     </message>
@@ -33549,7 +33595,7 @@ Berkas ini dilindungi kata sandi. Kata sandi:</translation>
         <translation type="unfinished">Tidak ada yang perlu dibaca ulang.</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow_pivot.cpp" line="+2"/>
+        <location filename="../apps/crunch/app/crunchwindow_pivot.cpp" line="+4"/>
         <source>Change Data Source…</source>
         <translation type="unfinished">Ubah Sumber Data…</translation>
     </message>
@@ -36576,6 +36622,7 @@ Berkas tidak dapat dibaca.</translation>
     </message>
     <message>
         <location line="+2"/>
+        <location filename="../apps/crunch/app/crunchwindow_getdata.cpp" line="-238"/>
         <location filename="../apps/crunch/app/crunchwindow_insertobjects.cpp" line="-157"/>
         <source>and %1 more</source>
         <translation type="unfinished">dan %1 lainnya</translation>
@@ -47651,7 +47698,7 @@ Berkas tidak dapat dibaca.</translation>
 <context>
     <name>jp::GetDataDialog</name>
     <message>
-        <location filename="../apps/crunch/app/getdata.cpp" line="-74"/>
+        <location filename="../apps/crunch/app/getdata.cpp" line="-97"/>
         <source>number</source>
         <translation type="unfinished">angka</translation>
     </message>
@@ -47672,17 +47719,17 @@ Berkas tidak dapat dibaca.</translation>
     </message>
     <message>
         <location line="+39"/>
-        <location line="+190"/>
+        <location line="+213"/>
         <source>The read was stopped.</source>
         <translation type="unfinished">Pembacaan dihentikan.</translation>
     </message>
     <message>
-        <location line="-174"/>
+        <location line="-197"/>
         <source>That kind of file can&apos;t be loaded.</source>
         <translation type="unfinished">Jenis file tersebut tidak dapat dimuat.</translation>
     </message>
     <message>
-        <location line="+39"/>
+        <location line="+62"/>
         <location line="+59"/>
         <source>Get Data from a File</source>
         <translation type="unfinished">Dapatkan Data dari File</translation>
@@ -57436,7 +57483,7 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
 <context>
     <name>jp::PivotCreateDialog</name>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow_pivot.cpp" line="-1247"/>
+        <location filename="../apps/crunch/app/crunchwindow_pivot.cpp" line="-1254"/>
         <source>Create Pivot Table</source>
         <translation type="unfinished">Buat Tabel Pivot</translation>
     </message>
@@ -71969,14 +72016,14 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
         <translation type="unfinished">Memindahkan sel</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/core/editpivot.cpp" line="+100"/>
-        <location line="+244"/>
-        <location line="+661"/>
+        <location filename="../apps/crunch/core/editpivot.cpp" line="+101"/>
+        <location line="+255"/>
+        <location line="+684"/>
         <source>JeffCrunch can&apos;t read this pivot table.</source>
         <translation type="unfinished">JeffCrunch tidak dapat membaca tabel pivot ini.</translation>
     </message>
     <message>
-        <location line="-901"/>
+        <location line="-935"/>
         <source>This pivot table has lost the data it is made from.</source>
         <translation type="unfinished">Tabel pivot ini telah kehilangan data tempat ia dibuat.</translation>
     </message>
@@ -71997,7 +72044,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
         <translation type="unfinished">Tabel pivot ini menampilkan nilai sebagai sesuatu yang belum dapat dihitung oleh JeffCrunch. Tabel tetap seperti semula.</translation>
     </message>
     <message>
-        <location line="+80"/>
+        <location line="+91"/>
         <source>Type the cells the data is in, for example Sheet1!A1:D100, or the name of a table.</source>
         <translation type="unfinished">Ketik sel tempat datanya berada, misalnya Sheet1!A1:D100, atau nama tabel.</translation>
     </message>
@@ -72060,19 +72107,19 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
     </message>
     <message>
         <location line="+15"/>
-        <location line="+1385"/>
+        <location line="+1408"/>
         <location line="+21"/>
         <source>The pivot table would go past the edge of the sheet.</source>
         <translation type="unfinished">Tabel pivot akan melewati tepi lembar.</translation>
     </message>
     <message>
-        <location line="-1356"/>
-        <location line="+1396"/>
+        <location line="-1379"/>
+        <location line="+1419"/>
         <source>The pivot table would cover cells that have something in them (%1). Clear those cells, or move the pivot table, and try again.</source>
         <translation type="unfinished">Tabel pivot akan menimpa sel yang berisi sesuatu (%1). Kosongkan sel tersebut, atau pindahkan tabel pivot, lalu coba lagi.</translation>
     </message>
     <message>
-        <location line="-1380"/>
+        <location line="-1403"/>
         <source>The pivot table would be larger than JeffCrunch changes at once.</source>
         <translation type="unfinished">Tabel pivot akan lebih besar daripada perubahan yang dapat dilakukan JeffCrunch sekaligus.</translation>
     </message>
@@ -72120,24 +72167,31 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
         <translation type="unfinished">Data tidak dapat dibaca: %1.</translation>
     </message>
     <message>
-        <location line="-481"/>
+        <location line="-492"/>
         <location line="+19"/>
+        <location line="+6"/>
         <source>The file &quot;%1&quot; can&apos;t be read from here.</source>
         <translation type="unfinished">Berkas &quot;%1&quot; tidak dapat dibaca dari sini.</translation>
     </message>
     <message>
-        <location line="-15"/>
+        <location line="-21"/>
         <source>Save this workbook first: a file named without its folder is looked for in the folder this workbook is in.</source>
         <translation type="unfinished">Simpan buku kerja ini terlebih dahulu: berkas yang tidak disertai foldernya akan dicari di folder tempat buku kerja ini berada.</translation>
     </message>
     <message>
         <location line="+15"/>
-        <location line="+5"/>
+        <location line="+6"/>
+        <location line="+10"/>
         <source>The file &quot;%1&quot; could not be read; the pivot keeps its last data.</source>
         <translation type="unfinished">Berkas &quot;%1&quot; tidak dapat dibaca; tabel pivot tetap menggunakan data terakhirnya.</translation>
     </message>
     <message>
-        <location line="+0"/>
+        <location line="-6"/>
+        <source>The file &quot;%1&quot; was not read, because it was not approved. The pivot keeps its last data.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+6"/>
         <source>The data in &quot;%1&quot; can&apos;t be read: %2.</source>
         <translation type="unfinished">Data di &quot;%1&quot; tidak dapat dibaca: %2.</translation>
     </message>
@@ -72200,7 +72254,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
         <translation type="unfinished">Data tidak dapat dibaca ulang: %1.</translation>
     </message>
     <message>
-        <location line="+50"/>
+        <location line="+73"/>
         <location line="+135"/>
         <location line="+93"/>
         <location line="+147"/>
@@ -80181,7 +80235,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
 <context>
     <name>jp::office::sheet::DataSource</name>
     <message>
-        <location filename="../libs/office/sheet/datasource.cpp" line="+25"/>
+        <location filename="../libs/office/sheet/datasource.cpp" line="+26"/>
         <location filename="../libs/office/sheet/datasourcebook.cpp" line="+32"/>
         <source>The file is larger than %1 MB, which is more than this program reads as data.</source>
         <translation type="unfinished">Berkas lebih besar dari %1 MB, yang melebihi batas data yang dapat dibaca program ini.</translation>
@@ -80298,7 +80352,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
         <translation type="unfinished">Item itu tidak ada dalam berkas, atau tidak berisi nilai untuk dimuat.</translation>
     </message>
     <message>
-        <location line="+88"/>
+        <location line="+102"/>
         <location filename="../libs/office/sheet/datasourcebook.cpp" line="-199"/>
         <source>Only a file on this computer can be loaded, not a web address or a file on another computer.</source>
         <translation type="unfinished">Hanya berkas di komputer ini yang dapat dimuat, bukan alamat web atau berkas di komputer lain.</translation>
@@ -81814,12 +81868,12 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
     </message>
     <message>
         <location line="+18"/>
-        <location line="+6"/>
+        <location line="+30"/>
         <source>Ask me first</source>
         <translation type="unfinished">Tanyakan dulu</translation>
     </message>
     <message>
-        <location line="-6"/>
+        <location line="-30"/>
         <location line="+1"/>
         <source>Update them</source>
         <translation type="unfinished">Perbarui</translation>
@@ -81841,7 +81895,17 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
         <translation type="unfinished">Ini tidak berlaku di aplikasi ini: aplikasi ini tidak memiliki berkas tertaut untuk diperbarui.</translation>
     </message>
     <message>
-        <location line="+1"/>
+        <location line="+7"/>
+        <source>Forget All</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+8"/>
+        <source>Remembered approvals: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+10"/>
         <source>Play it</source>
         <translation type="unfinished">Putar</translation>
     </message>

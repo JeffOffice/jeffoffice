@@ -12858,7 +12858,7 @@ Le télécharger depuis %2 maintenant ? (%3, une seule fois.)</translation>
 <context>
     <name>QObject</name>
     <message>
-        <location filename="../apps/crunch/app/getdata.cpp" line="+108"/>
+        <location filename="../apps/crunch/app/getdata.cpp" line="+131"/>
         <location filename="../apps/crunch/app/linkprogress.cpp" line="+25"/>
         <source>Cancel</source>
         <translation type="unfinished">Annuler</translation>
@@ -21548,7 +21548,7 @@ Publication assistée par ordinateur</translation>
 <context>
     <name>Trust</name>
     <message>
-        <location filename="../libs/shell/app/trust.cpp" line="+102"/>
+        <location filename="../libs/shell/app/trust.cpp" line="+194"/>
         <source>This file came from the internet or another computer, so it is open for reading only.</source>
         <translation type="unfinished">Ce fichier provient d&apos;Internet ou d&apos;un autre ordinateur, il est donc ouvert en lecture seule.</translation>
     </message>
@@ -26738,7 +26738,7 @@ Source : %3</translation>
 <context>
     <name>jp::CrunchWindow</name>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow.cpp" line="+349"/>
+        <location filename="../apps/crunch/app/crunchwindow.cpp" line="+351"/>
         <location filename="../apps/crunch/app/crunchwindow_format.cpp" line="+888"/>
         <location filename="../apps/crunch/app/crunchwindow_windows.cpp" line="+108"/>
         <source>%1 (%2)</source>
@@ -28143,7 +28143,7 @@ Source : %3</translation>
         <location filename="../apps/crunch/app/crunchwindow_format.cpp" line="-843"/>
         <location line="+607"/>
         <location line="+1"/>
-        <location filename="../apps/crunch/app/crunchwindow_pivot.cpp" line="+496"/>
+        <location filename="../apps/crunch/app/crunchwindow_pivot.cpp" line="+503"/>
         <location line="+6"/>
         <location filename="../apps/crunch/app/crunchwindow_tables.cpp" line="-285"/>
         <source>Clear</source>
@@ -31105,7 +31105,7 @@ Le fichier est introuvable.</translation>
         <translation type="unfinished">Ce classeur contient plus de calculs à effectuer qu&apos;un seul calcul ne peut en faire. Les formules restantes conservent les valeurs qu&apos;elles avaient et seront calculées la prochaine fois que vous modifierez quelque chose.</translation>
     </message>
     <message>
-        <location line="+54"/>
+        <location line="+57"/>
         <source>Calculating… %1%</source>
         <translation type="unfinished">Calcul en cours… %1 %</translation>
     </message>
@@ -31315,7 +31315,7 @@ Le fichier est introuvable.</translation>
     <message>
         <location filename="../apps/crunch/app/crunchwindow_calc.cpp" line="-170"/>
         <location filename="../apps/crunch/app/crunchwindow_csv.cpp" line="-59"/>
-        <location filename="../apps/crunch/app/crunchwindow_file.cpp" line="-427"/>
+        <location filename="../apps/crunch/app/crunchwindow_file.cpp" line="-430"/>
         <location filename="../apps/crunch/app/crunchwindow_print.cpp" line="+28"/>
         <location filename="../apps/crunch/app/crunchwindow_protect.cpp" line="+68"/>
         <location filename="../apps/crunch/app/crunchwindow_save.cpp" line="-63"/>
@@ -32211,7 +32211,7 @@ Le fichier existant n&apos;a pas été modifié.</translation>
     </message>
     <message>
         <location line="+2"/>
-        <location line="+109"/>
+        <location line="+122"/>
         <location line="+23"/>
         <location line="+7"/>
         <location line="+5"/>
@@ -32221,15 +32221,15 @@ Le fichier existant n&apos;a pas été modifié.</translation>
         <translation type="unfinished">Supprimer les doublons</translation>
     </message>
     <message>
-        <location line="-143"/>
-        <location line="+164"/>
+        <location line="-156"/>
+        <location line="+177"/>
         <location line="+19"/>
         <location line="+6"/>
         <source>Text to Columns</source>
         <translation type="unfinished">Convertir du texte en colonnes</translation>
     </message>
     <message>
-        <location line="-188"/>
+        <location line="-201"/>
         <source>Form…</source>
         <translation type="unfinished">Formulaire…</translation>
     </message>
@@ -32240,37 +32240,33 @@ Le fichier existant n&apos;a pas été modifié.</translation>
         <translation type="unfinished">Formulaire</translation>
     </message>
     <message>
-        <location line="+47"/>
+        <location line="+52"/>
         <source>Pivot Tables</source>
         <translation type="unfinished">Tableaux croisés dynamiques</translation>
     </message>
     <message>
-        <location line="+0"/>
-        <source>Pivot tables in this workbook read their data from other files. Read those files now?</source>
-        <translation type="unfinished">Les tableaux croisés dynamiques de ce classeur lisent leurs données dans d&apos;autres fichiers. Lire ces fichiers maintenant ?</translation>
-    </message>
-    <message>
-        <location line="+15"/>
+        <location line="+27"/>
         <source>Links</source>
         <translation type="unfinished">Liens</translation>
     </message>
     <message>
-        <location line="+0"/>
-        <source>This workbook reads values from other workbooks. Update them now? You can change this in Edit Links, under Data.</source>
-        <translation type="unfinished">Ce classeur lit des valeurs d&apos;autres classeurs. Les mettre à jour maintenant ? Vous pouvez modifier cela dans Modifier les liens, sous Données.</translation>
-    </message>
-    <message>
-        <location line="+8"/>
+        <location line="+5"/>
         <source>Reading the workbooks the links point to...</source>
         <translation type="unfinished">Lecture des classeurs vers lesquels pointent les liens...</translation>
     </message>
     <message>
-        <location line="+3"/>
+        <location line="-4"/>
+        <location line="+7"/>
         <source>Links not updated.</source>
         <translation type="unfinished">Liens non mis à jour.</translation>
     </message>
     <message>
-        <location line="+7"/>
+        <location line="-12"/>
+        <source>Link %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+18"/>
         <source>Links updated: %1 cells.</source>
         <translation type="unfinished">Liens mis à jour : %1 cellules.</translation>
     </message>
@@ -33088,19 +33084,19 @@ Le fichier est illisible.</translation>
         <translation type="unfinished">Ces %1 ne font partie d&apos;aucun groupe.</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow_pivot.cpp" line="-536"/>
+        <location filename="../apps/crunch/app/crunchwindow_pivot.cpp" line="-543"/>
         <location line="+7"/>
         <location line="+316"/>
-        <location line="+307"/>
+        <location line="+314"/>
         <location filename="../apps/crunch/app/crunchwindow_quick.cpp" line="+51"/>
         <location filename="../apps/crunch/app/crunchwindow_tables.cpp" line="+345"/>
         <source>Pivot Table</source>
         <translation type="unfinished">Tableau croisé dynamique</translation>
     </message>
     <message>
-        <location line="-630"/>
+        <location line="-637"/>
         <location line="+393"/>
-        <location line="+15"/>
+        <location line="+22"/>
         <location line="+160"/>
         <location line="+29"/>
         <location line="+19"/>
@@ -33115,7 +33111,7 @@ Le fichier est illisible.</translation>
         <translation type="unfinished">Cliquez d&apos;abord sur une cellule d&apos;un tableau croisé dynamique.</translation>
     </message>
     <message>
-        <location line="-952"/>
+        <location line="-959"/>
         <location line="+9"/>
         <location line="+78"/>
         <source>Create Pivot Table</source>
@@ -33162,30 +33158,68 @@ Le fichier est illisible.</translation>
         <translation type="unfinished">Un autre tableau croisé dynamique s&apos;appelle « %1 ». Choisissez un autre nom.</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow_getdata.cpp" line="+25"/>
+        <location filename="../apps/crunch/app/crunchwindow_getdata.cpp" line="+59"/>
+        <source>%1 in this workbook asks to read this file from this computer:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Queries, pivot tables, and links in this workbook ask to read these files from this computer:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Read the file only if you trust where this workbook came from. Anything in it will be put in this workbook.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Read the Files reads every file named here, including any that are only counted.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>Don&apos;t Read</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Read the File</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Read the Files</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+41"/>
         <source>From File…</source>
         <translation type="unfinished">Depuis un fichier…</translation>
     </message>
     <message>
         <location line="+1"/>
-        <location line="+85"/>
+        <location line="+86"/>
         <location filename="../apps/crunch/app/crunchwindow_pivot.cpp" line="+23"/>
         <location line="+3"/>
+        <location line="+5"/>
         <location line="+5"/>
         <source>Refresh</source>
         <translation type="unfinished">Actualiser</translation>
     </message>
     <message>
-        <location line="-84"/>
-        <location line="+84"/>
-        <location line="+49"/>
+        <location line="-85"/>
+        <location line="+85"/>
+        <location line="+80"/>
+        <location line="+14"/>
         <location filename="../apps/crunch/app/crunchwindow_pivot.cpp" line="+2"/>
         <location line="+3"/>
+        <location line="+2"/>
         <source>Refresh All</source>
         <translation type="unfinished">Actualiser tout</translation>
     </message>
     <message>
-        <location line="-108"/>
+        <location line="-154"/>
         <source>Get Data</source>
         <translation type="unfinished">Obtenir des données</translation>
     </message>
@@ -33206,12 +33240,12 @@ Le fichier est illisible.</translation>
     </message>
     <message>
         <location line="+6"/>
-        <location line="+75"/>
+        <location line="+107"/>
         <source>The read was stopped. Nothing was changed.</source>
         <translation type="unfinished">La lecture a été interrompue. Rien n&apos;a été modifié.</translation>
     </message>
     <message>
-        <location line="-71"/>
+        <location line="-103"/>
         <location line="+24"/>
         <source>Nothing was changed.</source>
         <translation type="unfinished">Rien n&apos;a été modifié.</translation>
@@ -33222,9 +33256,16 @@ Le fichier est illisible.</translation>
         <translation type="unfinished">Le tableau recouvrirait des cellules qui contiennent des données (%1 cellules au total). Les remplacer ?</translation>
     </message>
     <message>
-        <location line="+29"/>
+        <location line="+30"/>
         <source>Click a cell in a table that was made by Get Data first.</source>
         <translation type="unfinished">Cliquez sur une cellule d&apos;un tableau créé auparavant avec Obtenir des données.</translation>
+    </message>
+    <message>
+        <location line="+22"/>
+        <location filename="../apps/crunch/app/crunchwindow_pivot.cpp" line="-11"/>
+        <location line="+9"/>
+        <source>Nothing was read.</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <location line="+15"/>
@@ -33232,7 +33273,12 @@ Le fichier est illisible.</translation>
         <translation type="unfinished">%1 : le lien vers le fichier est illisible, donc rien n&apos;a été modifié.</translation>
     </message>
     <message>
-        <location line="+5"/>
+        <location line="+6"/>
+        <source>%1: the file was not read, because it was not approved.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+8"/>
         <source>Reading %1…</source>
         <translation type="unfinished">Lecture de %1…</translation>
     </message>
@@ -33253,7 +33299,7 @@ Le fichier est illisible.</translation>
         <translation type="unfinished">%1 : %2</translation>
     </message>
     <message>
-        <location line="+10"/>
+        <location line="+13"/>
         <source>The data was read again from its files.</source>
         <translation type="unfinished">Les données ont été relues depuis leurs fichiers.</translation>
     </message>
@@ -33263,7 +33309,7 @@ Le fichier est illisible.</translation>
         <translation type="unfinished">Aucune relecture n&apos;était nécessaire.</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow_pivot.cpp" line="+2"/>
+        <location filename="../apps/crunch/app/crunchwindow_pivot.cpp" line="+4"/>
         <source>Change Data Source…</source>
         <translation type="unfinished">Changer la source de données…</translation>
     </message>
@@ -36666,6 +36712,7 @@ Le fichier est illisible.</translation>
     </message>
     <message>
         <location line="+2"/>
+        <location filename="../apps/crunch/app/crunchwindow_getdata.cpp" line="-238"/>
         <location filename="../apps/crunch/app/crunchwindow_insertobjects.cpp" line="-157"/>
         <source>and %1 more</source>
         <translation type="unfinished">et %1 de plus</translation>
@@ -47725,7 +47772,7 @@ Le fichier est illisible.</translation>
 <context>
     <name>jp::GetDataDialog</name>
     <message>
-        <location filename="../apps/crunch/app/getdata.cpp" line="-74"/>
+        <location filename="../apps/crunch/app/getdata.cpp" line="-97"/>
         <source>number</source>
         <translation type="unfinished">nombre</translation>
     </message>
@@ -47746,17 +47793,17 @@ Le fichier est illisible.</translation>
     </message>
     <message>
         <location line="+39"/>
-        <location line="+190"/>
+        <location line="+213"/>
         <source>The read was stopped.</source>
         <translation type="unfinished">La lecture a été interrompue.</translation>
     </message>
     <message>
-        <location line="-174"/>
+        <location line="-197"/>
         <source>That kind of file can&apos;t be loaded.</source>
         <translation type="unfinished">Ce type de fichier ne peut pas être chargé.</translation>
     </message>
     <message>
-        <location line="+39"/>
+        <location line="+62"/>
         <location line="+59"/>
         <source>Get Data from a File</source>
         <translation type="unfinished">Obtenir des données depuis un fichier</translation>
@@ -57519,7 +57566,7 @@ Votre navigateur web ouvrira LibreTranslate, un service de traduction gratuit et
 <context>
     <name>jp::PivotCreateDialog</name>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow_pivot.cpp" line="-1247"/>
+        <location filename="../apps/crunch/app/crunchwindow_pivot.cpp" line="-1254"/>
         <source>Create Pivot Table</source>
         <translation type="unfinished">Créer un tableau croisé dynamique</translation>
     </message>
@@ -72956,14 +73003,14 @@ Le mot de passe n&apos;a pas pu être appliqué au fichier.</translation>
         <translation type="unfinished">Il n&apos;y a rien à annuler.</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/core/editpivot.cpp" line="+100"/>
-        <location line="+244"/>
-        <location line="+661"/>
+        <location filename="../apps/crunch/core/editpivot.cpp" line="+101"/>
+        <location line="+255"/>
+        <location line="+684"/>
         <source>JeffCrunch can&apos;t read this pivot table.</source>
         <translation type="unfinished">JeffCrunch ne peut pas lire ce tableau croisé dynamique.</translation>
     </message>
     <message>
-        <location line="-901"/>
+        <location line="-935"/>
         <source>This pivot table has lost the data it is made from.</source>
         <translation type="unfinished">Ce tableau croisé dynamique a perdu ses données sources.</translation>
     </message>
@@ -72984,7 +73031,7 @@ Le mot de passe n&apos;a pas pu être appliqué au fichier.</translation>
         <translation type="unfinished">Ce tableau croisé dynamique affiche une valeur sous une forme que JeffCrunch ne gère pas encore. Elle reste inchangée.</translation>
     </message>
     <message>
-        <location line="+80"/>
+        <location line="+91"/>
         <source>Type the cells the data is in, for example Sheet1!A1:D100, or the name of a table.</source>
         <translation type="unfinished">Tapez les cellules contenant les données, par exemple Feuil1!A1:D100, ou le nom d&apos;un tableau.</translation>
     </message>
@@ -73047,19 +73094,19 @@ Le mot de passe n&apos;a pas pu être appliqué au fichier.</translation>
     </message>
     <message>
         <location line="+15"/>
-        <location line="+1385"/>
+        <location line="+1408"/>
         <location line="+21"/>
         <source>The pivot table would go past the edge of the sheet.</source>
         <translation type="unfinished">Le tableau croisé dynamique dépasserait le bord de la feuille.</translation>
     </message>
     <message>
-        <location line="-1356"/>
-        <location line="+1396"/>
+        <location line="-1379"/>
+        <location line="+1419"/>
         <source>The pivot table would cover cells that have something in them (%1). Clear those cells, or move the pivot table, and try again.</source>
         <translation type="unfinished">Le tableau croisé dynamique recouvrirait des cellules non vides (%1). Effacez ces cellules ou déplacez le tableau croisé dynamique, puis réessayez.</translation>
     </message>
     <message>
-        <location line="-1380"/>
+        <location line="-1403"/>
         <source>The pivot table would be larger than JeffCrunch changes at once.</source>
         <translation type="unfinished">Le tableau croisé dynamique serait plus grand que ce que JeffCrunch peut modifier en une fois.</translation>
     </message>
@@ -73107,24 +73154,31 @@ Le mot de passe n&apos;a pas pu être appliqué au fichier.</translation>
         <translation type="unfinished">Impossible de lire les données : %1.</translation>
     </message>
     <message>
-        <location line="-481"/>
+        <location line="-492"/>
         <location line="+19"/>
+        <location line="+6"/>
         <source>The file &quot;%1&quot; can&apos;t be read from here.</source>
         <translation type="unfinished">Le fichier « %1 » ne peut pas être lu depuis cet emplacement.</translation>
     </message>
     <message>
-        <location line="-15"/>
+        <location line="-21"/>
         <source>Save this workbook first: a file named without its folder is looked for in the folder this workbook is in.</source>
         <translation type="unfinished">Enregistrez d&apos;abord ce classeur : un fichier désigné sans son dossier est recherché dans le dossier où se trouve ce classeur.</translation>
     </message>
     <message>
         <location line="+15"/>
-        <location line="+5"/>
+        <location line="+6"/>
+        <location line="+10"/>
         <source>The file &quot;%1&quot; could not be read; the pivot keeps its last data.</source>
         <translation type="unfinished">Le fichier « %1 » n&apos;a pas pu être lu ; le tableau croisé dynamique conserve ses dernières données.</translation>
     </message>
     <message>
-        <location line="+0"/>
+        <location line="-6"/>
+        <source>The file &quot;%1&quot; was not read, because it was not approved. The pivot keeps its last data.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+6"/>
         <source>The data in &quot;%1&quot; can&apos;t be read: %2.</source>
         <translation type="unfinished">Les données de « %1 » ne peuvent pas être lues : %2.</translation>
     </message>
@@ -73187,7 +73241,7 @@ Le mot de passe n&apos;a pas pu être appliqué au fichier.</translation>
         <translation type="unfinished">Impossible de relire les données : %1.</translation>
     </message>
     <message>
-        <location line="+50"/>
+        <location line="+73"/>
         <location line="+135"/>
         <location line="+93"/>
         <location line="+147"/>
@@ -80297,7 +80351,7 @@ Le mot de passe n&apos;a pas pu être appliqué au fichier.</translation>
 <context>
     <name>jp::office::sheet::DataSource</name>
     <message>
-        <location filename="../libs/office/sheet/datasource.cpp" line="+25"/>
+        <location filename="../libs/office/sheet/datasource.cpp" line="+26"/>
         <location filename="../libs/office/sheet/datasourcebook.cpp" line="+32"/>
         <source>The file is larger than %1 MB, which is more than this program reads as data.</source>
         <translation type="unfinished">Le fichier dépasse %1 Mo, ce qui est plus que ce que ce programme lit comme données.</translation>
@@ -80414,7 +80468,7 @@ Le mot de passe n&apos;a pas pu être appliqué au fichier.</translation>
         <translation type="unfinished">Cet élément ne figure pas dans le fichier, ou ne contient aucune valeur à charger.</translation>
     </message>
     <message>
-        <location line="+88"/>
+        <location line="+102"/>
         <location filename="../libs/office/sheet/datasourcebook.cpp" line="-199"/>
         <source>Only a file on this computer can be loaded, not a web address or a file on another computer.</source>
         <translation type="unfinished">Seul un fichier de cet ordinateur peut être chargé, pas une adresse web ni un fichier situé sur un autre ordinateur.</translation>
@@ -81944,12 +81998,12 @@ Le mot de passe n&apos;a pas pu être appliqué au fichier.</translation>
     </message>
     <message>
         <location line="+18"/>
-        <location line="+6"/>
+        <location line="+30"/>
         <source>Ask me first</source>
         <translation type="unfinished">Me demander d&apos;abord</translation>
     </message>
     <message>
-        <location line="-6"/>
+        <location line="-30"/>
         <location line="+1"/>
         <source>Update them</source>
         <translation type="unfinished">Les mettre à jour</translation>
@@ -81971,7 +82025,17 @@ Le mot de passe n&apos;a pas pu être appliqué au fichier.</translation>
         <translation type="unfinished">Cela ne s&apos;applique pas dans cette application : elle n&apos;a aucun fichier lié à mettre à jour.</translation>
     </message>
     <message>
-        <location line="+1"/>
+        <location line="+7"/>
+        <source>Forget All</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+8"/>
+        <source>Remembered approvals: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+10"/>
         <source>Play it</source>
         <translation type="unfinished">Le lire</translation>
     </message>

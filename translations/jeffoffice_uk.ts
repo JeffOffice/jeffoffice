@@ -12886,7 +12886,7 @@ Download it from %2 now? (%3, once.)</source>
 <context>
     <name>QObject</name>
     <message>
-        <location filename="../apps/crunch/app/getdata.cpp" line="+108"/>
+        <location filename="../apps/crunch/app/getdata.cpp" line="+131"/>
         <location filename="../apps/crunch/app/linkprogress.cpp" line="+25"/>
         <source>Cancel</source>
         <translation type="unfinished">Скасувати</translation>
@@ -21584,7 +21584,7 @@ Desktop publishing</source>
 <context>
     <name>Trust</name>
     <message>
-        <location filename="../libs/shell/app/trust.cpp" line="+102"/>
+        <location filename="../libs/shell/app/trust.cpp" line="+194"/>
         <source>This file came from the internet or another computer, so it is open for reading only.</source>
         <translation type="unfinished">Цей файл надійшов з інтернету або з іншого комп&apos;ютера, тому його відкрито лише для читання.</translation>
     </message>
@@ -26783,7 +26783,7 @@ Source: %3</source>
 <context>
     <name>jp::CrunchWindow</name>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow.cpp" line="+205"/>
+        <location filename="../apps/crunch/app/crunchwindow.cpp" line="+207"/>
         <location filename="../apps/crunch/app/crunchwindow_edit.cpp" line="+213"/>
         <source>The new workbook is getting ready. It can be changed in a moment.</source>
         <translation type="unfinished">Нова книга готується. Її можна буде змінити за мить.</translation>
@@ -27510,7 +27510,7 @@ Source: %3</source>
     <message>
         <location line="-135"/>
         <location line="+212"/>
-        <location filename="../apps/crunch/app/crunchwindow_pivot.cpp" line="+641"/>
+        <location filename="../apps/crunch/app/crunchwindow_pivot.cpp" line="+648"/>
         <location line="+6"/>
         <location line="+3"/>
         <location filename="../apps/crunch/app/crunchwindow_sparklines.cpp" line="+1"/>
@@ -29265,6 +29265,7 @@ Source: %3</source>
     </message>
     <message>
         <location line="+2"/>
+        <location filename="../apps/crunch/app/crunchwindow_getdata.cpp" line="+57"/>
         <location filename="../apps/crunch/app/crunchwindow_insertobjects.cpp" line="+624"/>
         <source>and %1 more</source>
         <translation type="unfinished">і ще %1</translation>
@@ -30127,7 +30128,7 @@ The file that was there is as it was.</source>
     </message>
     <message>
         <location line="+2"/>
-        <location line="+109"/>
+        <location line="+122"/>
         <location line="+23"/>
         <location line="+7"/>
         <location line="+5"/>
@@ -30137,15 +30138,15 @@ The file that was there is as it was.</source>
         <translation type="unfinished">Видалити дублікати</translation>
     </message>
     <message>
-        <location line="-143"/>
-        <location line="+164"/>
+        <location line="-156"/>
+        <location line="+177"/>
         <location line="+19"/>
         <location line="+6"/>
         <source>Text to Columns</source>
         <translation type="unfinished">Текст за стовпцями</translation>
     </message>
     <message>
-        <location line="-188"/>
+        <location line="-201"/>
         <source>Form…</source>
         <translation type="unfinished">Форма…</translation>
     </message>
@@ -30156,37 +30157,33 @@ The file that was there is as it was.</source>
         <translation type="unfinished">Форма</translation>
     </message>
     <message>
-        <location line="+47"/>
+        <location line="+52"/>
         <source>Pivot Tables</source>
         <translation type="unfinished">Зведені таблиці</translation>
     </message>
     <message>
-        <location line="+0"/>
-        <source>Pivot tables in this workbook read their data from other files. Read those files now?</source>
-        <translation type="unfinished">Зведені таблиці в цій книзі читають дані з інших файлів. Прочитати ці файли зараз?</translation>
-    </message>
-    <message>
-        <location line="+15"/>
+        <location line="+27"/>
         <source>Links</source>
         <translation type="unfinished">Посилання</translation>
     </message>
     <message>
-        <location line="+0"/>
-        <source>This workbook reads values from other workbooks. Update them now? You can change this in Edit Links, under Data.</source>
-        <translation type="unfinished">Ця книга отримує значення з інших книг. Оновити їх зараз? Це можна змінити в команді «Змінити посилання» на вкладці «Дані».</translation>
-    </message>
-    <message>
-        <location line="+8"/>
+        <location line="+5"/>
         <source>Reading the workbooks the links point to...</source>
         <translation type="unfinished">Читання книг, на які вказують посилання…</translation>
     </message>
     <message>
-        <location line="+3"/>
+        <location line="-4"/>
+        <location line="+7"/>
         <source>Links not updated.</source>
         <translation type="unfinished">Посилання не оновлено.</translation>
     </message>
     <message>
-        <location line="+7"/>
+        <location line="-12"/>
+        <source>Link %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+18"/>
         <source>Links updated: %1 cells.</source>
         <translation type="unfinished">Посилань оновлено: %1 комірок.</translation>
     </message>
@@ -30625,7 +30622,7 @@ This file is protected with a password. Password:</source>
         <translation type="unfinished">Ця книга містить більше обчислень, ніж може виконати одне обчислення. Формули, що залишилися, зберігають свої значення і будуть обчислені наступного разу, коли ви щось зміните.</translation>
     </message>
     <message>
-        <location line="+54"/>
+        <location line="+57"/>
         <source>Calculating… %1%</source>
         <translation type="unfinished">Обчислення… %1%</translation>
     </message>
@@ -33873,19 +33870,19 @@ This file is protected with a password. Password:</source>
         <translation type="unfinished">Малюнки (*.png *.jpg *.jpeg *.gif *.bmp)</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow_pivot.cpp" line="-429"/>
+        <location filename="../apps/crunch/app/crunchwindow_pivot.cpp" line="-436"/>
         <location line="+7"/>
         <location line="+316"/>
-        <location line="+307"/>
+        <location line="+314"/>
         <location filename="../apps/crunch/app/crunchwindow_quick.cpp" line="+51"/>
         <location filename="../apps/crunch/app/crunchwindow_tables.cpp" line="+58"/>
         <source>Pivot Table</source>
         <translation type="unfinished">Зведена таблиця</translation>
     </message>
     <message>
-        <location line="-630"/>
+        <location line="-637"/>
         <location line="+393"/>
-        <location line="+15"/>
+        <location line="+22"/>
         <location line="+160"/>
         <location line="+29"/>
         <location line="+19"/>
@@ -33900,7 +33897,7 @@ This file is protected with a password. Password:</source>
         <translation type="unfinished">Спершу клацніть комірку зведеної таблиці.</translation>
     </message>
     <message>
-        <location line="-952"/>
+        <location line="-959"/>
         <location line="+9"/>
         <location line="+78"/>
         <source>Create Pivot Table</source>
@@ -33947,30 +33944,68 @@ This file is protected with a password. Password:</source>
         <translation type="unfinished">Зведена таблиця з назвою «%1» вже існує. Виберіть іншу назву.</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow_getdata.cpp" line="+25"/>
+        <location filename="../apps/crunch/app/crunchwindow_getdata.cpp" line="+2"/>
+        <source>%1 in this workbook asks to read this file from this computer:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Queries, pivot tables, and links in this workbook ask to read these files from this computer:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Read the file only if you trust where this workbook came from. Anything in it will be put in this workbook.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Read the Files reads every file named here, including any that are only counted.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>Don&apos;t Read</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Read the File</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Read the Files</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+41"/>
         <source>From File…</source>
         <translation type="unfinished">З файлу…</translation>
     </message>
     <message>
         <location line="+1"/>
-        <location line="+85"/>
+        <location line="+86"/>
         <location filename="../apps/crunch/app/crunchwindow_pivot.cpp" line="+23"/>
         <location line="+3"/>
+        <location line="+5"/>
         <location line="+5"/>
         <source>Refresh</source>
         <translation type="unfinished">Оновити</translation>
     </message>
     <message>
-        <location line="-84"/>
-        <location line="+84"/>
-        <location line="+49"/>
+        <location line="-85"/>
+        <location line="+85"/>
+        <location line="+80"/>
+        <location line="+14"/>
         <location filename="../apps/crunch/app/crunchwindow_pivot.cpp" line="+2"/>
         <location line="+3"/>
+        <location line="+2"/>
         <source>Refresh All</source>
         <translation type="unfinished">Оновити все</translation>
     </message>
     <message>
-        <location line="-108"/>
+        <location line="-154"/>
         <source>Get Data</source>
         <translation type="unfinished">Отримати дані</translation>
     </message>
@@ -33991,12 +34026,12 @@ This file is protected with a password. Password:</source>
     </message>
     <message>
         <location line="+6"/>
-        <location line="+75"/>
+        <location line="+107"/>
         <source>The read was stopped. Nothing was changed.</source>
         <translation type="unfinished">Читання було зупинено. Нічого не змінено.</translation>
     </message>
     <message>
-        <location line="-71"/>
+        <location line="-103"/>
         <location line="+24"/>
         <source>Nothing was changed.</source>
         <translation type="unfinished">Нічого не змінено.</translation>
@@ -34007,9 +34042,16 @@ This file is protected with a password. Password:</source>
         <translation type="unfinished">Таблиця зайняла б комірки, які вже містять дані (усього %1 комірок). Замінити їх?</translation>
     </message>
     <message>
-        <location line="+29"/>
+        <location line="+30"/>
         <source>Click a cell in a table that was made by Get Data first.</source>
         <translation type="unfinished">Спочатку клацніть комірку в таблиці, створеній командою «Отримати дані».</translation>
+    </message>
+    <message>
+        <location line="+22"/>
+        <location filename="../apps/crunch/app/crunchwindow_pivot.cpp" line="-11"/>
+        <location line="+9"/>
+        <source>Nothing was read.</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <location line="+15"/>
@@ -34017,7 +34059,12 @@ This file is protected with a password. Password:</source>
         <translation type="unfinished">%1: посилання на файл неможливо прочитати, тож нічого не змінено.</translation>
     </message>
     <message>
-        <location line="+5"/>
+        <location line="+6"/>
+        <source>%1: the file was not read, because it was not approved.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+8"/>
         <source>Reading %1…</source>
         <translation type="unfinished">Читання %1…</translation>
     </message>
@@ -34038,7 +34085,7 @@ This file is protected with a password. Password:</source>
         <translation type="unfinished">%1: %2</translation>
     </message>
     <message>
-        <location line="+10"/>
+        <location line="+13"/>
         <source>The data was read again from its files.</source>
         <translation type="unfinished">Дані знову прочитано з файлів.</translation>
     </message>
@@ -34048,7 +34095,7 @@ This file is protected with a password. Password:</source>
         <translation type="unfinished">Нічого не потрібно було читати знову.</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow_pivot.cpp" line="+2"/>
+        <location filename="../apps/crunch/app/crunchwindow_pivot.cpp" line="+4"/>
         <source>Change Data Source…</source>
         <translation type="unfinished">Змінити джерело даних…</translation>
     </message>
@@ -47799,7 +47846,7 @@ The file can&apos;t be read.</source>
 <context>
     <name>jp::GetDataDialog</name>
     <message>
-        <location filename="../apps/crunch/app/getdata.cpp" line="-74"/>
+        <location filename="../apps/crunch/app/getdata.cpp" line="-97"/>
         <source>number</source>
         <translation type="unfinished">число</translation>
     </message>
@@ -47820,17 +47867,17 @@ The file can&apos;t be read.</source>
     </message>
     <message>
         <location line="+39"/>
-        <location line="+190"/>
+        <location line="+213"/>
         <source>The read was stopped.</source>
         <translation type="unfinished">Читання було зупинено.</translation>
     </message>
     <message>
-        <location line="-174"/>
+        <location line="-197"/>
         <source>That kind of file can&apos;t be loaded.</source>
         <translation type="unfinished">Файл такого типу не можна завантажити.</translation>
     </message>
     <message>
-        <location line="+39"/>
+        <location line="+62"/>
         <location line="+59"/>
         <source>Get Data from a File</source>
         <translation type="unfinished">Отримати дані з файлу</translation>
@@ -57602,7 +57649,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
 <context>
     <name>jp::PivotCreateDialog</name>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow_pivot.cpp" line="-1247"/>
+        <location filename="../apps/crunch/app/crunchwindow_pivot.cpp" line="-1254"/>
         <source>Create Pivot Table</source>
         <translation type="unfinished">Створити зведену таблицю</translation>
     </message>
@@ -71962,14 +72009,14 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished">Переміщення комірок</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/core/editpivot.cpp" line="+100"/>
-        <location line="+244"/>
-        <location line="+661"/>
+        <location filename="../apps/crunch/core/editpivot.cpp" line="+101"/>
+        <location line="+255"/>
+        <location line="+684"/>
         <source>JeffCrunch can&apos;t read this pivot table.</source>
         <translation type="unfinished">JeffCrunch не може прочитати цю зведену таблицю.</translation>
     </message>
     <message>
-        <location line="-901"/>
+        <location line="-935"/>
         <source>This pivot table has lost the data it is made from.</source>
         <translation type="unfinished">Ця зведена таблиця втратила дані, з яких її створено.</translation>
     </message>
@@ -71990,7 +72037,7 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished">Ця зведена таблиця показує значення у вигляді, який JeffCrunch поки що не обчислює. Її буде збережено без змін.</translation>
     </message>
     <message>
-        <location line="+80"/>
+        <location line="+91"/>
         <source>Type the cells the data is in, for example Sheet1!A1:D100, or the name of a table.</source>
         <translation type="unfinished">Введіть комірки, де містяться дані, наприклад Аркуш1!A1:D100, або назву таблиці.</translation>
     </message>
@@ -72053,19 +72100,19 @@ The password couldn&apos;t be put on the file.</source>
     </message>
     <message>
         <location line="+15"/>
-        <location line="+1385"/>
+        <location line="+1408"/>
         <location line="+21"/>
         <source>The pivot table would go past the edge of the sheet.</source>
         <translation type="unfinished">Зведена таблиця вийде за межі аркуша.</translation>
     </message>
     <message>
-        <location line="-1356"/>
-        <location line="+1396"/>
+        <location line="-1379"/>
+        <location line="+1419"/>
         <source>The pivot table would cover cells that have something in them (%1). Clear those cells, or move the pivot table, and try again.</source>
         <translation type="unfinished">Зведена таблиця накриє комірки, в яких щось є (%1). Очистіть ці комірки або перемістіть зведену таблицю і спробуйте знову.</translation>
     </message>
     <message>
-        <location line="-1380"/>
+        <location line="-1403"/>
         <source>The pivot table would be larger than JeffCrunch changes at once.</source>
         <translation type="unfinished">Зведена таблиця буде більшою, ніж JeffCrunch змінює одночасно.</translation>
     </message>
@@ -72113,24 +72160,31 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished">Дані не вдалося прочитати: %1.</translation>
     </message>
     <message>
-        <location line="-481"/>
+        <location line="-492"/>
         <location line="+19"/>
+        <location line="+6"/>
         <source>The file &quot;%1&quot; can&apos;t be read from here.</source>
         <translation type="unfinished">Файл «%1» не можна прочитати звідси.</translation>
     </message>
     <message>
-        <location line="-15"/>
+        <location line="-21"/>
         <source>Save this workbook first: a file named without its folder is looked for in the folder this workbook is in.</source>
         <translation type="unfinished">Спершу збережіть цю книгу: файл, вказаний без папки, шукається в папці, де розташована ця книга.</translation>
     </message>
     <message>
         <location line="+15"/>
-        <location line="+5"/>
+        <location line="+6"/>
+        <location line="+10"/>
         <source>The file &quot;%1&quot; could not be read; the pivot keeps its last data.</source>
         <translation type="unfinished">Файл «%1» не вдалося прочитати; зведена таблиця зберігає свої останні дані.</translation>
     </message>
     <message>
-        <location line="+0"/>
+        <location line="-6"/>
+        <source>The file &quot;%1&quot; was not read, because it was not approved. The pivot keeps its last data.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+6"/>
         <source>The data in &quot;%1&quot; can&apos;t be read: %2.</source>
         <translation type="unfinished">Дані в «%1» не можна прочитати: %2.</translation>
     </message>
@@ -72193,7 +72247,7 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished">Дані не вдалося прочитати повторно: %1.</translation>
     </message>
     <message>
-        <location line="+50"/>
+        <location line="+73"/>
         <location line="+135"/>
         <location line="+93"/>
         <location line="+147"/>
@@ -80413,7 +80467,7 @@ The password couldn&apos;t be put on the file.</source>
 <context>
     <name>jp::office::sheet::DataSource</name>
     <message>
-        <location filename="../libs/office/sheet/datasource.cpp" line="+25"/>
+        <location filename="../libs/office/sheet/datasource.cpp" line="+26"/>
         <location filename="../libs/office/sheet/datasourcebook.cpp" line="+32"/>
         <source>The file is larger than %1 MB, which is more than this program reads as data.</source>
         <translation type="unfinished">Файл більший за %1 МБ, а це більше, ніж ця програма читає як дані.</translation>
@@ -80530,7 +80584,7 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished">Цього елемента немає у файлі або він не містить значень для завантаження.</translation>
     </message>
     <message>
-        <location line="+88"/>
+        <location line="+102"/>
         <location filename="../libs/office/sheet/datasourcebook.cpp" line="-199"/>
         <source>Only a file on this computer can be loaded, not a web address or a file on another computer.</source>
         <translation type="unfinished">Завантажити можна лише файл на цьому комп&apos;ютері, а не веб-адресу або файл на іншому комп&apos;ютері.</translation>
@@ -82074,12 +82128,12 @@ The password couldn&apos;t be put on the file.</source>
     </message>
     <message>
         <location line="+18"/>
-        <location line="+6"/>
+        <location line="+30"/>
         <source>Ask me first</source>
         <translation type="unfinished">Спитати перед виконанням</translation>
     </message>
     <message>
-        <location line="-6"/>
+        <location line="-30"/>
         <location line="+1"/>
         <source>Update them</source>
         <translation type="unfinished">Оновлювати їх</translation>
@@ -82101,7 +82155,17 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished">Це не стосується цієї програми: вона не має пов&apos;язаних файлів для оновлення.</translation>
     </message>
     <message>
-        <location line="+1"/>
+        <location line="+7"/>
+        <source>Forget All</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+8"/>
+        <source>Remembered approvals: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+10"/>
         <source>Play it</source>
         <translation type="unfinished">Відтворити</translation>
     </message>

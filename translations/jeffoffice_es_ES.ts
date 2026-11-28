@@ -1594,10 +1594,6 @@ El fichero existente no se ha modificado.</translation>
         <translation type="unfinished">Esta imagen haría que las imágenes del libro (fondos, encabezados y pies de página) superen lo que puede guardar un fichero, %1 MB. Elimine primero un fondo que no necesite o use una imagen más pequeña.</translation>
     </message>
     <message>
-        <source>Pivot tables in this workbook read their data from other files. Read those files now?</source>
-        <translation type="unfinished">Las tablas dinámicas de este libro leen sus datos de otros ficheros. ¿Leer esos ficheros ahora?</translation>
-    </message>
-    <message>
         <source>Workbook File</source>
         <translation type="unfinished">Nombre del fichero</translation>
     </message>

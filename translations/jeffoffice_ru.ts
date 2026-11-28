@@ -12886,7 +12886,7 @@ Download it from %2 now? (%3, once.)</source>
 <context>
     <name>QObject</name>
     <message>
-        <location filename="../apps/crunch/app/getdata.cpp" line="+108"/>
+        <location filename="../apps/crunch/app/getdata.cpp" line="+131"/>
         <location filename="../apps/crunch/app/linkprogress.cpp" line="+25"/>
         <source>Cancel</source>
         <translation type="unfinished">Отмена</translation>
@@ -21584,7 +21584,7 @@ Desktop publishing</source>
 <context>
     <name>Trust</name>
     <message>
-        <location filename="../libs/shell/app/trust.cpp" line="+102"/>
+        <location filename="../libs/shell/app/trust.cpp" line="+194"/>
         <source>This file came from the internet or another computer, so it is open for reading only.</source>
         <translation type="unfinished">Этот файл получен из Интернета или с другого компьютера, поэтому он открыт только для чтения.</translation>
     </message>
@@ -26783,7 +26783,7 @@ Source: %3</source>
 <context>
     <name>jp::CrunchWindow</name>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow.cpp" line="+205"/>
+        <location filename="../apps/crunch/app/crunchwindow.cpp" line="+207"/>
         <location filename="../apps/crunch/app/crunchwindow_edit.cpp" line="+213"/>
         <source>The new workbook is getting ready. It can be changed in a moment.</source>
         <translation type="unfinished">Новая книга готовится. Её можно будет изменить через мгновение.</translation>
@@ -28805,7 +28805,7 @@ Source: %3</source>
         <location line="+44"/>
         <location filename="../apps/crunch/app/crunchwindow_pasteoffer.cpp" line="+110"/>
         <location line="+23"/>
-        <location filename="../apps/crunch/app/crunchwindow_pivot.cpp" line="+599"/>
+        <location filename="../apps/crunch/app/crunchwindow_pivot.cpp" line="+606"/>
         <source>Values</source>
         <translation type="unfinished">Значения</translation>
     </message>
@@ -29812,7 +29812,7 @@ The file that was there is as it was.</source>
     </message>
     <message>
         <location line="+2"/>
-        <location line="+109"/>
+        <location line="+122"/>
         <location line="+23"/>
         <location line="+7"/>
         <location line="+5"/>
@@ -29822,15 +29822,15 @@ The file that was there is as it was.</source>
         <translation type="unfinished">Удалить дубликаты</translation>
     </message>
     <message>
-        <location line="-143"/>
-        <location line="+164"/>
+        <location line="-156"/>
+        <location line="+177"/>
         <location line="+19"/>
         <location line="+6"/>
         <source>Text to Columns</source>
         <translation type="unfinished">Текст по столбцам</translation>
     </message>
     <message>
-        <location line="-188"/>
+        <location line="-201"/>
         <source>Form…</source>
         <translation type="unfinished">Форма…</translation>
     </message>
@@ -29841,37 +29841,33 @@ The file that was there is as it was.</source>
         <translation type="unfinished">Форма</translation>
     </message>
     <message>
-        <location line="+47"/>
+        <location line="+52"/>
         <source>Pivot Tables</source>
         <translation type="unfinished">Сводные таблицы</translation>
     </message>
     <message>
-        <location line="+0"/>
-        <source>Pivot tables in this workbook read their data from other files. Read those files now?</source>
-        <translation type="unfinished">Сводные таблицы в этой книге получают данные из других файлов. Прочитать эти файлы сейчас?</translation>
-    </message>
-    <message>
-        <location line="+15"/>
+        <location line="+27"/>
         <source>Links</source>
         <translation type="unfinished">Связи</translation>
     </message>
     <message>
-        <location line="+0"/>
-        <source>This workbook reads values from other workbooks. Update them now? You can change this in Edit Links, under Data.</source>
-        <translation type="unfinished">Эта книга получает значения из других книг. Обновить их сейчас? Это можно изменить в разделе «Изменить связи» на вкладке «Данные».</translation>
-    </message>
-    <message>
-        <location line="+8"/>
+        <location line="+5"/>
         <source>Reading the workbooks the links point to...</source>
         <translation type="unfinished">Чтение книг, на которые указывают связи…</translation>
     </message>
     <message>
-        <location line="+3"/>
+        <location line="-4"/>
+        <location line="+7"/>
         <source>Links not updated.</source>
         <translation type="unfinished">Связи не обновлены.</translation>
     </message>
     <message>
-        <location line="+7"/>
+        <location line="-12"/>
+        <source>Link %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+18"/>
         <source>Links updated: %1 cells.</source>
         <translation type="unfinished">Обновлено ячеек: %1.</translation>
     </message>
@@ -30187,7 +30183,7 @@ This file is protected with a password. Password:</source>
         <translation type="unfinished">В этой книге требуется выполнить больше вычислений, чем за один проход. Оставшиеся формулы сохраняют прежние значения и будут вычислены при следующем изменении данных.</translation>
     </message>
     <message>
-        <location line="+54"/>
+        <location line="+57"/>
         <source>Calculating… %1%</source>
         <translation type="unfinished">Вычисление… %1%</translation>
     </message>
@@ -33504,19 +33500,19 @@ This file is protected with a password. Password:</source>
         <translation type="unfinished">Изображения (*.png *.jpg *.jpeg *.gif *.bmp)</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow_pivot.cpp" line="-429"/>
+        <location filename="../apps/crunch/app/crunchwindow_pivot.cpp" line="-436"/>
         <location line="+7"/>
         <location line="+316"/>
-        <location line="+307"/>
+        <location line="+314"/>
         <location filename="../apps/crunch/app/crunchwindow_quick.cpp" line="-252"/>
         <location filename="../apps/crunch/app/crunchwindow_tables.cpp" line="+58"/>
         <source>Pivot Table</source>
         <translation type="unfinished">Сводная таблица</translation>
     </message>
     <message>
-        <location line="-630"/>
+        <location line="-637"/>
         <location line="+393"/>
-        <location line="+15"/>
+        <location line="+22"/>
         <location line="+160"/>
         <location line="+29"/>
         <location line="+19"/>
@@ -33531,7 +33527,7 @@ This file is protected with a password. Password:</source>
         <translation type="unfinished">Сначала щёлкните ячейку сводной таблицы.</translation>
     </message>
     <message>
-        <location line="-952"/>
+        <location line="-959"/>
         <location line="+9"/>
         <location line="+78"/>
         <source>Create Pivot Table</source>
@@ -33578,30 +33574,68 @@ This file is protected with a password. Password:</source>
         <translation type="unfinished">Сводная таблица с именем «%1» уже существует. Выберите другое имя.</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow_getdata.cpp" line="+25"/>
+        <location filename="../apps/crunch/app/crunchwindow_getdata.cpp" line="+59"/>
+        <source>%1 in this workbook asks to read this file from this computer:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Queries, pivot tables, and links in this workbook ask to read these files from this computer:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Read the file only if you trust where this workbook came from. Anything in it will be put in this workbook.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Read the Files reads every file named here, including any that are only counted.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>Don&apos;t Read</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Read the File</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Read the Files</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+41"/>
         <source>From File…</source>
         <translation type="unfinished">Из файла…</translation>
     </message>
     <message>
         <location line="+1"/>
-        <location line="+85"/>
+        <location line="+86"/>
         <location filename="../apps/crunch/app/crunchwindow_pivot.cpp" line="+23"/>
         <location line="+3"/>
+        <location line="+5"/>
         <location line="+5"/>
         <source>Refresh</source>
         <translation type="unfinished">Обновить</translation>
     </message>
     <message>
-        <location line="-84"/>
-        <location line="+84"/>
-        <location line="+49"/>
+        <location line="-85"/>
+        <location line="+85"/>
+        <location line="+80"/>
+        <location line="+14"/>
         <location filename="../apps/crunch/app/crunchwindow_pivot.cpp" line="+2"/>
         <location line="+3"/>
+        <location line="+2"/>
         <source>Refresh All</source>
         <translation type="unfinished">Обновить все</translation>
     </message>
     <message>
-        <location line="-108"/>
+        <location line="-154"/>
         <source>Get Data</source>
         <translation type="unfinished">Получить данные</translation>
     </message>
@@ -33622,12 +33656,12 @@ This file is protected with a password. Password:</source>
     </message>
     <message>
         <location line="+6"/>
-        <location line="+75"/>
+        <location line="+107"/>
         <source>The read was stopped. Nothing was changed.</source>
         <translation type="unfinished">Чтение остановлено. Ничего не изменено.</translation>
     </message>
     <message>
-        <location line="-71"/>
+        <location line="-103"/>
         <location line="+24"/>
         <source>Nothing was changed.</source>
         <translation type="unfinished">Ничего не изменено.</translation>
@@ -33638,9 +33672,16 @@ This file is protected with a password. Password:</source>
         <translation type="unfinished">Таблица заняла бы ячейки, в которых что-то есть (всего ячеек: %1). Заменить их?</translation>
     </message>
     <message>
-        <location line="+29"/>
+        <location line="+30"/>
         <source>Click a cell in a table that was made by Get Data first.</source>
         <translation type="unfinished">Сначала щёлкните ячейку в таблице, созданной командой «Получить данные».</translation>
+    </message>
+    <message>
+        <location line="+22"/>
+        <location filename="../apps/crunch/app/crunchwindow_pivot.cpp" line="-11"/>
+        <location line="+9"/>
+        <source>Nothing was read.</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <location line="+15"/>
@@ -33648,7 +33689,12 @@ This file is protected with a password. Password:</source>
         <translation type="unfinished">%1: связь с файлом не может быть прочитана, поэтому ничего не изменено.</translation>
     </message>
     <message>
-        <location line="+5"/>
+        <location line="+6"/>
+        <source>%1: the file was not read, because it was not approved.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+8"/>
         <source>Reading %1…</source>
         <translation type="unfinished">Чтение: %1…</translation>
     </message>
@@ -33669,7 +33715,7 @@ This file is protected with a password. Password:</source>
         <translation type="unfinished">%1: %2</translation>
     </message>
     <message>
-        <location line="+10"/>
+        <location line="+13"/>
         <source>The data was read again from its files.</source>
         <translation type="unfinished">Данные были заново прочитаны из файлов.</translation>
     </message>
@@ -33679,7 +33725,7 @@ This file is protected with a password. Password:</source>
         <translation type="unfinished">Перечитывать ничего не потребовалось.</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow_pivot.cpp" line="+2"/>
+        <location filename="../apps/crunch/app/crunchwindow_pivot.cpp" line="+4"/>
         <source>Change Data Source…</source>
         <translation type="unfinished">Изменить источник данных…</translation>
     </message>
@@ -36708,6 +36754,7 @@ The file can&apos;t be read.</source>
     </message>
     <message>
         <location line="+2"/>
+        <location filename="../apps/crunch/app/crunchwindow_getdata.cpp" line="-238"/>
         <location filename="../apps/crunch/app/crunchwindow_insertobjects.cpp" line="-157"/>
         <source>and %1 more</source>
         <translation type="unfinished">и ещё %1</translation>
@@ -47799,7 +47846,7 @@ The file can&apos;t be read.</source>
 <context>
     <name>jp::GetDataDialog</name>
     <message>
-        <location filename="../apps/crunch/app/getdata.cpp" line="-74"/>
+        <location filename="../apps/crunch/app/getdata.cpp" line="-97"/>
         <source>number</source>
         <translation type="unfinished">число</translation>
     </message>
@@ -47820,17 +47867,17 @@ The file can&apos;t be read.</source>
     </message>
     <message>
         <location line="+39"/>
-        <location line="+190"/>
+        <location line="+213"/>
         <source>The read was stopped.</source>
         <translation type="unfinished">Чтение остановлено.</translation>
     </message>
     <message>
-        <location line="-174"/>
+        <location line="-197"/>
         <source>That kind of file can&apos;t be loaded.</source>
         <translation type="unfinished">Файл такого типа загрузить нельзя.</translation>
     </message>
     <message>
-        <location line="+39"/>
+        <location line="+62"/>
         <location line="+59"/>
         <source>Get Data from a File</source>
         <translation type="unfinished">Получить данные из файла</translation>
@@ -57602,7 +57649,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
 <context>
     <name>jp::PivotCreateDialog</name>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow_pivot.cpp" line="-1247"/>
+        <location filename="../apps/crunch/app/crunchwindow_pivot.cpp" line="-1254"/>
         <source>Create Pivot Table</source>
         <translation type="unfinished">Создание сводной таблицы</translation>
     </message>
@@ -72181,14 +72228,14 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished">Перемещение ячеек</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/core/editpivot.cpp" line="+100"/>
-        <location line="+244"/>
-        <location line="+661"/>
+        <location filename="../apps/crunch/core/editpivot.cpp" line="+101"/>
+        <location line="+255"/>
+        <location line="+684"/>
         <source>JeffCrunch can&apos;t read this pivot table.</source>
         <translation type="unfinished">JeffCrunch не может прочитать эту сводную таблицу.</translation>
     </message>
     <message>
-        <location line="-901"/>
+        <location line="-935"/>
         <source>This pivot table has lost the data it is made from.</source>
         <translation type="unfinished">В этой сводной таблице утрачены данные, на основе которых она создана.</translation>
     </message>
@@ -72209,7 +72256,7 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished">Эта сводная таблица показывает значение как нечто, что JeffCrunch пока не вычисляет. Она останется без изменений.</translation>
     </message>
     <message>
-        <location line="+80"/>
+        <location line="+91"/>
         <source>Type the cells the data is in, for example Sheet1!A1:D100, or the name of a table.</source>
         <translation type="unfinished">Введите ячейки с данными, например Sheet1!A1:D100, или имя таблицы.</translation>
     </message>
@@ -72272,19 +72319,19 @@ The password couldn&apos;t be put on the file.</source>
     </message>
     <message>
         <location line="+15"/>
-        <location line="+1385"/>
+        <location line="+1408"/>
         <location line="+21"/>
         <source>The pivot table would go past the edge of the sheet.</source>
         <translation type="unfinished">Сводная таблица выйдет за край листа.</translation>
     </message>
     <message>
-        <location line="-1356"/>
-        <location line="+1396"/>
+        <location line="-1379"/>
+        <location line="+1419"/>
         <source>The pivot table would cover cells that have something in them (%1). Clear those cells, or move the pivot table, and try again.</source>
         <translation type="unfinished">Сводная таблица накроет ячейки, в которых есть данные (%1). Очистите эти ячейки или переместите сводную таблицу и повторите попытку.</translation>
     </message>
     <message>
-        <location line="-1380"/>
+        <location line="-1403"/>
         <source>The pivot table would be larger than JeffCrunch changes at once.</source>
         <translation type="unfinished">Сводная таблица будет больше, чем JeffCrunch может изменить за один раз.</translation>
     </message>
@@ -72332,24 +72379,31 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished">Не удалось прочитать данные: %1.</translation>
     </message>
     <message>
-        <location line="-481"/>
+        <location line="-492"/>
         <location line="+19"/>
+        <location line="+6"/>
         <source>The file &quot;%1&quot; can&apos;t be read from here.</source>
         <translation type="unfinished">Файл «%1» нельзя прочитать отсюда.</translation>
     </message>
     <message>
-        <location line="-15"/>
+        <location line="-21"/>
         <source>Save this workbook first: a file named without its folder is looked for in the folder this workbook is in.</source>
         <translation type="unfinished">Сначала сохраните эту книгу: файл, указанный без папки, ищется в папке, где находится эта книга.</translation>
     </message>
     <message>
         <location line="+15"/>
-        <location line="+5"/>
+        <location line="+6"/>
+        <location line="+10"/>
         <source>The file &quot;%1&quot; could not be read; the pivot keeps its last data.</source>
         <translation type="unfinished">Файл «%1» не удалось прочитать; сводная таблица сохранила свои последние данные.</translation>
     </message>
     <message>
-        <location line="+0"/>
+        <location line="-6"/>
+        <source>The file &quot;%1&quot; was not read, because it was not approved. The pivot keeps its last data.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+6"/>
         <source>The data in &quot;%1&quot; can&apos;t be read: %2.</source>
         <translation type="unfinished">Данные в «%1» нельзя прочитать: %2.</translation>
     </message>
@@ -72412,7 +72466,7 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished">Не удалось повторно прочитать данные: %1.</translation>
     </message>
     <message>
-        <location line="+50"/>
+        <location line="+73"/>
         <location line="+135"/>
         <location line="+93"/>
         <location line="+147"/>
@@ -80413,7 +80467,7 @@ The password couldn&apos;t be put on the file.</source>
 <context>
     <name>jp::office::sheet::DataSource</name>
     <message>
-        <location filename="../libs/office/sheet/datasource.cpp" line="+25"/>
+        <location filename="../libs/office/sheet/datasource.cpp" line="+26"/>
         <location filename="../libs/office/sheet/datasourcebook.cpp" line="+32"/>
         <source>The file is larger than %1 MB, which is more than this program reads as data.</source>
         <translation type="unfinished">Файл больше %1 МБ, что превышает предел, который эта программа читает как данные.</translation>
@@ -80530,7 +80584,7 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished">Этого элемента нет в файле или в нём нет значений для загрузки.</translation>
     </message>
     <message>
-        <location line="+88"/>
+        <location line="+102"/>
         <location filename="../libs/office/sheet/datasourcebook.cpp" line="-199"/>
         <source>Only a file on this computer can be loaded, not a web address or a file on another computer.</source>
         <translation type="unfinished">Загрузить можно только файл на этом компьютере, но не веб-адрес и не файл на другом компьютере.</translation>
@@ -82074,12 +82128,12 @@ The password couldn&apos;t be put on the file.</source>
     </message>
     <message>
         <location line="+18"/>
-        <location line="+6"/>
+        <location line="+30"/>
         <source>Ask me first</source>
         <translation type="unfinished">Спрашивать перед запуском</translation>
     </message>
     <message>
-        <location line="-6"/>
+        <location line="-30"/>
         <location line="+1"/>
         <source>Update them</source>
         <translation type="unfinished">Обновлять их</translation>
@@ -82101,7 +82155,17 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished">Это не относится к этому приложению: у него нет связанных файлов для обновления.</translation>
     </message>
     <message>
-        <location line="+1"/>
+        <location line="+7"/>
+        <source>Forget All</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+8"/>
+        <source>Remembered approvals: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+10"/>
         <source>Play it</source>
         <translation type="unfinished">Воспроизводить</translation>
     </message>

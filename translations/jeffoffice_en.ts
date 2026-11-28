@@ -955,7 +955,7 @@
         </translation>
     </message>
     <message numerus="yes">
-        <location filename="../apps/crunch/core/editpivot.cpp" line="+1315"/>
+        <location filename="../apps/crunch/core/editpivot.cpp" line="+1350"/>
         <source>%n pivot table(s) were not read again when the file opened: there is too much data. Use Refresh All.</source>
         <translation>
             <numerusform>%n pivot table was not read again when the file opened: there is too much data. Use Refresh All.</numerusform>
