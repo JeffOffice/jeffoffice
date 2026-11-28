@@ -12,6 +12,7 @@
 
 #include <QElapsedTimer>
 #include <QSettings>
+#include <QRegularExpression>
 #include <QSignalSpy>
 #include <QTemporaryDir>
 #include <QUndoStack>
@@ -343,6 +344,36 @@ private Q_SLOTS:
         QVERIFY(again.settle());
         QCOMPARE(again.win.w.session()->calculation()->sheet(0).cells.cellCount(), qint64(3));
         QCOMPARE(again.valueAt(QStringLiteral("XFD1048576")), QStringLiteral("n:2"));
+    }
+
+    // A shared-strings table that claims a billion entries is read for the strings it has: the cells show them, and the claim is not made into work or memory.
+    void aSharedStringsTableThatClaimsABillionEntriesIsReadForWhatItHas()
+    {
+        QString sst = QStringLiteral("<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\n<sst xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\" count=\"2\" uniqueCount=\"2\"><si><t>first</t></si><si><t>second</t></si></sst>");
+        sst.replace(QRegularExpression(QStringLiteral("(count|uniqueCount)=\"\\d+\"")), QStringLiteral("\\1=\"1000000000\""));
+        QVERIFY2(sst.contains(QLatin1String("uniqueCount=\"1000000000\"")), qPrintable(sst.left(200)));
+        const QByteArray book = buildXlsx({worksheet(QStringLiteral("<row r=\"1\"><c r=\"A1\" t=\"s\"><v>0</v></c><c r=\"B1\" t=\"s\"><v>1</v></c><c r=\"C1\" t=\"s\"><v>999999999</v></c></row>"))}, sst.toUtf8());
+        EditWindow e;
+        QVERIFY(e.open(book));
+        QVERIFY(e.settle());
+        QCOMPARE(e.shownAt(QStringLiteral("A1")), QStringLiteral("first"));
+        QCOMPARE(e.shownAt(QStringLiteral("B1")), QStringLiteral("second"));
+        QCOMPARE(e.win.w.session()->calculation()->sheet(0).cells.cellCount(), qint64(3));   // (a string that is not there is an empty cell, not work)
+    }
+
+    // A formula nested ten thousand deep is stopped with a message and the workbook still opens: the cell is not worked out into a crash, and the other cells are there.
+    void aFormulaNestedTenThousandDeepIsStopped()
+    {
+        const int depth = 10000;
+        const QString nest = QString(depth, QLatin1Char('(')) + QStringLiteral("1") + QString(depth, QLatin1Char(')'));
+        const QByteArray book = buildXlsx({worksheet(QStringLiteral("<row r=\"1\"><c r=\"A1\"><v>5</v></c><c r=\"B1\"><f>") + nest + QStringLiteral("</f><v>1</v></c></row>"))});
+        EditWindow e;
+        QVERIFY(e.open(book));
+        QVERIFY(e.settle());
+        QCOMPARE(e.valueAt(QStringLiteral("A1")), QStringLiteral("n:5"));
+        const QString shown = e.valueAt(QStringLiteral("B1"));
+        QVERIFY2(shown == QLatin1String("n:1") || shown.startsWith(QLatin1String("e:")), qPrintable(shown));   // (kept as stored, or an error: never a crash)
+        QVERIFY(e.win.w.session()->editText(0, 0, 1).size() <= 100000);
     }
 
     // Rows put in and filled cost in proportion to their number: the formulas the graph names as readers of what changed, to work out 16,000 filled rows, are about four times those for 4,000 (a graph asked, for each of the

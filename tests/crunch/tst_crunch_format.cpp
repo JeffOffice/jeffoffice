@@ -412,6 +412,8 @@ private Q_SLOTS:
         // (the fonts of the rich text, the shape, and the chart are listed with the cells')
         QMap<QString, qint64> stylesOnly;
         QCOMPARE(s->cellFontsUsed(&stylesOnly).value(QStringLiteral("Zephyr Test")), qint64(4 + 1 + 1 + 3 + 1));
+        QCOMPARE(stylesOnly.value(QStringLiteral("Calibri")), qint64(2));   // (a font only the named styles use is listed apart, with the styles that use it)
+        QVERIFY(!stylesOnly.contains(QStringLiteral("Zephyr Test")));       // (a font the cells use is not)
         const qsizetype fonts = before.count("<font>") + before.count("<font ");
         const qsizetype formats = before.count("<xf ");
         // What is in memory shows the font at once, and again after Undo and Redo: the letters of the shape, the chart's title, and the run of rich text.

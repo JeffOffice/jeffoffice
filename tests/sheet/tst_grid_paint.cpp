@@ -1908,7 +1908,7 @@ private Q_SLOTS:
     // as many as one in Caladea, and the text is wrapped at all (more than one line) in a narrow cell.
     void wrappedTextBreaksIntoTheSameLinesInAStandInFont()
     {
-        auto lines = [](const QString &family, const QString &standIn, int *drawn) {
+        auto lines = [](const QString &family, const QString &standIn) {
             QImage img[2];
             for (int k = 0; k < 2; ++k) {
                 Fixture f;
@@ -1924,24 +1924,34 @@ private Q_SLOTS:
                 f.grid.layout().rows.setSize(0, 200);
                 img[k] = f.render();
             }
-            auto count = [](const QImage &im) {
-                int n = 0;
+            // each line of ink: the row it begins at, and how far right its ink goes in the 64-pixel column
+            auto linesOf = [](const QImage &im) {
+                QVector<QPair<int, int>> out;
                 bool inLine = false;
                 for (int y = 0; y < 200; ++y) {
-                    const bool ink = inkIn(im, QRect(0, y, 63, 1)) > 0;
-                    if (ink && !inLine) ++n;
+                    int right = -1;
+                    for (int x = 0; x < 63; ++x)
+                        if (inkIn(im, QRect(x, y, 1, 1)) > 0) right = x;
+                    const bool ink = right >= 0;
+                    if (ink && !inLine) out.append({y, right});
+                    else if (ink) out.last().second = std::max(out.last().second, right);
                     inLine = ink;
                 }
-                return n;
+                return out;
             };
-            *drawn = count(img[0]);
-            return count(img[1]);
+            return QPair<QVector<QPair<int, int>>, QVector<QPair<int, int>>>(linesOf(img[0]), linesOf(img[1]));
         };
         for (const auto &pair : {std::pair<QString, QString>{QStringLiteral("Calibri"), QStringLiteral("Carlito")}, {QStringLiteral("Cambria"), QStringLiteral("Caladea")}}) {
-            int missing = 0;
-            const int standIn = lines(pair.first, pair.second, &missing);
-            QVERIFY2(standIn >= 3, qPrintable(pair.second + QStringLiteral(": ") + QString::number(standIn)));
-            QVERIFY2(missing == standIn, qPrintable(pair.first + QStringLiteral(": ") + QString::number(missing) + QStringLiteral(" lines, ") + pair.second + QStringLiteral(": ") + QString::number(standIn)));
+            const auto both = lines(pair.first, pair.second);
+            const auto &missing = both.first;
+            const auto &standIn = both.second;
+            QVERIFY2(standIn.size() >= 3, qPrintable(pair.second + QStringLiteral(": ") + QString::number(standIn.size())));
+            QCOMPARE(missing.size(), standIn.size());
+            // the lines begin at the same rows and run to the same width (so the breaks fall at the same words)
+            for (int i = 0; i < standIn.size(); ++i) {
+                QVERIFY2(std::abs(missing[i].first - standIn[i].first) <= 1, qPrintable(pair.first + QStringLiteral(" line ") + QString::number(i) + QStringLiteral(" begins at ") + QString::number(missing[i].first) + QStringLiteral(", ") + pair.second + QStringLiteral(" at ") + QString::number(standIn[i].first)));
+                QVERIFY2(std::abs(missing[i].second - standIn[i].second) <= 1, qPrintable(pair.first + QStringLiteral(" line ") + QString::number(i) + QStringLiteral(" ends at ") + QString::number(missing[i].second) + QStringLiteral(", ") + pair.second + QStringLiteral(" at ") + QString::number(standIn[i].second)));
+            }
         }
     }
 };

@@ -515,6 +515,21 @@ private Q_SLOTS:
         QCOMPARE(savedLinks(e.path), QStringList({QStringLiteral("A1=>Sheet1!C1")}));
     }
 
+    // A link to a place on a sheet follows the sheet when it is renamed (a name that needs quotes gets them), in the saved file. (A move changes no name.)
+    void aLinkToACellFollowsItsSheetWhenItIsRenamed()
+    {
+        EditWindow e;
+        const QString rows = QStringLiteral("<row r=\"1\"><c r=\"A1\"><v>4</v></c></row>");
+        QVERIFY(e.open(buildXlsx({worksheet(rows, QStringLiteral("<hyperlinks><hyperlink ref=\"A1\" location=\"Sheet2!C1\"/></hyperlinks>")), worksheet(rows)})));
+        crunch::EditSession *s = e.win.w.session();
+        QVERIFY(s->renameSheet(1, QStringLiteral("Region Data")).ok);
+        QVERIFY(e.settle());
+        QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
+        QVERIFY(e.win.w.save());
+        QVERIFY2(savedOk(saved), "the save failed");
+        QCOMPARE(savedLinks(e.path), QStringList({QStringLiteral("A1=>'Region Data'!C1")}));
+    }
+
     void theLinkDialogRefusesWhatCannotBeALink()
     {
         LinkRequest req;

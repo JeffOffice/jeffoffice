@@ -2811,6 +2811,9 @@ void CrunchEditTests::aFormulaWithAMissingFunctionShowsNameErrorOnlyOnceItsInput
         QVERIFY(e.win.w.save());
         QVERIFY2(savedOk(saved), "the save failed");
         QVERIFY(workbookXml(e.path).contains("fullCalcOnLoad=\"1\""));
+        QCOMPARE(savedCell(e.path, QStringLiteral("A1")), QStringLiteral("n:88"));   // (the stored results are what the file has)
+        QCOMPARE(savedCell(e.path, QStringLiteral("B1")), QStringLiteral("n:89"));
+        QCOMPARE(savedFormula(e.path, QStringLiteral("A1")), QStringLiteral("_xlfn.IMAGE(C1)"));
     }
     // a change to what the formula reads
     EditWindow e;

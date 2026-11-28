@@ -767,6 +767,52 @@ private Q_SLOTS:
         QVERIFY2(styles.contains("FF00B050") && styles.contains("FF0070C0") && styles.contains("FF123456"), styles.constData());
     }
 
+    // No Fill takes a fill off and Automatic takes a font color off, each as one step of Undo that puts the color back, and a plain color picked after is kept.
+    void noFillAndAutomaticFontColorAreOneStepEachAndUndoPutsTheColorBack()
+    {
+        EditWindow e;
+        QVERIFY(e.open(themedBook(ourTheme())));
+        QVERIFY(e.settle());
+        auto *fill = e.win.w.findChild<ColorButton *>(QStringLiteral("fmt.fillColor"));
+        auto *font = e.win.w.findChild<ColorButton *>(QStringLiteral("fmt.fontColor"));
+        QVERIFY(fill && font);
+        auto pick = [&](ColorButton *b, const QString &swatch, const QString &button) {
+            QTest::keyClick(b, Qt::Key_F4);
+            QPointer<ColorPopup> pop = b->findChild<ColorPopup *>();
+            QVERIFY(pop);
+            QAbstractButton *target = nullptr;
+            if (button.isEmpty()) {
+                for (auto *t : pop->findChildren<QToolButton *>(QStringLiteral("swatch")))
+                    if (t->toolTip() == swatch) target = t;
+            } else {
+                for (auto *p : pop->findChildren<QPushButton *>())
+                    if (p->text() == button) target = p;
+            }
+            QVERIFY2(target, qPrintable(swatch + button));
+            target->click();
+            QTRY_VERIFY(!pop);
+        };
+        e.select(QStringLiteral("E3"));
+        pick(fill, QStringLiteral("#00B050"), QString());
+        pick(font, QStringLiteral("#0070C0"), QString());
+        QCOMPARE(fillAt(e, QStringLiteral("E3")), QColor(0x00, 0xB0, 0x50));
+        QCOMPARE(QColor::fromRgb(lookAt(e, QStringLiteral("E3")).textColor), QColor(0x00, 0x70, 0xC0));
+        int steps = e.win.w.undoStack()->count();
+        pick(fill, QString(), QStringLiteral("No Fill"));
+        QCOMPARE(e.win.w.undoStack()->count(), steps + 1);
+        QVERIFY(!lookAt(e, QStringLiteral("E3")).hasFill());
+        e.win.w.undoStack()->undo();
+        QCOMPARE(fillAt(e, QStringLiteral("E3")), QColor(0x00, 0xB0, 0x50));
+        e.win.w.undoStack()->redo();
+        QVERIFY(!lookAt(e, QStringLiteral("E3")).hasFill());
+        steps = e.win.w.undoStack()->count();
+        pick(font, QString(), QStringLiteral("Automatic"));
+        QCOMPARE(e.win.w.undoStack()->count(), steps + 1);
+        QVERIFY(QColor::fromRgb(lookAt(e, QStringLiteral("E3")).textColor) != QColor(0x00, 0x70, 0xC0));
+        e.win.w.undoStack()->undo();
+        QCOMPARE(QColor::fromRgb(lookAt(e, QStringLiteral("E3")).textColor), QColor(0x00, 0x70, 0xC0));
+    }
+
     // A theme part that was not changed here is written back byte for byte, even one with a byte order mark.
     void anUnchangedThemePartIsWrittenBackAsItWas()
     {

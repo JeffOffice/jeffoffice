@@ -249,14 +249,14 @@ private Q_SLOTS:
             bool first;
         };
         const Country countries[] = {{QLocale(QLocale::English, QLocale::UnitedStates), QStringLiteral("$"), true}, {QLocale(QLocale::English, QLocale::UnitedKingdom), QString(QChar(0x00A3)), true},
-                                     {QLocale(QLocale::German, QLocale::Germany), QString(QChar(0x20AC)), false}, {QLocale(QLocale::Japanese, QLocale::Japan), QString(QChar(0x00A5)), true}};
+                                     {QLocale(QLocale::German, QLocale::Germany), QString(QChar(0x20AC)), false}, {QLocale(QLocale::Japanese, QLocale::Japan), QString(QChar(0xFFE5)), true}};
         for (const Country &c : countries) {
             FormatCellsDialog::Input in = inputFor(c.locale);
             in.view.numberFormat = QStringLiteral("#,##0.00");
             FormatCellsDialog d(in);
             control<QListWidget>(d, "numberCategory")->setCurrentRow(int(jp::crunch::NumberCategory::Currency));
             const QString local = control<QComboBox>(d, "symbol")->currentData().toString();
-            QVERIFY2(local == c.symbol || local == c.locale.currencySymbol(QLocale::CurrencySymbol), qPrintable(c.locale.name() + QStringLiteral(": ") + local));
+            QVERIFY2(local == c.symbol, qPrintable(c.locale.name() + QStringLiteral(": ") + local));
             const QString sample = control<QLabel>(d, "numberSample")->text();
             QVERIFY2(c.first ? sample.startsWith(local) : sample.endsWith(local), qPrintable(c.locale.name() + QStringLiteral(": ") + sample));
         }

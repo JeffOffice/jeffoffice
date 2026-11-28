@@ -714,6 +714,12 @@ private Q_SLOTS:
                 if (l.hasFill() != (d.fill.pattern != PatternKind::None)) wrong << name + QStringLiteral(": fill");
                 else if (d.fill.pattern == PatternKind::Solid && d.fill.fg.kind == ColorSpec::Kind::Rgb && l.fg != (0xFF000000u | d.fill.fg.rgb)) wrong << name + QStringLiteral(": fill color");
                 if (d.fontColor.kind == ColorSpec::Kind::Rgb && l.textColor != (0xFF000000u | d.fontColor.rgb)) wrong << name + QStringLiteral(": font color");
+                {   // (the themed styles name a color of the theme: the cell shows that color of the workbook's theme)
+                    auto hold = e.win.w.workbookLoader().hold();
+                    const jp::office::sheet::Styles &st = e.win.w.loaded()->book->styles();
+                    if (d.fill.pattern == PatternKind::Solid && d.fill.fg.kind == ColorSpec::Kind::Theme && l.fg != (0xFF000000u | st.resolve(d.fill.fg, 0))) wrong << name + QStringLiteral(": themed fill color");
+                    if (d.fontColor.kind == ColorSpec::Kind::Theme && l.textColor != (0xFF000000u | st.resolve(d.fontColor, 0))) wrong << name + QStringLiteral(": themed font color");
+                }
                 const bool border = d.border.left.style != BorderStyle::None || d.border.right.style != BorderStyle::None || d.border.top.style != BorderStyle::None || d.border.bottom.style != BorderStyle::None;
                 if (l.hasBorder() != border) wrong << name + QStringLiteral(": border");
                 if (l.hasFormat != (d.numFmtId != 0)) wrong << name + QStringLiteral(": number format");
@@ -733,6 +739,38 @@ private Q_SLOTS:
             builtinStyle(name, &d);
             if (d.builtinId >= 0) QVERIFY2(part.contains(QStringLiteral("name=\"%1\"").arg(name.toHtmlEscaped())) && part.contains(QStringLiteral("builtinId=\"%1\"").arg(d.builtinId)), qPrintable(name));
         }
+    }
+
+    // The zoom is kept for each sheet: set on two sheets, saved, and opened again, each sheet has its own (and the ends are 10% and 400%).
+    void theZoomIsKeptForEachSheetThroughSaveAndOpen()
+    {
+        QCOMPARE(grid::GridLayout::kMinZoom, 0.1);
+        QCOMPARE(grid::GridLayout::kMaxZoom, 4.0);
+        const QByteArray sheet = worksheet(QStringLiteral("<row r=\"1\"><c r=\"A1\"><v>1</v></c></row>"));
+        EditWindow e;
+        QVERIFY(e.open(buildXlsx({sheet, sheet})));
+        QVERIFY(e.settle());
+        e.view()->setZoom(1.5);
+        e.win.w.setActiveSheet(1);
+        QVERIFY(e.settle());
+        QCOMPARE(e.view()->zoom(), 1.0);   // (the other sheet has its own)
+        e.view()->setZoom(0.5);
+        e.win.w.setActiveSheet(0);
+        QVERIFY(e.settle());
+        QCOMPARE(e.view()->zoom(), 1.5);
+        QVERIFY(e.settle());
+        QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
+        QVERIFY(e.win.w.save());
+        QVERIFY2(savedOk(saved), qPrintable(e.win.told.join('|')));
+        EditWindow again;
+        QVERIFY(again.win.open(e.copyOfFile()));
+        QVERIFY(again.settle());
+        again.win.w.setActiveSheet(1);
+        QVERIFY(again.settle());
+        QCOMPARE(again.view()->zoom(), 0.5);
+        again.win.w.setActiveSheet(0);
+        QVERIFY(again.settle());
+        QCOMPARE(again.view()->zoom(), 1.5);
     }
 
     // New Cell Style keeps the look of the cell with the cursor under a name: it is in the gallery, the selected cells are given it, it is saved with the workbook under that name, and a name that
