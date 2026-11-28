@@ -1446,6 +1446,7 @@ private Q_SLOTS:
     void tableCellValuesAreFoundByNameAndDirection();
     void shadingAndBordersOfTheSelectedCellsAreWrittenAndUndone();
     void everyBorderStyleIsKeptOutsideAndBetweenTheCells();
+    void theTableBordersAndShadingBoxSetsLinesAndFillOfTheSelectedCellsInOneStep();
     void cellAlignmentIsAcrossInTheParagraphsAndDownInTheCell();
     void cellTextDirectionIsKeptInTheCellAndInTheFile();
     void cellSizeAndFitAreWrittenWithTheGrid();

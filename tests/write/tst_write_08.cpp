@@ -1228,6 +1228,23 @@ void WriteTests::everyBorderStyleIsKeptOutsideAndBetweenTheCells()
     const double widths[] = {0.5, 1.5, 3.0};
     const QColor colors[] = {QColor(0xFF, 0, 0), QColor(0x00, 0x80, 0x00), QColor(0x12, 0x34, 0xAB)};
     int n = 0;
+    // Saved by a window and opened by another, as a person saves and opens: the bytes of the file, and the document read back.
+    const QTemporaryDir dir;
+    QVERIFY(dir.isValid());
+    auto host = [](WriteWindow &win) {
+        win.setNotifier([](const QString &, const QString &) {});
+        win.setDocument(open(tableDocx(3, 3)), QString());
+        return win.document();
+    };
+    auto saved = [&](WriteWindow &win, WriteWindow &back, const QString &name) {
+        const QString path = dir.filePath(name);
+        QByteArray bytes;
+        if (!win.saveTo(path)) return bytes;
+        if (!back.openFile(path)) return bytes;
+        QFile f(path);
+        if (f.open(QIODevice::ReadOnly)) bytes = f.readAll();
+        return bytes;
+    };
     for (const Kind &kind : kinds) {
         const double width = widths[n % 3];
         const QColor color = colors[n % 3];
@@ -1240,7 +1257,8 @@ void WriteTests::everyBorderStyleIsKeptOutsideAndBetweenTheCells()
         auto side = [&](WriteDoc &d, const char *cell) { return d.flow().tables.get(cellKeyOf(cursorAt(d, QString::fromLatin1(cell)).block())); };
         // Between the cells only: the middle cell has all four sides; a corner has the two toward the middle and none outside.
         {
-            auto doc = open(tableDocx(3, 3));
+            WriteWindow win, reopened;
+            WriteDoc *doc = host(win);
             QTextCursor c(doc->story());
             selectCells(*doc, c, QStringLiteral("r0c0"), QStringLiteral("r2c2"));
             setBorders(*doc, c, BorderSide::Inside, line);
@@ -1250,28 +1268,96 @@ void WriteTests::everyBorderStyleIsKeptOutsideAndBetweenTheCells()
             QVERIFY(corner->cell.right && *corner->cell.right == line && corner->cell.bottom && *corner->cell.bottom == line);
             QVERIFY(!corner->cell.top || !corner->cell.top->visible());
             QVERIFY(!corner->cell.left || !corner->cell.left->visible());
-            QVERIFY2(documentXml(doc->toDocx()).contains(word), kind.word);
-            checkTablesReopenTheSame(*doc);
-            auto back = open(doc->toDocx());
-            QVERIFY(back);
-            const flow::CellRecord *again = side(*back, "r1c1");
+            const QByteArray file = saved(win, reopened, QStringLiteral("inside%1.docx").arg(n));
+            QVERIFY2(documentXml(file).contains(word), kind.word);
+            QCOMPARE(tablesSignature(*reopened.document()), tablesSignature(*doc));
+            const flow::CellRecord *again = side(*reopened.document(), "r1c1");
             QVERIFY2(again->cell.top && *again->cell.top == line && again->cell.right && *again->cell.right == line, kind.word);
         }
         // The outside only: the corner has its top and left, and its sides toward the middle have none.
         {
-            auto doc = open(tableDocx(3, 3));
+            WriteWindow win, reopened;
+            WriteDoc *doc = host(win);
             QTextCursor c(doc->story());
             selectCells(*doc, c, QStringLiteral("r0c0"), QStringLiteral("r2c2"));
             setBorders(*doc, c, BorderSide::Outside, line);
             const flow::CellRecord *corner = side(*doc, "r0c0");
             QVERIFY2(corner->cell.top && *corner->cell.top == line && corner->cell.left && *corner->cell.left == line, kind.word);
             QVERIFY(!corner->cell.right || !corner->cell.right->visible());
+            QVERIFY(!corner->cell.bottom || !corner->cell.bottom->visible());
+            // (and the far corner has its bottom and right, the others their two outer sides)
+            const flow::CellRecord *far = side(*doc, "r2c2");
+            QVERIFY2(far->cell.bottom && *far->cell.bottom == line && far->cell.right && *far->cell.right == line, kind.word);
+            QVERIFY(!far->cell.top || !far->cell.top->visible());
+            QVERIFY(!far->cell.left || !far->cell.left->visible());
+            const flow::CellRecord *topRight = side(*doc, "r0c2"), *bottomLeft = side(*doc, "r2c0");
+            QVERIFY2(topRight->cell.top && *topRight->cell.top == line && topRight->cell.right && *topRight->cell.right == line, kind.word);
+            QVERIFY2(bottomLeft->cell.bottom && *bottomLeft->cell.bottom == line && bottomLeft->cell.left && *bottomLeft->cell.left == line, kind.word);
             const flow::CellRecord *mid = side(*doc, "r1c1");
             QVERIFY(!mid->cell.top || !mid->cell.top->visible());
-            QVERIFY2(documentXml(doc->toDocx()).contains(word), kind.word);
-            checkTablesReopenTheSame(*doc);
+            QVERIFY(!mid->cell.bottom || !mid->cell.bottom->visible());
+            QVERIFY(!mid->cell.left || !mid->cell.left->visible());
+            QVERIFY(!mid->cell.right || !mid->cell.right->visible());
+            const QByteArray file = saved(win, reopened, QStringLiteral("outside%1.docx").arg(n));
+            QVERIFY2(documentXml(file).contains(word), kind.word);
+            QCOMPARE(tablesSignature(*reopened.document()), tablesSignature(*doc));
+            const flow::CellRecord *backCorner = side(*reopened.document(), "r2c2");
+            QVERIFY2(backCorner->cell.bottom && *backCorner->cell.bottom == line && backCorner->cell.right && *backCorner->cell.right == line, kind.word);
         }
     }
+}
+
+// The Borders and Shading box of a table: for the cells selected it sets the style, width, and color of the lines and the fill, in one step that undoes, and the cells not selected keep theirs.
+void WriteTests::theTableBordersAndShadingBoxSetsLinesAndFillOfTheSelectedCellsInOneStep()
+{
+    WriteWindow w;
+    w.setNotifier([](const QString &, const QString &) {});
+    w.resize(900, 700);
+    w.show();
+    w.setDocument(open(tableDocx(3, 3)), QString());
+    WriteDoc *doc = w.document();
+    QTextCursor c(doc->story());
+    selectCells(*doc, c, QStringLiteral("r0c0"), QStringLiteral("r0c1"));
+    w.view()->setCursor(c);
+    w.refreshNow();
+    QVERIFY(w.act(QStringLiteral("table.bordersShading"))->isEnabled());
+    const QString before = tablesSignature(*doc);
+    const QColor lineColor(0x12, 0x34, 0xAB), fillColor(0xFF, 0xCC, 0x00);
+    withDialog([&] { w.act(QStringLiteral("table.bordersShading"))->trigger(); }, QStringLiteral("bordersShadingDialog"), [&](QDialog *d) {
+        auto *style = d->findChild<QComboBox *>(QStringLiteral("lineStyle"));
+        style->setCurrentIndex(style->findData(int(flow::TableLine::Style::Dashed)));
+        auto *width = d->findChild<QComboBox *>(QStringLiteral("lineWidth"));
+        width->setCurrentIndex(width->findData(3.0));
+        d->findChild<ColorButton *>(QStringLiteral("lineColor"))->setCurrent(ColorRef::rgb(lineColor));
+        d->findChild<QCheckBox *>(QStringLiteral("changeFill"))->setChecked(true);
+        d->findChild<ColorButton *>(QStringLiteral("fillColor"))->setCurrent(ColorRef::rgb(fillColor));
+    });
+    flow::TableLine dashed;
+    dashed.style = flow::TableLine::Style::Dashed;
+    dashed.width = 3.0;
+    dashed.color = lineColor;
+    auto side = [&](const char *cell) { return doc->flow().tables.get(cellKeyOf(cursorAt(*doc, QString::fromLatin1(cell)).block())); };
+    // (the box's four sides are those of the whole selection: the line between the two selected cells is not one of them)
+    auto is = [&](const std::optional<flow::TableLine> &edge) { return edge && *edge == dashed; };
+    const flow::CellRecord *left = side("r0c0"), *right = side("r0c1");
+    QVERIFY(is(left->cell.top) && is(left->cell.left) && is(left->cell.bottom));
+    QVERIFY(is(right->cell.top) && is(right->cell.right) && is(right->cell.bottom));
+    const flow::CellRecord *far = side("r2c2");
+    QVERIFY(!far->cell.top || !far->cell.top->visible());
+    QVERIFY(!far->cell.right || !far->cell.right->visible());
+    const QString after = tablesSignature(*doc);
+    QCOMPARE(int(after.count(QStringLiteral("fill=#ffcc00"))), 2);
+    // Saved by the window and opened again by another, the lines and the fill are in the file.
+    const QTemporaryDir dir;
+    QVERIFY(dir.isValid());
+    const QString path = dir.filePath(QStringLiteral("borders.docx"));
+    QVERIFY(w.saveTo(path));
+    WriteWindow back;
+    back.setNotifier([](const QString &, const QString &) {});
+    QVERIFY(back.openFile(path));
+    QCOMPARE(tablesSignature(*back.document()), after);
+    doc->undo();
+    QCOMPARE(tablesSignature(*doc), before);
 }
 
 
