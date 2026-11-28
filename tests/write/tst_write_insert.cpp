@@ -2264,6 +2264,56 @@ private Q_SLOTS:
         QCOMPARE(pane->headings()->topLevelItem(0)->text(0), QStringLiteral("HZ0"));
     }
 
+    void headingsCollapsedInTheNavigationPaneStayCollapsedWhenTheListIsBuiltAgain()
+    {
+        QByteArray body;
+        body += "<w:p><w:pPr><w:outlineLvl w:val=\"0\"/></w:pPr><w:r><w:t>One</w:t></w:r></w:p>" + para("text") + "<w:p><w:pPr><w:outlineLvl w:val=\"1\"/></w:pPr><w:r><w:t>One A</w:t></w:r></w:p>"
+                + para("more text") + "<w:p><w:pPr><w:outlineLvl w:val=\"0\"/></w:pPr><w:r><w:t>Two</w:t></w:r></w:p>"
+                + "<w:p><w:pPr><w:outlineLvl w:val=\"1\"/></w:pPr><w:r><w:t>Two A</w:t></w:r></w:p>" + para("end");
+        WriteWindow w;
+        w.resize(1100, 800);
+        w.show();
+        w.setDocument(open(makeDocx(body)), QString());
+        w.act("view.navigationPane")->trigger();
+        NavigationPane *pane = w.navigationPane();
+        QVERIFY(pane);
+        QTreeWidget *tree = pane->headings();
+        QCOMPARE(tree->topLevelItemCount(), 2);
+        QVERIFY(tree->topLevelItem(0)->isExpanded() && tree->topLevelItem(1)->isExpanded());
+        // Collapse Heading One; the list is built again when another heading's words change, and One stays collapsed.
+        tree->topLevelItem(0)->setExpanded(false);
+        const int built = pane->rebuildCountForTest();
+        QTextCursor h(w.document()->story());
+        h.setPosition(w.document()->story()->findBlockByNumber(4).position() + 1);
+        w.view()->setCursor(h);
+        write::insertText(*w.document(), w.view()->cursor(), QStringLiteral("Z"));
+        QTRY_VERIFY(pane->rebuildCountForTest() > built);
+        QCOMPARE(tree->topLevelItem(1)->text(0), QStringLiteral("TZwo"));
+        QVERIFY(!tree->topLevelItem(0)->isExpanded());
+        QVERIFY(tree->topLevelItem(1)->isExpanded());
+        // The right-click menu has Collapse All and Expand All; each is picked from the menu itself.
+        auto pick = [&](const QString &text) {
+            int tries = 0;
+            std::function<void()> look = [&] {
+                auto *m = qobject_cast<QMenu *>(QApplication::activePopupWidget());
+                if (!m && ++tries < 200) {
+                    QTimer::singleShot(20, look);
+                    return;
+                }
+                if (!m) return;
+                for (QAction *a : m->actions())
+                    if (a->text() == text) a->trigger();
+                m->close();
+            };
+            QTimer::singleShot(20, look);
+            Q_EMIT tree->customContextMenuRequested(QPoint(5, 5000));
+        };
+        pick(QStringLiteral("Collapse All"));
+        QVERIFY(!tree->topLevelItem(0)->isExpanded() && !tree->topLevelItem(1)->isExpanded());
+        pick(QStringLiteral("Expand All"));
+        QVERIFY(tree->topLevelItem(0)->isExpanded() && tree->topLevelItem(1)->isExpanded());
+    }
+
     void thePagesTabMakesPicturesOnlyForThePagesInView()
     {
         QByteArray body;
