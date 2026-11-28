@@ -500,6 +500,71 @@ private Q_SLOTS:
         QVERIFY(ed->grammarIssuesIn(storyId).isEmpty());
     }
 
+    // A suggestion taken from the menu is one step of Undo; Ignore All takes the mark off every issue with that message on those words, and it stays off when the words are typed again.
+    void aGrammarSuggestionIsOneUndoStepAndIgnoreAllKeepsTheMarkOff()
+    {
+        const jptest::SettingGuard grammar(kGrammarOn, true, true);
+        DeckWindow w;
+        w.show();
+        Editor *ed = w.editor();
+        ed->setGrammarDelayMs(0);
+        QTextDocument *doc = editTitle(w, kAnTest, 0, 0);
+        const QString storyId = static_cast<TextItem *>(ed->doc()->pages[0]->items[0].get())->storyId;
+        QTRY_VERIFY(!ed->grammarIssuesIn(storyId).isEmpty());
+        auto issue = ed->grammarIssuesIn(storyId).first();
+        auto inIssue = [&] {
+            QTextCursor c = ed->cursor();
+            c.setPosition(issue.start + 1);
+            ed->setCursor(c);
+        };
+        auto pick = [&](const QString &text) {
+            inIssue();
+            QMenu menu;
+            QVERIFY(jp::addGrammarSuggestions(menu, ed));
+            QAction *found = nullptr;
+            for (QAction *a : menu.actions())
+                if (a->text() == text) found = a;
+            QVERIFY2(found, qPrintable(text));
+            found->trigger();
+        };
+        QVERIFY(!issue.suggestions.isEmpty());
+        pick(issue.suggestions.first());
+        QCOMPARE(doc->toPlainText(), QStringLiteral("This is a test of the checker."));
+        ed->undo();   // (one step takes the suggestion back; the story is made again by it)
+        doc = ed->doc()->storyDoc(storyId);
+        QCOMPARE(doc->toPlainText(), kAnTest);
+        if (!ed->isEditingText()) ed->beginTextEdit(ed->doc()->pages[0]->items[0]->id, 0);   // (the undo ended the editing)
+        QTRY_VERIFY(!ed->grammarIssuesIn(storyId).isEmpty());
+        issue = ed->grammarIssuesIn(storyId).first();
+        pick(QStringLiteral("Ignore All"));
+        QVERIFY(ed->grammarIssuesIn(storyId).isEmpty());
+        // The same words typed again are not marked either.
+        const int checked = ed->grammarParagraphsChecked();
+        ed->doc()->storyDoc(storyId)->setPlainText(kAnTest + QStringLiteral(" ") + kAnTest);
+        QTRY_VERIFY(ed->grammarParagraphsChecked() > checked);   // (it was looked at again)
+        QTRY_VERIFY(!ed->grammarPending());
+        QVERIFY(ed->grammarIssuesIn(storyId).isEmpty());
+    }
+
+    // Typing in one paragraph sends only that paragraph to the checker again.
+    void onlyTheParagraphThatChangedIsCheckedAgain()
+    {
+        const jptest::SettingGuard grammar(kGrammarOn, true, true);
+        DeckWindow w;
+        w.show();
+        Editor *ed = w.editor();
+        ed->setGrammarDelayMs(0);
+        QTextDocument *doc = editTitle(w, kAnTest + QStringLiteral("\nA second paragraph that is fine.\nA third paragraph that is fine too."), 0, 0);
+        QTRY_COMPARE(ed->grammarParagraphsChecked(), 3);
+        QTRY_VERIFY(!ed->grammarPending());
+        QTextCursor c(doc);
+        c.setPosition(doc->findBlockByNumber(1).position());
+        c.insertText(QStringLiteral("Really, "));
+        QTRY_COMPARE(ed->grammarParagraphsChecked(), 4);
+        QTRY_VERIFY(!ed->grammarPending());
+        QCOMPARE(ed->grammarParagraphsChecked(), 4);
+    }
+
     // The spelling check (F7) stops at a grammar issue in a slide, with the issue's message.
     void theSpellingCheckStopsAtAGrammarIssueInASlide()
     {
