@@ -638,7 +638,50 @@ private Q_SLOTS:
         QCOMPARE(v->currentTopic(), QStringLiteral("index"));
         QCOMPARE(opened.size(), 2);
         QCOMPARE(opened[0], QUrl(QStringLiteral("https://example.com/page")));
+        QCOMPARE(opened[1].scheme(), QStringLiteral("https"));
+        QCOMPARE(opened[1].host(), QStringLiteral("github.com"));
+        QVERIFY2(opened[1].path().endsWith(QStringLiteral("/issues/new")), qPrintable(opened[1].path()));
         QVERIFY(QUrlQuery(opened[1]).queryItemValue(QStringLiteral("body"), QUrl::FullyDecoded).contains(QStringLiteral("JeffWrite ") + jp::versionText() + QStringLiteral(" on ")));
+    }
+
+    // The Keyboard Shortcuts topic holds a table made from the commands: each row is a real command with the keys it really has.
+    void theKeyboardShortcutsTableIsMadeFromTheCommands()
+    {
+        WriteWindow w;
+        w.setNotifier([](const QString &, const QString &) {});
+        w.show();
+        QSet<QString> real;
+        for (const QString &id : w.actionIds())
+            if (QAction *a = w.act(id); a && !a->shortcuts().isEmpty()) {
+                QStringList keys;
+                for (const QKeySequence &k : a->shortcuts()) keys << k.toString(QKeySequence::NativeText);
+                QString name = a->text();
+                name.remove(QLatin1Char('&'));
+                if (name.endsWith(QStringLiteral("..."))) name.chop(3);
+                real.insert(name.simplified() + QLatin1Char('|') + keys.join(QStringLiteral(", ")));
+            }
+        const QString md = help::displayMarkdown(help::topic(QStringLiteral("keyboard")), &w);
+        QVERIFY(md.contains(QStringLiteral("|---|---|---|")));
+        static const QRegularExpression bar(QStringLiteral("(?<!\\\\)\\|"));
+        int rows = 0;
+        QStringList wrong;
+        bool inTable = false;
+        for (const QString &line : md.split(QLatin1Char('\n'))) {
+            if (line.startsWith(QStringLiteral("|---"))) {
+                inTable = true;
+                continue;
+            }
+            if (!inTable) continue;
+            if (!line.startsWith(QLatin1Char('|'))) break;
+            const QStringList cells = line.split(bar);
+            QVERIFY2(cells.size() >= 4, qPrintable(line));
+            ++rows;
+            const QString name = QString(cells[1]).replace(QStringLiteral("\\|"), QStringLiteral("|")).trimmed(), keys = QString(cells[2]).replace(QStringLiteral("\\|"), QStringLiteral("|")).trimmed();
+            if (keys.isEmpty() || !real.contains(name + QLatin1Char('|') + keys)) wrong << line;
+        }
+        QVERIFY2(wrong.isEmpty(), qPrintable(wrong.join(QLatin1Char('\n'))));
+        QVERIFY(rows >= 20);
+        QVERIFY(md.contains(QStringLiteral("| Bold | ") + w.act(QStringLiteral("fmt.bold"))->shortcut().toString(QKeySequence::NativeText) + QStringLiteral(" |")));
     }
 
     void aFieldsCodeCanBeReadAndChanged()
