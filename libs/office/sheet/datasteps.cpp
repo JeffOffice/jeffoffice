@@ -107,8 +107,9 @@ bool parseDataSteps(const QString &json, QVector<DataStep> *out, QString *why, b
         if (!all[i].isObject()) return fail(QCoreApplication::translate("jp::DataSteps", "The list of steps can't be read."));
         const QJsonObject o = all[i].toObject();
         DataStep s;
-        if (!o.value(QLatin1String("op")).isString() || !opFromName(o.value(QLatin1String("op")).toString(), &s.op)) {
-            if (newer && o.value(QLatin1String("op")).isString()) *newer = true;
+        if (!o.value(QLatin1String("op")).isString()) return fail(QCoreApplication::translate("jp::DataSteps", "The list of steps can't be read."));
+        if (!opFromName(o.value(QLatin1String("op")).toString(), &s.op)) {
+            if (newer) *newer = true;
             return fail(QCoreApplication::translate("jp::DataSteps", "Step %1 is of a kind this version of JeffCrunch does not have. It may have been made in a newer version.").arg(i + 1));
         }
         bool good = text(o, "col", &s.col) && text(o, "to", &s.to) && text(o, "cmp", &s.cmp) && text(o, "value", &s.value) && text(o, "kind", &s.kind) && text(o, "order", &s.order)

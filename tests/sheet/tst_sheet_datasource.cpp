@@ -853,6 +853,12 @@ private Q_SLOTS:
         QVERIFY(future.stepsProblem.contains(QLatin1String("newer version")));
         QVERIFY(future.steps.isEmpty());
         QCOMPARE(future.text(), newer);
+        // an op that is not text is unreadable, not newer
+        DataConnection odd;
+        QVERIFY(DataConnection::parse(QString(text).replace(QStringLiteral("%22filter%22"), QStringLiteral("5")), &odd));
+        QVERIFY(!odd.stepsProblem.isEmpty());
+        QVERIFY(!odd.stepsNewer);
+        QVERIFY(!odd.stepsProblem.contains(QLatin1String("newer version")));
         // a later version of the text itself is not read at all (the table keeps the string)
         QVERIFY(!DataConnection::parse(QString(newer).replace(QStringLiteral("jo-data:2"), QStringLiteral("jo-data:3")), &future));
     }
