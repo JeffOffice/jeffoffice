@@ -3007,6 +3007,7 @@ private Q_SLOTS:
             QCOMPARE(int(reads), 0);   // (Don't Read: the file was not opened)
             QCOMPARE(f.win.w.undoStack()->count(), 0);
             QCOMPARE(f.win.w.session()->workbook()->tables().first().dataSource, before);
+            QCOMPARE(valueOf(f, QStringLiteral("A2")), QStringLiteral("s:bob"));   // (the file on disk has a new first row, Eve: it was not read)
             answer = true;
             pane->refreshButton()->click();
             QCOMPARE(asks, 2);
